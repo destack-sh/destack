@@ -161,6 +161,15 @@ impl ManagedHeap {
         self.allocated_cells
     }
 
+    /// Check whether a handle points to a live heap cell.
+    #[inline]
+    pub fn is_allocated(&self, handle: HeapHandle) -> bool {
+        self.cells
+            .get(handle.id() as usize)
+            .and_then(|cell| cell.as_ref())
+            .is_some()
+    }
+
     /// Check if the heap is empty.
     #[inline]
     pub fn is_empty(&self) -> bool {

@@ -339,10 +339,8 @@ impl From<&mir::Constant> for Value {
                 Value::float32(f32::from_bits(*bits as u32))
             }
             mir::Constant::Float { bits, width: _ } => Value::float64(f64::from_bits(*bits)),
-            // strings from constants need heap allocation
             mir::Constant::String { .. } => {
-                // TODO #Incomplete: allocate string on heap
-                Value::VOID
+                panic!("string constants must be allocated by the interpreter");
             }
             mir::Constant::Char { value } => Value::char(*value),
         }

@@ -1194,7 +1194,7 @@ impl Interpreter {
     fn read_memory_slot(&self, ptr: &Value, offset: usize) -> RuntimeResult<Value> {
         // resolve pointer and slot offset
         match ptr.tag() {
-            ValueTag::ManagedReference | ValueTag::Aggregate => {
+            ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
                 let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
@@ -1225,14 +1225,8 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.raw_heap.get(raw_ptr) {
-                    cell.slots
-                        .get(slot_index)
-                        .copied()
-                        .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))
-                } else {
-                    Err(self.make_error(Error::InvalidHeapHandle))
-                }
+                self.read_raw_slot(raw_ptr, slot_index, true)
+                    .map_err(|error| self.make_error(error))
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
@@ -1270,7 +1264,7 @@ impl Interpreter {
     fn write_memory_slot(&mut self, ptr: &Value, offset: usize, value: Value) -> RuntimeResult<()> {
         // resolve pointer and slot offset
         match ptr.tag() {
-            ValueTag::ManagedReference | ValueTag::Aggregate => {
+            ValueTag::ManagedReference | ValueTag::Aggregate | ValueTag::String => {
                 let handle = ptr.as_heap_handle().unwrap();
                 if handle.is_null() {
                     return Err(self.make_error(Error::NullPointerDereference));
@@ -1317,30 +1311,9 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                // resolve the raw cell
-                let error = match self.raw_heap.get_mut(raw_ptr) {
-                    Some(cell) => {
-                        // ensure the slot exists
-                        let required_len = slot_index + 1;
-                        if cell.slots.len() < required_len {
-                            cell.slots.resize(required_len, Value::VOID);
-                        }
-
-                        // write the slot value
-                        if let Some(slot) = cell.slots.get_mut(slot_index) {
-                            *slot = value;
-                            return Ok(());
-                        }
-
-                        Error::InvalidFieldAccess {
-                            index: offset as u32,
-                            field_count: cell.slots.len(),
-                        }
-                    }
-                    None => return Err(self.make_error(Error::InvalidHeapHandle)),
-                };
-
-                Err(self.make_error(error))
+                self.write_raw_slot(raw_ptr, slot_index, value, true)
+                    .map_err(|error| self.make_error(error))?;
+                Ok(())
             }
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();

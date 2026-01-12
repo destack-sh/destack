@@ -11,9 +11,9 @@ use crate::memory::{ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
 use super::call::copy_values_with_plan;
 use super::statistics::stat_inc;
 use super::threaded::{
-    ArgumentRange, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, ThreadedFunction,
-    ThreadedInstruction, ThreadedInstructionData, ThreadedState, UNKNOWN_SLOT_COUNT,
-    is_invalid_value,
+    ArgumentRange, ConstValue, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
+    ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
+    UNKNOWN_SLOT_COUNT, is_invalid_value,
 };
 use super::{Frame, instruction, operator, resize_and_clear_stack};
 
@@ -191,8 +191,14 @@ pub(super) fn handle_const(
         unreachable!()
     };
 
+    // resolve constant value
+    let value = match value {
+        ConstValue::Value(value) => *value,
+        ConstValue::String(value) => state.interpreter.intern_string_literal(value),
+    };
+
     // write value
-    state.set(*dest, *value);
+    state.set(*dest, value);
 
     // continue to next instruction
     next!(state, block, pc)
@@ -2323,7 +2329,7 @@ pub(super) fn handle_field_addr_aggregate(
 
     // load aggregate
     let agg = state.get(*aggregate);
-    if agg.tag() != ValueTag::Aggregate {
+    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
         return ControlFlow::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),
@@ -2602,7 +2608,7 @@ pub(super) fn handle_field_load_aggregate(
 
     // load aggregate
     let agg = state.get(*aggregate);
-    if agg.tag() != ValueTag::Aggregate {
+    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
         return ControlFlow::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),
@@ -2877,7 +2883,7 @@ pub(super) fn handle_field_store_aggregate(
 
     // load operands
     let agg = state.get(*aggregate);
-    if agg.tag() != ValueTag::Aggregate {
+    if !matches!(agg.tag(), ValueTag::Aggregate | ValueTag::String) {
         return ControlFlow::Error(Error::TypeMismatch {
             expected: "aggregate".to_string(),
             actual: format!("{agg:?}"),

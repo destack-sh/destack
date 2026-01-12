@@ -326,6 +326,53 @@ block0:
     assert!(matches!(err.error, Error::InvalidHeapHandle));
 }
 
+/// String header fields expose UTF-16 and UTF-8 lengths.
+#[test]
+fn test_string_header_lengths() {
+    let mir = r#"
+function @len_utf16() -> u32 {
+block0:
+    v0 = iconst "h\u{00E9}"
+    v1 = field.get v0, 0
+    return v1
+}
+
+function @len_bytes() -> u32 {
+block0:
+    v0 = iconst "h\u{00E9}"
+    v1 = field.get v0, 1
+    return v1
+}
+"#;
+    run_mir_expect(mir, "len_utf16", &[], Value::uint32(2));
+    run_mir_expect(mir, "len_bytes", &[], Value::uint32(3));
+}
+
+/// String data pointers expose raw bytes for mem intrinsics.
+#[test]
+fn test_string_payload_bytes() {
+    let mir = r#"
+function @first_byte() -> u8 {
+block0:
+    v0 = iconst "Hi"
+    v1 = field.get v0, 5
+    v2 = load v1
+    return v2
+}
+
+function @memcmp_self() -> i32 {
+block0:
+    v0 = iconst "abc"
+    v1 = field.get v0, 5
+    v2 = iconst 3u64
+    v3 = intrinsic.memcmp(v1, v1, v2)
+    return v3
+}
+"#;
+    run_mir_expect(mir, "first_byte", &[], Value::uint(72, 8));
+    run_mir_expect(mir, "memcmp_self", &[], Value::int32(0));
+}
+
 /// Stack allocation creates frame-local storage.
 #[test]
 fn test_stack_allocate() {
