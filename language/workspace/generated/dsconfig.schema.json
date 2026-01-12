@@ -1437,6 +1437,81 @@
             }
           ]
         },
+        "debugMode": {
+          "description": "Debug execution mode for VM/native targets.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DebugModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "osrMode": {
+          "description": "OSR mode for native execution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OsrModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safepointMode": {
+          "description": "Safepoint insertion mode for native execution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SafepointModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safepointInterval": {
+          "description": "Instruction interval for safepoint polling (when enabled).",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "speculationMode": {
+          "description": "Speculation mode for native optimization.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SpeculationModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profilingMode": {
+          "description": "Profiling mode for tiering and optimization.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProfilingModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "determinismMode": {
+          "description": "Determinism mode for runtime scheduling and I/O.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeterminismModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "strip": {
           "description": "Symbol stripping policy.",
           "anyOf": [
@@ -1657,6 +1732,136 @@
           "description": "Full debug info.",
           "type": "string",
           "const": "full"
+        }
+      ]
+    },
+    "DebugModeJson": {
+      "description": "Debug execution mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Choose mode based on target debug settings.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Always run the interpreter.",
+          "type": "string",
+          "const": "vm"
+        },
+        {
+          "description": "Run native with deopt-first debugging.",
+          "type": "string",
+          "const": "deopt"
+        },
+        {
+          "description": "Run native only (no deopt).",
+          "type": "string",
+          "const": "native"
+        }
+      ]
+    },
+    "OsrModeJson": {
+      "description": "OSR mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "OSR disabled.",
+          "type": "string",
+          "const": "disabled"
+        },
+        {
+          "description": "OSR at loop headers.",
+          "type": "string",
+          "const": "loopheaders"
+        },
+        {
+          "description": "OSR only at explicit sites.",
+          "type": "string",
+          "const": "explicit"
+        }
+      ]
+    },
+    "SafepointModeJson": {
+      "description": "Safepoint mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Safepoints at calls, allocations, and loop back-edges.",
+          "type": "string",
+          "const": "calls-alloc-backedges"
+        },
+        {
+          "description": "Add instruction-budget safepoints for bounded latency.",
+          "type": "string",
+          "const": "budgeted"
+        }
+      ]
+    },
+    "SpeculationModeJson": {
+      "description": "Speculation mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable speculative optimizations.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Guarded speculations with explicit deopt metadata.",
+          "type": "string",
+          "const": "guarded"
+        },
+        {
+          "description": "Aggressive speculation across more sites.",
+          "type": "string",
+          "const": "aggressive"
+        }
+      ]
+    },
+    "ProfilingModeJson": {
+      "description": "Profiling mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable runtime profiling.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Counters only.",
+          "type": "string",
+          "const": "counters"
+        },
+        {
+          "description": "Sampling only.",
+          "type": "string",
+          "const": "sampling"
+        },
+        {
+          "description": "Counters + sampling + inline caches.",
+          "type": "string",
+          "const": "hybrid"
+        }
+      ]
+    },
+    "DeterminismModeJson": {
+      "description": "Determinism mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "No determinism guarantees.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Deterministic scheduling with controlled randomness.",
+          "type": "string",
+          "const": "deterministic"
+        },
+        {
+          "description": "Deterministic scheduling + record external I/O.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Deterministic scheduling + replay external I/O.",
+          "type": "string",
+          "const": "replay"
         }
       ]
     },

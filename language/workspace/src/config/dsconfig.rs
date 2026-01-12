@@ -13,10 +13,11 @@ use crate::{
 };
 
 use super::target::{
-    Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DivisionCheckPolicy,
-    FloatMathPolicy, LinkMode, NullCheckPolicy, OptimizeLevel, OutputFormat, OutputMode,
-    OverflowCheckPolicy, PanicPolicy, Platform, RelocationModel, Runtime, SafetyPreset,
-    ShiftCheckPolicy, ShrinkLevel, StripLevel, Target, TargetDiscovery, UnwindFormat,
+    Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismMode,
+    DivisionCheckPolicy, FloatMathPolicy, LinkMode, NullCheckPolicy, OptimizeLevel, OsrMode,
+    OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
+    RelocationModel, Runtime, SafepointMode, SafetyPreset, ShiftCheckPolicy, ShrinkLevel,
+    SpeculationMode, StripLevel, Target, TargetDiscovery, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -709,6 +710,20 @@ pub struct DsConfigTargetOptions {
     pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
+    /// Debug execution mode for VM/native targets.
+    pub debug_mode: DebugMode,
+    /// OSR mode for native execution.
+    pub osr_mode: OsrMode,
+    /// Safepoint insertion mode for native execution.
+    pub safepoint_mode: SafepointMode,
+    /// Instruction interval for safepoint polling (when enabled).
+    pub safepoint_interval: Option<u64>,
+    /// Speculation mode for native optimization.
+    pub speculation_mode: SpeculationMode,
+    /// Profiling mode for tiering and optimization.
+    pub profiling_mode: ProfilingMode,
+    /// Determinism mode for runtime scheduling and I/O.
+    pub determinism_mode: DeterminismMode,
     /// Symbol stripping policy.
     pub strip: StripLevel,
     /// Panic policy for unrecoverable errors.
@@ -765,6 +780,13 @@ impl Default for DsConfigTargetOptions {
             shrink_level: ShrinkLevel::S0,
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
+            debug_mode: DebugMode::default(),
+            osr_mode: OsrMode::default(),
+            safepoint_mode: SafepointMode::default(),
+            safepoint_interval: None,
+            speculation_mode: SpeculationMode::default(),
+            profiling_mode: ProfilingMode::default(),
+            determinism_mode: DeterminismMode::default(),
             strip: StripLevel::default(),
             panic: PanicPolicy::default(),
             unwind: UnwindFormat::default(),
@@ -833,6 +855,13 @@ impl DsConfigTargetOptions {
             shrink_level: self.shrink_level,
             float_math: self.float_math,
             debug_info: self.debug_info,
+            debug_mode: self.debug_mode,
+            osr_mode: self.osr_mode,
+            safepoint_mode: self.safepoint_mode,
+            safepoint_interval: self.safepoint_interval,
+            speculation_mode: self.speculation_mode,
+            profiling_mode: self.profiling_mode,
+            determinism_mode: self.determinism_mode,
             strip: self.strip,
             panic: self.panic,
             unwind: self.unwind,
@@ -932,6 +961,25 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             debug_info: json
                 .debug_info
                 .map(DebugInfoLevel::from)
+                .unwrap_or_default(),
+            debug_mode: json.debug_mode.map(DebugMode::from).unwrap_or_default(),
+            osr_mode: json.osr_mode.map(OsrMode::from).unwrap_or_default(),
+            safepoint_mode: json
+                .safepoint_mode
+                .map(SafepointMode::from)
+                .unwrap_or_default(),
+            safepoint_interval: json.safepoint_interval,
+            speculation_mode: json
+                .speculation_mode
+                .map(SpeculationMode::from)
+                .unwrap_or_default(),
+            profiling_mode: json
+                .profiling_mode
+                .map(ProfilingMode::from)
+                .unwrap_or_default(),
+            determinism_mode: json
+                .determinism_mode
+                .map(DeterminismMode::from)
                 .unwrap_or_default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
@@ -1069,6 +1117,164 @@ impl From<DebugInfoLevelJson> for DebugInfoLevel {
             DebugInfoLevelJson::None => DebugInfoLevel::None,
             DebugInfoLevelJson::Line => DebugInfoLevel::Line,
             DebugInfoLevelJson::Full => DebugInfoLevel::Full,
+        }
+    }
+}
+
+/// Debug execution mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DebugModeJson {
+    /// Choose mode based on target debug settings.
+    #[serde(alias = "default")]
+    Auto,
+    /// Always run the interpreter.
+    #[serde(alias = "interpreter")]
+    Vm,
+    /// Run native with deopt-first debugging.
+    Deopt,
+    /// Run native only (no deopt).
+    Native,
+}
+
+impl From<DebugModeJson> for DebugMode {
+    fn from(value: DebugModeJson) -> Self {
+        match value {
+            DebugModeJson::Auto => DebugMode::Auto,
+            DebugModeJson::Vm => DebugMode::Vm,
+            DebugModeJson::Deopt => DebugMode::Deopt,
+            DebugModeJson::Native => DebugMode::Native,
+        }
+    }
+}
+
+/// OSR mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum OsrModeJson {
+    /// OSR disabled.
+    #[serde(alias = "off")]
+    Disabled,
+    /// OSR at loop headers.
+    #[serde(alias = "loops")]
+    #[serde(alias = "loop-headers")]
+    LoopHeaders,
+    /// OSR only at explicit sites.
+    Explicit,
+}
+
+impl From<OsrModeJson> for OsrMode {
+    fn from(value: OsrModeJson) -> Self {
+        match value {
+            OsrModeJson::Disabled => OsrMode::Disabled,
+            OsrModeJson::LoopHeaders => OsrMode::LoopHeaders,
+            OsrModeJson::Explicit => OsrMode::Explicit,
+        }
+    }
+}
+
+/// Safepoint mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SafepointModeJson {
+    /// Safepoints at calls, allocations, and loop back-edges.
+    #[serde(rename = "calls-alloc-backedges")]
+    #[serde(alias = "calls_alloc_backedges")]
+    #[serde(alias = "standard")]
+    CallsAllocBackEdges,
+    /// Add instruction-budget safepoints for bounded latency.
+    #[serde(alias = "budget")]
+    Budgeted,
+}
+
+impl From<SafepointModeJson> for SafepointMode {
+    fn from(value: SafepointModeJson) -> Self {
+        match value {
+            SafepointModeJson::CallsAllocBackEdges => SafepointMode::CallsAllocBackEdges,
+            SafepointModeJson::Budgeted => SafepointMode::Budgeted,
+        }
+    }
+}
+
+/// Speculation mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SpeculationModeJson {
+    /// Disable speculative optimizations.
+    #[serde(alias = "off")]
+    None,
+    /// Guarded speculations with explicit deopt metadata.
+    Guarded,
+    /// Aggressive speculation across more sites.
+    Aggressive,
+}
+
+impl From<SpeculationModeJson> for SpeculationMode {
+    fn from(value: SpeculationModeJson) -> Self {
+        match value {
+            SpeculationModeJson::None => SpeculationMode::None,
+            SpeculationModeJson::Guarded => SpeculationMode::Guarded,
+            SpeculationModeJson::Aggressive => SpeculationMode::Aggressive,
+        }
+    }
+}
+
+/// Profiling mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ProfilingModeJson {
+    /// Disable runtime profiling.
+    #[serde(alias = "off")]
+    None,
+    /// Counters only.
+    Counters,
+    /// Sampling only.
+    Sampling,
+    /// Counters + sampling + inline caches.
+    #[serde(alias = "full")]
+    Hybrid,
+}
+
+impl From<ProfilingModeJson> for ProfilingMode {
+    fn from(value: ProfilingModeJson) -> Self {
+        match value {
+            ProfilingModeJson::None => ProfilingMode::None,
+            ProfilingModeJson::Counters => ProfilingMode::Counters,
+            ProfilingModeJson::Sampling => ProfilingMode::Sampling,
+            ProfilingModeJson::Hybrid => ProfilingMode::Hybrid,
+        }
+    }
+}
+
+/// Determinism mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DeterminismModeJson {
+    /// No determinism guarantees.
+    #[serde(alias = "off")]
+    None,
+    /// Deterministic scheduling with controlled randomness.
+    #[serde(alias = "determinism")]
+    Deterministic,
+    /// Deterministic scheduling + record external I/O.
+    Record,
+    /// Deterministic scheduling + replay external I/O.
+    Replay,
+}
+
+impl From<DeterminismModeJson> for DeterminismMode {
+    fn from(value: DeterminismModeJson) -> Self {
+        match value {
+            DeterminismModeJson::None => DeterminismMode::None,
+            DeterminismModeJson::Deterministic => DeterminismMode::Deterministic,
+            DeterminismModeJson::Record => DeterminismMode::Record,
+            DeterminismModeJson::Replay => DeterminismMode::Replay,
         }
     }
 }
@@ -1772,6 +1978,20 @@ pub struct DsConfigTargetJson {
     pub float_math: Option<FloatMathPolicyJson>,
     /// Debug info emission policy.
     pub debug_info: Option<DebugInfoLevelJson>,
+    /// Debug execution mode for VM/native targets.
+    pub debug_mode: Option<DebugModeJson>,
+    /// OSR mode for native execution.
+    pub osr_mode: Option<OsrModeJson>,
+    /// Safepoint insertion mode for native execution.
+    pub safepoint_mode: Option<SafepointModeJson>,
+    /// Instruction interval for safepoint polling (when enabled).
+    pub safepoint_interval: Option<u64>,
+    /// Speculation mode for native optimization.
+    pub speculation_mode: Option<SpeculationModeJson>,
+    /// Profiling mode for tiering and optimization.
+    pub profiling_mode: Option<ProfilingModeJson>,
+    /// Determinism mode for runtime scheduling and I/O.
+    pub determinism_mode: Option<DeterminismModeJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
     /// Panic policy.

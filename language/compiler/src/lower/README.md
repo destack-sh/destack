@@ -55,7 +55,19 @@ See [INTRINSICS.md](INTRINSICS.md#simd) for details.
 Lower is **phase M** in the compiler pipeline (see [compiler/README.md](../README.md)).
 It receives patched DIR from Execute and produces target-specific MIR.
 
-```
+Pipeline summary:
+
+| Stage | Output | Notes |
+| --- | --- | --- |
+| Execute | DIR (patched) | runs comptime blocks via MIR |
+| Generate/JS | JS/TS output | preserves type-erased polymorphism |
+| Lower | MIR | monomorphized, typed, target-specific |
+| Optimize | MIR | verify + transform passes |
+| Generate | native binary | Cranelift backend |
+
+Pipeline diagram:
+
+<pre>
 DIR (elaborated, canonical, profile-dependent)
  │
  ├─→ Execute: run comptime blocks via MIR, patch DIR
@@ -72,7 +84,7 @@ DIR (elaborated, canonical, profile-dependent)
        │
        └─→ Generate
             └─→ Cranelift → native binary (.exe, .dylib)
-```
+</pre>
 
 ### Input: Canonical DIR (Comptime Patched)
 
@@ -109,8 +121,9 @@ MIR is generated per-target with target-specific decisions:
 ## Phases
 
 Lower executes in four explicit phases with clear dependencies:
+Phases flow left to right: **Types → Declarations → Tables → Emit**.
 
-```
+<pre>
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                          Lower Pipeline                                  │
 │                                                                          │
@@ -123,7 +136,7 @@ Lower executes in four explicit phases with clear dependencies:
 │   slots        init order       RTTI            ownership                │
 │                                 string tags     barriers                 │
 └─────────────────────────────────────────────────────────────────────────┘
-```
+</pre>
 
 | Phase | Input | Output | Why Separate |
 |-------|-------|--------|--------------|
@@ -142,14 +155,312 @@ Lower behavior is configured by target policies (see [Target Configuration](#tar
 |--------|-----------------|
 | `boundsChecks` | Insert/omit array bounds checks |
 | `overflowChecks` | Insert/omit integer overflow checks |
-| `panic` | Abort immediately or unwind (future) |
+| `panic` | Abort immediately or unwind |
 | `debugInfo` | Controls debug metadata granularity |
+| `debugMode` | Execution mode for debug workflows |
+| `osrMode` | OSR entry placement for native execution |
+| `safepointMode` | Safepoint insertion strategy |
+| `safepointInterval` | Instruction interval for safepoint polling |
+| `speculationMode` | Guarded speculation mode |
+| `profilingMode` | Runtime profiling |
+| `determinismMode` | Determinism and I/O replay |
 | `stripLevel` | Symbol table stripping |
 | `unwindFormat` | Unwind info format (DWARF/SEH/None) |
 | `allocator` | Global allocator selection |
 | `borrowMode` | Hint vs strict borrow enforcement |
 | `relocationModel` | PIC/PIE/static code generation |
 | `linkMode` | Static vs dynamic linking preference |
+
+## VM and Runtime Interop
+
+Lower must emit metadata for VM <-> native transitions.
+This metadata enables deopt, OSR, and GC correctness when execution shifts between tiers.
+
+The required metadata includes:
+
+Lower emits runtime/VM metadata for transitions:
+
+- **safepoint table** keyed by native PC
+- **deopt maps** for reconstructing MIR frames
+- **OSR entries** for entering native code at MIR block boundaries
+- **GC stack maps** for managed reference tracing
+
+### Safepoint Table
+
+Safepoints are inserted at call sites, loop back-edges, and allocation points.
+Each safepoint entry includes:
+
+```ds
+type DeoptMapId = uint32;
+type StackMapId = uint32;
+type OsrEntryId = uint32;
+
+type Safepoint = {
+    pc: uint64,
+    deoptMap: DeoptMapId,
+    gcStackMap: StackMapId,
+    osrEntry?: OsrEntryId,
+};
+```
+
+### Deopt Maps
+
+Deopt maps reconstruct MIR frames from native registers and stack slots.
+Frames are ordered from outermost to innermost, with the last frame active.
+
+```ds
+type FunctionId = uint32;
+type BlockId = uint32;
+type InstructionId = uint32;
+
+type DeoptMap = {
+    frames: FrameMap[],
+};
+
+type FrameMap = {
+    function: FunctionId,
+    block: BlockId,
+    instruction: InstructionId,
+    values: ValueLoc[],
+    locals: ValueLoc[],
+    returnDestination?: ValueLoc,
+};
+
+type Register = { kind: 'reg', index: uint16 };
+type StackSlot = { kind: 'stack', index: uint32, offset: int32 };
+type Constant = { kind: 'const', value: ConstantValue };
+type ValueLoc = Register | StackSlot | Constant;
+```
+
+Missing values are materialized as `Void` during reconstruction.
+Constants use the MIR constant encoding and do not require native storage.
+
+### OSR Entries
+
+OSR entries allow native execution to start at MIR block boundaries.
+Each entry specifies the MIR block and the live value set required to enter.
+
+### GC Stack Maps
+
+GC stack maps identify managed references in native frames.
+Lower must emit precise maps for all safepoints and native call frames.
+
+### Metadata Encoding
+
+NOTE #Incomplete #ABI: this metadata layout defines the ABI surface and will be tightened as the runtime and codegen converge.
+
+Lower emits a single metadata blob per native artifact.
+The runtime reads this blob to drive deopt, OSR, GC, profiling, and debugging.
+All integer fields are little-endian.
+All offsets are byte offsets from the start of the metadata blob.
+`pointerWidth` is 4 for 32-bit targets and 8 for 64-bit targets.
+`entrySize` is zero for variable-length entries.
+Section headers are contiguous and ordered by ascending `offset`.
+
+```ds
+type MetadataHeader = {
+    magic: uint32,
+    version: uint32,
+    pointerWidth: uint8,
+    endianness: uint8,
+    sectionCount: uint32,
+    sectionTableOffset: uint32,
+    compilerHash: uint64,
+    targetHash: uint64,
+};
+
+const METADATA_MAGIC: uint32 = 0x44534d44;
+const ENDIAN_LITTLE: uint8 = 1;
+
+type SectionHeader = {
+    kind: uint16,
+    entryCount: uint32,
+    entrySize: uint32,
+    offset: uint32,
+    length: uint32,
+};
+
+const SECTION_SAFEPOINTS: uint16 = 1;
+const SECTION_DEOPT_MAPS: uint16 = 2;
+const SECTION_STACK_MAPS: uint16 = 3;
+const SECTION_OSR_ENTRIES: uint16 = 4;
+const SECTION_PROFILE_SITES: uint16 = 5;
+```
+
+The runtime must validate `magic`, `version`, and `endianness` before use.
+The runtime must validate `compilerHash` and `targetHash` against the executing artifact.
+The runtime must reject overlapping sections and out-of-bounds offsets.
+The runtime must reject section tables with unknown `kind` values.
+
+### Safepoint Section
+
+```ds
+type SafepointEntry = {
+    pc: uint64,
+    deoptMap: uint32,
+    stackMap: uint32,
+    osrEntry: uint32,
+};
+
+const NO_OSR_ENTRY: uint32 = 0xffffffff;
+```
+
+`osrEntry` uses `NO_OSR_ENTRY` when no OSR is available at the safepoint.
+
+### Deopt Map Section
+
+```ds
+type DeoptMapEntry = {
+    frameCount: uint16,
+    frameOffset: uint32,
+};
+
+type FrameMapEntry = {
+    functionId: uint32,
+    blockId: uint32,
+    instructionId: uint32,
+    valueCount: uint16,
+    valueOffset: uint32,
+    localCount: uint16,
+    localOffset: uint32,
+    returnDestination: ValueLocEntry,
+};
+
+type ValueLocEntry = {
+    kind: uint8,
+    regIndex: uint16,
+    stackIndex: uint32,
+    stackOffset: int32,
+    constId: uint32,
+};
+
+const VALUELOC_REG: uint8 = 1;
+const VALUELOC_STACK: uint8 = 2;
+const VALUELOC_CONST: uint8 = 3;
+const VALUELOC_VOID: uint8 = 4;
+```
+
+`VALUELOC_VOID` is used only for dead SSA values at the safepoint.
+`constId` indexes the MIR constant pool for the owning function.
+
+### Stack Map Section
+
+```ds
+type StackMapEntry = {
+    pc: uint64,
+    rootCount: uint16,
+    rootOffset: uint32,
+};
+
+type RootLocEntry = {
+    kind: uint8,
+    regIndex: uint16,
+    stackIndex: uint32,
+    stackOffset: int32,
+};
+
+const ROOTLOC_REG: uint8 = 1;
+const ROOTLOC_STACK: uint8 = 2;
+```
+
+Stack maps identify managed references at the given `pc`.
+Roots are interpreted using MIR types recorded for the corresponding frame.
+
+### OSR Entry Section
+
+```ds
+type OsrEntry = {
+    functionId: uint32,
+    blockId: uint32,
+    valueCount: uint16,
+    valueOffset: uint32,
+    localCount: uint16,
+    localOffset: uint32,
+};
+```
+
+OSR entries materialize live values and locals required for the target block.
+
+### Profiling Site Section
+
+```ds
+type ProfileSiteEntry = {
+    kind: uint8,
+    functionId: uint32,
+    blockId: uint32,
+    instructionId: uint32,
+    flags: uint32,
+};
+
+const PROFILE_CALL: uint8 = 1;
+const PROFILE_BACKEDGE: uint8 = 2;
+const PROFILE_ALLOC: uint8 = 3;
+const PROFILE_BRANCH: uint8 = 4;
+const PROFILE_GUARD: uint8 = 5;
+const PROFILE_INDIRECT_CALL: uint8 = 6;
+```
+
+Profiling site interpretation is defined by the compiler and runtime together.
+
+### Write Barriers
+
+Lower must preserve managed write sites (`field.set`, `element.set`, stores through
+managed references) so the runtime can attach GC barriers in VM and native code.
+
+### Transition Policy
+
+VM/native transitions are policy-controlled and must be consistent across the runtime,
+lowered metadata, and optimizer.
+
+**Debug execution mode** is configured via `debugMode`:
+
+| Variant | Behavior |
+|---------|----------|
+| `Auto` | Use `Deopt` for debug builds, `Native` for release |
+| `Vm` | Force interpreter execution |
+| `Deopt` | Run native with deopt-first debugging |
+| `Native` | Run native only (no deopt) |
+
+**Deopt fidelity** must match the debug mode:
+- `Vm`: no native deopt metadata required
+- `Deopt`: full reconstruction of live values and locals at every safepoint
+- `Native`: minimal metadata is allowed (for crash reporting only)
+
+**Inline frame encoding** is required when `debugMode = Deopt`.
+Inline frames are optional when `debugMode = Native` and `debugInfo != Full`.
+
+**OSR policy** follows `osrMode` (default: loop headers).
+Lower may disable OSR or restrict OSR to explicit sites via target profile.
+Each OSR entry must define the live value set and phi materialization at the entry block.
+
+**Safepoint policy** follows `safepointMode` (default: calls, allocations, loop back-edges).
+Targets may add instruction-budget safepoints via `safepointInterval`.
+
+**Speculation and guards** follow `speculationMode` and are permitted when every guard has:
+- a side-effect-free fast path
+- a deopt map to reconstruct the pre-guard state
+- a runtime-visible reason for deopt (for debugging and profiling)
+
+**Profiling** follows `profilingMode` and is scoped per isolate.
+Lower emits profiling sites and inline cache anchors when enabled.
+
+**Non-replayable regions** must not allow deopt across them.
+Lower marks these regions and forbids guards from spanning:
+- FFI calls and syscalls
+- I/O operations
+- atomic operations with observable ordering
+- runtime callbacks into user code
+
+**Stack map precision** is exact at all safepoints.
+Conservative scanning is not permitted for normal execution.
+
+**Value materialization** rules:
+- missing values are only allowed for dead SSA values at the safepoint
+- locals and live SSA values must be materialized in `Deopt` mode
+
+**Metadata versioning** is compiler-version private.
+Lower emits versioned sections; the runtime must reject mismatched versions.
+Incremental caches key off the metadata version and target policy hash.
 
 ## Semantic Guarantees
 
@@ -203,8 +514,9 @@ log()  // evaluates Date.now() again (different value)
 Lower doesn't special-case types like `String` or `Array<T>`.
 These are defined in `language/builtin/lib/native/` as regular Destack structs (with some intrinsics).
 Lower treats them basically like any other user-defined type.
+The native and JS builtins live here:
 
-```
+<pre>
 language/builtin/
 ├── core/       # Operator interfaces (Add, Index, etc.) - compiler desugars to these
 ├── std/        # Universal extensions
@@ -212,7 +524,7 @@ language/builtin/
     ├── native/ # Native target types: String, Array, Map, etc.
     ├── es/     # JS target types (uses JS-defined built-ins)
     └── ...
-```
+</pre>
 
 ---
 
@@ -309,7 +621,7 @@ Generate dispatch tables and runtime type information.
 ### Operations
 
 **VTable generation:** For each polymorphic class, emit a constant vtable:
-```
+```ds
 struct VTable {
     typeDescriptor: &TypeDescriptor  // slot 0, for instanceof/T.is
     destructor: fn()                 // slot 1, drop glue
@@ -318,7 +630,7 @@ struct VTable {
 ```
 
 **ITab generation:** For each (Type, Interface) pair where the type implements the interface:
-```
+```ds
 struct ITab {
     typeDescriptor: &TypeDescriptor  // for T.is on interface refs
     methods: [fn; M]                 // interface methods in declaration order
@@ -326,7 +638,7 @@ struct ITab {
 ```
 
 **TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `unknown`):
-```
+```ds
 struct TypeDescriptor {
     id: uint32                  // index into RTTI table
     typeIdOffset: uint32        // offset to TypeId string
@@ -341,7 +653,7 @@ struct TypeDescriptor {
 
 **String tag interning:** TypeScript-style discriminated unions use string tags.
 Lower interns these to integer discriminants:
-```
+```ds
 "loading" → 0
 "success" → 1
 "error"   → 2
@@ -446,7 +758,7 @@ We use a human-readable scheme (inspired by Rust and Zig):
 **Format:** `@<module_path>.<type>.<method>__<type_args>__h<hash>`
 
 **Examples:**
-```
+```mir
 @std.collections.Map.get__string__i32__h7f9a3e1     // Map<string, i32>.get()
 @myapp.models.User.getName__h1b2c3d4                // User.getName()
 @myapp.utils.identity__Point__h2c3d4e5              // identity<Point>()
@@ -630,16 +942,18 @@ For pointer types, we use **niche optimization** (like Rust's `Option<&T>`).
 The null pointer (0x0) is an invalid address for valid objects, so we can use it
 as the "none" discriminant without adding a tag byte:
 
-```
-T | null  where T is reference type  →  same size as T, null = 0x0
+```ds
+type MaybeRef<T> = T | null  // T is a reference type
+// layout: same size as T, null = 0x0
 ```
 
 This is the same optimization Rust uses for `Option<Box<T>>`, `Option<&T>`, etc.
 The "niche" is the invalid bit pattern (null pointer) that we repurpose as a discriminant.
 
 For value types, there's no invalid bit pattern to exploit, so we need a tag:
-```
-int | null  →  { tag: u8, value: int }  // 2 bytes overhead minimum
+```ds
+type MaybeInt = int | null
+// layout: { tag: u8, value: int }  // 2 bytes overhead minimum
 ```
 
 **Niche optimizations:**
@@ -657,17 +971,10 @@ It is not a compiler intrinsic; it's defined in `language/builtin/lib/native/` a
 For native, we use a tagged pointer representation with small-integer optimization.
 (This is similar to what many JS runtimes do internally as well.)
 
-```
-┌─────────────────────────────────────────────────────┐
-│ Small bigint (fits in 63 bits):                     │
-│   [63-bit value][1-bit tag=1]                       │
-│   No heap allocation, inline arithmetic             │
-├─────────────────────────────────────────────────────┤
-│ Large bigint (> 63 bits):                           │
-│   [pointer to limb array][1-bit tag=0]              │
-│   Heap-allocated, arbitrary precision               │
-└─────────────────────────────────────────────────────┘
-```
+| Case | Layout | Notes |
+| --- | --- | --- |
+| Small bigint (fits in 63 bits) | `[63-bit value][1-bit tag=1]` | inline, no heap allocation |
+| Large bigint (> 63 bits) | `[pointer to limb array][1-bit tag=0]` | heap-allocated, arbitrary precision |
 
 ```ds
 const small: bigint = 42n          // inline: 0x0000000000000055 (42 << 1 | 1)
@@ -726,7 +1033,7 @@ Most code uses `string` (GC-managed). Use `^string` for performance-critical cod
 The layout is identical across targets except for the payload element type.
 UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
 
-```
+```ds
 struct string {
     lengthUtf16: uint32,      // UTF-16 code unit count (for TS compatibility)
     lengthBytes: uint32,      // byte length of UTF-8 data
@@ -781,24 +1088,13 @@ block0(v0: @string):
 
 Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
 
-**Fixed-size arrays** `T[N]`:
-```
-┌─────────────────────────────────────────┐
-│ Inline, no header, known size at compile│
-│   elements: [T; N]                      │
-│   Size = N * sizeof(T)                  │
-└─────────────────────────────────────────┘
-```
+**Fixed-size arrays** `T[N]` are inline values with no header.
+**Dynamic arrays** `T[]` are heap-allocated, growable buffers.
 
-**Dynamic arrays** `T[]`:
-```
-┌─────────────────────────────────────────┐
-│ Heap-allocated, growable                │
-│   length: uint32                        │
-│   capacity: uint32                      │
-│   data: T[capacity]                     │
-└─────────────────────────────────────────┘
-```
+| Array kind | Layout | Notes |
+| --- | --- | --- |
+| `T[N]` | inline `elements: [T; N]` | size = `N * sizeof(T)` |
+| `T[]` | header `{ length: uint32, capacity: uint32, data: T[capacity] }` | heap allocated, growable |
 
 | Pattern | MIR Type | Notes |
 |---------|----------|-------|
@@ -925,7 +1221,7 @@ while enabling `instanceof`, `T.is`, and `typeOf` without a global WeakMap.
 Structs have no **reference identity** (no `===`).
 Structs are always headerless and use metadata or fat pointers for RTTI.
 
-```
+```ds
 struct Point { x: float32, y: float32 }
 
 struct PointLayout {
@@ -967,7 +1263,7 @@ class Node {
 ```
 
 Native layout:
-```
+```ds
 struct NodeLayout {
     vtablePtr: &VTable,      // offset 0, vtable[0] = &Node_TypeDescriptor
     name: ref<string>,       // offset 8
@@ -978,6 +1274,10 @@ Classes have both reference identity (`===` compares pointers) and type identity
 Polymorphic classes store their vtable pointer because class references are thin pointers and dynamic dispatch is required.
 (This is consistent with Java and C++ class objects while keeping struct layouts headerless like Go.)
 Non-polymorphic classes omit the vtable pointer and use metadata or fat pointers for RTTI when needed.
+
+Class layouts are static on native targets.
+There are no hidden classes or runtime shape transitions.
+Dynamic property addition must use explicit map/dictionary types.
 
 #### Managed Object Metadata
 
@@ -1000,7 +1300,7 @@ Tradeoffs:
 
 **Explicit value semantics:**
 Use `^T` to force value/copy semantics:
-```
+```ds
 function process(point: ^Point) {    // ^Point = value type, point is copied
     // modifications don't affect caller
 }
@@ -1020,7 +1320,7 @@ Use `@layout("source")` to preserve declared order.
 Classes with `extends` get special handling for field layout and method dispatch.
 Parent fields come first, then child fields.
 
-```
+```ds
 class Node {
     name: string
 }
@@ -1038,7 +1338,7 @@ Sprite's MIR layout (polymorphic):
 This ensures a `Sprite` pointer can be used where a `Node` pointer is expected.
 Polymorphic classes use vtables for virtual methods (and non-virtual methods are direct calls).
 
-```
+```ds
 class Node {
     update(delta: float): void { }
 }
@@ -1052,7 +1352,7 @@ class Sprite extends Node {
 
 Tuples lower to anonymous `Type::Struct` with indexed fields.
 
-```
+```ds
 (int, string, bool)  →  Struct { fields: [i64, String, i8] }
 ```
 
@@ -1097,8 +1397,8 @@ Destack supports TypeScript's structural unions.
 
 When all variants share a discriminant field (e.g., `kind`), use inline tagging:
 
-```
-type Result<T, E> = { kind: 'ok', value: T } | { kind: 'err', error: E }
+```ds
+type Result<T, E> = { kind: "ok", value: T } | { kind: "err", error: E }
 ```
 
 Lowers to a MIR struct with:
@@ -1111,14 +1411,17 @@ Pattern matching becomes a switch on tag.
 #### String Tag Interning
 
 TypeScript-style discriminated unions typically use string literals as tags:
-```
-{ kind: 'loading' } | { kind: 'success', data: T } | { kind: 'error', msg: string }
+```ds
+type LoadState<T> =
+    | { kind: "loading" }
+    | { kind: "success", data: T }
+    | { kind: "error", msg: string }
 ```
 
 This is a very common pattern in TypeScript, and we can optimize it nicely for native targets.
 We intern these string tags to integer discriminants at compile time; conceptually this looks like this:
 
-```
+```ds
 // tag mapping (compile time)
 const TAG_LOADING: uint8 = 0   // "loading"
 const TAG_SUCCESS: uint8 = 1   // "success"
@@ -1128,7 +1431,7 @@ const TAG_ERROR: uint8 = 2     // "error"
 const TAG_STRINGS: string[] = ["loading", "success", "error"]
 
 // runtime representation
-struct LoadingState { tag: uint8, /* no payload */ }
+struct LoadingState { tag: uint8 }
 struct SuccessState<T> { tag: uint8, data: T }
 struct ErrorState { tag: uint8, msg: string }
 ```
@@ -1150,16 +1453,16 @@ We use the same interning mechanism for type identifiers (`TypeId`).
 At the source level, `TypeId` is a string like `"@destack-sh/ui/components/button:Button"`.
 At runtime, it's an interned integer for fast comparison:
 
-```
+```ds
 // source level API
-newtype TypeId = string;   // "myapp/models:User"
+newtype TypeId = string   // "myapp/models:User"
 
 // interning (compile time)
-const TYPEID_USER: uint32 = 42;         // interned id for "myapp/models:User"
-const TYPEID_ORDER: uint32 = 43;        // interned id for "myapp/models:Order"
+const TYPEID_USER: uint32 = 42         // interned id for "myapp/models:User"
+const TYPEID_ORDER: uint32 = 43        // interned id for "myapp/models:Order"
 
 // reverse mapping: reflection
-const TYPEID_STRINGS: string[] = [..., "myapp/models:User", ...];
+const TYPEID_STRINGS: string[] = [..., "myapp/models:User", ...]
 ```
 
 This unifies discriminated union tags and type identifiers under a single
@@ -1174,28 +1477,45 @@ Native type tags are pointers to TypeDescriptor values.
 Lower chooses union representation based on these rules (in order):
 
 1. **Niche optimization** - All members are nullable references or undefined **and** runtime
-   discrimination does not require metadata lookup (or a type tag is already available):
-   ```
-   string | null       →  ref<string>  (null = 0x0, no tag)
-   string | undefined  →  ref<string>  (undefined = 0x1, no tag)
-   User | null         →  ref<User>    (null = 0x0, no tag)
-   User | undefined    →  ref<User>    (undefined = 0x1, no tag)
-   User | null | undefined → ref<User> (null = 0x0, undefined = 0x1, no tag)
+   discrimination does not require metadata lookup (or a type tag is already available).
+   Examples:
+
+   ```ds
+   type MaybeString = string | null
+   // layout: same size as string reference, null = 0x0, no tag
+
+   type MaybeStringOrUndefined = string | undefined
+   // layout: same size as string reference, undefined = 0x1, no tag
+
+   type MaybeUser = User | null | undefined
+   // layout: same size as User reference, null = 0x0, undefined = 0x1, no tag
    ```
    This requires managed references with at least 2-byte alignment.
 
-2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit):
-   ```
-   int32 | bool        →  { tag: u8, value: int64 }
-   int32 | null        →  { tag: u8, value: int32 }
-   Point | Line        →  { tag: u8, data: [u8; max(sizeof)] }
+2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit).
+   Examples:
+
+   ```ds
+   type IntOrBool = int32 | bool
+   // layout: { tag: u8, value: int64 }
+
+   type IntOrNull = int32 | null
+   // layout: { tag: u8, value: int32 }
+
+   type PointOrLine = Point | Line
+   // layout: { tag: u8, data: [u8; max(sizeof)] }
    ```
 
 3. **Boxed** - Large or heterogeneous unions, or when runtime discrimination
-   needs RTTI but the variants are not tagged:
-   ```
-   unknown             →  { typeDescriptor: &TypeDescriptor, payload: word }
-   LargeA | LargeB     →  { tag: u8, data: ref<variant> }
+   needs RTTI but the variants are not tagged.
+   Examples:
+
+   ```ds
+   type Dynamic = unknown
+   // layout: { typeDescriptor: &TypeDescriptor, payload: word }
+
+   type LargeUnion = LargeA | LargeB
+   // layout: { tag: u8, data: pointer to variant }
    ```
 
 The inline size threshold is fixed per target for ABI stability.
@@ -1217,7 +1537,7 @@ if (value is User) {
 
 `unknown` uses a fat-pointer layout:
 
-```
+```ds
 struct unknown {
     typeDescriptor: &TypeDescriptor
     payload: word
@@ -1363,7 +1683,7 @@ Types with virtual methods have a vtable.
 The vtable is an array of function pointers, one per virtual method.
 
 **VTable structure (conceptual):**
-```
+```ds
 struct VTable {
     typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
     destructor: () => void       // cleanup function
@@ -1372,7 +1692,7 @@ struct VTable {
 ```
 
 **Example vtable layout:**
-```
+<pre>
 Node vtable:
   slot 0: typeDescriptor = &Node_TypeDescriptor
   slot 1: destructor = Node_drop
@@ -1382,7 +1702,7 @@ Sprite vtable (inherits Node):
   slot 0: typeDescriptor = &Sprite_TypeDescriptor
   slot 1: destructor = Sprite_drop
   slot 2: update = Sprite.update      // overrides Node::update
-```
+</pre>
 
 **Slot assignment (inheritance-preserving):**
 - Slot 0: always `typeDescriptor` (for `instanceof`, `T.is`, `typeOf`)
@@ -1408,7 +1728,7 @@ v3 = call.indirect v2(v0, delta) ; call with self as first arg
 **Super calls:**
 Super calls compile to direct calls to parent implementation.
 
-```
+```ds
 class Sprite extends Node {
     update(delta: float): void {
         super.update(delta)  // call Node.update
@@ -1432,8 +1752,8 @@ block0(v0: ref<@Sprite>, delta: f32):
 ### Interface Dispatch (ITabs)
 
 Interfaces use itabs, and interface values carry a fat pointer:
-```
-{ objectPtr: &Object, itabPtr: &InterfaceItab }
+```ds
+type InterfaceRef<I> = { objectPtr: &Object, itabPtr: &InterfaceItab<I> }
 ```
 
 Each (Type, Interface) pair has its own itab mapping interface methods to concrete implementations.
@@ -1442,7 +1762,7 @@ Each (Type, Interface) pair has its own itab mapping interface methods to concre
 
 Structural interfaces require **fat pointers** because the itab layout varies per (Type, Interface) pair:
 
-```
+```ds
 interface Drawable { draw(): void }
 interface Resizable { resize(w: int, h: int): void }
 
@@ -1452,7 +1772,7 @@ struct Rectangle { width: float, height: float }
 
 When a `Circle` is used as `Drawable`, we create a fat pointer:
 
-```
+```ds
 // fat pointer representation
 struct InterfaceRef<I> {
     objectPtr: &unknown       // actual object (type erased)
@@ -1465,7 +1785,7 @@ The layout is `(objectPtr, itabPtr)` with no padding. This matches Go's interfac
 
 Each (Type, Interface) pair generates its own itab:
 
-```
+```ds
 // circle as Drawable
 const Circle_Drawable_itab: InterfaceItab<Drawable> = {
     typeDescriptor: &Circle_TypeDescriptor,
@@ -1531,7 +1851,7 @@ Resolution options:
 2. Use wrapper types with explicit delegation
 3. Implement only one interface directly, delegate the other
 
-```
+```ds
 newtype interface Hashable {
     hash(): uint64
 }
@@ -1552,7 +1872,7 @@ For each (Type, Interface) pair where the type implements the interface:
 5. The cache is global per runtime and keyed by `(concrete TypeDescriptor, interface TypeDescriptor)`
 
 **Itab layout:**
-```
+```ds
 struct InterfaceItab<I> {
     typeDescriptor: &TypeDescriptor  // for T.is on interface refs
     methods: [FunctionPointer] // one per interface method, in declaration order
@@ -1612,7 +1932,7 @@ They do not participate in virtual dispatch.
 Property accessors lower to method calls.
 There is nothing special about them at the MIR level.
 
-```
+```ds
 class Circle {
     #radius: float64
 
@@ -1836,7 +2156,7 @@ Many people can hold and mutate `T` as long as they like.
 Accordingly, when calling a function with `^T`, the caller gives up ownership of the value to the callee.
 After the transfer, the original binding is invalid:
 
-```
+```ds
 function consume(data: ^LargeData) { ... }
 const d = LargeData { ... }
 consume(^d)    // ownership transferred
@@ -1846,7 +2166,7 @@ print(d.value) // ERROR: use after ownership transfer
 Use-after-move is an error.
 When a `^T` value reaches its **last proven use** without being transferred, it is **dropped**:
 
-```
+```ds
 function process() {
     const data = ^LargeData { ... }  // we own this
     doWork(&data)                     // borrow it
@@ -1863,7 +2183,7 @@ control-flow merges and before coroutine suspension when the value is not used a
 
 `&T` and `&mut T` are explicit references (pointers) to data. They lower directly to pointer types in MIR:
 
-```
+```ds
 function process(data: &Point) { ... }   // read-only reference
 function mutate(data: &mut Point) { ... } // mutable reference
 ```
@@ -1893,7 +2213,7 @@ Strict mode forbids:
 
 Functions that capture variables become closure values:
 
-```
+```ds
 const x = 10
 const f = (y: int) => x + y  // captures x
 ```
@@ -1994,7 +2314,7 @@ Lowers to early return on error.
 `throw` indicates an unrecoverable error (bug, invariant violation).
 Unlike traditional exceptions, panics are not meant to be caught.
 On native targets, `throw` aborts without unwinding.
-Panic policy is configured per target (`panic`), but unwind is reserved for future use.
+Panic policy is configured per target (`panic`), and unwind requires runtime support.
 
 ### Coroutines: Async & Generators
 
@@ -2003,8 +2323,9 @@ This is baked into the language semantics we preserve.
 State machine transformation is therefore the natural implementation strategy.
 
 **Design principle:** Promise is a library type, state machines are a Lower transformation, the runtime glues them together.
+External effects cross the runtime boundary through yield and resume so they can be recorded and replayed.
 
-```
+<pre>
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              Architecture                                │
 │                                                                          │
@@ -2020,7 +2341,7 @@ State machine transformation is therefore the natural implementation strategy.
 │                          │  (event loop)   │                            │
 │                          └─────────────────┘                            │
 └─────────────────────────────────────────────────────────────────────────┘
-```
+</pre>
 
 #### Separation of Concerns
 
@@ -2472,7 +2793,7 @@ This preserves JS and TS semantics while enabling native performance when code u
 GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
 GC managed objects are not shared across workers unless explicitly frozen or copied.
 Shared memory uses raw pointers or explicit shared buffers.
-Native targets may add a shared heap mode in the future.
+Native targets may add a shared heap mode when the runtime provides the required GC and synchronization support.
 
 ---
 
@@ -2517,7 +2838,7 @@ What happens when a panic occurs (via `throw` or failed assertions).
 | Variant | Behavior |
 |---------|----------|
 | `Abort` | Terminate immediately via `Intrinsic::Abort` (default) |
-| `Unwind` | Stack unwinding (future, for destructors) |
+| `Unwind` | Stack unwinding for destructors |
 
 Abort is simpler and has no overhead.
 Unwind enables deterministic destructor calls but requires exception tables.
@@ -2548,6 +2869,20 @@ Granularity of debug information.
 
 Debug info is emitted as DWARF (or platform equivalent) by codegen.
 
+### Debug Execution Mode
+
+Selects how debug workflows execute native or VM code.
+
+| Variant | Behavior |
+|---------|----------|
+| `Auto` | Use `Deopt` for debug builds, `Native` for release |
+| `Vm` | Force interpreter execution |
+| `Deopt` | Run native with deopt-first debugging |
+| `Native` | Run native only (no deopt) |
+
+`debugMode` controls whether Lower emits full deopt metadata and inline frame maps.
+`debugInfo` only affects native symbol/line metadata, not deopt fidelity.
+
 ### Strip Level
 
 Symbol table stripping for release builds.
@@ -2557,6 +2892,126 @@ Symbol table stripping for release builds.
 | `None` | Keep all symbols |
 | `Partial` | Strip internal symbols, keep exports |
 | `Full` | Strip all symbols (smallest binary) |
+
+## Execution Policy
+
+Execution policy governs tiering, profiling, and determinism for native targets.
+JS/TS targets ignore these settings and rely on their external runtimes.
+
+### Tiering Model
+
+Destack uses two execution tiers:
+
+- **VM**: interpreter for comptime, deterministic debugging, and fallback execution
+- **Native**: optimized native code for production performance
+
+There is no baseline native tier by default.
+The `debugMode` policy selects VM vs native execution for debugging workflows.
+
+### Profiling Mode
+
+Controls how runtime profiling data is collected for tiering and optimization.
+
+| Variant | Behavior |
+|---------|----------|
+| `None` | No profiling collection |
+| `Counters` | Call/branch/allocation counters only |
+| `Sampling` | Sampling only (periodic opcode/site sampling) |
+| `Hybrid` | Counters + sampling, optional inline caches (default) |
+
+Profiling is scoped per isolate and consumed by the optimizer and runtime.
+Inline caches are optional; if not implemented, `Hybrid` behaves like counters + sampling.
+
+Profiling signals include:
+
+- Call counts per function and callsite.
+- Loop backedge counts per loop header.
+- Allocation counts and bytes per site.
+- Guard failures and deopt reasons per site.
+- Branch direction bias per conditional branch.
+- Indirect call target counts for interface dispatch.
+- PC sampling for hot instruction ranges when sampling is enabled.
+
+The runtime may expose these signals to telemetry systems, but the compiler is the source of truth for their semantics and collection points.
+Telemetry libraries should consume these signals rather than re-instrumenting hot paths.
+
+### Tiering Triggers
+
+The runtime decides when to tier or OSR, but all triggers are expected to be available and tunable per target profile.
+
+Tiering triggers include:
+
+- Backedge counts and loop hotness.
+- Wall-clock time spent in a function or loop.
+- Allocation rate and allocation pressure.
+- Explicit `@hot` or `@cold` hints on functions or blocks.
+- Deopt frequency and guard failure rates.
+
+Lower emits metadata for these sites so the runtime can make decisions without recompiling MIR.
+
+### Speculation Policy
+
+Controls guarded speculative optimizations in native code.
+
+| Variant | Behavior |
+|---------|----------|
+| `None` | No speculative optimizations |
+| `Guarded` | Guarded speculations with explicit deopt metadata (default) |
+| `Aggressive` | Wider speculation surface with more guards |
+
+All speculations must have a guard, a deopt map, and a recorded deopt reason.
+Guard failures are local: in `debugMode = Deopt` they trigger deopt, otherwise they branch to the slow path.
+There is no global invalidation for static layouts.
+
+### OSR Policy
+
+Controls on-stack replacement (VM → native) entry placement.
+
+| Variant | Behavior |
+|---------|----------|
+| `Disabled` | No OSR |
+| `LoopHeaders` | OSR at loop headers (default) |
+| `Explicit` | OSR only at explicit sites |
+
+Each OSR entry must define live values and phi materialization.
+
+### Safepoint Policy
+
+Controls safepoint insertion for preemption and deopt latency.
+
+| Variant | Behavior |
+|---------|----------|
+| `CallsAllocBackEdges` | Calls, allocations, loop back-edges only |
+| `Budgeted` | Add instruction-budget safepoints |
+
+`safepointInterval` sets the instruction interval when `Budgeted` is enabled.
+The interval is an abstract step budget.
+The VM decrements the budget per threaded instruction.
+Native code decrements at inserted safepoint polls and backedges.
+Lower inserts budget polls at loop backedges by default and may add them to hot block entries when the target opts in.
+Smaller intervals reduce preemption latency but increase overhead.
+
+### Determinism Policy
+
+Controls scheduling and I/O determinism.
+
+| Variant | Behavior |
+|---------|----------|
+| `None` | No determinism guarantees |
+| `Deterministic` | Deterministic scheduling + controlled randomness (default) |
+| `Record` | Deterministic scheduling + record external I/O |
+| `Replay` | Deterministic scheduling + replay external I/O |
+
+`Deterministic` fixes scheduler decisions and PRNG seeds.
+`Record` records external I/O at runtime boundaries; unshimmed FFI/syscalls are rejected in this mode.
+`Replay` consumes recorded external I/O and rejects unlogged effects.
+External I/O is any operation outside the VM interpreter.
+Filesystem and network access are external I/O.
+Process, environment, and clock sources are external I/O.
+Randomness and entropy sources are external I/O.
+Host callbacks and FFI calls are external I/O.
+All external I/O must go through runtime shims in `Record` and `Replay`.
+Record and Replay enable time-travel debugging and simulation testing in userland libraries.
 
 ## Memory
 
@@ -2572,6 +3027,38 @@ Global allocator selection for native targets.
 | `Custom` | User-provided allocator |
 
 The allocator provides both managed (GC) and raw allocations.
+
+### GC Strategy
+
+Native targets use a Go-style, headerless managed heap with side tables.
+The default GC strategy is generational with incremental marking.
+Concurrent marking may be enabled by the runtime, but is not required by the ABI.
+
+Write barriers are inserted by Lower at all managed write sites.
+Stack maps are exact at all safepoints for precise tracing.
+The barrier model is Go-style Dijkstra with shade-on-write.
+
+When `determinismMode` is `Deterministic`, `Record`, or `Replay`, GC scheduling must be deterministic.
+The runtime should use allocation-count thresholds and deterministic mark/sweep scheduling.
+Concurrent or parallel marking is permitted only when the runtime can guarantee deterministic scheduling.
+
+### Snapshots
+
+Snapshots capture an isolate for deterministic replay, testing, and debugging.
+Snapshots are required to implement `Record` and `Replay`.
+Snapshots are a core debugging tool for deterministic execution.
+
+A snapshot captures:
+
+- Managed heap, raw heap, and globals are captured.
+- VM continuations and stacks are captured.
+- Runtime scheduler state for the isolate is captured.
+
+Snapshots exclude external handles.
+Any external handle must be reattached explicitly by the runtime after restore.
+
+Snapshots are versioned and tied to the target ABI.
+The runtime must reject snapshot restore when the compiler version, target triple, or GC layout does not match.
 
 ### Borrow Mode
 
@@ -2620,7 +3107,7 @@ If a feature is unavailable, vector operations scalarize to loops.
 # Code Generation
 
 MIR is target-independent, so code generation is mostly mechanical translation.
-See `language/codegen/` for target-specific backends (Cranelift for native/WASM for now).
+See `language/codegen/` for target-specific backends (Cranelift for native/WASM).
 
 ## Debug Info
 
@@ -2656,7 +3143,7 @@ function add(a: int32, b: int32): int32 { a + b }
 ```
 
 Exports the function with C ABI for FFI.
-Without a calling convention, uses Destack ABI (may change between versions).
+Without a calling convention, uses Destack ABI and is compiler-version private.
 
 **public modifier:**
 ```ds
