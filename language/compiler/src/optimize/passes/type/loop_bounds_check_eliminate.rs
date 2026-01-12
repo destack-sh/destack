@@ -251,7 +251,6 @@ fn run_loop_bounds_check_eliminate(
     definitions: &ValueDefinitions,
     forwarding: &BlockParamForwarding,
 ) -> bool {
-    // TODO #Performance: expand loop guard inference for additional exit shapes
     // collect guards for each loop
     let mut loop_guards: HashMap<usize, LoopGuards> = HashMap::new();
 
@@ -414,22 +413,9 @@ fn collect_loop_guards(
             continue;
         };
 
-        // require an instruction definition for the condition
-        let Some(definition) = definitions.definition_for(condition) else {
-            continue;
-        };
-        let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
-            continue;
-        };
-
-        // require a binary comparison
-        let instruction = tree.get(instruction);
-        let mir::Instruction::Binary {
-            operator,
-            left,
-            right,
-            ..
-        } = instruction
+        // require a comparison instruction for the guard
+        let Some((operator, left, right, guard_is_true)) =
+            guard_comparison(condition, guard_is_true, definitions, tree)
         else {
             continue;
         };
@@ -437,7 +423,7 @@ fn collect_loop_guards(
         // record non negative guards when possible
         let ranges_at_guard = ranges.exit(block_id);
         if let Some(value) =
-            guard_non_negative(*operator, *left, *right, guard_is_true, ranges_at_guard)
+            guard_non_negative(operator, left, right, guard_is_true, ranges_at_guard)
         {
             non_negative.push(NonNegativeGuard {
                 block: block_id,
@@ -446,7 +432,7 @@ fn collect_loop_guards(
         }
 
         // normalize to a strict less than guard
-        let Some(guard_info) = guard_less_than(*operator, *left, *right, guard_is_true) else {
+        let Some(guard_info) = guard_less_than(operator, left, right, guard_is_true) else {
             continue;
         };
 
@@ -463,6 +449,59 @@ fn collect_loop_guards(
         bounds,
         non_negative,
     }
+}
+
+/// Extract a guard comparison from a condition value.
+fn guard_comparison(
+    condition: mir::Value,
+    guard_is_true: bool,
+    definitions: &ValueDefinitions,
+    tree: &mir::NodeTree,
+) -> Option<(mir::BinaryOperator, mir::Value, mir::Value, bool)> {
+    // resolve the condition instruction
+    let definition = definitions.definition_for(condition)?;
+    let ValueDefinitionKind::Instruction { instruction } = definition.kind else {
+        return None;
+    };
+    let instruction = tree.get(instruction);
+
+    // handle direct comparisons
+    if let mir::Instruction::Binary {
+        operator,
+        left,
+        right,
+        ..
+    } = instruction
+    {
+        return Some((*operator, *left, *right, guard_is_true));
+    }
+
+    // handle negated comparisons
+    if let mir::Instruction::Unary {
+        operator: mir::UnaryOperator::Not,
+        argument,
+        ..
+    } = instruction
+    {
+        let nested_definition = definitions.definition_for(*argument)?;
+        let ValueDefinitionKind::Instruction { instruction } = nested_definition.kind else {
+            return None;
+        };
+        let nested = tree.get(instruction);
+        let mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } = nested
+        else {
+            return None;
+        };
+
+        return Some((*operator, *left, *right, !guard_is_true));
+    }
+
+    None
 }
 
 /// Guard comparison info for an in loop less than condition.
@@ -1298,6 +1337,60 @@ block5:
     unreachable
 block6:
     return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopBoundsCheckEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Negated guards still eliminate bounds checks.
+    #[test]
+    fn test_eliminate_bounds_with_negated_guard() {
+        // source program
+        let input = r#"function @test(v0: [u32; 4]) -> void {
+block0(v0: [u32; 4]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 4u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = icmp_ult v4, v3
+    v6 = bnot v5
+    branch v6, block2, block3
+block2:
+    return
+block3:
+    v7 = icmp_ult v4, v3
+    check v7, bounds.unsigned v4, v3, v0, block4, block5
+block4:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block5:
+    unreachable
+}"#;
+        // expected output
+        let expected = r#"function @test(v0: [u32; 4]) -> void {
+block0(v0: [u32; 4]):
+    v1 = iconst 0u32
+    v2 = iconst 1u32
+    v3 = iconst 4u32
+    jump block1(v1)
+block1(v4: u32):
+    v5 = icmp_ult v4, v3
+    v6 = bnot v5
+    branch v6, block2, block3
+block2:
+    return
+block3:
+    v7 = icmp_ult v4, v3
+    jump block4
+block4:
+    v8 = iadd v4, v2
+    jump block1(v8)
+block5:
+    unreachable
 }"#;
 
         // run the pass and verify output
