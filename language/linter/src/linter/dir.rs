@@ -174,7 +174,12 @@ impl<'a> LintModuleDirContext<'a> {
     /// Get a cached declared lib symbol for the module profile and name.
     pub fn get_declared_lib_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.get_declared_lib_symbol(self.profile_id, name)
+        let profile = self.program.profile(self.profile_id);
+        builtins.get_declared_lib_symbol_for_space_order(
+            &profile.key,
+            name,
+            dir::SymbolSpaceOrder::ValueThenType,
+        )
     }
 
     /// Get a declared lib symbol from the cache, panicking if not found.
@@ -188,7 +193,8 @@ impl<'a> LintModuleDirContext<'a> {
     /// Get well-known symbols for the module profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.well_known_symbols(self.profile_id)
+        let profile = self.program.profile(self.profile_id);
+        builtins.well_known_symbols(&profile.key)
     }
 
     /// Get well-known symbols for the module profile, panicking if not found.
@@ -247,7 +253,8 @@ impl<'a> LintModuleDirContext<'a> {
         let Some(builtins) = self.program.builtins.as_ref() else {
             return false;
         };
-        let Some(ambient_modules) = builtins.ambient_libs(self.profile_id) else {
+        let profile = self.program.profile(self.profile_id);
+        let Some(ambient_modules) = builtins.ambient_libs(&profile.key) else {
             return false;
         };
 

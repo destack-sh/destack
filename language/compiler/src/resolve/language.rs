@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
-use destack_workspace::{Builtins, ProfileId, WellKnownSymbols};
+use destack_workspace::{Builtins, ProfileId, SymbolGroup, WellKnownSymbols};
 use indexmap::IndexMap;
 
 use crate::resolve::globals::GlobalSymbolCache;
@@ -34,7 +34,9 @@ impl Compiler {
 
         // collect libs to resolve
         let profile = self.program.profile(profile_id);
-        let mut libs = profile.key.lib.clone();
+        let profile_key = profile.key.clone();
+        let mut libs = profile_key.lib.clone();
+
         // always include std lib (?)
         if !libs.contains(&"std".to_string()) {
             libs.push("std".to_string());
@@ -66,7 +68,7 @@ impl Compiler {
             lib_modules,
             ambient_modules,
         } = loaded_modules;
-        builtins.set_ambient_libs(profile_id, ambient_modules.clone());
+        builtins.set_ambient_libs(&profile_key, ambient_modules.clone());
 
         // prepare modules in order
         let mut collector = TaskResultCollector::new();
@@ -109,12 +111,19 @@ impl Compiler {
             &declared_names,
         );
 
+        // collect all ambient lib symbols
+        let ambient_symbols =
+            self.collect_ambient_lib_symbols(profile_id, &ambient_modules, &global_cache);
+
         // cache declared lib symbols
-        builtins.set_declared_lib_symbols(profile_id, declared_symbols.clone());
+        builtins.set_declared_lib_symbols(&profile_key, declared_symbols.clone());
+
+        // cache ambient lib symbols
+        builtins.set_ambient_lib_symbols(&profile_key, ambient_symbols);
 
         // cache well-known symbols
         let well_known_symbols = WellKnownSymbols::build(&self.program.strings, &declared_symbols);
-        builtins.set_well_known_symbols(profile_id, well_known_symbols);
+        builtins.set_well_known_symbols(&profile_key, well_known_symbols);
 
         Ok(())
     }
@@ -139,30 +148,58 @@ impl Compiler {
     }
 
     /// Find declared lib symbols from the global cache, falling back to exports.
+    /// Returns a map with SymbolGroup entries containing both type and value symbols.
     fn find_declared_lib_symbols(
         &self,
         profile_id: ProfileId,
         lib_modules: &[destack_source::ModuleId],
         global_cache: &GlobalSymbolCache,
         declared_names: &HashSet<StringId>,
-    ) -> IndexMap<StringId, GlobalSymbolId> {
+    ) -> IndexMap<StringId, SymbolGroup> {
+        use crate::resolve::globals::GlobalSymbolGroupKey;
+
         let mut declared_symbols = IndexMap::new();
 
         for &name_id in declared_names {
             let key = StaticKey::Name(name_id);
 
-            // try global cache first
-            if let Some(&symbol_id) = global_cache.symbols.get(&key) {
-                declared_symbols.insert(name_id, symbol_id);
+            // try global cache first for both spaces
+            let type_key = GlobalSymbolGroupKey {
+                key,
+                space: SymbolSpace::Type,
+            };
+            let value_key = GlobalSymbolGroupKey {
+                key,
+                space: SymbolSpace::Value,
+            };
+            let type_value_key = GlobalSymbolGroupKey {
+                key,
+                space: SymbolSpace::TypeValue,
+            };
+            let type_symbol = global_cache
+                .symbols_by_space
+                .get(&type_key)
+                .or_else(|| global_cache.symbols_by_space.get(&type_value_key))
+                .copied();
+            let value_symbol = global_cache
+                .symbols_by_space
+                .get(&value_key)
+                .or_else(|| global_cache.symbols_by_space.get(&type_value_key))
+                .copied();
+            if type_symbol.is_some() || value_symbol.is_some() {
+                declared_symbols.insert(
+                    name_id,
+                    SymbolGroup {
+                        ty: type_symbol,
+                        value: value_symbol,
+                    },
+                );
                 continue;
             }
 
-            // fall back to exports
+            // fall back to exports, looking for both type and value
+            let mut group = SymbolGroup::default();
             for &module_id in lib_modules {
-                if declared_symbols.contains_key(&name_id) {
-                    break;
-                }
-
                 // load the module
                 let module = self.program.modules.get(module_id);
                 let module = module.read();
@@ -170,20 +207,133 @@ impl Compiler {
                 let exports = dir.exported_symbols.read();
                 let tree = dir.tree.read();
 
-                // resolve the symbol from the module's export table
-                if let Some(symbol_id) = self.resolve_exported_symbol(
-                    module_id,
-                    &exports,
-                    &tree,
-                    SymbolSpaceOrder::ValueThenType,
-                    key,
-                ) {
-                    declared_symbols.insert(name_id, symbol_id);
+                // resolve type-space symbol if not yet found
+                if group.ty.is_none()
+                    && let Some(symbol_id) = self.resolve_exported_symbol(
+                        module_id,
+                        &exports,
+                        &tree,
+                        SymbolSpaceOrder::TypeOnly,
+                        key,
+                    )
+                {
+                    group.ty = Some(symbol_id);
                 }
+
+                // resolve value-space symbol if not yet found
+                if group.value.is_none()
+                    && let Some(symbol_id) = self.resolve_exported_symbol(
+                        module_id,
+                        &exports,
+                        &tree,
+                        SymbolSpaceOrder::ValueOnly,
+                        key,
+                    )
+                {
+                    group.value = Some(symbol_id);
+                }
+
+                // stop once both are found
+                if group.ty.is_some() && group.value.is_some() {
+                    break;
+                }
+            }
+
+            if !group.is_empty() {
+                declared_symbols.insert(name_id, group);
             }
         }
 
         declared_symbols
+    }
+
+    /// Collect all exported symbols from ambient lib modules.
+    fn collect_ambient_lib_symbols(
+        &self,
+        profile_id: ProfileId,
+        ambient_modules: &[destack_source::ModuleId],
+        global_cache: &GlobalSymbolCache,
+    ) -> IndexMap<StringId, SymbolGroup> {
+        let mut ambient_symbols = IndexMap::new();
+
+        // first, collect from global cache (by space)
+        for (group_key, &symbol_id) in &global_cache.symbols_by_space {
+            let StaticKey::Name(name_id) = group_key.key else {
+                continue;
+            };
+            let group = ambient_symbols
+                .entry(name_id)
+                .or_insert(SymbolGroup::default());
+            match group_key.space {
+                SymbolSpace::Type => {
+                    if group.ty.is_none() {
+                        group.ty = Some(symbol_id);
+                    }
+                }
+                SymbolSpace::Value => {
+                    if group.value.is_none() {
+                        group.value = Some(symbol_id);
+                    }
+                }
+                SymbolSpace::TypeValue => {
+                    if group.ty.is_none() {
+                        group.ty = Some(symbol_id);
+                    }
+                    if group.value.is_none() {
+                        group.value = Some(symbol_id);
+                    }
+                }
+                SymbolSpace::Label => {}
+            }
+        }
+
+        // then, supplement from module exports
+        for &module_id in ambient_modules {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let dir = module.dir(profile_id);
+            let exports = dir.exported_symbols.read();
+
+            // exported_symbols is IndexMap<(SymbolSpace, StaticKey), Export>
+            for ((space, key), export) in exports.iter() {
+                let StaticKey::Name(name_id) = *key else {
+                    continue;
+                };
+
+                // resolve the export target
+                let Some(target_id) = export.target.resolved() else {
+                    continue;
+                };
+
+                // add to the appropriate slot in the group
+                let group = ambient_symbols
+                    .entry(name_id)
+                    .or_insert(SymbolGroup::default());
+                match space {
+                    SymbolSpace::Type => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Value => {
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::TypeValue => {
+                        if group.ty.is_none() {
+                            group.ty = Some(target_id);
+                        }
+                        if group.value.is_none() {
+                            group.value = Some(target_id);
+                        }
+                    }
+                    SymbolSpace::Label => {}
+                }
+            }
+        }
+
+        ambient_symbols
     }
 
     /// Load lib modules in dependency order and collect module lists.
@@ -339,16 +489,31 @@ impl Compiler {
     /// Get a cached declared lib symbol for a profile and name.
     pub fn get_declared_lib_symbol(
         &self,
-        profile: ProfileId,
+        profile_id: ProfileId,
         name: StringId,
     ) -> Option<GlobalSymbolId> {
+        self.get_declared_lib_symbol_for_space_order(
+            profile_id,
+            name,
+            SymbolSpaceOrder::ValueThenType,
+        )
+    }
+
+    /// Get a cached declared lib symbol for a profile, name, and space order.
+    pub fn get_declared_lib_symbol_for_space_order(
+        &self,
+        profile_id: ProfileId,
+        name: StringId,
+        order: SymbolSpaceOrder,
+    ) -> Option<GlobalSymbolId> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.get_declared_lib_symbol(profile, name)
+        let profile = self.program.profile(profile_id);
+        builtins.get_declared_lib_symbol_for_space_order(&profile.key, name, order)
     }
 
     /// Get a declared lib symbol from the cache, panicking if not found.
-    pub fn declared_lib_symbol(&self, profile: ProfileId, name: StringId) -> GlobalSymbolId {
-        self.get_declared_lib_symbol(profile, name)
+    pub fn declared_lib_symbol(&self, profile_id: ProfileId, name: StringId) -> GlobalSymbolId {
+        self.get_declared_lib_symbol(profile_id, name)
             .unwrap_or_else(|| {
                 let name = self.program.strings.get(name);
                 panic!("declared lib symbol '{}' not available", name.as_ref())
@@ -356,98 +521,49 @@ impl Compiler {
     }
 
     /// Get well-known symbols for a profile.
-    pub fn get_well_known_symbols(&self, profile: ProfileId) -> Option<WellKnownSymbols> {
+    pub fn get_well_known_symbols(&self, profile_id: ProfileId) -> Option<WellKnownSymbols> {
         let builtins = self.program.builtins.as_ref()?;
-        builtins.well_known_symbols(profile)
+        let profile = self.program.profile(profile_id);
+        builtins.well_known_symbols(&profile.key)
     }
 
     /// Get well-known symbols for a profile, panicking if not found.
-    pub fn well_known_symbols(&self, profile: ProfileId) -> WellKnownSymbols {
-        self.get_well_known_symbols(profile)
-            .unwrap_or_else(|| panic!("well-known symbols not available for profile {profile:?}"))
+    pub fn well_known_symbols(&self, profile_id: ProfileId) -> WellKnownSymbols {
+        self.get_well_known_symbols(profile_id).unwrap_or_else(|| {
+            panic!("well-known symbols not available for profile {profile_id:?}")
+        })
     }
 
-    /// Get a specific well-known symbol for a profile.
+    /// Get a specific well-known symbol for a profile (value-space preferred).
     pub fn get_well_known_symbol(
         &self,
-        profile: ProfileId,
+        profile_id: ProfileId,
         symbol: WellKnownSymbol,
     ) -> Option<GlobalSymbolId> {
-        let well_known_symbols = self.get_well_known_symbols(profile)?;
+        let well_known_symbols = self.get_well_known_symbols(profile_id)?;
         well_known_symbols.get_symbol(symbol)
     }
 
-    /// Get a specific well-known symbol from the type space when available.
+    /// Get a specific well-known symbol from the type space.
     pub fn get_well_known_type_symbol(
         &self,
-        profile: ProfileId,
+        profile_id: ProfileId,
         symbol: WellKnownSymbol,
     ) -> Option<GlobalSymbolId> {
-        let symbol_id = self.get_well_known_symbol(profile, symbol)?;
-        Some(self.resolve_well_known_type_symbol(profile, symbol_id))
+        let well_known_symbols = self.get_well_known_symbols(profile_id)?;
+        well_known_symbols.get_type_symbol(symbol)
     }
 
     /// Get a specific well-known symbol for a profile, panicking if not found.
-    pub fn well_known_symbol(&self, profile: ProfileId, symbol: WellKnownSymbol) -> GlobalSymbolId {
-        self.get_well_known_symbol(profile, symbol)
-            .unwrap_or_else(|| {
-                panic!("well-known symbol {symbol:?} not available for profile {profile:?}")
-            })
-    }
-
-    /// Find the type-space counterpart of a symbol if one exists.
-    /// FUGU #Cleanup: remove resolve_well_known_type_symbol in favor of symbol-space-keyed well known symbols (?)
-    ///  (do we even need both..? for TS compatibility I suppose?)
-    fn resolve_well_known_type_symbol(
+    pub fn well_known_symbol(
         &self,
-        profile: ProfileId,
-        symbol_id: GlobalSymbolId,
+        profile_id: ProfileId,
+        symbol: WellKnownSymbol,
     ) -> GlobalSymbolId {
-        let module = self.program.modules.get(symbol_id.module_id);
-        let module = module.read();
-        let Some(dir) = module.dir_maybe(profile) else {
-            return symbol_id;
-        };
-        let symbols = dir.symbols.read();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-
-        // already in type space
-        if matches!(symbol.space, SymbolSpace::Type | SymbolSpace::TypeValue) {
-            return symbol_id;
-        }
-
-        let Some(name) = symbol.name() else {
-            return symbol_id;
-        };
-
-        // scan the namespace scope for a type-space symbol with the same name
-        let scope = symbols.get_scope_by_id(dir.namespace_scope);
-        let mut type_fallback = None;
-        for (key, candidate_id) in scope.named_symbols.iter().rev() {
-            let StaticKey::Name(candidate_name) = *key else {
-                continue;
-            };
-            if candidate_name != name {
-                continue;
-            }
-
-            let candidate = symbols.get_symbol(*candidate_id);
-            match candidate.space {
-                // prefer TypeValue (both type and value)
-                SymbolSpace::TypeValue => return candidate_id.into_global(module.id),
-                // fall back to Type
-                SymbolSpace::Type => {
-                    if type_fallback.is_none() {
-                        type_fallback = Some(*candidate_id);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        type_fallback
-            .map(|id| id.into_global(module.id))
-            .unwrap_or(symbol_id)
+        self.get_well_known_symbol(profile_id, symbol)
+            .unwrap_or_else(|| {
+                panic!("well-known symbol {symbol:?} not available for profile {profile_id:?}")
+            })
     }
 
     /// Reject multiple builtin lib versions in the same lib set.
@@ -684,6 +800,16 @@ mod tests {
                 well_known.get_symbol(symbol).is_some(),
                 "missing well-known symbol {symbol:?}"
             );
+        }
+
+        // verify that type symbols are available
+        for symbol in WellKnownSymbol::all() {
+            if let Some(group) = well_known.get_group(symbol) {
+                assert!(
+                    !group.is_empty(),
+                    "well-known symbol {symbol:?} has empty group"
+                );
+            }
         }
 
         for symbol in WellKnownSymbolKey::all() {
