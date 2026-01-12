@@ -49,6 +49,9 @@ impl TypeLowerer {
                 dir::FloatType::Arbitrary { width } => Some(builder.type_float(width)),
             },
             dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String),
+            } => self.ty_string,
+            dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
             } => match int_type.simplify() {
                 dir::IntType::Int32 => Some(self.ty_i32),
@@ -75,8 +78,8 @@ impl TypeLowerer {
                 dir::ScalarLiteral::Boolean(_) => Some(self.ty_bool),
                 dir::ScalarLiteral::Integer(_) => Some(self.ty_i32),
                 dir::ScalarLiteral::Float(_) => Some(self.ty_f64),
+                dir::ScalarLiteral::String(_) => self.ty_string,
                 dir::ScalarLiteral::Character(_)
-                | dir::ScalarLiteral::String(_)
                 | dir::ScalarLiteral::Bigint(_)
                 | dir::ScalarLiteral::RegexString { .. } => None,
             },

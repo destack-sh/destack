@@ -56,6 +56,20 @@ impl FunctionContext<'_> {
                 };
                 Ok((value, ty))
             }
+            ScalarLiteral::String(value) => {
+                let literal = self.strings.get(*value);
+                let value = self.builder.sconst(literal.to_string());
+                let ty = self
+                    .mir_type_for_expression(expression_id)
+                    .or_else(|| self.type_lowerer.string_type())
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "missing builtin String layout (load lib/native)".to_string(),
+                    })?;
+                Ok((value, ty))
+            }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.module_id)

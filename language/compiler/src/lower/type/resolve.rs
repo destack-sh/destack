@@ -36,8 +36,18 @@ impl FunctionContext<'_> {
             return Some(mir_type);
         }
 
-        // if type is a reference, follow it to the instance type
+        // handle primitive string directly
         let dir_type = self.types.get_type(type_id);
+        if matches!(
+            dir_type,
+            dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
+            }
+        ) {
+            return self.type_lowerer.string_type();
+        }
+
+        // if type is a reference, follow it to the instance type
         if let dir::Type::Reference { symbol, .. } = dir_type
             && let Some(instance_type_id) = self.types.get_instance_type_id(*symbol)
         {
