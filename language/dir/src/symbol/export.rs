@@ -84,7 +84,7 @@ impl Export {
 }
 
 /// The symbol space lookup order for a dependency kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SymbolSpaceOrder {
     /// Do not consider any spaces.
     None,
