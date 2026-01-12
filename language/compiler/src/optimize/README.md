@@ -21,6 +21,9 @@ The Optimize phase runs verification passes early, then executes optimization pa
 Optimize performs transformations taking maximal advantage of high-level semantic information.
 The backend handles low-level optimizations such as register allocation, instruction selection, and peephole passes.
 
+This MIR optimizer runs only for native targets.
+JS or TS targets lower and generate code directly from DIR without MIR.
+
 ## Optimization Levels
 
 | Level | Use Case | What Runs |
@@ -85,6 +88,14 @@ Analysis results are shared across passes until invalidated.
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
 | `memory-ssa` | MemorySSA | function | | domtree, alias | Memory versioning for precise load/store analysis |
 | `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |
+| `profile` | ProfileSummary | module | | — | Profile counters, hotness, and value profiles |
+| `branch-prob` | BranchProbability | function | | cfg, profile | Branch probabilities derived from profiles |
+| `block-freq` | BlockFrequency | function | | cfg, branch-prob | Estimated block execution frequencies |
+| `effect` | EffectAnalysis | function | | callgraph | Summary of side effects, allocation, and throws |
+| `exception-flow` | ExceptionFlowAnalysis | function | | cfg, effect | Which edges can throw or unwind |
+| `tbaa` | TypeBasedAliasAnalysis | function | ✓ | type-flow | Alias refinement from static type information |
+| `typed-array` | TypedArrayAnalysis | function | | type-flow | Typed array element kinds and bounds facts |
+| `string-literal` | StringLiteralAnalysis | function | | constant-propagation | Known string constants and length data |
 | `escape` | EscapeAnalysis | module | | callgraph | Which allocations escape their scope |
 | `ownership` | OwnershipAnalysis | function | ✓ | cfg | Value ownership and move/copy semantics |
 | `borrow` | BorrowAnalysis | function | ✓ | liveness | Active borrows across control flow |
@@ -93,6 +104,7 @@ Analysis results are shared across passes until invalidated.
 | `scalar-evolution` | ScalarEvolution | function | ✓ | loops | Symbolic expressions for induction variables and trip counts |
 | `range` | RangeAnalysis | function | ✓ | cfg | Numeric value ranges (for bounds check elimination) |
 | `dependence` | DependenceAnalysis | function | | scalar-evolution, alias | Memory dependence between loop iterations |
+| `loop-access` | LoopAccessAnalysis | function | | loops, scalar-evolution, alias, range | Loop memory access patterns and strides |
 
 ---
 
@@ -135,14 +147,18 @@ Local and global optimizations within a single function.
 | `local-cse` | LocalCse | function | O1 | ✓ | — | Eliminate redundant computations within a basic block |
 | `gvn` | GlobalValueNumbering | function | O2 | ✓ | domtree | Eliminate redundant computations across basic blocks |
 | `sccp` | SparseConditionalConstantPropagation | function | O2 | ✓ | — | Aggressive constant propagation with unreachable code detection |
-| `reassociate` | Reassociate | function | O2 | | — | Reorder associative operations for better constant folding |
+| `reassociate` | Reassociate | function | O2 | ✓ | constant-propagation | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
-| `hoist` | CodeHoisting | function | O2 | | domtree | Move identical instructions to common dominator |
+| `hoist` | CodeHoisting | function | O2 | ✓ | cfg, domtree | Move identical instructions to common dominator |
+| `jump-threading` | JumpThreading | function | O2 | | cfg, domtree | Thread through conditional jumps to simplify control flow |
 | `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `tail-call-eliminate` | TailCallEliminate | module | O2 | ✓ | — | Convert tail calls to jumps |
-| `correlated-value-prop` | CorrelatedValueProp | function | O2 | | domtree | Use dominating conditions to narrow value ranges |
-| `if-convert` | IfConvert | function | O2 | | cfg | Convert simple if-then-else diamonds to select/conditional-move |
+| `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | domtree | Use dominating conditions to narrow value ranges |
+| `if-convert` | IfConvert | function | O2 | ✓ | cfg | Convert simple if-then-else diamonds to select/conditional-move |
 | `narrow` | Narrow | function | O2 | | — | Use narrower integer types when upper bits are unused |
+| `guard-eliminate` | GuardEliminate | function | O2 | | domtree, range | Remove redundant guard and check terminators |
+| `value-range-prop` | ValueRangePropagation | function | O2 | | range, domtree | Propagate refined ranges along control flow |
+| `path-clone` | PathClone | function | O3 | | cfg, domtree, profile | Clone hot paths to expose constants and simplify control flow |
 
 ### Interprocedural (I)
 
@@ -162,6 +178,11 @@ Cross-function optimizations that require module-level analysis.
 | `global-opt` | GlobalOpt | module | O2 | | callgraph | Internalize globals, propagate constants, convert never-written to immutable |
 | `function-attrs` | FunctionAttrs | module | O2 | | callgraph | Deduce function attributes (nounwind, noreturn, readonly, noescape) |
 | `hot-cold-split` | HotColdSplit | module | O3 | | callgraph, loops | Split functions into hot and cold regions for better code layout |
+| `pgo-inline` | ProfileGuidedInline | module | O2 | | callgraph, profile | Inline based on callsite hotness and value profiles |
+| `indirect-call-promotion` | IndirectCallPromotion | module | O3 | | callgraph, profile | Promote hot indirect calls to direct with fallback |
+| `pgo-devirtualize` | ProfileGuidedDevirtualize | function | O3 | | type-flow, profile | Speculative devirtualization guarded by profiles |
+| `function-specialize-pgo` | FunctionSpecializePGO | module | O3 | | callgraph, profile | Specialize hot callsites with constant arguments |
+| `block-placement` | BlockPlacement | module | O2 | | cfg, block-freq | Layout blocks for fallthrough and cache locality |
 
 ### Memory (M)
 
@@ -174,6 +195,8 @@ Optimizations for memory allocation and access patterns.
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
+| `gc-write-barrier-elide` | GcWriteBarrierElide | function | O2 | | alias, effect, escape | Remove redundant GC write barriers |
+| `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, exception-flow, block-freq | Hoist loads speculatively when safe |
 
 ### Loop (L)
 
@@ -187,8 +210,12 @@ Loop-specific transformations.
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✓ | loops, cfg, scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✓ | loops, cfg, domtree, scalar-evolution, ownership, range | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |
-| `loop-unroll` | LoopUnroll | function | O3 | | scalar-evolution | Unroll loops with known or small trip counts |
+| `loop-unroll` | LoopUnroll | function | O3 | ✓ | scalar-evolution | Unroll loops with known or small trip counts |
 | `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, cfg, domtree | Move loop-invariant conditionals outside the loop |
+| `loop-peel` | LoopPeel | function | O3 | | loops, scalar-evolution | Peel iterations to simplify guards and expose invariants |
+| `loop-versioning` | LoopVersioning | function | O3 | | loops, scalar-evolution, range | Create fast path loops guarded by assumptions |
+| `loop-idiom` | LoopIdiomRecognize | function | O2 | | loops, scalar-evolution | Recognize memcpy and memset style loops |
+| `unroll-and-jam` | LoopUnrollAndJam | function | O3 | | loops, scalar-evolution | Unroll outer loops and jam inner loops |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
 | `loop-distribute` | LoopDistribute | function | O3 | | dependence | Split loops to enable partial vectorization |
@@ -206,6 +233,9 @@ These are MIR-only optimizations that justify having an optimizer above the back
 | `bounds-check-eliminate` | BoundsCheckEliminate | function | O1 | ✓ | constant-propagation, cfg, domtree, range | Remove array bounds checks when provably safe |
 | `loop-bounds-check-eliminate` | LoopBoundsCheckEliminate | function | O1 | ✓ | loops, cfg, domtree, scalar-evolution, range | Remove loop bounds checks dominated by loop guards |
 | `null-check-eliminate` | NullCheckEliminate | function | O2 | | type-flow | Remove null checks when provably non-null |
+| `nullability-prop` | NullabilityPropagation | function | O2 | | type-flow, domtree | Propagate non null facts through control flow |
+| `type-test-eliminate` | TypeTestEliminate | function | O2 | | type-flow, domtree | Remove redundant type tests and instanceof checks |
+| `union-split` | UnionSplit | function | O2 | | type-flow, domtree | Split control flow based on union tags |
 | `specialize` | FunctionSpecialize | module | O3 | | callgraph | Create specialized versions for constant arguments |
 
 ## Pipeline
