@@ -55,6 +55,38 @@ impl Compiler {
         let normalized_right =
             self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
 
+        // treat unconstrained type parameters as keyof any
+        if let Type::Reference { symbol, .. } = types.get_type(normalized_right) {
+            // read the symbol entry from the owning module
+            let is_static_parameter = if symbol.module_id == module.id {
+                symbols.get_symbol(symbol.local_id).is_static_parameter()
+            } else {
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.read();
+                let remote_symbols = remote_module.dir(profile).symbols.read();
+                remote_symbols
+                    .get_symbol(symbol.local_id)
+                    .is_static_parameter()
+            };
+            if is_static_parameter
+                && let Some(constraint_id) = self.static_parameter_constraint_type(
+                    module, profile, *symbol, source_id, symbols, types,
+                )
+                && matches!(
+                    types.get_type(constraint_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    }
+                )
+            {
+                let mut key_set = KeySet::default();
+                key_set.insert_index_kind(MappedIndexKind::String);
+                key_set.insert_index_kind(MappedIndexKind::Number);
+                key_set.insert_index_kind(MappedIndexKind::Symbol);
+                return self.key_type_id_for_key_set(source_id, key_set, types);
+            }
+        }
+
         // collect keys for the normalized operand
         let mut visited_keys = HashSet::new();
         let key_set = self.key_set_for_type(
