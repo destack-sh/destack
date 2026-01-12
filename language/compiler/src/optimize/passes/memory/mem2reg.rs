@@ -5,7 +5,9 @@ use destack_mir as mir;
 use mir::{Instruction, Terminator};
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::common::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
+use crate::optimize::common::{
+    compute_dominance_frontiers, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -104,7 +106,7 @@ fn run_mem2reg(
     function.recompute_next_value_id(tree);
 
     // compute dominance frontiers
-    let frontiers = compute_dominance_frontiers(function, cfg, domtree);
+    let frontiers = compute_dominance_frontiers(&function.blocks, cfg, domtree);
 
     // find definition blocks for each promotable local
     let def_blocks = find_definition_blocks(&promotable, function, tree);
@@ -178,44 +180,6 @@ fn find_promotable_locals(
             (local_id, PromotableLocal { ty: local.ty })
         })
         .collect()
-}
-
-/// Compute dominance frontiers for all blocks.
-fn compute_dominance_frontiers(
-    function: &mir::Function,
-    cfg: &ControlFlowGraph,
-    domtree: &DominatorTree,
-) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>> {
-    let mut frontiers: HashMap<
-        mir::LocalNodeId<mir::Block>,
-        HashSet<mir::LocalNodeId<mir::Block>>,
-    > = HashMap::new();
-
-    for &block in &function.blocks {
-        frontiers.insert(block, HashSet::new());
-    }
-
-    // for each block, compute its dominance frontier using the standard algorithm:
-    // df(x) = {y : y has a predecessor z where x dominates z but x does not strictly dominate y}
-    for &block in &function.blocks {
-        let preds = cfg.predecessors(block);
-        if preds.len() >= 2 {
-            // block is a join point, check each predecessor
-            for &pred in preds {
-                let mut runner = pred;
-                // walk up the dominator tree until we reach block's immediate dominator
-                while Some(runner) != domtree.immediate_dominator(block)
-                    && runner != block
-                    && domtree.immediate_dominator(runner).is_some()
-                {
-                    frontiers.get_mut(&runner).unwrap().insert(block);
-                    runner = domtree.immediate_dominator(runner).unwrap();
-                }
-            }
-        }
-    }
-
-    frontiers
 }
 
 /// Find which blocks contain definitions (LocalSet) for each promotable local.

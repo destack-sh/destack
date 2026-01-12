@@ -86,7 +86,7 @@ Analysis results are shared across passes until invalidated.
 | `reaching-defs` | ReachingDefinitions | function | ✓ | cfg | Which local definitions reach each use |
 | `available-exprs` | AvailableExpressions | function | ✓ | cfg | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
-| `memory-ssa` | MemorySSA | function | | domtree, alias | Memory versioning for precise load/store analysis |
+| `memory-ssa` | MemorySSA | function | ✓ | domtree, ownership | Memory versioning for precise load/store analysis |
 | `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |
 | `profile` | ProfileSummary | module | | — | Profile counters, hotness, and value profiles |
 | `branch-prob` | BranchProbability | function | | cfg, profile | Branch probabilities derived from profiles |

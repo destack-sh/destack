@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use destack_mir as mir;
 
@@ -189,6 +189,79 @@ pub fn terminator_arguments_for_successor(
 
         _ => &[],
     }
+}
+
+/// Collect blocks reachable from the entry in function order.
+pub fn collect_reachable_blocks(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    entry: mir::LocalNodeId<mir::Block>,
+) -> Vec<mir::LocalNodeId<mir::Block>> {
+    // seed worklist with entry
+    let mut worklist = VecDeque::new();
+    let mut visited = HashSet::new();
+    worklist.push_back(entry);
+    visited.insert(entry);
+
+    // bfs over successors
+    while let Some(block) = worklist.pop_front() {
+        let block_data = tree.get(block);
+        for successor in block_data.terminator.successors() {
+            if visited.insert(successor) {
+                worklist.push_back(successor);
+            }
+        }
+    }
+
+    // preserve function block order
+    function
+        .blocks
+        .iter()
+        .copied()
+        .filter(|block| visited.contains(block))
+        .collect()
+}
+
+/// Compute dominance frontiers for a list of blocks.
+pub fn compute_dominance_frontiers(
+    blocks: &[mir::LocalNodeId<mir::Block>],
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+) -> HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>> {
+    // initialize frontiers for each block
+    let mut frontiers: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        HashSet<mir::LocalNodeId<mir::Block>>,
+    > = blocks
+        .iter()
+        .copied()
+        .map(|block| (block, HashSet::new()))
+        .collect();
+
+    // compute dominance frontiers with the standard algorithm
+    for &block in blocks {
+        let preds = cfg.predecessors(block);
+        if preds.len() < 2 {
+            continue;
+        }
+
+        let idom = domtree.immediate_dominator(block);
+        for &pred in preds {
+            let mut runner = pred;
+            while Some(runner) != idom
+                && runner != block
+                && domtree.immediate_dominator(runner).is_some()
+            {
+                if let Some(frontier) = frontiers.get_mut(&runner) {
+                    frontier.insert(block);
+                }
+
+                runner = domtree.immediate_dominator(runner).unwrap();
+            }
+        }
+    }
+
+    frontiers
 }
 
 /// Result of collecting arguments for a successor edge.

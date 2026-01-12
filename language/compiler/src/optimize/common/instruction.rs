@@ -678,6 +678,28 @@ pub struct InstructionRef {
     pub index: usize,
 }
 
+/// Build a map from values to the instructions that define them.
+pub fn build_value_definition_map(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> {
+    // collect instruction destinations
+    let mut map = HashMap::new();
+
+    // scan blocks for definitions
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if let Some(destination) = instruction.destination() {
+                map.insert(destination, instruction_id);
+            }
+        }
+    }
+
+    map
+}
+
 /// Build a map from values to their defining instructions.
 pub fn build_value_instruction_map(
     function: &mir::Function,

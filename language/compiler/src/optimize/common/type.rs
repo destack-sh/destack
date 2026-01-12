@@ -131,6 +131,28 @@ impl TypeKey {
             TypeKey::Void | TypeKey::Boolean | TypeKey::Int { .. } | TypeKey::Float { .. }
         )
     }
+
+    /// Return the byte size when it is unambiguous.
+    pub fn byte_size(&self) -> Option<u64> {
+        match self {
+            TypeKey::Int { width, .. } => bytes_for_width(*width),
+            TypeKey::Float { width } => bytes_for_width(*width),
+            TypeKey::Array { element, length } => {
+                let element_size = element.byte_size()?;
+                element_size.checked_mul(*length)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Convert a bit width into bytes when the width is byte aligned.
+fn bytes_for_width(width: u16) -> Option<u64> {
+    if width % 8 == 0 {
+        Some(u64::from(width / 8))
+    } else {
+        None
+    }
 }
 
 /// Check if two MIR types are structurally equal.
