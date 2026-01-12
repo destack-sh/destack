@@ -503,6 +503,14 @@ The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis.
 Stack-allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
 For manual deallocation without dispose (FFI), use `raw.free` directly.
 
+**Address spaces:**
+
+References can target explicit address spaces for native and accelerator memory.
+The default is `generic`, which maps to the target's normal memory.
+Non-generic address spaces are only valid for borrowed and raw references.
+`constant` references are always immutable.
+Address space changes are explicit and use the `addrspace.cast` intrinsic.
+
 **Nested ownership:**
 
 Ownership is at the usage site, not the definition site.
@@ -2846,6 +2854,9 @@ struct Config {
 // on function parameters
 function greet(@validate name: string) { }
 
+// on reference types
+function kernel(data: @addrspace("shared") &Point) { }
+
 // on match arms
 match (event) {
     @likely
@@ -2870,12 +2881,16 @@ Newtype-based decorators enable compiler hints without runtime overhead:
 newtype unroll = void;
 newtype inline = void;
 newtype deprecated = string;
+newtype addrspace = (string,) | (int,);
 
 @unroll                    // hint to compiler, stripped in JS output
 for (let i = 0; i < 4; i++) { }
 
 @deprecated("use newAPI")  // compile-time warning, stripped in JS output
 function oldAPI() { }
+
+@addrspace("shared")       // type metadata, lowered to explicit address space
+function kernel(data: @addrspace("shared") &Point) { }
 ```
 
 ### Comments

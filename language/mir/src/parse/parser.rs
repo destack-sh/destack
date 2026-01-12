@@ -3,10 +3,11 @@
 use std::collections::HashMap;
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint, CheckTarget, Constant,
-    Copyability, Field, Function, Global, GlobalInitializer, Instruction, Intrinsic, Lifetime,
-    Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership, ReferenceKind,
-    SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
+    AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
+    CheckTarget, Constant, Copyability, Field, Function, Global, GlobalInitializer, Instruction,
+    Intrinsic, Lifetime, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
+    Ownership, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator,
+    Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -1517,6 +1518,51 @@ impl<'a> Parser<'a> {
                 };
                 self.bump();
 
+                // parse optional address space
+                let address_space = if self.eat_token_maybe(TokenType::AddrSpace) {
+                    self.eat_token(TokenType::OpenParen)?;
+
+                    // parse address space name or id
+                    let token = self
+                        .peek()
+                        .ok_or_else(|| ParseError::unexpected_end("address space", self.pos()))?;
+                    let token_ty = token.ty;
+                    let token_text = token.text;
+                    let token_start = token.start;
+
+                    let address_space = match token_ty {
+                        TokenType::Identifier | TokenType::Global | TokenType::Local => {
+                            self.bump();
+                            AddressSpace::from_name(token_text).ok_or_else(|| {
+                                ParseError::invalid(
+                                    &format!("address space '{token_text}'"),
+                                    token_start,
+                                )
+                            })?
+                        }
+                        TokenType::IntLiteral => {
+                            let value = self.parse_int_literal()?;
+                            let value = u32::try_from(value).map_err(|_| {
+                                ParseError::invalid("address space id", token_start)
+                            })?;
+                            AddressSpace::Target(value)
+                        }
+                        _ => {
+                            return Err(ParseError::unexpected(
+                                "address space",
+                                token_ty,
+                                token_start,
+                            ));
+                        }
+                    };
+
+                    self.eat_token(TokenType::CloseParen)?;
+                    address_space
+                } else {
+                    AddressSpace::Generic
+                };
+
+                // parse optional mutability
                 let mutability = if self.eat_token_maybe(TokenType::Mut) {
                     Mutability::Mutable
                 } else {
@@ -1527,6 +1573,7 @@ impl<'a> Parser<'a> {
                 self.eat_token(TokenType::GreaterThan)?;
                 Type::Reference {
                     kind,
+                    address_space,
                     mutability,
                     pointee,
                     is_nullable,

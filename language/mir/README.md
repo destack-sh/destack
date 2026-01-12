@@ -170,6 +170,7 @@ They have no function body: each backend implements them specially.
 | Checked arithmetic | `add.overflow`, `sub.overflow`, `mul.overflow` |
 | Unchecked arithmetic | `add.unchecked`, `div.unchecked`, `shl.unchecked` (UB on overflow, division by zero, or shift out of range) |
 | Saturating arithmetic | `add.sat`, `sub.sat` |
+| Pointer ops | `transmute`, `addrspace.cast`, `ptr_offset_from`, `raw_eq` |
 | Memory | `memcpy`, `memmove`, `memset`, `volatile.load` |
 | Atomics | `atomic.load`, `atomic.cas`, `atomic.fetch.add`, etc. |
 | Float math | `sqrt`, `sin`, `cos`, `pow`, `floor`, etc. |
@@ -202,7 +203,7 @@ newtype Type =
     | Boolean
     | Int { width: uint16, signed: bool }
     | Float { width: uint16 }
-    | Reference { kind: ReferenceKind, mutability: Mutability, pointee: Type, isNullable: bool }
+    | Reference { kind: ReferenceKind, addressSpace: AddressSpace, mutability: Mutability, pointee: Type, isNullable: bool }
     | Array { element: Type, length: uint64 }
     | Tuple { elements: Type[] }
     | Struct { fields: Field[] }
@@ -220,6 +221,7 @@ References carry a kind _and_ mutability:
 - `raw` for "unsafe" pointers
 
 Reference syntax spells out the kind and mutability.
+Address spaces are optional and appear after the kind.
 
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
@@ -232,6 +234,20 @@ Reference syntax spells out the kind and mutability.
 
 Nullable references use `ref?<...>` with the same kind and mutability rules.
 Mutability can be encoded for any reference kind, but is only relevant semantically for borrowed and raw references.
+
+Address spaces describe where the reference points:
+`generic`, `stack`, `global`, `heap`, `shared`, `local`, `constant`, or a target-specific id.
+Use `addrspace(name)` or `addrspace(7)` in the reference syntax:
+
+```mir
+ref<raw addrspace(shared) i32>
+ref<raw addrspace(7) mut i32>
+```
+
+Non-generic address spaces are only valid for borrowed and raw references.
+`addrspace(constant)` references are always immutable.
+`addrspace(generic)` is the default and is omitted in canonical MIR formatting.
+Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
 Field names are optional in MIR types and are for readability only:
 

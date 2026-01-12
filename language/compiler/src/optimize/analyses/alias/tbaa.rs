@@ -94,10 +94,19 @@ impl TypeBasedAA {
                 self.types_cannot_alias(e1, e2)
             }
 
-            // references with different pointee types
-            (TypeKey::Reference { pointee: p1, .. }, TypeKey::Reference { pointee: p2, .. }) => {
-                self.types_cannot_alias(p1, p2)
-            }
+            // references with different address spaces or pointee types
+            (
+                TypeKey::Reference {
+                    address_space: a1,
+                    pointee: p1,
+                    ..
+                },
+                TypeKey::Reference {
+                    address_space: a2,
+                    pointee: p2,
+                    ..
+                },
+            ) => a1 != a2 || self.types_cannot_alias(p1, p2),
 
             // reference vs non-reference
             (TypeKey::Reference { .. }, _) | (_, TypeKey::Reference { .. }) => {
@@ -414,6 +423,7 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -439,6 +449,7 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
             mutability: destack_mir::Mutability::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
@@ -452,6 +463,39 @@ mod tests {
 
         // references to same type may alias
         assert_eq!(tbaa.alias(&loc1, &loc2), AliasResult::MayAlias);
+    }
+
+    /// References in different address spaces do not alias.
+    #[test]
+    fn test_references_different_address_spaces_no_alias() {
+        let tbaa = TypeBasedAA::default();
+
+        let ref_generic = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Generic,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Int {
+                width: 32,
+                signed: true,
+            }),
+            is_nullable: false,
+        };
+        let ref_shared = TypeKey::Reference {
+            kind: destack_mir::ReferenceKind::Raw,
+            address_space: destack_mir::AddressSpace::Shared,
+            mutability: destack_mir::Mutability::Mutable,
+            pointee: Box::new(TypeKey::Int {
+                width: 32,
+                signed: true,
+            }),
+            is_nullable: false,
+        };
+
+        let loc1 = make_loc_with_type(0, ref_generic);
+        let loc2 = make_loc_with_type(1, ref_shared);
+
+        // distinct address spaces cannot alias
+        assert_eq!(tbaa.alias(&loc1, &loc2), AliasResult::NoAlias);
     }
 
     #[test]

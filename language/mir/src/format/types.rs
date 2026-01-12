@@ -4,7 +4,10 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::{FormatMirNode, LocalNodeId, MirFormatter, Mutability, ReferenceKind, Type, TypeAlias};
+use crate::{
+    AddressSpace, FormatMirNode, LocalNodeId, MirFormatter, Mutability, ReferenceKind, Type,
+    TypeAlias,
+};
 
 impl<'a> FormatMirNode<'a, Type> for Type {
     fn format_node(&self, id: LocalNodeId<Type>, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -43,10 +46,12 @@ fn format_type_inner<'a>(
         }
         Type::Reference {
             kind,
+            address_space,
             mutability,
             pointee,
             is_nullable,
         } => {
+            // reference header
             let ref_token = if *is_nullable { "ref?<" } else { "ref<" };
             let kind_token = match kind {
                 ReferenceKind::Managed => "managed",
@@ -55,7 +60,33 @@ fn format_type_inner<'a>(
                 ReferenceKind::Raw => "raw",
             };
 
-            if *mutability == Mutability::Mutable {
+            // address space clause
+            let address_space_token = match address_space {
+                AddressSpace::Generic => None,
+                AddressSpace::Target(id) => Some(format!("addrspace({id})")),
+                _ => address_space
+                    .keyword()
+                    .map(|name| format!("addrspace({name})")),
+            };
+
+            // render reference syntax
+            if *mutability == Mutability::Mutable && address_space_token.is_some() {
+                let addrspace = address_space_token.as_deref().unwrap_or("");
+                write!(
+                    f,
+                    [
+                        token(ref_token),
+                        token(kind_token),
+                        space(),
+                        text(addrspace),
+                        space(),
+                        token("mut"),
+                        space(),
+                        pointee,
+                        token(">")
+                    ]
+                )
+            } else if *mutability == Mutability::Mutable {
                 write!(
                     f,
                     [
@@ -63,6 +94,19 @@ fn format_type_inner<'a>(
                         token(kind_token),
                         space(),
                         token("mut"),
+                        space(),
+                        pointee,
+                        token(">")
+                    ]
+                )
+            } else if let Some(addrspace) = address_space_token {
+                write!(
+                    f,
+                    [
+                        token(ref_token),
+                        token(kind_token),
+                        space(),
+                        text(&addrspace),
                         space(),
                         pointee,
                         token(">")

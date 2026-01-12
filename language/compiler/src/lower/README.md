@@ -2198,6 +2198,14 @@ function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
 
 Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
 
+**Address spaces:**
+
+Lower preserves address space annotations on references for native and accelerator targets.
+The default address space is `generic`.
+Non-generic address spaces are only valid for borrowed and raw references.
+`constant` references are always immutable.
+Address space changes are explicit and use the `addrspace.cast` intrinsic.
+
 **Borrow Modes:**
 
 By default, `&T` and `&mut T` are hints with compiler warnings only.

@@ -1,7 +1,7 @@
 //! MIR tree dumper for debugging and visualization.
 
 use crate::{
-    BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
+    AddressSpace, BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
     GlobalInitializer, Instruction, Local, LocalNodeId, Mutability, NodeTree, NodeVisitor,
     NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator,
     Value,
@@ -146,6 +146,7 @@ impl<'a> Dumper<'a> {
             Type::Float { width } => format!("f{width}"),
             Type::Reference {
                 kind,
+                address_space,
                 mutability,
                 is_nullable,
                 ..
@@ -157,11 +158,21 @@ impl<'a> Dumper<'a> {
                     ReferenceKind::Borrowed => "borrowed",
                     ReferenceKind::Raw => "raw",
                 };
+
+                // address space label
+                let address_space_label = match address_space {
+                    AddressSpace::Generic => None,
+                    AddressSpace::Target(id) => Some(id.to_string()),
+                    _ => address_space.keyword().map(|name| name.to_string()),
+                };
+                let address_space_label = address_space_label
+                    .map(|label| format!(" addrspace({label})"))
+                    .unwrap_or_default();
                 let mutability_label = match mutability {
                     Mutability::Mutable => " mut",
                     Mutability::Immutable => "",
                 };
-                format!("{ref_prefix}<{kind_label}{mutability_label}>")
+                format!("{ref_prefix}<{kind_label}{address_space_label}{mutability_label}>")
             }
             Type::Array { length, .. } => format!("[_; {length}]"),
             Type::Tuple {
