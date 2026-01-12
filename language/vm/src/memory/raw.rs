@@ -1,11 +1,72 @@
-use super::slot::{HeapCell, SlotStorage};
+use super::slot::SlotStorage;
 use super::value::{RawPointer, Value};
+
+/// Raw heap storage for either value slots or byte buffers.
+#[derive(Debug, Clone)]
+pub enum RawCellStorage {
+    /// Slot storage for Value-based cells.
+    Values(SlotStorage),
+    /// Byte buffer storage for raw payloads.
+    Bytes(Vec<u8>),
+}
+
+impl RawCellStorage {
+    /// Return the number of slots or bytes.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Values(slots) => slots.len(),
+            Self::Bytes(bytes) => bytes.len(),
+        }
+    }
+
+    /// Report whether the storage is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// A raw heap cell.
+#[derive(Debug, Clone)]
+pub struct RawCell {
+    /// The raw storage backing this cell.
+    pub storage: RawCellStorage,
+}
+
+impl RawCell {
+    /// Create a new empty value cell.
+    pub fn new() -> Self {
+        Self {
+            storage: RawCellStorage::Values(SlotStorage::default()),
+        }
+    }
+
+    /// Create a value cell with the given slot count.
+    pub fn with_slots(count: usize) -> Self {
+        Self {
+            storage: RawCellStorage::Values(SlotStorage::with_slots(count)),
+        }
+    }
+
+    /// Create a value cell with the given slot values.
+    pub fn with_values(values: Vec<Value>) -> Self {
+        Self {
+            storage: RawCellStorage::Values(SlotStorage::from_values(values)),
+        }
+    }
+
+    /// Create a byte cell with the given payload.
+    pub fn with_bytes(bytes: Vec<u8>) -> Self {
+        Self {
+            storage: RawCellStorage::Bytes(bytes),
+        }
+    }
+}
 
 /// A raw heap for manual memory management (not GC-tracked).
 #[derive(Debug, Default)]
 pub struct RawHeap {
     /// Allocated cells. Index 0 is reserved (null pointer).
-    cells: Vec<Option<HeapCell>>,
+    cells: Vec<Option<RawCell>>,
     /// Free slot indices available for reuse.
     free_list: Vec<usize>,
     /// Count of live heap cells (excluding the null slot).
@@ -25,24 +86,26 @@ impl RawHeap {
 
     /// Allocate a new cell and return its pointer.
     pub fn allocate(&mut self) -> RawPointer {
-        self.allocate_cell(HeapCell::new())
+        self.allocate_cell(RawCell::new())
     }
 
     /// Allocate a cell with a given number of slots (initialized to Void).
     pub fn allocate_with_slots(&mut self, slot_count: usize) -> RawPointer {
-        self.allocate_cell(HeapCell::with_slots(slot_count))
+        self.allocate_cell(RawCell::with_slots(slot_count))
     }
 
     /// Allocate a cell with the given slot values.
     pub fn allocate_with_values(&mut self, slots: Vec<Value>) -> RawPointer {
-        self.allocate_cell(HeapCell {
-            slots: SlotStorage::from_values(slots),
-            marked: false,
-        })
+        self.allocate_cell(RawCell::with_values(slots))
+    }
+
+    /// Allocate a cell with the given byte payload.
+    pub fn allocate_with_bytes(&mut self, bytes: &[u8]) -> RawPointer {
+        self.allocate_cell(RawCell::with_bytes(bytes.to_vec()))
     }
 
     /// Internal: allocate a cell, reusing free slots if available.
-    fn allocate_cell(&mut self, cell: HeapCell) -> RawPointer {
+    fn allocate_cell(&mut self, cell: RawCell) -> RawPointer {
         if let Some(index) = self.free_list.pop() {
             self.cells[index] = Some(cell);
             self.allocated_cells += 1;
@@ -57,13 +120,13 @@ impl RawHeap {
 
     /// Get a cell by pointer.
     #[inline]
-    pub fn get(&self, pointer: RawPointer) -> Option<&HeapCell> {
+    pub fn get(&self, pointer: RawPointer) -> Option<&RawCell> {
         self.cells.get(pointer.id() as usize)?.as_ref()
     }
 
     /// Get a mutable reference to a cell.
     #[inline]
-    pub fn get_mut(&mut self, pointer: RawPointer) -> Option<&mut HeapCell> {
+    pub fn get_mut(&mut self, pointer: RawPointer) -> Option<&mut RawCell> {
         self.cells.get_mut(pointer.id() as usize)?.as_mut()
     }
 

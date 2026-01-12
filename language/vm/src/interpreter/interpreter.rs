@@ -8,12 +8,17 @@ use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
-use crate::memory::{HeapHandle, ManagedHeap, RawHeap, Value};
+use crate::memory::{
+    HeapHandle, ManagedHeap, RawCellStorage, RawHeap, RawPointer, STRING_FLAG_IS_ASCII,
+    STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout, Value,
+};
 
 use super::decode::thread_function;
 #[cfg(feature = "stats")]
 use super::statistics::InstructionProfile;
-use super::threaded::{CopyRange, INVALID_FUNCTION_INDEX, ThreadedFunction};
+use super::threaded::{
+    ConstValue, CopyRange, INVALID_FUNCTION_INDEX, ThreadedFunction, ThreadedInstructionData,
+};
 use super::{Frame, GlobalStorage, MachineOptions, Statistics};
 
 /// External function type.
@@ -143,6 +148,10 @@ pub struct Interpreter {
     pub(super) managed_heap: ManagedHeap,
     /// The raw heap (manually managed allocations).
     pub(super) raw_heap: RawHeap,
+    /// Interned string literals mapped to heap handles.
+    pub(super) string_literals: HashMap<String, HeapHandle>,
+    /// Raw heap buffers for string payloads.
+    pub(super) string_buffers: HashMap<HeapHandle, RawPointer>,
     /// Global variable storage.
     pub(super) globals: GlobalStorage,
     /// External function handlers.
@@ -261,6 +270,14 @@ impl std::fmt::Debug for Interpreter {
         f.debug_struct("Interpreter")
             .field("managed_heap", &self.managed_heap)
             .field("raw_heap", &self.raw_heap)
+            .field(
+                "string_literals",
+                &format!("<{} literals>", self.string_literals.len()),
+            )
+            .field(
+                "string_buffers",
+                &format!("<{} buffers>", self.string_buffers.len()),
+            )
             .field("globals", &format!("<{} globals>", self.globals.len()))
             .field("externals", &format!("<{} handlers>", self.externals.len()))
             .field("options", &self.options)
@@ -284,8 +301,6 @@ impl Interpreter {
         strings: ImmutableStringPool,
         options: MachineOptions,
     ) -> Self {
-        let mut managed_heap = ManagedHeap::new();
-        let globals = Self::initialize_globals(&tree, &mut managed_heap);
         let function_name_map = Self::build_function_name_map(&tree, &strings);
 
         // pre-thread all functions for fast dispatch
@@ -294,13 +309,15 @@ impl Interpreter {
         // assign a unique interpreter id
         let id = INTERPRETER_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-        Self {
+        let mut interpreter = Self {
             id,
             tree,
             strings,
-            managed_heap,
+            managed_heap: ManagedHeap::new(),
             raw_heap: RawHeap::new(),
-            globals,
+            string_literals: HashMap::new(),
+            string_buffers: HashMap::new(),
+            globals: GlobalStorage::new(),
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
             function_name_map,
@@ -312,7 +329,15 @@ impl Interpreter {
             statistics: Statistics::new(),
             #[cfg(feature = "stats")]
             instruction_profile: None,
-        }
+        };
+
+        // initialize global storage after heap setup
+        interpreter.globals = interpreter.initialize_globals();
+
+        // pre-intern string literals for threaded const instructions
+        interpreter.pre_intern_threaded_strings();
+
+        interpreter
     }
 
     /// Set whether to collect execution statistics.
@@ -349,17 +374,34 @@ impl Interpreter {
     }
 
     /// Initialize global variables from the MIR tree.
-    fn initialize_globals(tree: &mir::NodeTree, heap: &mut ManagedHeap) -> GlobalStorage {
+    fn initialize_globals(&mut self) -> GlobalStorage {
+        // seed empty global storage
         let mut globals = GlobalStorage::new();
 
-        for (id, global) in tree.iter_nodes::<mir::Global>() {
-            // skip imported globals (they need separate registration)
-            if global.is_import() {
+        // snapshot globals to avoid borrowing self during initialization
+        let global_entries: Vec<_> = self
+            .tree
+            .iter_nodes::<mir::Global>()
+            .map(|(id, global)| {
+                (
+                    id,
+                    global.ty,
+                    global.is_import(),
+                    global.initializer.clone(),
+                )
+            })
+            .collect();
+
+        // populate globals from initializers
+        for (id, ty, is_import, initializer) in global_entries {
+            // skip imported globals
+            if is_import {
                 continue;
             }
 
-            let value = match &global.initializer {
-                Some(init) => Self::convert_initializer(tree, heap, init, global.ty),
+            // convert initializer when present
+            let value = match initializer.as_ref() {
+                Some(init) => self.convert_initializer(init, ty),
                 None => Value::VOID,
             };
             globals.set(id, value);
@@ -386,49 +428,67 @@ impl Interpreter {
 
     /// Convert a global initializer to a runtime value.
     fn convert_initializer(
-        tree: &mir::NodeTree,
-        heap: &mut ManagedHeap,
+        &mut self,
         init: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Value {
+        // select conversion strategy
         match init {
-            mir::GlobalInitializer::Zero => Self::zero_value(tree, heap, ty),
-            mir::GlobalInitializer::Scalar(constant) => constant.into(),
+            mir::GlobalInitializer::Zero => self.zero_value(ty),
+            mir::GlobalInitializer::Scalar(constant) => self.constant_to_value(constant),
             mir::GlobalInitializer::Bytes(bytes) => {
-                // convert bytes to an aggregate of u8 values
+                // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
-                let handle = heap.allocate_with_values(values);
+
+                // allocate managed aggregate for bytes
+                let handle = self.managed_heap.allocate_with_values(values);
+
                 Value::aggregate(handle)
             }
             mir::GlobalInitializer::Aggregate(elements) => {
-                // recursively convert each element
+                // convert each element recursively
                 let values: Vec<Value> = elements
                     .iter()
-                    .map(|e| Self::convert_initializer(tree, heap, e, ty))
+                    .map(|e| self.convert_initializer(e, ty))
                     .collect();
-                let handle = heap.allocate_with_values(values);
+
+                // allocate managed aggregate for elements
+                let handle = self.managed_heap.allocate_with_values(values);
+
                 Value::aggregate(handle)
             }
         }
     }
 
+    /// Convert a MIR constant to a runtime value.
+    fn constant_to_value(&mut self, constant: &mir::Constant) -> Value {
+        // route string constants through the literal interner
+        if let mir::Constant::String { value } = constant {
+            return self.intern_string_literal(value);
+        }
+
+        // fall back to non-string conversion
+        Value::from(constant)
+    }
+
     /// Create a zero value for a given type.
-    fn zero_value(
-        tree: &mir::NodeTree,
-        heap: &mut ManagedHeap,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> Value {
-        let ty_node = tree.get(ty);
+    fn zero_value(&mut self, ty: mir::LocalNodeId<mir::Type>) -> Value {
+        // resolve the type node
+        let ty_node = self.tree.get(ty).clone();
+
+        // build a zero value based on type
         match ty_node {
             mir::Type::Int { width, signed } => {
-                if *signed {
-                    Value::int(0, *width as u8)
+                // select signed or unsigned zero
+                if signed {
+                    Value::int(0, width as u8)
                 } else {
-                    Value::uint(0, *width as u8)
+                    Value::uint(0, width as u8)
                 }
             }
             mir::Type::Float { width } => {
-                if *width == 32 {
+                // select float width
+                if width == 32 {
                     Value::float32(0.0)
                 } else {
                     Value::float64(0.0)
@@ -439,11 +499,12 @@ impl Interpreter {
                 elements,
                 copyability: _,
             } => {
-                let values: Vec<Value> = elements
-                    .iter()
-                    .map(|e| Self::zero_value(tree, heap, *e))
-                    .collect();
-                let handle = heap.allocate_with_values(values);
+                // recursively initialize tuple elements
+                let values: Vec<Value> = elements.into_iter().map(|e| self.zero_value(e)).collect();
+
+                // allocate managed aggregate for tuple
+                let handle = self.managed_heap.allocate_with_values(values);
+
                 Value::aggregate(handle)
             }
             mir::Type::Array {
@@ -451,13 +512,259 @@ impl Interpreter {
                 length,
                 copyability: _,
             } => {
-                let elem_zero = Self::zero_value(tree, heap, *element);
-                let values: Vec<Value> = (0..*length).map(|_| elem_zero).collect();
-                let handle = heap.allocate_with_values(values);
+                // build an array of repeated element zeros
+                let elem_zero = self.zero_value(element);
+                let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
+
+                // allocate managed aggregate for array
+                let handle = self.managed_heap.allocate_with_values(values);
+
                 Value::aggregate(handle)
             }
-            // for other types (pointers, functions, void, etc.), just use Void
+            // for other types, use void
             _ => Value::VOID,
+        }
+    }
+
+    /// Intern a string literal and return its managed value.
+    pub(super) fn intern_string_literal(&mut self, value: &str) -> Value {
+        // reuse existing interned handle
+        if let Some(handle) = self.string_literals.get(value).copied() {
+            return Value::string(handle);
+        }
+
+        // compute UTF-8 byte length
+        let length_bytes = value.len();
+
+        // compute UTF-16 code unit length
+        let length_utf16 = value.encode_utf16().count();
+
+        // validate length bounds for string metadata
+        if length_bytes > u32::MAX as usize || length_utf16 > u32::MAX as usize {
+            panic!("string literal exceeds u32 length limits");
+        }
+
+        // materialize length fields
+        let length_bytes = length_bytes as u32;
+        let length_utf16 = length_utf16 as u32;
+
+        // compute string flags for literal storage
+        let mut flags = STRING_FLAG_IS_INTERNED | STRING_FLAG_IS_STATIC;
+        if value.is_ascii() {
+            flags |= STRING_FLAG_IS_ASCII;
+        }
+
+        // allocate raw UTF-8 payload
+        let data = self.allocate_string_bytes(value.as_bytes());
+
+        // allocate the managed string header
+        let handle =
+            self.allocate_string_cell(length_utf16, length_bytes, 0, length_bytes, flags, data);
+
+        // record interned handle and payload buffer
+        self.string_literals.insert(value.to_string(), handle);
+        if !data.is_null() {
+            self.string_buffers.insert(handle, data);
+        }
+
+        Value::string(handle)
+    }
+
+    /// Pre-intern string literals referenced by threaded const instructions.
+    fn pre_intern_threaded_strings(&mut self) {
+        // collect string literals without holding a mutable borrow
+        let mut literals = Vec::new();
+        for function in &self.threaded_functions.functions {
+            for block in &function.blocks {
+                for instruction in &block.instructions {
+                    let ThreadedInstructionData::Const { value, .. } = &instruction.data else {
+                        continue;
+                    };
+                    let ConstValue::String(literal) = value else {
+                        continue;
+                    };
+                    literals.push(literal.clone());
+                }
+            }
+        }
+
+        // intern collected literals
+        for literal in literals {
+            self.intern_string_literal(&literal);
+        }
+    }
+
+    /// Allocate raw heap storage for string payload bytes.
+    fn allocate_string_bytes(&mut self, bytes: &[u8]) -> RawPointer {
+        // treat empty payloads as null pointers
+        if bytes.is_empty() {
+            return RawPointer::NULL;
+        }
+
+        // allocate raw heap buffer for payload
+        self.raw_heap.allocate_with_bytes(bytes)
+    }
+
+    /// Allocate a managed string header cell.
+    fn allocate_string_cell(
+        &mut self,
+        length_utf16: u32,
+        length_bytes: u32,
+        hash: u64,
+        capacity: u32,
+        flags: u32,
+        data: RawPointer,
+    ) -> HeapHandle {
+        // assemble header slots for the string layout
+        let mut slots = vec![Value::VOID; StringLayout::SLOT_COUNT];
+        slots[StringLayout::LENGTH_UTF16] = Value::uint(length_utf16 as u64, 32);
+        slots[StringLayout::LENGTH_BYTES] = Value::uint(length_bytes as u64, 32);
+        slots[StringLayout::HASH] = Value::uint(hash, 64);
+        slots[StringLayout::CAPACITY] = Value::uint(capacity as u64, 32);
+        slots[StringLayout::FLAGS] = Value::uint(flags as u64, 32);
+        slots[StringLayout::DATA] = Value::raw_pointer(data);
+
+        // allocate managed heap cell for the header
+        self.managed_heap.allocate_with_values(slots)
+    }
+
+    /// Get the slot count for a raw pointer.
+    pub(super) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
+        Some(self.raw_heap.get(pointer)?.storage.len())
+    }
+
+    /// Read a raw slot, dispatching to the correct raw heap.
+    pub(super) fn read_raw_slot(
+        &self,
+        pointer: RawPointer,
+        slot_index: usize,
+        bounds_checks: bool,
+    ) -> Result<Value, Error> {
+        let cell = self.raw_heap.get(pointer).ok_or(Error::InvalidHeapHandle)?;
+
+        match &cell.storage {
+            RawCellStorage::Bytes(bytes) => {
+                // treat empty slot 0 as void
+                if bytes.is_empty() && slot_index == 0 {
+                    return Ok(Value::VOID);
+                }
+
+                // enforce bounds even in unchecked mode to avoid UB
+                if slot_index >= bytes.len() {
+                    return Err(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: bytes.len(),
+                    });
+                }
+
+                let byte = bytes[slot_index];
+                Ok(Value::uint(byte as u64, 8))
+            }
+            RawCellStorage::Values(slots) => {
+                // treat empty slot 0 as void
+                if slots.is_empty() && slot_index == 0 {
+                    return Ok(Value::VOID);
+                }
+
+                // fast path without bounds checks
+                if !bounds_checks {
+                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
+                    // #Safety: bounds checks are disabled and slot is trusted
+                    let value = unsafe { *slots.get_unchecked(slot_index) };
+                    return Ok(value);
+                }
+
+                // read the slot when in bounds
+                if let Some(value) = slots.get(slot_index).copied() {
+                    return Ok(value);
+                }
+
+                Err(Error::InvalidFieldAccess {
+                    index: slot_index as u32,
+                    field_count: slots.len(),
+                })
+            }
+        }
+    }
+
+    /// Write a raw slot, dispatching to the correct raw heap.
+    pub(super) fn write_raw_slot(
+        &mut self,
+        pointer: RawPointer,
+        slot_index: usize,
+        value: Value,
+        bounds_checks: bool,
+    ) -> Result<(), Error> {
+        let cell = self
+            .raw_heap
+            .get_mut(pointer)
+            .ok_or(Error::InvalidHeapHandle)?;
+
+        match &mut cell.storage {
+            RawCellStorage::Bytes(bytes) => {
+                let raw = value.as_uint().ok_or_else(|| Error::TypeMismatch {
+                    expected: "integer".to_string(),
+                    actual: format!("{value:?}"),
+                })?;
+                let byte = raw as u8;
+
+                // enforce bounds even in unchecked mode to avoid UB
+                if slot_index >= bytes.len() {
+                    return Err(Error::InvalidFieldAccess {
+                        index: slot_index as u32,
+                        field_count: bytes.len(),
+                    });
+                }
+
+                bytes[slot_index] = byte;
+                Ok(())
+            }
+            RawCellStorage::Values(slots) => {
+                // resize slots as needed when bounds checks are enabled
+                if bounds_checks && slots.len() <= slot_index {
+                    slots.resize(slot_index + 1, Value::VOID);
+                }
+
+                // fast path without bounds checks
+                if !bounds_checks {
+                    debug_assert!(slot_index < slots.len(), "raw slot out of bounds");
+                    // #Safety: bounds checks are disabled and slot is trusted
+                    unsafe {
+                        *slots.get_unchecked_mut(slot_index) = value;
+                    }
+                    return Ok(());
+                }
+
+                // write the slot when in bounds
+                if let Some(slot) = slots.get_mut(slot_index) {
+                    *slot = value;
+                    return Ok(());
+                }
+
+                Err(Error::InvalidFieldAccess {
+                    index: slot_index as u32,
+                    field_count: slots.len(),
+                })
+            }
+        }
+    }
+
+    /// Sweep raw string payloads for freed managed string headers.
+    fn sweep_string_buffers(&mut self) {
+        // collect handles to free without mutating during iteration
+        let mut freed_buffers = Vec::new();
+        for (&handle, &raw_ptr) in &self.string_buffers {
+            if !self.managed_heap.is_allocated(handle) {
+                freed_buffers.push((handle, raw_ptr));
+            }
+        }
+
+        // release raw payloads for freed strings
+        for (handle, raw_ptr) in freed_buffers {
+            self.string_buffers.remove(&handle);
+            if !raw_ptr.is_null() {
+                self.raw_heap.free(raw_ptr);
+            }
         }
     }
 
@@ -606,6 +913,81 @@ impl Interpreter {
         &mut self.managed_heap
     }
 
+    /// Read a UTF-8 string value from the heap.
+    pub fn string_value(&self, value: Value) -> Result<String, Error> {
+        let handle = match value.tag() {
+            crate::memory::ValueTag::String => value.as_heap_handle().unwrap(),
+            _ => {
+                return Err(Error::TypeMismatch {
+                    expected: "string".to_string(),
+                    actual: format!("{value:?}"),
+                });
+            }
+        };
+
+        self.string_value_for_handle(handle)
+    }
+
+    /// Read a UTF-8 string from a managed handle.
+    pub fn string_value_for_handle(&self, handle: HeapHandle) -> Result<String, Error> {
+        if handle.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        let cell = self
+            .managed_heap
+            .get(handle)
+            .ok_or(Error::InvalidHeapHandle)?;
+        let length_value = cell
+            .slots
+            .get(StringLayout::LENGTH_BYTES)
+            .copied()
+            .ok_or(Error::InvalidHeapHandle)?;
+        let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
+            expected: "u32".to_string(),
+            actual: format!("{length_value:?}"),
+        })? as usize;
+        if length == 0 {
+            return Ok(String::new());
+        }
+
+        let data_value = cell
+            .slots
+            .get(StringLayout::DATA)
+            .copied()
+            .ok_or(Error::InvalidHeapHandle)?;
+        let data_ptr = data_value
+            .as_raw_pointer()
+            .ok_or_else(|| Error::TypeMismatch {
+                expected: "raw_pointer".to_string(),
+                actual: format!("{data_value:?}"),
+            })?;
+        if data_ptr.is_null() {
+            return Err(Error::NullPointerDereference);
+        }
+
+        let raw_cell = self
+            .raw_heap
+            .get(data_ptr)
+            .ok_or(Error::InvalidHeapHandle)?;
+        let bytes = match &raw_cell.storage {
+            RawCellStorage::Bytes(bytes) => bytes,
+            _ => {
+                return Err(Error::TypeMismatch {
+                    expected: "byte buffer".to_string(),
+                    actual: format!("{data_value:?}"),
+                });
+            }
+        };
+
+        if length > bytes.len() {
+            return Err(Error::InvalidHeapHandle);
+        }
+
+        let slice = &bytes[..length];
+        String::from_utf8(slice.to_vec()).map_err(|_| Error::InvalidCast)
+    }
+
     /// Get a reference to the raw heap.
     pub fn raw_heap(&self) -> &RawHeap {
         &self.raw_heap
@@ -637,8 +1019,23 @@ impl Interpreter {
             continuation.collect_roots(&mut roots);
         }
 
+        // collect roots from globals
+        for value in self.globals.values() {
+            if let Some(handle) = value.as_heap_handle() {
+                roots.push(handle);
+            }
+        }
+
+        // collect roots from interned string literals
+        for handle in self.string_literals.values() {
+            roots.push(*handle);
+        }
+
         // run collection
         let freed_cells = self.managed_heap.collect(&roots);
+
+        // sweep raw payload buffers for freed strings
+        self.sweep_string_buffers();
         let live_cells = self.managed_heap.cell_count();
 
         GcStats {

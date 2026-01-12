@@ -8,9 +8,10 @@ use crate::memory::{ReferenceMeta, Value};
 
 use super::dispatch;
 use super::threaded::{
-    ArgumentRange, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID, SwitchCase,
-    SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction, ThreadedInstructionData,
-    UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT, pack_optional_value,
+    ArgumentRange, ConstValue, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
+    SwitchCase, SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
+    ThreadedInstructionData, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT, UNKNOWN_SLOT_COUNT,
+    pack_optional_value,
 };
 
 // switch table density threshold
@@ -1085,6 +1086,11 @@ fn try_fuse_const_binary(
         return None;
     }
 
+    // skip string constants that require runtime allocation
+    if matches!(value, mir::Constant::String { .. }) {
+        return None;
+    }
+
     // load next instruction and check if it's a binary using our constant
     let next_inst = tree.get(next_inst_id);
     let mir::Instruction::Binary {
@@ -1212,6 +1218,11 @@ fn try_fuse_compare_branch(
     {
         let prev_inst = tree.get(*prev_inst_id);
         if let mir::Instruction::Const { destination, value } = prev_inst {
+            // skip string constants for fused compares
+            if matches!(value, mir::Constant::String { .. }) {
+                return None;
+            }
+
             let uses = value_uses.get(destination.0 as usize).copied().unwrap_or(0);
             if uses == 1 {
                 if *destination == *right {
@@ -1374,7 +1385,7 @@ fn thread_instruction(
             handler: dispatch::handle_const,
             data: ThreadedInstructionData::Const {
                 dest: *destination,
-                value: Value::from(value),
+                value: const_value_from_constant(value),
             },
         },
 
@@ -2257,6 +2268,15 @@ fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
         mir::Constant::Float { width, .. } => ValueKind::Float { width: *width },
         mir::Constant::String { .. } => ValueKind::Unknown,
         mir::Constant::Char { .. } => ValueKind::Char,
+    }
+}
+
+/// Convert a MIR constant into threaded constant data.
+fn const_value_from_constant(constant: &mir::Constant) -> ConstValue {
+    // select constant representation
+    match constant {
+        mir::Constant::String { value } => ConstValue::String(value.clone()),
+        _ => ConstValue::Value(Value::from(constant)),
     }
 }
 

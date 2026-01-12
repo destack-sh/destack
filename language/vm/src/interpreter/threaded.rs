@@ -243,11 +243,20 @@ pub struct ThreadedInstruction {
     pub data: ThreadedInstructionData,
 }
 
+/// Constant value payload stored in threaded instructions.
+#[derive(Clone, Debug)]
+pub enum ConstValue {
+    /// Pre-decoded constant value.
+    Value(Value),
+    /// String literal payload.
+    String(String),
+}
+
 /// Decoded instruction data.
 #[derive(Clone, Debug)]
 pub enum ThreadedInstructionData {
     /// Load constant.
-    Const { dest: mir::Value, value: Value },
+    Const { dest: mir::Value, value: ConstValue },
 
     /// Binary operation.
     Binary {

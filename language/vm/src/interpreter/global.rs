@@ -28,6 +28,11 @@ impl GlobalStorage {
         self.values.insert(id, value);
     }
 
+    /// Return an iterator over global values.
+    pub fn values(&self) -> impl Iterator<Item = &Value> {
+        self.values.values()
+    }
+
     /// Get the number of globals.
     pub fn len(&self) -> usize {
         self.values.len()
