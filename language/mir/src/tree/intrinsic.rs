@@ -504,6 +504,7 @@ impl Intrinsic {
             Intrinsic::Memcpy
                 | Intrinsic::Memmove
                 | Intrinsic::Memset
+                | Intrinsic::Memcmp
                 | Intrinsic::VolatileLoad
                 | Intrinsic::VolatileStore
                 | Intrinsic::PrefetchRead

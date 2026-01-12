@@ -7,7 +7,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{
     AliasAnalysis, AvailableExpressions, BorrowAnalysis, ConstantPropagation, ControlFlowGraph,
-    DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, OwnershipAnalysis,
+    DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, MemorySSA, OwnershipAnalysis,
     PostDominatorTree, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
 };
 
@@ -133,6 +133,7 @@ impl<'a> FunctionAnalyses<'a> {
         register_analysis::<OwnershipAnalysis>(graph);
         register_analysis::<BorrowAnalysis>(graph);
         register_analysis::<AliasAnalysis>(graph);
+        register_analysis::<MemorySSA>(graph);
     }
 
     /// Get the function being analyzed.

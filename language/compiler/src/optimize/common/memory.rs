@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::optimize::analyses::OwnershipAnalysis;
+
 use super::TypeKey;
 
 /// A memory location being accessed.
@@ -54,6 +56,107 @@ impl MemoryLocation {
             access_type,
         }
     }
+}
+
+/// Resolve a pointer's pointee type when it is statically known.
+pub fn resolve_pointer_pointee_type(
+    pointer: mir::Value,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    ownership: &OwnershipAnalysis,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    // check parameter types first
+    if let Some(param_type) = parameter_type(pointer, function, tree) {
+        if let mir::Type::Reference { pointee, .. } = tree.get(param_type) {
+            return Some(*pointee);
+        }
+    }
+
+    // check ownership-derived value types
+    if let Some(ty_id) = ownership.value_type(pointer) {
+        if let mir::Type::Reference { pointee, .. } = tree.get(ty_id) {
+            return Some(*pointee);
+        }
+    }
+
+    // resolve from defining instruction
+    let instruction_id = definitions.get(&pointer)?;
+    let instruction = tree.get(*instruction_id);
+
+    match instruction {
+        mir::Instruction::StackAlloc { layout, .. }
+        | mir::Instruction::RawAlloc { layout, .. }
+        | mir::Instruction::ManagedAlloc { layout, .. } => Some(*layout),
+        mir::Instruction::ManagedAllocArray { element, .. } => Some(*element),
+        mir::Instruction::GlobalAddr { global, .. } => {
+            let global_def = tree.get(*global);
+            Some(global_def.ty)
+        }
+        mir::Instruction::FieldAddr {
+            aggregate, index, ..
+        } => {
+            let aggregate_type = ownership.value_type(*aggregate)?;
+            match tree.get(aggregate_type) {
+                mir::Type::Struct { fields, .. } => fields
+                    .get(*index as usize)
+                    .map(|field_id| tree.get(*field_id).ty),
+                mir::Type::Tuple { elements, .. } => elements.get(*index as usize).copied(),
+                _ => None,
+            }
+        }
+        mir::Instruction::ElementAddr { array, .. } => {
+            let array_type = ownership.value_type(*array)?;
+            match tree.get(array_type) {
+                mir::Type::Array { element, .. } => Some(*element),
+                _ => None,
+            }
+        }
+        mir::Instruction::Cast { to_type, .. } => {
+            let ty = tree.get(*to_type);
+            if let mir::Type::Reference { pointee, .. } = ty {
+                Some(*pointee)
+            } else {
+                None
+            }
+        }
+        mir::Instruction::Call { function, .. } => {
+            let callee = tree.get(*function);
+            let ty = tree.get(callee.return_type);
+            if let mir::Type::Reference { pointee, .. } = ty {
+                Some(*pointee)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Resolve the declared type for a value defined as a parameter.
+fn parameter_type(
+    value: mir::Value,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    // search function parameters first
+    for param in &function.parameters {
+        if param.value == value {
+            return Some(param.ty);
+        }
+    }
+
+    // search block parameters next
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for param in &block.parameters {
+            if param.value == value {
+                return Some(param.ty);
+            }
+        }
+    }
+
+    None
 }
 
 /// Base object that a pointer ultimately derives from.
