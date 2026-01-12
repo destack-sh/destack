@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
@@ -459,6 +459,268 @@ pub fn terminator_arguments_for_successor_checked(
     } else {
         SuccessorArguments::Missing
     }
+}
+
+/// Thread jumps through empty or passthrough blocks.
+///
+/// If a block has no instructions and either has no parameters or just forwards
+/// them, predecessors can bypass it. For jump terminators, we resolve chains
+/// (A->B->C becomes A->C).
+///
+/// Returns true if any changes were made.
+pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // find all empty blocks (no instructions) that can be threaded
+    let mut threadable: HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock> = HashMap::new();
+
+    // scan blocks to identify threadable candidates
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // block must have no instructions to be threadable
+        if !block.instructions.is_empty() {
+            continue;
+        }
+
+        match &block.terminator {
+            mir::Terminator::Jump { target, arguments } => {
+                if block.parameters.is_empty() && arguments.is_empty() {
+                    threadable.insert(
+                        block_id,
+                        ThreadableBlock::Terminator(block.terminator.clone()),
+                    );
+                } else if block_is_passthrough_jump(block, arguments) {
+                    threadable.insert(block_id, ThreadableBlock::Forward { target: *target });
+                }
+            }
+            mir::Terminator::Return { .. } | mir::Terminator::Unreachable => {
+                if block.parameters.is_empty() {
+                    threadable.insert(
+                        block_id,
+                        ThreadableBlock::Terminator(block.terminator.clone()),
+                    );
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // skip when there are no threadable blocks
+    if threadable.is_empty() {
+        return false;
+    }
+
+    // rewrite terminators to bypass threadable blocks
+    let mut changed = false;
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        let new_terminator = match &block.terminator {
+            mir::Terminator::Jump { target, arguments } => {
+                let resolved = block_resolve_jump_target(*target, arguments, &threadable);
+                match resolved {
+                    ResolvedTarget::Terminator(terminator) if arguments.is_empty() => {
+                        Some(terminator)
+                    }
+                    ResolvedTarget::Jump {
+                        target: new_target,
+                        arguments: new_arguments,
+                    } if new_target != *target || &new_arguments != arguments => {
+                        Some(mir::Terminator::Jump {
+                            target: new_target,
+                            arguments: new_arguments,
+                        })
+                    }
+                    _ => None,
+                }
+            }
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => {
+                let then_resolved =
+                    block_resolve_jump_target(*then_target, then_arguments, &threadable);
+                let else_resolved =
+                    block_resolve_jump_target(*else_target, else_arguments, &threadable);
+
+                let (new_then, new_then_args) = match then_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (*then_target, then_arguments.clone()),
+                };
+                let (new_else, new_else_args) = match else_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (*else_target, else_arguments.clone()),
+                };
+
+                if new_then != *then_target
+                    || new_else != *else_target
+                    || new_then_args != *then_arguments
+                    || new_else_args != *else_arguments
+                {
+                    Some(mir::Terminator::Branch {
+                        condition: *condition,
+                        then_target: new_then,
+                        then_arguments: new_then_args,
+                        else_target: new_else,
+                        else_arguments: new_else_args,
+                    })
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                let success_resolved =
+                    block_resolve_jump_target(success.target, &success.arguments, &threadable);
+                let failure_resolved =
+                    block_resolve_jump_target(failure.target, &failure.arguments, &threadable);
+
+                let (new_success, new_success_args) = match success_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (success.target, success.arguments.clone()),
+                };
+                let (new_failure, new_failure_args) = match failure_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (failure.target, failure.arguments.clone()),
+                };
+
+                if new_success != success.target
+                    || new_failure != failure.target
+                    || new_success_args != success.arguments
+                    || new_failure_args != failure.arguments
+                {
+                    Some(mir::Terminator::Check {
+                        condition: *condition,
+                        constraint: constraint.clone(),
+                        success: mir::CheckTarget {
+                            target: new_success,
+                            arguments: new_success_args,
+                        },
+                        failure: mir::CheckTarget {
+                            target: new_failure,
+                            arguments: new_failure_args,
+                        },
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        // update the terminator when it changes
+        if let Some(terminator) = new_terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Threadable block metadata.
+enum ThreadableBlock {
+    /// A terminator that can be absorbed by predecessors.
+    Terminator(mir::Terminator),
+    /// A passthrough jump that forwards its parameters unchanged.
+    Forward {
+        /// The target block for forwarding.
+        target: mir::LocalNodeId<mir::Block>,
+    },
+}
+
+/// Result of resolving a jump target through threadable blocks.
+enum ResolvedTarget {
+    /// Resolved to a final jump target with updated arguments.
+    Jump {
+        /// The final target block.
+        target: mir::LocalNodeId<mir::Block>,
+        /// The arguments to pass to the target.
+        arguments: Vec<mir::Value>,
+    },
+    /// Resolved to a terminator that can be absorbed (return or unreachable).
+    Terminator(mir::Terminator),
+}
+
+/// Resolve a jump target by following through threadable blocks.
+fn block_resolve_jump_target(
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+    threadable: &HashMap<mir::LocalNodeId<mir::Block>, ThreadableBlock>,
+) -> ResolvedTarget {
+    // seed the traversal state
+    let mut current = target;
+    let mut current_args = arguments.to_vec();
+    let mut visited = HashSet::new();
+
+    // follow threadable blocks until a terminal target is found
+    loop {
+        // stop on cycles to avoid infinite loops
+        if !visited.insert(current) {
+            return ResolvedTarget::Jump {
+                target: current,
+                arguments: current_args,
+            };
+        }
+
+        // stop when the block is not threadable
+        let Some(threadable_block) = threadable.get(&current) else {
+            return ResolvedTarget::Jump {
+                target: current,
+                arguments: current_args,
+            };
+        };
+
+        match threadable_block {
+            ThreadableBlock::Forward {
+                target: next_target,
+            } => {
+                current = *next_target;
+            }
+            ThreadableBlock::Terminator(terminator) => match terminator {
+                mir::Terminator::Jump {
+                    target: next_target,
+                    arguments,
+                } if arguments.is_empty() => {
+                    current = *next_target;
+                    current_args = Vec::new();
+                }
+                _ => {
+                    return ResolvedTarget::Terminator(terminator.clone());
+                }
+            },
+        }
+    }
+}
+
+/// Return true if a jump forwards all block parameters unchanged.
+fn block_is_passthrough_jump(block: &mir::Block, arguments: &[mir::Value]) -> bool {
+    // require exact parameter and argument alignment
+    if block.parameters.len() != arguments.len() {
+        return false;
+    }
+
+    // verify each parameter is forwarded verbatim
+    let mut is_forwarding = true;
+    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
+        // stop when a parameter does not match
+        if param.value != *arg {
+            is_forwarding = false;
+            break;
+        }
+    }
+
+    is_forwarding
 }
 
 /// Substitute values in a terminator according to the given map.

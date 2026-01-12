@@ -150,14 +150,14 @@ Local and global optimizations within a single function.
 | `reassociate` | Reassociate | function | O2 | ✓ | constant-propagation | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | ✓ | cfg, domtree | Move identical instructions to common dominator |
-| `jump-threading` | JumpThreading | function | O2 | | cfg, domtree | Thread through conditional jumps to simplify control flow |
+| `jump-threading` | JumpThreading | function | O2 | ✓ | — | Thread jumps through empty or passthrough blocks |
 | `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `tail-call-eliminate` | TailCallEliminate | module | O2 | ✓ | — | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | domtree | Use dominating conditions to narrow value ranges |
 | `if-convert` | IfConvert | function | O2 | ✓ | cfg | Convert simple if-then-else diamonds to select/conditional-move |
 | `narrow` | Narrow | function | O2 | | — | Use narrower integer types when upper bits are unused |
-| `guard-eliminate` | GuardEliminate | function | O2 | | domtree, range | Remove redundant guard and check terminators |
-| `value-range-prop` | ValueRangePropagation | function | O2 | | range, domtree | Propagate refined ranges along control flow |
+| `guard-eliminate` | GuardEliminate | function | O2 | ✓ | cfg, range | Remove redundant guard and check terminators |
+| `value-range-prop` | ValueRangePropagation | function | O2 | ✓ | range | Fold values proven constant by range analysis |
 | `path-clone` | PathClone | function | O3 | | cfg, domtree, profile | Clone hot paths to expose constants and simplify control flow |
 
 ### Interprocedural (I)
