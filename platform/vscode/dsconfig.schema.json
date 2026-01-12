@@ -1415,6 +1415,17 @@
           "minimum": 0,
           "maximum": 255
         },
+        "floatMath": {
+          "description": "Floating point math optimization policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FloatMathPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "debugInfo": {
           "description": "Debug info emission policy.",
           "anyOf": [
@@ -1606,6 +1617,26 @@
           "description": "Prefer dynamic linking.",
           "type": "string",
           "const": "dynamic"
+        }
+      ]
+    },
+    "FloatMathPolicyJson": {
+      "description": "Floating point math policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Strict IEEE semantics.",
+          "type": "string",
+          "const": "strict"
+        },
+        {
+          "description": "Allow reassociation and algebraic simplifications.",
+          "type": "string",
+          "const": "reassociate"
+        },
+        {
+          "description": "Enable fast math optimizations (assume no NaN, inf, or signed zero).",
+          "type": "string",
+          "const": "fast"
         }
       ]
     },
