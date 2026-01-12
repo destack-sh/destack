@@ -6,7 +6,8 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, function_thread_jumps,
-    instruction_substitute_uses, substitute_values, terminator_remap, terminator_substitute_uses,
+    instruction_is_speculatable, instruction_map, instruction_substitute_uses, substitute_values,
+    terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -18,6 +19,11 @@ struct ReturnBlockInfo {
     return_value: Option<mir::Value>,
 }
 
+/// Maximum instructions to duplicate during tail duplication.
+const MAX_TAIL_DUP_INSTRUCTIONS: usize = 6;
+/// Maximum predecessors to duplicate per block.
+const MAX_TAIL_DUP_PREDECESSORS: usize = 4;
+
 declare_pass! {
     /// Simplify the control flow graph.
     ///
@@ -26,8 +32,11 @@ declare_pass! {
     /// 2. Path sensitive threading: threads edges using edge specific range facts
     /// 3. Jump threading: threads jumps through empty or passthrough blocks
     /// 4. Return canonicalization: merges empty return blocks into one
-    /// 5. Block merging: merges blocks with single predecessor/successor
-    /// 6. Unreachable block elimination: removes blocks not reachable from entry
+    /// 5. Same target folding: replaces branches to the same target with `select` + `jump`
+    /// 6. Tail duplication: duplicates small jump targets into jump predecessors
+    /// 7. Block merging: merges blocks with single predecessor/successor
+    /// 8. Unreachable block elimination: removes blocks not reachable from entry
+    /// 9. Critical edge splitting: splits edges from multi-successor blocks into multi-predecessor blocks
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -46,6 +55,22 @@ declare_pass! {
     /// function @after(v0: i32) -> i32 {
     /// block0(v0: i32):
     ///     return v0
+    /// }
+    /// ```
+    /// ```mir
+    /// function @before_select(v0: bool, v1: i32, v2: i32) -> i32 {
+    /// block0(v0: bool, v1: i32, v2: i32):
+    ///     branch v0, block1(v1), block1(v2)
+    /// block1(v3: i32):
+    ///     return v3
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after_select(v0: bool, v1: i32, v2: i32) -> i32 {
+    /// block0(v0: bool, v1: i32, v2: i32):
+    ///     v4 = select v0, v1, v2
+    ///     return v4
     /// }
     /// ```
     #[pass(id = "simplify-cfg")]
@@ -120,16 +145,25 @@ fn run_simplify_cfg(
     // phase 5: fold branches and checks with identical edges
     changed |= fold_redundant_edges(function, tree);
 
-    // phase 6: block merging
+    // phase 6: fold branches that share the same target
+    changed |= fold_same_target_branches(function, tree);
+
+    // phase 7: tail duplicate small jump targets
+    changed |= tail_duplicate_blocks(function, tree);
+
+    // phase 8: block merging
     // merges blocks with single predecessor/successor
     if let Some(entry) = function.entry {
         changed |= merge_blocks(function, tree, entry);
     }
 
-    // phase 7: eliminate unreachable blocks
+    // phase 9: eliminate unreachable blocks
     if let Some(entry) = function.entry {
         changed |= eliminate_unreachable_blocks(function, tree, entry);
     }
+
+    // phase 10: split critical edges
+    changed |= split_critical_edges(function, tree);
 
     changed
 }
@@ -1808,6 +1842,31 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
                     arguments: success.arguments.clone(),
                 })
             }
+            mir::Terminator::Switch {
+                default,
+                default_arguments,
+                cases,
+                ..
+            } => {
+                // check whether all cases match the default edge
+                let mut all_same = true;
+                for case in cases {
+                    if case.target != *default || case.arguments != *default_arguments {
+                        all_same = false;
+                        break;
+                    }
+                }
+
+                // replace with a jump when all edges are identical
+                if all_same {
+                    Some(mir::Terminator::Jump {
+                        target: *default,
+                        arguments: default_arguments.clone(),
+                    })
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
 
@@ -1820,6 +1879,520 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> b
     }
 
     changed
+}
+
+/// Fold branches that target the same block into a jump with selects.
+fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // track whether any changes were made
+    let mut changed = false;
+
+    // snapshot blocks to avoid borrowing conflicts with value allocation
+    let block_ids = function.blocks.clone();
+
+    for block_id in block_ids {
+        // read the block
+        let block = tree.get(block_id).clone();
+        let mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } = &block.terminator
+        else {
+            continue;
+        };
+
+        // skip branches that do not target the same block
+        if then_target != else_target {
+            continue;
+        }
+
+        // skip malformed branches
+        if then_arguments.len() != else_arguments.len() {
+            continue;
+        }
+
+        // build new arguments using selects when needed
+        let mut new_arguments = Vec::with_capacity(then_arguments.len());
+        let mut new_block = block.clone();
+        let mut inserted_select = false;
+
+        for (then_arg, else_arg) in then_arguments.iter().zip(else_arguments.iter()) {
+            // keep identical arguments unchanged
+            if then_arg == else_arg {
+                new_arguments.push(*then_arg);
+                continue;
+            }
+
+            // materialize a select for differing arguments
+            let destination = function.next_value();
+            let instruction = mir::Instruction::Select {
+                destination,
+                condition: *condition,
+                then_value: *then_arg,
+                else_value: *else_arg,
+            };
+            let instruction_id = tree.insert(instruction);
+            new_block.instructions.push(instruction_id);
+            new_arguments.push(destination);
+            inserted_select = true;
+        }
+
+        // skip when nothing changed
+        if !inserted_select && then_arguments == else_arguments {
+            continue;
+        }
+
+        // replace the branch with a jump to the shared target
+        new_block.terminator = mir::Terminator::Jump {
+            target: *then_target,
+            arguments: new_arguments,
+        };
+        tree.replace(block_id, new_block);
+        changed = true;
+    }
+
+    changed
+}
+
+/// Predecessor jump edge for tail duplication.
+#[derive(Debug, Clone)]
+struct JumpPredecessor {
+    /// The predecessor block.
+    pred: mir::LocalNodeId<mir::Block>,
+    /// Arguments passed to the target block.
+    arguments: Vec<mir::Value>,
+}
+
+/// Duplicate small jump targets into jump predecessors.
+fn tail_duplicate_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // collect predecessor counts and jump predecessors
+    let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
+    let mut jump_predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
+        HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for successor in block.terminator.successors() {
+            *predecessor_counts.entry(successor).or_insert(0) += 1;
+        }
+
+        if let mir::Terminator::Jump { target, arguments } = &block.terminator {
+            jump_predecessors
+                .entry(*target)
+                .or_default()
+                .push(JumpPredecessor {
+                    pred: block_id,
+                    arguments: arguments.clone(),
+                });
+        }
+    }
+
+    // snapshot block ids to avoid mutation during iteration
+    let block_ids = function.blocks.clone();
+    let mut changed = false;
+
+    for block_id in block_ids {
+        // skip blocks with a single predecessor
+        let predecessor_count = predecessor_counts.get(&block_id).copied().unwrap_or(0);
+        if predecessor_count <= 1 {
+            continue;
+        }
+
+        // skip blocks without jump predecessors
+        let Some(jump_preds) = jump_predecessors.get(&block_id) else {
+            continue;
+        };
+
+        if jump_preds.is_empty() || jump_preds.len() > MAX_TAIL_DUP_PREDECESSORS {
+            continue;
+        }
+
+        // skip entry blocks
+        if function.entry == Some(block_id) {
+            continue;
+        }
+
+        // snapshot the block data
+        let block = tree.get(block_id).clone();
+
+        // skip blocks with no work to duplicate
+        if block.instructions.is_empty() {
+            continue;
+        }
+
+        // skip blocks with too many instructions
+        if block.instructions.len() > MAX_TAIL_DUP_INSTRUCTIONS {
+            continue;
+        }
+
+        // require speculatable instructions
+        let mut all_speculatable = true;
+        for instruction_id in &block.instructions {
+            let instruction = tree.get(*instruction_id);
+            if !instruction_is_speculatable(instruction) {
+                all_speculatable = false;
+                break;
+            }
+        }
+        if !all_speculatable {
+            continue;
+        }
+
+        // only duplicate simple terminators
+        if !matches!(
+            block.terminator,
+            mir::Terminator::Return { .. } | mir::Terminator::Jump { .. }
+        ) {
+            continue;
+        }
+
+        // ensure all predecessors pass the correct argument counts
+        let mut arguments_match = true;
+        for pred in jump_preds {
+            if pred.arguments.len() != block.parameters.len() {
+                arguments_match = false;
+                break;
+            }
+        }
+        if !arguments_match {
+            continue;
+        }
+
+        // duplicate the block into each jump predecessor
+        for pred in jump_preds.clone() {
+            if pred.pred == block_id {
+                continue;
+            }
+
+            // build value map for parameters and new instruction values
+            let mut value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+            for (param, arg) in block.parameters.iter().zip(pred.arguments.iter()) {
+                value_map.insert(param.value, *arg);
+            }
+
+            // clone instructions with remapped values
+            let mut new_instructions = Vec::with_capacity(block.instructions.len());
+            for instruction_id in &block.instructions {
+                let instruction = tree.get(*instruction_id).clone();
+
+                if let Some(destination) = instruction.destination() {
+                    let new_destination = function.next_value();
+                    value_map.insert(destination, new_destination);
+                }
+
+                let cloned = instruction_map(&instruction, &value_map, tree);
+                let new_id = tree.insert(cloned);
+                new_instructions.push(new_id);
+            }
+
+            // clone the terminator with remapped values
+            let new_terminator = terminator_substitute_uses(&block.terminator, &value_map);
+
+            // create the duplicated block
+            let mut new_block = mir::Block::new();
+            new_block.instructions = new_instructions;
+            new_block.terminator = new_terminator;
+
+            // insert the duplicated block
+            let new_block_id = tree.insert(new_block);
+            insert_block_after(function, pred.pred, new_block_id);
+
+            // rewrite the predecessor jump to target the duplicated block
+            let pred_block = tree.get(pred.pred).clone();
+            let mut updated_pred = pred_block.clone();
+            updated_pred.terminator = mir::Terminator::Jump {
+                target: new_block_id,
+                arguments: Vec::new(),
+            };
+            tree.replace(pred.pred, updated_pred);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Insert a block after a specific block in the function ordering.
+fn insert_block_after(
+    function: &mut mir::Function,
+    after: mir::LocalNodeId<mir::Block>,
+    block: mir::LocalNodeId<mir::Block>,
+) {
+    // insert next to the requested block when possible
+    if let Some(index) = function.blocks.iter().position(|id| *id == after) {
+        function.blocks.insert(index + 1, block);
+        return;
+    }
+
+    // fall back to appending when the block is missing
+    function.blocks.push(block);
+}
+
+/// Split critical edges into their own blocks.
+fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // collect predecessor sets for each block
+    let mut predecessors: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        HashSet<mir::LocalNodeId<mir::Block>>,
+    > = HashMap::new();
+    let mut successor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // record unique successors for the block
+        let mut unique_successors = HashSet::new();
+        for successor in block.terminator.successors() {
+            unique_successors.insert(successor);
+        }
+
+        // store successor count for critical edge checks
+        successor_counts.insert(block_id, unique_successors.len());
+
+        // update predecessor sets for each successor
+        for successor in unique_successors {
+            predecessors.entry(successor).or_default().insert(block_id);
+        }
+    }
+
+    // snapshot original blocks for iteration
+    let original_blocks = function.blocks.clone();
+
+    // track split blocks and changes
+    let mut split_cache: HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
+        mir::LocalNodeId<mir::Block>,
+    > = HashMap::new();
+    let mut changed = false;
+
+    for &block_id in &original_blocks {
+        // skip blocks with a single successor
+        let successor_count = successor_counts.get(&block_id).copied().unwrap_or(0);
+        if successor_count <= 1 {
+            continue;
+        }
+
+        // read the block
+        let block = tree.get(block_id).clone();
+        let terminator = block.terminator.clone();
+
+        // rewrite terminator edges when they are critical
+        let new_terminator = match &terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => {
+                // split the then edge when critical
+                let new_then_target = split_critical_edge_target(
+                    function,
+                    tree,
+                    block_id,
+                    *then_target,
+                    then_arguments,
+                    &predecessors,
+                    &mut split_cache,
+                )
+                .unwrap_or(*then_target);
+
+                // split the else edge when critical
+                let new_else_target = split_critical_edge_target(
+                    function,
+                    tree,
+                    block_id,
+                    *else_target,
+                    else_arguments,
+                    &predecessors,
+                    &mut split_cache,
+                )
+                .unwrap_or(*else_target);
+
+                if new_then_target != *then_target || new_else_target != *else_target {
+                    Some(mir::Terminator::Branch {
+                        condition: *condition,
+                        then_target: new_then_target,
+                        then_arguments: then_arguments.clone(),
+                        else_target: new_else_target,
+                        else_arguments: else_arguments.clone(),
+                    })
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Check {
+                condition,
+                constraint,
+                success,
+                failure,
+            } => {
+                // split the success edge when critical
+                let new_success_target = split_critical_edge_target(
+                    function,
+                    tree,
+                    block_id,
+                    success.target,
+                    &success.arguments,
+                    &predecessors,
+                    &mut split_cache,
+                )
+                .unwrap_or(success.target);
+
+                // split the failure edge when critical
+                let new_failure_target = split_critical_edge_target(
+                    function,
+                    tree,
+                    block_id,
+                    failure.target,
+                    &failure.arguments,
+                    &predecessors,
+                    &mut split_cache,
+                )
+                .unwrap_or(failure.target);
+
+                if new_success_target != success.target || new_failure_target != failure.target {
+                    Some(mir::Terminator::Check {
+                        condition: *condition,
+                        constraint: constraint.clone(),
+                        success: mir::CheckTarget {
+                            target: new_success_target,
+                            arguments: success.arguments.clone(),
+                        },
+                        failure: mir::CheckTarget {
+                            target: new_failure_target,
+                            arguments: failure.arguments.clone(),
+                        },
+                    })
+                } else {
+                    None
+                }
+            }
+            mir::Terminator::Switch {
+                value,
+                default,
+                default_arguments,
+                cases,
+            } => {
+                // split the default edge when critical
+                let new_default = split_critical_edge_target(
+                    function,
+                    tree,
+                    block_id,
+                    *default,
+                    default_arguments,
+                    &predecessors,
+                    &mut split_cache,
+                )
+                .unwrap_or(*default);
+
+                // split each case edge when critical
+                let mut updated_cases = Vec::with_capacity(cases.len());
+                let mut remapped = new_default != *default;
+
+                for case in cases {
+                    let new_target = split_critical_edge_target(
+                        function,
+                        tree,
+                        block_id,
+                        case.target,
+                        &case.arguments,
+                        &predecessors,
+                        &mut split_cache,
+                    )
+                    .unwrap_or(case.target);
+
+                    if new_target != case.target {
+                        remapped = true;
+                    }
+
+                    updated_cases.push(mir::SwitchCase {
+                        value: case.value,
+                        target: new_target,
+                        arguments: case.arguments.clone(),
+                    });
+                }
+
+                if remapped {
+                    Some(mir::Terminator::Switch {
+                        value: *value,
+                        default: new_default,
+                        default_arguments: default_arguments.clone(),
+                        cases: updated_cases,
+                    })
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        // update the terminator when it changes
+        if let Some(new_terminator) = new_terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Split a critical edge target and return the new block id when needed.
+fn split_critical_edge_target(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    source: mir::LocalNodeId<mir::Block>,
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+    predecessors: &HashMap<mir::LocalNodeId<mir::Block>, HashSet<mir::LocalNodeId<mir::Block>>>,
+    split_cache: &mut HashMap<
+        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
+        mir::LocalNodeId<mir::Block>,
+    >,
+) -> Option<mir::LocalNodeId<mir::Block>> {
+    // require multiple predecessors to be critical
+    let target_preds = predecessors.get(&target).map_or(0, HashSet::len);
+    if target_preds <= 1 {
+        return None;
+    }
+
+    // reuse previously split edges for the same source and target
+    if let Some(existing) = split_cache.get(&(source, target)) {
+        return Some(*existing);
+    }
+
+    // read the target block parameters
+    let target_block = tree.get(target);
+    if target_block.parameters.len() != arguments.len() {
+        return None;
+    }
+
+    // build new parameters that mirror the target parameter types
+    let mut new_parameters = Vec::with_capacity(target_block.parameters.len());
+    let mut new_arguments = Vec::with_capacity(target_block.parameters.len());
+    for param in &target_block.parameters {
+        let value = function.next_value();
+        new_parameters.push(mir::TypedValue::new(value, param.ty));
+        new_arguments.push(value);
+    }
+
+    // build the split block
+    let mut new_block = mir::Block::with_parameters(new_parameters);
+    new_block.terminator = mir::Terminator::Jump {
+        target,
+        arguments: new_arguments,
+    };
+
+    // insert the block and record it for reuse
+    let new_block_id = tree.insert(new_block);
+    insert_block_after(function, source, new_block_id);
+    split_cache.insert((source, target), new_block_id);
+
+    Some(new_block_id)
 }
 
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
@@ -2117,9 +2690,8 @@ block2(v4: i32):
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    branch v0, block1(v1), block1(v2)
-block1(v5: i32):
-    return v5
+    v6 = select v0, v1, v2
+    return v6
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -2144,9 +2716,8 @@ block2:
 block0(v0: bool):
     v1 = iconst 1i32
     v2 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
-    return v3
+    v4 = select v0, v1, v2
+    return v4
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -2330,10 +2901,8 @@ block4:
 block0:
     v0 = iconst true
     v1 = iconst false
-    jump block1
-block1:
-    v4 = iconst 4i32
-    return v4
+    v5 = iconst 4i32
+    return v5
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -2518,9 +3087,70 @@ block4:
 block0(v0: bool):
     v1 = iconst 1i32
     v2 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v3: i32):
-    return v3
+    v4 = select v0, v1, v2
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Check targets thread through empty jump blocks.
+    #[test]
+    fn test_thread_check_targets() {
+        let input = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> void {
+block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
+    check v0, bounds.unsigned v1, v2, v3, block1, block2
+block1:
+    jump block3
+block2:
+    jump block4
+block3:
+    return
+block4:
+    return
+}"#;
+        let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> void {
+block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
+    check v0, bounds.unsigned v1, v2, v3, block1, block2
+block1:
+    return
+block2:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Switch edges thread through empty jump blocks.
+    #[test]
+    fn test_thread_switch_edges() {
+        let input = r#"function @test(v0: u32) -> i32 {
+block0(v0: u32):
+    switch v0, block1, 0 => block2
+block1:
+    jump block3
+block2:
+    jump block4
+block3:
+    v1 = iconst 1i32
+    return v1
+block4:
+    v2 = iconst 2i32
+    return v2
+}"#;
+        let expected = r#"function @test(v0: u32) -> i32 {
+block0(v0: u32):
+    switch v0, block3, 0 => block4
+block3:
+    v1 = iconst 1i32
+    return v1
+block4:
+    v2 = iconst 2i32
+    return v2
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -2594,9 +3224,69 @@ block2:
 block0(v0: bool):
     v1 = iconst 1i32
     v2 = iconst 2i32
-    branch v0, block1(v1), block1(v2)
-block1(v4: i32):
+    v5 = select v0, v1, v2
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Jump predecessors duplicate a small tail block into the jump edge.
+    #[test]
+    fn test_tail_duplicate_jump_predecessor() {
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v2 = iconst 1i32
+    branch v0, block1, block2(v1)
+block1:
+    jump block2(v1)
+block2(v3: i32):
+    v4 = iadd v3, v2
     return v4
+}"#;
+        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v2 = iconst 1i32
+    branch v0, block1, block2(v1)
+block1:
+    v5 = iadd v1, v2
+    return v5
+block2(v3: i32):
+    v4 = iadd v3, v2
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Critical edges are split with a dedicated block.
+    #[test]
+    fn test_split_critical_edge() {
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v2 = iconst 1i32
+    branch v0, block1(v2), block2(v1)
+block1(v3: i32):
+    return v3
+block2(v4: i32):
+    v5 = iadd v4, v2
+    jump block1(v5)
+}"#;
+        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v2 = iconst 1i32
+    branch v0, block1(v2), block3(v1)
+block1(v6: i32):
+    jump block2(v6)
+block2(v3: i32):
+    return v3
+block3(v4: i32):
+    v5 = iadd v4, v2
+    jump block2(v5)
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -2676,6 +3366,27 @@ block2:
 block3:
     v6 = iconst 12i32
     return v6
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Switches with identical targets fold into a jump.
+    #[test]
+    fn test_fold_switch_with_identical_targets() {
+        let input = r#"function @test(v0: u32) -> i32 {
+block0(v0: u32):
+    switch v0, block1, 0 => block1, 1 => block1
+block1:
+    v1 = iconst 10i32
+    return v1
+}"#;
+        let expected = r#"function @test(v0: u32) -> i32 {
+block0(v0: u32):
+    v1 = iconst 10i32
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);
