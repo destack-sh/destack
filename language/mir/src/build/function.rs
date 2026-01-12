@@ -770,6 +770,18 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Insert a string constant.
+    pub fn sconst(&mut self, value: impl Into<String>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::Const {
+            destination,
+            value: Constant::String {
+                value: value.into(),
+            },
+        });
+        destination
+    }
+
     // instruction builders: binary operations
 
     /// Insert a binary operation.
