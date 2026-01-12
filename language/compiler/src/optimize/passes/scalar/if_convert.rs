@@ -55,8 +55,12 @@ declare_pass! {
     "Convert small diamonds into select instructions"
 }
 
-/// Maximum number of instructions to clone per branch.
-const MAX_BRANCH_INSTRUCTIONS: usize = 8;
+/// Base instruction budget for if conversion.
+const BASE_CONVERT_BUDGET: usize = 16;
+/// Larger budget when profile indicates balanced branches.
+const BALANCED_CONVERT_BUDGET: usize = 48;
+/// Threshold for treating a branch as highly biased.
+const BIASED_BRANCH_RATIO: f64 = 0.90;
 
 impl FunctionPass for IfConvert {
     /// Run if conversion on a function.
@@ -64,7 +68,7 @@ impl FunctionPass for IfConvert {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -72,7 +76,9 @@ impl FunctionPass for IfConvert {
         }
 
         // run if conversion
-        let changed = run_if_convert(function, tree);
+        let changed = run_if_convert(function, tree, ctx);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -90,8 +96,6 @@ impl FunctionPass for IfConvert {
         "if-convert"
     }
 }
-
-// NOTE #Incomplete: extend to predicated blocks larger than the instruction cap
 
 /// Candidate diamond for conversion.
 #[derive(Debug, Clone)]
@@ -113,7 +117,11 @@ struct IfConvertCandidate {
 }
 
 /// Run if conversion and return true when changes were made.
-fn run_if_convert(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_if_convert(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // build control flow graph
     let analyses = FunctionAnalyses::new(function, tree);
     let cfg = analyses.get::<ControlFlowGraph>().clone();
@@ -136,7 +144,7 @@ fn run_if_convert(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
     function.recompute_next_value_id(tree);
     let mut changed = false;
     for candidate in candidates {
-        changed |= apply_if_convert(candidate, function, tree);
+        changed |= apply_if_convert(candidate, function, tree, ctx);
     }
 
     changed
@@ -236,17 +244,11 @@ fn apply_if_convert(
     candidate: IfConvertCandidate,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
 ) -> bool {
     // build value maps for each branch
     let then_block = tree.get(candidate.then_block).clone();
     let else_block = tree.get(candidate.else_block).clone();
-
-    // enforce instruction limits
-    if then_block.instructions.len() > MAX_BRANCH_INSTRUCTIONS
-        || else_block.instructions.len() > MAX_BRANCH_INSTRUCTIONS
-    {
-        return false;
-    }
 
     // ensure both sides are speculatable
     if !instructions_speculatable(&then_block.instructions, tree)
@@ -280,6 +282,17 @@ fn apply_if_convert(
         return false;
     };
     if then_merge_args.len() != else_merge_args.len() {
+        return false;
+    }
+
+    // check conversion cost model
+    if !should_convert(
+        &candidate,
+        &then_block,
+        &else_block,
+        then_merge_args.len(),
+        ctx,
+    ) {
         return false;
     }
 
@@ -317,6 +330,88 @@ fn apply_if_convert(
     tree.replace(candidate.header, header);
 
     true
+}
+
+/// Decide whether to convert a candidate based on cost and profile data.
+fn should_convert(
+    candidate: &IfConvertCandidate,
+    then_block: &mir::Block,
+    else_block: &mir::Block,
+    merge_args: usize,
+    ctx: &PipelineContext<'_>,
+) -> bool {
+    // compute instruction costs for each branch
+    let then_cost = block_instruction_cost(then_block);
+    let else_cost = block_instruction_cost(else_block);
+    let select_cost = merge_args;
+    let total_cost = then_cost + else_cost + select_cost;
+
+    // allow small conversions unconditionally
+    if total_cost <= BASE_CONVERT_BUDGET {
+        return true;
+    }
+
+    // check branch profile balance when available
+    if let Some((then_count, else_count)) = branch_profile_counts(candidate, ctx.profile()) {
+        let total_count = then_count + else_count;
+        if total_count == 0 {
+            return total_cost <= BASE_CONVERT_BUDGET;
+        }
+
+        let then_ratio = then_count as f64 / total_count as f64;
+        let else_ratio = else_count as f64 / total_count as f64;
+        let is_balanced = then_ratio >= (1.0 - BIASED_BRANCH_RATIO)
+            && then_ratio <= BIASED_BRANCH_RATIO
+            && else_ratio >= (1.0 - BIASED_BRANCH_RATIO)
+            && else_ratio <= BIASED_BRANCH_RATIO;
+
+        if is_balanced {
+            return total_cost <= BALANCED_CONVERT_BUDGET;
+        }
+
+        return total_cost <= BASE_CONVERT_BUDGET;
+    }
+
+    // fall back to size balance when no profile data is available
+    let min_cost = then_cost.min(else_cost);
+    if min_cost == 0 {
+        return total_cost <= BALANCED_CONVERT_BUDGET;
+    }
+
+    let size_ratio = then_cost.max(else_cost) as f64 / min_cost as f64;
+    if size_ratio <= 1.25 {
+        return total_cost <= BALANCED_CONVERT_BUDGET;
+    }
+
+    total_cost <= BASE_CONVERT_BUDGET
+}
+
+/// Compute the instruction cost for a block.
+fn block_instruction_cost(block: &mir::Block) -> usize {
+    block.instructions.len()
+}
+
+/// Read branch profile counts when available.
+fn branch_profile_counts(
+    candidate: &IfConvertCandidate,
+    profile: Option<&mir::ProfileTable>,
+) -> Option<(u64, u64)> {
+    let profile = profile?;
+    let then_edge = mir::EdgeKey::new(
+        candidate.header,
+        mir::EdgeKind::BranchThen,
+        candidate.then_block,
+    );
+    let else_edge = mir::EdgeKey::new(
+        candidate.header,
+        mir::EdgeKind::BranchElse,
+        candidate.else_block,
+    );
+
+    let then_count = profile.edge_count(&then_edge)?.value;
+    let else_count = profile.edge_count(&else_edge)?.value;
+
+    Some((then_count, else_count))
 }
 
 /// Build a remapping of block parameters and instruction destinations.
@@ -428,6 +523,90 @@ block2(v6: i32, v7: i32):
     jump block3(v8)
 block3(v9: i32):
     return v9
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(expected);
+    }
+
+    /// Convert larger diamonds when balanced and speculatable.
+    #[test]
+    fn test_if_convert_large_balanced_blocks() {
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    branch v0, block1(v1), block2(v1)
+block1(v2: i32):
+    v3 = iadd v2, v2
+    v4 = iadd v3, v2
+    v5 = iadd v4, v2
+    v6 = iadd v5, v2
+    v7 = iadd v6, v2
+    v8 = iadd v7, v2
+    v9 = iadd v8, v2
+    v10 = iadd v9, v2
+    v11 = iadd v10, v2
+    jump block3(v11)
+block2(v12: i32):
+    v13 = isub v12, v12
+    v14 = iadd v13, v12
+    v15 = iadd v14, v12
+    v16 = iadd v15, v12
+    v17 = iadd v16, v12
+    v18 = iadd v17, v12
+    v19 = iadd v18, v12
+    v20 = iadd v19, v12
+    v21 = iadd v20, v12
+    jump block3(v21)
+block3(v22: i32):
+    return v22
+}"#;
+        let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    v23 = iadd v1, v1
+    v24 = iadd v23, v1
+    v25 = iadd v24, v1
+    v26 = iadd v25, v1
+    v27 = iadd v26, v1
+    v28 = iadd v27, v1
+    v29 = iadd v28, v1
+    v30 = iadd v29, v1
+    v31 = iadd v30, v1
+    v32 = isub v1, v1
+    v33 = iadd v32, v1
+    v34 = iadd v33, v1
+    v35 = iadd v34, v1
+    v36 = iadd v35, v1
+    v37 = iadd v36, v1
+    v38 = iadd v37, v1
+    v39 = iadd v38, v1
+    v40 = iadd v39, v1
+    v41 = select v0, v31, v40
+    jump block3(v41)
+block1(v2: i32):
+    v3 = iadd v2, v2
+    v4 = iadd v3, v2
+    v5 = iadd v4, v2
+    v6 = iadd v5, v2
+    v7 = iadd v6, v2
+    v8 = iadd v7, v2
+    v9 = iadd v8, v2
+    v10 = iadd v9, v2
+    v11 = iadd v10, v2
+    jump block3(v11)
+block2(v12: i32):
+    v13 = isub v12, v12
+    v14 = iadd v13, v12
+    v15 = iadd v14, v12
+    v16 = iadd v15, v12
+    v17 = iadd v16, v12
+    v18 = iadd v17, v12
+    v19 = iadd v18, v12
+    v20 = iadd v19, v12
+    v21 = iadd v20, v12
+    jump block3(v21)
+block3(v22: i32):
+    return v22
 }"#;
 
         let mut program = TestProgram::new(input);

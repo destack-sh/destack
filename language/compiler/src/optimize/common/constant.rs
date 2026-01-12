@@ -1,6 +1,7 @@
 use destack_mir as mir;
 use destack_mir::{
-    BinaryOperator, CastOperator, Constant, Global, LocalNodeId, NodeTree, Type, UnaryOperator,
+    BinaryOperator, CastOperator, Constant, Global, Intrinsic, LocalNodeId, NodeTree, Type,
+    UnaryOperator,
 };
 
 /// Check if a constant is zero.
@@ -179,6 +180,254 @@ pub fn constant_tree_from_global(
         tree,
         max_aggregate_elements,
     ))
+}
+
+/// Fold a pure intrinsic with constant arguments.
+pub fn fold_intrinsic(intrinsic: Intrinsic, arguments: &[Constant]) -> Option<Constant> {
+    // reject empty argument lists
+    let first = arguments.first()?;
+
+    // fold integer unary intrinsics
+    let folded_integer_unary = match intrinsic {
+        Intrinsic::Clz => fold_int_unary(first, |value, width| {
+            let leading = value.leading_zeros();
+            let adjust = u32::from(64u8.saturating_sub(width));
+            Some((leading - adjust) as u64)
+        }),
+        Intrinsic::Ctz => {
+            fold_int_unary(first, |value, _width| Some(value.trailing_zeros() as u64))
+        }
+        Intrinsic::Popcnt => fold_int_unary(first, |value, _width| Some(value.count_ones() as u64)),
+        Intrinsic::ByteSwap => fold_int_unary(first, |value, width| {
+            if width % 8 != 0 {
+                return None;
+            }
+            let swapped = value.swap_bytes();
+            Some(mask_to_width(swapped, width))
+        }),
+        Intrinsic::BitReverse => fold_int_unary(first, |value, width| {
+            let reversed = value.reverse_bits();
+            let shifted = reversed >> (64u8.saturating_sub(width));
+            Some(mask_to_width(shifted, width))
+        }),
+        _ => None,
+    };
+    if folded_integer_unary.is_some() {
+        return folded_integer_unary;
+    }
+
+    // fold integer binary intrinsics
+    let folded_integer_binary = match intrinsic {
+        Intrinsic::RotateLeft => fold_int_binary(arguments, |value, shift, width| {
+            let shift = (shift % width as u64) as u32;
+            let rotated = value.rotate_left(shift);
+            Some(mask_to_width(rotated, width))
+        }),
+        Intrinsic::RotateRight => fold_int_binary(arguments, |value, shift, width| {
+            let shift = (shift % width as u64) as u32;
+            let rotated = value.rotate_right(shift);
+            Some(mask_to_width(rotated, width))
+        }),
+        _ => None,
+    };
+    if folded_integer_binary.is_some() {
+        return folded_integer_binary;
+    }
+
+    // fold float unary intrinsics
+    let folded_float_unary = match intrinsic {
+        Intrinsic::Sqrt => fold_float_unary(first, |value| value.sqrt()),
+        Intrinsic::Abs => fold_float_unary(first, |value| value.abs()),
+        Intrinsic::Sin => fold_float_unary(first, |value| value.sin()),
+        Intrinsic::Cos => fold_float_unary(first, |value| value.cos()),
+        Intrinsic::Tan => fold_float_unary(first, |value| value.tan()),
+        Intrinsic::Asin => fold_float_unary(first, |value| value.asin()),
+        Intrinsic::Acos => fold_float_unary(first, |value| value.acos()),
+        Intrinsic::Atan => fold_float_unary(first, |value| value.atan()),
+        Intrinsic::Exp => fold_float_unary(first, |value| value.exp()),
+        Intrinsic::Exp2 => fold_float_unary(first, |value| value.exp2()),
+        Intrinsic::Log => fold_float_unary(first, |value| value.ln()),
+        Intrinsic::Log2 => fold_float_unary(first, |value| value.log2()),
+        Intrinsic::Log10 => fold_float_unary(first, |value| value.log10()),
+        Intrinsic::Floor => fold_float_unary(first, |value| value.floor()),
+        Intrinsic::Ceil => fold_float_unary(first, |value| value.ceil()),
+        Intrinsic::Trunc => fold_float_unary(first, |value| value.trunc()),
+        Intrinsic::Round => fold_float_unary(first, |value| value.round()),
+        _ => None,
+    };
+    if folded_float_unary.is_some() {
+        return folded_float_unary;
+    }
+
+    // fold float binary and ternary intrinsics
+    match intrinsic {
+        Intrinsic::Copysign => fold_float_binary(arguments, |left, right| left.copysign(right)),
+        Intrinsic::Atan2 => fold_float_binary(arguments, |left, right| left.atan2(right)),
+        Intrinsic::Pow => fold_float_binary(arguments, |left, right| left.powf(right)),
+        Intrinsic::Fma => fold_float_ternary(arguments, |a, b, c| a.mul_add(b, c)),
+        _ => None,
+    }
+}
+
+/// Fold an integer unary intrinsic when possible.
+fn fold_int_unary(constant: &Constant, f: impl FnOnce(u64, u8) -> Option<u64>) -> Option<Constant> {
+    // decode the constant payload
+    let (value, width, is_signed) = decode_int_constant(constant)?;
+
+    // apply the operation
+    let folded = f(value, width)?;
+
+    // reencode with the original signedness
+    Some(encode_int_constant(folded, width, is_signed))
+}
+
+/// Fold an integer binary intrinsic when possible.
+fn fold_int_binary(
+    arguments: &[Constant],
+    f: impl FnOnce(u64, u64, u8) -> Option<u64>,
+) -> Option<Constant> {
+    // expect exactly two operands
+    let left = arguments.first()?;
+    let right = arguments.get(1)?;
+
+    // decode operand payloads
+    let (left_value, width, is_signed) = decode_int_constant(left)?;
+    let (right_value, right_width, _) = decode_int_constant(right)?;
+    if width != right_width {
+        return None;
+    }
+
+    // apply the operation
+    let folded = f(left_value, right_value, width)?;
+
+    // reencode with the original signedness
+    Some(encode_int_constant(folded, width, is_signed))
+}
+
+/// Fold a float unary intrinsic.
+fn fold_float_unary(constant: &Constant, f: impl FnOnce(f64) -> f64) -> Option<Constant> {
+    // decode float constant
+    let (value, width) = decode_float_constant(constant)?;
+
+    // apply the operation
+    let folded = f(value);
+
+    // reencode in the original width
+    Some(encode_float_constant(folded, width))
+}
+
+/// Fold a float binary intrinsic.
+fn fold_float_binary(arguments: &[Constant], f: impl FnOnce(f64, f64) -> f64) -> Option<Constant> {
+    // expect exactly two operands
+    let left = arguments.first()?;
+    let right = arguments.get(1)?;
+
+    // decode operand payloads
+    let (left_value, width) = decode_float_constant(left)?;
+    let (right_value, right_width) = decode_float_constant(right)?;
+    if width != right_width {
+        return None;
+    }
+
+    // apply the operation
+    let folded = f(left_value, right_value);
+
+    // reencode in the original width
+    Some(encode_float_constant(folded, width))
+}
+
+/// Fold a float ternary intrinsic.
+fn fold_float_ternary(
+    arguments: &[Constant],
+    f: impl FnOnce(f64, f64, f64) -> f64,
+) -> Option<Constant> {
+    // expect exactly three operands
+    let first = arguments.first()?;
+    let second = arguments.get(1)?;
+    let third = arguments.get(2)?;
+
+    // decode operand payloads
+    let (first_value, width) = decode_float_constant(first)?;
+    let (second_value, second_width) = decode_float_constant(second)?;
+    let (third_value, third_width) = decode_float_constant(third)?;
+    if width != second_width || width != third_width {
+        return None;
+    }
+
+    // apply the operation
+    let folded = f(first_value, second_value, third_value);
+
+    // reencode in the original width
+    Some(encode_float_constant(folded, width))
+}
+
+/// Decode an integer constant into a masked u64 payload.
+fn decode_int_constant(constant: &Constant) -> Option<(u64, u8, bool)> {
+    match constant {
+        Constant::Int {
+            value,
+            width,
+            is_signed,
+        } => {
+            let masked = mask_to_width(*value as u64, *width);
+            Some((masked, *width, *is_signed))
+        }
+        Constant::UInt { value, width } => Some((*value, *width, false)),
+        _ => None,
+    }
+}
+
+/// Encode a masked integer payload into a constant.
+fn encode_int_constant(value: u64, width: u8, is_signed: bool) -> Constant {
+    // sign extend when needed
+    if is_signed {
+        let shift = 64u8.saturating_sub(width) as u32;
+        let signed = ((value << shift) as i64) >> shift;
+        Constant::Int {
+            value: signed,
+            width,
+            is_signed,
+        }
+    } else {
+        Constant::UInt { value, width }
+    }
+}
+
+/// Decode a float constant into f64 payload and width.
+fn decode_float_constant(constant: &Constant) -> Option<(f64, u8)> {
+    match constant {
+        Constant::Float { bits, width: 32 } => {
+            let value = f32::from_bits(*bits as u32) as f64;
+            Some((value, 32))
+        }
+        Constant::Float { bits, width: 64 } => Some((f64::from_bits(*bits), 64)),
+        _ => None,
+    }
+}
+
+/// Encode a float payload back into a constant.
+fn encode_float_constant(value: f64, width: u8) -> Constant {
+    if width == 32 {
+        Constant::Float {
+            bits: (value as f32).to_bits() as u64,
+            width,
+        }
+    } else {
+        Constant::Float {
+            bits: value.to_bits(),
+            width,
+        }
+    }
+}
+
+/// Mask a u64 value down to the specified width.
+fn mask_to_width(value: u64, width: u8) -> u64 {
+    if width >= 64 {
+        value
+    } else {
+        let mask = (1u64 << width) - 1;
+        value & mask
+    }
 }
 
 /// Build a constant tree from a global initializer.

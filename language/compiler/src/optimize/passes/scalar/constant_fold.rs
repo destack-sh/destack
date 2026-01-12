@@ -1,9 +1,17 @@
+use std::collections::{HashMap, HashSet};
+
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
-use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::common::{
+    constant_from_global, fold_binary, fold_cast, fold_intrinsic, fold_unary,
+    instruction_substitute_uses_in_tree, terminator_substitute_uses,
+};
+use crate::optimize::{
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    resolve_substitution_chains,
+};
 
 declare_pass! {
     /// Fold constant expressions at compile time.
@@ -49,6 +57,8 @@ impl FunctionPass for ConstantFold {
 
         // run constant folding
         let changed = run_constant_fold(function, tree, &constants);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -71,7 +81,10 @@ fn run_constant_fold(
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
 ) -> bool {
+    // track pass state and pending rewrites
     let mut changed = false;
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
     // fold instructions with local constants
     for &block_id in &function.blocks {
@@ -182,8 +195,10 @@ fn run_constant_fold(
                             changed = true;
                         } else {
                             // condition is constant but selected value isn't
-                            // we could replace with a copy, but let copy_propagate handle it
+                            substitutions.insert(*destination, selected);
+                            to_remove.insert(instruction_id);
                             block_constants.remove(*destination);
+                            changed = true;
                         }
                     } else {
                         block_constants.remove(*destination);
@@ -212,6 +227,39 @@ fn run_constant_fold(
                         block_constants.remove(*destination);
                     }
                 }
+                mir::Instruction::Intrinsic {
+                    destination: Some(destination),
+                    intrinsic,
+                    arguments,
+                    ..
+                } => {
+                    // fold pure intrinsics with constant arguments
+                    let mut constant_arguments = Vec::new();
+                    for &argument in tree.get_arguments(*arguments) {
+                        let Some(constant) = block_constants.get(argument) else {
+                            constant_arguments.clear();
+                            break;
+                        };
+                        constant_arguments.push(constant.clone());
+                    }
+
+                    if !constant_arguments.is_empty() && intrinsic.is_pure() {
+                        if let Some(result) = fold_intrinsic(*intrinsic, &constant_arguments) {
+                            let dest = *destination;
+                            let new_instruction = mir::Instruction::Const {
+                                destination: dest,
+                                value: result.clone(),
+                            };
+                            tree.replace(instruction_id, new_instruction);
+                            block_constants.insert(dest, result);
+                            changed = true;
+                        } else {
+                            block_constants.remove(*destination);
+                        }
+                    } else {
+                        block_constants.remove(*destination);
+                    }
+                }
                 _ => {
                     // clear destinations for unknown instructions
                     if let Some(dest) = destination {
@@ -219,6 +267,157 @@ fn run_constant_fold(
                     }
                 }
             }
+        }
+    }
+
+    // apply substitutions and remove redundant instructions
+    if !substitutions.is_empty() || !to_remove.is_empty() {
+        // resolve transitive substitutions
+        let substitutions = resolve_substitution_chains(substitutions);
+
+        for &block_id in &function.blocks {
+            let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
+            for instruction_id in instruction_ids {
+                // skip instructions that will be removed
+                if to_remove.contains(&instruction_id) {
+                    continue;
+                }
+
+                let instruction = tree.get(instruction_id).clone();
+                let updated =
+                    instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+
+                // replace instructions when substitutions apply
+                if updated != instruction {
+                    tree.replace(instruction_id, updated);
+                }
+            }
+        }
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            let new_terminator = terminator_substitute_uses(&block.terminator, &substitutions);
+            let new_instructions: Vec<_> = block
+                .instructions
+                .iter()
+                .copied()
+                .filter(|id| !to_remove.contains(id))
+                .collect();
+
+            // rewrite blocks when instructions or terminators change
+            if new_terminator != block.terminator
+                || new_instructions.len() != block.instructions.len()
+            {
+                let mut new_block = block.clone();
+                new_block.terminator = new_terminator;
+                new_block.instructions = new_instructions;
+                tree.replace(block_id, new_block);
+            }
+        }
+
+        changed = true;
+    }
+
+    // fold terminators with constant conditions
+    changed |= fold_terminators(function, tree, constants);
+
+    changed
+}
+
+/// Fold branch, check, and switch terminators when conditions are constant.
+fn fold_terminators(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    constants: &ConstantPropagation,
+) -> bool {
+    // track whether any terminators change
+    let mut changed = false;
+
+    // scan blocks for foldable terminators
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let exit_constants = constants.exit(block_id);
+
+        let new_terminator = match &block.terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => {
+                let condition_constant = exit_constants.get(*condition);
+                let condition_value = match condition_constant {
+                    Some(mir::Constant::Boolean { value }) => Some(*value),
+                    _ => None,
+                };
+
+                condition_value.map(|is_true| {
+                    let (target, arguments) = if is_true {
+                        (*then_target, then_arguments.clone())
+                    } else {
+                        (*else_target, else_arguments.clone())
+                    };
+                    mir::Terminator::Jump { target, arguments }
+                })
+            }
+            mir::Terminator::Check {
+                condition,
+                success,
+                failure,
+                ..
+            } => {
+                let condition_constant = exit_constants.get(*condition);
+                let condition_value = match condition_constant {
+                    Some(mir::Constant::Boolean { value }) => Some(*value),
+                    _ => None,
+                };
+
+                condition_value.map(|is_true| {
+                    let (target, arguments) = if is_true {
+                        (success.target, success.arguments.clone())
+                    } else {
+                        (failure.target, failure.arguments.clone())
+                    };
+                    mir::Terminator::Jump { target, arguments }
+                })
+            }
+            mir::Terminator::Switch {
+                value,
+                default,
+                default_arguments,
+                cases,
+            } => {
+                let constant_value = exit_constants.get(*value);
+                let selected = match constant_value {
+                    Some(mir::Constant::Int { value, .. }) => Some(*value),
+                    Some(mir::Constant::UInt { value, .. }) => i64::try_from(*value).ok(),
+                    _ => None,
+                };
+
+                selected.map(|value| {
+                    let mut target = *default;
+                    let mut arguments = default_arguments.clone();
+                    for case in cases {
+                        if case.value == value {
+                            target = case.target;
+                            arguments = case.arguments.clone();
+                            break;
+                        }
+                    }
+
+                    mir::Terminator::Jump { target, arguments }
+                })
+            }
+            _ => None,
+        };
+
+        // update the terminator when a constant fold applies
+        if let Some(new_terminator) = new_terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
         }
     }
 
@@ -723,5 +922,79 @@ block0(v0: bool):
         let mut program = TestProgram::new(input);
         program.run_pass(&ConstantFold);
         program.assert_unchanged(input);
+    }
+
+    /// Select with constant condition forwards non constant values.
+    #[test]
+    fn test_fold_select_constant_to_copy() {
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst true
+    v2 = iadd v0, v0
+    v3 = select v1, v2, v0
+    return v3
+}"#;
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst true
+    v2 = iadd v0, v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Branches with constant conditions are folded to jumps.
+    #[test]
+    fn test_fold_constant_branch() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    branch v0, block1, block2
+block1:
+    v1 = iconst 1i32
+    return v1
+block2:
+    v2 = iconst 2i32
+    return v2
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    jump block1
+block1:
+    v1 = iconst 1i32
+    return v1
+block2:
+    v2 = iconst 2i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
+    }
+
+    /// Pure intrinsics with constant arguments fold to constants.
+    #[test]
+    fn test_fold_intrinsic_clz() {
+        let input = r#"function @test() -> u32 {
+block0:
+    v0 = iconst 8u32
+    v1 = intrinsic.clz(v0)
+    return v1
+}"#;
+        let expected = r#"function @test() -> u32 {
+block0:
+    v0 = iconst 8u32
+    v1 = iconst 28u32
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&ConstantFold);
+        program.assert_output(expected);
     }
 }

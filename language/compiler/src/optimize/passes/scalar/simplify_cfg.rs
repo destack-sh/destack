@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
-    instruction_substitute_uses, terminator_substitute_uses,
+    instruction_substitute_uses, substitute_values, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -798,17 +798,6 @@ fn extract_switch_target(
         mir::Terminator::Jump { target, arguments } => Some((target, arguments)),
         _ => None,
     }
-}
-
-/// Substitute parameter values using the provided mapping.
-fn substitute_values(
-    values: &[mir::Value],
-    substitutions: &HashMap<mir::Value, mir::Value>,
-) -> Vec<mir::Value> {
-    values
-        .iter()
-        .map(|value| substitutions.get(value).copied().unwrap_or(*value))
-        .collect()
 }
 
 /// Evaluate integer comparisons using range information.

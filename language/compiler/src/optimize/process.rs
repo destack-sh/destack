@@ -2,7 +2,7 @@ use crate::{Compiler, OptimizeResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::ModuleId;
-use destack_workspace::TargetId;
+use destack_workspace::{FloatMathPolicy, TargetId};
 
 use super::{
     OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, count_mir_size, default_pipeline,
@@ -63,8 +63,18 @@ impl Compiler {
             .with_dsconfig_options(&module_guard, |opts| opts.compiler.borrow_mode.is_strict())
             .unwrap_or(false);
 
+        let float_math = self
+            .program
+            .packages
+            .get(module_guard.package_id)
+            .read()
+            .target(target)
+            .map(|target| target.float_math)
+            .unwrap_or(FloatMathPolicy::Strict);
+
         let options = PipelineOptions {
             strict_borrow_mode,
+            float_math,
             ..Default::default()
         };
 

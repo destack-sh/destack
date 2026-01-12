@@ -278,6 +278,11 @@ impl RangeMap {
         self.ranges.remove(&value);
     }
 
+    /// Iterate over known ranges.
+    pub fn iter(&self) -> impl Iterator<Item = (mir::Value, &ValueRange)> + '_ {
+        self.ranges.iter().map(|(value, range)| (*value, range))
+    }
+
     /// Widen all ranges to their full type bounds.
     pub fn widen_all(&mut self) {
         for range in self.ranges.values_mut() {

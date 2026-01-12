@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::common::{
     ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
-    fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+    fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -65,6 +65,7 @@ impl FunctionPass for SparseConditionalConstantPropagation {
     ) -> AnalysisPreservation {
         // run SCCP
         let (cfg_changed, value_changed) = run_sccp(function, tree);
+
         if cfg_changed || value_changed {
             AnalysisPreservation::none()
         } else {
@@ -179,6 +180,7 @@ impl SccpResult {
 
     /// Get the constant value for an SSA value if available.
     fn value_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        // return a constant when the lattice state is constant
         match self.value_states.get(&value) {
             Some(LatticeValue::Constant(constant)) => Some(constant),
             _ => None,
@@ -213,6 +215,7 @@ impl<'a> SccpState<'a> {
         use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
         entry: mir::LocalNodeId<mir::Block>,
     ) -> Self {
+        // initialize the analysis state
         Self {
             tree,
             use_blocks,
@@ -287,6 +290,8 @@ impl<'a> SccpState<'a> {
     fn process_block_parameters(&mut self, block_id: mir::LocalNodeId<mir::Block>) {
         // read block parameters
         let block = self.tree.get(block_id);
+
+        // skip blocks without parameters
         if block.parameters.is_empty() {
             return;
         }
@@ -298,6 +303,8 @@ impl<'a> SccpState<'a> {
             .filter(|edge| edge.target == block_id)
             .cloned()
             .collect();
+
+        // skip blocks with no incoming edges
         if edges.is_empty() {
             return;
         }
@@ -305,6 +312,7 @@ impl<'a> SccpState<'a> {
         // reject mismatched argument counts
         let expected = block.parameters.len();
         if edges.iter().any(|edge| edge.arguments.len() != expected) {
+            // mark parameters as overdefined
             for param in &block.parameters {
                 self.update_value(param.value, LatticeValue::Overdefined);
             }
@@ -322,6 +330,7 @@ impl<'a> SccpState<'a> {
                 merged = merged.meet(&incoming);
             }
 
+            // update parameter lattice value
             self.update_value(param.value, merged);
         }
     }
@@ -336,6 +345,8 @@ impl<'a> SccpState<'a> {
         for instruction_id in instruction_ids {
             // read instruction destination
             let instruction = self.tree.get(instruction_id);
+
+            // skip instructions without destinations
             let Some(destination) = instruction.destination() else {
                 continue;
             };
@@ -458,6 +469,8 @@ impl<'a> SccpState<'a> {
             target,
             arguments: arguments.to_vec(),
         };
+
+        // skip edges already recorded
         if !self.executable_edges.insert(edge) {
             return;
         }
@@ -491,6 +504,7 @@ impl<'a> SccpState<'a> {
 
     /// Get the lattice state for a value.
     fn value_state(&self, value: mir::Value) -> LatticeValue {
+        // lookup lattice state
         self.value_states
             .get(&value)
             .cloned()
@@ -569,6 +583,42 @@ impl<'a> SccpState<'a> {
                     LatticeValue::Unknown => LatticeValue::Unknown,
                 }
             }
+            mir::Instruction::Select {
+                condition,
+                then_value,
+                else_value,
+                ..
+            } => {
+                // evaluate select using condition when possible
+                let condition_state = self.value_state(*condition);
+                let then_state = self.value_state(*then_value);
+                let else_state = self.value_state(*else_value);
+
+                match condition_state {
+                    LatticeValue::Constant(mir::Constant::Boolean { value }) => {
+                        if value {
+                            then_state
+                        } else {
+                            else_state
+                        }
+                    }
+                    LatticeValue::Unknown => match (then_state, else_state) {
+                        (LatticeValue::Constant(left), LatticeValue::Constant(right))
+                            if left == right =>
+                        {
+                            LatticeValue::Constant(left)
+                        }
+                        (LatticeValue::Overdefined, _)
+                        | (_, LatticeValue::Overdefined)
+                        | (LatticeValue::Aggregate(_), _)
+                        | (_, LatticeValue::Aggregate(_)) => LatticeValue::Overdefined,
+                        _ => LatticeValue::Unknown,
+                    },
+                    LatticeValue::Overdefined => LatticeValue::Overdefined,
+                    LatticeValue::Aggregate(_) => LatticeValue::Overdefined,
+                    _ => LatticeValue::Unknown,
+                }
+            }
             mir::Instruction::Struct { fields, .. } => {
                 // evaluate aggregate fields
                 let arguments = self.tree.get_arguments(*fields);
@@ -614,6 +664,33 @@ impl<'a> SccpState<'a> {
                 let index_state = self.value_state(*index);
                 let value_state = self.value_state(*value);
                 self.evaluate_element_set(array_state, index_state, value_state)
+            }
+            mir::Instruction::Intrinsic {
+                intrinsic,
+                arguments,
+                ..
+            } => {
+                // fold pure intrinsics with constant arguments
+                if !intrinsic.is_pure() {
+                    return LatticeValue::Overdefined;
+                }
+
+                let mut constants = Vec::new();
+                for &argument in self.tree.get_arguments(*arguments) {
+                    let argument_state = self.value_state(argument);
+                    match argument_state {
+                        LatticeValue::Constant(constant) => constants.push(constant),
+                        LatticeValue::Overdefined => return LatticeValue::Overdefined,
+                        LatticeValue::Aggregate(_) => return LatticeValue::Overdefined,
+                        LatticeValue::Unknown => return LatticeValue::Unknown,
+                    }
+                }
+
+                if let Some(result) = fold_intrinsic(*intrinsic, &constants) {
+                    LatticeValue::Constant(result)
+                } else {
+                    LatticeValue::Overdefined
+                }
             }
             _ => LatticeValue::Overdefined,
         }
@@ -789,6 +866,7 @@ fn apply_sccp_result(
     tree: &mut mir::NodeTree,
     result: &SccpResult,
 ) -> (bool, bool) {
+    // track cfg and value changes
     let mut cfg_changed = false;
     let mut value_changed = false;
 
@@ -861,9 +939,13 @@ fn apply_sccp_result(
 
     // remove unreachable blocks
     let original_len = function.blocks.len();
+
+    // retain only executable blocks
     function
         .blocks
         .retain(|block_id| result.is_executable(*block_id));
+
+    // record cfg changes when blocks are removed
     if function.blocks.len() != original_len {
         cfg_changed = true;
     }
@@ -878,8 +960,10 @@ fn function_insert_block_param_constants(
     result: &SccpResult,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
 ) -> bool {
+    // track whether any updates occurred
     let mut changed = false;
 
+    // scan blocks for executable constants
     let block_ids: Vec<_> = function.blocks.clone();
     for block_id in block_ids {
         // skip non executable blocks
@@ -889,6 +973,8 @@ fn function_insert_block_param_constants(
 
         // snapshot block parameters
         let params = tree.get(block_id).parameters.clone();
+
+        // skip blocks without parameters
         if params.is_empty() {
             continue;
         }
@@ -897,16 +983,20 @@ fn function_insert_block_param_constants(
         let mut inserted_constants: Vec<(mir::Constant, mir::Value)> = Vec::new();
         let mut new_instructions = Vec::new();
 
+        // scan parameters for constant values
         for param in &params {
+            // skip non constant parameters
             let Some(constant) = result.value_constant(param.value) else {
                 continue;
             };
 
+            // reuse an existing constant instruction when possible
             let existing = inserted_constants
                 .iter()
                 .find(|(value, _)| value == constant)
                 .map(|(_, value)| *value);
 
+            // insert a new constant when needed
             let const_value = if let Some(value) = existing {
                 value
             } else {
@@ -924,6 +1014,7 @@ fn function_insert_block_param_constants(
             substitutions.insert(param.value, const_value);
         }
 
+        // insert constants at block entry when needed
         if !new_instructions.is_empty() {
             // insert consts at block entry
             let block = tree.get_mut(block_id);
@@ -943,9 +1034,12 @@ fn function_substitute_constant_uses(
     tree: &mut mir::NodeTree,
     substitutions: &HashMap<mir::Value, mir::Value>,
 ) -> bool {
+    // track whether any substitutions occur
     let mut changed = false;
 
+    // rewrite constants in every block
     for &block_id in &function.blocks {
+        // snapshot instructions and terminator
         let (instruction_ids, terminator) = {
             let block = tree.get(block_id);
             (block.instructions.clone(), block.terminator.clone())
@@ -954,12 +1048,16 @@ fn function_substitute_constant_uses(
         // rewrite instruction uses
         for instruction_id in instruction_ids {
             let instruction = tree.get(instruction_id).clone();
+
+            // skip instructions without substituted operands
             if !instruction_needs_substitution(&instruction, tree, substitutions) {
                 continue;
             }
 
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+
+            // update instruction when rewritten
             if new_instruction != instruction {
                 tree.replace(instruction_id, new_instruction);
                 changed = true;
@@ -968,6 +1066,8 @@ fn function_substitute_constant_uses(
 
         // rewrite terminator uses
         let new_terminator = terminator_substitute_uses(&terminator, substitutions);
+
+        // update terminator when rewritten
         if new_terminator != terminator {
             tree.get_mut(block_id).terminator = new_terminator;
             changed = true;
@@ -1581,6 +1681,52 @@ block0:
     v1 = iconst 2i64
     v2 = iconst 115u8
     return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Constant selects are folded to the chosen value.
+    #[test]
+    fn test_fold_select_constant_condition() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    v1 = iconst 10i32
+    v2 = iconst 20i32
+    v3 = select v0, v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst true
+    v1 = iconst 10i32
+    v2 = iconst 20i32
+    v3 = iconst 10i32
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SparseConditionalConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Pure intrinsics with constant operands are folded.
+    #[test]
+    fn test_fold_intrinsic_constant() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 8i32
+    v1 = intrinsic.clz(v0)
+    return v1
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 8i32
+    v1 = iconst 28i32
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);

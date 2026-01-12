@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::DominatorTree;
+use crate::optimize::analyses::{AliasAnalysis, DominatorTree};
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
-    expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
-    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
+    apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
+    instruction_has_side_effects, instruction_may_affect_memory, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -59,20 +59,22 @@ impl FunctionPass for GlobalValueNumbering {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
         // get dominator tree children map (borrow immutably for analysis)
-        let dom_children = {
-            let analyses = FunctionAnalyses::new(function, tree);
-            let domtree = analyses.get::<DominatorTree>();
-            build_dominator_children(function, &domtree)
-        };
+        let analyses = FunctionAnalyses::new(function, tree);
+        let domtree = analyses.get::<DominatorTree>();
+        let alias = analyses.get::<AliasAnalysis>();
+        let dom_children = build_dominator_children(function, domtree.as_ref());
 
         // run GVN
-        let changed = run_gvn(entry, function, tree, &dom_children);
+        let changed = run_gvn(entry, function, tree, &dom_children, &alias);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -95,10 +97,11 @@ fn run_gvn(
     function: &mir::Function,
     tree: &mut mir::NodeTree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    alias: &AliasAnalysis,
 ) -> bool {
     // run GVN using dominator tree traversal
     let (substitutions, to_remove) =
-        find_redundant_expressions(entry, function, tree, dom_children);
+        find_redundant_expressions(entry, function, tree, dom_children, alias);
 
     // nothing to do if no redundancies found
     if to_remove.is_empty() {
@@ -106,7 +109,8 @@ fn run_gvn(
     }
 
     // apply substitutions and remove redundant instructions
-    apply_substitutions(function, tree, &substitutions, &to_remove);
+    apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
+
     true
 }
 
@@ -115,6 +119,7 @@ fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTree,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+    // allocate the child map
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
     // initialize all blocks with empty children lists
@@ -124,6 +129,7 @@ fn build_dominator_children(
 
     // build parent -> children mapping from idom relationships
     for &block_id in &function.blocks {
+        // skip the root without a dominator
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
         }
@@ -141,33 +147,56 @@ struct ScopedValueTable {
     scopes: Vec<HashMap<ExpressionKey, mir::Value>>,
     /// Stack of scopes for aggregate operands (value -> operand list).
     aggregate_scopes: Vec<HashMap<mir::Value, Vec<mir::Value>>>,
+    /// Stack of scopes for load forwarding.
+    memory_scopes: Vec<Vec<MemoryEntry>>,
+    /// Stack of scopes for local forwarding.
+    local_scopes: Vec<HashMap<mir::LocalNodeId<mir::Local>, mir::Value>>,
+}
+
+/// Memory entry tracked for load forwarding.
+#[derive(Clone)]
+struct MemoryEntry {
+    /// Memory location accessed by the load.
+    location: crate::optimize::common::MemoryLocation,
+    /// Value produced by the load.
+    value: mir::Value,
 }
 
 impl ScopedValueTable {
     /// Create a new table with a single root scope.
     fn new() -> Self {
+        // seed each scope stack with a root entry
         Self {
             scopes: vec![HashMap::new()],
             aggregate_scopes: vec![HashMap::new()],
+            memory_scopes: vec![Vec::new()],
+            local_scopes: vec![HashMap::new()],
         }
     }
 
     /// Push a new scope (entering a dominated subtree).
     fn push_scope(&mut self) {
+        // push a new scope for each tracked category
         self.scopes.push(HashMap::new());
         self.aggregate_scopes.push(HashMap::new());
+        self.memory_scopes.push(Vec::new());
+        self.local_scopes.push(HashMap::new());
     }
 
     /// Pop the current scope (leaving a dominated subtree).
     fn pop_scope(&mut self) {
+        // keep at least the root scope
         if self.scopes.len() > 1 {
             self.scopes.pop();
             self.aggregate_scopes.pop();
+            self.memory_scopes.pop();
+            self.local_scopes.pop();
         }
     }
 
     /// Look up an expression in all scopes (from innermost to outermost).
     fn get(&self, key: &ExpressionKey) -> Option<mir::Value> {
+        // search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
             if let Some(&value) = scope.get(key) {
                 return Some(value);
@@ -178,6 +207,7 @@ impl ScopedValueTable {
 
     /// Insert an expression into the current (innermost) scope.
     fn insert(&mut self, key: ExpressionKey, value: mir::Value) {
+        // insert into the current scope when available
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(key, value);
         }
@@ -185,6 +215,7 @@ impl ScopedValueTable {
 
     /// Look up aggregate operands in all scopes.
     fn get_aggregate(&self, value: &mir::Value) -> Option<&Vec<mir::Value>> {
+        // search aggregate scopes from innermost to outermost
         for scope in self.aggregate_scopes.iter().rev() {
             if let Some(operands) = scope.get(value) {
                 return Some(operands);
@@ -195,8 +226,81 @@ impl ScopedValueTable {
 
     /// Record aggregate construction operands.
     fn insert_aggregate(&mut self, value: mir::Value, operands: Vec<mir::Value>) {
+        // insert into the current aggregate scope
         if let Some(scope) = self.aggregate_scopes.last_mut() {
             scope.insert(value, operands);
+        }
+    }
+
+    /// Look up a forwarded local value.
+    fn get_local(&self, local: mir::LocalNodeId<mir::Local>) -> Option<mir::Value> {
+        // search local scopes from innermost to outermost
+        for scope in self.local_scopes.iter().rev() {
+            if let Some(value) = scope.get(&local) {
+                return Some(*value);
+            }
+        }
+        None
+    }
+
+    /// Record a forwarded local value.
+    fn insert_local(&mut self, local: mir::LocalNodeId<mir::Local>, value: mir::Value) {
+        // insert into the current local scope
+        if let Some(scope) = self.local_scopes.last_mut() {
+            scope.insert(local, value);
+        }
+    }
+
+    /// Look up a forwarded load value.
+    fn get_memory(
+        &self,
+        location: &crate::optimize::common::MemoryLocation,
+        alias: &AliasAnalysis,
+    ) -> Option<mir::Value> {
+        // scan memory scopes from innermost to outermost
+        for scope in self.memory_scopes.iter().rev() {
+            // scan entries from newest to oldest
+            for entry in scope.iter().rev() {
+                // treat identical pointers as a match
+                if entry.location.ptr == location.ptr {
+                    return Some(entry.value);
+                }
+
+                // consult alias analysis for the memory location
+                let result = alias.alias(&entry.location, location);
+                if result.is_no_alias() {
+                    continue;
+                }
+                if result.is_must_alias() {
+                    return Some(entry.value);
+                }
+                return None;
+            }
+        }
+        None
+    }
+
+    /// Record a forwarded load value.
+    fn insert_memory(
+        &mut self,
+        location: crate::optimize::common::MemoryLocation,
+        value: mir::Value,
+    ) {
+        // insert into the current memory scope
+        if let Some(scope) = self.memory_scopes.last_mut() {
+            scope.push(MemoryEntry { location, value });
+        }
+    }
+
+    /// Remove memory entries clobbered by an instruction.
+    fn clobber_memory(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        alias: &AliasAnalysis,
+    ) {
+        // drop entries that may be clobbered by the instruction
+        for scope in &mut self.memory_scopes {
+            scope.retain(|entry| !alias.may_clobber(instruction_id, &entry.location));
         }
     }
 }
@@ -209,10 +313,12 @@ fn find_redundant_expressions(
     _function: &mir::Function,
     tree: &mir::NodeTree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    alias: &AliasAnalysis,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
+    // initialize substitution state
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
     let mut value_table = ScopedValueTable::new();
@@ -223,33 +329,36 @@ fn find_redundant_expressions(
         Leave,
     }
 
+    // seed traversal with the entry block
     let mut stack = vec![Action::Enter(entry)];
     while let Some(action) = stack.pop() {
         match action {
             Action::Enter(block_id) => {
-                // push a new scope for THIS block's expressions
-                // (children will see this scope, siblings will not)
+                // push a new scope for this block's expressions
+                // children see this scope, siblings do not
                 value_table.push_scope();
 
                 // process instructions in this block
                 process_block(
                     block_id,
                     tree,
+                    alias,
                     &mut value_table,
                     &mut substitutions,
                     &mut to_remove,
                 );
 
-                // schedule Leave FIRST (will be processed AFTER all children)
+                // schedule leave so it runs after children
                 stack.push(Action::Leave);
 
-                // schedule children in reverse so first child is processed first
+                // schedule children in reverse so first child runs first
                 let children = dom_children.get(&block_id).cloned().unwrap_or_default();
                 for child in children.into_iter().rev() {
                     stack.push(Action::Enter(child));
                 }
             }
             Action::Leave => {
+                // discard scopes for the dominated subtree
                 value_table.pop_scope();
             }
         }
@@ -265,16 +374,20 @@ fn find_redundant_expressions(
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
+    // load the block for inspection
     let block = tree.get(block_id);
 
+    // scan the block instructions
     for &instruction_id in &block.instructions {
+        // load the instruction for analysis
         let instruction = tree.get(instruction_id);
 
-        // track aggregate construction operands for cross-block forwarding
+        // track aggregate construction operands for cross block forwarding
         match instruction {
             mir::Instruction::Struct {
                 destination,
@@ -300,7 +413,7 @@ fn process_block(
             _ => {}
         }
 
-        // check for aggregate field/element extraction simplification
+        // check for aggregate field or element extraction simplification
         let aggregate_simplification = match instruction {
             mir::Instruction::FieldGet {
                 destination,
@@ -321,16 +434,55 @@ fn process_block(
                 }
             }
             mir::Instruction::ElementGet { .. } => {
-                // #Incomplete: GVN needs constant propagation for ElementGet (?)
+                // NOTE #Incomplete: GVN needs constant propagation for ElementGet
                 None
             }
             _ => None,
         };
 
+        // apply aggregate forwarding when available
         if let Some((dest, replacement, inst_id)) = aggregate_simplification {
             substitutions.insert(dest, replacement);
             to_remove.insert(inst_id);
             continue;
+        }
+
+        // forward local reads
+        if let mir::Instruction::LocalGet { destination, local } = instruction {
+            if let Some(existing) = value_table.get_local(*local) {
+                substitutions.insert(*destination, existing);
+                to_remove.insert(instruction_id);
+            } else {
+                value_table.insert_local(*local, *destination);
+            }
+            continue;
+        }
+
+        // update local state on writes
+        if let mir::Instruction::LocalSet { local, value } = instruction {
+            value_table.insert_local(*local, *value);
+        }
+
+        // forward redundant loads
+        if let mir::Instruction::Load {
+            destination,
+            pointer,
+            ..
+        } = instruction
+        {
+            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
+            if let Some(existing) = value_table.get_memory(&location, alias) {
+                substitutions.insert(*destination, existing);
+                to_remove.insert(instruction_id);
+            } else {
+                value_table.insert_memory(location, *destination);
+            }
+            continue;
+        }
+
+        // clear clobbered load entries
+        if instruction_may_affect_memory(instruction) {
+            value_table.clobber_memory(instruction_id, alias);
         }
 
         // skip instructions with side effects
@@ -360,52 +512,6 @@ fn process_block(
         // otherwise record as a new expression
         else {
             value_table.insert(key, destination);
-        }
-    }
-}
-
-/// Apply substitutions to all instructions and terminators, and remove redundant instructions.
-fn apply_substitutions(
-    function: &mir::Function,
-    tree: &mut mir::NodeTree,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-    to_remove: &HashSet<mir::LocalNodeId<mir::Instruction>>,
-) {
-    // apply substitutions to instructions
-    for &block_id in &function.blocks {
-        let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
-
-        for instruction_id in instruction_ids {
-            if to_remove.contains(&instruction_id) {
-                continue;
-            }
-
-            let instruction = tree.get(instruction_id);
-            let new_instruction = instruction_substitute_uses(instruction, substitutions);
-            if new_instruction != *instruction {
-                tree.replace(instruction_id, new_instruction);
-            }
-        }
-    }
-
-    // apply substitutions to terminators and remove redundant instructions
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        let new_terminator = terminator_substitute_uses(&block.terminator, substitutions);
-        let new_instructions: Vec<_> = block
-            .instructions
-            .iter()
-            .copied()
-            .filter(|id| !to_remove.contains(id))
-            .collect();
-
-        // update block if anything changed
-        if new_terminator != block.terminator || new_instructions.len() != block.instructions.len()
-        {
-            let mut new_block = block.clone();
-            new_block.terminator = new_terminator;
-            new_block.instructions = new_instructions;
-            tree.replace(block_id, new_block);
         }
     }
 }
@@ -929,5 +1035,53 @@ block1:
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
+    }
+
+    /// Loads are value numbered across dominated blocks when not clobbered.
+    #[test]
+    fn test_eliminate_loads_across_blocks() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    jump block1
+block1:
+    v2 = load v0
+    v3 = iadd v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    jump block1
+block1:
+    v3 = iadd v1, v1
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Loads are not value numbered across intervening stores.
+    #[test]
+    fn test_preserve_loads_after_store() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    v2 = iconst 1i32
+    store v0, v2
+    jump block1
+block1:
+    v3 = load v0
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(input);
     }
 }

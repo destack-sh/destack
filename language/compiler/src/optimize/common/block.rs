@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
-use crate::optimize::analyses::ControlFlowGraph;
+use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
+use crate::optimize::common::instruction_substitute_uses_in_tree;
 
 /// Check if a terminator uses a specific value.
 ///
@@ -311,6 +312,62 @@ impl BlockParamForwarding {
 
         current
     }
+}
+
+/// Apply substitutions to blocks dominated by the root.
+pub fn apply_substitutions_in_dominated_blocks(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    domtree: &DominatorTree,
+    root: mir::LocalNodeId<mir::Block>,
+    substitutions: &HashMap<mir::Value, mir::Value>,
+) -> bool {
+    // skip when there is nothing to substitute
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    // track whether any changes were made
+    let mut changed = false;
+
+    // update blocks dominated by the root
+    for &block_id in &function.blocks {
+        // skip blocks not dominated by the root
+        if !domtree.dominates(root, block_id) {
+            continue;
+        }
+
+        // snapshot block instructions and terminator
+        let block = tree.get(block_id).clone();
+        let instruction_ids = block.instructions.clone();
+        let terminator = block.terminator.clone();
+
+        // rewrite instructions in place
+        for instruction_id in instruction_ids {
+            // substitute values in the instruction
+            let instruction = tree.get(instruction_id).clone();
+            let updated = instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+
+            // replace when a rewrite occurred
+            if updated != instruction {
+                tree.replace(instruction_id, updated);
+                changed = true;
+            }
+        }
+
+        // rewrite terminator uses
+        let new_terminator = terminator_substitute_uses(&terminator, substitutions);
+
+        // replace the terminator when it changes
+        if new_terminator != terminator {
+            let mut new_block = block;
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 /// Get the arguments passed to a successor, reporting conflicts.

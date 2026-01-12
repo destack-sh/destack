@@ -3,8 +3,10 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
+use crate::optimize::analyses::AliasAnalysis;
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    instruction_has_side_effects,
 };
 
 declare_pass! {
@@ -14,6 +16,8 @@ declare_pass! {
     /// instructions. An instruction is live if:
     /// - It has side effects (calls, stores, etc.)
     /// - Its result is used by a live instruction or terminator
+    ///
+    /// Also removes local or memory stores that are overwritten before any read.
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -42,8 +46,14 @@ impl FunctionPass for DeadCodeEliminate {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // build alias analysis for local dead store elimination
+        let analyses = FunctionAnalyses::new(function, tree);
+        let alias = analyses.get::<AliasAnalysis>();
+
         // run dead code elimination
-        let changed = run_dead_code_elimination(function, tree);
+        let changed = run_dead_code_elimination(function, tree, &alias);
+
+        // preserve analyses when nothing changed
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -61,13 +71,22 @@ impl FunctionPass for DeadCodeEliminate {
 }
 
 /// Core dead code elimination logic (shared by both pass implementations).
-fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
-    // phase 1: build value -> defining instruction map
+fn run_dead_code_elimination(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // drop dead stores before liveness
+    let mut changed = remove_dead_stores(function, tree, alias);
+
+    // build value to defining instruction map
     let mut value_to_instruction: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> =
         HashMap::new();
     for &block_id in &function.blocks {
+        // scan block instructions for definitions
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
+            // record the defining instruction
             let instruction = tree.get(instruction_id);
             if let Some(dest) = instruction.destination() {
                 value_to_instruction.insert(dest, instruction_id);
@@ -75,14 +94,14 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
         }
     }
 
-    // phase 2: seed worklist with live roots
+    // seed live roots and worklist
     let mut live: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
     let mut worklist: VecDeque<mir::LocalNodeId<mir::Instruction>> = VecDeque::new();
 
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
 
-        // side-effecting instructions are live roots
+        // record side effecting instructions as live
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if instruction_has_side_effects(instruction) && live.insert(instruction_id) {
@@ -90,7 +109,7 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
             }
         }
 
-        // values used by terminators are live
+        // record terminator uses as live
         for value in block.terminator.uses() {
             if let Some(&instruction_id) = value_to_instruction.get(&value)
                 && live.insert(instruction_id)
@@ -100,11 +119,11 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
         }
     }
 
-    // phase 3: propagate liveness backward through use-def chains
+    // propagate liveness through dependencies
     while let Some(instruction_id) = worklist.pop_front() {
         let instruction = tree.get(instruction_id);
 
-        // mark all operands as live
+        // mark operands as live
         for value in instruction.uses() {
             if let Some(&def_instruction_id) = value_to_instruction.get(&value)
                 && live.insert(def_instruction_id)
@@ -113,7 +132,7 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
             }
         }
 
-        // handle externalized arguments (Call, CallIndirect, Intrinsic)
+        // mark external argument uses as live
         if let Some(args_slice) = instruction.argument_slice() {
             for &arg in tree.get_arguments(args_slice) {
                 if let Some(&def_instruction_id) = value_to_instruction.get(&arg)
@@ -125,8 +144,7 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
         }
     }
 
-    // phase 4: remove dead instructions from all blocks
-    let mut changed = false;
+    // remove dead instructions from blocks
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         let original_len = block.instructions.len();
@@ -136,6 +154,8 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
             .copied()
             .filter(|id| live.contains(id))
             .collect();
+
+        // rewrite the block when instructions are removed
         if live_instructions.len() != original_len {
             let mut new_block = block.clone();
             new_block.instructions = live_instructions;
@@ -145,6 +165,142 @@ fn run_dead_code_elimination(function: &mut mir::Function, tree: &mut mir::NodeT
     }
 
     changed
+}
+
+/// Remove dead stores and return true when changes are made.
+fn remove_dead_stores(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // collect locals that are read anywhere
+    let mut locals_read = HashSet::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            if let mir::Instruction::LocalGet { local, .. } = tree.get(instruction_id) {
+                locals_read.insert(*local);
+            }
+        }
+    }
+
+    // find dead store instructions
+    let mut dead_stores = HashSet::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let instruction_ids = block.instructions.clone();
+
+        for (index, instruction_id) in instruction_ids.iter().copied().enumerate() {
+            let instruction = tree.get(instruction_id);
+
+            // classify stores and check for overwrites
+            match instruction {
+                mir::Instruction::LocalSet { local, .. } => {
+                    if !locals_read.contains(local)
+                        || local_set_overwritten(&instruction_ids, index, *local, tree)
+                    {
+                        dead_stores.insert(instruction_id);
+                    }
+                }
+                mir::Instruction::Store { pointer, .. } => {
+                    if store_overwritten_in_block(&instruction_ids, index, *pointer, tree, alias) {
+                        dead_stores.insert(instruction_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // exit early when nothing is removed
+    if dead_stores.is_empty() {
+        return false;
+    }
+
+    // remove dead stores from blocks
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        if block.instructions.iter().any(|id| dead_stores.contains(id)) {
+            let mut new_block = block.clone();
+            new_block
+                .instructions
+                .retain(|id| !dead_stores.contains(id));
+            tree.replace(block_id, new_block);
+        }
+    }
+
+    true
+}
+
+/// Check whether a local.set is overwritten in the same block.
+fn local_set_overwritten(
+    instruction_ids: &[mir::LocalNodeId<mir::Instruction>],
+    start: usize,
+    local: mir::LocalNodeId<mir::Local>,
+    tree: &mir::NodeTree,
+) -> bool {
+    // scan later instructions in the block
+    for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
+        match tree.get(instruction_id) {
+            // stop when a read observes the local
+            mir::Instruction::LocalGet {
+                local: get_local, ..
+            } if *get_local == local => {
+                return false;
+            }
+            // stop when a later write overwrites the local
+            mir::Instruction::LocalSet {
+                local: set_local, ..
+            } if *set_local == local => {
+                return true;
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Check whether a store is overwritten before any aliasing memory access.
+fn store_overwritten_in_block(
+    instruction_ids: &[mir::LocalNodeId<mir::Instruction>],
+    start: usize,
+    pointer: mir::Value,
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // build a memory location for the stored pointer
+    let location = crate::optimize::common::MemoryLocation::from_ptr(pointer);
+
+    // scan later instructions in the block
+    for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
+        let instruction = tree.get(instruction_id);
+
+        // stop when a later store overwrites this location
+        if let mir::Instruction::Store {
+            pointer: other_ptr, ..
+        } = instruction
+        {
+            let other_loc = crate::optimize::common::MemoryLocation::from_ptr(*other_ptr);
+            let alias_result = alias.alias(&location, &other_loc);
+
+            if alias_result.is_must_alias() || location.ptr == other_loc.ptr {
+                return true;
+            }
+            if alias_result.may_alias() {
+                return false;
+            }
+            continue;
+        }
+
+        // stop when any instruction may read or write the location
+        let mod_ref = alias.get_mod_ref_info(instruction_id, &location);
+        if mod_ref.is_ref() || mod_ref.is_mod() {
+            return false;
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -163,12 +319,15 @@ block0:
     v2 = iadd v0, v1
     return v0
 }"#;
+
+        // expected output
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -177,6 +336,7 @@ block0:
     /// Instructions used in return chain are preserved.
     #[test]
     fn test_preserve_used_chain() {
+        // source program
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -185,6 +345,7 @@ block0:
     return v2
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_unchanged(input);
@@ -203,12 +364,15 @@ block0:
     v4 = iconst 4i32
     return v0
 }"#;
+
+        // expected output
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -217,6 +381,7 @@ block0:
     /// Calls have side effects and are preserved even when result is unused.
     #[test]
     fn test_preserve_side_effect_call() {
+        // source program
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -228,6 +393,7 @@ block0(v0: i32):
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_unchanged(input);
@@ -250,6 +416,8 @@ block2:
     v5 = iconst 5i32
     return v1
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 1i32
@@ -260,6 +428,7 @@ block2:
     return v1
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -268,6 +437,7 @@ block2:
     /// Values used in branch terminators are preserved.
     #[test]
     fn test_preserve_terminator_uses() {
+        // source program
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -280,6 +450,7 @@ block2:
     return v1
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_unchanged(input);
@@ -298,12 +469,15 @@ block0:
     v4 = isub v3, v1
     return v0
 }"#;
+
+        // expected output
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -322,6 +496,8 @@ block0(v0: bool):
 block1(v4: i32):
     return v4
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 1i32
@@ -331,6 +507,7 @@ block1(v4: i32):
     return v4
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -339,6 +516,7 @@ block1(v4: i32):
     /// All instructions are eliminated when none are used by terminator.
     #[test]
     fn test_eliminate_all_instructions() {
+        // source program
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -346,11 +524,14 @@ block0:
     v2 = iadd v0, v1
     return
 }"#;
+
+        // expected output
         let expected = r#"function @test() -> void {
 block0:
     return
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -376,6 +557,8 @@ block2:
 block3:
     return v0
 }"#;
+
+        // expected output
         // v3, v4, v5 are all eliminated since their results are never used
         let expected = r#"function @test() -> i32 {
 block0:
@@ -391,6 +574,7 @@ block3:
     return v0
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -415,6 +599,8 @@ block2:
 block3(v6: i32):
     return v6
 }"#;
+
+        // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 1i32
@@ -428,6 +614,7 @@ block3(v6: i32):
     return v6
 }"#;
 
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_output(expected);
@@ -436,6 +623,7 @@ block3(v6: i32):
     /// Multiple side-effect calls are all preserved.
     #[test]
     fn test_preserve_multiple_side_effect_calls() {
+        // source program
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -449,6 +637,111 @@ block0(v0: i32):
     return v0
 }"#;
 
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadCodeEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Overwritten local sets are removed when not observed.
+    #[test]
+    fn test_remove_overwritten_local_set() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+    local0: i32 ; owned, mut
+block0(v0: i32):
+    local.set local0, v0
+    v1 = iconst 3i32
+    local.set local0, v1
+    v2 = local.get local0
+    return v2
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+    local0: i32 ; owned, mut
+block0(v0: i32):
+    v1 = iconst 3i32
+    local.set local0, v1
+    v2 = local.get local0
+    return v2
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadCodeEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Local stores without any reads are removed.
+    #[test]
+    fn test_remove_unread_local_set() {
+        // source program
+        let input = r#"function @test(v0: i32) -> void {
+    local0: i32 ; owned, mut
+block0(v0: i32):
+    local.set local0, v0
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32) -> void {
+    local0: i32 ; owned, mut
+block0(v0: i32):
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadCodeEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Stores overwritten before any read are eliminated.
+    #[test]
+    fn test_remove_overwritten_store() {
+        // source program
+        let input = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    store v0, v1
+    store v0, v2
+    return
+}"#;
+
+        // expected output
+        let expected = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v2 = iconst 2i32
+    store v0, v2
+    return
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadCodeEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Stores read by a load are preserved.
+    #[test]
+    fn test_preserve_store_used_by_load() {
+        // source program
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 1i32
+    store v0, v1
+    v2 = load v0
+    v3 = iconst 2i32
+    store v0, v3
+    return v2
+}"#;
+
+        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadCodeEliminate);
         program.assert_unchanged(input);

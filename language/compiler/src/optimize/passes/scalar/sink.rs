@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
+use crate::optimize::analyses::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{
     build_use_def_maps, instruction_is_memory_read, instruction_is_speculatable,
     instruction_may_affect_memory,
@@ -72,17 +72,14 @@ impl FunctionPass for Sink {
         };
 
         // get analyses
-        let (cfg, domtree, loops) = {
-            let analyses = FunctionAnalyses::new(function, tree);
-            (
-                analyses.get::<ControlFlowGraph>().clone(),
-                analyses.get::<DominatorTree>().clone(),
-                analyses.get::<LoopAnalysis>().clone(),
-            )
-        };
+        let analyses = FunctionAnalyses::new(function, tree);
+        let cfg = analyses.get::<ControlFlowGraph>().clone();
+        let domtree = analyses.get::<DominatorTree>().clone();
+        let loops = analyses.get::<LoopAnalysis>().clone();
+        let alias = analyses.get::<AliasAnalysis>();
 
         // run sink
-        let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops);
+        let changed = run_sink(entry, function, tree, &cfg, &domtree, &loops, &alias);
 
         // select preservation based on sink changes
         if changed {
@@ -111,6 +108,7 @@ fn run_sink(
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     loops: &LoopAnalysis,
+    alias: &AliasAnalysis,
 ) -> bool {
     // collect all blocks that are in any loop
     let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
@@ -126,6 +124,7 @@ fn run_sink(
     let mut work: Vec<SinkWork> = Vec::new();
 
     for &block_id in &function.blocks {
+        // load the block and its successors
         let block = tree.get(block_id);
         let successors = block.terminator.successors();
 
@@ -135,6 +134,7 @@ fn run_sink(
 
         // check each instruction for sinking
         for (idx, &instruction_id) in block.instructions.iter().enumerate() {
+            // read the instruction for analysis
             let instruction = tree.get(instruction_id);
 
             // determine if the instruction can be sunk
@@ -142,12 +142,8 @@ fn run_sink(
                 // pure instructions can always be sunk
                 true
             } else if instruction_is_memory_read(instruction) {
-                // memory reads (loads) can be sunk if there are no intervening
-                // memory-affecting operations between this instruction and the terminator
-                let has_intervening_memory_op = block.instructions[idx + 1..]
-                    .iter()
-                    .any(|&instr_id| instruction_may_affect_memory(tree.get(instr_id)));
-                !has_intervening_memory_op
+                // memory reads can be sunk if intervening operations do not clobber
+                memory_read_can_sink(block, idx, tree, alias)
             } else {
                 // other instructions (stores, calls, etc.) cannot be sunk
                 false
@@ -176,7 +172,7 @@ fn run_sink(
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
             if uses.is_empty() {
-                // no uses - DCE will remove this
+                // no uses, DCE will remove this
                 continue;
             }
 
@@ -191,7 +187,7 @@ fn run_sink(
 
                 // must be a successor
                 if !successors.contains(&use_block) {
-                    // used in a non-successor block (perhaps a later block)
+                    // used in a non successor block
                     // this can happen if the value flows through block parameters
                     target_successor = None;
                     break;
@@ -301,6 +297,45 @@ fn run_sink(
     }
 
     true
+}
+
+/// Check if a memory read can be sunk past intervening instructions.
+fn memory_read_can_sink(
+    block: &mir::Block,
+    index: usize,
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+) -> bool {
+    // load the instruction to sink
+    let instruction_id = block.instructions[index];
+    let instruction = tree.get(instruction_id);
+
+    match instruction {
+        mir::Instruction::Load { pointer, .. } => {
+            // check for clobbering memory operations
+            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
+            for &later_id in &block.instructions[index + 1..] {
+                let later = tree.get(later_id);
+                if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {
+                    return false;
+                }
+            }
+            true
+        }
+        mir::Instruction::LocalGet { local, .. } => {
+            // check for clobbering local sets
+            for &later_id in &block.instructions[index + 1..] {
+                // stop when a later local set clobbers the value
+                if let mir::Instruction::LocalSet { local: later, .. } = tree.get(later_id)
+                    && later == local
+                {
+                    return false;
+                }
+            }
+            true
+        }
+        _ => false,
+    }
 }
 
 /// Work item for sinking an instruction.
