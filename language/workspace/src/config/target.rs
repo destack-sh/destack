@@ -210,6 +210,204 @@ impl DebugInfoLevel {
     }
 }
 
+/// Debug execution mode for VM/native targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DebugMode {
+    /// Choose mode based on target debug settings.
+    #[default]
+    Auto,
+    /// Always run the interpreter.
+    Vm,
+    /// Run native with deopt-first debugging.
+    Deopt,
+    /// Run native only (no deopt).
+    Native,
+}
+
+impl std::str::FromStr for DebugMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "auto" => Ok(Self::Auto),
+            "vm" | "interpreter" => Ok(Self::Vm),
+            "deopt" => Ok(Self::Deopt),
+            "native" => Ok(Self::Native),
+            _ => Err(()),
+        }
+    }
+}
+
+impl DebugMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// OSR entry mode for native execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OsrMode {
+    /// OSR disabled.
+    Disabled,
+    /// OSR at loop headers.
+    #[default]
+    LoopHeaders,
+    /// OSR only at explicitly marked sites.
+    Explicit,
+}
+
+impl std::str::FromStr for OsrMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "disabled" | "off" => Ok(Self::Disabled),
+            "loop_headers" | "loops" => Ok(Self::LoopHeaders),
+            "explicit" => Ok(Self::Explicit),
+            _ => Err(()),
+        }
+    }
+}
+
+impl OsrMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Safepoint insertion mode for native execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SafepointMode {
+    /// Call sites, allocation points, and loop back-edges only.
+    #[default]
+    CallsAllocBackEdges,
+    /// Add instruction-budget safepoints for bounded latency.
+    Budgeted,
+}
+
+impl std::str::FromStr for SafepointMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "calls_alloc_backedges" | "standard" => Ok(Self::CallsAllocBackEdges),
+            "budgeted" | "budget" => Ok(Self::Budgeted),
+            _ => Err(()),
+        }
+    }
+}
+
+impl SafepointMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Speculation mode for native optimization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SpeculationMode {
+    /// Disable speculative optimizations.
+    None,
+    /// Guarded speculations with explicit deopt metadata.
+    #[default]
+    Guarded,
+    /// Aggressive speculation across more sites.
+    Aggressive,
+}
+
+impl std::str::FromStr for SpeculationMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" | "off" => Ok(Self::None),
+            "guarded" => Ok(Self::Guarded),
+            "aggressive" => Ok(Self::Aggressive),
+            _ => Err(()),
+        }
+    }
+}
+
+impl SpeculationMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Profiling mode for tiering and optimization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ProfilingMode {
+    /// Disable runtime profiling collection.
+    None,
+    /// Counters only (calls, branches, allocations).
+    Counters,
+    /// Sampling only (periodic opcode and site sampling).
+    Sampling,
+    /// Counters + sampling + inline caches.
+    #[default]
+    Hybrid,
+}
+
+impl std::str::FromStr for ProfilingMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" | "off" => Ok(Self::None),
+            "counters" => Ok(Self::Counters),
+            "sampling" => Ok(Self::Sampling),
+            "hybrid" | "full" => Ok(Self::Hybrid),
+            _ => Err(()),
+        }
+    }
+}
+
+impl ProfilingMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Determinism mode for runtime scheduling and I/O.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DeterminismMode {
+    /// No determinism guarantees.
+    None,
+    /// Deterministic scheduling with controlled randomness.
+    #[default]
+    Deterministic,
+    /// Deterministic scheduling + record external I/O.
+    Record,
+    /// Deterministic scheduling + replay external I/O.
+    Replay,
+}
+
+impl std::str::FromStr for DeterminismMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" | "off" => Ok(Self::None),
+            "deterministic" | "determinism" => Ok(Self::Deterministic),
+            "record" => Ok(Self::Record),
+            "replay" => Ok(Self::Replay),
+            _ => Err(()),
+        }
+    }
+}
+
+impl DeterminismMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Symbol stripping policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StripLevel {
@@ -926,6 +1124,20 @@ pub struct Target {
     pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
+    /// Debug execution mode for VM/native targets.
+    pub debug_mode: DebugMode,
+    /// OSR policy for native execution.
+    pub osr_mode: OsrMode,
+    /// Safepoint insertion mode for native execution.
+    pub safepoint_mode: SafepointMode,
+    /// Instruction interval for safepoint polling (when enabled).
+    pub safepoint_interval: Option<u64>,
+    /// Speculation mode for native optimization.
+    pub speculation_mode: SpeculationMode,
+    /// Profiling mode for tiering and optimization.
+    pub profiling_mode: ProfilingMode,
+    /// Determinism mode for runtime scheduling and I/O.
+    pub determinism_mode: DeterminismMode,
     /// Symbol stripping policy.
     pub strip: StripLevel,
     /// Panic policy for unrecoverable errors.
