@@ -100,6 +100,21 @@ block3:
     );
 }
 
+/// Roundtrip parsing supports yield terminators.
+#[test]
+fn test_roundtrip_yield() {
+    roundtrip(
+        r#"function @yield_once(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 5i32
+    yield v1, block1(v0)
+block1(v2: i32, v3: i32):
+    v4 = iadd v2, v3
+    return v4
+}"#,
+    );
+}
+
 #[test]
 fn test_roundtrip_managed_alloc() {
     roundtrip(

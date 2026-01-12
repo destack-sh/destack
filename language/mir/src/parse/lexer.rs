@@ -157,6 +157,7 @@ impl<'a> Lexer<'a> {
             "branch" => TokenType::Branch,
             "check" => TokenType::Check,
             "switch" => TokenType::Switch,
+            "yield" => TokenType::Yield,
             "unreachable" => TokenType::Unreachable,
             "tailcall" => TokenType::TailCall,
             "tailcall.indirect" => TokenType::TailCallIndirect,

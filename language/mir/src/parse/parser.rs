@@ -591,6 +591,7 @@ impl<'a> Parser<'a> {
                 || self.peek_token(TokenType::Branch)
                 || self.peek_token(TokenType::Check)
                 || self.peek_token(TokenType::Switch)
+                || self.peek_token(TokenType::Yield)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
                 || self.peek_token(TokenType::TailCallIndirect)
@@ -1184,6 +1185,25 @@ impl<'a> Parser<'a> {
                     default,
                     default_arguments,
                     cases,
+                })
+            }
+
+            TokenType::Yield => {
+                self.bump();
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let resume = self.parse_block_ref()?;
+                let resume_arguments = if self.eat_token_maybe(TokenType::OpenParen) {
+                    let args = self.parse_value_list()?;
+                    self.eat_token(TokenType::CloseParen)?;
+                    args
+                } else {
+                    Vec::new()
+                };
+                Ok(Terminator::Yield {
+                    value,
+                    resume,
+                    resume_arguments,
                 })
             }
 
