@@ -150,7 +150,6 @@ Local and global optimizations within a single function.
 | `reassociate` | Reassociate | function | O2 | ✓ | constant-propagation | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | ✓ | cfg, domtree | Move identical instructions to common dominator |
-| `jump-threading` | JumpThreading | function | O2 | ✓ | — | Thread jumps through empty or passthrough blocks |
 | `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `tail-call-eliminate` | TailCallEliminate | module | O2 | ✓ | — | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | domtree | Use dominating conditions to narrow value ranges |

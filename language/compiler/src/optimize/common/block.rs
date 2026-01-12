@@ -613,6 +613,62 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     None
                 }
             }
+            mir::Terminator::Switch {
+                value,
+                default,
+                default_arguments,
+                cases,
+            } => {
+                // resolve the default edge
+                let default_resolved =
+                    block_resolve_jump_target(*default, default_arguments, &threadable);
+
+                // choose the resolved default target
+                let (new_default, new_default_args) = match default_resolved {
+                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    _ => (*default, default_arguments.clone()),
+                };
+
+                // track whether any edge changes
+                let mut remapped =
+                    new_default != *default || new_default_args != *default_arguments;
+                let mut new_cases = Vec::with_capacity(cases.len());
+
+                // resolve case edges
+                for case in cases {
+                    let resolved =
+                        block_resolve_jump_target(case.target, &case.arguments, &threadable);
+
+                    // choose the resolved case target
+                    let (target, arguments) = match resolved {
+                        ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                        _ => (case.target, case.arguments.clone()),
+                    };
+
+                    // track remapped edges
+                    if target != case.target || arguments != case.arguments {
+                        remapped = true;
+                    }
+
+                    new_cases.push(mir::SwitchCase {
+                        value: case.value,
+                        target,
+                        arguments,
+                    });
+                }
+
+                // rebuild the switch when edges changed
+                if remapped {
+                    Some(mir::Terminator::Switch {
+                        value: *value,
+                        default: new_default,
+                        default_arguments: new_default_args,
+                        cases: new_cases,
+                    })
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
 

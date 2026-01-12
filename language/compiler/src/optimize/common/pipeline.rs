@@ -14,7 +14,7 @@ use super::pass::OptimizationLevel;
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
     CorrelatedValueProp, DeadCodeEliminate, DeadStoreEliminate, DropInsert, GlobalValueNumbering,
-    GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, JumpThreading, Licm,
+    GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, Licm,
     LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopRotate, LoopSimplify,
     LoopStrengthReduce, LoopUnroll, LoopUnswitch, Mem2Reg, MoveCheck, Reassociate, SimplifyCfg,
     Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
@@ -607,7 +607,6 @@ fn simplify() -> Vec<Box<dyn FunctionPass>> {
         Box::new(ConstantFold),
         Box::new(InstructionCombine),
         Box::new(SimplifyCfg),
-        Box::new(JumpThreading),
         Box::new(DeadCodeEliminate),
     ]
 }
