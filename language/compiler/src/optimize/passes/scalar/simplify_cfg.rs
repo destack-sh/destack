@@ -5,8 +5,8 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
-    instruction_substitute_uses, substitute_values, terminator_substitute_uses, function_thread_jumps,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, function_thread_jumps,
+    instruction_substitute_uses, substitute_values, terminator_substitute_uses,
 };
 
 declare_pass! {
