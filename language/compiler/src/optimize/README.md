@@ -83,8 +83,8 @@ Analysis results are shared across passes until invalidated.
 | `loops` | LoopAnalysis | function | ✓ | domtree | Natural loops, headers, latches, nesting depth |
 | `liveness` | LivenessAnalysis | function | ✓ | cfg | Which values are live at each program point |
 | `constant-propagation` | ConstantPropagation | function | ✓ | cfg | Constant values per block using SSA and block parameters |
-| `reaching-defs` | ReachingDefinitions | function | | cfg | Which local definitions reach each use |
-| `available-exprs` | AvailableExpressions | function | | domtree | Which expressions are available at each point |
+| `reaching-defs` | ReachingDefinitions | function | ✓ | cfg | Which local definitions reach each use |
+| `available-exprs` | AvailableExpressions | function | ✓ | cfg | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
 | `memory-ssa` | MemorySSA | function | | domtree, alias | Memory versioning for precise load/store analysis |
 | `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |

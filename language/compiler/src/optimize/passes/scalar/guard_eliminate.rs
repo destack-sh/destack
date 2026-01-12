@@ -4,9 +4,9 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, RangeAnalysis, RangeMap};
-use crate::optimize::common::constraint_truth_value;
 use crate::optimize::common::{
-    SuccessorArguments, build_value_instruction_map, terminator_arguments_for_successor_checked,
+    SuccessorArguments, build_value_instruction_map, constraint_truth_value,
+    terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 

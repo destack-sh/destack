@@ -5,12 +5,11 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
-    bool_from_range, build_value_instruction_map, build_value_use_counts,
-    constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, instruction_substitute_uses,
-    is_comparison_operator, substitute_values, swap_comparison_operator, terminator_remap,
-    terminator_substitute_uses,
+    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, bool_from_range,
+    build_value_instruction_map, build_value_use_counts, constraint_truth_value,
+    evaluate_integer_range_comparison, function_thread_jumps, instruction_is_speculatable,
+    instruction_map, instruction_substitute_uses, is_comparison_operator, substitute_values,
+    swap_comparison_operator, terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -169,12 +168,8 @@ fn run_simplify_cfg(
         changed_this_round |= fold_same_target_branches(function, tree);
 
         // phase 7: tail duplicate small jump targets
-        changed_this_round |= tail_duplicate_blocks(
-            function,
-            tree,
-            profile,
-            &mut profiled_tail_dup_targets,
-        );
+        changed_this_round |=
+            tail_duplicate_blocks(function, tree, profile, &mut profiled_tail_dup_targets);
 
         // phase 8: block merging
         // merges blocks with single predecessor/successor
@@ -300,8 +295,7 @@ fn fold_branches(
                 // fold switches when value is constant or range restricted
                 let constant_value = constants.constant_at_exit(block_id, *value);
                 let range_value = exit_ranges.get(*value);
-                let is_boolean_value =
-                    value_is_boolean(*value, range_value, &value_definitions);
+                let is_boolean_value = value_is_boolean(*value, range_value, &value_definitions);
                 if let Some(new_terminator) = fold_switch(
                     *value,
                     *default,
@@ -1059,10 +1053,7 @@ fn assume_truth_value(
 ) -> Option<bool> {
     for instruction_id in &block.instructions {
         let instruction = tree.get(*instruction_id);
-        let mir::Instruction::Assume {
-            condition: assumed,
-        } = instruction
-        else {
+        let mir::Instruction::Assume { condition: assumed } = instruction else {
             continue;
         };
 
