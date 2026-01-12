@@ -68,10 +68,10 @@ lib_source!(LIB_ES_ES2020_SYMBOL_WELLKNOWN_D_DS, "symbol.wellknown.d.ts");
 pub const LIB_ES2020: BuiltinLib = BuiltinLib::ambient_lib(
     "es2020",
     &[
+        LIB_ES_ES2020_INTL_D_DS,
         LIB_ES_ES2020_BIGINT_D_DS,
         LIB_ES_ES2020_DATE_D_DS,
         LIB_ES_ES2020_INDEX_D_DS,
-        LIB_ES_ES2020_INTL_D_DS,
         LIB_ES_ES2020_NUMBER_D_DS,
         LIB_ES_ES2020_PROMISE_D_DS,
         LIB_ES_ES2020_SHAREDMEMORY_D_DS,
