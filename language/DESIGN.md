@@ -691,6 +691,7 @@ ref<raw addrspace(7) mut i32>
 ```
 
 Address space changes are explicit (and lower to the `addrspace.cast` intrinsic).
+The VM provides deterministic host-side models for non-generic address spaces when available.
 
 ### Ownership Semantics
 

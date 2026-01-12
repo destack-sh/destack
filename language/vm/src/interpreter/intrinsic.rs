@@ -115,12 +115,14 @@ impl Interpreter {
             // comparison
             mir::Intrinsic::RawEq => self.execute_raw_eq(args),
 
-            // transmute
-            mir::Intrinsic::Transmute => args.first().copied().ok_or_else(|| {
-                self.make_error(Error::InvalidIntrinsicArguments {
-                    intrinsic: intrinsic.to_str().to_string(),
+            // transmute and addrspace.cast
+            mir::Intrinsic::Transmute | mir::Intrinsic::AddrSpaceCast => {
+                args.first().copied().ok_or_else(|| {
+                    self.make_error(Error::InvalidIntrinsicArguments {
+                        intrinsic: intrinsic.to_str().to_string(),
+                    })
                 })
-            }),
+            }
 
             // pointer operations
             mir::Intrinsic::PtrOffsetFrom => self.execute_ptr_offset_from(args),

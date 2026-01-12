@@ -9,5 +9,6 @@ pub use managed::ManagedHeap;
 pub use raw::RawHeap;
 pub use slot::{HeapCell, SlotStorage};
 pub use value::{
-    GlobalPointer, HeapHandle, RawPointer, ReferenceMeta, StackPointer, Value, ValueTag,
+    GlobalPointer, HeapHandle, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
+    Value, ValueTag,
 };

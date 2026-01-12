@@ -130,6 +130,12 @@ pub enum Error {
 
     /// Attempted to resume with an invalid continuation.
     InvalidContinuation = 29,
+
+    /// Reference address space is not supported by the VM.
+    UnsupportedAddressSpace { address_space: String } = 30,
+
+    /// Reference address space does not match the pointer storage.
+    InvalidAddressSpace { expected: String, actual: String } = 31,
 }
 
 impl Error {
@@ -206,6 +212,12 @@ impl Error {
             Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
             Self::InvalidContinuation => {
                 "attempted to resume with an invalid continuation".to_string()
+            }
+            Self::UnsupportedAddressSpace { address_space } => {
+                format!("unsupported address space: {address_space}")
+            }
+            Self::InvalidAddressSpace { expected, actual } => {
+                format!("invalid address space: expected {expected}, got {actual}")
             }
         }
     }

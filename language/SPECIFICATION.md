@@ -510,6 +510,7 @@ The default is `generic`, which maps to the target's normal memory.
 Non-generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
+The VM may provide deterministic host-side models for non-generic address spaces, and otherwise rejects them with precise diagnostics.
 
 **Nested ownership:**
 

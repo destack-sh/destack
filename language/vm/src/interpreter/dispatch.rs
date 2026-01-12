@@ -6,7 +6,7 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
-use crate::memory::{ReferenceMeta, Value, ValueTag};
+use crate::memory::{ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
 
 use super::call::copy_values_with_plan;
 use super::statistics::stat_inc;
@@ -58,7 +58,14 @@ fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallV
 /// Format a reference kind label for diagnostics.
 fn reference_label(reference: ReferenceMeta) -> String {
     match reference.kind() {
-        Some(kind) => format!("{kind:?}"),
+        Some(kind) => {
+            let address_space = reference.address_space();
+            if matches!(address_space, ReferenceAddressSpace::Generic) {
+                format!("{kind:?}")
+            } else {
+                format!("{kind:?} addrspace({})", address_space.label())
+            }
+        }
         None => "unknown".to_string(),
     }
 }
@@ -92,7 +99,63 @@ fn check_reference_kind(
             })
         }
         _ => Ok(()),
+    }?;
+
+    check_reference_address_space(state, reference, pointer)
+}
+
+/// Validate reference address space against the pointer storage.
+fn check_reference_address_space(
+    state: &ThreadedState,
+    reference: ReferenceMeta,
+    pointer: Value,
+) -> Result<(), Error> {
+    if !state.interpreter.options.enforce_reference_kinds {
+        return Ok(());
     }
+
+    let address_space = reference.address_space();
+    if matches!(address_space, ReferenceAddressSpace::Generic) {
+        return Ok(());
+    }
+
+    if !address_space.is_supported_by_vm() {
+        return Err(Error::UnsupportedAddressSpace {
+            address_space: address_space.label().to_string(),
+        });
+    }
+
+    let actual_space = match pointer.tag() {
+        ValueTag::StackPointer => ReferenceAddressSpace::Stack,
+        ValueTag::GlobalPointer => ReferenceAddressSpace::Global,
+        ValueTag::ManagedReference | ValueTag::RawPointer => ReferenceAddressSpace::Heap,
+        _ => {
+            return Err(Error::InvalidPointerType {
+                actual: format!("{pointer:?}"),
+            });
+        }
+    };
+
+    let is_match = match address_space {
+        ReferenceAddressSpace::Stack => matches!(actual_space, ReferenceAddressSpace::Stack),
+        ReferenceAddressSpace::Global | ReferenceAddressSpace::Constant => {
+            matches!(actual_space, ReferenceAddressSpace::Global)
+        }
+        ReferenceAddressSpace::Heap => matches!(actual_space, ReferenceAddressSpace::Heap),
+        ReferenceAddressSpace::Generic => true,
+        ReferenceAddressSpace::Shared
+        | ReferenceAddressSpace::Local
+        | ReferenceAddressSpace::Target => false,
+    };
+
+    if !is_match {
+        return Err(Error::InvalidAddressSpace {
+            expected: address_space.label().to_string(),
+            actual: actual_space.label().to_string(),
+        });
+    }
+
+    Ok(())
 }
 
 /// Validate reference mutability for stores.
