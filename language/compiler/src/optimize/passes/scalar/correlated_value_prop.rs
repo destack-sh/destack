@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange};
 use crate::optimize::common::{
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
-    constant_from_global,
+    constant_from_global, swap_comparison_operator,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -503,24 +503,6 @@ fn integer_range_from_bounds(
         width,
         is_signed,
     })
-}
-
-/// Swap a comparison operator when the operands are reversed.
-fn swap_comparison_operator(operator: mir::BinaryOperator) -> Option<mir::BinaryOperator> {
-    // map operators to their swapped equivalents
-    match operator {
-        mir::BinaryOperator::SignedLessThan => Some(mir::BinaryOperator::SignedGreaterThan),
-        mir::BinaryOperator::SignedLessEqual => Some(mir::BinaryOperator::SignedGreaterEqual),
-        mir::BinaryOperator::SignedGreaterThan => Some(mir::BinaryOperator::SignedLessThan),
-        mir::BinaryOperator::SignedGreaterEqual => Some(mir::BinaryOperator::SignedLessEqual),
-        mir::BinaryOperator::UnsignedLessThan => Some(mir::BinaryOperator::UnsignedGreaterThan),
-        mir::BinaryOperator::UnsignedLessEqual => Some(mir::BinaryOperator::UnsignedGreaterEqual),
-        mir::BinaryOperator::UnsignedGreaterThan => Some(mir::BinaryOperator::UnsignedLessThan),
-        mir::BinaryOperator::UnsignedGreaterEqual => Some(mir::BinaryOperator::UnsignedLessEqual),
-        mir::BinaryOperator::Equal => Some(mir::BinaryOperator::Equal),
-        mir::BinaryOperator::NotEqual => Some(mir::BinaryOperator::NotEqual),
-        _ => None,
-    }
 }
 
 /// Apply a range constraint by folding dominated comparisons.

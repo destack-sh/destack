@@ -648,6 +648,25 @@ pub fn build_use_def_maps(function: &mir::Function, tree: &mir::NodeTree) -> Use
     }
 }
 
+/// Build a map from values to their use counts.
+pub fn build_value_use_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, usize> {
+    // reuse use-def map and count occurrences
+    let use_def = build_use_def_maps(function, tree);
+    let mut counts = HashMap::new();
+
+    // count uses per value
+    for (value, blocks) in use_def.use_blocks {
+        counts.insert(value, blocks.len());
+    }
+
+    // return the counts
+
+    counts
+}
+
 /// Definition metadata for instructions.
 #[derive(Debug, Clone)]
 pub struct InstructionRef {

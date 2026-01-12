@@ -140,7 +140,7 @@ Local and global optimizations within a single function.
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
 | `constant-fold` | ConstantFold | function | O1 | ✓ | constant-propagation | Evaluate operations on constants at compile time |
-| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | constant-propagation, range | Branch folding, edge threading, jump threading, block merging, unreachable elimination |
+| `simplify-cfg` | SimplifyCfg | function | O1 | ✓ | constant-propagation, range | Branch/check/switch folding, edge threading, tail duplication, block merging, unreachable elimination, critical edge splitting |
 | `dead-code-eliminate` | DeadCodeEliminate | function | O1 | ✓ | — | Remove dead instructions via backwards liveness (ADCE) |
 | `instruction-combine` | InstructionCombine | function | O1 | ✓ | — | Algebraic simplification (x*1=x, x+0=x, x-x=0, x&0=0, etc.) |
 | `copy-propagate` | CopyPropagate | function | O1 | ✓ | — | Replace uses of `v1 = v0` with `v0` directly |

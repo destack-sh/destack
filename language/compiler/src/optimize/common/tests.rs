@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
 use destack_source::{DiffOptions, ModuleId, PackageId, print_diff};
@@ -54,7 +56,7 @@ impl TestProgram {
 
     /// Apply a function pass to all functions in the program.
     pub(crate) fn run_pass<P: FunctionPass + ?Sized>(&mut self, pass: &P) {
-        self.run_pass_with_options_impl(pass, PipelineOptions::default());
+        self.run_pass_with_options_impl(pass, PipelineOptions::default(), None);
     }
 
     /// Apply a function pass with custom options.
@@ -63,7 +65,16 @@ impl TestProgram {
         pass: &P,
         options: PipelineOptions,
     ) {
-        self.run_pass_with_options_impl(pass, options);
+        self.run_pass_with_options_impl(pass, options, None);
+    }
+
+    /// Apply a function pass with profile data.
+    pub(crate) fn run_pass_with_profile<P: FunctionPass + ?Sized>(
+        &mut self,
+        pass: &P,
+        profile: mir::ProfileTable,
+    ) {
+        self.run_pass_with_options_impl(pass, PipelineOptions::default(), Some(Arc::new(profile)));
     }
 
     /// Internal implementation that handles the borrow correctly.
@@ -71,13 +82,14 @@ impl TestProgram {
         &mut self,
         pass: &P,
         options: PipelineOptions,
+        profile: Option<Arc<mir::ProfileTable>>,
     ) {
         let context = PipelineContext::new(
             &self.strings_pool,
             options,
             test_module_id(),
             test_target_id(),
-            None,
+            profile,
         );
 
         // collect function ids
@@ -105,6 +117,78 @@ impl TestProgram {
         // collect diagnostics after pass completes
         self.errors = context.take_errors();
         self.warnings = context.take_warnings();
+    }
+
+    /// Return the first function id in the program.
+    pub(crate) fn first_function_id(&self) -> mir::LocalNodeId<mir::Function> {
+        // select the first function id
+        let function_id = self
+            .tree
+            .iter_nodes::<mir::Function>()
+            .next()
+            .expect("missing function")
+            .0;
+
+        // return the id
+
+        function_id
+    }
+
+    /// Return entry branch targets for a function.
+    pub(crate) fn entry_branch_targets(
+        &self,
+        function: &mir::Function,
+    ) -> (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>) {
+        // read the entry block
+        let entry = function.entry.expect("missing entry block");
+        let entry_block = self.tree.get(entry);
+
+        // extract the branch targets
+        let mir::Terminator::Branch {
+            then_target,
+            else_target,
+            ..
+        } = &entry_block.terminator
+        else {
+            panic!("expected entry branch");
+        };
+
+        // return the targets
+
+        (*then_target, *else_target)
+    }
+
+    /// Return the jump target for a block.
+    pub(crate) fn jump_target(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+    ) -> mir::LocalNodeId<mir::Block> {
+        // read the block terminator
+        let block = self.tree.get(block_id);
+        let mir::Terminator::Jump { target, .. } = &block.terminator else {
+            panic!("expected jump terminator");
+        };
+
+        // return the target
+
+        *target
+    }
+
+    /// Record a jump edge profile count.
+    pub(crate) fn record_jump_edge_profile(
+        &self,
+        profile: &mut mir::ProfileTable,
+        source: mir::LocalNodeId<mir::Block>,
+        target: mir::LocalNodeId<mir::Block>,
+        count: u64,
+    ) {
+        // record the edge profile count
+        profile.edges.insert(
+            mir::EdgeKey::new(source, mir::EdgeKind::Jump, target),
+            mir::EdgeProfile {
+                count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+            },
+        );
     }
 
     /// Apply a module pass to the program.
