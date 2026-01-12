@@ -1,0 +1,29 @@
+use crate::TestProgram;
+
+/// Lower string literals into MIR and preserve UTF8 contents.
+#[test]
+fn test_string_literal_lowering() {
+    let test =
+        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function greet(): string {
+    return "Hello, VM";
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    let mut interpreter = test.mir_interpreter(module_id, "native");
+    let output = interpreter
+        .run_function_by_name("greet", &[])
+        .expect("execution failed");
+    let actual = interpreter
+        .string_value(output.value)
+        .expect("string value");
+    assert_eq!(actual, "Hello, VM");
+}

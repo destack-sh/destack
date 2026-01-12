@@ -9,7 +9,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{LowerError, LowerResult};
 
 use crate::lower::item::GlobalBinding;
-use crate::lower::r#type::TypeLowerer;
+use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
 #[derive(Debug)]
@@ -87,13 +87,13 @@ impl<'a> ModuleLowerer<'a> {
     /// 4. Emit: (bodies are currently lowered inline with declarations)
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
         // phase 1: types (lowered lazily as encountered)
-        self.lower_type()?;
+        self.lower_types()?;
 
         // phase 2: declarations (globals + functions)
-        self.lower_item()?;
+        self.lower_items()?;
 
         // phase 3: tables (vtables, itabs, RTTI)
-        self.lower_table()?;
+        self.lower_tables()?;
 
         Ok(())
     }
@@ -102,7 +102,10 @@ impl<'a> ModuleLowerer<'a> {
     ///
     /// Type layouts are cached lazily when first encountered during lowering.
     /// This phase is a no-op since types are lowered on-demand.
-    fn lower_type(&mut self) -> LowerResult<()> {
+    fn lower_types(&mut self) -> LowerResult<()> {
+        // initialize builtin string layout for string literals and types
+        self.initialize_string_type()?;
+
         // types are lowered lazily via TypeLowerer when first accessed
         Ok(())
     }
@@ -110,7 +113,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Phase 2: Lower item declarations (globals, functions, methods).
     ///
     /// Processes all root expressions to lower globals and function bodies.
-    fn lower_item(&mut self) -> LowerResult<()> {
+    fn lower_items(&mut self) -> LowerResult<()> {
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
@@ -171,5 +174,30 @@ impl<'a> ModuleLowerer<'a> {
                 message: format!("unsupported root expression `{}`", expression.kind_name()),
             })?,
         }
+    }
+
+    /// Initialize the canonical string type from builtin definitions.
+    fn initialize_string_type(&mut self) -> LowerResult<()> {
+        // resolve a stable anchor for type lowering
+        let Some(anchor) = self
+            .dir_roots
+            .first()
+            .copied()
+            .map(|root| root.into_global_any(self.module_id))
+            .map(|root| root.into_anchored(Some(self.profile)))
+        else {
+            return Ok(());
+        };
+
+        // ensure builtin layouts are installed
+        let mut builtin_layouts = BuiltinTypeLayouts::new(
+            self.compiler,
+            self.profile,
+            &mut self.builder,
+            &mut self.type_lowerer,
+        );
+        builtin_layouts.ensure_string_layout(anchor)?;
+
+        Ok(())
     }
 }

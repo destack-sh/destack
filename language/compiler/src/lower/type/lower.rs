@@ -29,6 +29,8 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_f32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR f64 type.
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR string reference type.
+    pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
 }
 
 impl TypeLowerer {
@@ -46,6 +48,7 @@ impl TypeLowerer {
             ty_i64: builder.type_i64(),
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
+            ty_string: None,
         }
     }
 
@@ -87,6 +90,21 @@ impl TypeLowerer {
     /// Get the pointer size in bytes for this target.
     pub(crate) fn pointer_bytes(&self) -> u8 {
         (self.pointer_width_bits / 8) as u8
+    }
+
+    /// Get the cached string type, if initialized.
+    pub(crate) fn string_type(&self) -> Option<mir::LocalNodeId<mir::Type>> {
+        self.ty_string
+    }
+
+    /// Cache the canonical string type.
+    pub(crate) fn set_string_type(&mut self, ty: mir::LocalNodeId<mir::Type>) {
+        self.ty_string = Some(ty);
+    }
+
+    /// Cache a struct layout for a MIR type.
+    pub(crate) fn set_layout(&mut self, ty: mir::LocalNodeId<mir::Type>, layout: StructLayout) {
+        self.layout_cache.insert(ty, layout);
     }
 
     /// Create a MIR struct type from a computed layout.

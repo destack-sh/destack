@@ -1,6 +1,5 @@
-use crate::{
-    Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer, TypeLowerer,
-};
+use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
+use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
 use destack_workspace::{Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
@@ -68,20 +67,37 @@ impl Compiler {
         destack_base::StringPool,
         mir::LocalNodeId<mir::Function>,
     )> {
+        // snapshot DIR inputs
         let dir = module.dir(profile);
         let dir_tree = dir.tree.read();
         let symbols = dir.symbols.read();
         let types = dir.types.read();
+
+        // initialize MIR builder and type lowerer
         let mut builder = mir::ModuleBuilder::new();
-        // NOTE #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
-        let pointer_bytes = std::mem::size_of::<usize>() as u8;
-        self.validate_pointer_bytes(module.id, pointer_bytes)
-            .map_err(|error| ExecuteError::FailedLower {
-                module: module.id,
-                error: Box::new(error.clone()),
-                message: format!("{error}"),
-            })?;
-        let mut type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
+        let mut type_lowerer = {
+            // NOTE #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
+            let pointer_bytes = std::mem::size_of::<usize>() as u8;
+            self.validate_pointer_bytes(module.id, pointer_bytes)
+                .map_err(|error| ExecuteError::FailedLower {
+                    module: module.id,
+                    error: Box::new(error.clone()),
+                    message: format!("{error}"),
+                })?;
+            TypeLowerer::new(&mut builder, pointer_bytes)
+        };
+
+        // prepare builtin layouts for comptime lowering
+        let anchor = expression_id
+            .into_global_any(module.id)
+            .into_anchored(Some(profile));
+        let mut builtin_layouts =
+            BuiltinTypeLayouts::new(self, profile, &mut builder, &mut type_lowerer);
+
+        // ensure builtin String layout for comptime lowering
+        builtin_layouts
+            .ensure_string_layout(anchor)
+            .map_err(|error| self.execute_error_from_lower(module.id, error))?;
 
         // resolve the return type for the comptime expression
         let return_type_id =
@@ -96,15 +112,7 @@ impl Compiler {
                     message: "missing type".to_string(),
                 })?;
         let return_type = type_lowerer
-            .lower_type(
-                &types,
-                return_type_id,
-                module.id,
-                expression_id
-                    .into_global_any(module.id)
-                    .into_anchored(Some(profile)),
-                &mut builder,
-            )
+            .lower_type(&types, return_type_id, module.id, anchor, &mut builder)
             .map_err(|error| ExecuteError::FailedLower {
                 module: module.id,
                 error: Box::new(error.clone()),
@@ -151,6 +159,26 @@ impl Compiler {
 
         let (tree, strings) = builder.finish_mutable();
         Ok((tree, strings, function_id))
+    }
+
+    /// Map lower errors into execute errors.
+    fn execute_error_from_lower(
+        &self,
+        module_id: destack_source::ModuleId,
+        error: LowerError,
+    ) -> ExecuteError {
+        // preserve dependency yields as-is
+        match error {
+            LowerError::Yield { dependency } => ExecuteError::Yield { dependency },
+            LowerError::UnsatisfiedDependency { dependency } => {
+                ExecuteError::UnsatisfiedDependency { dependency }
+            }
+            error => ExecuteError::FailedLower {
+                module: module_id,
+                message: format!("{error}"),
+                error: Box::new(error),
+            },
+        }
     }
 }
 
