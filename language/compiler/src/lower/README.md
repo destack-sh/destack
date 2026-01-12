@@ -1030,15 +1030,17 @@ Most code uses `string` (GC-managed). Use `^string` for performance-critical cod
 
 #### String Layout
 
-The layout is identical across targets except for the payload element type.
+The header layout is identical across targets, and only the payload encoding changes.
 UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
 
 ```ds
 struct string {
     lengthUtf16: uint32,      // UTF-16 code unit count (for TS compatibility)
     lengthBytes: uint32,      // byte length of UTF-8 data
-    hash: uint32,             // cached hash (computed lazily)
-    data: [uint8; N],         // UTF-8 bytes (inline, variable length)
+    hash: uint64,             // cached hash (valid when HasHash is set)
+    capacity: uint32,         // allocated capacity in bytes
+    flags: uint32,            // runtime metadata flags
+    data: *uint8,             // UTF-8 bytes
 }
 ```
 
@@ -1049,6 +1051,14 @@ For TypeScript semantic compatibility:
 - ASCII-only strings (common case) use O(1) indexing
 On UTF-16 targets, `lengthBytes` caches the UTF-8 byte length and is computed lazily.
 The payload encoding is fixed per target configuration.
+The `string` payload pointer type is `*uint8` on UTF-8 targets and `*uint16` on UTF-16 targets.
+The `string` header uses `capacity` for owned `^string` growth and usually keeps `capacity == lengthBytes` for GC-managed `string`.
+Flags are runtime metadata bits with stable meanings.
+- `HasHash`: `hash` is populated and valid
+- `IsAscii`: payload is ASCII-only
+- `IsStatic`: payload is static read-only data
+- `IsInterned`: string content is interned
+- `IsExternal`: payload is owned outside the managed heap
 
 #### String Literals
 
@@ -1072,7 +1082,7 @@ String equality (`===`) is always value comparison, never reference comparison.
 
 Lowers to string concatenation:
 ```mir
-type @string = ref<struct { i32, i32, i32 }>
+type @string = ref<struct { u32, u32, u64, u32, u32, *u8 }>
 
 function @template_example(v0: @string) -> @string {
 block0(v0: @string):

@@ -1,3 +1,20 @@
+/// String metadata flags.
+enum StringFlag {
+    /// Hash field has been computed.
+    HasHash = 1,
+    /// Payload is ASCII-only.
+    IsAscii = 2,
+    /// Payload points at static read-only data.
+    IsStatic = 4,
+    /// String contents are interned.
+    IsInterned = 8,
+    /// Payload is owned outside the managed heap.
+    IsExternal = 16,
+}
+
+/// Bitmask of string flags.
+newtype StringFlags = uint32;
+
 /// Native UTF-8 string with cached UTF-16 length for TypeScript compatibility.
 struct String {
     /// UTF-16 code unit count (for .length compatibility with JS/TS).
@@ -5,9 +22,11 @@ struct String {
     /// Byte length of UTF-8 data.
     lengthBytes: uint32,
     /// Cached hash (0 = not yet computed).
-    hash: uint32,
+    hash: uint64,
     /// Allocated capacity in bytes.
     capacity: uint32,
+    /// Runtime metadata flags.
+    flags: StringFlags,
     /// Pointer to UTF-8 byte data.
     data: *uint8,
 }
