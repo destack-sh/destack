@@ -6,11 +6,14 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
+use super::interpreter::YieldState;
 use super::threaded::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedState, is_invalid_value,
 };
-use super::{ExecutionOutput, Frame, Interpreter, resize_and_clear_stack};
+use super::{
+    ExecutionOutcome, ExecutionOutput, ExecutionYield, Frame, Interpreter, resize_and_clear_stack,
+};
 
 // tuning: small contiguous ranges copy faster with a loop
 const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
@@ -32,40 +35,39 @@ fn copy_values_between_frames(
     // fast path: contiguous params and arguments
     if let (Some((src_start, src_len)), Some((dest_start, dest_len))) =
         (arguments.contiguous_range(), params.contiguous_range())
+        && src_len == dest_len
     {
-        if src_len == dest_len {
-            let src_index = source_frame.value_base + src_start as usize;
-            let dest_index = dest_frame.value_base + dest_start as usize;
+        let src_index = source_frame.value_base + src_start as usize;
+        let dest_index = dest_frame.value_base + dest_start as usize;
 
-            // validate bounds in debug builds
-            debug_assert!(
-                (src_start as usize) + src_len <= source_frame.value_count,
-                "ssa value out of bounds: {src_start}"
-            );
-            debug_assert!(
-                (dest_start as usize) + src_len <= dest_frame.value_count,
-                "ssa value out of bounds: {dest_start}"
-            );
+        // validate bounds in debug builds
+        debug_assert!(
+            (src_start as usize) + src_len <= source_frame.value_count,
+            "ssa value out of bounds: {src_start}"
+        );
+        debug_assert!(
+            (dest_start as usize) + src_len <= dest_frame.value_count,
+            "ssa value out of bounds: {dest_start}"
+        );
 
-            // copy argument range
-            let values_ptr = values.as_mut_ptr();
-            unsafe {
-                if std::ptr::eq(source_frame, dest_frame) {
-                    std::ptr::copy(
-                        values_ptr.add(src_index),
-                        values_ptr.add(dest_index),
-                        src_len,
-                    );
-                } else {
-                    std::ptr::copy_nonoverlapping(
-                        values_ptr.add(src_index),
-                        values_ptr.add(dest_index),
-                        src_len,
-                    );
-                }
+        // copy argument range
+        let values_ptr = values.as_mut_ptr();
+        unsafe {
+            if std::ptr::eq(source_frame, dest_frame) {
+                std::ptr::copy(
+                    values_ptr.add(src_index),
+                    values_ptr.add(dest_index),
+                    src_len,
+                );
+            } else {
+                std::ptr::copy_nonoverlapping(
+                    values_ptr.add(src_index),
+                    values_ptr.add(dest_index),
+                    src_len,
+                );
             }
-            return;
         }
+        return;
     }
 
     // use raw pointer to avoid repeated bounds checks
@@ -327,23 +329,23 @@ fn bind_parameters_from_values(
     let param_slice = params.slice(param_pool);
 
     // fast path: contiguous params with full argument list
-    if let Some((dest_start, len)) = params.contiguous_range() {
-        if len == arguments.len() {
-            let dest_index = frame.value_base + dest_start as usize;
+    if let Some((dest_start, len)) = params.contiguous_range()
+        && len == arguments.len()
+    {
+        let dest_index = frame.value_base + dest_start as usize;
 
-            // validate bounds in debug builds
-            debug_assert!(
-                (dest_start as usize) + len <= frame.value_count,
-                "ssa value out of bounds: {dest_start}"
-            );
+        // validate bounds in debug builds
+        debug_assert!(
+            (dest_start as usize) + len <= frame.value_count,
+            "ssa value out of bounds: {dest_start}"
+        );
 
-            // copy argument values
-            let values_ptr = values.as_mut_ptr();
-            unsafe {
-                std::ptr::copy_nonoverlapping(arguments.as_ptr(), values_ptr.add(dest_index), len);
-            }
-            return;
+        // copy argument values
+        let values_ptr = values.as_mut_ptr();
+        unsafe {
+            std::ptr::copy_nonoverlapping(arguments.as_ptr(), values_ptr.add(dest_index), len);
         }
+        return;
     }
 
     // use raw pointer to avoid repeated bounds checks
@@ -401,6 +403,24 @@ impl Interpreter {
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
+        // execute with yield support
+        let outcome = self.run_function_by_name_yielding(name, arguments)?;
+
+        // reject unexpected yields
+        match outcome {
+            ExecutionOutcome::Completed { output } => Ok(output),
+            ExecutionOutcome::Yielded { .. } => Err(self.make_error(Error::UnexpectedYield)),
+        }
+    }
+
+    /// Execute a function by name with yield support.
+    ///
+    /// Returns a yielded value when the coroutine suspends.
+    pub fn run_function_by_name_yielding(
+        &mut self,
+        name: &str,
+        arguments: &[Value],
+    ) -> RuntimeResult<ExecutionOutcome> {
         // resolve function id by name
         let func_id = self.function_name_map.get(name).copied().ok_or_else(|| {
             self.make_error(Error::ExternalFunctionNotFound {
@@ -409,7 +429,7 @@ impl Interpreter {
         })?;
 
         // execute function
-        self.run_function(func_id, arguments)
+        self.run_function_yielding(func_id, arguments)
     }
 
     /// Execute a function by id.
@@ -421,11 +441,30 @@ impl Interpreter {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
-        // reset statistics for this call
+        // execute with yield support
+        let outcome = self.run_function_yielding(func_id, arguments)?;
+
+        // reject unexpected yields
+        match outcome {
+            ExecutionOutcome::Completed { output } => Ok(output),
+            ExecutionOutcome::Yielded { .. } => Err(self.make_error(Error::UnexpectedYield)),
+        }
+    }
+
+    /// Execute a function by id with yield support.
+    ///
+    /// Returns a yielded value when the coroutine suspends.
+    pub fn run_function_yielding(
+        &mut self,
+        func_id: mir::LocalNodeId<mir::Function>,
+        arguments: &[Value],
+    ) -> RuntimeResult<ExecutionOutcome> {
+        // reset interpreter state for this call
         self.statistics.reset();
         self.call_stack.clear();
         self.value_stack.clear();
         self.local_stack.clear();
+        self.yield_state = None;
 
         // load function metadata
         let function = self.tree.get(func_id);
@@ -441,24 +480,80 @@ impl Interpreter {
             let value = handler(arguments).map_err(|e| self.make_error(e))?;
 
             // return external result
-            return Ok(ExecutionOutput {
-                value,
-                statistics: self.statistics.clone(),
-                heap_cells: self.managed_heap.cell_count(),
-                raw_heap_cells: self.raw_heap.cell_count(),
-            });
+            let outcome = self.finish_execution(value);
+            return Ok(outcome);
         }
 
         // execute using threaded dispatch
-        let value = self.execute_threaded(func_id, arguments)?;
+        self.execute_threaded(func_id, arguments)
+    }
 
-        // return threaded result
-        Ok(ExecutionOutput {
+    /// Resume a previously yielded coroutine.
+    ///
+    /// The resume value is appended after explicit resume arguments.
+    pub fn resume(&mut self, resume_value: Value) -> RuntimeResult<ExecutionOutcome> {
+        // load pending yield state
+        let yield_state = self
+            .yield_state
+            .take()
+            .ok_or_else(|| self.make_error(Error::ResumeWithoutYield))?;
+
+        // load the frame to resume
+        let frame = self
+            .call_stack
+            .get_mut(yield_state.frame_index)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        // resolve threaded function and resume block
+        let threaded = unsafe { frame.threaded.as_ref() };
+        let resume_block = threaded
+            .blocks
+            .get(yield_state.resume_block as usize)
+            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+
+        // bind resume arguments
+        copy_values_with_plan(
+            &mut self.value_stack,
+            frame,
+            frame,
+            yield_state.resume_copies,
+            threaded.copy_pool.as_slice(),
+        );
+
+        // bind resumed value after explicit arguments
+        if !is_invalid_value(yield_state.resume_value) {
+            frame.set_value(
+                &mut self.value_stack,
+                yield_state.resume_value,
+                resume_value,
+            );
+        }
+
+        // update frame block metadata
+        frame.block_index = yield_state.resume_block as usize;
+        frame.block_ptr = NonNull::from(resume_block);
+        frame.current_block = resume_block.mir_block;
+        frame.resume_pc = 0;
+
+        // continue execution
+        self.execute_threaded_loop()
+    }
+
+    /// Assemble a completed execution outcome.
+    fn finish_execution(&mut self, value: Value) -> ExecutionOutcome {
+        // clear pending yield state
+        self.yield_state = None;
+
+        // assemble output
+        let output = ExecutionOutput {
             value,
             statistics: self.statistics.clone(),
             heap_cells: self.managed_heap.cell_count(),
             raw_heap_cells: self.raw_heap.cell_count(),
-        })
+        };
+
+        // return completed outcome
+        ExecutionOutcome::Completed { output }
     }
 
     /// Execute a function using direct-threaded dispatch.
@@ -469,11 +564,7 @@ impl Interpreter {
         &mut self,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
-    ) -> RuntimeResult<Value> {
-        // cache stats settings
-        let collect_stats = self.options.collect_stats;
-        let track_instructions = collect_stats || self.options.max_instructions.is_some();
-
+    ) -> RuntimeResult<ExecutionOutcome> {
         // get pre threaded function
         let threaded_index = self
             .threaded_functions
@@ -517,18 +608,35 @@ impl Interpreter {
 
         // call stack for nested function calls
         self.call_stack.push(frame);
-        if collect_stats {
+        if self.options.collect_stats {
             self.statistics.max_stack_depth =
                 self.statistics.max_stack_depth.max(self.call_stack.len());
+        }
+
+        // execute until completion or yield
+        self.execute_threaded_loop()
+    }
+
+    /// Continue execution from the current call stack.
+    ///
+    /// Returns when execution completes or yields.
+    fn execute_threaded_loop(&mut self) -> RuntimeResult<ExecutionOutcome> {
+        // cache stats settings
+        let collect_stats = self.options.collect_stats;
+        let track_instructions = collect_stats || self.options.max_instructions.is_some();
+
+        // ensure there is an active frame
+        if self.call_stack.is_empty() {
+            return Err(self.make_error(Error::InvalidInstruction));
         }
 
         // main execution loop (trampoline pattern)
         loop {
             // check step limit
-            if let Some(max) = self.options.max_instructions {
-                if self.statistics.threaded_instructions_executed >= max {
-                    return Err(self.make_error(Error::StepLimitExceeded));
-                }
+            if let Some(max) = self.options.max_instructions
+                && self.statistics.threaded_instructions_executed >= max
+            {
+                return Err(self.make_error(Error::StepLimitExceeded));
             }
 
             // get current frame info
@@ -818,7 +926,7 @@ impl Interpreter {
 
                         // if stack is empty, execution is complete
                         if self.call_stack.is_empty() {
-                            return Ok(result);
+                            return Ok(self.finish_execution(result));
                         }
 
                         // store return value in caller's frame
@@ -900,6 +1008,26 @@ impl Interpreter {
                     }
                 }
 
+                ControlFlow::Yield {
+                    value,
+                    resume_block,
+                    resume_copies,
+                    resume_value,
+                } => {
+                    // capture yield state
+                    let frame_index = self.call_stack.len() - 1;
+                    self.yield_state = Some(YieldState {
+                        frame_index,
+                        resume_block,
+                        resume_copies,
+                        resume_value,
+                    });
+
+                    // return yielded value
+                    let yielded = ExecutionYield { value };
+                    return Ok(ExecutionOutcome::Yielded { yielded });
+                }
+
                 ControlFlow::Return(value) => {
                     // pop completed frame
                     let frame = self
@@ -911,7 +1039,7 @@ impl Interpreter {
 
                     // if stack is empty, execution is complete
                     if self.call_stack.is_empty() {
-                        return Ok(value);
+                        return Ok(self.finish_execution(value));
                     }
 
                     // store return value in caller's frame

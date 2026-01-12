@@ -2,6 +2,17 @@
 macro_rules! declare_program {
     ($(#[$meta:meta])* $vis:vis const $name:ident, $($body:tt)*) => {
         $(#[$meta])*
+        $vis const $name: Program = Program {
+            $($body)*
+            runner: crate::program::ProgramRunner::Function,
+        };
+    };
+}
+
+/// Declare a benchmark program constant with an explicit runner.
+macro_rules! declare_program_with_runner {
+    ($(#[$meta:meta])* $vis:vis const $name:ident, $($body:tt)*) => {
+        $(#[$meta])*
         $vis const $name: Program = Program { $($body)* };
     };
 }

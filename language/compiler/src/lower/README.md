@@ -2155,13 +2155,16 @@ function @fetchUser_poll(sm: &@fetchUser_StateMachine): void {
 At the MIR level, `await` becomes a `yield` terminator:
 
 ```mir
-yield <awaited_promise>, resume: <resume_block>, resume_args: [<captured_values>]
+yield <awaited_promise>, <resume_block>(<captured_values>)
 ```
 
 Semantics:
 1. **Suspend**: Save current state, return control to caller
 2. **Register**: Runtime calls `awaited_promise.then(resume_callback)`
 3. **Resume**: When promise resolves, runtime calls resume block with result
+
+Captured values are passed as resume arguments, with the resolved value appended after them in the
+resume block parameter list.
 
 Full MIR for the async function:
 
@@ -2198,7 +2201,7 @@ block_dispatch(sm: ref<@fetchUser_SM>):
 block_state0:
     v1 = field.get sm, 1            ; load id
     v2 = call @fetch(v1)            ; returns Promise<Response>
-    yield v2, resume: block_resume0, resume_args: [sm]
+    yield v2, block_resume0(sm)
 
 block_resume0(sm: ref<@fetchUser_SM>, response: ref<Response>):
     field.set sm, 2, response       ; store response
@@ -2208,7 +2211,7 @@ block_resume0(sm: ref<@fetchUser_SM>, response: ref<Response>):
 block_state1:
     v3 = field.get sm, 2            ; load response
     v4 = call @Response.json(v3)    ; returns Promise<JsonValue>
-    yield v4, resume: block_resume1, resume_args: [sm]
+    yield v4, block_resume1(sm)
 
 block_resume1(sm: ref<@fetchUser_SM>, data: ref<JsonValue>):
     field.set sm, 3, data           ; store data
@@ -2276,7 +2279,7 @@ Order of execution:
 const response = await fetch(url);
 ```
 - `fetch` returns `Promise<Response>` immediately
-- Lower emits `yield fetchPromise, resume: nextBlock`
+- Lower emits `yield fetchPromise, nextBlock(sm)`
 - Runtime: `fetchPromise.then(response => resume(response))`
 - When HTTP completes, resume block executes with response
 

@@ -121,6 +121,12 @@ pub enum Error {
 
     /// Reference kind is incompatible with the pointer storage.
     InvalidReferenceKind { reference: String, actual: String } = 26,
+
+    /// Yielded during a non-yielding execution.
+    UnexpectedYield = 27,
+
+    /// Attempted to resume without a pending yield.
+    ResumeWithoutYield = 28,
 }
 
 impl Error {
@@ -193,6 +199,8 @@ impl Error {
             Self::InvalidReferenceKind { reference, actual } => {
                 format!("invalid reference kind {reference} for pointer {actual}")
             }
+            Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
+            Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
         }
     }
 }

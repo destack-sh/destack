@@ -4269,6 +4269,37 @@ pub(super) fn handle_return(
     ControlFlow::Return(return_value)
 }
 
+/// Handle yield (exits tail-call chain).
+pub(super) fn handle_yield(
+    state: &mut ThreadedState,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::Yield {
+        value,
+        resume_block,
+        resume_copies,
+        resume_value,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve yielded value
+    let yield_value = state.get(*value);
+
+    // return yield control
+    ControlFlow::Yield {
+        value: yield_value,
+        resume_block: *resume_block,
+        resume_copies: *resume_copies,
+        resume_value: *resume_value,
+    }
+}
+
 /// Handle unconditional jump (exits tail-call chain).
 pub(super) fn handle_jump(
     state: &mut ThreadedState,
@@ -5110,25 +5141,6 @@ pub(super) fn handle_unreachable(
 
     // return unreachable error
     ControlFlow::Error(Error::Unreachable)
-}
-
-/// Handle unsupported instructions (errors).
-pub(super) fn handle_unsupported(
-    state: &mut ThreadedState,
-    block: &[ThreadedInstruction],
-    pc: usize,
-) -> ControlFlow {
-    state.maybe_profile_instruction(&block[pc]);
-
-    // decode instruction data
-    let ThreadedInstructionData::Unsupported { name } = &block[pc].data else {
-        unreachable!()
-    };
-
-    // return unsupported error
-    ControlFlow::Error(Error::UnsupportedInstruction {
-        name: (*name).to_string(),
-    })
 }
 
 /// Enter a tail call by reusing the current frame.

@@ -1,5 +1,6 @@
 use super::Program;
 
+mod async_state_machine;
 mod call_direct_deep;
 mod call_direct_shallow;
 mod call_indirect_table;
@@ -11,7 +12,10 @@ mod call_pipeline_chain;
 mod call_recursive_tail;
 mod call_tail_hash;
 mod call_vtable_dispatch;
+mod yield_loop;
+mod yield_nested_call;
 
+pub(crate) use async_state_machine::ASYNC_STATE_MACHINE;
 pub(crate) use call_direct_deep::CALL_DIRECT_DEEP;
 pub(crate) use call_direct_shallow::CALL_DIRECT_SHALLOW;
 pub(crate) use call_indirect_table::CALL_INDIRECT_TABLE;
@@ -23,6 +27,8 @@ pub(crate) use call_pipeline_chain::CALL_PIPELINE_CHAIN;
 pub(crate) use call_recursive_tail::CALL_RECURSIVE_TAIL;
 pub(crate) use call_tail_hash::CALL_TAIL_HASH;
 pub(crate) use call_vtable_dispatch::CALL_VTABLE_DISPATCH;
+pub(crate) use yield_loop::YIELD_LOOP;
+pub(crate) use yield_nested_call::YIELD_NESTED_CALL;
 
 /// All benchmark programs in this category.
 pub(crate) const ALL: &[&Program] = &[
@@ -37,4 +43,7 @@ pub(crate) const ALL: &[&Program] = &[
     &CALL_TAIL_HASH,
     &CALL_MUTUAL,
     &CALL_MUTUAL_TAIL,
+    &ASYNC_STATE_MACHINE,
+    &YIELD_LOOP,
+    &YIELD_NESTED_CALL,
 ];
