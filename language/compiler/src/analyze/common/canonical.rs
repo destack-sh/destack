@@ -63,9 +63,7 @@ impl Compiler {
         let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
 
         // check array reference
-        if let Some(array_symbol) = self.get_well_known_symbol(profile, WellKnownSymbol::Array)
-            && canonical_symbol == array_symbol
-        {
+        if self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::Array) {
             let element = static_arguments
                 .and_then(|arguments| arguments.first())
                 .map(|argument| self.static_argument_type(argument, source_id, types));

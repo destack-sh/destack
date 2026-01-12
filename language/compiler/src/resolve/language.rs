@@ -566,6 +566,20 @@ impl Compiler {
             })
     }
 
+    /// Check if a symbol matches a well-known symbol (checking both type and value spaces).
+    pub fn is_well_known_symbol(
+        &self,
+        profile_id: ProfileId,
+        symbol: GlobalSymbolId,
+        well_known: WellKnownSymbol,
+    ) -> bool {
+        self.get_well_known_symbol(profile_id, well_known)
+            .is_some_and(|s| s == symbol)
+            || self
+                .get_well_known_type_symbol(profile_id, well_known)
+                .is_some_and(|s| s == symbol)
+    }
+
     /// Reject multiple builtin lib versions in the same lib set.
     fn check_builtin_lib_version_conflicts(&self, ordered_libs: &[String]) -> ResolveResult<()> {
         // group libs by base and version
