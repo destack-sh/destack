@@ -258,11 +258,12 @@ The VM manages three kinds of memory, matching MIR semantics:
 | Raw | `raw.alloc`/`raw.free` | manual | performance-critical, `^T` types |
 | Stack | `stack.alloc` | frame-scoped | temporaries, small allocations |
 
-The managed heap uses precise tracing GC.
+The managed heap uses a precise tracing GC.
 The raw heap tracks allocations for leak detection in debug builds.
 Stack allocations are freed when frames exit.
 The raw heap is not scanned by GC.
 Storing managed references in raw allocations is undefined unless explicitly rooted by the runtime.
+Non-generic address spaces may be modeled by the runtime or rejected by the VM with appropriate diagnostics.
 
 ## GC Root Set
 

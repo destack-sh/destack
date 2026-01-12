@@ -33,6 +33,48 @@ block0:
     run_mir_expect(mir, "load_store", &[], Value::int32(42));
 }
 
+/// Store rejects unsupported address spaces in the VM.
+#[test]
+fn test_store_unsupported_address_space() {
+    // define a shared address space store
+    let mir = r#"
+function @store_shared(v0: ref<raw addrspace(shared) mut i32>) -> void {
+block0(v0: ref<raw addrspace(shared) mut i32>):
+    v1 = iconst 1i32
+    store v0, v1
+    return
+}
+"#;
+
+    // run and capture the error
+    let pointer = Value::raw_pointer(RawPointer::new(1));
+    let err = run_mir(mir, "store_shared", &[pointer]).expect_err("expected failure");
+
+    // confirm the address space is rejected
+    assert!(matches!(err.error, Error::UnsupportedAddressSpace { .. }));
+}
+
+/// Store rejects mismatched address space pointers.
+#[test]
+fn test_store_invalid_address_space() {
+    // define a stack address space store
+    let mir = r#"
+function @store_stack(v0: ref<raw addrspace(stack) mut i32>) -> void {
+block0(v0: ref<raw addrspace(stack) mut i32>):
+    v1 = iconst 1i32
+    store v0, v1
+    return
+}
+"#;
+
+    // run with a heap pointer to trigger mismatch
+    let pointer = Value::raw_pointer(RawPointer::new(1));
+    let err = run_mir(mir, "store_stack", &[pointer]).expect_err("expected failure");
+
+    // confirm the address space mismatch
+    assert!(matches!(err.error, Error::InvalidAddressSpace { .. }));
+}
+
 /// Array allocation creates a heap cell with multiple slots.
 #[test]
 fn test_managed_allocate_array() {

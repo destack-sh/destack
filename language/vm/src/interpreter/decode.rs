@@ -1753,6 +1753,7 @@ fn thread_instruction(
                 length: *length,
                 reference: ReferenceMeta::new(
                     mir::ReferenceKind::Managed,
+                    mir::AddressSpace::Generic,
                     mir::Mutability::Mutable,
                     false,
                 ),
@@ -1992,7 +1993,12 @@ fn infer_instruction_kind(
             Some(ValueKind::Pointer {
                 pointee: global.ty,
                 storage: PointerStorage::Global,
-                reference: ReferenceMeta::new(mir::ReferenceKind::Raw, global.mutability, false),
+                reference: ReferenceMeta::new(
+                    mir::ReferenceKind::Raw,
+                    mir::AddressSpace::Global,
+                    global.mutability,
+                    false,
+                ),
             })
         }
         mir::Instruction::GlobalConst { global, .. } => {
@@ -2045,6 +2051,7 @@ fn infer_instruction_kind(
             storage: PointerStorage::Managed,
             reference: ReferenceMeta::new(
                 mir::ReferenceKind::Managed,
+                mir::AddressSpace::Generic,
                 mir::Mutability::Mutable,
                 false,
             ),
@@ -2054,6 +2061,7 @@ fn infer_instruction_kind(
             storage: PointerStorage::Managed,
             reference: ReferenceMeta::new(
                 mir::ReferenceKind::Managed,
+                mir::AddressSpace::Generic,
                 mir::Mutability::Mutable,
                 false,
             ),
@@ -2061,12 +2069,22 @@ fn infer_instruction_kind(
         mir::Instruction::RawAlloc { layout, .. } => Some(ValueKind::Pointer {
             pointee: *layout,
             storage: PointerStorage::Raw,
-            reference: ReferenceMeta::new(mir::ReferenceKind::Raw, mir::Mutability::Mutable, false),
+            reference: ReferenceMeta::new(
+                mir::ReferenceKind::Raw,
+                mir::AddressSpace::Heap,
+                mir::Mutability::Mutable,
+                false,
+            ),
         }),
         mir::Instruction::StackAlloc { layout, .. } => Some(ValueKind::Pointer {
             pointee: *layout,
             storage: PointerStorage::Stack,
-            reference: ReferenceMeta::new(mir::ReferenceKind::Raw, mir::Mutability::Mutable, false),
+            reference: ReferenceMeta::new(
+                mir::ReferenceKind::Raw,
+                mir::AddressSpace::Stack,
+                mir::Mutability::Mutable,
+                false,
+            ),
         }),
         mir::Instruction::Intrinsic {
             intrinsic,
@@ -2138,13 +2156,14 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
         },
         mir::Type::Reference {
             kind,
+            address_space,
             mutability,
             pointee,
             is_nullable,
         } => ValueKind::Pointer {
             pointee: *pointee,
-            storage: pointer_storage_from_reference_kind(*kind),
-            reference: ReferenceMeta::new(*kind, *mutability, *is_nullable),
+            storage: pointer_storage_from_reference(*address_space, *kind),
+            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
         },
         mir::Type::FunctionPointer { result, .. } => ValueKind::FunctionPointer { result: *result },
         mir::Type::Array {
@@ -2160,11 +2179,25 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
 }
 
 /// Map a reference kind to a pointer storage class.
-fn pointer_storage_from_reference_kind(kind: mir::ReferenceKind) -> PointerStorage {
-    match kind {
-        mir::ReferenceKind::Managed => PointerStorage::Managed,
-        mir::ReferenceKind::Owned | mir::ReferenceKind::Raw => PointerStorage::Raw,
-        mir::ReferenceKind::Borrowed => PointerStorage::Unknown,
+fn pointer_storage_from_reference(
+    address_space: mir::AddressSpace,
+    kind: mir::ReferenceKind,
+) -> PointerStorage {
+    match address_space {
+        mir::AddressSpace::Stack => PointerStorage::Stack,
+        mir::AddressSpace::Global | mir::AddressSpace::Constant => PointerStorage::Global,
+        mir::AddressSpace::Heap => match kind {
+            mir::ReferenceKind::Managed => PointerStorage::Managed,
+            _ => PointerStorage::Raw,
+        },
+        mir::AddressSpace::Shared | mir::AddressSpace::Local | mir::AddressSpace::Target(_) => {
+            PointerStorage::Unknown
+        }
+        mir::AddressSpace::Generic => match kind {
+            mir::ReferenceKind::Managed => PointerStorage::Managed,
+            mir::ReferenceKind::Owned | mir::ReferenceKind::Raw => PointerStorage::Raw,
+            mir::ReferenceKind::Borrowed => PointerStorage::Unknown,
+        },
     }
 }
 
@@ -2176,7 +2209,12 @@ fn pointer_metadata_from_aggregate(kind: ValueKind) -> (PointerStorage, Referenc
         } => (storage, reference),
         ValueKind::Aggregate { .. } => (
             PointerStorage::Managed,
-            ReferenceMeta::new(mir::ReferenceKind::Managed, mir::Mutability::Mutable, false),
+            ReferenceMeta::new(
+                mir::ReferenceKind::Managed,
+                mir::AddressSpace::Generic,
+                mir::Mutability::Mutable,
+                false,
+            ),
         ),
         _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
     }
@@ -2190,7 +2228,12 @@ fn pointer_metadata_from_array(kind: ValueKind) -> (PointerStorage, ReferenceMet
         } => (storage, reference),
         ValueKind::Array { .. } | ValueKind::Aggregate { .. } => (
             PointerStorage::Managed,
-            ReferenceMeta::new(mir::ReferenceKind::Managed, mir::Mutability::Mutable, false),
+            ReferenceMeta::new(
+                mir::ReferenceKind::Managed,
+                mir::AddressSpace::Generic,
+                mir::Mutability::Mutable,
+                false,
+            ),
         ),
         _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
     }
