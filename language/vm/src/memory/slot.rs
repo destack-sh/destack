@@ -3,7 +3,7 @@ use super::value::Value;
 const INLINE_SLOT_CAP: usize = 2;
 
 /// Slot storage for heap cells, optimized for small fixed layouts.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SlotStorage {
     /// Inline storage for small slot counts.
     Inline {
@@ -226,6 +226,14 @@ impl HeapCell {
     pub fn with_slots(count: usize) -> Self {
         Self {
             slots: SlotStorage::with_slots(count),
+            marked: false,
+        }
+    }
+
+    /// Clone this cell for a forked continuation.
+    pub(crate) fn clone_for_fork(&self) -> Self {
+        Self {
+            slots: self.slots.clone(),
             marked: false,
         }
     }

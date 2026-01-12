@@ -258,4 +258,31 @@ impl Frame {
             roots.push(handle);
         }
     }
+
+    /// Clone this frame for a forked continuation.
+    pub(super) fn clone_for_fork(&self) -> Self {
+        // clone stack cells for the forked frame
+        let stack_cells = self
+            .stack_cells
+            .iter()
+            .map(HeapCell::clone_for_fork)
+            .collect();
+
+        // assemble cloned frame
+        Self {
+            function: self.function,
+            threaded: self.threaded,
+            block_ptr: self.block_ptr,
+            entry_block: self.entry_block,
+            current_block: self.current_block,
+            block_index: self.block_index,
+            resume_pc: self.resume_pc,
+            value_base: self.value_base,
+            value_count: self.value_count,
+            local_base: self.local_base,
+            local_count: self.local_count,
+            stack_cells,
+            return_destination: self.return_destination,
+        }
+    }
 }
