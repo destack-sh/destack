@@ -14,10 +14,11 @@ use super::pass::OptimizationLevel;
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
     CorrelatedValueProp, DeadCodeEliminate, DeadStoreEliminate, DropInsert, GlobalValueNumbering,
-    IfConvert, InductionVariableSimplify, InstructionCombine, Licm, LoadStoreForward, LocalCse,
-    LoopBoundsCheckEliminate, LoopDelete, LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll,
-    LoopUnswitch, Mem2Reg, MoveCheck, Reassociate, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
+    GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, JumpThreading, Licm,
+    LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopRotate, LoopSimplify,
+    LoopStrengthReduce, LoopUnroll, LoopUnswitch, Mem2Reg, MoveCheck, Reassociate, SimplifyCfg,
+    Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
+    ValueRangePropagation,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -606,6 +607,7 @@ fn simplify() -> Vec<Box<dyn FunctionPass>> {
         Box::new(ConstantFold),
         Box::new(InstructionCombine),
         Box::new(SimplifyCfg),
+        Box::new(JumpThreading),
         Box::new(DeadCodeEliminate),
     ]
 }
@@ -616,6 +618,8 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
         Box::new(SparseConditionalConstantPropagation),
         Box::new(Reassociate),
         Box::new(CorrelatedValueProp),
+        Box::new(ValueRangePropagation),
+        Box::new(GuardEliminate),
         Box::new(GlobalValueNumbering),
         Box::new(CodeHoisting),
         Box::new(IfConvert),
