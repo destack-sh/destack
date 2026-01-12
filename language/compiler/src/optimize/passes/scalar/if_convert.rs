@@ -1,0 +1,546 @@
+use std::collections::HashMap;
+
+use destack_compiler_macros::declare_pass;
+use destack_mir as mir;
+
+use crate::optimize::analyses::ControlFlowGraph;
+use crate::optimize::common::{instruction_is_speculatable, instruction_map};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+
+declare_pass! {
+    /// Convert simple diamonds into select instructions.
+    ///
+    /// This removes branches by speculatively executing both sides of a small
+    /// conditional and selecting the result with a `select`.
+    ///
+    /// ```mir
+    /// function @before(v0: bool, v1: i32, v2: i32) -> i32 {
+    /// block0(v0: bool, v1: i32, v2: i32):
+    ///     branch v0, block1(v1, v2), block2(v1, v2)
+    /// block1(v3: i32, v4: i32):
+    ///     v5 = iadd v3, v4
+    ///     jump block3(v5)
+    /// block2(v6: i32, v7: i32):
+    ///     v8 = isub v6, v7
+    ///     jump block3(v8)
+    /// block3(v9: i32):
+    ///     return v9
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: bool, v1: i32, v2: i32) -> i32 {
+    /// block0(v0: bool, v1: i32, v2: i32):
+    ///     v10 = iadd v1, v2
+    ///     v11 = isub v1, v2
+    ///     v12 = select v0, v10, v11
+    ///     jump block3(v12)
+    /// block1(v3: i32, v4: i32):
+    ///     v5 = iadd v3, v4
+    ///     jump block3(v5)
+    /// block2(v6: i32, v7: i32):
+    ///     v8 = isub v6, v7
+    ///     jump block3(v8)
+    /// block3(v9: i32):
+    ///     return v9
+    /// }
+    /// ```
+    ///
+    /// Restrictions:
+    /// - Only converts diamonds with a single predecessor per side block
+    /// - Requires both branches to contain only speculatable instructions
+    /// - Requires both branches to jump to a single common merge block
+    #[pass(id = "if-convert")]
+    pub IfConvert,
+    "Convert small diamonds into select instructions"
+}
+
+/// Maximum number of instructions to clone per branch.
+const MAX_BRANCH_INSTRUCTIONS: usize = 8;
+
+impl FunctionPass for IfConvert {
+    /// Run if conversion on a function.
+    fn run(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::NodeTree,
+        _ctx: &PipelineContext<'_>,
+    ) -> AnalysisPreservation {
+        // skip imported functions
+        if function.entry.is_none() {
+            return AnalysisPreservation::all();
+        }
+
+        // run if conversion
+        let changed = run_if_convert(function, tree);
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
+
+    /// Return the pass name.
+    fn name(&self) -> &'static str {
+        "IfConvert"
+    }
+
+    /// Return the pass id.
+    fn id(&self) -> &'static str {
+        "if-convert"
+    }
+}
+
+// NOTE #Incomplete: extend to predicated blocks larger than the instruction cap
+
+/// Candidate diamond for conversion.
+#[derive(Debug, Clone)]
+struct IfConvertCandidate {
+    /// The header block containing the branch.
+    header: mir::LocalNodeId<mir::Block>,
+    /// The branch condition value.
+    condition: mir::Value,
+    /// The then block.
+    then_block: mir::LocalNodeId<mir::Block>,
+    /// The else block.
+    else_block: mir::LocalNodeId<mir::Block>,
+    /// The merge block.
+    merge_block: mir::LocalNodeId<mir::Block>,
+    /// Arguments passed to the then block.
+    then_arguments: Vec<mir::Value>,
+    /// Arguments passed to the else block.
+    else_arguments: Vec<mir::Value>,
+}
+
+/// Run if conversion and return true when changes were made.
+fn run_if_convert(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // build control flow graph
+    let analyses = FunctionAnalyses::new(function, tree);
+    let cfg = analyses.get::<ControlFlowGraph>().clone();
+
+    // collect candidates before mutation
+    let mut candidates = Vec::new();
+    for &block_id in &function.blocks {
+        let Some(candidate) = find_if_convert_candidate(block_id, function, tree, &cfg) else {
+            continue;
+        };
+
+        candidates.push(candidate);
+    }
+
+    // apply conversions
+    if candidates.is_empty() {
+        return false;
+    }
+
+    function.recompute_next_value_id(tree);
+    let mut changed = false;
+    for candidate in candidates {
+        changed |= apply_if_convert(candidate, function, tree);
+    }
+
+    changed
+}
+
+/// Find a diamond pattern rooted at the header block.
+fn find_if_convert_candidate(
+    header: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+) -> Option<IfConvertCandidate> {
+    // read header terminator
+    let header_block = tree.get(header);
+    let (condition, then_block, else_block, then_arguments, else_arguments) =
+        match &header_block.terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+            } => (
+                *condition,
+                *then_target,
+                *else_target,
+                then_arguments.clone(),
+                else_arguments.clone(),
+            ),
+            _ => return None,
+        };
+
+    // ignore degenerate branches
+    if then_block == else_block {
+        return None;
+    }
+
+    // require single predecessor for each side
+    if cfg.predecessors(then_block).len() != 1 || cfg.predecessors(else_block).len() != 1 {
+        return None;
+    }
+
+    // ensure both side blocks are within the function
+    if !function.blocks.contains(&then_block) || !function.blocks.contains(&else_block) {
+        return None;
+    }
+
+    // read side blocks and require a common merge
+    let then_block_data = tree.get(then_block);
+    let else_block_data = tree.get(else_block);
+
+    let merge_block = match (&then_block_data.terminator, &else_block_data.terminator) {
+        (mir::Terminator::Jump { target, .. }, mir::Terminator::Jump { target: other, .. })
+            if target == other =>
+        {
+            *target
+        }
+        _ => return None,
+    };
+
+    // ensure merge block exists
+    if !function.blocks.contains(&merge_block) {
+        return None;
+    }
+
+    // require the merge block to have only the diamond predecessors
+    let merge_preds = cfg.predecessors(merge_block);
+    if merge_preds.len() != 2
+        || !merge_preds.contains(&then_block)
+        || !merge_preds.contains(&else_block)
+    {
+        return None;
+    }
+
+    // require compatible block parameters
+    if then_block_data.parameters.len() != then_arguments.len() {
+        return None;
+    }
+
+    if else_block_data.parameters.len() != else_arguments.len() {
+        return None;
+    }
+
+    Some(IfConvertCandidate {
+        header,
+        condition,
+        then_block,
+        else_block,
+        merge_block,
+        then_arguments,
+        else_arguments,
+    })
+}
+
+/// Apply if conversion to the candidate.
+fn apply_if_convert(
+    candidate: IfConvertCandidate,
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+) -> bool {
+    // build value maps for each branch
+    let then_block = tree.get(candidate.then_block).clone();
+    let else_block = tree.get(candidate.else_block).clone();
+
+    // enforce instruction limits
+    if then_block.instructions.len() > MAX_BRANCH_INSTRUCTIONS
+        || else_block.instructions.len() > MAX_BRANCH_INSTRUCTIONS
+    {
+        return false;
+    }
+
+    // ensure both sides are speculatable
+    if !instructions_speculatable(&then_block.instructions, tree)
+        || !instructions_speculatable(&else_block.instructions, tree)
+    {
+        return false;
+    }
+
+    // build value maps
+    let Some(then_value_map) =
+        build_value_map(function, tree, &then_block, &candidate.then_arguments)
+    else {
+        return false;
+    };
+    let Some(else_value_map) =
+        build_value_map(function, tree, &else_block, &candidate.else_arguments)
+    else {
+        return false;
+    };
+
+    // clone branch instructions into the header
+    let mut new_instructions = tree.get(candidate.header).instructions.clone();
+    clone_block_instructions(tree, &then_block, &then_value_map, &mut new_instructions);
+    clone_block_instructions(tree, &else_block, &else_value_map, &mut new_instructions);
+
+    // read merge arguments
+    let Some(then_merge_args) = jump_arguments(&then_block) else {
+        return false;
+    };
+    let Some(else_merge_args) = jump_arguments(&else_block) else {
+        return false;
+    };
+    if then_merge_args.len() != else_merge_args.len() {
+        return false;
+    }
+
+    // require merge parameters to match the argument count
+    let merge_block = tree.get(candidate.merge_block);
+    if merge_block.parameters.len() != then_merge_args.len() {
+        return false;
+    }
+
+    // build select values for merge arguments
+    let mut select_args = Vec::with_capacity(then_merge_args.len());
+    for (then_value, else_value) in then_merge_args.iter().zip(else_merge_args.iter()) {
+        let then_value = remap_value(*then_value, &then_value_map);
+        let else_value = remap_value(*else_value, &else_value_map);
+
+        let destination = function.next_value();
+        let select = mir::Instruction::Select {
+            destination,
+            condition: candidate.condition,
+            then_value,
+            else_value,
+        };
+        let select_id = tree.insert(select);
+        new_instructions.push(select_id);
+        select_args.push(destination);
+    }
+
+    // update header block
+    let mut header = tree.get(candidate.header).clone();
+    header.instructions = new_instructions;
+    header.terminator = mir::Terminator::Jump {
+        target: candidate.merge_block,
+        arguments: select_args,
+    };
+    tree.replace(candidate.header, header);
+
+    true
+}
+
+/// Build a remapping of block parameters and instruction destinations.
+fn build_value_map(
+    function: &mut mir::Function,
+    tree: &mir::NodeTree,
+    block: &mir::Block,
+    arguments: &[mir::Value],
+) -> Option<HashMap<mir::Value, mir::Value>> {
+    // validate parameter arity
+    if block.parameters.len() != arguments.len() {
+        return None;
+    }
+
+    // map parameters to incoming arguments
+    let mut value_map = HashMap::new();
+    for (param, arg) in block.parameters.iter().zip(arguments.iter()) {
+        value_map.insert(param.value, *arg);
+    }
+
+    // map instruction destinations to fresh values
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id);
+        if let Some(destination) = instruction.destination() {
+            let new_value = function.next_value();
+            value_map.insert(destination, new_value);
+        }
+    }
+
+    Some(value_map)
+}
+
+/// Clone a block's instructions into a header instruction list.
+fn clone_block_instructions(
+    tree: &mut mir::NodeTree,
+    block: &mir::Block,
+    value_map: &HashMap<mir::Value, mir::Value>,
+    target: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
+) {
+    // clone instructions in order
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id).clone();
+        let cloned = instruction_map(&instruction, value_map, tree);
+        let cloned_id = tree.insert(cloned);
+        target.push(cloned_id);
+    }
+}
+
+/// Check whether all instructions are speculatable.
+fn instructions_speculatable(
+    instructions: &[mir::LocalNodeId<mir::Instruction>],
+    tree: &mir::NodeTree,
+) -> bool {
+    // scan instructions for unsafe operations
+    for &instruction_id in instructions {
+        let instruction = tree.get(instruction_id);
+        if !instruction_is_speculatable(instruction) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Read jump arguments from a block terminator.
+fn jump_arguments(block: &mir::Block) -> Option<Vec<mir::Value>> {
+    match &block.terminator {
+        mir::Terminator::Jump { arguments, .. } => Some(arguments.clone()),
+        _ => None,
+    }
+}
+
+/// Remap a value through a value map.
+fn remap_value(value: mir::Value, value_map: &HashMap<mir::Value, mir::Value>) -> mir::Value {
+    value_map.get(&value).copied().unwrap_or(value)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Convert a simple diamond with speculatable ops into a select.
+    #[test]
+    fn test_if_convert_simple_diamond() {
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1, v2), block2(v1, v2)
+block1(v3: i32, v4: i32):
+    v5 = iadd v3, v4
+    jump block3(v5)
+block2(v6: i32, v7: i32):
+    v8 = isub v6, v7
+    jump block3(v8)
+block3(v9: i32):
+    return v9
+}"#;
+        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    v10 = iadd v1, v2
+    v11 = isub v1, v2
+    v12 = select v0, v10, v11
+    jump block3(v12)
+block1(v3: i32, v4: i32):
+    v5 = iadd v3, v4
+    jump block3(v5)
+block2(v6: i32, v7: i32):
+    v8 = isub v6, v7
+    jump block3(v8)
+block3(v9: i32):
+    return v9
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(expected);
+    }
+
+    /// Skip conversion when branch instructions may trap.
+    #[test]
+    fn test_if_convert_skips_trapping_ops() {
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1, v2), block2(v1, v2)
+block1(v3: i32, v4: i32):
+    v5 = sdiv v3, v4
+    jump block3(v5)
+block2(v6: i32, v7: i32):
+    v8 = isub v6, v7
+    jump block3(v8)
+block3(v9: i32):
+    return v9
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(input);
+    }
+
+    /// Skip conversion when a branch target has multiple predecessors.
+    #[test]
+    fn test_if_convert_requires_single_pred() {
+        let input = r#"function @test(v0: bool, v1: i32) -> i32 {
+block0(v0: bool, v1: i32):
+    branch v0, block1(v1), block2(v1)
+block1(v2: i32):
+    jump block3(v2)
+block2(v3: i32):
+    jump block1(v3)
+block3(v4: i32):
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(input);
+    }
+
+    /// Merge blocks with extra predecessors are not converted.
+    #[test]
+    fn test_if_convert_requires_single_merge_pred() {
+        // source program
+        let input = r#"function @test(v0: bool, v1: bool, v2: i32, v3: i32) -> i32 {
+block0(v0: bool, v1: bool, v2: i32, v3: i32):
+    branch v0, block1(v1, v2, v3), block4(v2)
+block1(v4: bool, v5: i32, v6: i32):
+    branch v4, block2(v5, v6), block3(v5, v6)
+block2(v7: i32, v8: i32):
+    v9 = iadd v7, v8
+    jump block5(v9)
+block3(v10: i32, v11: i32):
+    v12 = isub v10, v11
+    jump block5(v12)
+block4(v13: i32):
+    jump block5(v13)
+block5(v14: i32):
+    return v14
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(input);
+    }
+
+    /// Multiple merge arguments become multiple select instructions.
+    #[test]
+    fn test_if_convert_multiple_merge_args() {
+        // source program
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1, v2), block2(v1, v2)
+block1(v3: i32, v4: i32):
+    v5 = iadd v3, v4
+    jump block3(v5, v3)
+block2(v6: i32, v7: i32):
+    v8 = isub v6, v7
+    jump block3(v8, v7)
+block3(v9: i32, v10: i32):
+    v11 = iadd v9, v10
+    return v11
+}"#;
+        // expected output
+        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    v12 = iadd v1, v2
+    v13 = isub v1, v2
+    v14 = select v0, v12, v13
+    v15 = select v0, v1, v2
+    jump block3(v14, v15)
+block1(v3: i32, v4: i32):
+    v5 = iadd v3, v4
+    jump block3(v5, v3)
+block2(v6: i32, v7: i32):
+    v8 = isub v6, v7
+    jump block3(v8, v7)
+block3(v9: i32, v10: i32):
+    v11 = iadd v9, v10
+    return v11
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&IfConvert);
+        program.assert_output(expected);
+    }
+}

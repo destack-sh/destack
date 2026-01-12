@@ -1,20 +1,28 @@
+mod code_hoisting;
 mod constant_fold;
 mod copy_propagate;
+mod correlated_value_prop;
 mod dead_code_eliminate;
 mod gvn;
+mod if_convert;
 mod instruction_combine;
 mod local_cse;
+mod reassociate;
 mod sccp;
 mod simplify_cfg;
 mod sink;
 mod tail_call_elim;
 
+pub use code_hoisting::*;
 pub use constant_fold::*;
 pub use copy_propagate::*;
+pub use correlated_value_prop::*;
 pub use dead_code_eliminate::*;
 pub use gvn::*;
+pub use if_convert::*;
 pub use instruction_combine::*;
 pub use local_cse::*;
+pub use reassociate::*;
 pub use sccp::*;
 pub use simplify_cfg::*;
 pub use sink::*;
