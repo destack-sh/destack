@@ -710,7 +710,11 @@ fn render_extension_breakdown(
 
     for (idx, (ext, stats)) in extensions.iter().enumerate() {
         let is_last_ext = idx + 1 == ext_count && !has_children;
-        let ext_connector = if is_last_ext { "└── " } else { "├── " };
+        let ext_connector = if is_last_ext {
+            "└── "
+        } else {
+            "├── "
+        };
 
         // dim extension display
         let ext_display = format!("{ext_prefix}{ext_connector}{}", dim(ext));

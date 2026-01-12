@@ -6,8 +6,17 @@ use destack_mir as mir;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, function_thread_jumps,
-    instruction_substitute_uses, substitute_values, terminator_substitute_uses,
+    instruction_substitute_uses, substitute_values, terminator_remap, terminator_substitute_uses,
 };
+
+/// Return block metadata for canonicalization.
+#[derive(Debug, Clone)]
+struct ReturnBlockInfo {
+    /// Block parameters for the return block.
+    params: Vec<mir::TypedValue>,
+    /// The returned value, if any.
+    return_value: Option<mir::Value>,
+}
 
 declare_pass! {
     /// Simplify the control flow graph.
@@ -16,8 +25,9 @@ declare_pass! {
     /// 1. Branch folding: converts `branch cond, A, B` to `jump` when cond is constant or range proven
     /// 2. Path sensitive threading: threads edges using edge specific range facts
     /// 3. Jump threading: threads jumps through empty or passthrough blocks
-    /// 4. Block merging: merges blocks with single predecessor/successor
-    /// 5. Unreachable block elimination: removes blocks not reachable from entry
+    /// 4. Return canonicalization: merges empty return blocks into one
+    /// 5. Block merging: merges blocks with single predecessor/successor
+    /// 6. Unreachable block elimination: removes blocks not reachable from entry
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -89,6 +99,7 @@ fn run_simplify_cfg(
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
 ) -> bool {
+    // track whether any changes were made
     let mut changed = false;
 
     // phase 1: branch folding
@@ -103,13 +114,19 @@ fn run_simplify_cfg(
     // threads jumps through empty blocks
     changed |= function_thread_jumps(function, tree);
 
-    // phase 4: block merging
+    // phase 4: canonicalize return blocks
+    changed |= canonicalize_return_blocks(function, tree);
+
+    // phase 5: fold branches and checks with identical edges
+    changed |= fold_redundant_edges(function, tree);
+
+    // phase 6: block merging
     // merges blocks with single predecessor/successor
     if let Some(entry) = function.entry {
         changed |= merge_blocks(function, tree, entry);
     }
 
-    // phase 5: eliminate unreachable blocks
+    // phase 7: eliminate unreachable blocks
     if let Some(entry) = function.entry {
         changed |= eliminate_unreachable_blocks(function, tree, entry);
     }
@@ -125,6 +142,7 @@ fn fold_branches(
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
 ) -> bool {
+    // track whether any changes were made
     let mut changed = false;
 
     // fold branches with constant or range proven conditions
@@ -229,6 +247,7 @@ fn thread_edge_conditions(
     let value_definitions = build_value_definitions(function, tree);
     let value_use_counts = collect_value_use_counts(function, tree);
 
+    // track whether any changes were made
     let mut changed = false;
 
     // scan blocks for edge threading opportunities
@@ -1210,6 +1229,599 @@ fn resolve_switch_case(
     }
 }
 
+/// Compute canonical return arguments for an edge into a return block.
+fn remap_return_edge_arguments(
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    is_void_return: bool,
+) -> Option<Vec<mir::Value>> {
+    // lookup return block metadata
+    let info = return_blocks.get(&target)?;
+
+    // ensure the argument count matches the block parameters
+    if info.params.len() != arguments.len() {
+        return None;
+    }
+
+    // drop arguments for void returns
+    if is_void_return {
+        return Some(Vec::new());
+    }
+
+    // require a concrete return value for non void returns
+    let return_value = info.return_value?;
+    let mut remapped_value = return_value;
+
+    // substitute the return value if it is a block parameter
+    for (param, arg) in info.params.iter().zip(arguments.iter()) {
+        if param.value == return_value {
+            remapped_value = *arg;
+            break;
+        }
+    }
+
+    Some(vec![remapped_value])
+}
+
+/// Record a return block that could not be remapped.
+fn record_kept_return(
+    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    kept_returns: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+    target: mir::LocalNodeId<mir::Block>,
+) {
+    // record the target when it is a return block
+    if return_blocks.contains_key(&target) {
+        kept_returns.insert(target);
+    }
+}
+
+/// Check whether any return edge can be remapped into a canonical return block.
+fn function_has_remappable_return_edges(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    is_void_return: bool,
+) -> bool {
+    // scan blocks for return targets that can be remapped
+    for &block_id in &function.blocks {
+        // read the terminator for the current block
+        let terminator = &tree.get(block_id).terminator;
+
+        // inspect terminator targets
+        match terminator {
+            mir::Terminator::Jump { target, arguments } => {
+                // check jump targets
+                if remap_return_edge_arguments(*target, arguments, return_blocks, is_void_return)
+                    .is_some()
+                {
+                    return true;
+                }
+            }
+            mir::Terminator::Branch {
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+                ..
+            } => {
+                // check branch targets
+                if remap_return_edge_arguments(
+                    *then_target,
+                    then_arguments,
+                    return_blocks,
+                    is_void_return,
+                )
+                .is_some()
+                    || remap_return_edge_arguments(
+                        *else_target,
+                        else_arguments,
+                        return_blocks,
+                        is_void_return,
+                    )
+                    .is_some()
+                {
+                    return true;
+                }
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                // check check targets
+                if remap_return_edge_arguments(
+                    success.target,
+                    &success.arguments,
+                    return_blocks,
+                    is_void_return,
+                )
+                .is_some()
+                    || remap_return_edge_arguments(
+                        failure.target,
+                        &failure.arguments,
+                        return_blocks,
+                        is_void_return,
+                    )
+                    .is_some()
+                {
+                    return true;
+                }
+            }
+            mir::Terminator::Switch {
+                default,
+                default_arguments,
+                cases,
+                ..
+            } => {
+                // check default switch edge
+                if remap_return_edge_arguments(
+                    *default,
+                    default_arguments,
+                    return_blocks,
+                    is_void_return,
+                )
+                .is_some()
+                {
+                    return true;
+                }
+
+                // check each switch case edge
+                for case in cases {
+                    if remap_return_edge_arguments(
+                        case.target,
+                        &case.arguments,
+                        return_blocks,
+                        is_void_return,
+                    )
+                    .is_some()
+                    {
+                        return true;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Canonicalize empty return blocks by routing them to one return block.
+fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // collect candidate return and unreachable blocks
+    let mut return_blocks: HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> = HashMap::new();
+    let mut unreachable_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
+
+    // determine return type expectations
+    let return_type = tree.get(function.return_type);
+    let is_void_return = matches!(return_type, mir::Type::Void);
+
+    // scan blocks for empty return and unreachable terminators
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // skip blocks with instructions
+        if !block.instructions.is_empty() {
+            continue;
+        }
+
+        // classify empty terminators
+        match &block.terminator {
+            mir::Terminator::Return { value } => {
+                // skip returns that do not match the function signature
+                if is_void_return && value.is_some() {
+                    continue;
+                }
+                if !is_void_return && value.is_none() {
+                    continue;
+                }
+
+                return_blocks.insert(
+                    block_id,
+                    ReturnBlockInfo {
+                        params: block.parameters.clone(),
+                        return_value: *value,
+                    },
+                );
+            }
+            mir::Terminator::Unreachable => {
+                // record paramless unreachable blocks for merging
+                if block.parameters.is_empty() {
+                    unreachable_blocks.push(block_id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // merge unreachable blocks into one canonical block
+    let mut changed = false;
+    if unreachable_blocks.len() > 1 {
+        let canonical_unreachable = unreachable_blocks[0];
+        let redirects: HashMap<_, _> = unreachable_blocks
+            .iter()
+            .skip(1)
+            .map(|block_id| (*block_id, canonical_unreachable))
+            .collect();
+
+        changed |= remap_block_targets(function, tree, &redirects);
+        function
+            .blocks
+            .retain(|block_id| !redirects.contains_key(block_id));
+    }
+
+    // skip when there is nothing to canonicalize
+    if return_blocks.len() <= 1 {
+        return changed;
+    }
+
+    // skip when no remappable return edges exist
+    if !function_has_remappable_return_edges(function, tree, &return_blocks, is_void_return) {
+        return changed;
+    }
+
+    // build a canonical return block
+    let canonical_return = if is_void_return {
+        let block = mir::Block::new();
+        let mut block = block;
+        block.terminator = mir::Terminator::Return { value: None };
+        let canonical_id = tree.insert(block);
+        function.blocks.push(canonical_id);
+        canonical_id
+    } else {
+        let return_value = function.next_value();
+        let param = mir::TypedValue::new(return_value, function.return_type);
+        let mut block = mir::Block::with_parameters(vec![param]);
+        block.terminator = mir::Terminator::Return {
+            value: Some(return_value),
+        };
+        let canonical_id = tree.insert(block);
+        function.blocks.push(canonical_id);
+        canonical_id
+    };
+
+    // redirect edges into canonical return
+    let mut kept_returns: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+    let mut referenced_returns: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
+
+    // snapshot return block ids for later filtering
+    let return_ids: HashSet<_> = return_blocks.keys().copied().collect();
+
+    // rewrite terminators to target the canonical return block
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let mut new_block = block.clone();
+
+        let new_terminator = rewrite_return_targets(
+            &block.terminator,
+            &return_blocks,
+            canonical_return,
+            is_void_return,
+            &mut kept_returns,
+        );
+
+        if new_terminator != block.terminator {
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    // recompute referenced return blocks
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for successor in block.terminator.successors() {
+            if return_ids.contains(&successor) {
+                referenced_returns.insert(successor);
+            }
+        }
+    }
+
+    // remove unreachable return blocks
+    let entry = function.entry;
+    function.blocks.retain(|block_id| {
+        // keep the entry block
+        if Some(*block_id) == entry {
+            return true;
+        }
+
+        // keep the canonical return block
+        if *block_id == canonical_return {
+            return true;
+        }
+
+        // keep non return blocks
+        if !return_ids.contains(block_id) {
+            return true;
+        }
+
+        // keep return blocks that could not be remapped
+        if kept_returns.contains(block_id) {
+            return true;
+        }
+
+        // keep return blocks that remain referenced
+        referenced_returns.contains(block_id)
+    });
+
+    changed
+}
+
+/// Rewrite terminator targets that point at return blocks.
+fn rewrite_return_targets(
+    terminator: &mir::Terminator,
+    return_blocks: &HashMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    canonical_return: mir::LocalNodeId<mir::Block>,
+    is_void_return: bool,
+    kept_returns: &mut HashSet<mir::LocalNodeId<mir::Block>>,
+) -> mir::Terminator {
+    // rewrite return block targets based on the terminator kind
+    match terminator {
+        mir::Terminator::Jump { target, arguments } => {
+            // remap jump targets that point at return blocks
+            let remapped =
+                remap_return_edge_arguments(*target, arguments, return_blocks, is_void_return);
+
+            // build the remapped jump when possible
+            if let Some(arguments) = remapped {
+                return mir::Terminator::Jump {
+                    target: canonical_return,
+                    arguments,
+                };
+            }
+
+            // keep the return block when remapping is not possible
+            record_kept_return(return_blocks, kept_returns, *target);
+
+            terminator.clone()
+        }
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+        } => {
+            // remap then and else edges into the canonical return block
+            let then_remap = remap_return_edge_arguments(
+                *then_target,
+                then_arguments,
+                return_blocks,
+                is_void_return,
+            );
+            let else_remap = remap_return_edge_arguments(
+                *else_target,
+                else_arguments,
+                return_blocks,
+                is_void_return,
+            );
+
+            // apply remapped then edge when available
+            let mut remapped = false;
+            let (new_then_target, new_then_args) = if let Some(arguments) = then_remap {
+                remapped = true;
+                (canonical_return, arguments)
+            } else {
+                record_kept_return(return_blocks, kept_returns, *then_target);
+                (*then_target, then_arguments.clone())
+            };
+
+            // apply remapped else edge when available
+            let (new_else_target, new_else_args) = if let Some(arguments) = else_remap {
+                remapped = true;
+                (canonical_return, arguments)
+            } else {
+                record_kept_return(return_blocks, kept_returns, *else_target);
+                (*else_target, else_arguments.clone())
+            };
+
+            // rebuild the branch when any edge was remapped
+            if remapped {
+                return mir::Terminator::Branch {
+                    condition: *condition,
+                    then_target: new_then_target,
+                    then_arguments: new_then_args,
+                    else_target: new_else_target,
+                    else_arguments: new_else_args,
+                };
+            }
+
+            terminator.clone()
+        }
+        mir::Terminator::Check {
+            condition,
+            constraint,
+            success,
+            failure,
+        } => {
+            // remap check edges into the canonical return block
+            let success_remap = remap_return_edge_arguments(
+                success.target,
+                &success.arguments,
+                return_blocks,
+                is_void_return,
+            );
+            let failure_remap = remap_return_edge_arguments(
+                failure.target,
+                &failure.arguments,
+                return_blocks,
+                is_void_return,
+            );
+
+            // apply remapped success edge when available
+            let mut remapped = false;
+            let (new_success_target, new_success_args) = if let Some(arguments) = success_remap {
+                remapped = true;
+                (canonical_return, arguments)
+            } else {
+                record_kept_return(return_blocks, kept_returns, success.target);
+                (success.target, success.arguments.clone())
+            };
+
+            // apply remapped failure edge when available
+            let (new_failure_target, new_failure_args) = if let Some(arguments) = failure_remap {
+                remapped = true;
+                (canonical_return, arguments)
+            } else {
+                record_kept_return(return_blocks, kept_returns, failure.target);
+                (failure.target, failure.arguments.clone())
+            };
+
+            // rebuild the check when any edge was remapped
+            if remapped {
+                return mir::Terminator::Check {
+                    condition: *condition,
+                    constraint: constraint.clone(),
+                    success: mir::CheckTarget {
+                        target: new_success_target,
+                        arguments: new_success_args,
+                    },
+                    failure: mir::CheckTarget {
+                        target: new_failure_target,
+                        arguments: new_failure_args,
+                    },
+                };
+            }
+
+            terminator.clone()
+        }
+        mir::Terminator::Switch {
+            value,
+            default,
+            default_arguments,
+            cases,
+        } => {
+            // remap the default edge into the canonical return block
+            let default_remap = remap_return_edge_arguments(
+                *default,
+                default_arguments,
+                return_blocks,
+                is_void_return,
+            );
+
+            // apply the default remap when available
+            let mut remapped = false;
+            let (new_default, new_default_args) = if let Some(arguments) = default_remap {
+                remapped = true;
+                (canonical_return, arguments)
+            } else {
+                record_kept_return(return_blocks, kept_returns, *default);
+                (*default, default_arguments.clone())
+            };
+
+            // remap switch cases into the canonical return block
+            let mut new_cases = Vec::with_capacity(cases.len());
+            for case in cases {
+                let case_remap = remap_return_edge_arguments(
+                    case.target,
+                    &case.arguments,
+                    return_blocks,
+                    is_void_return,
+                );
+
+                // apply the case remap when available
+                if let Some(arguments) = case_remap {
+                    remapped = true;
+                    new_cases.push(mir::SwitchCase {
+                        value: case.value,
+                        target: canonical_return,
+                        arguments,
+                    });
+                } else {
+                    record_kept_return(return_blocks, kept_returns, case.target);
+                    new_cases.push(case.clone());
+                }
+            }
+
+            // rebuild the switch when any edge was remapped
+            if remapped {
+                return mir::Terminator::Switch {
+                    value: *value,
+                    default: new_default,
+                    default_arguments: new_default_args,
+                    cases: new_cases,
+                };
+            }
+
+            terminator.clone()
+        }
+        _ => terminator.clone(),
+    }
+}
+
+/// Remap block targets for terminators based on a redirect map.
+fn remap_block_targets(
+    function: &mir::Function,
+    tree: &mut mir::NodeTree,
+    redirects: &HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
+) -> bool {
+    // track whether any changes were made
+    let mut changed = false;
+    let value_map: HashMap<mir::Value, mir::Value> = HashMap::new();
+
+    for &block_id in &function.blocks {
+        if redirects.contains_key(&block_id) {
+            continue;
+        }
+
+        // remap terminator targets in place
+        let block = tree.get(block_id);
+        let mut new_block = block.clone();
+        let mut new_terminator = new_block.terminator.clone();
+        terminator_remap(&mut new_terminator, redirects, &value_map);
+
+        if new_terminator != new_block.terminator {
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Fold branches and checks that target identical edges.
+fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {
+    // track whether any changes were made
+    let mut changed = false;
+
+    // simplify terminators with identical targets
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        let new_terminator = match &block.terminator {
+            mir::Terminator::Branch {
+                then_target,
+                then_arguments,
+                else_target,
+                else_arguments,
+                ..
+            } if then_target == else_target && then_arguments == else_arguments => {
+                Some(mir::Terminator::Jump {
+                    target: *then_target,
+                    arguments: then_arguments.clone(),
+                })
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } if success.target == failure.target && success.arguments == failure.arguments => {
+                Some(mir::Terminator::Jump {
+                    target: success.target,
+                    arguments: success.arguments.clone(),
+                })
+            }
+            _ => None,
+        };
+
+        if let Some(new_terminator) = new_terminator {
+            let mut new_block = block.clone();
+            new_block.terminator = new_terminator;
+            tree.replace(block_id, new_block);
+            changed = true;
+        }
+    }
+
+    changed
+}
+
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
 ///
 /// If block A unconditionally jumps to block B, and B has no other predecessors,
@@ -1471,6 +2083,77 @@ block0:
         program.assert_output(expected);
     }
 
+    /// Identical void return blocks are merged.
+    #[test]
+    fn test_merge_identical_return_blocks() {
+        let input = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    branch v0, block1, block2
+block1:
+    return
+block2:
+    return
+}"#;
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Non void return blocks are routed through a canonical return block.
+    #[test]
+    fn test_canonicalize_non_void_return_blocks() {
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1), block2(v2)
+block1(v3: i32):
+    return v3
+block2(v4: i32):
+    return v4
+}"#;
+        let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1), block1(v2)
+block1(v5: i32):
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
+    /// Return values from parent blocks are forwarded through the canonical return block.
+    #[test]
+    fn test_canonicalize_return_with_outer_value() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    branch v0, block1, block2
+block1:
+    return v1
+block2:
+    return v2
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    branch v0, block1(v1), block1(v2)
+block1(v3: i32):
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+        program.assert_output(expected);
+    }
+
     /// Branch on a global const folds to the selected target.
     #[test]
     fn test_fold_global_const_branch() {
@@ -1510,9 +2193,11 @@ block0(v0: bool):
     v2 = iconst 2i32
     branch v0, block1, block2
 block1:
-    return v1
+    v3 = iadd v1, v2
+    return v3
 block2:
-    return v2
+    v4 = isub v2, v1
+    return v4
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -1543,7 +2228,7 @@ block5:
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst true
-    branch v0, block1(v1), block1(v1)
+    jump block1(v1)
 block1(v4: bool):
     v5 = iconst 1i32
     return v5
@@ -1833,11 +2518,9 @@ block4:
 block0(v0: bool):
     v1 = iconst 1i32
     v2 = iconst 2i32
-    branch v0, block1, block2
-block1:
-    return v1
-block2:
-    return v2
+    branch v0, block1(v1), block1(v2)
+block1(v3: i32):
+    return v3
 }"#;
 
         let mut program = TestProgram::new(input);
@@ -1912,8 +2595,8 @@ block0(v0: bool):
     v1 = iconst 1i32
     v2 = iconst 2i32
     branch v0, block1(v1), block1(v2)
-block1(v3: i32):
-    return v3
+block1(v4: i32):
+    return v4
 }"#;
 
         let mut program = TestProgram::new(input);
