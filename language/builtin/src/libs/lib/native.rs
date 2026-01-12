@@ -5,7 +5,6 @@ use super::super::source::{BuiltinLib, BuiltinLibSource};
 pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     // string types
     "String",
-    "string",
     // array types
     "Array",
     "arrayOf",
