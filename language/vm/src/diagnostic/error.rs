@@ -127,6 +127,9 @@ pub enum Error {
 
     /// Attempted to resume without a pending yield.
     ResumeWithoutYield = 28,
+
+    /// Attempted to resume with an invalid continuation.
+    InvalidContinuation = 29,
 }
 
 impl Error {
@@ -201,6 +204,9 @@ impl Error {
             }
             Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
             Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),
+            Self::InvalidContinuation => {
+                "attempted to resume with an invalid continuation".to_string()
+            }
         }
     }
 }

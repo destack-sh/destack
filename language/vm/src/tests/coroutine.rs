@@ -26,14 +26,16 @@ block1(v2: i32, v3: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(5));
 
     // resume with a value and verify completion
-    let outcome = interpreter.resume(Value::int32(11)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(11))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -64,15 +66,15 @@ block1(v2: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(1));
 
     // resume and verify the resume value is ignored
     let outcome = interpreter
-        .resume(Value::int32(100))
+        .resume(continuation, Value::int32(100))
         .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
@@ -108,24 +110,28 @@ block2(v5: i32, v6: i32):
         .expect("execution failed");
 
     // verify first yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(2));
 
     // resume for second yield
-    let outcome = interpreter.resume(Value::int32(3)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(3))
+        .expect("resume failed");
 
     // verify second yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(7));
 
     // resume for completion
-    let outcome = interpreter.resume(Value::int32(10)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(10))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -156,14 +162,16 @@ block1(v2: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(4));
 
     // resume and verify resumed value is returned
-    let outcome = interpreter.resume(Value::int32(9)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(9))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -199,14 +207,16 @@ block1(v2: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(4));
 
     // resume and verify local survives
-    let outcome = interpreter.resume(Value::int32(6)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(6))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -240,14 +250,16 @@ block1(v3: i32, v4: i32, v5: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(10));
 
     // resume and verify argument ordering
-    let outcome = interpreter.resume(Value::int32(7)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(7))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -286,14 +298,16 @@ block3(v12: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(3));
 
     // resume with a value that triggers the return path
-    let outcome = interpreter.resume(Value::int32(0)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(0))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -332,14 +346,16 @@ block0(v0: i32):
         .expect("execution failed");
 
     // verify yielded value
-    let yielded_value = match outcome {
-        ExecutionOutcome::Yielded { yielded } => yielded.value,
+    let (yielded_value, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
     assert_eq!(yielded_value, Value::int32(5));
 
     // resume and verify completion
-    let outcome = interpreter.resume(Value::int32(7)).expect("resume failed");
+    let outcome = interpreter
+        .resume(continuation, Value::int32(7))
+        .expect("resume failed");
     let output = match outcome {
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
@@ -373,35 +389,40 @@ block1(v2: i32, v3: i32):
     assert!(matches!(err.error, Error::UnexpectedYield));
 }
 
-/// Resume without a pending yield reports an error.
+/// Resume with a continuation from another interpreter reports an error.
 #[test]
-fn test_resume_without_yield() {
+fn test_resume_invalid_continuation() {
     // define mir program
     let mir = r#"
-function @noop() -> i32 {
-block0:
-    v0 = iconst 1i32
-    return v0
+function @yield_once(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 5i32
+    yield v1, block1(v0)
+block1(v2: i32, v3: i32):
+    v4 = iadd v2, v3
+    return v4
 }
 "#;
 
     // create interpreter
     let mut interpreter = super::create_interpreter(mir);
 
-    // run to completion
+    // start coroutine and capture continuation
     let outcome = interpreter
-        .run_function_by_name_yielding("noop", &[])
+        .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
         .expect("execution failed");
-    let output = match outcome {
-        ExecutionOutcome::Completed { output } => output,
-        ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
+    let (_, continuation) = match outcome {
+        ExecutionOutcome::Yielded { yielded } => (yielded.value, yielded.continuation),
+        ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
-    assert_eq!(output.value, Value::int32(1));
 
-    // resume without a pending yield
-    let result = interpreter.resume(Value::int32(0));
+    // create a different interpreter
+    let mut other_interpreter = super::create_interpreter(mir);
+
+    // resume on a different interpreter
+    let result = other_interpreter.resume(continuation, Value::int32(0));
 
     // validate error
     let err = result.unwrap_err();
-    assert!(matches!(err.error, Error::ResumeWithoutYield));
+    assert!(matches!(err.error, Error::InvalidContinuation));
 }

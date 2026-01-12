@@ -1017,9 +1017,8 @@ fn run_coroutine(
                 // compute resume value
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
-
                 // resume execution
-                outcome = interp.resume(resume)?;
+                outcome = interp.resume(yielded.continuation, resume)?;
             }
         }
     }

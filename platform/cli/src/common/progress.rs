@@ -440,10 +440,10 @@ fn read_progress_stats(state: &ProgressState) -> Option<ProgressStats> {
 
     for package in &snapshot.packages {
         // skip internal packages
-        if let Some(name) = package.name.as_deref() {
-            if name.starts_with('<') {
-                continue;
-            }
+        if let Some(name) = package.name.as_deref()
+            && name.starts_with('<')
+        {
+            continue;
         }
         if package.lines == 0 {
             continue;
