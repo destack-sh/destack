@@ -304,7 +304,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::ValueThenType,
+                        SymbolSpaceOrder::TypeThenValue,
                     )
                 });
                 let default = default.map(|default| {
