@@ -204,12 +204,12 @@ impl Compiler {
 
             // convert the vm value to a static expression
             let vm_value = output.value;
-            let dir_value = self.value_to_static_expression(&vm_value).ok_or_else(|| {
-                ExecuteError::FailedExecution {
+            let dir_value = self
+                .value_to_static_expression(&interpreter, &vm_value)
+                .ok_or_else(|| ExecuteError::FailedExecution {
                     module: module_id,
                     message: "unsupported comptime result".to_string(),
-                }
-            })?;
+                })?;
 
             Some(ComptimeOutput {
                 vm: Some(vm_value),
