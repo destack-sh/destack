@@ -8,8 +8,8 @@ use crate::optimize::analyses::{
     ScalarEvolution, Scev, ValueRange,
 };
 use crate::optimize::common::{
-    constant_is_zero, instruction_substitute_uses_in_tree, resolve_substitution_chains,
-    terminator_substitute_uses,
+    constant_is_zero, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree, resolve_substitution_chains, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -91,8 +91,6 @@ impl FunctionPass for LoopStrengthReduce {
             return AnalysisPreservation::all();
         }
 
-        // TODO #Performance: allow widening to chained affine recurrences
-
         // run the strength reduction pass
         let context = StrengthReduceContext {
             loops: &loops,
@@ -163,7 +161,10 @@ enum ValueDefinitionKind {
     /// Block parameter definition.
     Parameter,
     /// Instruction definition.
-    Instruction,
+    Instruction {
+        /// Instruction that defines the value.
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    },
 }
 
 /// Definition metadata for a value.
@@ -210,7 +211,9 @@ impl ValueDefinitions {
                         destination,
                         ValueDefinition {
                             block: block_id,
-                            kind: ValueDefinitionKind::Instruction,
+                            kind: ValueDefinitionKind::Instruction {
+                                instruction: instruction_id,
+                            },
                         },
                     );
                 }
@@ -1177,6 +1180,10 @@ struct ScevMaterializer<'a> {
     constant_cache: Vec<(mir::Constant, mir::Value)>,
     /// Cached scev to value mappings.
     scev_cache: Vec<(Scev, mir::Value)>,
+    /// Cached value mappings for cloned invariants.
+    value_cache: HashMap<mir::Value, mir::Value>,
+    /// Values currently being materialized.
+    value_in_progress: HashSet<mir::Value>,
     /// Cached integer types by width and signedness.
     type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
 }
@@ -1216,6 +1223,8 @@ impl<'a> ScevMaterializer<'a> {
             domtree,
             constant_cache,
             scev_cache: Vec::new(),
+            value_cache: HashMap::new(),
+            value_in_progress: HashSet::new(),
             type_cache: HashMap::new(),
         }
     }
@@ -1230,7 +1239,7 @@ impl<'a> ScevMaterializer<'a> {
         // materialize based on scev kind
         let value = match scev {
             Scev::Constant(constant) => self.materialize_constant(function, constant)?,
-            Scev::Unknown(value) => self.materialize_unknown(*value)?,
+            Scev::Unknown(value) => self.materialize_unknown(function, *value)?,
             Scev::Neg(inner) => {
                 let argument = self.materialize(function, inner)?;
                 self.insert_unary(function, mir::UnaryOperator::Negate, argument)
@@ -1397,7 +1406,7 @@ impl<'a> ScevMaterializer<'a> {
 
         let ranges = match definition.kind {
             ValueDefinitionKind::Parameter => self.ranges.entry(self.preheader),
-            ValueDefinitionKind::Instruction => {
+            ValueDefinitionKind::Instruction { .. } => {
                 if definition.block == self.preheader {
                     self.ranges.exit(self.preheader)
                 } else {
@@ -1436,14 +1445,110 @@ impl<'a> ScevMaterializer<'a> {
         Some(destination)
     }
 
-    /// Materialize an unknown value if it is loop invariant.
-    fn materialize_unknown(&self, value: mir::Value) -> Option<mir::Value> {
-        // ensure the value is available in the preheader
-        if !self.value_available_in_preheader(value) {
-            return None;
+    /// Materialize an unknown value if it can be made available in the preheader.
+    fn materialize_unknown(
+        &mut self,
+        function: &mut mir::Function,
+        value: mir::Value,
+    ) -> Option<mir::Value> {
+        // delegate to value materialization
+        self.materialize_value(function, value)
+    }
+
+    /// Materialize a loop invariant value in the preheader.
+    fn materialize_value(
+        &mut self,
+        function: &mut mir::Function,
+        value: mir::Value,
+    ) -> Option<mir::Value> {
+        // reuse cached materializations
+        if let Some(mapped) = self.value_cache.get(&value) {
+            return Some(*mapped);
         }
 
-        Some(value)
+        // accept values already available in the preheader
+        if self.value_available_in_preheader(value) {
+            self.value_cache.insert(value, value);
+            return Some(value);
+        }
+
+        // avoid cycles when cloning invariant instructions
+        if self.value_in_progress.contains(&value) {
+            return None;
+        }
+        self.value_in_progress.insert(value);
+
+        // require a definition for the value
+        let definition = self.definitions.definition_for(value);
+        let Some(definition) = definition else {
+            self.value_in_progress.remove(&value);
+            return None;
+        };
+
+        // handle instruction defined values inside the loop
+        let new_value = match definition.kind {
+            ValueDefinitionKind::Parameter => None,
+            ValueDefinitionKind::Instruction { instruction } => {
+                if !self.loop_blocks.contains(&definition.block) {
+                    None
+                } else {
+                    let instruction_data = self.tree.get(instruction).clone();
+                    if !instruction_is_speculatable(&instruction_data) {
+                        None
+                    } else {
+                        self.clone_speculatable_instruction(function, &instruction_data, value)
+                    }
+                }
+            }
+        };
+
+        // record completion for recursion tracking
+        self.value_in_progress.remove(&value);
+
+        // cache successful clones
+        if let Some(materialized) = new_value {
+            self.value_cache.insert(value, materialized);
+        }
+
+        new_value
+    }
+
+    /// Clone a speculatable instruction into the preheader.
+    fn clone_speculatable_instruction(
+        &mut self,
+        function: &mut mir::Function,
+        instruction: &mir::Instruction,
+        original: mir::Value,
+    ) -> Option<mir::Value> {
+        // allocate a destination for the cloned instruction
+        let destination = function.next_value();
+
+        // map the destination and operands to preheader values
+        let mut value_map = HashMap::new();
+        value_map.insert(original, destination);
+
+        // materialize inline operands
+        for operand in instruction.uses() {
+            let mapped = self.materialize_value(function, operand)?;
+            value_map.insert(operand, mapped);
+        }
+
+        // materialize externalized operands when present
+        if let Some(args_slice) = instruction.argument_slice() {
+            let arguments = self.tree.get_arguments(args_slice).to_vec();
+            for operand in arguments {
+                let mapped = self.materialize_value(function, operand)?;
+                value_map.insert(operand, mapped);
+            }
+        }
+
+        // build the cloned instruction with remapped values
+        let cloned = instruction_map(instruction, &value_map, self.tree);
+
+        // insert the cloned instruction in the preheader
+        self.insert_instruction(cloned);
+
+        Some(destination)
     }
 
     /// Insert a binary instruction into the preheader.
@@ -1513,7 +1618,7 @@ impl<'a> ScevMaterializer<'a> {
         self.tree.replace(self.preheader, preheader_block);
     }
 
-    /// Check if a value is defined inside the loop.
+    /// Check if a value is available in the preheader.
     fn value_available_in_preheader(&self, value: mir::Value) -> bool {
         // check definition metadata first
         let Some(definition) = self.definitions.definition_for(value) else {
@@ -1760,6 +1865,57 @@ block2:
     jump block1(v8, v10)
 block3:
     return v4
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopStrengthReduce);
+        program.assert_output(expected);
+    }
+
+    /// Loop invariant selects are materialized in the preheader.
+    #[test]
+    fn test_strength_reduce_invariant_select_multiplier() {
+        // source program
+        let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    v3 = iconst 0i32
+    v4 = iconst 1i32
+    v5 = iconst 2i32
+    jump block1(v3)
+block1(v6: i32):
+    v7 = icmp_slt v6, v0
+    branch v7, block2, block3
+block2:
+    v8 = select v2, v1, v5
+    v9 = imul v6, v8
+    v10 = iadd v9, v4
+    v11 = iadd v6, v4
+    jump block1(v11)
+block3:
+    return v6
+}"#;
+
+        // expected output
+        let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
+block0(v0: i32, v1: i32, v2: bool):
+    v3 = iconst 0i32
+    v4 = iconst 1i32
+    v5 = iconst 2i32
+    v12 = select v2, v1, v5
+    jump block1(v3, v3)
+block1(v6: i32, v13: i32):
+    v7 = icmp_slt v6, v0
+    branch v7, block2, block3
+block2:
+    v8 = select v2, v1, v5
+    v9 = imul v6, v8
+    v10 = iadd v13, v4
+    v11 = iadd v6, v4
+    v14 = iadd v13, v12
+    jump block1(v11, v14)
+block3:
+    return v6
 }"#;
 
         // run the pass and verify output

@@ -5,8 +5,9 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis, ScalarEvolution, Scev};
 use crate::optimize::common::{
-    BlockParamForwarding, TypeKey, instruction_substitute_uses_in_tree,
-    resolve_substitution_chains, terminator_arguments_for_successor, terminator_substitute_uses,
+    BlockParamForwarding, TypeKey, constant_is_zero, fold_binary,
+    instruction_substitute_uses_in_tree, resolve_substitution_chains,
+    terminator_arguments_for_successor, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -76,9 +77,8 @@ impl FunctionPass for InductionVariableSimplify {
             return AnalysisPreservation::all();
         }
 
-        // TODO #Performance: extend equivalence to affine offset matches
-
         // run the simplification pass
+        function.recompute_next_value_id(tree);
         let changed = run_induction_simplify(function, tree, &loops, &scev, &cfg);
         if changed {
             AnalysisPreservation::none()
@@ -138,16 +138,22 @@ fn run_induction_simplify(
     // collect substitutions for redundant induction variables
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
 
+    // collect header instruction insertions
+    let mut header_inserts: HashMap<
+        mir::LocalNodeId<mir::Block>,
+        Vec<mir::LocalNodeId<mir::Instruction>>,
+    > = HashMap::new();
+
     // build forwarding information for header parameters
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // scan loops for redundant recurrences
     for (loop_index, lp) in loops.loops().iter().enumerate() {
         // read header parameters
-        let header = tree.get(lp.header);
+        let header_parameters = tree.get(lp.header).parameters.clone();
 
         // skip headers without parameters
-        if header.parameters.is_empty() {
+        if header_parameters.is_empty() {
             continue;
         }
 
@@ -156,7 +162,7 @@ fn run_induction_simplify(
         let mut canonical_scevs: Vec<CanonicalScev> = Vec::new();
 
         // scan header parameters
-        for (param_index, param) in header.parameters.iter().enumerate() {
+        for (param_index, param) in header_parameters.iter().enumerate() {
             // derive a structural type key for comparisons
             let param_type = TypeKey::from_type(tree.get(param.ty), tree);
 
@@ -203,8 +209,39 @@ fn run_induction_simplify(
                 None
             };
 
+            // attempt to match affine offsets when recurrences differ by a constant
+            let offset_match = if signature_match.is_none() && scev_match.is_none() {
+                scev_key.as_ref().and_then(|scev_key| {
+                    canonical_scevs.iter().find_map(|entry| {
+                        if entry.ty != param_type {
+                            return None;
+                        }
+
+                        let offset = affine_offset_for_scev(&entry.scev, scev_key)?;
+                        if constant_is_zero(Some(&offset)) {
+                            return None;
+                        }
+
+                        Some((entry.value, offset))
+                    })
+                })
+            } else {
+                None
+            };
+
             // record substitutions for redundant parameters
-            let canonical_value = signature_match.or(scev_match).unwrap_or(param.value);
+            let canonical_value = if let Some((base_value, offset)) = offset_match {
+                insert_offset_value(
+                    function,
+                    tree,
+                    lp.header,
+                    base_value,
+                    offset,
+                    &mut header_inserts,
+                )
+            } else {
+                signature_match.or(scev_match).unwrap_or(param.value)
+            };
             if canonical_value != param.value {
                 substitutions.insert(param.value, canonical_value);
             }
@@ -236,6 +273,25 @@ fn run_induction_simplify(
                     });
                 }
             }
+        }
+    }
+
+    // insert derived offset instructions at loop headers
+    if !header_inserts.is_empty() {
+        let mut headers: Vec<_> = header_inserts.keys().copied().collect();
+        headers.sort();
+
+        for header_id in headers {
+            let inserts = header_inserts.remove(&header_id).unwrap_or_default();
+            if inserts.is_empty() {
+                continue;
+            }
+
+            let mut header_block = tree.get(header_id).clone();
+            let mut new_instructions = inserts;
+            new_instructions.extend(header_block.instructions.iter().copied());
+            header_block.instructions = new_instructions;
+            tree.replace(header_id, header_block);
         }
     }
 
@@ -318,6 +374,89 @@ fn run_induction_simplify(
     }
 
     true
+}
+
+/// Compute constant offsets between two affine recurrences.
+fn affine_offset_for_scev(base: &Scev, candidate: &Scev) -> Option<mir::Constant> {
+    // require matching add recurrences
+    let Scev::AddRec {
+        start: base_start,
+        step: base_step,
+        loop_header: base_header,
+    } = base
+    else {
+        return None;
+    };
+    let Scev::AddRec {
+        start: cand_start,
+        step: cand_step,
+        loop_header: cand_header,
+    } = candidate
+    else {
+        return None;
+    };
+
+    // require a shared loop header and step
+    if base_header != cand_header || base_step.as_ref() != cand_step.as_ref() {
+        return None;
+    }
+
+    // require constant starts
+    let base_const = scev_constant(base_start)?;
+    let cand_const = scev_constant(cand_start)?;
+
+    // compute the offset between starts
+    fold_binary(
+        mir::BinaryOperator::Subtract,
+        cand_const.clone(),
+        base_const.clone(),
+    )
+}
+
+/// Extract a constant from a SCEV expression.
+fn scev_constant(scev: &Scev) -> Option<&mir::Constant> {
+    match scev {
+        Scev::Constant(constant) => Some(constant),
+        _ => None,
+    }
+}
+
+/// Insert an offset adjustment at a loop header.
+fn insert_offset_value(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    header: mir::LocalNodeId<mir::Block>,
+    base_value: mir::Value,
+    offset: mir::Constant,
+    header_inserts: &mut HashMap<
+        mir::LocalNodeId<mir::Block>,
+        Vec<mir::LocalNodeId<mir::Instruction>>,
+    >,
+) -> mir::Value {
+    // materialize the offset constant
+    let const_value = function.next_value();
+    let const_instruction = mir::Instruction::Const {
+        destination: const_value,
+        value: offset,
+    };
+    let const_id = tree.insert(const_instruction);
+
+    // materialize the adjusted value
+    let adjusted_value = function.next_value();
+    let add_instruction = mir::Instruction::Binary {
+        destination: adjusted_value,
+        operator: mir::BinaryOperator::Add,
+        left: base_value,
+        right: const_value,
+    };
+    let add_id = tree.insert(add_instruction);
+
+    // schedule instructions for insertion
+    let inserts = header_inserts.entry(header).or_default();
+    inserts.push(const_id);
+    inserts.push(add_id);
+
+    adjusted_value
 }
 
 /// Remove arguments at specified indices from terminator targets.
@@ -762,6 +901,48 @@ block1(v3: i32):
     switch v7, block2, 0 => block1(v5), 1 => block2
 block2:
     return v3
+}"#;
+
+        // run the pass and verify output
+        let mut program = TestProgram::new(input);
+        program.run_pass(&InductionVariableSimplify);
+        program.assert_output(expected);
+    }
+
+    /// Affine offset induction variables are rewritten to a canonical base.
+    #[test]
+    fn test_simplify_affine_offset_induction() {
+        // source program
+        let input = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1, v2)
+block1(v4: i32, v5: i32):
+    v6 = iadd v4, v2
+    v7 = iadd v5, v2
+    v8 = icmp_slt v6, v3
+    branch v8, block1(v6, v7), block2(v5)
+block2(v9: i32):
+    return v9
+}"#;
+        // expected output
+        let expected = r#"function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    v3 = iconst 4i32
+    jump block1(v1)
+block1(v4: i32):
+    v10 = iconst 1i32
+    v11 = iadd v4, v10
+    v6 = iadd v4, v2
+    v7 = iadd v11, v2
+    v8 = icmp_slt v6, v3
+    branch v8, block1(v6), block2(v11)
+block2(v9: i32):
+    return v9
 }"#;
 
         // run the pass and verify output
