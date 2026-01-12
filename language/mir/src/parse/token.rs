@@ -28,6 +28,8 @@ pub enum TokenType {
     Check,
     /// `switch`
     Switch,
+    /// `yield`
+    Yield,
     /// `unreachable`
     Unreachable,
     /// `tailcall`

@@ -331,10 +331,11 @@ MIR just sees the `Yield` terminator and knows the function is a coroutine:
 ```mir
 block0:
     v0 = call @compute_next()
-    yield v0, resume: block1
+    yield v0, block1
 
 block1(v1: i32):    // resumed with value from .next(arg) or resolved promise
     ...
 ```
 
 The `CoroutineKind` (Generator, Async, AsyncGenerator) tells codegen what wrapper to generate.
+Resume arguments appear as normal block arguments, with the resumed value appended after them.

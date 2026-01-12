@@ -201,9 +201,8 @@ pub enum Terminator {
         value: Value,
         /// The block to resume at when the coroutine is continued.
         resume: LocalNodeId<Block>,
-        /// Arguments to pass to the resume block's parameters.
-        /// The first argument typically receives the value passed to `.next(arg)` or
-        /// the resolved promise value.
+        /// Arguments to pass to the resume block's leading parameters.
+        /// The resumed value (from `.next(arg)` or resolved promise) follows these arguments.
         resume_arguments: Vec<Value>,
     },
 
