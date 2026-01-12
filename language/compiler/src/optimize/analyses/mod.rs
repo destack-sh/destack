@@ -1,4 +1,5 @@
 mod alias;
+mod available_expressions;
 mod borrow;
 mod constant_propagation;
 mod control_flow_graph;
@@ -10,9 +11,11 @@ mod loop_analysis;
 mod ownership;
 mod post_dominator_tree;
 mod range;
+mod reaching_definitions;
 mod scalar_evolution;
 
 pub use alias::*;
+pub use available_expressions::*;
 pub use borrow::*;
 pub use constant_propagation::*;
 pub use control_flow_graph::*;
@@ -24,4 +27,5 @@ pub use loop_analysis::*;
 pub use ownership::*;
 pub use post_dominator_tree::*;
 pub use range::*;
+pub use reaching_definitions::*;
 pub use scalar_evolution::*;

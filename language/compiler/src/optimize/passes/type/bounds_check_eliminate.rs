@@ -6,7 +6,9 @@ use destack_mir as mir;
 use crate::optimize::analyses::{
     ConstantPropagation, ControlFlowGraph, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
 };
-use crate::optimize::common::{BlockParamForwarding, evaluate_integer_range_comparison, fold_binary};
+use crate::optimize::common::{
+    BlockParamForwarding, evaluate_integer_range_comparison, fold_binary,
+};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {

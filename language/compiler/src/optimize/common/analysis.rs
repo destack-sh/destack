@@ -6,9 +6,9 @@ use std::sync::Arc;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, BorrowAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree,
-    LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, OwnershipAnalysis, PostDominatorTree,
-    RangeAnalysis, ScalarEvolution,
+    AliasAnalysis, AvailableExpressions, BorrowAnalysis, ConstantPropagation, ControlFlowGraph,
+    DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, OwnershipAnalysis,
+    PostDominatorTree, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
 };
 
 use super::pipeline::PipelineOptions;
@@ -126,6 +126,8 @@ impl<'a> FunctionAnalyses<'a> {
         register_analysis::<LoopAnalysis>(graph);
         register_analysis::<LivenessAnalysis>(graph);
         register_analysis::<ConstantPropagation>(graph);
+        register_analysis::<ReachingDefinitions>(graph);
+        register_analysis::<AvailableExpressions>(graph);
         register_analysis::<ScalarEvolution>(graph);
         register_analysis::<RangeAnalysis>(graph);
         register_analysis::<OwnershipAnalysis>(graph);
