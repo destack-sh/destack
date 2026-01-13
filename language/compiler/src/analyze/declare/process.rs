@@ -28,6 +28,7 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
+        let mut has_dependency = false;
 
         // evaluate unevaluated types to a fixed point
         let mut did_change = true;
@@ -49,6 +50,11 @@ impl Compiler {
                     self.evaluate_type(&module, profile, ty_id, &tree, &symbols, &mut types),
                 );
 
+                // stop early once a dependency yield is detected
+                if collector.has_dependencies() {
+                    has_dependency = true;
+                    break;
+                }
                 // record progress on any resolved types
                 let is_unevaluated = matches!(types.get_type(ty_id), Type::Unevaluated(_));
                 if was_unevaluated && !is_unevaluated {
@@ -56,11 +62,28 @@ impl Compiler {
                 }
             }
 
+            // stop after dependency detection
+            if has_dependency {
+                break;
+            }
+
             // repeat when new types were added
             if types.type_count() != type_count {
                 did_change = true;
             }
         }
+
+        // yield early when a dependency blocked evaluation
+        if has_dependency {
+            if let Some(dependency) = collector.try_into_yield_any() {
+                return Err(AnalyzeError::Yield { dependency });
+            }
+
+            return Ok(());
+        }
+
+        // reset collector for declaration steps
+        let mut collector = TaskResultCollector::new();
 
         // declare type-level declarations and shapes
         self.collect(
