@@ -4,9 +4,13 @@ use crate::{
     AnalyzeError, AnalyzeResult, Compiler, FlowContext, InferContext, TaskDependencyError,
     TaskResultCollector,
 };
-use destack_dir::{FlowGraphBuilder, InferTable};
+use destack_dir::{
+    FlowGraphBuilder, InferTable, LocalNodeIdAny, NodeType, PrimitiveType, Type, TypeLiteral,
+};
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleContent, ModuleType, ProfileId};
+
+use super::super::common::json_value_to_type;
 
 impl Compiler {
     /// Ensure a module's types have been inferred.
@@ -27,7 +31,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         self.require_analyze_module_declare(module_id, profile)?;
         if !self.is_code_module(module_id) {
-            return Ok(());
+            return self.analyze_data_module_infer(module_id, profile);
         }
 
         let module = self.program.modules.get(module_id);
@@ -80,6 +84,85 @@ impl Compiler {
 
         // solve constraints (and commit inferred types)
         self.solve_infer_table(&module, profile, &symbols, &infer, &mut types, &ctx.options);
+
+        Ok(())
+    }
+
+    /// Infer types for data modules (JSON, TOML, YAML), text modules, and binary modules.
+    ///
+    /// This function converts the parsed data into a structural DIR type and associates
+    /// it with the module's default export symbol.
+    fn analyze_data_module_infer(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        let module_ref = self.program.modules.get(module_id);
+        let module = module_ref.read();
+
+        // Get the profile DIR and default symbol
+        let dir = module.dir(profile);
+        let default_symbol = dir.default_symbol;
+
+        // Use a synthetic source ID since there's no actual AST node
+        let source_id = LocalNodeIdAny::new(0, NodeType::Expression);
+
+        // Extract module type and content
+        let module_type = module.module_type;
+
+        match module_type {
+            ModuleType::Data => {
+                // Get the parsed JSON value
+                let value = match &module.content {
+                    ModuleContent::Data { value, .. } => value.clone(),
+                    _ => return Ok(()),
+                };
+
+                // Drop the read lock before taking the write lock
+                drop(module);
+
+                // Re-acquire the module and infer type
+                let module_ref = self.program.modules.get(module_id);
+                let module = module_ref.read();
+                let dir = module.dir(profile);
+                let mut types = dir.types.write();
+
+                let inferred_type =
+                    json_value_to_type(&value, source_id, &mut types, &self.program.strings);
+
+                // Associate the inferred type with the default symbol
+                types.set_value_type(default_symbol.into_global(module_id), inferred_type);
+            }
+            ModuleType::Text => {
+                // Text modules are always string
+                let mut types = dir.types.write();
+                let string_type = types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::String),
+                    },
+                    source_id,
+                );
+                types.set_value_type(default_symbol.into_global(module_id), string_type);
+            }
+            ModuleType::Binary => {
+                // Binary modules are uint8[]
+                let mut types = dir.types.write();
+                let element = types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::Int(
+                            destack_dir::IntType::Uint8,
+                        )),
+                    },
+                    source_id,
+                );
+                let array_type =
+                    types.insert_type_from_any(Type::Array { element: Some(element) }, source_id);
+                types.set_value_type(default_symbol.into_global(module_id), array_type);
+            }
+            ModuleType::Code => {
+                // Should not reach here - code modules are handled by analyze_module_infer
+            }
+        }
 
         Ok(())
     }

@@ -60,11 +60,27 @@ pub enum ModuleContent {
     Data {
         source: String,
         value: serde_json::Value,
+        /// Base DIR for the data module (profile-independent).
+        dir_base: Option<ModuleDir>,
+        /// Profile-specific DIRs for the data module.
+        dirs: Vec<ModuleDir>,
     },
     /// Text module (plain string content).
-    Text { content: String },
+    Text {
+        content: String,
+        /// Base DIR for the text module (profile-independent).
+        dir_base: Option<ModuleDir>,
+        /// Profile-specific DIRs for the text module.
+        dirs: Vec<ModuleDir>,
+    },
     /// Binary module (raw bytes).
-    Binary { bytes: Vec<u8> },
+    Binary {
+        bytes: Vec<u8>,
+        /// Base DIR for the binary module (profile-independent).
+        dir_base: Option<ModuleDir>,
+        /// Profile-specific DIRs for the binary module.
+        dirs: Vec<ModuleDir>,
+    },
     /// Content not yet loaded.
     Unloaded,
 }
@@ -253,25 +269,31 @@ impl Module {
     /// Get the base DIR.
     ///
     /// # Panics
-    /// Panics if called before Bind phase completes or if not a code module.
+    /// Panics if called before Bind/Parse phase completes.
     #[inline]
     pub fn dir_base(&self) -> &ModuleDir {
-        self.code()
-            .dir_base
-            .as_ref()
-            .expect("no base DIR on module")
+        self.dir_base_maybe().expect("no base DIR on module")
     }
 
     /// Get the base DIR mutably.
     ///
     /// # Panics
-    /// Panics if called before Bind phase completes or if not a code module.
+    /// Panics if called before Bind/Parse phase completes.
     #[inline]
     pub fn dir_base_mut(&mut self) -> &mut ModuleDir {
-        self.code_mut()
-            .dir_base
-            .as_mut()
-            .expect("no base DIR on module")
+        self.dir_base_maybe_mut().expect("no base DIR on module")
+    }
+
+    /// Get the base DIR mutably if it exists.
+    #[inline]
+    pub fn dir_base_maybe_mut(&mut self) -> Option<&mut ModuleDir> {
+        match &mut self.content {
+            ModuleContent::Code(code) => code.dir_base.as_mut(),
+            ModuleContent::Data { dir_base, .. } => dir_base.as_mut(),
+            ModuleContent::Text { dir_base, .. } => dir_base.as_mut(),
+            ModuleContent::Binary { dir_base, .. } => dir_base.as_mut(),
+            ModuleContent::Unloaded => None,
+        }
     }
 
     /// Get the base DIR if it exists.
@@ -279,45 +301,57 @@ impl Module {
     pub fn dir_base_maybe(&self) -> Option<&ModuleDir> {
         match &self.content {
             ModuleContent::Code(code) => code.dir_base.as_ref(),
-            _ => None,
+            ModuleContent::Data { dir_base, .. } => dir_base.as_ref(),
+            ModuleContent::Text { dir_base, .. } => dir_base.as_ref(),
+            ModuleContent::Binary { dir_base, .. } => dir_base.as_ref(),
+            ModuleContent::Unloaded => None,
         }
     }
 
     /// Get the DIR for a profile.
     ///
     /// # Panics
-    /// Panics if called before Resolve phase completes for the profile or if not a code module.
+    /// Panics if called before Resolve phase completes for the profile.
     #[inline]
     pub fn dir(&self, profile: ProfileId) -> &ModuleDir {
-        self.code()
-            .dirs
-            .iter()
-            .find(|dir| dir.profile_id == Some(profile))
+        self.dir_maybe(profile)
             .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
     }
 
     /// Get the DIR for a profile mutably.
     ///
     /// # Panics
-    /// Panics if called before Resolve phase completes for the profile or if not a code module.
+    /// Panics if called before Resolve phase completes for the profile.
     #[inline]
     pub fn dir_mut(&mut self, profile: ProfileId) -> &mut ModuleDir {
-        self.code_mut()
-            .dirs
-            .iter_mut()
-            .find(|dir| dir.profile_id == Some(profile))
+        self.dir_maybe_mut(profile)
             .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
     }
 
     /// Get the DIR for a profile if it exists.
     #[inline]
     pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
-        match &self.content {
-            ModuleContent::Code(code) => {
-                code.dirs.iter().find(|dir| dir.profile_id == Some(profile))
-            }
-            _ => None,
-        }
+        let dirs = match &self.content {
+            ModuleContent::Code(code) => &code.dirs,
+            ModuleContent::Data { dirs, .. } => dirs,
+            ModuleContent::Text { dirs, .. } => dirs,
+            ModuleContent::Binary { dirs, .. } => dirs,
+            ModuleContent::Unloaded => return None,
+        };
+        dirs.iter().find(|dir| dir.profile_id == Some(profile))
+    }
+
+    /// Get the DIR for a profile mutably if it exists.
+    #[inline]
+    pub fn dir_maybe_mut(&mut self, profile: ProfileId) -> Option<&mut ModuleDir> {
+        let dirs = match &mut self.content {
+            ModuleContent::Code(code) => &mut code.dirs,
+            ModuleContent::Data { dirs, .. } => dirs,
+            ModuleContent::Text { dirs, .. } => dirs,
+            ModuleContent::Binary { dirs, .. } => dirs,
+            ModuleContent::Unloaded => return None,
+        };
+        dirs.iter_mut().find(|dir| dir.profile_id == Some(profile))
     }
 
     /// Get the comptime results for a profile.

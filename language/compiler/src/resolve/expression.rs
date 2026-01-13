@@ -27,13 +27,15 @@ impl Compiler {
                 items,
                 arguments,
             } => {
-                let remote_target = self.resolve_import(
+                let loader_override = self.loader_from_import_attributes(arguments.as_ref(), tree);
+                let remote_target = self.resolve_import_with_loader(
                     module,
                     dir,
                     profile,
                     expression_id.into_global_any(module.id),
                     *source,
                     *target,
+                    loader_override,
                 )?;
                 Expression::Import {
                     source: *source,

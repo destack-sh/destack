@@ -91,8 +91,8 @@ impl Loader {
         match self {
             Loader::Destack | Loader::TypeScript | Loader::JavaScript => ModuleType::Code,
             Loader::Json | Loader::Toml | Loader::Yaml | Loader::Env => ModuleType::Data,
-            Loader::Text => ModuleType::Text,
-            Loader::Binary | Loader::File | Loader::Base64 => ModuleType::Binary,
+            Loader::Text | Loader::Base64 => ModuleType::Text,
+            Loader::Binary | Loader::File => ModuleType::Binary,
         }
     }
 
@@ -114,11 +114,61 @@ impl Loader {
 
     /// Whether this loader produces text modules.
     pub fn is_text(&self) -> bool {
-        matches!(self, Loader::Text)
+        matches!(self, Loader::Text | Loader::Base64)
     }
 
     /// Whether this loader produces binary modules.
     pub fn is_binary(&self) -> bool {
-        matches!(self, Loader::Binary | Loader::File | Loader::Base64)
+        matches!(self, Loader::Binary | Loader::File)
+    }
+
+    /// Parse a loader from an import attribute type value string.
+    ///
+    /// Supports the `type` attribute values used in import attributes:
+    /// ```text
+    /// import data from "./file" with { type: "json" }
+    /// ```
+    pub fn from_type_attribute(value: &str) -> Option<Self> {
+        match value {
+            "json" => Some(Loader::Json),
+            "toml" => Some(Loader::Toml),
+            "yaml" => Some(Loader::Yaml),
+            "text" => Some(Loader::Text),
+            "binary" => Some(Loader::Binary),
+            "file" => Some(Loader::File),
+            "base64" => Some(Loader::Base64),
+            "env" => Some(Loader::Env),
+            _ => None,
+        }
+    }
+
+    /// Get the loader name as a string (for hashing/salting).
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Loader::Destack => "destack",
+            Loader::TypeScript => "typescript",
+            Loader::JavaScript => "javascript",
+            Loader::Json => "json",
+            Loader::Toml => "toml",
+            Loader::Yaml => "yaml",
+            Loader::Env => "env",
+            Loader::Text => "text",
+            Loader::Binary => "binary",
+            Loader::File => "file",
+            Loader::Base64 => "base64",
+        }
+    }
+
+    /// Get the loader key for ModuleId hashing.
+    ///
+    /// Returns `Some(key)` if the loader differs from the default for the given file type.
+    /// Returns `None` if this is the default loader (no salting needed).
+    pub fn key_for_file_type(&self, file_type: FileType) -> Option<&'static str> {
+        let default = Self::from_file_type(file_type);
+        if *self == default {
+            None
+        } else {
+            Some(self.as_str())
+        }
     }
 }

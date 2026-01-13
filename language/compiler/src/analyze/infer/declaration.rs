@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DynamicKey,
-    EnumBackingType, EnumField, Expression, FunctionSignature, Generics, GlobalSymbolId,
+    Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
+    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, Generics, GlobalSymbolId,
     InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
-    NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral,
-    TypeTable, WhereClause,
+    ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type,
+    TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -877,14 +877,17 @@ impl Compiler {
         Ok(())
     }
 
-    /// Infer an argument.
+    /// Infer a dependency item.
+    ///
+    /// For imports from data/text/binary modules, this infers the appropriate type
+    /// for the local binding symbol.
     pub(super) fn infer_dependency_item(
         &self,
         _module: &Module,
         item_id: LocalNodeId<DependencyItem>,
         tree: &NodeTree,
         _symbols: &SymbolTable,
-        _types: &mut TypeTable,
+        types: &mut TypeTable,
         _infer: &mut InferTable,
         _ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
@@ -902,11 +905,92 @@ impl Compiler {
             DependencyItem::Local { .. } => {
                 // nothing to do
             }
-            DependencyItem::Remote { .. } => {
-                // nothing to do
+            DependencyItem::Remote {
+                target_module,
+                target_symbol,
+                mode,
+                ..
+            } => {
+                // Check if we're importing from a non-code module
+                if let ModuleTarget::Module(target_module_id) = target_module {
+                    let target = self.program.modules.get(*target_module_id);
+                    let target = target.read();
+
+                    // Only handle data/text/binary module imports
+                    if !target.is_code() {
+                        // Only handle namespace imports (default imports from data modules)
+                        if *mode == DependencyMode::Namespace || *mode == DependencyMode::Default {
+                            let ty_id = self.infer_data_module_type(
+                                &target,
+                                item_id.into_any(),
+                                types,
+                            )?;
+                            // Set the type on the canonical symbol (the data module's default symbol)
+                            // This is what gets looked up when we access the imported binding
+                            types.set_value_type(*target_symbol, ty_id);
+                        }
+                    }
+                }
             }
         }
         Ok(())
+    }
+
+    /// Infer the type for a data/text/binary module import.
+    fn infer_data_module_type(
+        &self,
+        target_module: &Module,
+        source_node: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        use super::super::common::json_value_to_type;
+        use destack_workspace::ModuleContent;
+
+        match &target_module.content {
+            ModuleContent::Data { value, .. } => {
+                // Infer structural type from JSON value
+                Ok(json_value_to_type(
+                    value,
+                    source_node,
+                    types,
+                    &self.program.strings,
+                ))
+            }
+            ModuleContent::Text { .. } => {
+                // Text imports are always string
+                Ok(types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::String),
+                    },
+                    source_node,
+                ))
+            }
+            ModuleContent::Binary { .. } => {
+                // Binary imports are uint8[] (Uint8Array on JS targets)
+                let element_type = types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
+                    },
+                    source_node,
+                );
+                Ok(types.insert_type_from_any(
+                    Type::Array {
+                        element: Some(element_type),
+                    },
+                    source_node,
+                ))
+            }
+            ModuleContent::Code(_) | ModuleContent::Unloaded => {
+                // Shouldn't happen - code modules don't reach this path
+                // Return unknown type as fallback
+                Ok(types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    },
+                    source_node,
+                ))
+            }
+        }
     }
 
     /// Infer where clause.

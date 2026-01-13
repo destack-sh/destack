@@ -3,7 +3,7 @@ use crate::{Compiler, ImportError, ImportResult};
 use destack_base::StringPool;
 use destack_parser::Parser;
 use destack_source::{File, LanguageType, ModuleId};
-use destack_workspace::{Loader, ModuleAst, ModuleContent};
+use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
@@ -50,7 +50,8 @@ impl Compiler {
             Loader::Text | Loader::Env => {
                 self.import_text_module_parse(module_id, file_id, path, uri)
             }
-            Loader::Binary | Loader::File | Loader::Base64 => {
+            Loader::Base64 => self.import_base64_module_parse(module_id, file_id, path, uri),
+            Loader::Binary | Loader::File => {
                 self.import_binary_module_parse(module_id, file_id, path, uri)
             }
         }
@@ -162,11 +163,17 @@ impl Compiler {
             }
         })?;
 
+        // create base DIR for data module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
         // update module content
         let mut module = module.write();
         module.content = ModuleContent::Data {
             source: content,
             value,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
         };
         drop(module);
 
@@ -211,11 +218,17 @@ impl Compiler {
         })?;
         let value = toml_to_json(toml_value);
 
+        // create base DIR for data module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
         // update module content
         let mut module = module.write();
         module.content = ModuleContent::Data {
             source: content,
             value,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
         };
         drop(module);
 
@@ -259,11 +272,17 @@ impl Compiler {
             }
         })?;
 
+        // create base DIR for data module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
         // update module content
         let mut module = module.write();
         module.content = ModuleContent::Data {
             source: content,
             value,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
         };
         drop(module);
 
@@ -299,9 +318,17 @@ impl Compiler {
             })?
         };
 
+        // create base DIR for text module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
         // update module content
         let mut module = module.write();
-        module.content = ModuleContent::Text { content };
+        module.content = ModuleContent::Text {
+            content,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
+        };
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse.text");
@@ -331,12 +358,65 @@ impl Compiler {
             }
         })?;
 
+        // create base DIR for binary module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
         // update module content
         let mut module = module.write();
-        module.content = ModuleContent::Binary { bytes };
+        module.content = ModuleContent::Binary {
+            bytes,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
+        };
         drop(module);
 
         tracing::trace!(?module_id, "import.module.parse.binary");
+        Ok(())
+    }
+
+    /// Parse a base64 module (binary file encoded as base64 string).
+    fn import_base64_module_parse(
+        &self,
+        module_id: ModuleId,
+        _file_id: destack_source::FileId,
+        path: Option<std::path::PathBuf>,
+        uri: destack_source::Uri,
+    ) -> ImportResult<()> {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+
+        let module = self.program.modules.get(module_id);
+
+        // load file content as bytes (always from filesystem)
+        let path = path.ok_or_else(|| ImportError::ModuleNotFound {
+            target: self.program.strings.intern(uri.as_ref()),
+            error: None,
+        })?;
+        let bytes = self.program.fs.read(&path).map_err(|_| {
+            let path_str = path.to_string_lossy();
+            ImportError::ModuleNotFound {
+                target: self.program.strings.intern(path_str.as_ref()),
+                error: None,
+            }
+        })?;
+
+        // encode as base64 string
+        let content = STANDARD.encode(&bytes);
+
+        // create base DIR for text module
+        let module_version = module.read().version;
+        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+
+        // update module content (stored as Text since it produces a string)
+        let mut module = module.write();
+        module.content = ModuleContent::Text {
+            content,
+            dir_base: Some(dir_base),
+            dirs: Vec::new(),
+        };
+        drop(module);
+
+        tracing::trace!(?module_id, "import.module.parse.base64");
         Ok(())
     }
 }

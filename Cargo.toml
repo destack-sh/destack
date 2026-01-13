@@ -89,6 +89,7 @@ cranelift-object = "0.126"
 target-lexicon = "0.13.3"
 
 # general
+base64 = "0.22"
 cfg-if = "1.0.4"
 regex = "1.11"
 toml = "0.9.10"

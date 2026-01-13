@@ -83,6 +83,13 @@ pub enum ResolveError {
         target_node: AnchoredGlobalNodeId,
     },
 
+    /// Cannot import namespace from a data module (JSON, TOML, text, etc.).
+    #[error(code = "ER203", message = "cannot import namespace from data module")]
+    DataModuleNamespace {
+        node: AnchoredGlobalNodeId,
+        module: ModuleId,
+    },
+
     // -------------------------------------------------------------------------
     // 3xx: Dependencies / cycles
     // -------------------------------------------------------------------------

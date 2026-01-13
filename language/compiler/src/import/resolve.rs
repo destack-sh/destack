@@ -26,6 +26,20 @@ impl Compiler {
         specifier: StringId,
         source_module: Option<ModuleId>,
     ) -> ImportResult<ModuleId> {
+        self.resolve_specifier_to_module_with_loader(specifier, source_module, None)
+    }
+
+    /// Resolve a specifier to a ModuleId with an optional loader override.
+    ///
+    /// If `loader_override` is provided and the module doesn't exist yet, the module
+    /// will be registered with the specified loader instead of the default for its file type.
+    /// If the module already exists, the override is ignored (Option B from plan).
+    pub fn resolve_specifier_to_module_with_loader(
+        &self,
+        specifier: StringId,
+        source_module: Option<ModuleId>,
+        loader_override: Option<Loader>,
+    ) -> ImportResult<ModuleId> {
         let specifier_str = self.program.strings.get(specifier).to_string();
 
         // resolve builtin module imports (builtin:// URIs)
@@ -52,8 +66,8 @@ impl Compiler {
             return Ok(module_id);
         }
 
-        // register blank module
-        self.register_blank_module(&resolution.path, None, &resolver)
+        // register blank module with optional loader override
+        self.register_blank_module(&resolution.path, None, loader_override, &resolver)
     }
 
     /// Resolve a specifier from a builtin module to a builtin module (see LanguageBuiltins).
@@ -167,7 +181,7 @@ impl Compiler {
         }
 
         // register blank module
-        self.register_blank_module(path, None, &resolver)
+        self.register_blank_module(path, None, None, &resolver)
     }
 
     /// Resolve a URI to a ModuleId, registering a blank module if needed.
@@ -189,28 +203,56 @@ impl Compiler {
     ///
     /// Creates a blank File, determines the package, computes ModuleId,
     /// and registers a blank Module (without AST).
+    ///
+    /// If `loader_override` is provided, it will be used instead of the default
+    /// loader for the file type. Different loaders produce different ModuleIds
+    /// (via hash salting), allowing the same file to be imported multiple ways.
     fn register_blank_module(
         &self,
         path: &PathBuf,
         ty: Option<FileType>,
+        loader_override: Option<Loader>,
         resolver: &Resolver,
     ) -> ImportResult<ModuleId> {
-        // lock to prevent race conditions
+        let ty = ty.unwrap_or_else(|| FileType::from_path_or_unknown(path));
+        let loader = loader_override.unwrap_or_else(|| Loader::from_file_type(ty));
+
+        // compute loader key (only for non-default loaders)
+        let loader_key = loader.key_for_file_type(ty);
+
+        // lock to prevent race conditions (keyed by URI + loader)
         let uri = Uri::from_path(path);
-        let import_lock = self.get_import_lock(&uri);
+        let import_lock = self.get_import_lock(&uri, loader_key);
         let mut import_guard = import_lock.lock();
 
         // check if another thread already registered this module
         if let Some(module_id) = *import_guard {
             return Ok(module_id);
         }
-        if let Some(module_id) = self.program.modules.get_id_by_uri(&uri) {
+
+        // for default loaders, check URI index (fast path)
+        // (for non-default loaders, we skip this since ModuleId is salted)
+        if loader_key.is_none()
+            && let Some(module_id) = self.program.modules.get_id_by_uri(&uri)
+        {
+            *import_guard = Some(module_id);
+            return Ok(module_id);
+        }
+
+        // find or create package (needed to compute ModuleId)
+        let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver);
+
+        // compute ModuleId with loader key
+        let module_id =
+            ModuleId::from_path_with_loader(package_id, path, package_root.as_deref(), loader_key);
+
+        // check if this exact module already exists
+        if self.program.modules.contains(module_id) {
             *import_guard = Some(module_id);
             return Ok(module_id);
         }
 
         // create blank file entry (content loaded later during import)
-        let ty = ty.unwrap_or_else(|| FileType::from_path_or_unknown(path));
         let name = path
             .file_name()
             .unwrap_or_default()
@@ -220,17 +262,12 @@ impl Compiler {
         let file = File::unloaded(file_id, name, uri.clone(), Some(path.clone()), ty);
         self.program.files.insert(file);
 
-        // find or create package
-        let (package_id, package_root) = self.resolve_or_create_package_for_path(path, resolver);
-
         // find tsconfig (if any)
         let tsconfig_id = resolver.find_tsconfig(path);
 
         // create and register blank module
-        let module_id = ModuleId::from_path(package_id, path, package_root.as_deref());
         let source_type = SourceType::from_extension(path).unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
-        let loader = Loader::from_file_type(ty);
         let module = Module::blank(
             module_id,
             file_id,
@@ -250,7 +287,13 @@ impl Compiler {
         *import_guard = Some(module_id);
         drop(import_guard);
 
-        tracing::trace!(?module_id, ?path, "import.resolve.register");
+        tracing::trace!(
+            ?module_id,
+            ?path,
+            ?loader,
+            ?loader_key,
+            "import.resolve.register"
+        );
         Ok(module_id)
     }
 

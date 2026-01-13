@@ -9,7 +9,7 @@ use destack_dir::{
 };
 
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, Module, ModuleDir, ProfileId};
+use destack_workspace::{ImportMeta, Module, ModuleContent, ModuleDir, ProfileId};
 use indexmap::IndexMap;
 
 #[allow(clippy::too_many_arguments)]
@@ -21,8 +21,10 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
         self.require_import_module_validate(module_id)?;
+
+        // data/text/binary modules have simpler preparation
         if !self.is_code_module(module_id) {
-            return Ok(());
+            return self.resolve_data_module_prepare(module_id, profile_id);
         }
 
         // resolve libs if needed
@@ -81,6 +83,50 @@ impl Compiler {
         let mut symbols = dir.symbols.write();
         self.build_module_exports(&module, dir, &tree, &mut symbols);
         self.build_module_binding_exports(&module, dir, &tree, &mut symbols);
+        Ok(())
+    }
+
+    /// Prepare profile DIR for data/text/binary modules.
+    fn resolve_data_module_prepare(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> ResolveResult<()> {
+        let module = self.program.modules.get(module_id);
+        let mut module = module.write();
+
+        // skip if profile DIR already exists
+        if module.dir_maybe(profile_id).is_some() {
+            return Ok(());
+        }
+
+        // get base DIR (must exist for parsed data modules)
+        let base = module.dir_base_maybe().expect("data module missing base DIR");
+
+        // create profile DIR from base
+        let dir = ModuleDir::from_base(base, profile_id);
+
+        // populate default export in exported_symbols
+        let default_key_id = self.program.strings.intern("default");
+        let default_key = destack_dir::StaticKey::Name(default_key_id);
+        let default_export = destack_dir::Export::local(
+            module_id,
+            default_key,
+            destack_dir::SymbolSpace::Value,
+            dir.default_symbol,
+        );
+        dir.exported_symbols
+            .write()
+            .insert((destack_dir::SymbolSpace::Value, default_key), default_export);
+
+        // add DIR to module
+        match &mut module.content {
+            ModuleContent::Data { dirs, .. } => dirs.push(dir),
+            ModuleContent::Text { dirs, .. } => dirs.push(dir),
+            ModuleContent::Binary { dirs, .. } => dirs.push(dir),
+            _ => {}
+        }
+
         Ok(())
     }
 

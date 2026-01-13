@@ -169,6 +169,15 @@ fn is_code_language(language: &str) -> bool {
     lower == "ts" || lower == "typescript" || lower == "ds" || lower == "destack"
 }
 
+/// Check if a language tag is a data/text file type that can be imported.
+fn is_data_language(language: &str) -> bool {
+    let lower = language.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "json" | "toml" | "yaml" | "yml" | "text" | "txt" | "env"
+    )
+}
+
 /// Parse markdown content and extract test cases.
 pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let parser = Parser::new(content);
@@ -295,6 +304,14 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
                         path,
                         content: code_block_content.clone(),
                         options,
+                    });
+                } else if is_data_language(parsed.base) && parsed.filename.is_some() {
+                    // data/text file with explicit filename (e.g., `json:data.json`)
+                    let path = parsed.filename.unwrap().to_string();
+                    current_files.push(MdTestFile {
+                        path,
+                        content: code_block_content.clone(),
+                        options: HashMap::new(),
                     });
                 } else if !code_block_language.is_empty() {
                     // non-source block (query, expected, etc.)

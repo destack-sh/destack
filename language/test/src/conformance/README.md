@@ -8,14 +8,10 @@ Conformance tests check that the Destack parser conforms both to the ECMAScript 
 <!-- begin:summary-results -->
 | Suite    | Passed | Failed | Skipped | Total |  Rate   |
 |:---------|-------:|-------:|--------:|------:|--------:|
-| babel    |   342  |   366  |     7  |   708 |  48.31% |
-| biome    |   329  |   308  |     -  |   637 |  51.65% |
-| swc      |   173  |   365  |     -  |   538 |  32.16% |
-| test262  |  2775  |  2588  |     -  |  5363 |  51.74% |
 |----------|--------|--------|---------|-------|---------|
-| total    |  3619  |  3627  |      7  |  7246 |  49.94% |
+| total    |     0  |     0  |      -  |     0 |   0.00% |
 
-Total Blended Pass Rate: **49.94%**
+Total Blended Pass Rate: **0.00%**
 <!-- end:summary-results -->
 
 ### babel
