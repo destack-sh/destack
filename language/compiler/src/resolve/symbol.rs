@@ -259,7 +259,7 @@ impl Compiler {
         if symbol.kind == SymbolKind::Namespace {
             // resolve remaining path within the prelude module's namespace
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol(
+            match self.resolve_relative_symbol_with_ambient_merge(
                 &prelude_module,
                 profile,
                 node,
@@ -273,7 +273,7 @@ impl Compiler {
                     return Ok(Expression::GlobalReference {
                         path: path.clone(),
                         static_arguments,
-                        target_symbol: resolved_id.into_global(prelude_module_id),
+                        target_symbol: resolved_id,
                     });
                 }
                 Ok((resolved_id, Some(remaining))) => {
@@ -283,7 +283,7 @@ impl Compiler {
                     let root_expr = Expression::GlobalReference {
                         path: resolved_path,
                         static_arguments: None,
-                        target_symbol: resolved_id.into_global(prelude_module_id),
+                        target_symbol: resolved_id,
                     };
                     return Ok(self.build_member_chain(
                         expression_id,
@@ -369,7 +369,7 @@ impl Compiler {
 
                 if symbol.kind == SymbolKind::Namespace {
                     let remaining_path = path.slice(1..);
-                    match self.resolve_relative_symbol(
+                    match self.resolve_relative_symbol_with_ambient_merge(
                         &ambient_module,
                         profile_id,
                         node,
@@ -382,7 +382,7 @@ impl Compiler {
                             return Ok(Some(Expression::GlobalReference {
                                 path: path.clone(),
                                 static_arguments,
-                                target_symbol: resolved_id.into_global(symbol_id.module_id),
+                                target_symbol: resolved_id,
                             }));
                         }
                         Ok((resolved_id, Some(remaining))) => {
@@ -391,7 +391,7 @@ impl Compiler {
                             let root_expr = Expression::GlobalReference {
                                 path: resolved_path,
                                 static_arguments: None,
-                                target_symbol: resolved_id.into_global(symbol_id.module_id),
+                                target_symbol: resolved_id,
                             };
                             return Ok(Some(self.build_member_chain(
                                 expression_id,
@@ -470,7 +470,7 @@ impl Compiler {
             let symbol = symbols.get_symbol(symbol_id);
             if symbol.kind == SymbolKind::Namespace {
                 let remaining_path = path.slice(1..);
-                match self.resolve_relative_symbol(
+                match self.resolve_relative_symbol_with_ambient_merge(
                     &ambient_module,
                     profile_id,
                     node,
@@ -483,7 +483,7 @@ impl Compiler {
                         return Ok(Some(Expression::GlobalReference {
                             path: path.clone(),
                             static_arguments,
-                            target_symbol: resolved_id.into_global(module_id),
+                            target_symbol: resolved_id,
                         }));
                     }
                     Ok((resolved_id, Some(remaining))) => {
@@ -492,7 +492,7 @@ impl Compiler {
                         let root_expr = Expression::GlobalReference {
                             path: resolved_path,
                             static_arguments: None,
-                            target_symbol: resolved_id.into_global(module_id),
+                            target_symbol: resolved_id,
                         };
                         return Ok(Some(self.build_member_chain(
                             expression_id,
@@ -530,6 +530,82 @@ impl Compiler {
     /// Resolve a relative path starting from a symbol.
     /// Returns the resolved symbol and any remaining path segments that couldn't be resolved
     /// (e.g., when hitting a non-namespace symbol with more segments to go).
+    pub(super) fn resolve_relative_symbol_with_ambient_merge(
+        &self,
+        module: &Module,
+        profile_id: ProfileId,
+        node: GlobalNodeIdAny,
+        symbol_id: LocalSymbolId,
+        path: &Path,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+    ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
+        let resolved = self.resolve_relative_symbol(
+            module,
+            profile_id,
+            node,
+            symbol_id,
+            path,
+            space_order,
+            symbols,
+        );
+        let missing = match resolved {
+            Ok((resolved_id, remaining)) => {
+                return Ok((resolved_id.into_global(module.id), remaining));
+            }
+            Err(error @ ResolveError::MissingSymbol { .. }) => error,
+            Err(error) => return Err(error),
+        };
+
+        if !self.module_is_ambient_lib(module) {
+            return Err(missing);
+        }
+
+        let symbol_entry = symbols.get_symbol(symbol_id);
+        let Some(key) = symbol_entry.key else {
+            return Err(missing);
+        };
+        let Some(ambient_sources) =
+            self.get_ambient_lib_symbol_sources_for_space_order(profile_id, key, space_order)
+        else {
+            return Err(missing);
+        };
+
+        for source_symbol in ambient_sources {
+            if source_symbol.module_id == module.id && source_symbol.local_id == symbol_id {
+                continue;
+            }
+
+            self.require_resolve_module_prepare_if_needed(
+                module.id,
+                source_symbol.module_id,
+                profile_id,
+            )?;
+            let source_module = self.program.modules.get(source_symbol.module_id);
+            let source_module = source_module.read();
+            let source_dir = source_module.dir(profile_id);
+            let source_symbols = source_dir.symbols.read();
+
+            match self.resolve_relative_symbol(
+                &source_module,
+                profile_id,
+                node,
+                source_symbol.local_id,
+                path,
+                space_order,
+                &source_symbols,
+            ) {
+                Ok((resolved_id, remaining)) => {
+                    return Ok((resolved_id.into_global(source_symbol.module_id), remaining));
+                }
+                Err(ResolveError::MissingSymbol { .. }) => {}
+                Err(error) => return Err(error),
+            }
+        }
+
+        Err(missing)
+    }
+
     pub(super) fn resolve_relative_symbol(
         &self,
         module: &Module,
@@ -755,7 +831,7 @@ impl Compiler {
         let symbol = symbols.get_symbol(local_id);
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol(
+            match self.resolve_relative_symbol_with_ambient_merge(
                 module,
                 profile_id,
                 node,
@@ -765,24 +841,40 @@ impl Compiler {
                 symbols,
             ) {
                 Ok((resolved_id, None)) => {
-                    return Ok(self.resolve_symbol_to_expression(
-                        module,
-                        resolved_id,
-                        path,
+                    if resolved_id.module_id == module.id {
+                        return Ok(self.resolve_symbol_to_expression(
+                            module,
+                            resolved_id.local_id,
+                            path,
+                            static_arguments,
+                            symbols,
+                        ));
+                    }
+
+                    return Ok(Expression::GlobalReference {
+                        path: path.clone(),
                         static_arguments,
-                        symbols,
-                    ));
+                        target_symbol: resolved_id,
+                    });
                 }
                 Ok((resolved_id, Some(remaining))) => {
                     let resolved_path =
                         path.slice(0..path.segments.len() - remaining.segments.len());
-                    let root_expr = self.resolve_symbol_to_expression(
-                        module,
-                        resolved_id,
-                        &resolved_path,
-                        None,
-                        symbols,
-                    );
+                    let root_expr = if resolved_id.module_id == module.id {
+                        self.resolve_symbol_to_expression(
+                            module,
+                            resolved_id.local_id,
+                            &resolved_path,
+                            None,
+                            symbols,
+                        )
+                    } else {
+                        Expression::GlobalReference {
+                            path: resolved_path,
+                            static_arguments: None,
+                            target_symbol: resolved_id,
+                        }
+                    };
                     return Ok(self.build_member_chain(
                         expression_id,
                         root_expr,

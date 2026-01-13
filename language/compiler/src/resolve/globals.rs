@@ -197,7 +197,7 @@ impl Compiler {
         // resolve namespace members when the root is a namespace
         if symbol.kind == SymbolKind::Namespace {
             let remaining_path = path.slice(1..);
-            match self.resolve_relative_symbol(
+            match self.resolve_relative_symbol_with_ambient_merge(
                 &target_module,
                 profile_id,
                 node,
@@ -210,7 +210,7 @@ impl Compiler {
                     return Ok(Some(Expression::GlobalReference {
                         path: path.clone(),
                         static_arguments,
-                        target_symbol: resolved_id.into_global(target_symbol.module_id),
+                        target_symbol: resolved_id,
                     }));
                 }
                 Ok((resolved_id, Some(remaining))) => {
@@ -219,7 +219,7 @@ impl Compiler {
                     let root_expr = Expression::GlobalReference {
                         path: resolved_path,
                         static_arguments: None,
-                        target_symbol: resolved_id.into_global(target_symbol.module_id),
+                        target_symbol: resolved_id,
                     };
                     return Ok(Some(self.build_member_chain(
                         expression_id,
