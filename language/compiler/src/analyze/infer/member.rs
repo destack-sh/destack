@@ -196,6 +196,130 @@ impl Compiler {
 
                         types.insert_type_from(instantiated_fn, expression_id)
                     }
+                    Type::Object {
+                        call_signatures, ..
+                    } => {
+                        let mut resolved_signatures = Vec::new();
+                        let mut resolved_static_arguments = Vec::new();
+
+                        for signature_id in call_signatures {
+                            let Type::Function {
+                                asynchrony,
+                                cardinality,
+                                static_parameters,
+                                this_parameter,
+                                dynamic_parameters,
+                                return_type,
+                            } = types.get_type(signature_id).clone()
+                            else {
+                                continue;
+                            };
+
+                            let resolved = self.resolve_function_signature(
+                                module,
+                                expression_id.into_any(),
+                                member_symbol,
+                                Some(static_argument_ids),
+                                &static_parameters,
+                                &dynamic_parameters,
+                                return_type,
+                                ctx.profile,
+                                &ctx.options,
+                                tree,
+                                symbols,
+                                types,
+                                infer,
+                            )?;
+                            if resolved_static_arguments.is_empty() {
+                                resolved_static_arguments = resolved.static_arguments.clone();
+                            }
+
+                            let resolved_this_parameter = if inherited.substitutions.is_empty() {
+                                this_parameter
+                            } else {
+                                let mut cache = HashMap::new();
+                                this_parameter.map(|parameter| {
+                                    self.substitute_static_parameters(
+                                        parameter,
+                                        &inherited.substitutions,
+                                        types,
+                                        &mut cache,
+                                    )
+                                })
+                            };
+                            let (resolved_dynamic_parameters, resolved_return_type) =
+                                if inherited.substitutions.is_empty() {
+                                    (resolved.dynamic_parameters, resolved.return_type)
+                                } else {
+                                    let mut cache = HashMap::new();
+                                    let dynamic_parameters = resolved
+                                        .dynamic_parameters
+                                        .iter()
+                                        .map(|parameter| {
+                                            self.substitute_static_parameters(
+                                                *parameter,
+                                                &inherited.substitutions,
+                                                types,
+                                                &mut cache,
+                                            )
+                                        })
+                                        .collect::<Vec<_>>();
+                                    let return_type = resolved.return_type.map(|return_type| {
+                                        self.substitute_static_parameters(
+                                            return_type,
+                                            &inherited.substitutions,
+                                            types,
+                                            &mut cache,
+                                        )
+                                    });
+                                    (dynamic_parameters, return_type)
+                                };
+
+                            let instantiated_fn = Type::Function {
+                                asynchrony,
+                                cardinality,
+                                static_parameters: Vec::new(),
+                                this_parameter: resolved_this_parameter,
+                                dynamic_parameters: resolved_dynamic_parameters,
+                                return_type: resolved_return_type,
+                            };
+                            let signature_ty_id =
+                                types.insert_type_from(instantiated_fn, expression_id);
+                            resolved_signatures.push(signature_ty_id);
+                        }
+
+                        if let Some(member_symbol) = member_symbol {
+                            let mut instance_arguments = inherited.arguments.clone();
+                            instance_arguments.extend(resolved_static_arguments);
+
+                            if !instance_arguments.is_empty() {
+                                let instance_id = self.register_instance_for_node(
+                                    expression_id.into_global_any(module.id),
+                                    member_symbol,
+                                    instance_arguments,
+                                    types,
+                                );
+                                member_instance_id = Some(instance_id);
+                            }
+                        }
+
+                        if resolved_signatures.is_empty() {
+                            self.error(AnalyzeError::MissingType {
+                                node: expression_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            });
+                            member_ty_id
+                        } else {
+                            let overload_set = Type::Object {
+                                fields: Vec::new(),
+                                call_signatures: resolved_signatures,
+                                construct_signatures: Vec::new(),
+                                index_signatures: Vec::new(),
+                            };
+                            types.insert_type_from(overload_set, expression_id)
+                        }
+                    }
                     _ => {
                         self.error(AnalyzeError::MissingType {
                             node: expression_id

@@ -1219,12 +1219,10 @@ impl Compiler {
             // object type: look up field directly
             Type::Object { fields, .. } => {
                 // check explicit object fields first
-                let field_ty = fields
-                    .iter()
-                    .find(|field| field.key.matches(member_key))
-                    .map(|field| field.ty);
-                if field_ty.is_some() {
-                    return Ok(field_ty);
+                if let Some(field_ty) =
+                    self.member_type_from_fields(fields, member_key, node_id, types)
+                {
+                    return Ok(Some(field_ty));
                 }
 
                 // fall back to implicit Object members
@@ -1362,6 +1360,46 @@ impl Compiler {
 
             _ => Ok(None),
         }
+    }
+
+    /// Build a member type from fields that share the same key.
+    fn member_type_from_fields(
+        &self,
+        fields: &[TypeField],
+        member_key: &StaticKey,
+        node_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let mut matching = Vec::new();
+        for field in fields {
+            if field.key.matches(member_key) {
+                matching.push(field.ty);
+            }
+        }
+
+        if matching.is_empty() {
+            return None;
+        }
+
+        if matching.len() == 1 {
+            return Some(matching[0]);
+        }
+
+        let all_functions = matching
+            .iter()
+            .all(|ty_id| matches!(types.get_type(*ty_id), Type::Function { .. }));
+        if all_functions {
+            let overload_set = Type::Object {
+                fields: Vec::new(),
+                call_signatures: matching,
+                construct_signatures: Vec::new(),
+                index_signatures: Vec::new(),
+            };
+            return Some(types.insert_type_from_any(overload_set, node_id));
+        }
+
+        let source_type_id = matching[0];
+        Some(self.union_type_from_list(matching, source_type_id, types))
     }
 
     /// Infer the index signature value type for a member key.
@@ -1519,11 +1557,13 @@ impl Compiler {
                 continue;
             }
             if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
-                let ty = types.get_type(ty_id);
-                if let Type::Object { fields, .. } = ty
-                    && let Some(field) = fields.iter().find(|f| f.key.matches(member_key))
-                {
-                    return Ok(Some(field.ty));
+                let ty = types.get_type(ty_id).clone();
+                if let Type::Object { fields, .. } = ty {
+                    if let Some(field_ty) =
+                        self.member_type_from_fields(&fields, member_key, node_id, types)
+                    {
+                        return Ok(Some(field_ty));
+                    }
                 }
             }
         }

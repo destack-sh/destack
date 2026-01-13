@@ -4,9 +4,9 @@ use super::member::MemberResolution;
 use super::parameter::StaticParameterKind;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Expression, GlobalSymbolId, InferTable, LocalInstanceId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, ResolvedSignature, StaticArgument, StaticKey,
-    SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Declaration, Expression, FunctionKind, GlobalSymbolId, InferTable,
+    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, ResolvedSignature,
+    StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -27,7 +27,7 @@ pub(super) struct ResolvedMemberFunction {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Collect all callable signatures for a type (for #Overloads support).
+    /// Collect all callable signatures for a type.
     fn call_signatures_for_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> Vec<LocalTypeId> {
         // use direct function types as call signatures
         if matches!(types.get_type(ty_id), Type::Function { .. }) {
@@ -135,37 +135,6 @@ impl Compiler {
         Ok(Some(resolved))
     }
 
-    /// Resolve the literal argument types when every argument is a scalar literal.
-    /// NOTE #Cleanup #Overloads: literal only selection avoids contextual widening
-    fn literal_argument_types(
-        &self,
-        arguments: &[LocalNodeId<Argument>],
-        tree: &NodeTree,
-        types: &mut TypeTable,
-    ) -> Option<Vec<LocalTypeId>> {
-        let mut literal_types = Vec::with_capacity(arguments.len());
-
-        // bail out if any argument is non-literal
-        for argument_id in arguments {
-            let argument = tree.get(*argument_id);
-            if matches!(argument, Argument::Spread { .. }) {
-                return None;
-            }
-
-            let value_id = argument.value();
-            let Expression::ScalarLiteral { value } = tree.get(value_id) else {
-                return None;
-            };
-
-            let literal_ty = self.infer_scalar_literal(value);
-            let ty = Type::TypeLiteral { value: literal_ty };
-            let ty_id = types.insert_type_from_any(ty, value_id.into_any());
-            literal_types.push(ty_id);
-        }
-
-        Some(literal_types)
-    }
-
     /// Select the matching call signature overload for a call expression.
     fn select_call_signature(
         &self,
@@ -188,14 +157,8 @@ impl Compiler {
             return Ok(None);
         }
 
-        // collect the argument types for literal only selection (until full #Overloads support)
-        let Some(argument_types) = self.literal_argument_types(dynamic_arguments, tree, types)
-        else {
-            return Ok(None);
-        };
-
-        // select the matching overload
-        // FUGU #Broken #Overloads: implement full overload selection (instead of literal heuristic)
+        // resolve and filter applicable overloads
+        let mut candidates = Vec::new();
         for signature_ty_id in signature_ids {
             let Some(resolved) = self.resolve_call_signature(
                 module,
@@ -215,32 +178,217 @@ impl Compiler {
                 continue;
             };
 
-            let mut matches = true;
-            for (argument_ty_id, param_ty_id) in argument_types
-                .iter()
-                .zip(resolved.dynamic_parameters.iter())
+            if !self.is_signature_applicable(
+                module,
+                profile,
+                &resolved,
+                dynamic_arguments,
+                tree,
+                symbols,
+                types,
+                options,
+            ) {
+                continue;
+            }
+
+            candidates.push((*signature_ty_id, resolved));
+        }
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+        if candidates.len() == 1 {
+            return Ok(Some(candidates.remove(0)));
+        }
+
+        // find the most specific signature among candidates
+        let mut maximal = Vec::new();
+        for (index, candidate) in candidates.iter().enumerate() {
+            let mut dominated = false;
+            for (other_index, other) in candidates.iter().enumerate() {
+                if index == other_index {
+                    continue;
+                }
+                if self.is_signature_more_specific(
+                    module,
+                    profile,
+                    &other.1,
+                    &candidate.1,
+                    symbols,
+                    types,
+                    options,
+                ) {
+                    dominated = true;
+                    break;
+                }
+            }
+            if !dominated {
+                maximal.push(index);
+            }
+        }
+
+        if maximal.len() == 1 {
+            let index = maximal[0];
+            return Ok(Some(candidates.remove(index)));
+        }
+
+        let candidates = callee_symbol.into_iter().collect();
+        Err(AnalyzeError::AmbiguousOverload {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            candidates,
+        })
+    }
+
+    /// Check if a resolved signature is applicable to the argument list.
+    fn is_signature_applicable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        resolved: &ResolvedSignature,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        if dynamic_arguments.len() > resolved.dynamic_parameters.len() {
+            return false;
+        }
+
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            let Some(param_ty_id) = resolved.dynamic_parameters.get(index).copied() else {
+                return false;
+            };
+
+            let argument = tree.get(*argument_id);
+            if matches!(argument, Argument::Spread { .. }) {
+                continue;
+            }
+            let argument_value_id = argument.value();
+            let argument_value = tree.get(argument_value_id);
+
+            if let Expression::Declaration { declaration } = argument_value
+                && let Declaration::Function { signature, .. } = tree.get(*declaration)
+                && matches!(signature.kind, FunctionKind::Lambda)
             {
+                let param_ty = types.get_type(param_ty_id);
+                let (expected_params, expected_return) = match param_ty {
+                    Type::Function {
+                        dynamic_parameters,
+                        return_type,
+                        ..
+                    } => (dynamic_parameters.as_slice(), *return_type),
+                    Type::Object {
+                        call_signatures, ..
+                    } => {
+                        let Some(signature_id) = call_signatures.first() else {
+                            return false;
+                        };
+                        let Type::Function {
+                            dynamic_parameters,
+                            return_type,
+                            ..
+                        } = types.get_type(*signature_id)
+                        else {
+                            return false;
+                        };
+                        (dynamic_parameters.as_slice(), *return_type)
+                    }
+                    _ => return false,
+                };
+
+                if signature.dynamic_parameters.len() > expected_params.len() {
+                    return false;
+                }
+
+                let expects_predicate = expected_return.is_some_and(|return_ty_id| {
+                    matches!(types.get_type(return_ty_id), Type::Predicate { .. })
+                });
+                if expects_predicate {
+                    let has_predicate_return = signature.return_type.is_some_and(|return_id| {
+                        matches!(tree.get(return_id), Expression::TypePredicate { .. })
+                    });
+                    if !has_predicate_return {
+                        return false;
+                    }
+                }
+
+                continue;
+            }
+
+            if let Expression::ScalarLiteral { value } = argument_value {
+                let literal_ty = self.infer_scalar_literal(value);
+                let ty = Type::TypeLiteral { value: literal_ty };
+                let literal_ty_id = types.insert_type_from_any(ty, argument_value_id.into_any());
                 if self.is_type_assignable(
                     module,
                     profile,
                     symbols,
-                    *param_ty_id,
-                    *argument_ty_id,
+                    param_ty_id,
+                    literal_ty_id,
                     types,
                     options,
                 ) == Assignability::NotAssignable
                 {
-                    matches = false;
-                    break;
+                    return false;
                 }
-            }
-
-            if matches {
-                return Ok(Some((*signature_ty_id, resolved)));
             }
         }
 
-        Ok(None)
+        true
+    }
+
+    /// Return true when the left signature is more specific than the right.
+    fn is_signature_more_specific(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left: &ResolvedSignature,
+        right: &ResolvedSignature,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
+            return false;
+        }
+
+        let mut is_strict = false;
+        for (left_param, right_param) in left
+            .dynamic_parameters
+            .iter()
+            .zip(right.dynamic_parameters.iter())
+        {
+            let left_to_right = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                *right_param,
+                *left_param,
+                types,
+                options,
+            );
+            if left_to_right == Assignability::NotAssignable {
+                return false;
+            }
+
+            let right_to_left = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                *left_param,
+                *right_param,
+                types,
+                options,
+            );
+            if right_to_left == Assignability::NotAssignable {
+                is_strict = true;
+            }
+        }
+
+        is_strict
     }
 
     /// Infer a call expression.
@@ -399,6 +547,30 @@ impl Compiler {
             )?;
             let (_signature_ty_id, resolved) = if let Some(selection) = selection {
                 selection
+            } else if call_signatures.len() > 1 {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: callee_ty_id.into_global(module.id),
+                });
+                for argument_id in dynamic_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
             } else {
                 let signature_ty_id = call_signatures[0];
                 let resolved = self.resolve_call_signature(
