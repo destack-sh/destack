@@ -1021,6 +1021,7 @@ dependencies = [
  "destack_source",
  "destack_unicode",
  "destack_vm",
+ "destack_vm_abi",
 ]
 
 [[package]]
@@ -1079,10 +1080,15 @@ dependencies = [
  "destack_base",
  "destack_mir",
  "destack_source",
+ "destack_vm_abi",
  "perf-event",
  "pprof",
  "smallvec",
 ]
+
+[[package]]
+name = "destack_vm_abi"
+version = "0.51.6"
 
 [[package]]
 name = "destack_vscode"

@@ -18,7 +18,7 @@ use destack_source::{
     MemoryFileSystem, ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri,
     print_diagnostics, print_diff,
 };
-use destack_vm::{Interpreter, MachineOptions, Value};
+use destack_vm::{Isolate, IsolateOptions, Value};
 use destack_workspace::{Module, ProfileId, Program, Session, Target, TargetId};
 use parking_lot::RwLock;
 
@@ -799,14 +799,14 @@ impl TestProgram {
     }
 
     /// Create a fresh MIR interpreter for the module and target.
-    pub fn mir_interpreter(&self, module_id: ModuleId, target: &str) -> Interpreter {
+    pub fn mir_isolate(&self, module_id: ModuleId, target: &str) -> Isolate {
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let target_id = TargetId::new(module.package_id, target);
         let mir = module.mir(&target_id);
         let tree = mir.tree.read().clone();
         let strings = mir.strings.clone().into_immutable();
-        Interpreter::with_options(tree, strings, MachineOptions::test())
+        Isolate::with_options(tree, strings, IsolateOptions::test())
     }
 
     /// Run a MIR function by name and return its output value.
@@ -817,7 +817,7 @@ impl TestProgram {
         function: &str,
         arguments: &[Value],
     ) -> Value {
-        let mut interpreter = self.mir_interpreter(module_id, target);
+        let mut interpreter = self.mir_isolate(module_id, target);
         let output = interpreter
             .run_function_by_name(function, arguments)
             .expect("execution failed");

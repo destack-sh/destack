@@ -2,9 +2,9 @@ use destack_mir as mir;
 use destack_mir::parse::Parser;
 
 use crate::diagnostic::Error;
-use crate::interpreter::{Interpreter, MachineOptions};
 use crate::memory::Value;
 use crate::tests::{run_mir, run_mir_expect, run_mir_ok};
+use crate::{Isolate, IsolateOptions};
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -236,9 +236,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .map(|(id, _)| id)
         .expect("double not found");
 
-    // create interpreter and run
-    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
-    let result = interpreter
+    // create isolate and run
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
+    let result = isolate
         .run_function_by_name(
             "caller",
             &[Value::function_pointer(double_id), Value::int32(21)],
@@ -259,10 +259,10 @@ block0(v0: fn(i32) -> i32, v1: i32):
 }
 "#;
     let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
-    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
 
     // pass an integer instead of a function pointer
-    let result = interpreter.run_function_by_name("caller", &[Value::int32(999), Value::int32(21)]);
+    let result = isolate.run_function_by_name("caller", &[Value::int32(999), Value::int32(21)]);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::TypeMismatch { .. }));
@@ -334,9 +334,9 @@ block0(v0: i32, v1: fn(i32, i32) -> i32):
         .map(|(id, _)| id)
         .expect("countdown not found");
 
-    // create interpreter and run
-    let mut interpreter = Interpreter::with_options(tree, strings, MachineOptions::test());
-    let result = interpreter
+    // create isolate and run
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
+    let result = isolate
         .run_function_by_name(
             "entry",
             &[Value::int32(200), Value::function_pointer(countdown_id)],

@@ -28,16 +28,16 @@ mod perf;
 mod program;
 
 use destack_mir as mir;
-use destack_vm::interpreter::Interpreter;
+use destack_vm::Isolate;
 use destack_vm::memory::Value;
 
-/// Return the function id for a named function in the interpreter.
+/// Return the function id for a named function in the isolate.
 pub(crate) fn function_id_by_name(
-    interp: &Interpreter,
+    isolate: &Isolate,
     name: &str,
 ) -> mir::LocalNodeId<mir::Function> {
     // resolve function id
-    let function_id = interp
+    let function_id = isolate
         .function_id_by_name(name)
         .unwrap_or_else(|_| panic!("function '{name}' not found"));
 
@@ -45,10 +45,10 @@ pub(crate) fn function_id_by_name(
     function_id
 }
 
-/// Return a function pointer value for a named function in the interpreter.
-pub(crate) fn function_pointer_by_name(interp: &Interpreter, name: &str) -> Value {
+/// Return a function pointer value for a named function in the isolate.
+pub(crate) fn function_pointer_by_name(isolate: &Isolate, name: &str) -> Value {
     // resolve function id
-    let function_id = function_id_by_name(interp, name);
+    let function_id = function_id_by_name(isolate, name);
 
     // build pointer value
     Value::function_pointer(function_id)

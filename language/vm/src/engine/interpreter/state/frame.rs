@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 
 use destack_mir as mir;
 
-use super::threaded::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
+use super::super::decode::{INVALID_VALUE_ID, ThreadedBlock, ThreadedFunction};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::{HeapCell, HeapHandle, Value};
 
@@ -260,7 +260,7 @@ impl Frame {
     }
 
     /// Clone this frame for a forked continuation.
-    pub(super) fn clone_for_fork(&self) -> Self {
+    pub(crate) fn clone_for_fork(&self) -> Self {
         // clone stack cells for the forked frame
         let stack_cells = self
             .stack_cells

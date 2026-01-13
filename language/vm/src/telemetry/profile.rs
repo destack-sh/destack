@@ -3,103 +3,10 @@ use std::fmt::Write;
 #[cfg(feature = "stats")]
 use std::time::{Duration, Instant};
 
-/// Statistics collected during interpreter execution.
-#[derive(Debug, Clone, Default)]
-pub struct Statistics {
-    /// Total number of MIR instructions executed (original IR).
-    pub mir_instructions_executed: u64,
-    /// Total number of threaded instructions executed (after decode/fusion).
-    pub threaded_instructions_executed: u64,
-    /// Total number of function calls made.
-    pub calls_made: u64,
-    /// Maximum call stack depth reached.
-    pub max_stack_depth: usize,
-    /// Number of heap allocations performed (always tracked for gc decisions).
-    pub heap_allocations: u64,
-
-    // detailed statistics: only tracked when the `stats` feature is enabled
-    /// Number of branch and switch instructions executed.
-    #[cfg(feature = "stats")]
-    pub branches: u64,
-    /// Number of load instructions executed.
-    #[cfg(feature = "stats")]
-    pub loads: u64,
-    /// Number of store instructions executed.
-    #[cfg(feature = "stats")]
-    pub stores: u64,
-}
-
-/// Increment a statistic counter (no-op when stats feature is disabled).
-#[cfg(feature = "stats")]
-macro_rules! stat_inc {
-    ($stats:expr, $field:ident) => {
-        $stats.$field += 1
-    };
-}
-
-/// Increment a statistic counter (no-op when stats feature is disabled).
-#[cfg(not(feature = "stats"))]
-macro_rules! stat_inc {
-    ($stats:expr, $field:ident) => {};
-}
-
-pub(crate) use stat_inc;
-
-impl Statistics {
-    /// Create new empty statistics.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Reset all statistics to zero.
-    pub fn reset(&mut self) {
-        *self = Self::default();
-    }
-
-    /// Get branch count (0 when stats feature is disabled).
-    #[inline]
-    pub fn branches(&self) -> u64 {
-        #[cfg(feature = "stats")]
-        {
-            self.branches
-        }
-        #[cfg(not(feature = "stats"))]
-        {
-            0
-        }
-    }
-
-    /// Get load count (0 when stats feature is disabled).
-    #[inline]
-    pub fn loads(&self) -> u64 {
-        #[cfg(feature = "stats")]
-        {
-            self.loads
-        }
-        #[cfg(not(feature = "stats"))]
-        {
-            0
-        }
-    }
-
-    /// Get store count (0 when stats feature is disabled).
-    #[inline]
-    pub fn stores(&self) -> u64 {
-        #[cfg(feature = "stats")]
-        {
-            self.stores
-        }
-        #[cfg(not(feature = "stats"))]
-        {
-            0
-        }
-    }
-}
-
 /// Instruction timing profile collected via sampling.
 #[cfg(feature = "stats")]
 #[derive(Debug, Clone)]
-pub(super) struct InstructionProfile {
+pub(crate) struct InstructionProfile {
     /// Sampling interval for opcode profiling.
     sample_interval: Duration,
     /// Next sampling deadline.
@@ -113,7 +20,7 @@ pub(super) struct InstructionProfile {
 /// Summary entry for an opcode sample.
 #[cfg(feature = "stats")]
 #[derive(Debug, Clone)]
-pub(super) struct InstructionProfileEntry {
+pub(crate) struct InstructionProfileEntry {
     /// Opcode label.
     pub name: &'static str,
     /// Samples recorded for this opcode.
@@ -125,7 +32,7 @@ pub(super) struct InstructionProfileEntry {
 /// Summary for an instruction profile.
 #[cfg(feature = "stats")]
 #[derive(Debug, Clone)]
-pub(super) struct InstructionProfileSummary {
+pub(crate) struct InstructionProfileSummary {
     /// Total samples recorded.
     pub total_samples: u64,
     /// Top sampled opcode entries.
@@ -137,7 +44,7 @@ pub(super) struct InstructionProfileSummary {
 #[cfg(feature = "stats")]
 impl InstructionProfile {
     /// Create a new instruction profile sampler.
-    pub(super) fn new(sample_interval: Duration) -> Self {
+    pub(crate) fn new(sample_interval: Duration) -> Self {
         // ensure non-zero interval
         let sample_interval = if sample_interval.is_zero() {
             Duration::from_micros(100)
@@ -155,14 +62,14 @@ impl InstructionProfile {
     }
 
     /// Reset collected samples while keeping the same interval.
-    pub(super) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.next_sample = Instant::now() + self.sample_interval;
         self.samples.clear();
         self.total_samples = 0;
     }
 
     /// Record a sample for the given opcode if the interval elapsed.
-    pub(super) fn maybe_sample(&mut self, opcode_name: &'static str) {
+    pub(crate) fn maybe_sample(&mut self, opcode_name: &'static str) {
         let now = Instant::now();
         if now < self.next_sample {
             return;
@@ -184,7 +91,7 @@ impl InstructionProfile {
     }
 
     /// Summarize sampled opcode data up to a target percent coverage.
-    pub(super) fn summary_target(&self, target_percent: f64) -> InstructionProfileSummary {
+    pub(crate) fn summary_target(&self, target_percent: f64) -> InstructionProfileSummary {
         // handle empty samples
         if self.total_samples == 0 {
             return InstructionProfileSummary {
@@ -239,7 +146,7 @@ impl InstructionProfile {
 #[cfg(feature = "stats")]
 impl InstructionProfileSummary {
     /// Format the summary as a compact single line.
-    pub(super) fn format_compact(&self) -> String {
+    pub(crate) fn format_compact(&self) -> String {
         if self.total_samples == 0 {
             return "no samples".to_string();
         }

@@ -6,15 +6,19 @@ use std::ptr::NonNull;
 
 use destack_mir as mir;
 
+use super::super::state::{Frame, InterpreterContext};
 use crate::diagnostic::Error;
 use crate::memory::{ReferenceMeta, Value};
-use crate::{Frame, Interpreter};
 
 /// Handler function for threaded dispatch.
 ///
 /// Takes state, current block's instructions, and program counter.
 /// Uses `become` to tail-call next handler, or returns `ControlFlow` for special cases.
-pub type ThreadedHandler = fn(&mut ThreadedState, &[ThreadedInstruction], usize) -> ControlFlow;
+pub type ThreadedHandler = for<'ctx, 'iso> fn(
+    &mut ThreadedState<'ctx, 'iso>,
+    &[ThreadedInstruction],
+    usize,
+) -> ControlFlow;
 
 /// Argument range within the threaded function argument pool.
 #[derive(Clone, Copy, Debug)]
@@ -163,13 +167,13 @@ pub(crate) const INVALID_VALUE_ID: u32 = u32::MAX;
 pub(crate) const INVALID_FUNCTION_INDEX: u32 = u32::MAX;
 
 /// Sentinel field count for unknown aggregate layouts.
-pub(super) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
+pub(crate) const UNKNOWN_FIELD_COUNT: u32 = u32::MAX;
 
 /// Sentinel array length for unknown layouts.
-pub(super) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
+pub(crate) const UNKNOWN_ARRAY_LENGTH: u64 = u64::MAX;
 
 /// Sentinel slot count for unknown allocation layouts.
-pub(super) const UNKNOWN_SLOT_COUNT: u32 = u32::MAX;
+pub(crate) const UNKNOWN_SLOT_COUNT: u32 = u32::MAX;
 
 /// Pack an optional SSA value into a sentinel encoding.
 pub(crate) fn pack_optional_value(value: Option<mir::Value>) -> mir::Value {
@@ -714,11 +718,11 @@ pub struct CopyPair {
 }
 
 /// Execution state for threaded interpreter.
-pub struct ThreadedState<'a> {
+pub struct ThreadedState<'ctx, 'iso> {
     /// Index of the current frame in the call stack.
     pub frame_index: usize,
     /// Interpreter reference for heap and globals.
-    pub interpreter: &'a mut Interpreter,
+    pub(crate) interpreter: &'ctx mut InterpreterContext<'iso>,
     /// Whether bounds checks are enabled for this execution.
     pub bounds_checks: bool,
     /// Whether null checks are enabled for this execution.
@@ -753,7 +757,7 @@ impl fmt::Debug for ThreadedInstruction {
     }
 }
 
-impl fmt::Debug for ThreadedState<'_> {
+impl fmt::Debug for ThreadedState<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ThreadedState")
             .field("frame_index", &self.frame_index)
@@ -768,24 +772,29 @@ impl fmt::Debug for ThreadedState<'_> {
     }
 }
 
-impl<'a> ThreadedState<'a> {
+impl<'ctx, 'iso> ThreadedState<'ctx, 'iso> {
     /// Create state for the current frame.
-    pub fn new(
-        interpreter: &'a mut Interpreter,
+    pub(crate) fn new(
+        interpreter: &'ctx mut InterpreterContext<'iso>,
         frame_index: usize,
         argument_pool: &[mir::Value],
         switch_case_pool: &[SwitchCase],
     ) -> Self {
         // resolve check policies
-        let mode = interpreter.options.execution_mode;
-        let bounds_checks = interpreter.options.bounds_checks.is_enabled_for(mode);
-        let null_checks = interpreter.options.null_checks.is_enabled_for(mode);
-        let collect_stats = interpreter.options.collect_stats;
+        let mode = interpreter.isolate.options.execution.mode;
+        let bounds_checks = interpreter
+            .isolate
+            .options
+            .checks
+            .bounds
+            .is_enabled_for(mode);
+        let null_checks = interpreter.isolate.options.checks.null.is_enabled_for(mode);
+        let collect_stats = interpreter.isolate.options.telemetry.collect_stats;
 
         // get frame pointer
         // #Safety: frame_index always points at the current frame
         let frame =
-            unsafe { interpreter.call_stack.get_unchecked_mut(frame_index) as *mut super::Frame };
+            unsafe { interpreter.engine.call_stack.get_unchecked_mut(frame_index) as *mut Frame };
 
         // load frame bounds
         let value_base = unsafe { (*frame).value_base };
@@ -795,17 +804,17 @@ impl<'a> ThreadedState<'a> {
 
         // validate stack bounds in debug builds
         debug_assert!(
-            value_base + value_count <= interpreter.value_stack.len(),
+            value_base + value_count <= interpreter.engine.value_stack.len(),
             "value stack out of bounds for frame"
         );
         debug_assert!(
-            local_base + local_count <= interpreter.local_stack.len(),
+            local_base + local_count <= interpreter.engine.local_stack.len(),
             "local stack out of bounds for frame"
         );
 
         // cache stack pointers
-        let values_ptr = interpreter.value_stack.as_mut_ptr();
-        let locals_ptr = interpreter.local_stack.as_mut_ptr();
+        let values_ptr = interpreter.engine.value_stack.as_mut_ptr();
+        let locals_ptr = interpreter.engine.local_stack.as_mut_ptr();
 
         // assemble state
         Self {
@@ -841,17 +850,17 @@ impl<'a> ThreadedState<'a> {
 
         // validate stack bounds in debug builds
         debug_assert!(
-            value_base + value_count <= self.interpreter.value_stack.len(),
+            value_base + value_count <= self.interpreter.engine.value_stack.len(),
             "value stack out of bounds for frame"
         );
         debug_assert!(
-            local_base + local_count <= self.interpreter.local_stack.len(),
+            local_base + local_count <= self.interpreter.engine.local_stack.len(),
             "local stack out of bounds for frame"
         );
 
         // cache stack pointers
-        let values_ptr = self.interpreter.value_stack.as_mut_ptr();
-        let locals_ptr = self.interpreter.local_stack.as_mut_ptr();
+        let values_ptr = self.interpreter.engine.value_stack.as_mut_ptr();
+        let locals_ptr = self.interpreter.engine.local_stack.as_mut_ptr();
         self.values = unsafe { values_ptr.add(value_base) };
         self.locals = unsafe { locals_ptr.add(local_base) };
         self.value_count = value_count;
@@ -868,12 +877,17 @@ impl<'a> ThreadedState<'a> {
     pub fn enter_frame(&mut self, frame_index: usize, threaded: &ThreadedFunction) {
         // validate frame index in debug builds
         debug_assert!(
-            frame_index < self.interpreter.call_stack.len(),
+            frame_index < self.interpreter.engine.call_stack.len(),
             "frame index out of bounds"
         );
 
         // update cached frame pointer
-        let frame = unsafe { self.interpreter.call_stack.get_unchecked_mut(frame_index) };
+        let frame = unsafe {
+            self.interpreter
+                .engine
+                .call_stack
+                .get_unchecked_mut(frame_index)
+        };
         self.frame_index = frame_index;
         self.frame = frame as *mut Frame;
 
@@ -885,7 +899,7 @@ impl<'a> ThreadedState<'a> {
     #[inline(always)]
     pub fn maybe_profile_instruction(&mut self, instruction: &ThreadedInstruction) {
         #[cfg(feature = "stats")]
-        if let Some(profile) = self.interpreter.instruction_profile.as_mut() {
+        if let Some(profile) = self.interpreter.engine.instruction_profile.as_mut() {
             profile.maybe_sample(instruction.data.opcode_name());
         }
         #[cfg(not(feature = "stats"))]
@@ -896,15 +910,16 @@ impl<'a> ThreadedState<'a> {
 
     /// Get the current frame mutably.
     #[inline(always)]
-    pub fn current_frame_mut(&mut self) -> &mut super::Frame {
+    pub fn current_frame_mut(&mut self) -> &mut Frame {
         // #Safety: frame pointer is valid for current block execution
         unsafe { &mut *self.frame }
     }
 
     /// Get a frame by index.
     #[inline(always)]
-    pub fn frame_by_index(&self, frame_index: usize) -> Result<&super::Frame, Error> {
+    pub fn frame_by_index(&self, frame_index: usize) -> Result<&Frame, Error> {
         self.interpreter
+            .engine
             .call_stack
             .get(frame_index)
             .ok_or(Error::InvalidHeapHandle)
@@ -912,8 +927,9 @@ impl<'a> ThreadedState<'a> {
 
     /// Get a frame by index mutably.
     #[inline(always)]
-    pub fn frame_by_index_mut(&mut self, frame_index: usize) -> Result<&mut super::Frame, Error> {
+    pub fn frame_by_index_mut(&mut self, frame_index: usize) -> Result<&mut Frame, Error> {
         self.interpreter
+            .engine
             .call_stack
             .get_mut(frame_index)
             .ok_or(Error::InvalidHeapHandle)

@@ -18,7 +18,7 @@ function greet(): string {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    let mut interpreter = test.mir_interpreter(module_id, "native");
+    let mut interpreter = test.mir_isolate(module_id, "native");
     let output = interpreter
         .run_function_by_name("greet", &[])
         .expect("execution failed");

@@ -1,11 +1,13 @@
 //! Memory management for the Destack VM.
 
+mod gc;
 mod managed;
 mod raw;
 mod slot;
 pub(crate) mod string;
 mod value;
 
+pub use gc::GcStats;
 pub use managed::ManagedHeap;
 pub(crate) use raw::RawCellStorage;
 pub use raw::RawHeap;

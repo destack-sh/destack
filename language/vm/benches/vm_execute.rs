@@ -33,9 +33,9 @@ fn benchmark_sizes(program: &Program) -> Vec<i64> {
 /// Run a benchmark program at various input sizes.
 fn bench_program(c: &mut Criterion, group_name: &str, program: &Program) {
     let mut group = c.benchmark_group(group_name);
-    let mut interp = program.interpreter();
-    let entry_id = program.entry_id(&interp);
-    let base_args = program.args_for_profile(&interp, program::BenchProfileKind::Quick);
+    let mut isolate = program.isolate();
+    let entry_id = program.entry_id(&isolate);
+    let base_args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
     let sizes = benchmark_sizes(program);
     let scale_axis = program
         .scales
@@ -43,7 +43,7 @@ fn bench_program(c: &mut Criterion, group_name: &str, program: &Program) {
         .find(|axis| axis.calibrate)
         .map(|axis| axis.arg_index);
 
-    for &n in sizes {
+    for &n in &sizes {
         // apply scale axis for the program
         let mut args = base_args.clone();
         if let Some(axis) = scale_axis
@@ -59,9 +59,7 @@ fn bench_program(c: &mut Criterion, group_name: &str, program: &Program) {
         // run the benchmark
         group.bench_with_input(BenchmarkId::new(program.name, n), &n, |b, _| {
             b.iter(|| {
-                let result = interp
-                    .run_function(entry_id, &args)
-                    .expect("execution failed");
+                let result = program.run_or_panic(&mut isolate, entry_id, &args);
                 black_box(result)
             });
         });
@@ -94,9 +92,9 @@ fn bench_calls(c: &mut Criterion) {
 /// Memory benchmarks: allocation, load/store, linked list.
 fn bench_memory(c: &mut Criterion) {
     for program in program::memory::ALL {
-        let mut interp = program.interpreter();
-        let entry_id = program.entry_id(&interp);
-        let base_args = program.args_for_profile(&interp, program::BenchProfileKind::Quick);
+        let mut isolate = program.isolate();
+        let entry_id = program.entry_id(&isolate);
+        let base_args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
         let sizes = benchmark_sizes(program);
         let scale_axis = program
             .scales
@@ -105,7 +103,7 @@ fn bench_memory(c: &mut Criterion) {
             .map(|axis| axis.arg_index);
         let mut group = c.benchmark_group("memory");
 
-        for &n in sizes {
+        for &n in &sizes {
             let mut args = base_args.clone();
             if let Some(axis) = scale_axis
                 && axis < args.len()
@@ -120,10 +118,8 @@ fn bench_memory(c: &mut Criterion) {
             // benchmark with gc before each run
             group.bench_with_input(BenchmarkId::new(program.name, n), &n, |b, _| {
                 b.iter(|| {
-                    let _ = interp.collect_garbage();
-                    let result = interp
-                        .run_function(entry_id, &args)
-                        .expect("execution failed");
+                    let _ = isolate.collect_garbage();
+                    let result = program.run_or_panic(&mut isolate, entry_id, &args);
                     black_box(result)
                 });
             });

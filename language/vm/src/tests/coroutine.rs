@@ -1,5 +1,5 @@
+use crate::ExecutionOutcome;
 use crate::diagnostic::Error;
-use crate::interpreter::ExecutionOutcome;
 use crate::memory::Value;
 
 /// Yield returns a value and resumes with the provided argument.
@@ -17,11 +17,11 @@ block1(v2: i32, v3: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
         .expect("execution failed");
 
@@ -33,7 +33,7 @@ block1(v2: i32, v3: i32):
     assert_eq!(yielded_value, Value::int32(5));
 
     // resume with a value and verify completion
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(11))
         .expect("resume failed");
     let output = match outcome {
@@ -57,11 +57,11 @@ block1(v2: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_ignore", &[Value::int32(9)])
         .expect("execution failed");
 
@@ -73,7 +73,7 @@ block1(v2: i32):
     assert_eq!(yielded_value, Value::int32(1));
 
     // resume and verify the resume value is ignored
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(100))
         .expect("resume failed");
     let output = match outcome {
@@ -101,11 +101,11 @@ block2(v5: i32, v6: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture first yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_twice", &[Value::int32(4)])
         .expect("execution failed");
 
@@ -117,7 +117,7 @@ block2(v5: i32, v6: i32):
     assert_eq!(yielded_value, Value::int32(2));
 
     // resume for second yield
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(3))
         .expect("resume failed");
 
@@ -129,7 +129,7 @@ block2(v5: i32, v6: i32):
     assert_eq!(yielded_value, Value::int32(7));
 
     // resume for completion
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(10))
         .expect("resume failed");
     let output = match outcome {
@@ -153,11 +153,11 @@ block1(v2: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_no_args", &[Value::int32(3)])
         .expect("execution failed");
 
@@ -169,7 +169,7 @@ block1(v2: i32):
     assert_eq!(yielded_value, Value::int32(4));
 
     // resume and verify resumed value is returned
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(9))
         .expect("resume failed");
     let output = match outcome {
@@ -198,11 +198,11 @@ block1(v2: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_with_local", &[Value::int32(1)])
         .expect("execution failed");
 
@@ -214,7 +214,7 @@ block1(v2: i32):
     assert_eq!(yielded_value, Value::int32(4));
 
     // resume and verify local survives
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(6))
         .expect("resume failed");
     let output = match outcome {
@@ -241,11 +241,11 @@ block1(v3: i32, v4: i32, v5: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_prefix", &[Value::int32(5)])
         .expect("execution failed");
 
@@ -257,7 +257,7 @@ block1(v3: i32, v4: i32, v5: i32):
     assert_eq!(yielded_value, Value::int32(10));
 
     // resume and verify argument ordering
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
@@ -289,11 +289,11 @@ block3(v12: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_trailing", &[Value::int32(2)])
         .expect("execution failed");
 
@@ -305,7 +305,7 @@ block3(v12: i32):
     assert_eq!(yielded_value, Value::int32(3));
 
     // resume with a value that triggers the return path
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(0))
         .expect("resume failed");
     let output = match outcome {
@@ -337,11 +337,11 @@ block0(v0: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture yield
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("outer", &[Value::int32(5)])
         .expect("execution failed");
 
@@ -353,7 +353,7 @@ block0(v0: i32):
     assert_eq!(yielded_value, Value::int32(5));
 
     // resume and verify completion
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
@@ -378,18 +378,18 @@ block1(v2: i32, v3: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // run via the non-yielding entry
-    let result = interpreter.run_function_by_name("yield_once", &[Value::int32(7)]);
+    let result = isolate.run_function_by_name("yield_once", &[Value::int32(7)]);
 
     // verify unexpected yield error
     let err = result.unwrap_err();
     assert!(matches!(err.error, Error::UnexpectedYield));
 }
 
-/// Resume with a continuation from another interpreter reports an error.
+/// Resume with a continuation from another isolate reports an error.
 #[test]
 fn test_resume_invalid_continuation() {
     // define mir program
@@ -404,11 +404,11 @@ block1(v2: i32, v3: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_once", &[Value::int32(7)])
         .expect("execution failed");
     let (_, continuation) = match outcome {
@@ -416,11 +416,11 @@ block1(v2: i32, v3: i32):
         ExecutionOutcome::Completed { .. } => panic!("expected yield"),
     };
 
-    // create a different interpreter
-    let mut other_interpreter = super::create_interpreter(mir);
+    // create a different isolate
+    let mut other_isolate = super::create_isolate(mir);
 
-    // resume on a different interpreter
-    let result = other_interpreter.resume(continuation, Value::int32(0));
+    // resume on a different isolate
+    let result = other_isolate.resume(continuation, Value::int32(0));
 
     // validate error
     let err = result.unwrap_err();
@@ -441,11 +441,11 @@ block1(v1: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_once", &[])
         .expect("execution failed");
     let (yielded_value, continuation) = match outcome {
@@ -458,7 +458,7 @@ block1(v1: i32):
     let forked = continuation.clone_for_fork();
 
     // resume the original continuation
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(5))
         .expect("resume failed");
     let output = match outcome {
@@ -468,7 +468,7 @@ block1(v1: i32):
     assert_eq!(output.value, Value::int32(5));
 
     // resume the forked continuation
-    let outcome = interpreter
+    let outcome = isolate
         .resume(forked, Value::int32(9))
         .expect("resume failed");
     let output = match outcome {
@@ -496,11 +496,11 @@ block1(v3: @Pair, v4: i32):
 }
 "#;
 
-    // create interpreter
-    let mut interpreter = super::create_interpreter(mir);
+    // create isolate
+    let mut isolate = super::create_isolate(mir);
 
     // start coroutine and capture continuation
-    let outcome = interpreter
+    let outcome = isolate
         .run_function_by_name_yielding("yield_alloc", &[])
         .expect("execution failed");
     let (_, continuation) = match outcome {
@@ -509,11 +509,11 @@ block1(v3: @Pair, v4: i32):
     };
 
     // collect garbage while continuation is suspended
-    let stats = interpreter.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
+    let stats = isolate.collect_garbage_with_continuations(std::slice::from_ref(&continuation));
     assert_eq!(stats.live_cells, 1);
 
     // resume and complete the coroutine
-    let outcome = interpreter
+    let outcome = isolate
         .resume(continuation, Value::int32(7))
         .expect("resume failed");
     let output = match outcome {
@@ -523,6 +523,6 @@ block1(v3: @Pair, v4: i32):
     assert_eq!(output.value, Value::int32(7));
 
     // collect garbage after completion
-    let stats = interpreter.collect_garbage();
+    let stats = isolate.collect_garbage();
     assert_eq!(stats.live_cells, 0);
 }

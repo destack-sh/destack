@@ -3,15 +3,18 @@ use crate::memory::{
     GlobalPointer, HeapHandle, RawPointer, SlotStorage, StackPointer, Value, ValueTag,
 };
 
-use super::statistics::stat_inc;
-use super::threaded::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
+use super::super::decode::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
+use crate::telemetry::stat_inc;
 
 /// Load a value from a pointer.
 #[inline(always)]
-pub(super) fn load_from_pointer(state: &mut ThreadedState<'_>, ptr: Value) -> Result<Value, Error> {
+pub(super) fn load_from_pointer(
+    state: &mut ThreadedState<'_, '_>,
+    ptr: Value,
+) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // resolve pointer kind and load
@@ -41,13 +44,13 @@ pub(super) fn load_from_pointer(state: &mut ThreadedState<'_>, ptr: Value) -> Re
 /// Store a value to a pointer.
 #[inline(always)]
 pub(super) fn store_to_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // resolve pointer kind and store
@@ -66,7 +69,7 @@ pub(super) fn store_to_pointer(
         }
         ValueTag::GlobalPointer => {
             let global = ptr.as_global_pointer().unwrap();
-            let global_def = state.interpreter.tree.get(global.id);
+            let global_def = state.interpreter.isolate.tree.get(global.id);
             if !global_def.is_mutable() {
                 return Err(Error::ImmutableGlobalWrite { global: global.id });
             }
@@ -81,7 +84,7 @@ pub(super) fn store_to_pointer(
 /// Load a value from a managed reference.
 #[inline(always)]
 pub(super) fn load_from_managed_reference(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -99,7 +102,7 @@ pub(super) fn load_from_managed_reference(
 /// Load a value from a raw pointer.
 #[inline(always)]
 pub(super) fn load_from_raw_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -117,7 +120,7 @@ pub(super) fn load_from_raw_pointer(
 /// Load a value from a stack pointer.
 #[inline(always)]
 pub(super) fn load_from_stack_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -135,7 +138,7 @@ pub(super) fn load_from_stack_pointer(
 /// Load a value from a global pointer.
 #[inline(always)]
 pub(super) fn load_from_global_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
     // validate pointer tag
@@ -153,7 +156,7 @@ pub(super) fn load_from_global_pointer(
 /// Store a value through a managed reference.
 #[inline(always)]
 pub(super) fn store_to_managed_reference(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -172,7 +175,7 @@ pub(super) fn store_to_managed_reference(
 /// Store a value through a raw pointer.
 #[inline(always)]
 pub(super) fn store_to_raw_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -191,7 +194,7 @@ pub(super) fn store_to_raw_pointer(
 /// Store a value through a stack pointer.
 #[inline(always)]
 pub(super) fn store_to_stack_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -210,7 +213,7 @@ pub(super) fn store_to_stack_pointer(
 /// Store a value through a global pointer.
 #[inline(always)]
 pub(super) fn store_to_global_pointer(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
 ) -> Result<(), Error> {
@@ -223,7 +226,7 @@ pub(super) fn store_to_global_pointer(
 
     // resolve pointer
     let global = ptr.as_global_pointer().unwrap();
-    let global_def = state.interpreter.tree.get(global.id);
+    let global_def = state.interpreter.isolate.tree.get(global.id);
     if !global_def.is_mutable() {
         return Err(Error::ImmutableGlobalWrite { global: global.id });
     }
@@ -232,7 +235,11 @@ pub(super) fn store_to_global_pointer(
 
 /// Validate a field index against a known field count.
 #[inline(always)]
-fn check_field_index(state: &ThreadedState<'_>, index: u32, field_count: u32) -> Result<(), Error> {
+fn check_field_index(
+    state: &ThreadedState<'_, '_>,
+    index: u32,
+    field_count: u32,
+) -> Result<(), Error> {
     // skip checks when bounds are disabled
     if !state.bounds_checks {
         return Ok(());
@@ -257,7 +264,7 @@ fn check_field_index(state: &ThreadedState<'_>, index: u32, field_count: u32) ->
 /// Validate an array index against a known length.
 #[inline(always)]
 fn check_array_index(
-    state: &ThreadedState<'_>,
+    state: &ThreadedState<'_, '_>,
     index: u64,
     array_length: u64,
 ) -> Result<(), Error> {
@@ -285,7 +292,7 @@ fn check_array_index(
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
 pub(super) fn field_addr(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     aggregate: Value,
     index: u32,
     field_count: u32,
@@ -333,7 +340,7 @@ pub(super) fn field_addr(
 /// Get the address of a field from a managed reference.
 #[inline(always)]
 pub(super) fn field_addr_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
     field_count: u32,
@@ -352,7 +359,7 @@ pub(super) fn field_addr_managed(
 /// Get the address of a field from a raw pointer.
 #[inline(always)]
 pub(super) fn field_addr_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
     field_count: u32,
@@ -371,7 +378,7 @@ pub(super) fn field_addr_raw(
 /// Get the address of a field from a stack pointer.
 #[inline(always)]
 pub(super) fn field_addr_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -391,7 +398,7 @@ pub(super) fn field_addr_stack(
 /// Get the address of a field from a global pointer.
 #[inline(always)]
 pub(super) fn field_addr_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -407,7 +414,7 @@ pub(super) fn field_addr_global(
 /// Get the address of an element from an array or pointer.
 #[inline(always)]
 pub(super) fn element_addr(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     array: Value,
     index: u64,
     array_length: u64,
@@ -455,7 +462,7 @@ pub(super) fn element_addr(
 /// Get the address of an element from a managed reference.
 #[inline(always)]
 pub(super) fn element_addr_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
     array_length: u64,
@@ -474,7 +481,7 @@ pub(super) fn element_addr_managed(
 /// Get the address of an element from a raw pointer.
 #[inline(always)]
 pub(super) fn element_addr_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
     array_length: u64,
@@ -493,7 +500,7 @@ pub(super) fn element_addr_raw(
 /// Get the address of an element from a stack pointer.
 #[inline(always)]
 pub(super) fn element_addr_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -513,7 +520,7 @@ pub(super) fn element_addr_stack(
 /// Get the address of an element from a global pointer.
 #[inline(always)]
 pub(super) fn element_addr_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -532,14 +539,14 @@ pub(super) fn element_addr_global(
 /// Load a field from a managed heap allocation.
 #[inline(always)]
 pub(super) fn load_field_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // fast path: skip all validation when bounds and null checks are disabled
@@ -548,7 +555,7 @@ pub(super) fn load_field_managed(
         let slot_index = handle.slot_index().wrapping_add(index as usize);
 
         // #Safety: checks are disabled, caller ensures validity
-        let cell = unsafe { state.interpreter.managed_heap.get_unchecked(handle) };
+        let cell = unsafe { state.interpreter.isolate.managed_heap.get_unchecked(handle) };
         debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
         let value = unsafe { *cell.slots.get_unchecked(slot_index) };
         return Ok(value);
@@ -565,6 +572,7 @@ pub(super) fn load_field_managed(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -639,7 +647,7 @@ pub(super) fn load_field_managed(
 /// Store a field into a managed heap allocation.
 #[inline(always)]
 pub(super) fn store_field_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
     field_count: u32,
@@ -647,7 +655,7 @@ pub(super) fn store_field_managed(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // fast path: skip all validation when bounds and null checks are disabled
@@ -656,7 +664,13 @@ pub(super) fn store_field_managed(
         let slot_index = handle.slot_index().wrapping_add(index as usize);
 
         // #Safety: checks are disabled, caller ensures validity
-        let cell = unsafe { state.interpreter.managed_heap.get_unchecked_mut(handle) };
+        let cell = unsafe {
+            state
+                .interpreter
+                .isolate
+                .managed_heap
+                .get_unchecked_mut(handle)
+        };
         debug_assert!(slot_index < cell.slots.len(), "heap field out of bounds");
         unsafe { *cell.slots.get_unchecked_mut(slot_index) = value };
         return Ok(());
@@ -673,6 +687,7 @@ pub(super) fn store_field_managed(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -746,14 +761,14 @@ pub(super) fn store_field_managed(
 /// Load a field from a raw heap allocation.
 #[inline(always)]
 pub(super) fn load_field_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -808,7 +823,7 @@ pub(super) fn load_field_raw(
 /// Store a field into a raw heap allocation.
 #[inline(always)]
 pub(super) fn store_field_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
     field_count: u32,
@@ -816,7 +831,7 @@ pub(super) fn store_field_raw(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -871,14 +886,14 @@ pub(super) fn store_field_raw(
 /// Load a field from a stack allocation.
 #[inline(always)]
 pub(super) fn load_field_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -949,7 +964,7 @@ pub(super) fn load_field_stack(
 /// Store a field into a stack allocation.
 #[inline(always)]
 pub(super) fn store_field_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -960,7 +975,7 @@ pub(super) fn store_field_stack(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -1029,14 +1044,14 @@ pub(super) fn store_field_stack(
 /// Load a field from a global allocation.
 #[inline(always)]
 pub(super) fn load_field_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate field index when known
@@ -1045,6 +1060,7 @@ pub(super) fn load_field_global(
     // load the global value
     let value = state
         .interpreter
+        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -1068,6 +1084,7 @@ pub(super) fn load_field_global(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1131,7 +1148,7 @@ pub(super) fn load_field_global(
 /// Store a field into a global allocation.
 #[inline(always)]
 pub(super) fn store_field_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -1139,7 +1156,7 @@ pub(super) fn store_field_global(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate field index when known
@@ -1148,6 +1165,7 @@ pub(super) fn store_field_global(
     // load the global value
     let current = state
         .interpreter
+        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -1171,6 +1189,7 @@ pub(super) fn store_field_global(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1214,14 +1233,14 @@ pub(super) fn store_field_global(
         unsafe {
             *cell.slots.get_unchecked_mut(slot_index) = value;
         }
-        state.interpreter.globals.set(pointer.id, current);
+        state.interpreter.isolate.globals.set(pointer.id, current);
         return Ok(());
     }
 
     // write the slot when in bounds
     if let Some(slot) = cell.slots.get_mut(slot_index) {
         *slot = value;
-        state.interpreter.globals.set(pointer.id, current);
+        state.interpreter.isolate.globals.set(pointer.id, current);
         return Ok(());
     }
 
@@ -1234,14 +1253,14 @@ pub(super) fn store_field_global(
 /// Load an element from a managed heap allocation.
 #[inline(always)]
 pub(super) fn load_element_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -1255,6 +1274,7 @@ pub(super) fn load_element_managed(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1316,7 +1336,7 @@ pub(super) fn load_element_managed(
 /// Store an element into a managed heap allocation.
 #[inline(always)]
 pub(super) fn store_element_managed(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
     array_length: u64,
@@ -1324,7 +1344,7 @@ pub(super) fn store_element_managed(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -1338,6 +1358,7 @@ pub(super) fn store_element_managed(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1397,14 +1418,14 @@ pub(super) fn store_element_managed(
 /// Load an element from a raw heap allocation.
 #[inline(always)]
 pub(super) fn load_element_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -1465,7 +1486,7 @@ pub(super) fn load_element_raw(
 /// Store an element into a raw heap allocation.
 #[inline(always)]
 pub(super) fn store_element_raw(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
     array_length: u64,
@@ -1473,7 +1494,7 @@ pub(super) fn store_element_raw(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -1534,14 +1555,14 @@ pub(super) fn store_element_raw(
 /// Load an element from a stack allocation.
 #[inline(always)]
 pub(super) fn load_element_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -1610,7 +1631,7 @@ pub(super) fn load_element_stack(
 /// Store an element into a stack allocation.
 #[inline(always)]
 pub(super) fn store_element_stack(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -1621,7 +1642,7 @@ pub(super) fn store_element_stack(
 
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -1687,14 +1708,14 @@ pub(super) fn store_element_stack(
 /// Load an element from a global allocation.
 #[inline(always)]
 pub(super) fn load_element_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
 ) -> Result<Value, Error> {
     // track pointer loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // validate array index when known
@@ -1703,6 +1724,7 @@ pub(super) fn load_element_global(
     // load the global value
     let value = state
         .interpreter
+        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -1723,6 +1745,7 @@ pub(super) fn load_element_global(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1787,7 +1810,7 @@ pub(super) fn load_element_global(
 /// Store an element into a global allocation.
 #[inline(always)]
 pub(super) fn store_element_global(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -1795,7 +1818,7 @@ pub(super) fn store_element_global(
 ) -> Result<(), Error> {
     // track pointer stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // validate array index when known
@@ -1804,6 +1827,7 @@ pub(super) fn store_element_global(
     // load the global value
     let current = state
         .interpreter
+        .isolate
         .globals
         .get(pointer.id)
         .copied()
@@ -1824,6 +1848,7 @@ pub(super) fn store_element_global(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -1868,14 +1893,14 @@ pub(super) fn store_element_global(
         unsafe {
             *cell.slots.get_unchecked_mut(slot_index) = value;
         }
-        state.interpreter.globals.set(pointer.id, current);
+        state.interpreter.isolate.globals.set(pointer.id, current);
         return Ok(());
     }
 
     // write the slot when in bounds
     if let Some(slot) = cell.slots.get_mut(slot_index) {
         *slot = value;
-        state.interpreter.globals.set(pointer.id, current);
+        state.interpreter.isolate.globals.set(pointer.id, current);
         return Ok(());
     }
 
@@ -1888,7 +1913,7 @@ pub(super) fn store_element_global(
 /// Get a field from an aggregate value.
 #[inline(always)]
 pub(super) fn get_field(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     agg: Value,
     index: u32,
 ) -> Result<Value, Error> {
@@ -1908,7 +1933,7 @@ pub(super) fn get_field(
 /// Set a field on an aggregate value.
 #[inline(always)]
 pub(super) fn set_field(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     agg: Value,
     index: u32,
     val: Value,
@@ -1930,7 +1955,7 @@ pub(super) fn set_field(
 /// Get an element from an array value.
 #[inline(always)]
 pub(super) fn get_element(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     arr: Value,
     index: u64,
 ) -> Result<Value, Error> {
@@ -1950,7 +1975,7 @@ pub(super) fn get_element(
 /// Set an element on an array value.
 #[inline(always)]
 pub(super) fn set_element(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     arr: Value,
     index: u64,
     val: Value,
@@ -1972,7 +1997,7 @@ pub(super) fn set_element(
 /// Load a slot from a managed heap allocation.
 #[inline(always)]
 fn load_heap_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -1984,6 +2009,7 @@ fn load_heap_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2015,7 +2041,7 @@ fn load_heap_slot(
 /// Store a slot into a managed heap allocation.
 #[inline(always)]
 fn store_heap_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     slot_index: usize,
     value: Value,
@@ -2028,6 +2054,7 @@ fn store_heap_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2062,7 +2089,7 @@ fn store_heap_slot(
 /// Load a slot from a raw heap allocation.
 #[inline(always)]
 fn load_raw_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -2079,7 +2106,7 @@ fn load_raw_slot(
 /// Store a slot into a raw heap allocation.
 #[inline(always)]
 fn store_raw_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     slot_index: usize,
     value: Value,
@@ -2096,10 +2123,14 @@ fn store_raw_slot(
 
 /// Load from a global pointer, including slot offsets.
 #[inline(always)]
-fn load_global_slot(state: &mut ThreadedState<'_>, global: GlobalPointer) -> Result<Value, Error> {
+fn load_global_slot(
+    state: &mut ThreadedState<'_, '_>,
+    global: GlobalPointer,
+) -> Result<Value, Error> {
     // read the global value
     let value = state
         .interpreter
+        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -2126,19 +2157,20 @@ fn load_global_slot(state: &mut ThreadedState<'_>, global: GlobalPointer) -> Res
 /// Store through a global pointer, including slot offsets.
 #[inline(always)]
 fn store_global_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     global: GlobalPointer,
     value: Value,
 ) -> Result<(), Error> {
     // update the global value directly
     if global.slot_offset == 0 {
-        state.interpreter.globals.set(global.id, value);
+        state.interpreter.isolate.globals.set(global.id, value);
         return Ok(());
     }
 
     // update a slot on the aggregate stored in the global
     let current = state
         .interpreter
+        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -2153,14 +2185,14 @@ fn store_global_slot(
     let handle = current.as_heap_handle().unwrap();
 
     store_heap_slot(state, handle, global.slot_offset, value)?;
-    state.interpreter.globals.set(global.id, current);
+    state.interpreter.isolate.globals.set(global.id, current);
     Ok(())
 }
 
 /// Get a field from a heap aggregate.
 #[inline(always)]
 fn get_heap_field(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
 ) -> Result<Value, Error> {
@@ -2172,6 +2204,7 @@ fn get_heap_field(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2222,7 +2255,7 @@ fn get_heap_field(
 /// Set a field on a heap aggregate.
 #[inline(always)]
 fn set_heap_field(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
     value: Value,
@@ -2235,6 +2268,7 @@ fn set_heap_field(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2287,7 +2321,7 @@ fn set_heap_field(
 /// Get an element from a heap array aggregate.
 #[inline(always)]
 fn get_heap_element(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
 ) -> Result<Value, Error> {
@@ -2299,6 +2333,7 @@ fn get_heap_element(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2348,7 +2383,7 @@ fn get_heap_element(
 /// Set an element on a heap array aggregate.
 #[inline(always)]
 fn set_heap_element(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
     value: Value,
@@ -2361,6 +2396,7 @@ fn set_heap_element(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get_mut(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2411,7 +2447,7 @@ fn set_heap_element(
 /// Resolve a field slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_field_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
     field_count: u32,
@@ -2424,6 +2460,7 @@ fn resolve_heap_field_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2475,7 +2512,7 @@ fn resolve_heap_field_slot(
 /// Resolve a field slot for a raw heap pointer.
 #[inline(always)]
 fn resolve_raw_field_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
     field_count: u32,
@@ -2536,7 +2573,7 @@ fn resolve_raw_field_slot(
 /// Resolve a field slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_field_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
     field_count: u32,
@@ -2578,7 +2615,7 @@ fn resolve_stack_field_slot(
 /// Resolve a field slot for a global pointer.
 #[inline(always)]
 fn resolve_global_field_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     global: GlobalPointer,
     index: u32,
     field_count: u32,
@@ -2586,6 +2623,7 @@ fn resolve_global_field_slot(
     // load the global value
     let value = state
         .interpreter
+        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -2604,6 +2642,7 @@ fn resolve_global_field_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2639,7 +2678,7 @@ fn resolve_global_field_slot(
 /// Resolve an element slot for a managed heap pointer.
 #[inline(always)]
 fn resolve_heap_element_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
     array_length: u64,
@@ -2652,6 +2691,7 @@ fn resolve_heap_element_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2704,7 +2744,7 @@ fn resolve_heap_element_slot(
 /// Resolve an element slot for a raw heap pointer.
 #[inline(always)]
 fn resolve_raw_element_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
     array_length: u64,
@@ -2767,7 +2807,7 @@ fn resolve_raw_element_slot(
 /// Resolve an element slot for a stack pointer.
 #[inline(always)]
 fn resolve_stack_element_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
     array_length: u64,
@@ -2814,7 +2854,7 @@ fn resolve_stack_element_slot(
 /// Resolve an element slot for a global pointer.
 #[inline(always)]
 fn resolve_global_element_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     global: GlobalPointer,
     index: u64,
     array_length: u64,
@@ -2822,6 +2862,7 @@ fn resolve_global_element_slot(
     // load the global value
     let value = state
         .interpreter
+        .isolate
         .globals
         .get(global.id)
         .copied()
@@ -2837,6 +2878,7 @@ fn resolve_global_element_slot(
     // look up the managed heap cell
     let cell = state
         .interpreter
+        .isolate
         .managed_heap
         .get(handle)
         .ok_or(Error::InvalidHeapHandle)?;
@@ -2877,7 +2919,7 @@ fn resolve_global_element_slot(
 /// Load a slot from a stack allocation.
 #[inline(always)]
 fn load_stack_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
 ) -> Result<Value, Error> {
@@ -2914,7 +2956,7 @@ fn load_stack_slot(
 /// Store a slot into a stack allocation.
 #[inline(always)]
 fn store_stack_slot(
-    state: &mut ThreadedState<'_>,
+    state: &mut ThreadedState<'_, '_>,
     sp: StackPointer,
     slot_index: usize,
     value: Value,

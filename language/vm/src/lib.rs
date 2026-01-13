@@ -5,12 +5,20 @@
 #![allow(incomplete_features)]
 
 pub mod diagnostic;
-pub mod interpreter;
+pub mod engine;
+pub mod execute;
+pub mod isolate;
 pub mod memory;
+pub mod options;
+pub mod snapshot;
+pub mod telemetry;
 
 #[cfg(test)]
 mod tests;
 
 pub use diagnostic::*;
-pub use interpreter::*;
+pub use engine::compiled::CompiledEngine;
+pub use engine::interpreter::*;
+pub use isolate::*;
 pub use memory::*;
+pub use options::*;
