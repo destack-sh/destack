@@ -1648,6 +1648,10 @@ extension for Point { ... }  // ok: Point is nominal
 Unlike Rust's blanket `impl`s, Destack does not support generic extensions like `extension<T> T where T: Constraint`.
 Extensions target concrete nominal types only to keeps extension resolution predictable in TypeScript's expressive type system.
 
+Extension static parameters bind positionally to the target type's static parameters.
+The target type expression can reorder those parameters (e.g., `extension<Left, Right> for Pair<Right, Left>`), and that order defines how receiver static arguments map to extension parameters.
+Defaults on the target type apply when static arguments are omitted at the use site.
+
 #### Extension Visibility
 
 | Scenario | Extension Form | Visibility |

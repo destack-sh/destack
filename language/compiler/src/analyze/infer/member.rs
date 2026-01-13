@@ -1,8 +1,9 @@
-use crate::{AnalyzeError, AnalyzeResult, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId,
-    NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -18,6 +19,15 @@ pub(super) enum MemberResolution {
     Dynamic { symbols: Vec<GlobalSymbolId> },
     /// A nominal lookup failed, but some candidates exist.
     Unresolved,
+}
+
+/// Resolved extension metadata for a member lookup.
+#[derive(Debug, Clone)]
+pub(super) struct ExtensionMemberContext {
+    /// The resolved static arguments for the extension parameters.
+    pub(super) arguments: Vec<StaticArgument>,
+    /// The substitutions for extension type parameters.
+    pub(super) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -78,6 +88,31 @@ impl Compiler {
             _ => None,
         };
 
+        // resolve extension substitutions for member symbols
+        let extension_context = if let Some(member_symbol) = member_symbol {
+            self.resolve_extension_member_context(
+                module,
+                ctx.profile,
+                expression_id.into_any(),
+                member_symbol,
+                &inherited.arguments,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+            )?
+        } else {
+            None
+        };
+
+        // merge inherited and extension substitutions
+        let mut substitutions = inherited.substitutions.clone();
+        if let Some(context) = extension_context.as_ref() {
+            for (symbol, ty_id) in &context.substitutions {
+                substitutions.insert(*symbol, *ty_id);
+            }
+        }
+
         // infer the member type
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
@@ -91,14 +126,9 @@ impl Compiler {
         )?;
         let has_member = member_ty_id.is_some();
         let resolved_member_ty_id = if let Some(member_ty_id) = member_ty_id {
-            let member_ty_id = if !inherited.substitutions.is_empty() {
+            let member_ty_id = if !substitutions.is_empty() {
                 let mut cache = HashMap::new();
-                self.substitute_static_parameters(
-                    member_ty_id,
-                    &inherited.substitutions,
-                    types,
-                    &mut cache,
-                )
+                self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
             } else {
                 member_ty_id
             };
@@ -129,21 +159,21 @@ impl Compiler {
                             infer,
                         )?;
 
-                        let resolved_this_parameter = if inherited.substitutions.is_empty() {
+                        let resolved_this_parameter = if substitutions.is_empty() {
                             this_parameter
                         } else {
                             let mut cache = HashMap::new();
                             this_parameter.map(|parameter| {
                                 self.substitute_static_parameters(
                                     parameter,
-                                    &inherited.substitutions,
+                                    &substitutions,
                                     types,
                                     &mut cache,
                                 )
                             })
                         };
                         let (resolved_dynamic_parameters, resolved_return_type) =
-                            if inherited.substitutions.is_empty() {
+                            if substitutions.is_empty() {
                                 (resolved.dynamic_parameters, resolved.return_type)
                             } else {
                                 let mut cache = HashMap::new();
@@ -153,7 +183,7 @@ impl Compiler {
                                     .map(|parameter| {
                                         self.substitute_static_parameters(
                                             *parameter,
-                                            &inherited.substitutions,
+                                            &substitutions,
                                             types,
                                             &mut cache,
                                         )
@@ -162,7 +192,7 @@ impl Compiler {
                                 let return_type = resolved.return_type.map(|return_type| {
                                     self.substitute_static_parameters(
                                         return_type,
-                                        &inherited.substitutions,
+                                        &substitutions,
                                         types,
                                         &mut cache,
                                     )
@@ -180,7 +210,10 @@ impl Compiler {
                         };
 
                         if let Some(member_symbol) = member_symbol {
-                            let mut instance_arguments = inherited.arguments.clone();
+                            let mut instance_arguments = match extension_context.as_ref() {
+                                Some(context) => context.arguments.clone(),
+                                None => inherited.arguments.clone(),
+                            };
                             instance_arguments.extend(resolved.static_arguments);
 
                             if !instance_arguments.is_empty() {
@@ -234,21 +267,21 @@ impl Compiler {
                                 resolved_static_arguments = resolved.static_arguments.clone();
                             }
 
-                            let resolved_this_parameter = if inherited.substitutions.is_empty() {
+                            let resolved_this_parameter = if substitutions.is_empty() {
                                 this_parameter
                             } else {
                                 let mut cache = HashMap::new();
                                 this_parameter.map(|parameter| {
                                     self.substitute_static_parameters(
                                         parameter,
-                                        &inherited.substitutions,
+                                        &substitutions,
                                         types,
                                         &mut cache,
                                     )
                                 })
                             };
                             let (resolved_dynamic_parameters, resolved_return_type) =
-                                if inherited.substitutions.is_empty() {
+                                if substitutions.is_empty() {
                                     (resolved.dynamic_parameters, resolved.return_type)
                                 } else {
                                     let mut cache = HashMap::new();
@@ -258,7 +291,7 @@ impl Compiler {
                                         .map(|parameter| {
                                             self.substitute_static_parameters(
                                                 *parameter,
-                                                &inherited.substitutions,
+                                                &substitutions,
                                                 types,
                                                 &mut cache,
                                             )
@@ -267,7 +300,7 @@ impl Compiler {
                                     let return_type = resolved.return_type.map(|return_type| {
                                         self.substitute_static_parameters(
                                             return_type,
-                                            &inherited.substitutions,
+                                            &substitutions,
                                             types,
                                             &mut cache,
                                         )
@@ -289,7 +322,10 @@ impl Compiler {
                         }
 
                         if let Some(member_symbol) = member_symbol {
-                            let mut instance_arguments = inherited.arguments.clone();
+                            let mut instance_arguments = match extension_context.as_ref() {
+                                Some(context) => context.arguments.clone(),
+                                None => inherited.arguments.clone(),
+                            };
                             instance_arguments.extend(resolved_static_arguments);
 
                             if !instance_arguments.is_empty() {
@@ -349,6 +385,7 @@ impl Compiler {
             let mut index_visited = Vec::new();
             let index_signature_ty_id = self.infer_index_signature_value_type_for_key(
                 module,
+                ctx.profile,
                 &left_ty,
                 &member_key,
                 types,
@@ -415,6 +452,246 @@ impl Compiler {
         };
 
         Ok(resolved_member_ty_id)
+    }
+
+    /// Resolve extension arguments and substitutions for a member lookup.
+    pub(super) fn resolve_extension_member_context(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        member_symbol: GlobalSymbolId,
+        inherited_arguments: &[StaticArgument],
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<ExtensionMemberContext>> {
+        // locate the extension symbol that owns the member
+        let extension_symbol =
+            self.extension_symbol_for_member(module, profile, member_symbol, symbols);
+        let Some(extension_symbol) = extension_symbol else {
+            return Ok(None);
+        };
+
+        // ensure extension instance types are available for parameter kind resolution
+        if types.get_instance_type_id(extension_symbol).is_none()
+            && extension_symbol.module_id != module.id
+        {
+            self.import_instance_type_for_symbol(profile, source_id, extension_symbol, types)?;
+        }
+
+        // resolve extension static parameter symbols
+        let extension_parameters = self
+            .collect_static_parameter_symbols(module, extension_symbol, profile, tree, symbols)
+            .unwrap_or_default();
+
+        // skip argument resolution when the extension has no parameters
+        if extension_parameters.is_empty() {
+            return Ok(Some(ExtensionMemberContext {
+                arguments: Vec::new(),
+                substitutions: HashMap::new(),
+            }));
+        }
+
+        // map inherited arguments to extension parameters using the target type argument order
+        let mut positional_arguments = self.map_extension_inherited_arguments(
+            extension_symbol,
+            &extension_parameters,
+            inherited_arguments,
+            profile,
+        );
+        if positional_arguments.is_empty() {
+            positional_arguments = inherited_arguments.to_vec();
+        }
+
+        // normalize inherited arguments for positional mapping
+        for argument in positional_arguments.iter_mut() {
+            if let StaticArgument::Evaluated { name, .. } = argument {
+                *name = None;
+            }
+        }
+
+        // resolve arguments and defaults against extension parameters
+        let resolved_arguments = self.resolve_type_reference_static_arguments(
+            module,
+            profile,
+            source_id,
+            extension_symbol,
+            Some(&positional_arguments),
+            true,
+            options,
+            tree,
+            symbols,
+            types,
+        )?;
+        let resolved_arguments = resolved_arguments.unwrap_or_default();
+
+        // build substitutions for extension type parameters
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            extension_symbol,
+            source_id,
+            &resolved_arguments,
+            tree,
+            symbols,
+            types,
+        );
+
+        Ok(Some(ExtensionMemberContext {
+            arguments: resolved_arguments,
+            substitutions,
+        }))
+    }
+
+    /// Map receiver static arguments into extension parameter order.
+    fn map_extension_inherited_arguments(
+        &self,
+        extension_symbol: GlobalSymbolId,
+        extension_parameters: &[GlobalSymbolId],
+        inherited_arguments: &[StaticArgument],
+        profile: ProfileId,
+    ) -> Vec<StaticArgument> {
+        // skip mapping when no parameters are declared
+        if extension_parameters.is_empty() {
+            return Vec::new();
+        }
+
+        // resolve the target type argument mapping from the extension declaration
+        let target_mapping =
+            self.extension_target_argument_mapping(extension_symbol, extension_parameters, profile);
+        let Some(target_mapping) = target_mapping else {
+            return Vec::new();
+        };
+
+        // map receiver arguments into extension parameter order
+        let mut reordered = vec![None; extension_parameters.len()];
+        for (target_index, parameter_index) in target_mapping.into_iter().enumerate() {
+            if parameter_index >= reordered.len() {
+                return Vec::new();
+            }
+            if reordered[parameter_index].is_some() {
+                return Vec::new();
+            }
+
+            reordered[parameter_index] = Some(target_index);
+        }
+
+        let mut mapped = Vec::with_capacity(reordered.len());
+        for maybe_target_index in reordered {
+            let Some(target_index) = maybe_target_index else {
+                return Vec::new();
+            };
+
+            if let Some(argument) = inherited_arguments.get(target_index) {
+                mapped.push(argument.clone());
+            } else {
+                return Vec::new();
+            }
+        }
+
+        mapped
+    }
+
+    /// Resolve the target argument mapping for an extension declaration.
+    fn extension_target_argument_mapping(
+        &self,
+        extension_symbol: GlobalSymbolId,
+        extension_parameters: &[GlobalSymbolId],
+        profile: ProfileId,
+    ) -> Option<Vec<usize>> {
+        // load the extension declaration
+        let module = self.program.modules.get(extension_symbol.module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+
+        let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
+        let declaration_id = symbol_entry
+            .primary_declaration?
+            .try_into_local_typed::<Declaration>()
+            .ok()?;
+        let declaration = tree.get(declaration_id);
+        let Declaration::Extension { target_type, .. } = declaration else {
+            return None;
+        };
+
+        // read the target type arguments
+        let target_expression = tree.get(*target_type);
+        let static_arguments = match target_expression {
+            Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            } => static_arguments.as_ref(),
+            _ => None,
+        }?;
+
+        // map target arguments to extension parameter indices
+        let mut mapping = Vec::with_capacity(static_arguments.len());
+        for argument_id in static_arguments {
+            let argument = tree.get(*argument_id);
+            let expression_id = argument.value();
+            let expression = tree.get(expression_id);
+            let target_symbol = match expression {
+                Expression::LocalReference { target_symbol, .. }
+                | Expression::ModuleReference { target_symbol, .. }
+                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+                _ => None,
+            }?;
+
+            let parameter_index = extension_parameters
+                .iter()
+                .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
+            mapping.push(parameter_index);
+        }
+
+        Some(mapping)
+    }
+
+    /// Resolve the extension symbol that owns a member symbol.
+    fn extension_symbol_for_member(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        member_symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // locate the scope owner for the member symbol
+        if member_symbol.module_id == module.id {
+            let member_entry = symbols.get_symbol(member_symbol.local_id);
+            let scope = symbols.get_scope_by_id(member_entry.scope.0);
+            let owner_id = scope.owner_id?;
+            let owner_entry = symbols.get_symbol(owner_id);
+            if owner_entry.ty != SymbolType::Extension {
+                return None;
+            }
+
+            let extension_id = owner_id.with_type(owner_entry.ty);
+            return Some(GlobalSymbolId::new(module.id, extension_id));
+        }
+
+        // load the remote symbol table when the member is foreign
+        let remote_module = self.program.modules.get(member_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+
+        let member_entry = remote_symbols.get_symbol(member_symbol.local_id);
+        let scope = remote_symbols.get_scope_by_id(member_entry.scope.0);
+        let owner_id = scope.owner_id?;
+        let owner_entry = remote_symbols.get_symbol(owner_id);
+        if owner_entry.ty != SymbolType::Extension {
+            return None;
+        }
+
+        let extension_id = owner_id.with_type(owner_entry.ty);
+        Some(GlobalSymbolId::new(remote_module.id, extension_id))
     }
 
     /// Resolve member symbols for a receiver type when nominal dispatch is possible.
@@ -775,29 +1052,80 @@ impl Compiler {
             }
         }
 
+        // resolve the canonical symbol for extension lookup
+        let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+
         // check visible extensions for this symbol
-        if let Some(extension_ids) = types.get_extensions_for_target(symbol) {
+        if let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) {
             for extension_id in extension_ids {
                 let extension = types.get_extension(*extension_id);
                 if !self.is_extension_visible(module, extension) {
                     continue;
                 }
 
-                if let Some(member_symbol) = self.find_member_symbol_in_declaration(
-                    symbol.module_id,
+                let member_symbol = self.find_member_symbol_in_extension(
+                    module,
                     profile,
                     extension.symbol,
                     member_key,
                     tree,
                     symbols,
                     types,
-                ) {
+                )?;
+                if let Some(member_symbol) = member_symbol {
                     return Ok(Some(member_symbol));
                 }
             }
         }
 
         Ok(None)
+    }
+
+    /// Find a member symbol inside an extension declaration.
+    fn find_member_symbol_in_extension(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        extension_symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // reuse local module data when the extension is local
+        if extension_symbol.module_id == module.id {
+            return Ok(self.find_member_symbol_in_declaration(
+                module.id,
+                profile,
+                extension_symbol,
+                member_key,
+                tree,
+                symbols,
+                types,
+            ));
+        }
+
+        // ensure the extension module is declared before reading it
+        self.require_analyze_module_declare(extension_symbol.module_id, profile)
+            .map_err(AnalyzeError::from)?;
+
+        // load remote module data for member lookup
+        let remote_module = self.program.modules.get(extension_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+        let remote_types = remote_dir.types.read();
+
+        Ok(self.find_member_symbol_in_declaration(
+            extension_symbol.module_id,
+            profile,
+            extension_symbol,
+            member_key,
+            &remote_tree,
+            &remote_symbols,
+            &remote_types,
+        ))
     }
 
     /// Find a member symbol inside a declaration for a key.

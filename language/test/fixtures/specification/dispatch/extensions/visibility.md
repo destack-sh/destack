@@ -110,6 +110,27 @@ vector.magnitude() satisfies number;
 vector.normalized() satisfies Vector2;
 ```
 
+### inherent extension across modules
+
+> Inherent extensions are visible in other files that import the type.
+
+```ds:types.ds
+export struct Vector2 { x: number, y: number }
+
+extension for Vector2 {
+    magnitude(): number { return 0 }
+}
+```
+
+```ds:main.ds
+import { Vector2 } from "./types.ds"
+
+declare function getVector(): Vector2;
+
+const vector = getVector();
+vector.magnitude() satisfies number;
+```
+
 ## Local Extensions
 
 > Local extensions extend a foreign type (from another file).
@@ -163,6 +184,59 @@ declare function getPoint(): Point;
 const point = getPoint();
 point.distance() satisfies number;
 ```
+
+### named extension across modules
+
+> Named extensions are visible when explicitly imported.
+
+```ds:types.ds
+export struct Point { x: number, y: number }
+```
+
+```ds:extensions.ds
+import { Point } from "./types.ds"
+
+export extension PointHelpers for Point {
+    distance(): number { return 0 }
+}
+```
+
+```ds:main.ds
+import { Point } from "./types.ds"
+import { PointHelpers } from "./extensions.ds"
+
+declare function getPoint(): Point;
+
+const point = getPoint();
+point.distance() satisfies number;
+```
+
+### named extension requires import
+
+> Named extensions are not visible without an explicit import.
+
+```ds:types.ds
+export struct Point { x: number, y: number }
+```
+
+```ds:extensions.ds
+import { Point } from "./types.ds"
+
+export extension PointHelpers for Point {
+    distance(): number { return 0 }
+}
+```
+
+```ds:main.ds
+import { Point } from "./types.ds"
+
+declare function getPoint(): Point;
+
+const point = getPoint();
+point.distance();
+```
+
+- contains: does not exist
 
 ## Overlapping Extensions
 

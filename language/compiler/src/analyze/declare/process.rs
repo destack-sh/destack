@@ -105,11 +105,11 @@ impl Compiler {
             ),
         );
 
-        // FUGU #Incomplete: implement #Extensions
-        // register extensions?
-        // 1) register inherent extensions from imported symbols
-        // 2) register local extensions from local symbols
-        // 3) register named extensions from imported symbols
+        // register visible extensions from imported symbols
+        self.collect(
+            &mut collector,
+            self.register_visible_extensions(&module, profile, &symbols, &mut types),
+        );
 
         // yield on any yields
         if let Some(dependency) = collector.try_into_yield_any() {

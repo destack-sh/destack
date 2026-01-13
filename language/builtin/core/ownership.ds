@@ -3,7 +3,7 @@
 /// Types that implement Drop must also implement Symbol.dispose.
 /// The drop glue calls Symbol.dispose when a ^T value is dropped.
 export newtype interface Drop {
-    // FUGU #Incomplete: define (some?) well-known symbols in builtin/core
+    // NOTE #Incomplete: define (some?) well-known symbols in builtin/core
     // [Symbol.dispose](): void;
 }
 
@@ -13,7 +13,6 @@ export newtype interface Copy {}
 /// Clone the value into a new owned value.
 export interface Clone {
     /// Clone the value.
-    clone(): Self
 }
 
 /// Mark a type as safe to send across threads.

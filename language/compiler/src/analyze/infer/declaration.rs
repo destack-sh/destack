@@ -206,20 +206,40 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics and target type
+                // infer generics for member bodies
                 self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
-                self.infer_expression(module, *target_type, tree, symbols, types, infer, ctx)?;
 
                 // assign this to the nominal target type when available
-                let this_ty_id = target_symbol.map(|target| {
-                    types.insert_type_from(
+                let this_ty_id = if let Some(target) = *target_symbol {
+                    // evaluate the target type to capture static arguments
+                    let target_ty_id = self.try_evaluate_expression_to_type(
+                        module,
+                        ctx.profile,
+                        *target_type,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let static_arguments = self.unwrap_type_symbol(types, target_ty_id).and_then(
+                        |(symbol, static_arguments, _)| {
+                            if symbol == target {
+                                static_arguments
+                            } else {
+                                None
+                            }
+                        },
+                    );
+
+                    Some(types.insert_type_from(
                         Type::Reference {
                             symbol: target,
-                            static_arguments: None,
+                            static_arguments,
                         },
                         declaration_id,
-                    )
-                });
+                    ))
+                } else {
+                    None
+                };
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {

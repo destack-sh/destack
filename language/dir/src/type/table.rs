@@ -576,6 +576,14 @@ impl TypeTable {
         self.extensions.get(extension_id.0)
     }
 
+    /// Get an extension id by its symbol.
+    pub fn get_extension_id_for_symbol(
+        &self,
+        extension_symbol: GlobalSymbolId,
+    ) -> Option<LocalExtensionId> {
+        self.extension_by_symbol.get(&extension_symbol).copied()
+    }
+
     /// Get a mutable extension by its id.
     pub fn get_extension_mut(&mut self, extension_id: LocalExtensionId) -> &mut Extension {
         self.extensions.get_mut(extension_id.0)

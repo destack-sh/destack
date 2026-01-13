@@ -1,9 +1,10 @@
 use destack_dir::{
-    BindingKind, Constraint, Declaration, Declarator, DynamicKey, Export, Expression, FunctionMode,
-    Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope, Lineage,
-    LocalNodeId, LocalSymbolId, Member, NodeTree, NodeType, NodeVisitor, Parameter, StaticKey,
-    SymbolSpace, SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
-    TypeTable,
+    BindingKind, Block, Constraint, Declaration, Declarator, DynamicKey, Export, Expression,
+    Extension, ExtensionKind, FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage,
+    InferOrigin, InferScope, InferTable, Lineage, LocalNodeId, LocalSymbolId, Member, Mutability,
+    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticKey, SymbolSpace,
+    SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block,
+    walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -27,7 +28,7 @@ struct DeclareVisitor<'a> {
     /// Track the first error encountered while walking.
     result: AnalyzeResult<()>,
     /// Node visitor options (unused, but required by trait).
-    options: destack_dir::NodeVisitorOptions,
+    options: NodeVisitorOptions,
 }
 
 impl<'a> DeclareVisitor<'a> {
@@ -47,7 +48,7 @@ impl<'a> DeclareVisitor<'a> {
             symbols,
             types,
             result: Ok(()),
-            options: destack_dir::NodeVisitorOptions::default(),
+            options: NodeVisitorOptions::default(),
         }
     }
 
@@ -72,8 +73,8 @@ impl<'a> DeclareVisitor<'a> {
     }
 }
 
-impl destack_dir::NodeVisitor for DeclareVisitor<'_> {
-    fn options(&self) -> &destack_dir::NodeVisitorOptions {
+impl NodeVisitor for DeclareVisitor<'_> {
+    fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
 
@@ -90,23 +91,18 @@ impl destack_dir::NodeVisitor for DeclareVisitor<'_> {
 
         // walk nested expression nodes
         destack_base::ensure_sufficient_stack(|| {
-            destack_dir::walk_expression(self, tree, id, expression);
+            walk_expression(self, tree, id, expression);
         });
     }
 
-    fn visit_block(
-        &mut self,
-        tree: &NodeTree,
-        id: LocalNodeId<destack_dir::Block>,
-        block: &destack_dir::Block,
-    ) {
+    fn visit_block(&mut self, tree: &NodeTree, id: LocalNodeId<Block>, block: &Block) {
         // stop on first error
         if !self.should_continue() {
             return;
         }
 
         // walk nested block nodes
-        destack_dir::walk_block(self, tree, id, block);
+        walk_block(self, tree, id, block);
     }
 
     fn visit_declaration(
@@ -137,7 +133,7 @@ impl destack_dir::NodeVisitor for DeclareVisitor<'_> {
         }
 
         // walk nested declaration nodes
-        destack_dir::walk_declaration(self, tree, id, declaration);
+        walk_declaration(self, tree, id, declaration);
     }
 }
 
@@ -612,16 +608,19 @@ impl Compiler {
 
                 // register the extension when a target symbol exists
                 if let Some(target) = target_symbol {
-                    let kind = if module.id == target.module_id {
-                        destack_dir::ExtensionKind::Inherent
+                    // resolve the canonical target symbol for extension lookup
+                    let canonical_target =
+                        self.canonical_symbol_id(module, symbols, profile, *target);
+                    let kind = if module.id == canonical_target.module_id {
+                        ExtensionKind::Inherent
                     } else if descriptor.name.is_some() {
-                        destack_dir::ExtensionKind::Nominal
+                        ExtensionKind::Nominal
                     } else {
-                        destack_dir::ExtensionKind::Local
+                        ExtensionKind::Local
                     };
                     let lineage = types.get_lineage_id_for_symbol(extension_symbol);
                     let extension =
-                        destack_dir::Extension::new(extension_symbol, kind, *target, lineage);
+                        Extension::new(extension_symbol, kind, canonical_target, lineage);
                     types.insert_extension(extension);
                 }
 
@@ -825,7 +824,7 @@ impl Compiler {
                         types.insert_type_from_any(ty, member_id.into_any())
                     };
                     let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
-                        modifiers.mutability == Some(destack_dir::Mutability::Immutable)
+                        modifiers.mutability == Some(Mutability::Immutable)
                     });
 
                     shape.index_signatures.push(TypeIndexSignature {
@@ -861,9 +860,9 @@ impl Compiler {
                 let is_optional = modifiers
                     .as_ref()
                     .is_some_and(|m| matches!(m.kind, Some(BindingKind::Maybe)));
-                let is_readonly = modifiers.as_ref().is_some_and(|m| {
-                    matches!(m.mutability, Some(destack_dir::Mutability::Immutable))
-                });
+                let is_readonly = modifiers
+                    .as_ref()
+                    .is_some_and(|m| matches!(m.mutability, Some(Mutability::Immutable)));
 
                 // build the field when a static key exists
                 if let Some(key) = static_key {
@@ -978,7 +977,7 @@ impl Compiler {
         }
 
         let options = self.analyze_context_options_for_module(module.id);
-        let mut infer = destack_dir::InferTable::default();
+        let mut infer = InferTable::default();
         let base_ctx = InferContext::new(profile, options).for_surface_inference();
         let mut inferred_exports = Vec::new();
         let mut export_inference = Vec::new();
