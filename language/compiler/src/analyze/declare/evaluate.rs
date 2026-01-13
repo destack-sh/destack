@@ -42,8 +42,8 @@ impl Compiler {
         let ty = types.get_type_mut(ty_id);
         *ty = evaluated_ty;
 
-        // NOTE #Suspicious: clearing the normalization cache here is heavy, revisit
-        types.clear_normalization_cache();
+        // invalidate normalization cache after in-place updates
+        types.invalidate_normalization_cache();
 
         Ok(())
     }
