@@ -23,8 +23,64 @@ The runtime owns scheduling, I/O, and platform integration.
 | Execution | MIR semantics, stacks, continuations | task queues, event loop |
 | Memory | managed GC, raw heap, stack alloc | external resources |
 | Transitions | state reconstruction | OSR/deopt policy |
-| Observability | counters, profiling hooks | aggregation, UX |
+| Telemetry | counters, profiling hooks | aggregation, UX |
 | Snapshotting | state capture hooks | persistence format |
+
+## Layout
+
+<pre>
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                     VM                                      │
+│                                                                             │
+│  Isolate                                                                    │
+│   ├─ heaps, GC, globals, interned strings                                   │
+│   ├─ options, telemetry hooks                                               │
+│   └─ externals registry (runtime-provided)                                  │
+│                                                                             │
+│  Engines                                                                    │
+│   ├─ interpreter engine: threaded decode + dispatch                         │
+│   └─ compiled engine: OSR, deopt, stack map consumption                      │
+│                                                                             │
+│  Execute                                                                    │
+│   ├─ entrypoints: run_function, resume                                      │
+│   └─ continuations: capture and restore                                     │
+│                                                                             │
+│  ABI (vm/abi)                                                               │
+│   └─ metadata: safepoints, deopt maps, stack maps, versions                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+</pre>
+
+### Components
+
+| Component | Description |
+|-----------|-------------|
+| `isolate` | per-instance state: heaps, globals, options, telemetry hooks |
+| `engine::interpreter::InterpreterEngine` | threaded decode and MIR dispatch |
+| `engine::compiled::CompiledEngine` | compiled execution (AOT or JIT), OSR, deopt, stack map consumption |
+| `execute` | entrypoints and continuation state machine |
+| `memory` | Value representation, managed heap, raw heap, GC |
+| `diagnostic` | errors and stack traces |
+| `telemetry` | counters and profiling hooks |
+| `snapshot` | state capture and restore |
+| `abi` (`vm/abi`) | metadata wire types and versioning |
+
+### Ownership boundary
+
+The VM executes MIR and reconstructs state.
+Platform services (I/O, bindings, scheduling, replay) live in the runtime.
+
+## Usage Scenarios
+
+| Scenario | Start | Transitions | Notes |
+|----------|-------|-------------|-------|
+| VM-first JIT | interpreter | OSR into compiled, deopt back | hot code is compiled on demand |
+| AOT-first debug | compiled | deopt at safepoints | stepping and inspection in the VM |
+| AOT-first | compiled | optional deopt | full-speed execution, debug off |
+| Mixed debug | interpreter + compiled | selective deopt | debug modules in VM, others compiled |
+| VM-only | interpreter | none | comptime, deterministic runs, fallback |
+| Replay run | interpreter or compiled | replays external bindings | deterministic playback from log |
+| Compiled-only slim runtime | compiled | deopt disabled | interpreter not linked |
+| Comptime-only | interpreter | none | compile-time evaluation only |
 
 ## Terminology
 
@@ -50,7 +106,7 @@ The runtime may host many isolates across OS threads.
 | isolate state | VM | managed heap, raw heap, globals, options | yes |
 | execution state | VM | call stack, value stack, local stack | yes |
 | continuation state | VM | suspended stacks + resume point | yes |
-| runtime state | runtime | scheduler queue, timers, external handles | runtime-defined |
+| runtime state | runtime | scheduler queue, timers, external resources | runtime-defined |
 
 ## Threading and Reentrancy
 
@@ -259,6 +315,7 @@ The VM manages three kinds of memory, matching MIR semantics:
 | Stack | `stack.alloc` | frame-scoped | temporaries, small allocations |
 
 The managed heap uses a precise tracing GC.
+GC runs in the VM and scans compiled frames using stack maps at safepoints.
 The raw heap tracks allocations for leak detection in debug builds.
 Stack allocations are freed when frames exit.
 The raw heap is not scanned by GC.
@@ -271,36 +328,37 @@ Roots include:
 
 - Active frames including SSA values, locals, and stack cells.
 - Suspended continuations with captured stacks.
-- Runtime-provided roots for external handles.
+- Runtime-provided roots for external resources.
 - Globals.
 
 The VM owns GC and root collection; the runtime provides extra roots.
 The design assumes a non-moving collector initially, but uses handle indirection so a moving collector can be introduced without breaking the ABI.
+External resources must still be explicitly rooted by the runtime, even with a non-moving collector.
 
 Write barriers are required for generational or concurrent collectors.
 Lowering must preserve managed write sites (`field.set`, `element.set`, stores through managed references) so the VM can attach barrier logic.
 The barrier model is Go-style Dijkstra with shade-on-write.
 
-# External Handles
+# External Resources
 
-External resources live in the runtime and are represented as opaque handles in `Value`.
-The VM treats handles as opaque and relies on runtime-provided roots.
+External resources live in the runtime and are represented as opaque resource ids in `Value`.
+The VM treats resources as opaque and relies on runtime-provided roots.
 
 ```ds
-type ExternalHandle = {
+type ExternalResource = {
     typeId: uint64,
     payloadPtr: *unknown,
-    finalizer?: (handle: ExternalHandle) => void,
+    finalizer?: (resource: ExternalResource) => void,
 };
 
-type HandleId = uint64;
-const handleId: HandleId = 0;
-const handle: ExternalHandle = handleTable[handleId];
+type ResourceId = uint64;
+const resourceId: ResourceId = 0;
+const resource: ExternalResource = resourceTable[resourceId];
 ```
 
 Finalizers are runtime-owned and run only at safe points.
 Finalizers must not re-enter the VM.
-Handles are excluded from snapshots unless the runtime explicitly serializes them.
+Resources are excluded from snapshots unless the runtime explicitly serializes them.
 
 # Snapshotting
 
@@ -313,10 +371,13 @@ A snapshot captures:
 - Call stacks and continuation queues are captured.
 - Deterministic sources such as PRNG seed and time epoch are captured.
 
-External handles are excluded by default and require runtime-defined hooks.
-If external handles are present and the runtime has no hook, snapshotting must fail loudly.
+External resources are excluded by default and require runtime-defined hooks.
+If external resources are present and the runtime has no hook, snapshotting must fail loudly.
 The raw heap is snapshot-safe because raw pointers are index-based, not native addresses.
-Any external handle must be reattached explicitly by the runtime after restore.
+Any external resource must be reattached explicitly by the runtime after restore.
+
+Deterministic execution requires the runtime to control time, randomness, scheduling, and bindings.
+The VM provides snapshot hooks and must be able to replay execution when those sources are fixed.
 
 # VM <-> Native Transitions
 
@@ -373,6 +434,7 @@ The metadata follows these rules:
 
 The runtime decides when to transition; the VM guarantees reconstruction correctness.
 Metadata formats are compiler-version private and must be version-checked by the runtime.
+The wire types for these metadata tables live in `destack_vm_abi`.
 
 ## Transition Policy
 
@@ -391,7 +453,10 @@ Stack maps are exact at all safepoints.
 
 The execution model is two-tier:
 - **VM** for comptime, deterministic debugging, and fallback execution.
-- **Native** optimized code for production performance.
+- **Compiled** code for production performance.
+
+Tiering decisions are owned by the runtime.
+The VM discovers compiled entrypoints at call sites and OSR boundaries when they exist.
 
 Profiling follows `profilingMode`, and the captured signals are scoped per isolate and consumed by the optimizer:
 - Call counts per function and callsite.
@@ -404,7 +469,18 @@ Profiling follows `profilingMode`, and the captured signals are scoped per isola
 
 Speculative optimizations follow `speculationMode` and must have guards plus deopt metadata.
 
-# Observability
+## Mixed-tier Execution
+
+The VM supports mixed-tier execution on a per-function basis:
+- every function has MIR and can run in the interpreter
+- compiled entrypoints are optional and discovered at runtime
+- call sites jump to compiled code when available, otherwise interpret
+- OSR entries allow hot loops to jump into compiled code
+- compiled frames deopt to the VM at safepoints
+
+The runtime controls when compiled entrypoints exist (AOT, JIT, or none).
+
+# Telemetry
 
 The VM exposes:
 - Counters for instruction counts, calls, and allocations.
@@ -435,7 +511,7 @@ Production-grade execution requires:
 - Validated entry points that reject malformed continuations and incorrect isolate ids.
 - Versioned metadata formats for safepoints, deopt maps, and stack maps.
 - Deterministic scheduling controls and snapshot safety for all VM-visible state.
-- Low-overhead observability with stable counter and sampling formats.
+- Low-overhead telemetry with stable counter and sampling formats.
 
 # Implementation Notes
 
@@ -453,7 +529,7 @@ NaN-boxing is deferred until width/type information can move into instruction me
 
 Aggregates are heap-allocated today with handles in `Value`.
 Small aggregate inlining is planned once the 8-byte representation lands.
-External handles use a dedicated tag and store a runtime handle id in the value payload.
+External resources use a dedicated tag and store a runtime resource id in the value payload.
 
 ## Dispatch
 

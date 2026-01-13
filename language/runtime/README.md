@@ -26,6 +26,40 @@ It must:
 - support snapshots, profiling, and full debug workflows
 - preserve VM/native semantic equivalence
 
+# Layout
+
+<pre>
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                   Runtime                                   │
+│                                                                             │
+│  Platform                                                                    │
+│   ├─ bindings: external calls + shims                                        │
+│   ├─ clock: time sources                                                     │
+│   ├─ random: PRNG and entropy                                                │
+│   └─ resources: external lifetimes + finalizers                              │
+│                                                                             │
+│  Scheduler                                                                   │
+│  Replay                                                                      │
+│  Snapshot                                                                    │
+│  Telemetry                                                                   │
+│                                                                             │
+│  Bridge → VM                                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+</pre>
+
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| `platform` | bindings, clock, random, resources |
+| `scheduler` | tasks, event loop, timers |
+| `replay` | record and replay log for deterministic I/O |
+| `snapshot` | persistence format and restore |
+| `telemetry` | trace and profiling aggregation |
+| `bridge` | VM entrypoints and isolate orchestration |
+
+Determinism is defined by scheduler policy, platform sources, and replay.
+
 # Responsibilities
 
 The runtime owns platform integration and orchestration around the VM or native code.
@@ -33,11 +67,11 @@ This includes:
 
 - scheduling: event loop, timers, task queues
 - I/O and bindings: filesystem, network, crypto, OS integration
-- external handles: lifetime management and optional finalizers
+- external resources: lifetime management and optional finalizers
 - snapshotting: persistence format and serialization
 - VM <-> native transitions: OSR, deopt, tiering decisions
 - determinism controls: time, randomness, scheduling policy
-- observability: profiling, tracing, debug UX aggregation
+- telemetry: profiling, tracing, debug UX aggregation
 
 # VM Contract
 
@@ -50,9 +84,9 @@ The runtime drives it via:
 
 The runtime supplies:
 
-- extra GC roots for suspended continuations and external handles
+- extra GC roots for suspended continuations and external resources
 - scheduling policy for yield/resume
-- external handle resolution and native bindings
+- external resource resolution and native bindings
 - serialization of VM entry point calls per isolate
 
 The runtime must treat continuations as opaque values and only pass them back to the VM.
@@ -72,11 +106,24 @@ The runtime must honor this mode when selecting VM vs native execution:
 
 When `debugMode = Deopt`, the runtime must reject binaries missing full deopt metadata.
 
+## Execution Scenarios
+
+| Scenario | Runtime behavior | Notes |
+|----------|------------------|-------|
+| VM-first JIT | start in the interpreter, compile hot functions, OSR into compiled | uses profiling and tiering |
+| AOT-first debug | run compiled code, deopt on debug events | requires full deopt metadata |
+| AOT-first | run compiled code only | debug off, deopt optional |
+| Mixed debug | force selected code to the VM, compiled elsewhere | used for partial debugging |
+| VM-only | interpreter only, compiled disabled | comptime or deterministic runs |
+| Replay run | replay log drives external bindings | deterministic playback |
+| Compiled-only slim runtime | compiled only, interpreter not linked | minimal runtime footprint |
+| Comptime-only | not a runtime mode | VM executes during compilation |
+
 # Execution Policy
 
 Execution policy settings are defined in target configuration and must be honored by the runtime for native targets.
 
-**Tiering model** is fixed to VM + optimized native.
+**Tiering model** is fixed to VM + compiled code.
 The runtime decides when to enter native code and when to deopt back to the VM.
 
 **Profiling** follows `profilingMode`.
@@ -119,6 +166,7 @@ Host callbacks and FFI calls are external I/O.
 The runtime coordinates safepoints and may enable incremental marking.
 Deterministic modes must use deterministic GC scheduling based on allocation thresholds.
 The barrier model is Go-style Dijkstra with shade-on-write.
+GC runs inside the VM; compiled code participates via stack maps at safepoints.
 
 # Scheduling Model
 
@@ -173,33 +221,33 @@ The runtime is responsible for:
 - Supplying deterministic time and randomness sources.
 - Draining queues and running finalizers on shutdown.
 
-# External Handles
+# Resources
 
-External resources are represented as opaque handles in the VM.
-The runtime owns a handle table and optional finalizers.
-Handles are rooted via runtime hooks when GC runs.
+External resources are represented as opaque resource ids in the VM.
+The runtime owns a resource table and optional finalizers.
+Resources are rooted via runtime hooks when GC runs.
 
 ```ds
-type ExternalHandle = {
+type ExternalResource = {
     typeId: uint64,
     payloadPtr: *unknown,
-    finalizer?: (handle: ExternalHandle) => void,
+    finalizer?: (resource: ExternalResource) => void,
 };
 
-const handleId: uint64 = 0;
-const handle = handleTable[handleId];
+const resourceId: uint64 = 0;
+const resource = resourceTable[resourceId];
 ```
 
 Finalizers run only at safe points and must not re-enter the VM.
-Handles are excluded from snapshots unless the runtime provides serialization hooks.
+Resources are excluded from snapshots unless the runtime provides serialization hooks.
 
-# External Bindings
+# Bindings
 
 External functions must be non-reentrant with respect to the VM.
 Blocking or asynchronous work is modeled in MIR as a yield/resume state machine.
-External bindings should return immediately and signal completion by scheduling a resume value into the task queue.
-External bindings are modeled as effects with typed payloads defined by the standard library and runtime.
-Capability tokens are passed explicitly to authorize external effects.
+Bindings should return immediately and signal completion by scheduling a resume value into the task queue.
+Bindings are modeled as typed external calls defined by the standard library and runtime.
+Capability tokens are passed explicitly to authorize external bindings.
 
 The runtime must surface failures as userland values rather than raising VM-level exceptions from within external callbacks.
 Synchronous externals are allowed when they are fast and non-blocking.
@@ -217,9 +265,9 @@ A snapshot captures:
 - Deterministic sources such as time epoch and PRNG seed are captured.
 - Runtime scheduler queues and timers are captured.
 
-External handles are excluded by default and require explicit runtime opt-in.
-If a snapshot is requested with external handles present and no serialization hook, the runtime must fail loudly.
-Any external handle must be reattached explicitly by the runtime after restore.
+External resources are excluded by default and require explicit runtime opt-in.
+If a snapshot is requested with external resources present and no serialization hook, the runtime must fail loudly.
+Any external resource must be reattached explicitly by the runtime after restore.
 Snapshots are versioned and tied to the target ABI.
 The runtime must reject snapshot restore when the compiler version, target triple, or GC layout does not match.
 
@@ -302,14 +350,14 @@ type DeoptRequest = {
 
 The runtime must ensure `deoptMap` is a valid index into the metadata blob.
 
-## External Shim ABI
+## Bindings Shim ABI
 
 External I/O flows through runtime shims in deterministic modes.
-Each external call is represented as a typed effect with an opaque payload.
+Each external call is represented as a typed binding with an opaque payload.
 
 ```ds
 type ExternalCall = {
-    effectId: uint32,
+    bindingId: uint32,
     payload: uint8[],
 };
 
@@ -320,9 +368,9 @@ type ExternalResult = {
 ```
 
 `Record` captures ExternalCall and ExternalResult pairs in program order.
-`effectId` refers to a runtime effect registry with stable payload schemas.
+`bindingId` refers to a runtime binding registry with stable payload schemas.
 
-# Determinism
+# Replay and Determinism
 
 Deterministic execution requires the runtime to control:
 
@@ -335,13 +383,16 @@ Determinism follows `determinismMode`:
 - `Record` records external I/O for deterministic playback.
 - `Replay` replays external I/O from the runtime log.
 
-Deterministic I/O is opt-in and requires runtime support for record and replay.
+Deterministic I/O is opt-in and requires runtime support for replay.
 Record and Replay enable time-travel debugging and simulation testing in userland libraries.
 
-## Record/Replay Log
+Determinism requires routing all external bindings through runtime shims.
+Time, randomness, and scheduling are part of the deterministic surface.
 
-The runtime records external effects in program order.
-Each entry captures the effect identifier and its payload.
+## Replay Log
+
+The runtime records external bindings in program order.
+Each entry captures the binding identifier and its payload.
 Each entry captures the result payload or error code.
 
 ```ds
@@ -354,7 +405,7 @@ type ReplayEntry = {
 
 `sequence` is a monotonically increasing identifier assigned by the runtime.
 
-# Observability
+# Telemetry
 
 The runtime aggregates VM/native signals:
 
