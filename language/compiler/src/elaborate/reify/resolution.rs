@@ -52,7 +52,7 @@ impl Compiler {
 
         // get the receiver expression from the original expression
         let expression = tree.get(expression_id).clone();
-        let Some(receiver_expression_id) = self.receiver_expression_for(&expression) else {
+        let Some(receiver_expression_id) = self.receiver_expression_for(&expression, tree) else {
             return Ok(());
         };
 
@@ -129,7 +129,11 @@ impl Compiler {
     }
 
     /// Get the receiver expression from an expression that has a resolution.
-    fn receiver_expression_for(&self, expression: &Expression) -> Option<LocalNodeId<Expression>> {
+    fn receiver_expression_for(
+        &self,
+        expression: &Expression,
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<Expression>> {
         match expression {
             // binary operators: receiver is the left operand
             Expression::Binary { left, .. } => Some(*left),
@@ -137,9 +141,21 @@ impl Compiler {
             Expression::Unary { right, .. } => Some(*right),
             // call expressions: receiver is from the left (could be member access)
             Expression::Call { left, .. } => {
-                // for method calls, the receiver is inside the member expression
-                // for now, just return the left - we may need to refine this
-                Some(*left)
+                // unwrap parenthesized callee
+                let mut callee_id = *left;
+                loop {
+                    let Expression::Parenthesized { expression } = tree.get(callee_id) else {
+                        break;
+                    };
+                    callee_id = *expression;
+                }
+
+                // use the receiver for member calls
+                if let Expression::Member { left, .. } = tree.get(callee_id) {
+                    Some(*left)
+                } else {
+                    Some(callee_id)
+                }
             }
             // member access: receiver is the left
             Expression::Member { left, .. } => Some(*left),
@@ -335,7 +351,6 @@ function first(arr): int32 | undefined {
     }
 
     #[test]
-    #[ignore] // FUGU: ensure Analyze produces Resolution::Dynamic #AnalyzeResolution
     fn test_reify_dynamic_member_access_on_union() {
         // member access on union types where both have same-named field
         // needs dynamic dispatch because User.name and Admin.name are different symbols
@@ -379,7 +394,6 @@ function getName(person): string {
     }
 
     #[test]
-    #[ignore] // #AnalyzeResolution
     fn test_reify_dynamic_method_call_on_union() {
         // method call on union type with different method implementations
         // should be reified into if-else chain with is type checks
@@ -437,7 +451,6 @@ function greet(pet): string {
     }
 
     #[test]
-    #[ignore] // #AnalyzeResolution
     fn test_reify_dynamic_method_call_three_variants() {
         // method call on union with 3 types creates nested if-else chain
         let test = TestProgram::memory_sequential();
@@ -510,7 +523,70 @@ function greet(pet): string {
     }
 
     #[test]
-    #[ignore] // #AnalyzeResolution
+    fn test_reify_dynamic_method_call_on_union_extension() {
+        // method call on union type with extension methods should reify to dynamic dispatch
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+struct Cat {
+    name: string
+}
+
+struct Dog {
+    name: string
+}
+
+extension for Cat {
+    speak(): string { "meow" }
+}
+
+extension for Dog {
+    speak(): string { "woof" }
+}
+
+function greet(pet: Cat | Dog): string {
+    pet.speak()
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+struct Cat {
+    name: string,
+}
+
+struct Dog {
+    name: string,
+}
+
+extension for Cat {
+    speak(): string {
+        return "meow";
+    }
+}
+
+extension for Dog {
+    speak(): string {
+        return "woof";
+    }
+}
+
+function greet(pet): string {
+    if (pet is Cat) {
+        return pet.speak();
+    } else {
+        return pet.speak();
+    }
+}
+"#,
+        );
+    }
+
+    #[test]
     fn test_reify_static_method_call_single_type() {
         // method call on non-union type stays unchanged
         let test = TestProgram::memory_sequential();
@@ -539,7 +615,7 @@ struct Counter {
     value: int32,
 
     increment(): Counter {
-        return Counter { value: this.value + 1 };
+        return Counter { value: this.value + 1 as int32 };
     }
 }
 
@@ -551,7 +627,6 @@ function bump(c): Counter {
     }
 
     #[test]
-    #[ignore] // #AnalyzeResolution
     fn test_reify_static_method_call_polymorphic_type() {
         // method call on polymorphic type stays unchanged
         let test = TestProgram::memory_sequential();

@@ -1,4 +1,6 @@
-use destack_dir::{Declaration, Expression, IfKind, LocalNodeId, NodeTree, NodeType};
+use destack_dir::{
+    Declaration, Expression, IfKind, LocalNodeId, Member, NodeTree, NodeType, TypeTable,
+};
 
 use crate::{Compiler, ElaborateResult};
 
@@ -29,25 +31,42 @@ impl Compiler {
         &self,
         tree: &mut NodeTree,
         _symbols: &destack_dir::SymbolTable,
+        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
-        // collect all function declarations
-        let function_ids: Vec<_> = tree
-            .iter_node_ids_of_type::<Declaration>()
-            .into_iter()
-            .filter(|id| matches!(tree.get(*id), Declaration::Function { .. }))
-            .collect();
+        // collect function and method bodies to rewrite
+        let mut body_ids = Vec::new();
+        for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+            let declaration = tree.get(declaration_id).clone();
 
-        for func_id in function_ids {
-            let Declaration::Function {
+            // function declarations
+            if let Declaration::Function {
                 body: Some(body_id),
                 ..
-            } = tree.get(func_id).clone()
-            else {
-                continue;
-            };
+            } = declaration
+            {
+                body_ids.push(body_id);
+            }
 
+            // method bodies on structured declarations
+            if let Some(member_ids) = declaration.member_ids() {
+                for member_id in member_ids {
+                    let Member::Method {
+                        body: Some(body_id),
+                        ..
+                    } = tree.get(*member_id)
+                    else {
+                        continue;
+                    };
+
+                    body_ids.push(*body_id);
+                }
+            }
+        }
+
+        // rewrite implicit returns in each body
+        for body_id in body_ids {
             let scope = tree.get_scope(body_id);
-            self.make_return_explicit(body_id, tree, scope)?;
+            self.make_return_explicit(body_id, tree, scope, types)?;
         }
 
         Ok(())
@@ -61,6 +80,7 @@ impl Compiler {
         expr_id: LocalNodeId<Expression>,
         tree: &mut NodeTree,
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+        types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         let expr = tree.get(expr_id).clone();
 
@@ -69,7 +89,7 @@ impl Compiler {
                 let block_node = tree.get(block).clone();
                 if let Some(last_expr_id) = block_node.expressions.last().copied() {
                     // recursively transform the last expression
-                    self.make_return_explicit(last_expr_id, tree, scope)?;
+                    self.make_return_explicit(last_expr_id, tree, scope, types)?;
                 }
             }
 
@@ -79,10 +99,10 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                // for if-else (not ternary), transform both branches
-                self.make_return_explicit(then_expression, tree, scope)?;
+                // for if else (not ternary), transform both branches
+                self.make_return_explicit(then_expression, tree, scope, types)?;
                 if let Some(else_expr) = else_expression {
-                    self.make_return_explicit(else_expr, tree, scope)?;
+                    self.make_return_explicit(else_expr, tree, scope, types)?;
                 }
             }
 
@@ -95,6 +115,13 @@ impl Compiler {
                 let orig_id =
                     tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
                 let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+
+                // preserve analysis metadata for the cloned expression
+                let module_id = types.module_id;
+                types.copy_node_analysis(
+                    expr_id.into_global_any(module_id),
+                    orig_expr_id.into_global_any(module_id),
+                );
 
                 // create return expression
                 let return_id =
@@ -125,7 +152,7 @@ impl Compiler {
 
             Expression::Statement { statement } => {
                 // recursively transform the inner statement
-                self.make_return_explicit(statement, tree, scope)?;
+                self.make_return_explicit(statement, tree, scope, types)?;
             }
 
             Expression::Let { .. } | Expression::Using { .. } => {
@@ -141,6 +168,13 @@ impl Compiler {
                 let orig_id =
                     tree.reserve_from(NodeType::Expression, expr_id.into_any(), scope, None);
                 let orig_expr_id: LocalNodeId<Expression> = tree.insert(orig_id, expr);
+
+                // preserve analysis metadata for the cloned expression
+                let module_id = types.module_id;
+                types.copy_node_analysis(
+                    expr_id.into_global_any(module_id),
+                    orig_expr_id.into_global_any(module_id),
+                );
 
                 // create return expression
                 let return_id =

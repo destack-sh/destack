@@ -16,9 +16,20 @@ pub(super) enum MemberResolution {
     /// A single target symbol is selected.
     Static { symbol: GlobalSymbolId },
     /// Multiple target symbols must be dispatched at runtime.
-    Dynamic { symbols: Vec<GlobalSymbolId> },
+    Dynamic {
+        candidates: Vec<MemberResolutionCandidate>,
+    },
     /// A nominal lookup failed, but some candidates exist.
     Unresolved,
+}
+
+/// Candidate member target for dynamic union dispatch.
+#[derive(Debug, Clone)]
+pub(super) struct MemberResolutionCandidate {
+    /// The receiver type to dispatch against.
+    pub(super) receiver_ty_id: LocalTypeId,
+    /// The resolved member symbol for this receiver type.
+    pub(super) symbol: GlobalSymbolId,
 }
 
 /// Resolved extension metadata for a member lookup.
@@ -728,11 +739,11 @@ impl Compiler {
             }
             Type::Union { elements } => {
                 // resolve member symbols for each union element
-                let mut symbols_for_union = Vec::new();
+                let mut candidates = Vec::new();
                 for element_id in elements {
                     let element_ty = types.get_type(*element_id).clone();
                     let mut visited = Vec::new();
-                    let member_symbol = self.resolve_member_symbol_for_type(
+                    let mut member_symbol = self.resolve_member_symbol_for_type(
                         module,
                         &element_ty,
                         member_key,
@@ -743,23 +754,37 @@ impl Compiler {
                         &mut visited,
                         true,
                     )?;
+                    if member_symbol.is_none() {
+                        // fall back to instance type owners when possible
+                        if let Some(instance_symbol) = types.symbol_for_instance_type(*element_id) {
+                            member_symbol = self.resolve_member_symbol_for_symbol(
+                                module,
+                                instance_symbol,
+                                member_key,
+                                profile,
+                                tree,
+                                symbols,
+                                types,
+                                &mut visited,
+                            )?;
+                        }
+                    }
                     let Some(member_symbol) = member_symbol else {
                         return Ok(MemberResolution::None);
                     };
-                    if !symbols_for_union.contains(&member_symbol) {
-                        symbols_for_union.push(member_symbol);
-                    }
+                    candidates.push(MemberResolutionCandidate {
+                        receiver_ty_id: *element_id,
+                        symbol: member_symbol,
+                    });
                 }
 
                 // map resolution type depending on variants
-                match symbols_for_union.len() {
+                match candidates.len() {
                     0 => MemberResolution::None,
                     1 => MemberResolution::Static {
-                        symbol: symbols_for_union[0],
+                        symbol: candidates[0].symbol,
                     },
-                    _ => MemberResolution::Dynamic {
-                        symbols: symbols_for_union,
-                    },
+                    _ => MemberResolution::Dynamic { candidates },
                 }
             }
             _ => {

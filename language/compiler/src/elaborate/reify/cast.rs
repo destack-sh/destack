@@ -289,6 +289,99 @@ impl Compiler {
         Ok(())
     }
 
+    /// Collapse redundant nested casts to the same target type.
+    pub(super) fn normalize_redundant_casts(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        module: &Module,
+    ) -> ElaborateResult<()> {
+        // walk all expressions to find nested casts
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            let Expression::Cast {
+                value,
+                target_type,
+                operator,
+                source,
+            } = tree.get(expression_id).clone()
+            else {
+                continue;
+            };
+
+            // require the cast value to be another cast
+            let Expression::Cast {
+                value: inner_value,
+                target_type: inner_target_type,
+                ..
+            } = tree.get(value).clone()
+            else {
+                continue;
+            };
+
+            // resolve target type ids for both casts
+            let Some(outer_target_type_id) =
+                self.type_id_for_type_expression(module_id, target_type, tree, types)
+            else {
+                continue;
+            };
+            let Some(inner_target_type_id) =
+                self.type_id_for_type_expression(module_id, inner_target_type, tree, types)
+            else {
+                continue;
+            };
+
+            // keep nested casts when targets differ
+            if !are_types_semantically_equal(
+                types.get_type(outer_target_type_id),
+                types.get_type(inner_target_type_id),
+                types,
+            ) {
+                let options = self.analyze_context_options_for_module(module_id);
+                let to_outer = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    outer_target_type_id,
+                    inner_target_type_id,
+                    types,
+                    &options,
+                );
+                let to_inner = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    inner_target_type_id,
+                    outer_target_type_id,
+                    types,
+                    &options,
+                );
+                if !(to_outer.is_assignable() && to_inner.is_assignable()) {
+                    continue;
+                }
+            }
+
+            // replace with a single cast to the shared target
+            tree.replace(
+                expression_id,
+                Expression::Cast {
+                    operator,
+                    source,
+                    value: inner_value,
+                    target_type: inner_target_type,
+                },
+            );
+            types.set_inferred_type(
+                expression_id.into_global_any(module_id),
+                outer_target_type_id,
+            );
+        }
+
+        Ok(())
+    }
+
     /// Reify implicit casts in ternary expressions.
     pub(super) fn reify_implicit_casts_in_ternary(
         &self,
@@ -491,6 +584,9 @@ impl Compiler {
             return Ok(());
         };
 
+        // align the binary expression type with the chosen numeric type
+        types.set_inferred_type(expression_id.into_global_any(module_id), target_type_id);
+
         // wrap both operands when needed
         let cast_left_id = self.wrap_value_with_cast_allow_literals(
             module_id,
@@ -610,6 +706,59 @@ impl Compiler {
         // skip when the types already match
         if value_type_id == target_type_id {
             return Ok(value_id);
+        }
+
+        // skip when the types are mutually assignable
+        let options = self.analyze_context_options_for_module(module_id);
+        let to_target = self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            target_type_id,
+            value_type_id,
+            types,
+            &options,
+        );
+        let to_source = self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            value_type_id,
+            target_type_id,
+            types,
+            &options,
+        );
+        if to_target.is_assignable() && to_source.is_assignable() {
+            return Ok(value_id);
+        }
+
+        // skip when the value is already cast to an equivalent type
+        if let Expression::Cast { target_type, .. } = tree.get(value_id) {
+            if let Some(existing_target_type_id) =
+                self.type_id_for_type_expression(module_id, *target_type, tree, types)
+            {
+                let to_target = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_type_id,
+                    existing_target_type_id,
+                    types,
+                    &options,
+                );
+                let to_source = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    existing_target_type_id,
+                    target_type_id,
+                    types,
+                    &options,
+                );
+                if to_target.is_assignable() && to_source.is_assignable() {
+                    return Ok(value_id);
+                }
+            }
         }
 
         // classify the cast
@@ -735,6 +884,31 @@ impl Compiler {
 
         // fall back to declared or inferred types on the node
         types.get_declared_or_inferred_type_id(value_id.into_global_any(module_id))
+    }
+
+    /// Resolve the type id encoded in a type expression.
+    fn type_id_for_type_expression(
+        &self,
+        module_id: ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // read the type expression node
+        let expression = tree.get(expression_id);
+
+        // use the explicit type id when available
+        if let Expression::Type { value } = expression {
+            return Some(*value);
+        }
+
+        // fall back to the inferred type value
+        let type_id =
+            types.get_declared_or_inferred_type_id(expression_id.into_global_any(module_id))?;
+        match types.get_type(type_id) {
+            Type::Value { value } => Some(*value),
+            _ => Some(type_id),
+        }
     }
 
     /// Classify the cast operator for two types.

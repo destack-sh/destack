@@ -35,11 +35,26 @@ extension for Vector2 implements Add<Vector2> {
 }
 ```
 
+### Dynamic Resolution
+
+Member access and method calls on unions resolve per variant:
+
+```ds
+struct User { name: string }
+struct Admin { name: string }
+
+declare function getPerson(): User | Admin;
+
+const name = getPerson().name;
+name satisfies string;
+```
+
 ## Subdirectories
 
 | Directory | Description |
 |-----------|-------------|
 | `extensions/` | Extension declarations and visibility |
 | `overloading/` | Function and operator overloading |
+| `resolution/` | Union member and method resolution |
 
 See [DESIGN.md](../../../../../DESIGN.md#dispatch) for full documentation.

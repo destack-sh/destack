@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
-    GlobalSymbolId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticKey,
-    SymbolTable, Type, TypeLiteral, TypeTable,
+    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -134,6 +135,100 @@ impl Compiler {
             self.substitute_static_parameters(instance_ty_id, &substitutions, types, &mut cache);
 
         Ok(Some(substituted))
+    }
+
+    /// Derive an expected object type for tagged object literals.
+    pub(super) fn expected_tagged_object_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        ty_id: LocalTypeId,
+        expected_object_ty_id: Option<LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip when no contextual object type exists
+        let Some(expected_object_ty_id) = expected_object_ty_id else {
+            return Ok(None);
+        };
+
+        // resolve the referenced symbol for the tagged type
+        let Type::Reference { symbol, .. } = types.get_type(ty_id) else {
+            return Ok(Some(expected_object_ty_id));
+        };
+
+        // resolve the primary declaration for the symbol
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(Some(expected_object_ty_id));
+        };
+        if primary_declaration.module_id != module.id {
+            return Ok(Some(expected_object_ty_id));
+        }
+        let Ok(primary_declaration) = primary_declaration.try_into_typed::<Declaration>() else {
+            return Ok(Some(expected_object_ty_id));
+        };
+        let declaration_id: LocalNodeId<Declaration> = primary_declaration.into();
+        let declaration = tree.get(declaration_id);
+
+        // ensure the declaration is a struct or class
+        if !matches!(
+            declaration,
+            Declaration::Struct { .. } | Declaration::Class { .. }
+        ) {
+            return Ok(Some(expected_object_ty_id));
+        }
+
+        // collect declared field keys from the struct or class
+        let Some(member_ids) = declaration.member_ids() else {
+            return Ok(Some(expected_object_ty_id));
+        };
+        let mut declared_field_keys = Vec::new();
+        for member_id in member_ids {
+            let member = tree.get(*member_id);
+            let Member::Field { key: Some(key), .. } = member else {
+                continue;
+            };
+            if let Some(static_key) =
+                self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
+            {
+                declared_field_keys.push(static_key);
+            }
+        }
+        if declared_field_keys.is_empty() {
+            return Ok(Some(expected_object_ty_id));
+        }
+
+        // filter expected fields down to declared fields
+        let Type::Object {
+            fields,
+            call_signatures,
+            construct_signatures,
+            index_signatures,
+        } = types.get_type(expected_object_ty_id).clone()
+        else {
+            return Ok(Some(expected_object_ty_id));
+        };
+        let mut filtered_fields = Vec::new();
+        for field in fields {
+            if declared_field_keys
+                .iter()
+                .any(|key| key.matches(&field.key))
+            {
+                filtered_fields.push(field);
+            }
+        }
+        let filtered_type = Type::Object {
+            fields: filtered_fields,
+            call_signatures,
+            construct_signatures,
+            index_signatures,
+        };
+        let filtered_type_id = types.insert_type_from(filtered_type, expression_id);
+
+        Ok(Some(filtered_type_id))
     }
 
     /// Resolve an expected field type from a contextual object type and key.

@@ -25,22 +25,45 @@ impl Compiler {
             return Ok(None);
         };
         let resolution = types.get_resolution(resolution_id).clone();
-        let candidate = match resolution {
-            Resolution::Static { candidate, .. } => candidate,
-            _ => return Ok(None), // #Incomplete: handle dynamic resolution
-        };
-        let Some(resolved_signature) = candidate.resolved_signature else {
-            return Ok(None);
+        let candidates = match resolution {
+            Resolution::Static { candidate, .. } => vec![candidate],
+            Resolution::Dynamic { candidates, .. } => candidates,
+            _ => return Ok(None),
         };
 
-        // #Incomplete: map named and spread arguments to parameters
-        // map positional arguments to parameter types
+        // collect resolved signatures for all candidates
+        let mut signatures = Vec::new();
+        for candidate in candidates {
+            let Some(resolved_signature) = candidate.resolved_signature else {
+                return Ok(None);
+            };
+            signatures.push(resolved_signature);
+        }
+
+        // map positional arguments to parameter types when uniform across candidates
         let mut expected_types = Vec::with_capacity(dynamic_arguments.len());
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             let argument = tree.get(*argument_id);
             let expected_type_id = match argument {
                 Argument::Positional { .. } => {
-                    resolved_signature.dynamic_parameters.get(index).copied()
+                    let mut expected = None;
+                    let mut is_uniform = true;
+                    for signature in &signatures {
+                        let Some(param_ty_id) = signature.dynamic_parameters.get(index).copied()
+                        else {
+                            is_uniform = false;
+                            break;
+                        };
+                        if let Some(current) = expected {
+                            if current != param_ty_id {
+                                is_uniform = false;
+                                break;
+                            }
+                        } else {
+                            expected = Some(param_ty_id);
+                        }
+                    }
+                    if is_uniform { expected } else { None }
                 }
                 _ => None,
             };

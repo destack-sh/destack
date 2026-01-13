@@ -340,6 +340,36 @@ impl TypeTable {
         self.signature_type_by_node_id.get(&node_id).copied()
     }
 
+    /// Copy node-local analysis data from a source node to a target node.
+    /// Copies declared types, inferred types, signature types, instances, and resolutions.
+    pub fn copy_node_analysis(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
+        // declared type
+        if let Some(declared_type) = self.declared_type_by_node_id.get(&source).copied() {
+            self.declared_type_by_node_id.insert(target, declared_type);
+        }
+
+        // inferred type
+        if let Some(inferred_type) = self.inferred_type_by_node_id.get(&source).copied() {
+            self.inferred_type_by_node_id.insert(target, inferred_type);
+        }
+
+        // signature type
+        if let Some(signature_type) = self.signature_type_by_node_id.get(&source).copied() {
+            self.signature_type_by_node_id
+                .insert(target, signature_type);
+        }
+
+        // instance
+        if let Some(instance_id) = self.instance_by_node_id.get(&source).copied() {
+            self.instance_by_node_id.insert(target, instance_id);
+        }
+
+        // resolution
+        if let Some(resolution_id) = self.resolution_by_node_id.get(&source).copied() {
+            self.resolution_by_node_id.insert(target, resolution_id);
+        }
+    }
+
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
@@ -356,6 +386,16 @@ impl TypeTable {
     /// Get the instance type id for a symbol.
     pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.instance_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Find the symbol that owns an instance type id.
+    pub fn symbol_for_instance_type(
+        &self,
+        instance_type_id: LocalTypeId,
+    ) -> Option<GlobalSymbolId> {
+        self.instance_type_by_symbol_id
+            .iter()
+            .find_map(|(symbol, ty_id)| (*ty_id == instance_type_id).then_some(*symbol))
     }
 
     /// Cache the constraint type for a static parameter symbol.
