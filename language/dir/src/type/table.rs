@@ -34,8 +34,14 @@ pub struct TypeTable {
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
     /// Cached normalization results for assignability.
     pub(crate) normalized_assignability_type_by_id: Vec<Option<LocalTypeId>>,
+    /// Cache epoch for assignability normalization results.
+    pub(crate) normalized_assignability_epoch_by_id: Vec<u64>,
     /// Cached normalization results for flow.
     pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
+    /// Cache epoch for flow normalization results.
+    pub(crate) normalized_flow_epoch_by_id: Vec<u64>,
+    /// Epoch for invalidating normalization caches.
+    pub(crate) normalization_epoch: u64,
 
     // static parameter constraints
     /// Cached constraint types by static parameter symbol.
@@ -105,7 +111,10 @@ impl TypeTable {
             types: Arena::new(),
             source_id_by_type_id: Vec::new(),
             normalized_assignability_type_by_id: Vec::new(),
+            normalized_assignability_epoch_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
+            normalized_flow_epoch_by_id: Vec::new(),
+            normalization_epoch: 0,
 
             // static parameter constraints
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
@@ -157,7 +166,11 @@ impl TypeTable {
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
         self.normalized_assignability_type_by_id.push(None);
+        self.normalized_assignability_epoch_by_id
+            .push(self.normalization_epoch);
         self.normalized_flow_type_by_id.push(None);
+        self.normalized_flow_epoch_by_id
+            .push(self.normalization_epoch);
         type_id
     }
 
@@ -190,16 +203,29 @@ impl TypeTable {
     ) -> Option<LocalTypeId> {
         let cache_index = type_id.0 as usize;
         match mode {
-            NormalizationMode::Assign => self
-                .normalized_assignability_type_by_id
-                .get(cache_index)
-                .copied()
-                .flatten(),
-            NormalizationMode::Flow => self
-                .normalized_flow_type_by_id
-                .get(cache_index)
-                .copied()
-                .flatten(),
+            NormalizationMode::Assign => {
+                let cache_epoch = self
+                    .normalized_assignability_epoch_by_id
+                    .get(cache_index)
+                    .copied()?;
+                if cache_epoch != self.normalization_epoch {
+                    return None;
+                }
+                self.normalized_assignability_type_by_id
+                    .get(cache_index)
+                    .copied()
+                    .flatten()
+            }
+            NormalizationMode::Flow => {
+                let cache_epoch = self.normalized_flow_epoch_by_id.get(cache_index).copied()?;
+                if cache_epoch != self.normalization_epoch {
+                    return None;
+                }
+                self.normalized_flow_type_by_id
+                    .get(cache_index)
+                    .copied()
+                    .flatten()
+            }
         }
     }
 
@@ -217,27 +243,32 @@ impl TypeTable {
                     self.normalized_assignability_type_by_id
                         .resize(cache_index + 1, None);
                 }
+                if self.normalized_assignability_epoch_by_id.len() <= cache_index {
+                    self.normalized_assignability_epoch_by_id
+                        .resize(cache_index + 1, self.normalization_epoch);
+                }
                 self.normalized_assignability_type_by_id[cache_index] = Some(normalized_type);
+                self.normalized_assignability_epoch_by_id[cache_index] = self.normalization_epoch;
             }
             NormalizationMode::Flow => {
                 if self.normalized_flow_type_by_id.len() <= cache_index {
                     self.normalized_flow_type_by_id
                         .resize(cache_index + 1, None);
                 }
+                if self.normalized_flow_epoch_by_id.len() <= cache_index {
+                    self.normalized_flow_epoch_by_id
+                        .resize(cache_index + 1, self.normalization_epoch);
+                }
                 self.normalized_flow_type_by_id[cache_index] = Some(normalized_type);
+                self.normalized_flow_epoch_by_id[cache_index] = self.normalization_epoch;
             }
         }
     }
 
     /// Clear cached normalization results.
-    /// #Suspicious: why do we need clear_normalization_cache at all?
-    pub fn clear_normalization_cache(&mut self) {
-        let type_count = self.next_type_id as usize;
-        self.normalized_assignability_type_by_id.clear();
-        self.normalized_assignability_type_by_id
-            .resize(type_count, None);
-        self.normalized_flow_type_by_id.clear();
-        self.normalized_flow_type_by_id.resize(type_count, None);
+    pub fn invalidate_normalization_cache(&mut self) {
+        // bump the cache epoch to invalidate existing entries
+        self.normalization_epoch = self.normalization_epoch.wrapping_add(1);
     }
 
     /// Get the number of types in the table.
@@ -312,7 +343,7 @@ impl TypeTable {
     /// Set the instance type for a symbol (what type instances of this type have).
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
         self.instance_type_by_symbol_id.insert(symbol_id, ty);
-        self.clear_normalization_cache(); // #Suspicious: why clear normalization cache in set_instance_type?
+        self.invalidate_normalization_cache();
     }
 
     /// Get the instance type for a symbol.

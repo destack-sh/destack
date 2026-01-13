@@ -179,7 +179,7 @@ We follow the conventional commit message format with some nuances:
  - Follow `type(scope): summary` (≤100 chars, imperative).
  - Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`
  - Example: `feat(language): improve error span precision (to sub-token granularity)`
-We do not mention non-human authors / contributors in the commit (it's irrelevant).
+We do not mention non-human authors / contributors in commit messages (it's expected and thus superfluous; humans are always accountable).
 
 We typically work with branches and worktrees off a main branch.
 We try to frequently rebase of main and merge back into main.

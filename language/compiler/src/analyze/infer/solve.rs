@@ -310,6 +310,6 @@ impl Compiler {
             }
         }
 
-        types.clear_normalization_cache();
+        types.invalidate_normalization_cache();
     }
 }
