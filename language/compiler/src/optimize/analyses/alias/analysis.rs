@@ -322,4 +322,87 @@ block0:
         let result = aa.alias_with_type(mir::Value::new(0), int_ty, mir::Value::new(1), float_ty);
         assert_eq!(result, AliasResult::NoAlias);
     }
+
+    #[test]
+    fn test_call_metadata_readnone_mod_ref() {
+        let mut program = TestProgram::new(
+            r#"extern function @external(ref<raw i32>) -> void
+function @test(v0: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>):
+    call @external(v0)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let param_value = {
+            let function = program.tree.get(function_id);
+            function.parameters[0].value
+        };
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+
+        let signature = program.call_signature_for_callee(callee);
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(mir::MemoryEffect::none());
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+        let loc = MemoryLocation::from_ptr(param_value);
+
+        assert!(aa.get_mod_ref_info(call_inst, &loc).is_no_mod_ref());
+    }
+
+    #[test]
+    fn test_call_metadata_argmemonly_access() {
+        let mut program = TestProgram::new(
+            r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
+function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    call @external(v0, v1)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+
+        let signature = program.call_signature_for_callee(callee);
+        let mut arg0 = mir::CallArgumentMetadata::default();
+        arg0.access = mir::ArgumentAccess::Read;
+        let mut arg1 = mir::CallArgumentMetadata::default();
+        arg1.access = mir::ArgumentAccess::None;
+        let effects =
+            mir::MemoryEffect::read_only(mir::MemoryLocationSet::ARGUMENTS).with_argmemonly();
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(effects)
+            .with_argument_metadata(vec![arg0, arg1]);
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+
+        let arg_values = {
+            let call_inst = program.tree.get(call_inst);
+            let arg_slice = call_inst.argument_slice().expect("missing call args");
+            program.tree.get_arguments(arg_slice).to_vec()
+        };
+        let loc0 = MemoryLocation::from_ptr(arg_values[0]);
+        let loc1 = MemoryLocation::from_ptr(arg_values[1]);
+
+        assert!(aa.get_mod_ref_info(call_inst, &loc0).is_ref());
+        assert!(aa.get_mod_ref_info(call_inst, &loc1).is_no_mod_ref());
+    }
 }

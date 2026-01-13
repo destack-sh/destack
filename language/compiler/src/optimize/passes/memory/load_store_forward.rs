@@ -3,10 +3,11 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{AliasAnalysis, AliasResult, DominatorTree};
+use crate::optimize::analyses::{
+    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA,
+};
 use crate::optimize::common::{
-    MemoryLocation, instruction_substitute_uses, resolve_substitution_chains,
-    terminator_substitute_uses,
+    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -54,10 +55,14 @@ declare_pass! {
     "Forward stored values to subsequent loads"
 }
 
-/// An available value at a memory location.
-#[derive(Clone, Copy)]
-struct AvailableValue {
-    /// The value stored or loaded.
+/// An available value tied to a MemorySSA clobber.
+#[derive(Clone)]
+struct MemoryEntry {
+    /// The clobbering access id for the memory state.
+    clobber: MemoryAccessId,
+    /// The accessed memory location.
+    location: MemoryAccessLocation,
+    /// The available value.
     value: mir::Value,
 }
 
@@ -68,22 +73,33 @@ impl FunctionPass for LoadStoreForward {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
+        // skip empty functions
         let entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
         // get analyses
-        let (aa, dom_children) = {
+        let (aa, memory_ssa, dom_children) = {
             let analyses = FunctionAnalyses::new(function, tree);
             let domtree = analyses.get::<DominatorTree>();
             let aa = analyses.get::<AliasAnalysis>().clone();
+            let memory_ssa = analyses.get::<MemorySSA>();
             let dom_children = build_dominator_children(function, &domtree);
-            (aa, dom_children)
+            (aa, memory_ssa, dom_children)
         };
 
-        // run load-store forwarding
-        let changed = run_load_store_forward(entry, function, tree, &aa, &dom_children);
+        // run load store forwarding
+        let changed = run_load_store_forward(
+            entry,
+            function,
+            tree,
+            &aa,
+            memory_ssa.as_ref(),
+            &dom_children,
+        );
+
+        // report analysis preservation
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -106,10 +122,12 @@ fn run_load_store_forward(
     function: &mir::Function,
     tree: &mut mir::NodeTree,
     aa: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
 ) -> bool {
     // run forwarding using dominator tree traversal
-    let (substitutions, to_remove) = find_forwardable_loads(entry, tree, aa, dom_children);
+    let (substitutions, to_remove) =
+        find_forwardable_loads(entry, tree, aa, memory_ssa, dom_children);
 
     // nothing to do if no forwarding found
     if substitutions.is_empty() {
@@ -130,6 +148,7 @@ fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTree,
 ) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
+    // prepare the child mapping
     let mut children: HashMap<_, Vec<_>> = HashMap::new();
 
     // initialize all blocks with empty children lists
@@ -137,7 +156,7 @@ fn build_dominator_children(
         children.insert(block_id, Vec::new());
     }
 
-    // build parent -> children mapping from idom relationships
+    // build parent to children mapping from idom relationships
     for &block_id in &function.blocks {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
@@ -149,51 +168,79 @@ fn build_dominator_children(
 
 /// Scoped table of available memory values.
 ///
-/// Tracks both stored values and loaded values.
-/// Supports push/pop for dominator tree traversal.
+/// Tracks values by MemorySSA clobbering access.
 struct AvailableMemory {
-    /// Stack of scopes, each mapping pointers to available values.
-    scopes: Vec<HashMap<mir::Value, AvailableValue>>,
+    /// Stack of scopes, each holding memory entries.
+    scopes: Vec<Vec<MemoryEntry>>,
 }
 
 impl AvailableMemory {
     /// Create a new empty scoped table with one scope.
     fn new() -> Self {
         Self {
-            scopes: vec![HashMap::new()],
+            scopes: vec![Vec::new()],
         }
     }
 
     /// Push a new scope for entering a dominated block.
     fn push_scope(&mut self) {
-        self.scopes.push(HashMap::new());
+        // push a new scope for this block
+        self.scopes.push(Vec::new());
     }
 
     /// Pop the current scope when leaving a dominated block.
     fn pop_scope(&mut self) {
+        // keep at least one scope
         if self.scopes.len() > 1 {
             self.scopes.pop();
         }
     }
 
-    /// Look up an available value for the given pointer.
-    ///
-    /// Checks exact pointer match first, then uses alias analysis.
-    fn get(&self, pointer: mir::Value, aa: &AliasAnalysis) -> Option<AvailableValue> {
-        let load_loc = MemoryLocation::from_ptr(pointer);
+    /// Look up an available value for the given clobber and location.
+    fn get(
+        &self,
+        clobber: MemoryAccessId,
+        location: &MemoryAccessLocation,
+        aa: &AliasAnalysis,
+    ) -> Option<mir::Value> {
+        // skip unknown locations
+        if matches!(location, MemoryAccessLocation::Unknown) {
+            return None;
+        }
 
         // search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
-            // exact pointer match (fast path)
-            if let Some(&av) = scope.get(&pointer) {
-                return Some(av);
-            }
+            // scan entries from newest to oldest
+            for entry in scope.iter().rev() {
+                // skip entries with a different clobber
+                if entry.clobber != clobber {
+                    continue;
+                }
 
-            // alias analysis for derived pointers
-            for (&stored_ptr, &av) in scope {
-                let store_loc = MemoryLocation::from_ptr(stored_ptr);
-                if aa.alias(&load_loc, &store_loc) == AliasResult::MustAlias {
-                    return Some(av);
+                // compare matching locations
+                match (&entry.location, location) {
+                    (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
+                        if a == b {
+                            return Some(entry.value);
+                        }
+                    }
+                    (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
+                        if a.ptr == b.ptr {
+                            return Some(entry.value);
+                        }
+
+                        // consult alias analysis for derived pointers
+                        let alias_result = aa.alias(a, b);
+                        if alias_result.is_no_alias() {
+                            continue;
+                        }
+                        if alias_result.is_must_alias() {
+                            return Some(entry.value);
+                        }
+
+                        return None;
+                    }
+                    _ => {}
                 }
             }
         }
@@ -202,40 +249,16 @@ impl AvailableMemory {
     }
 
     /// Insert an available value in the current scope.
-    fn insert(&mut self, pointer: mir::Value, value: mir::Value) {
+    fn insert(&mut self, entry: MemoryEntry) {
+        // append to the current scope
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(pointer, AvailableValue { value });
+            scope.push(entry);
         }
     }
 
-    /// Invalidate entries that may alias the given location.
-    fn invalidate_may_alias(&mut self, pointer: mir::Value, aa: &AliasAnalysis) {
-        let store_loc = MemoryLocation::from_ptr(pointer);
-
-        for scope in &mut self.scopes {
-            scope.retain(|&ptr, _| {
-                let loc = MemoryLocation::from_ptr(ptr);
-                aa.alias(&loc, &store_loc).is_no_alias()
-            });
-        }
-    }
-
-    /// Invalidate entries that may be clobbered by the given instruction.
-    fn invalidate_clobbered(
-        &mut self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-        aa: &AliasAnalysis,
-    ) {
-        for scope in &mut self.scopes {
-            scope.retain(|&ptr, _| {
-                let loc = MemoryLocation::from_ptr(ptr);
-                !aa.may_clobber(instruction_id, &loc)
-            });
-        }
-    }
-
-    /// Invalidate all entries (conservative for unknown effects).
-    fn invalidate_all(&mut self) {
+    /// Clear all tracked entries.
+    fn clear(&mut self) {
+        // clear every scope
         for scope in &mut self.scopes {
             scope.clear();
         }
@@ -247,11 +270,13 @@ fn find_forwardable_loads(
     entry: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
     aa: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
+    // initialize substitution state
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
     let mut available = AvailableMemory::new();
@@ -262,11 +287,12 @@ fn find_forwardable_loads(
         Leave,
     }
 
+    // seed traversal with the entry block
     let mut stack = vec![Action::Enter(entry)];
     while let Some(action) = stack.pop() {
         match action {
             Action::Enter(block_id) => {
-                // push scope for this block's contributions
+                // push scope for this block contributions
                 available.push_scope();
 
                 // process instructions in this block
@@ -274,12 +300,13 @@ fn find_forwardable_loads(
                     block_id,
                     tree,
                     aa,
+                    memory_ssa,
                     &mut available,
                     &mut substitutions,
                     &mut to_remove,
                 );
 
-                // schedule Leave after all children are processed
+                // schedule leave after all children are processed
                 stack.push(Action::Leave);
 
                 // schedule children in reverse so first child is processed first
@@ -289,6 +316,7 @@ fn find_forwardable_loads(
                 }
             }
             Action::Leave => {
+                // drop the current scope
                 available.pop_scope();
             }
         }
@@ -302,64 +330,95 @@ fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
     aa: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
+    // read the block
     let block = tree.get(block_id);
 
+    // scan instructions in the block
     for &instruction_id in &block.instructions {
-        let inst = tree.get(instruction_id);
+        // read the instruction
+        let instruction = tree.get(instruction_id);
 
-        match inst {
-            // store makes a value available
-            mir::Instruction::Store { pointer, value } => {
-                // invalidate any entries that may alias this store
-                available.invalidate_may_alias(*pointer, aa);
+        // update availability based on instruction kind
+        match instruction {
+            mir::Instruction::Store { value, .. } | mir::Instruction::LocalSet { value, .. } => {
+                // resolve the memory def access
+                let Some(def_access_id) = def_access_id(memory_ssa, instruction_id) else {
+                    continue;
+                };
 
-                // record this store as available
-                available.insert(*pointer, *value);
+                // read the def access data
+                let MemoryAccess::Def(def_access) = memory_ssa.access(def_access_id) else {
+                    continue;
+                };
+
+                // skip unknown or barrier accesses
+                if def_access.effect.is_barrier
+                    || matches!(def_access.effect.location, MemoryAccessLocation::Unknown)
+                {
+                    continue;
+                }
+
+                // record the available value
+                available.insert(MemoryEntry {
+                    clobber: def_access_id,
+                    location: def_access.effect.location.clone(),
+                    value: *value,
+                });
             }
 
-            // load can be forwarded if we have an available value
-            mir::Instruction::Load {
-                destination,
-                pointer,
-            } => {
-                if let Some(av) = available.get(*pointer, aa) {
-                    // forward the available value
-                    substitutions.insert(*destination, av.value);
+            mir::Instruction::Load { destination, .. }
+            | mir::Instruction::LocalGet { destination, .. } => {
+                // resolve the memory use access
+                let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
+                    continue;
+                };
+
+                // read the use access data
+                let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+                    continue;
+                };
+
+                // skip volatile or barrier reads
+                if use_access.effect.is_volatile || use_access.effect.is_barrier {
+                    continue;
+                }
+
+                // skip unknown locations
+                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                    continue;
+                }
+
+                // compute the clobbering access for this read
+                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
+
+                // forward from an existing value when possible
+                if let Some(existing) = available.get(clobber, &use_access.effect.location, aa) {
+                    substitutions.insert(*destination, existing);
                     to_remove.insert(instruction_id);
                 } else {
-                    // no available value; record this load's result as available
-                    // (for load-to-load forwarding)
-                    available.insert(*pointer, *destination);
+                    available.insert(MemoryEntry {
+                        clobber,
+                        location: use_access.effect.location.clone(),
+                        value: *destination,
+                    });
                 }
             }
 
-            // calls may clobber memory
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                available.invalidate_clobbered(instruction_id, aa);
-            }
-
-            // intrinsics need special handling
             mir::Instruction::Intrinsic { intrinsic, .. } => {
-                // volatile and atomic operations act as full memory barriers
+                // clear on volatile or atomic barriers
                 if is_memory_barrier(*intrinsic) {
-                    available.invalidate_all();
-                } else if intrinsic.has_memory_effects() {
-                    available.invalidate_clobbered(instruction_id, aa);
+                    available.clear();
                 }
             }
 
-            // drops may run destructors which can access any memory
             mir::Instruction::RawDrop { .. } | mir::Instruction::StackDrop { .. } => {
-                available.invalidate_all();
-            }
-
-            // freeing memory invalidates any available value from that pointer
-            mir::Instruction::RawFree { pointer } => {
-                available.invalidate_may_alias(*pointer, aa);
+                // clear across destructor boundaries
+                available.clear();
             }
 
             _ => {}
@@ -367,8 +426,39 @@ fn process_block(
     }
 }
 
+fn def_access_id(
+    memory_ssa: &MemorySSA,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Option<MemoryAccessId> {
+    // find the first def access for the instruction
+    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    for &access_id in accesses {
+        if matches!(memory_ssa.access(access_id), MemoryAccess::Def(_)) {
+            return Some(access_id);
+        }
+    }
+
+    None
+}
+
+fn use_access_id(
+    memory_ssa: &MemorySSA,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Option<MemoryAccessId> {
+    // find the first use access for the instruction
+    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    for &access_id in accesses {
+        if matches!(memory_ssa.access(access_id), MemoryAccess::Use(_)) {
+            return Some(access_id);
+        }
+    }
+
+    None
+}
+
 /// Check if an intrinsic acts as a memory barrier.
 fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
+    // match barrier intrinsics
     matches!(
         intrinsic,
         mir::Intrinsic::VolatileLoad
@@ -394,7 +484,9 @@ fn apply_substitutions(
     substitutions: &HashMap<mir::Value, mir::Value>,
     to_remove: &HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
+    // scan blocks for substitutions
     for &block_id in &function.blocks {
+        // clone the block for mutation
         let mut new_block = tree.get(block_id).clone();
         let mut modified = false;
 
@@ -426,6 +518,7 @@ fn apply_substitutions(
             modified = true;
         }
 
+        // apply block updates when changes were made
         if modified {
             tree.replace(block_id, new_block);
         }
@@ -455,6 +548,7 @@ block0:
     store v0, v1
     return v1
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -473,6 +567,7 @@ block0:
     return v3
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -500,6 +595,7 @@ block0:
     store v0, v2
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -526,6 +622,7 @@ block0:
     v4 = iadd v1, v1
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -555,6 +652,7 @@ block0:
     store v1, v3
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -582,6 +680,7 @@ block0:
     store v1, v2
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -618,6 +717,7 @@ block0:
     v7 = iadd v3, v4
     return v7
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -639,6 +739,7 @@ block0(v0: ref<raw i32>):
     v3 = iadd v1, v1
     return v3
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -656,7 +757,6 @@ block0(v0: ref<raw i32>):
     v4 = iadd v1, v3
     return v4
 }"#;
-        // v3 should forward from store (v2), not from first load
         let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
     v1 = load v0
@@ -665,6 +765,7 @@ block0(v0: ref<raw i32>):
     v4 = iadd v1, v2
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -692,6 +793,7 @@ block0:
 block1:
     return v1
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -728,6 +830,7 @@ block2:
 block3(v5: i32):
     return v5
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -750,8 +853,8 @@ block3:
     v4 = iconst 0i32
     return v4
 }"#;
-        // v3 in block2 cannot see store in block1 (not dominated)
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -787,6 +890,7 @@ block2:
 block3:
     return v1
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -812,6 +916,7 @@ block1:
     v3 = iadd v1, v1
     return v3
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -831,7 +936,49 @@ block0:
     return v2
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Readnone calls do not block forwarding.
+    #[test]
+    fn test_forward_across_readnone_call() {
+        let input = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    call @external(v0)
+    v2 = load v0
+    return v2
+}"#;
+        let expected = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    call @external(v0)
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        let function_id = program.entry_function_id();
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+        let signature = program.call_signature_for_callee(callee);
+
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(mir::MemoryEffect::none());
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
     }
@@ -852,6 +999,7 @@ block1:
     return v2
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -871,8 +1019,8 @@ block0:
     v5 = iadd v3, v4
     return v5
 }"#;
-        // volatile load kills forwarding of v2 to v4
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -893,6 +1041,7 @@ block0:
     return v4
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -913,6 +1062,7 @@ block0:
     return v5
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -933,6 +1083,7 @@ block0:
     return v4
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -951,6 +1102,7 @@ block0:
     return v2
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -969,7 +1121,6 @@ block0:
     v4 = iadd v2, v3
     return v4
 }"#;
-        // both v2 and v3 should resolve to v1
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32
@@ -978,6 +1129,7 @@ block0:
     v4 = iadd v1, v1
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -988,6 +1140,7 @@ block0:
     fn test_skip_import_function() {
         let input = r#"extern function @external() -> void"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -1002,6 +1155,7 @@ block0(v0: i32):
     return v1
 }"#;
         let expected = input;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);

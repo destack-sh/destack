@@ -384,6 +384,39 @@ impl MemorySSA {
         )
     }
 
+    /// Compute the clobbering access for a read at the given location.
+    pub fn clobbering_access_for_read(
+        &self,
+        access_id: MemoryAccessId,
+        location: &MemoryAccessLocation,
+        alias: &crate::optimize::analyses::AliasAnalysis,
+    ) -> MemoryAccessId {
+        // resolve the defining access for this read
+        let defining_access = self
+            .defining_access(access_id)
+            .unwrap_or(self.live_on_entry);
+
+        // compute the clobbering access
+        let mut cache = HashMap::new();
+        let mut visiting = HashSet::new();
+        self.clobbering_access(defining_access, location, alias, &mut cache, &mut visiting)
+    }
+
+    /// Check if a def access clobbers the given location.
+    pub fn def_clobbers_location(
+        &self,
+        def_access: MemoryAccessId,
+        location: &MemoryAccessLocation,
+        alias: &crate::optimize::analyses::AliasAnalysis,
+    ) -> bool {
+        // only defs can clobber locations
+        let MemoryAccess::Def(def_access) = self.access(def_access) else {
+            return false;
+        };
+
+        access_clobbers_location(def_access, location, alias)
+    }
+
     /// Compute the clobbering access for a memory location.
     fn clobbering_access(
         &self,
@@ -557,7 +590,7 @@ impl<'a> MemoryAccessCollector<'a> {
             // scan instructions for memory effects
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
-                let effects = self.instruction_effects(instruction);
+                let effects = self.instruction_effects(instruction_id, instruction);
                 if effects.is_empty() {
                     continue;
                 }
@@ -595,8 +628,14 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Determine memory effects for an instruction.
     fn instruction_effects(
         &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        // use explicit metadata when present
+        if let Some(effects) = self.metadata_effects(instruction_id) {
+            return effects;
+        }
+
         // classify instruction memory effects
         match instruction {
             // pure instructions
@@ -637,11 +676,9 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::LocalSet { local, .. } => Self::single_effect(
                 MemoryAccessEffect::write(MemoryAccessLocation::Local(*local), false),
             ),
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                Self::single_effect(MemoryAccessEffect::read_write(
-                    MemoryAccessLocation::Unknown,
-                    false,
-                ))
+            mir::Instruction::Call { arguments, .. }
+            | mir::Instruction::CallIndirect { arguments, .. } => {
+                self.call_effects(instruction_id, instruction, *arguments)
             }
             mir::Instruction::RawFree { pointer } => {
                 let access_type = self.pointer_access_type(*pointer);
@@ -673,6 +710,243 @@ impl<'a> MemoryAccessCollector<'a> {
                 ..
             } => self.intrinsic_effects(*intrinsic, *arguments),
         }
+    }
+
+    /// Convert explicit memory metadata into access effects.
+    fn metadata_effects(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<SmallVec<[MemoryAccessEffect; 2]>> {
+        // read metadata when present
+        let accesses = self.tree.memory_table.memory_accesses(instruction_id)?;
+
+        // build effect list from metadata
+        let mut effects = SmallVec::new();
+        for access in accesses {
+            effects.push(self.effect_from_metadata(access));
+        }
+
+        Some(effects)
+    }
+
+    /// Map a memory access metadata entry to a MemorySSA effect.
+    fn effect_from_metadata(&mut self, access: &mir::MemoryAccessMetadata) -> MemoryAccessEffect {
+        // resolve the target location
+        let location = match access.target {
+            mir::MemoryAccessTarget::Pointer(pointer) => {
+                let access_type = self.pointer_access_type(pointer);
+                MemoryAccessLocation::from_pointer_with_size(pointer, access_type, access.size)
+            }
+            mir::MemoryAccessTarget::Local(local) => MemoryAccessLocation::Local(local),
+            mir::MemoryAccessTarget::Global(_) | mir::MemoryAccessTarget::Unknown => {
+                MemoryAccessLocation::Unknown
+            }
+        };
+
+        // map the access kind to an effect
+        match access.kind {
+            mir::MemoryAccessKind::Read => MemoryAccessEffect::read(location, access.is_volatile),
+            mir::MemoryAccessKind::Write => MemoryAccessEffect::write(location, access.is_volatile),
+            mir::MemoryAccessKind::ReadWrite | mir::MemoryAccessKind::ReadModifyWrite => {
+                MemoryAccessEffect::read_write(location, access.is_volatile)
+            }
+            mir::MemoryAccessKind::PrefetchRead | mir::MemoryAccessKind::PrefetchWrite => {
+                MemoryAccessEffect::read(location, access.is_volatile)
+            }
+            mir::MemoryAccessKind::Fence => {
+                let mut effect = MemoryAccessEffect::barrier();
+                effect.is_volatile = access.is_volatile;
+                effect
+            }
+        }
+    }
+
+    /// Determine memory effects for a call instruction using metadata.
+    fn call_effects(
+        &mut self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        arguments: mir::ArgumentSlice,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        // fetch callsite metadata when available
+        let call_metadata = self
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .get(&instruction_id);
+
+        // use callsite or callee metadata for memory effects
+        let mut call_effects = call_metadata
+            .and_then(|metadata| metadata.memory_effects.clone())
+            .or_else(|| self.callee_memory_effects(instruction));
+
+        // fall back to conservative unknown when missing
+        let Some(effects) = call_effects.take() else {
+            return Self::single_effect(MemoryAccessEffect::read_write(
+                MemoryAccessLocation::Unknown,
+                false,
+            ));
+        };
+
+        // skip calls with no memory effects
+        if !effects.reads && !effects.writes {
+            return SmallVec::new();
+        }
+
+        // inaccessible-only effects do not touch visible memory
+        if effects.inaccessible_mem_only {
+            return SmallVec::new();
+        }
+
+        // handle argmemonly calls by modeling argument accesses directly
+        if effects.argmemonly {
+            // load call arguments
+            let args = self.tree.get_arguments(arguments);
+            if args.is_empty() {
+                return SmallVec::new();
+            }
+
+            // resolve argument types
+            let arg_types = self.call_argument_types(instruction, call_metadata);
+            let Some(arg_types) = arg_types else {
+                return Self::single_effect(self.effect_from_call_effect(&effects));
+            };
+
+            // collect access effects per argument
+            let mut arg_effects = SmallVec::new();
+            for (index, &arg_value) in args.iter().enumerate() {
+                // read the argument type
+                let arg_type = match arg_types.get(index) {
+                    Some(ty) => *ty,
+                    None => continue,
+                };
+
+                // skip non reference arguments
+                let mir::Type::Reference { .. } = self.tree.get(arg_type) else {
+                    continue;
+                };
+
+                // read argument metadata
+                let arg_metadata = call_metadata
+                    .and_then(|metadata| metadata.argument_metadata.get(index))
+                    .cloned()
+                    .unwrap_or_default();
+
+                // clamp access to the call effects
+                let access = self.clamp_argument_access(arg_metadata.access, &effects);
+                if access == mir::ArgumentAccess::None {
+                    continue;
+                }
+
+                // build the access location
+                let size = arg_metadata
+                    .attributes
+                    .dereferenceable_bytes
+                    .or(arg_metadata.attributes.dereferenceable_or_null_bytes);
+                let access_type = self.pointer_access_type(arg_value);
+                let location =
+                    MemoryAccessLocation::from_pointer_with_size(arg_value, access_type, size);
+
+                // convert access mode to a memory effect
+                let effect = match access {
+                    mir::ArgumentAccess::Read => MemoryAccessEffect::read(location, false),
+                    mir::ArgumentAccess::Write => MemoryAccessEffect::write(location, false),
+                    mir::ArgumentAccess::ReadWrite => {
+                        MemoryAccessEffect::read_write(location, false)
+                    }
+                    mir::ArgumentAccess::None => continue,
+                };
+
+                // record the access effect
+                arg_effects.push(effect);
+            }
+
+            // return the recorded argument effects
+            return arg_effects;
+        }
+
+        // fall back to a single summarized access
+        Self::single_effect(self.effect_from_call_effect(&effects))
+    }
+
+    /// Convert call memory effects to a MemorySSA effect.
+    fn effect_from_call_effect(&self, effects: &mir::MemoryEffect) -> MemoryAccessEffect {
+        // translate call summary into a generic access effect
+        match (effects.reads, effects.writes) {
+            (true, true) => MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
+            (true, false) => MemoryAccessEffect::read(MemoryAccessLocation::Unknown, false),
+            (false, true) => MemoryAccessEffect::write(MemoryAccessLocation::Unknown, false),
+            (false, false) => MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
+        }
+    }
+
+    /// Clamp argument access based on the call wide effects.
+    fn clamp_argument_access(
+        &self,
+        access: mir::ArgumentAccess,
+        effects: &mir::MemoryEffect,
+    ) -> mir::ArgumentAccess {
+        // drop access when the call does not touch memory
+        if !effects.reads && !effects.writes {
+            return mir::ArgumentAccess::None;
+        }
+
+        // compute the read and write mask for this argument
+        let reads = effects.reads
+            && matches!(
+                access,
+                mir::ArgumentAccess::Read | mir::ArgumentAccess::ReadWrite
+            );
+        let writes = effects.writes
+            && matches!(
+                access,
+                mir::ArgumentAccess::Write | mir::ArgumentAccess::ReadWrite
+            );
+
+        // map the mask back to an access mode
+        match (reads, writes) {
+            (true, true) => mir::ArgumentAccess::ReadWrite,
+            (true, false) => mir::ArgumentAccess::Read,
+            (false, true) => mir::ArgumentAccess::Write,
+            (false, false) => mir::ArgumentAccess::None,
+        }
+    }
+
+    /// Resolve the call argument types from metadata or direct signatures.
+    fn call_argument_types(
+        &self,
+        instruction: &mir::Instruction,
+        call_metadata: Option<&mir::CallMetadata>,
+    ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
+        // prefer the signature from call metadata
+        if let Some(metadata) = call_metadata {
+            let signature = self.tree.get(metadata.signature);
+            if let mir::Type::FunctionPointer { parameters, .. } = signature {
+                return Some(parameters.clone());
+            }
+        }
+
+        // fall back to direct call signatures
+        if let mir::Instruction::Call { function, .. } = instruction {
+            let callee = self.tree.get(*function);
+            let parameters = callee.parameters.iter().map(|param| param.ty).collect();
+            return Some(parameters);
+        }
+
+        // indirect calls without metadata are unknown
+        None
+    }
+
+    /// Read memory effects from a direct callee when available.
+    fn callee_memory_effects(&self, instruction: &mir::Instruction) -> Option<mir::MemoryEffect> {
+        // only direct calls have callee metadata
+        let mir::Instruction::Call { function, .. } = instruction else {
+            return None;
+        };
+
+        // return callee effects when present
+        let callee = self.tree.get(*function);
+        callee.memory_effects.clone()
     }
 
     /// Determine memory effects for an intrinsic.
@@ -1522,13 +1796,11 @@ block0:
         let read_effect = access_effect(memory_ssa, accesses[0]);
         let write_effect = access_effect(memory_ssa, accesses[1]);
 
-        // confirm read then write ordering
         assert!(read_effect.reads);
         assert!(!read_effect.writes);
         assert!(write_effect.writes);
         assert!(!write_effect.reads);
 
-        // confirm pointer locations match operands
         let read_ptr = pointer_from_location(&read_effect.location).expect("missing read pointer");
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
@@ -1545,7 +1817,6 @@ block0:
         assert_eq!(read_ptr, src_value);
         assert_eq!(write_ptr, dest_value);
 
-        // confirm constant byte sizes are attached
         let read_size = size_from_location(&read_effect.location).expect("missing read size");
         let write_size = size_from_location(&write_effect.location).expect("missing write size");
 
@@ -1581,7 +1852,6 @@ block0:
         // ensure we recorded two reads
         assert_eq!(accesses.len(), 2);
 
-        // confirm each access is read-only
         for access_id in accesses {
             let effect = access_effect(memory_ssa, access_id);
             assert!(effect.reads);
@@ -1621,7 +1891,6 @@ block0:
             .access_for_instruction(volatile_store)
             .expect("missing volatile store access");
 
-        // confirm volatility flags
         let load_effect = access_effect(memory_ssa, load_access);
         let store_effect = access_effect(memory_ssa, store_access);
 
@@ -1654,7 +1923,6 @@ block0:
             .access_for_instruction(fence_inst)
             .expect("missing fence access");
 
-        // confirm barrier classification
         let fence_effect = access_effect(memory_ssa, fence_access);
         assert!(fence_effect.is_barrier);
         assert!(matches!(
@@ -1695,7 +1963,6 @@ block0(v0: ref<raw i32>):
             .access_for_instruction(call_inst)
             .expect("missing call access");
 
-        // confirm unknown read-write classification
         let call_effect = access_effect(memory_ssa, call_access);
         assert!(call_effect.reads);
         assert!(call_effect.writes);
@@ -1703,6 +1970,180 @@ block0(v0: ref<raw i32>):
             call_effect.location,
             MemoryAccessLocation::Unknown
         ));
+    }
+
+    /// Call metadata readnone suppresses memory accesses.
+    #[test]
+    fn test_memory_ssa_call_readnone_metadata() {
+        let mut program = TestProgram::new(
+            r#"extern function @external(ref<raw i32>) -> void
+function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    call @external(v0)
+    v1 = iconst 0i32
+    return v1
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+        let signature = program.call_signature_for_callee(callee);
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(mir::MemoryEffect::none());
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+
+        assert!(
+            memory_ssa.accesses_for_instruction(call_inst).is_none(),
+            "readnone calls should not create memory accesses"
+        );
+    }
+
+    /// Call metadata argmemonly reads are modeled as pointer uses.
+    #[test]
+    fn test_memory_ssa_call_argmemonly_reads() {
+        let mut program = TestProgram::new(
+            r#"extern function @external(ref<raw i32>, i32) -> void
+function @test(v0: ref<raw i32>, v1: i32) -> i32 {
+block0(v0: ref<raw i32>, v1: i32):
+    call @external(v0, v1)
+    v2 = iconst 0i32
+    return v2
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let param_value = {
+            let function = program.tree.get(function_id);
+            function.parameters[0].value
+        };
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+        let signature = program.call_signature_for_callee(callee);
+
+        let mut arg0 = mir::CallArgumentMetadata::default();
+        arg0.access = mir::ArgumentAccess::Read;
+        let arg1 = mir::CallArgumentMetadata::default();
+
+        let effects =
+            mir::MemoryEffect::read_only(mir::MemoryLocationSet::ARGUMENTS).with_argmemonly();
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(effects)
+            .with_argument_metadata(vec![arg0, arg1]);
+
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
+
+        let accesses = instruction_accesses(memory_ssa, call_inst);
+        assert_eq!(accesses.len(), 1);
+
+        let effect = access_effect(memory_ssa, accesses[0]);
+        assert!(effect.reads);
+        assert!(!effect.writes);
+
+        let read_ptr = pointer_from_location(&effect.location).expect("missing read pointer");
+        assert_eq!(read_ptr, param_value);
+    }
+
+    /// Memory access metadata overrides default instruction effects.
+    #[test]
+    fn test_memory_ssa_access_metadata_override() {
+        let mut program = TestProgram::new(
+            r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
+function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    call @external(v0, v1)
+    v2 = iconst 0i32
+    return v2
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let param_values = {
+            let function = program.tree.get(function_id);
+            function
+                .parameters
+                .iter()
+                .map(|param| param.value)
+                .collect::<Vec<_>>()
+        };
+        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+
+        // attach explicit access metadata
+        let read_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Read,
+            target: mir::MemoryAccessTarget::Pointer(param_values[0]),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+        let write_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Write,
+            target: mir::MemoryAccessTarget::Pointer(param_values[1]),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+
+        program
+            .tree
+            .memory_table
+            .insert_memory_accesses(call_inst, vec![read_access, write_access]);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let memory_ssa = memory_ssa.as_ref();
+
+        let accesses = instruction_accesses(memory_ssa, call_inst);
+        assert_eq!(accesses.len(), 2);
+
+        let read_effect = access_effect(memory_ssa, accesses[0]);
+        let write_effect = access_effect(memory_ssa, accesses[1]);
+
+        assert!(read_effect.reads);
+        assert!(!read_effect.writes);
+        assert!(write_effect.writes);
+        assert!(!write_effect.reads);
+
+        let read_ptr = pointer_from_location(&read_effect.location).expect("missing read pointer");
+        let write_ptr =
+            pointer_from_location(&write_effect.location).expect("missing write pointer");
+        assert_eq!(read_ptr, function.parameters[0].value);
+        assert_eq!(write_ptr, function.parameters[1].value);
+
+        let read_size = size_from_location(&read_effect.location).expect("missing read size");
+        let write_size = size_from_location(&write_effect.location).expect("missing write size");
+        assert_eq!(read_size, 4);
+        assert_eq!(write_size, 4);
     }
 
     /// Loop headers get memory phis when defs flow around the backedge.
@@ -1744,7 +2185,6 @@ block3:
             panic!("expected memory phi");
         };
 
-        // confirm incoming edges include preheader and backedge
         let incoming_blocks: HashSet<_> = phi.incoming.iter().map(|(block, _)| *block).collect();
         let body_block = function.blocks[2];
 
@@ -1779,7 +2219,6 @@ block1:
         let block = program.tree.get(unreachable_block);
         let store_inst = block.instructions[2];
 
-        // confirm unreachable store is not tracked
         assert!(
             memory_ssa.accesses_for_instruction(store_inst).is_none(),
             "unreachable store should not be tracked"

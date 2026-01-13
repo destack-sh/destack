@@ -22,6 +22,7 @@ Inline comments should be short and begin with a lowercase letter.
 Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
+Also, tests don't need quite the same level of comments, especially within obvious test cases.
 
 Documentation comments for functions/types/etc. should be proper sentences with punctuation.
  - Files should NOT have a top-level documentation comments. They always get stale.
@@ -121,6 +122,7 @@ If there is an opportunity to test "the entire thing" vs "part of it", prefer co
 (For example, if we're generating string output, compare the entire output, not just "contains").
 More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
 Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
+For any non-trivial assertions you should comment the logic block ("assertion block") like we do with any other logic block, though you don't need to comment *every* logic block as with regular/main logic.
 
 ### Formatting
 

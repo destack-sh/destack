@@ -3,20 +3,24 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::{
-    AliasAnalysis, AnalysisPreservation, ControlFlowGraph, FunctionAnalyses, FunctionPass,
-    MemoryLocation, PipelineContext,
+use crate::optimize::analyses::{
+    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, PostDominatorTree,
 };
+use crate::optimize::common::{
+    DecomposedPointer, PointerDecomposer, RangeRelation, build_value_definition_map,
+    range_relation, stack_alloc_base,
+};
+use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Dead Store Elimination.
     ///
     /// Removes stores to memory locations that are never read:
-    /// 1. Stores followed by another store to the same location (no intervening load)
-    /// 2. Stores to locations that are never read before the function exits
+    /// 1. Stores overwritten on all paths before any read
+    /// 2. Stores to non escaping stack locations that are never read
     ///
-    /// This pass uses alias analysis to determine when stores may alias with
-    /// loads or other stores.
+    /// This pass uses MemorySSA, alias analysis, and post dominance to
+    /// identify clobbering stores and preserve externally visible writes.
     ///
     /// ```mir
     /// // before DSE
@@ -57,22 +61,27 @@ impl FunctionPass for DeadStoreEliminate {
         tree: &mut mir::NodeTree,
         _ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        let entry = match function.entry {
+        // skip empty functions
+        let _entry = match function.entry {
             Some(entry) => entry,
             None => return AnalysisPreservation::all(),
         };
 
         // get analyses
-        let (aa, cfg) = {
+        let (aa, memory_ssa, postdom) = {
             let analyses = FunctionAnalyses::new(function, tree);
             (
                 analyses.get::<AliasAnalysis>().clone(),
-                analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<MemorySSA>(),
+                analyses.get::<PostDominatorTree>(),
             )
         };
 
         // run dead store elimination
-        let changed = run_dead_store_eliminate(function, tree, &aa, &cfg, entry);
+        let changed =
+            run_dead_store_eliminate(function, tree, &aa, memory_ssa.as_ref(), postdom.as_ref());
+
+        // preserve analyses when unchanged
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -94,12 +103,71 @@ fn run_dead_store_eliminate(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     aa: &AliasAnalysis,
-    cfg: &ControlFlowGraph,
-    entry: mir::LocalNodeId<mir::Block>,
+    memory_ssa: &MemorySSA,
+    postdom: &PostDominatorTree,
 ) -> bool {
-    // find dead stores
-    let dead_stores = find_dead_stores(function, tree, aa, cfg, entry);
+    // collect store candidates
+    let store_candidates = collect_store_candidates(function, tree, memory_ssa);
 
+    // exit early when there are no stores
+    if store_candidates.is_empty() {
+        return false;
+    }
+
+    // collect memory definitions
+    let def_accesses = collect_def_accesses(function, tree, memory_ssa);
+
+    // collect live definitions from memory reads
+    let live_defs = collect_live_defs(function, tree, memory_ssa, aa);
+
+    // collect non escaping stack allocations
+    let definitions = build_value_definition_map(function, tree);
+    let constants = build_integer_constant_map(function, tree);
+    let non_escaping_stack_allocs = collect_non_escaping_stack_allocs(function, tree, &definitions);
+
+    // determine dead stores
+    let mut dead_stores = HashSet::new();
+
+    // scan store candidates for removal
+    for store in store_candidates {
+        // skip volatile or barrier stores
+        if store.is_volatile || store.is_barrier {
+            continue;
+        }
+
+        // skip stores that are read
+        if live_defs.contains(&store.access) {
+            continue;
+        }
+
+        // skip unknown locations
+        if matches!(store.location, MemoryAccessLocation::Unknown) {
+            continue;
+        }
+
+        // remove stores to non escaping stack memory
+        if store_is_non_escaping_stack(&store, &definitions, &non_escaping_stack_allocs, tree) {
+            dead_stores.insert(store.instruction);
+            continue;
+        }
+
+        // remove stores clobbered along all paths
+        if store_is_postdominated_by_clobber(
+            &store,
+            &def_accesses,
+            memory_ssa,
+            aa,
+            postdom,
+            function,
+            tree,
+            &definitions,
+            &constants,
+        ) {
+            dead_stores.insert(store.instruction);
+        }
+    }
+
+    // exit early when nothing is removed
     if dead_stores.is_empty() {
         return false;
     }
@@ -113,369 +181,238 @@ fn run_dead_store_eliminate(
     true
 }
 
-/// Find stores that are dead (never read before being overwritten or function exit).
-fn find_dead_stores(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-    aa: &AliasAnalysis,
-    cfg: &ControlFlowGraph,
-    entry: mir::LocalNodeId<mir::Block>,
-) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
-    let mut dead_stores = HashSet::new();
-
-    // phase 1: find locally dead stores (overwritten before any read within same block)
-    for &block_id in &function.blocks {
-        let local_dead = find_locally_dead_stores(block_id, tree, aa);
-        dead_stores.extend(local_dead);
-    }
-
-    // phase 2: find cross-block dead stores
-    // a store is dead if it's overwritten on ALL successor paths before any load
-    let cross_block_dead = find_cross_block_dead_stores(function, tree, aa, cfg, entry);
-    dead_stores.extend(cross_block_dead);
-
-    // phase 3: find stores to stack allocations that are never read globally
-    let unreachable_stores = find_unreachable_stores(function, tree, aa, cfg);
-    dead_stores.extend(unreachable_stores);
-
-    dead_stores
-}
-
-/// Information about stores that are "available" (not yet read) at a program point.
-#[derive(Clone, Debug)]
-struct AvailableStore {
+#[derive(Clone)]
+struct StoreCandidate {
     instruction: mir::LocalNodeId<mir::Instruction>,
+    access: MemoryAccessId,
+    block: mir::LocalNodeId<mir::Block>,
+    index: usize,
     pointer: mir::Value,
+    location: MemoryAccessLocation,
+    is_volatile: bool,
+    is_barrier: bool,
 }
 
-/// Find cross-block dead stores using forward dataflow analysis.
-///
-/// A store is dead if on ALL successor paths:
-/// 1. Another store to the same location overwrites it, AND
-/// 2. No load from that location occurs before the overwrite
-fn find_cross_block_dead_stores(
+#[derive(Clone)]
+struct DefAccessInfo {
+    access: MemoryAccessId,
+    block: mir::LocalNodeId<mir::Block>,
+    index: usize,
+}
+
+fn collect_store_candidates(
     function: &mir::Function,
     tree: &mir::NodeTree,
-    aa: &AliasAnalysis,
-    cfg: &ControlFlowGraph,
-    entry: mir::LocalNodeId<mir::Block>,
-) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
-    // compute stores available at exit of each block
-    // "available" means: store that might still be live (not yet read)
-    let available_at_exit = compute_available_stores(function, tree, aa, cfg, entry);
+    memory_ssa: &MemorySSA,
+) -> Vec<StoreCandidate> {
+    // collect store instructions with MemorySSA defs
+    let mut stores = Vec::new();
 
-    // for each available store at block exit, check if it's overwritten on all successor paths
-    let mut dead_stores = HashSet::new();
-
+    // scan blocks for store instructions
     for &block_id in &function.blocks {
+        // read the block
         let block = tree.get(block_id);
-        let successors: Vec<_> = block.terminator.successors().into_iter().collect();
 
-        // skip blocks with no successors (return/unreachable)
-        if successors.is_empty() {
-            continue;
-        }
+        // scan instructions in the block
+        for (index, &instruction_id) in block.instructions.iter().enumerate() {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
 
-        // get available stores at exit of this block
-        let available = match available_at_exit.get(&block_id) {
-            Some(stores) => stores,
-            None => continue,
-        };
+            // skip non store instructions
+            let mir::Instruction::Store { pointer, .. } = instruction else {
+                continue;
+            };
 
-        // for each available store, check if overwritten on ALL successor paths
-        for store in available {
-            let mut overwritten_on_all_paths = true;
-            for &succ_id in &successors {
-                if !is_store_overwritten_at_block_entry(store, succ_id, tree, aa) {
-                    overwritten_on_all_paths = false;
-                    break;
-                }
-            }
-            if overwritten_on_all_paths {
-                dead_stores.insert(store.instruction);
-            }
+            // read the memory ssa access
+            let Some(access_id) = memory_ssa.access_for_instruction(instruction_id) else {
+                continue;
+            };
+
+            // keep only memory defs
+            let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
+                continue;
+            };
+
+            // record the store candidate
+            stores.push(StoreCandidate {
+                instruction: instruction_id,
+                access: access_id,
+                block: block_id,
+                index,
+                pointer: *pointer,
+                location: def_access.effect.location.clone(),
+                is_volatile: def_access.effect.is_volatile,
+                is_barrier: def_access.effect.is_barrier,
+            });
         }
     }
 
-    dead_stores
+    stores
 }
 
-/// Compute stores that are "available" (not yet read) at exit of each block.
-fn compute_available_stores(
+fn collect_def_accesses(
     function: &mir::Function,
     tree: &mir::NodeTree,
-    aa: &AliasAnalysis,
-    _cfg: &ControlFlowGraph,
-    _entry: mir::LocalNodeId<mir::Block>,
-) -> HashMap<mir::LocalNodeId<mir::Block>, Vec<AvailableStore>> {
-    let mut available_at_exit: HashMap<mir::LocalNodeId<mir::Block>, Vec<AvailableStore>> =
-        HashMap::new();
+    memory_ssa: &MemorySSA,
+) -> Vec<DefAccessInfo> {
+    // collect all MemorySSA def accesses
+    let mut defs = Vec::new();
 
+    // scan blocks for def accesses
     for &block_id in &function.blocks {
+        // read the block
         let block = tree.get(block_id);
-        let mut available: Vec<AvailableStore> = Vec::new();
 
-        for &inst_id in &block.instructions {
-            let inst = tree.get(inst_id);
+        // scan instructions in the block
+        for (index, &instruction_id) in block.instructions.iter().enumerate() {
+            // read the access list
+            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+                continue;
+            };
 
-            match inst {
-                mir::Instruction::Store { pointer, .. } => {
-                    // remove any stores that this store overwrites
-                    available.retain(|s| {
-                        // same pointer value definitely means same location
-                        if s.pointer == *pointer {
-                            return false; // overwritten
-                        }
-                        // check alias analysis for derived pointers
-                        let s_loc = MemoryLocation::from_ptr(s.pointer);
-                        let loc = MemoryLocation::from_ptr(*pointer);
-                        !aa.alias(&s_loc, &loc).is_must_alias()
-                    });
+            // record each def access
+            for &access_id in accesses {
+                let MemoryAccess::Def(_def_access) = memory_ssa.access(access_id) else {
+                    continue;
+                };
 
-                    // add this store as available
-                    available.push(AvailableStore {
-                        instruction: inst_id,
-                        pointer: *pointer,
-                    });
-                }
-
-                mir::Instruction::Load { pointer, .. } => {
-                    let loc = MemoryLocation::from_ptr(*pointer);
-
-                    // remove any stores that may be read by this load
-                    available.retain(|s| {
-                        let s_loc = MemoryLocation::from_ptr(s.pointer);
-                        !aa.alias(&s_loc, &loc).may_alias()
-                    });
-                }
-
-                // calls may read memory (use mod-ref analysis)
-                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                    available.retain(|s| {
-                        let store_loc = MemoryLocation::from_ptr(s.pointer);
-                        !aa.get_mod_ref_info(inst_id, &store_loc).is_ref()
-                    });
-                }
-
-                // drop/free may read memory via destructors (use mod-ref analysis)
-                mir::Instruction::RawDrop { .. }
-                | mir::Instruction::StackDrop { .. }
-                | mir::Instruction::RawFree { .. } => {
-                    available.retain(|s| {
-                        let store_loc = MemoryLocation::from_ptr(s.pointer);
-                        !aa.get_mod_ref_info(inst_id, &store_loc).is_ref()
-                    });
-                }
-
-                _ => {}
+                defs.push(DefAccessInfo {
+                    access: access_id,
+                    block: block_id,
+                    index,
+                });
             }
-        }
-
-        available_at_exit.insert(block_id, available);
-    }
-
-    available_at_exit
-}
-
-/// Check if a store is overwritten at the entry of a block.
-///
-/// A store is overwritten if the block contains a store to the same location
-/// before any load from that location.
-fn is_store_overwritten_at_block_entry(
-    store: &AvailableStore,
-    block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
-    aa: &AliasAnalysis,
-) -> bool {
-    let block = tree.get(block_id);
-    let store_loc = MemoryLocation::from_ptr(store.pointer);
-
-    for &instruction_id in &block.instructions {
-        let instruction = tree.get(instruction_id);
-        match instruction {
-            mir::Instruction::Store { pointer, .. } => {
-                // same pointer value definitely means same location
-                if *pointer == store.pointer {
-                    return true;
-                }
-                // check alias analysis for derived pointers
-                let loc = MemoryLocation::from_ptr(*pointer);
-                if aa.alias(&store_loc, &loc).is_must_alias() {
-                    return true;
-                }
-            }
-
-            mir::Instruction::Load { pointer, .. } => {
-                let loc = MemoryLocation::from_ptr(*pointer);
-                if aa.alias(&store_loc, &loc).may_alias() {
-                    // store may be read - not overwritten
-                    return false;
-                }
-            }
-
-            // calls may read memory (use mod-ref analysis)
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                if aa.get_mod_ref_info(instruction_id, &store_loc).is_ref() {
-                    return false;
-                }
-            }
-
-            // drop/free may read memory (use mod-ref analysis)
-            mir::Instruction::RawDrop { .. }
-            | mir::Instruction::StackDrop { .. }
-            | mir::Instruction::RawFree { .. } => {
-                if aa.get_mod_ref_info(instruction_id, &store_loc).is_ref() {
-                    return false;
-                }
-            }
-
-            _ => {}
         }
     }
 
-    // reached end of block without being overwritten or read
-    false
+    defs
 }
 
-/// Find stores within a single block that are overwritten before being read.
-fn find_locally_dead_stores(
-    block_id: mir::LocalNodeId<mir::Block>,
-    tree: &mir::NodeTree,
-    aa: &AliasAnalysis,
-) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
-    let mut dead = HashSet::new();
-    let block = tree.get(block_id);
-
-    // track the last store to each memory location
-    // map from pointer value to (instruction_id, is_dead)
-    let mut last_stores: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> = HashMap::new();
-
-    for &instruction_id in &block.instructions {
-        let instruction = tree.get(instruction_id);
-        match instruction {
-            mir::Instruction::Store { pointer, .. } => {
-                let loc = MemoryLocation::from_ptr(*pointer);
-
-                // check if any previous store is overwritten by this store
-                for (&prev_ptr, &prev_store) in last_stores.iter() {
-                    // same pointer value definitely means same location
-                    if prev_ptr == *pointer {
-                        dead.insert(prev_store);
-                    } else {
-                        // check alias analysis for other cases
-                        let prev_loc = MemoryLocation::from_ptr(prev_ptr);
-                        if aa.alias(&loc, &prev_loc).is_must_alias() {
-                            dead.insert(prev_store);
-                        }
-                    }
-                }
-
-                // record this store
-                last_stores.insert(*pointer, instruction_id);
-            }
-
-            mir::Instruction::Load { pointer, .. } => {
-                let loc = MemoryLocation::from_ptr(*pointer);
-
-                // any store that may alias with this load is not dead
-                last_stores.retain(|&ptr, _| {
-                    let store_loc = MemoryLocation::from_ptr(ptr);
-                    !aa.alias(&loc, &store_loc).may_alias()
-                });
-            }
-
-            // calls may read/write memory - use mod-ref analysis
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                // remove stores that the call might read
-                last_stores.retain(|&ptr, _| {
-                    let store_loc = MemoryLocation::from_ptr(ptr);
-                    !aa.get_mod_ref_info(instruction_id, &store_loc).is_ref()
-                });
-            }
-
-            // drop/free may read memory - use mod-ref analysis
-            mir::Instruction::RawDrop { .. }
-            | mir::Instruction::StackDrop { .. }
-            | mir::Instruction::RawFree { .. } => {
-                last_stores.retain(|&ptr, _| {
-                    let store_loc = MemoryLocation::from_ptr(ptr);
-                    !aa.get_mod_ref_info(instruction_id, &store_loc).is_ref()
-                });
-            }
-
-            _ => {}
-        }
-    }
-
-    dead
-}
-
-/// Find stores to locations that are never read in the entire function.
-///
-/// This handles stores to stack allocations that escape the function unused.
-fn find_unreachable_stores(
+fn collect_live_defs(
     function: &mir::Function,
     tree: &mir::NodeTree,
+    memory_ssa: &MemorySSA,
     aa: &AliasAnalysis,
-    _cfg: &ControlFlowGraph,
-) -> HashSet<mir::LocalNodeId<mir::Instruction>> {
-    // collect all stack allocations
-    let mut stack_allocs: HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>> = HashMap::new();
+) -> HashSet<MemoryAccessId> {
+    // collect MemorySSA defs that feed reads
+    let mut live_defs = HashSet::new();
 
+    // scan blocks for read accesses
     for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &inst_id in &block.instructions {
-            let inst = tree.get(inst_id);
-            if let mir::Instruction::StackAlloc { destination, .. } = inst {
-                stack_allocs.insert(*destination, inst_id);
-            }
-        }
-    }
-
-    // find stack allocations that may escape (used in calls, returned, etc.)
-    let mut escaping: HashSet<mir::Value> = HashSet::new();
-
-    for &block_id in &function.blocks {
+        // read the block
         let block = tree.get(block_id);
 
+        // scan instructions in the block
         for &instruction_id in &block.instructions {
+            // read the access list
+            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+                continue;
+            };
+
+            // mark clobbering defs for reads
+            for &access_id in accesses {
+                match memory_ssa.access(access_id) {
+                    MemoryAccess::Use(_use_access) => {
+                        // record the def that feeds this use
+                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa);
+                        live_defs.insert(clobber);
+                    }
+                    MemoryAccess::Def(def_access) => {
+                        // skip defs that do not read memory
+                        if !def_access.effect.reads {
+                            continue;
+                        }
+
+                        // record the def that feeds the read portion
+                        let clobber = memory_ssa.clobbering_access_for_read(
+                            access_id,
+                            &def_access.effect.location,
+                            aa,
+                        );
+                        live_defs.insert(clobber);
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    live_defs
+}
+
+fn collect_non_escaping_stack_allocs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> HashSet<mir::Value> {
+    // collect stack allocation bases
+    let mut stack_allocs = HashSet::new();
+
+    // scan blocks for stack allocations
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
+            if let mir::Instruction::StackAlloc { destination, .. } = instruction {
+                stack_allocs.insert(*destination);
+            }
+        }
+    }
+
+    // collect escaping stack allocations
+    let mut escaping = HashSet::new();
+
+    // scan blocks for escaping uses
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
             let instruction = tree.get(instruction_id);
             match instruction {
                 mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                    // any stack allocation passed to a call escapes
-                    // arguments are stored externally, so we need to access them via get_arguments
+                    // capture call metadata for escape checks
+                    let call_metadata = tree.call_table.call_metadata(instruction_id);
+
+                    // mark stack pointers passed to calls as escaping
                     if let Some(arg_slice) = instruction.argument_slice() {
-                        for &arg in tree.get_arguments(arg_slice) {
-                            if stack_allocs.contains_key(&arg) {
-                                escaping.insert(arg);
+                        let arguments = tree.get_arguments(arg_slice);
+
+                        for (index, &arg) in arguments.iter().enumerate() {
+                            if call_argument_escapes(call_metadata, index) {
+                                record_stack_escape(
+                                    arg,
+                                    definitions,
+                                    tree,
+                                    &stack_allocs,
+                                    &mut escaping,
+                                );
                             }
                         }
                     }
                 }
-
-                // storing a pointer escapes it
                 mir::Instruction::Store { value, .. } => {
-                    if stack_allocs.contains_key(value) {
-                        escaping.insert(*value);
-                    }
+                    // mark stored stack pointers as escaping
+                    record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
                 }
-
                 _ => {}
             }
         }
 
-        // check terminator for escapes
+        // scan terminators for escaping values
         match &block.terminator {
-            mir::Terminator::Return { value: Some(v) } => {
-                if stack_allocs.contains_key(v) {
-                    escaping.insert(*v);
-                }
+            mir::Terminator::Return { value: Some(value) } => {
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
             }
             mir::Terminator::Jump { arguments, .. } => {
                 for &arg in arguments {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
             mir::Terminator::Branch {
@@ -484,18 +421,14 @@ fn find_unreachable_stores(
                 ..
             } => {
                 for &arg in then_arguments.iter().chain(else_arguments.iter()) {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
                 for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
             mir::Terminator::Switch {
@@ -503,18 +436,12 @@ fn find_unreachable_stores(
                 default_arguments,
                 ..
             } => {
-                // check default arguments
                 for &arg in default_arguments {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
-                // check case arguments
                 for case in cases {
                     for &arg in &case.arguments {
-                        if stack_allocs.contains_key(&arg) {
-                            escaping.insert(arg);
-                        }
+                        record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                     }
                 }
             }
@@ -523,88 +450,309 @@ fn find_unreachable_stores(
                 resume_arguments,
                 ..
             } => {
-                // yielded value escapes
-                if stack_allocs.contains_key(value) {
-                    escaping.insert(*value);
-                }
-                // resume arguments escape
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
                 for &arg in resume_arguments {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
-            mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => {}
             mir::Terminator::TailCall { arguments, .. } => {
                 for &arg in arguments {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
             mir::Terminator::TailCallIndirect { callee, arguments } => {
-                if stack_allocs.contains_key(callee) {
-                    escaping.insert(*callee);
-                }
+                record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
                 for &arg in arguments {
-                    if stack_allocs.contains_key(&arg) {
-                        escaping.insert(arg);
-                    }
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
+            mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => {}
         }
     }
 
-    // find loads from each stack allocation
-    let mut has_load: HashSet<mir::Value> = HashSet::new();
+    // filter non escaping stack allocations
+    stack_allocs
+        .into_iter()
+        .filter(|alloc| !escaping.contains(alloc))
+        .collect()
+}
 
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &inst_id in &block.instructions {
-            let inst = tree.get(inst_id);
+/// Mark stack allocations that may escape through a value.
+fn record_stack_escape(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+) {
+    // visit values recursively to detect aggregate escapes
+    let mut visited = HashSet::new();
+    record_stack_escape_value(
+        value,
+        definitions,
+        tree,
+        stack_allocs,
+        escaping,
+        &mut visited,
+    );
+}
 
-            if let mir::Instruction::Load { pointer, .. } = inst {
-                // check if this load is from a stack allocation
-                for &alloc_ptr in stack_allocs.keys() {
-                    let alloc_loc = MemoryLocation::from_ptr(alloc_ptr);
-                    let load_loc = MemoryLocation::from_ptr(*pointer);
-                    if aa.alias(&alloc_loc, &load_loc).may_alias() {
-                        has_load.insert(alloc_ptr);
-                    }
-                }
+/// Walk a value to find stack allocations that escape.
+fn record_stack_escape_value(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+    visited: &mut HashSet<mir::Value>,
+) {
+    // stop on cycles
+    if !visited.insert(value) {
+        return;
+    }
+
+    // resolve the stack base and mark it as escaping
+    if let Some(base) = stack_alloc_base(value, definitions, tree) {
+        if stack_allocs.contains(&base) {
+            escaping.insert(base);
+        }
+        return;
+    }
+
+    // inspect aggregate construction for nested pointers
+    let Some(instruction_id) = definitions.get(&value) else {
+        return;
+    };
+    let instruction = tree.get(*instruction_id);
+    match instruction {
+        mir::Instruction::Struct { fields, .. } => {
+            let args = tree.get_arguments(*fields);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
             }
+        }
+        mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
+            let args = tree.get_arguments(*elements);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Report whether a call argument may escape.
+fn call_argument_escapes(call_metadata: Option<&mir::CallMetadata>, index: usize) -> bool {
+    // default to escaping when metadata is missing
+    let Some(metadata) = call_metadata else {
+        return true;
+    };
+
+    // default to escaping when argument metadata is missing
+    let Some(arg_metadata) = metadata.argument_metadata.get(index) else {
+        return true;
+    };
+
+    // treat no capture arguments as non escaping
+    !matches!(arg_metadata.attributes.capture, mir::CaptureKind::NoCapture)
+}
+
+/// Return true when a store targets a non escaping stack allocation.
+fn store_is_non_escaping_stack(
+    store: &StoreCandidate,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    non_escaping_stack_allocs: &HashSet<mir::Value>,
+    tree: &mir::NodeTree,
+) -> bool {
+    // only pointer locations can be stack allocations
+    let MemoryAccessLocation::Pointer(_) = store.location else {
+        return false;
+    };
+
+    // resolve the stack base for this store pointer
+    let Some(base) = stack_alloc_base(store.pointer, definitions, tree) else {
+        return false;
+    };
+
+    // report whether the base is non escaping
+    non_escaping_stack_allocs.contains(&base)
+}
+
+/// Return true when a later clobbering def postdominates the store.
+// allow extra context parameters for clarity
+#[allow(clippy::too_many_arguments)]
+fn store_is_postdominated_by_clobber(
+    store: &StoreCandidate,
+    def_accesses: &[DefAccessInfo],
+    memory_ssa: &MemorySSA,
+    aa: &AliasAnalysis,
+    postdom: &PostDominatorTree,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    constants: &HashMap<mir::Value, i64>,
+) -> bool {
+    let mut decomposer = PointerDecomposer::new(
+        constants,
+        definitions,
+        tree,
+        &function.parameters,
+        false,
+    );
+
+    // search for clobbering defs that postdominate the store
+    for def in def_accesses {
+        // skip self and earlier defs in the block
+        if def.access == store.access {
+            continue;
+        }
+
+        if def.block == store.block && def.index <= store.index {
+            continue;
+        }
+
+        // skip defs that do not postdominate
+        if !postdom.postdominates(def.block, store.block) {
+            continue;
+        }
+
+        let MemoryAccess::Def(def_access) = memory_ssa.access(def.access) else {
+            continue;
+        };
+
+        // skip barrier defs since they do not overwrite memory
+        if def_access.effect.is_barrier {
+            continue;
+        }
+
+        // return once a clobbering def is found
+        if let Some(overwrites) = def_fully_overwrites_store(
+            &def_access.effect.location,
+            &store.location,
+            &mut decomposer,
+        ) {
+            if overwrites {
+                return true;
+            }
+
+            continue;
+        }
+
+        if memory_ssa.def_clobbers_location(def.access, &store.location, aa) {
+            return true;
         }
     }
 
-    // stores to non-escaping stack allocations with no loads are dead
-    let mut dead_stores = HashSet::new();
+    false
+}
+
+/// Return true when a def fully overwrites the store location.
+fn def_fully_overwrites_store(
+    def_location: &MemoryAccessLocation,
+    store_location: &MemoryAccessLocation,
+    decomposer: &mut PointerDecomposer<'_>,
+) -> Option<bool> {
+    let MemoryAccessLocation::Pointer(def_loc) = def_location else {
+        return None;
+    };
+    let MemoryAccessLocation::Pointer(store_loc) = store_location else {
+        return None;
+    };
+
+    let def_size = def_loc.size?;
+    let store_size = store_loc.size?;
+
+    let def_decomp = decomposer.decompose(def_loc.ptr);
+    let store_decomp = decomposer.decompose(store_loc.ptr);
+
+    if !decomposition_is_constant(&def_decomp) || !decomposition_is_constant(&store_decomp) {
+        return None;
+    }
+
+    if def_decomp.field_path != store_decomp.field_path {
+        return None;
+    }
+
+    if def_decomp.base != store_decomp.base {
+        if def_decomp.base.is_identified() && store_decomp.base.is_identified() {
+            return Some(false);
+        }
+
+        return None;
+    }
+
+    let relation = range_relation(
+        def_decomp.const_offset,
+        def_size,
+        store_decomp.const_offset,
+        store_size,
+    );
+
+    match relation {
+        RangeRelation::Equal | RangeRelation::Contains => Some(true),
+        RangeRelation::Disjoint | RangeRelation::ContainedBy | RangeRelation::Overlaps => {
+            Some(false)
+        }
+    }
+}
+
+/// Return true when the decomposition has only constant offsets.
+fn decomposition_is_constant(pointer: &DecomposedPointer) -> bool {
+    pointer.var_offsets.is_empty()
+}
+
+/// Build a map from values to constant integer values.
+fn build_integer_constant_map(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, i64> {
+    let mut constants = HashMap::new();
+
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let mir::Instruction::Store { pointer, .. } = instruction {
-                // check if storing to a non-escaping stack alloc with no loads
-                for &alloc_ptr in stack_allocs.keys() {
-                    if escaping.contains(&alloc_ptr) || has_load.contains(&alloc_ptr) {
-                        continue;
+            if let mir::Instruction::Const { destination, value } = instruction {
+                match value {
+                    mir::Constant::Int { value, .. } => {
+                        constants.insert(*destination, *value);
                     }
-                    let alloc_loc = MemoryLocation::from_ptr(alloc_ptr);
-                    let store_loc = MemoryLocation::from_ptr(*pointer);
-                    if aa.alias(&alloc_loc, &store_loc).may_alias() {
-                        dead_stores.insert(instruction_id);
+                    mir::Constant::UInt { value, .. } => {
+                        if let Ok(value) = i64::try_from(*value) {
+                            constants.insert(*destination, value);
+                        }
                     }
+                    _ => {}
                 }
             }
         }
     }
 
-    dead_stores
+    constants
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+
+    fn store_instructions_in_entry(
+        function_id: mir::LocalNodeId<mir::Function>,
+        tree: &mir::NodeTree,
+    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+        let function = tree.get(function_id);
+        let entry = function.entry.expect("missing entry block");
+        let block = tree.get(entry);
+
+        block
+            .instructions
+            .iter()
+            .copied()
+            .filter(|instruction_id| {
+                matches!(tree.get(*instruction_id), mir::Instruction::Store { .. })
+            })
+            .collect()
+    }
 
     /// Store overwritten before being read is eliminated.
     ///
@@ -685,6 +833,55 @@ block0:
         program.assert_output(expected);
     }
 
+    /// Volatile store is never removed even when overwritten.
+    #[test]
+    fn test_preserve_volatile_store() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 1i32
+    store v0, v1
+    v2 = iconst 2i32
+    store v0, v2
+    v3 = load v0
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.entry_function_id();
+        let store_id = store_instructions_in_entry(function_id, &program.tree)
+            .into_iter()
+            .next()
+            .expect("missing store instruction");
+
+        let pointer = match program.tree.get(store_id) {
+            mir::Instruction::Store { pointer, .. } => *pointer,
+            _ => panic!("expected store instruction"),
+        };
+
+        let access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Write,
+            target: mir::MemoryAccessTarget::Pointer(pointer),
+            size: Some(4),
+            alignment: None,
+            is_volatile: true,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+        program
+            .tree
+            .memory_table
+            .insert_memory_accesses(store_id, vec![access]);
+
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_unchanged(input);
+    }
+
     /// Store to escaping allocation is preserved.
     ///
     /// When the allocation escapes (is passed to an external function),
@@ -704,6 +901,53 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&DeadStoreEliminate);
         program.assert_unchanged(input);
+    }
+
+    /// Store before a nocapture readnone call is removed.
+    #[test]
+    fn test_remove_store_before_nocapture_readnone_call() {
+        let input = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    call @external(v0)
+    v2 = iconst 0i32
+    return v2
+}"#;
+        let expected = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    call @external(v0)
+    v2 = iconst 0i32
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        let function_id = program.entry_function_id();
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+        let signature = program.call_signature_for_callee(callee);
+
+        let mut arg0 = mir::CallArgumentMetadata::default();
+        arg0.attributes.capture = mir::CaptureKind::NoCapture;
+        arg0.access = mir::ArgumentAccess::None;
+
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(mir::MemoryEffect::none())
+            .with_argument_metadata(vec![arg0]);
+
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
     }
 
     /// Multiple consecutive overwrites - all but last are eliminated.
@@ -850,6 +1094,115 @@ block0:
 }"#;
 
         let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Store to allocation used in returned aggregate is preserved.
+    #[test]
+    fn test_preserve_store_returned_aggregate() {
+        let input = r#"function @test() -> (ref<raw i32>, i32) {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 42i32
+    store v0, v1
+    v2 = iconst 0i32
+    v3 = tuple (ref<raw i32>, i32) (v0, v2)
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Stores to disjoint fields are not treated as clobbers.
+    #[test]
+    fn test_preserve_disjoint_field_stores() {
+        let input = r#"type @Pair = { i32, i32 }
+function @test(v0: ref<raw @Pair>) -> void {
+block0(v0: ref<raw @Pair>):
+    v1 = field.addr v0, 0
+    v2 = field.addr v0, 1
+    v3 = iconst 1i32
+    v4 = iconst 2i32
+    store v1, v3
+    store v2, v4
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_unchanged(input);
+    }
+
+    /// Partial overwrite does not kill earlier bytes.
+    #[test]
+    fn test_preserve_partial_overwrite() {
+        let input = r#"function @test() -> ref<raw i64> {
+block0:
+    v0 = stack.alloc i64
+    v1 = iconst 0i64
+    store v0, v1
+    v2 = iconst 1i32
+    store v0, v2
+    return v0
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.entry_function_id();
+        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let [first_store, second_store] = store_ids.as_slice() else {
+            panic!("expected two store instructions");
+        };
+
+        let first_pointer = match program.tree.get(*first_store) {
+            mir::Instruction::Store { pointer, .. } => *pointer,
+            _ => panic!("expected store instruction"),
+        };
+        let second_pointer = match program.tree.get(*second_store) {
+            mir::Instruction::Store { pointer, .. } => *pointer,
+            _ => panic!("expected store instruction"),
+        };
+
+        let first_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Write,
+            target: mir::MemoryAccessTarget::Pointer(first_pointer),
+            size: Some(8),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+        let second_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Write,
+            target: mir::MemoryAccessTarget::Pointer(second_pointer),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+
+        program
+            .tree
+            .memory_table
+            .insert_memory_accesses(*first_store, vec![first_access]);
+        program
+            .tree
+            .memory_table
+            .insert_memory_accesses(*second_store, vec![second_access]);
+
         program.run_pass(&DeadStoreEliminate);
         program.assert_unchanged(input);
     }

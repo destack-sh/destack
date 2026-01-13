@@ -77,6 +77,68 @@ impl TestProgram {
         self.run_pass_with_options_impl(pass, PipelineOptions::default(), Some(Arc::new(profile)));
     }
 
+    /// Return the entry function id for this program.
+    pub(crate) fn entry_function_id(&self) -> mir::LocalNodeId<mir::Function> {
+        // scan for a function that has an entry block
+        self.tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| function.entry.is_some())
+            .expect("missing function")
+            .0
+    }
+
+    /// Return the first call instruction and callee in the entry function.
+    pub(crate) fn first_call_in_entry(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> (
+        mir::LocalNodeId<mir::Instruction>,
+        mir::LocalNodeId<mir::Function>,
+    ) {
+        // read the entry block for the function
+        let function = self.tree.get(function_id);
+        let block = self.tree.get(function.blocks[0]);
+
+        // locate the first call instruction
+        let call_inst = block
+            .instructions
+            .iter()
+            .copied()
+            .find(|id| matches!(self.tree.get(*id), mir::Instruction::Call { .. }))
+            .expect("missing call instruction");
+
+        // read the callee from the call instruction
+        let mir::Instruction::Call {
+            function: callee, ..
+        } = self.tree.get(call_inst)
+        else {
+            panic!("expected call instruction");
+        };
+
+        (call_inst, *callee)
+    }
+
+    /// Insert a function pointer type for a callee signature.
+    pub(crate) fn call_signature_for_callee(
+        &mut self,
+        callee: mir::LocalNodeId<mir::Function>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        // read the callee signature
+        let callee_function = self.tree.get(callee);
+        let param_tys = callee_function
+            .parameters
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        let return_ty = callee_function.return_type;
+
+        // insert the function pointer type
+        self.tree.insert(mir::Type::FunctionPointer {
+            parameters: param_tys,
+            result: return_ty,
+        })
+    }
+
     /// Internal implementation that handles the borrow correctly.
     fn run_pass_with_options_impl<P: FunctionPass + ?Sized>(
         &mut self,
