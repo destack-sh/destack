@@ -700,7 +700,7 @@ Lower function bodies to MIR blocks.
 - Field access → `field.get`/`field.addr`
 
 **Ownership marking:** For `^T` owned values, mark ownership in MIR.
-Optimize's `drop-insert` pass later inserts actual drops at last-use points.
+Optimize's `drop-insert` pass later inserts actual drops at last use points.
 
 **GC barrier insertion:** For writes to managed reference fields:
 ```mir
@@ -1063,13 +1063,13 @@ The `string` header uses `capacity` for owned `^string` growth and usually keeps
 Flags are runtime metadata bits with stable meanings.
 - `HasHash`: `hash` is populated and valid
 - `IsAscii`: payload is ASCII-only
-- `IsStatic`: payload is static read-only data
+- `IsStatic`: payload is static read only data
 - `IsInterned`: string content is interned
 - `IsExternal`: payload is owned outside the managed heap
 
 #### String Literals
 
-String literals are interned at compile time in a read-only data section:
+String literals are interned at compile time in a read only data section:
 
 ```ds
 const s = "hello"   // pointer to static data (never collected)
@@ -2133,7 +2133,7 @@ Lower has full DIR type information (including `Drop` trait bounds) and generate
 
 **Important:** Lower only *marks* ownership on types and values (via `^T` modifiers and allocation instructions).
 The actual drop instruction insertion happens in Optimize's `drop-insert` pass, which runs as part of the Verify phase.
-This separation ensures drops are placed at precise last-use points after all control flow is lowered.
+This separation ensures drops are placed at precise last use points after all control flow is lowered.
 
 | Instruction | Drop Fields | Call Dispose | Deallocate |
 |-------------|-------------|--------------|------------|
@@ -2148,26 +2148,26 @@ The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 
 Destack aims to cover the "managedness" spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
 Most code just uses the default, and that should still be plenty fast thanks to real AOT compilation and fixed layouts (more like Go, Java, C#).
-Performance-critical code adds these ownership modifiers for manual control.
+Performance critical code adds these ownership modifiers for manual control.
 
 **Explicit Ownership:**
 
-To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC-managed references, primitives are values).
+To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC managed references, primitives are values).
 
 | Modifier | Semantics | After `foo(x)` | Who cleans up? |
 |----------|-----------|----------------|----------------|
-| `T` | GC-managed (implicit) | `x` still valid | GC |
-| `&T` | Borrow (read-only) | `x` still valid | Original owner |
+| `T` | GC managed (implicit) | `x` still valid | GC |
+| `&T` | Borrow (read only) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
 | `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
 | `^mut T` | Ownership transfer (mutable) | `x` **invalid** | New owner (or GC fallback) |
 
 For the default (`T`), the compiler optimizes automatically:
 - Small values are passed by copy (registers)
-- Large values are GC-managed references
+- Large values are GC managed references
 - Escape analysis promotes heap to stack when safe
 
-`T` is not owned by anyone, it is implicitly GC-managed and freed whenever all references to it are gone.
+`T` is not owned by anyone, it is implicitly GC managed and freed whenever all references to it are gone.
 Many people can hold and mutate `T` as long as they like.
 `^T` is for when there should only be one owner.
 Accordingly, when calling a function with `^T`, the caller gives up ownership of the value to the callee.
@@ -2180,7 +2180,7 @@ consume(^d)    // ownership transferred
 print(d.value) // ERROR: use after ownership transfer
 ```
 
-Use-after-move is an error.
+Use after move is an error.
 When a `^T` value reaches its **last proven use** without being transferred, it is **dropped**:
 
 ```ds
@@ -2191,17 +2191,18 @@ function process() {
 }
 ```
 
-`Drop` is a marker interface that opts a type into last-use cleanup when possible.
+`Drop` is a marker interface that opts a type into last use cleanup when possible.
 (Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue).
-Optimize's `drop-insert` pass inserts drops at last-use points (non-lexical), including before
-control-flow merges and before coroutine suspension when the value is not used after resume.
+Optimize's `drop-insert` pass inserts drops at last use points (non lexical), including before
+control flow merges and before coroutine suspension when the value is not used after resume.
 
 **Borrowing:**
 
-`&T` and `&mut T` are explicit references (pointers) to data. They lower directly to pointer types in MIR:
+`&T` and `&mut T` are explicit references (pointers) to data.
+They lower directly to pointer types in MIR:
 
 ```ds
-function process(data: &Point) { ... }   // read-only reference
+function process(data: &Point) { ... }   // read only reference
 function mutate(data: &mut Point) { ... } // mutable reference
 ```
 
@@ -2214,21 +2215,35 @@ function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
 ```
 
 Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
+Borrowed references are verified by the borrow check pass in Optimize.
+Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+A borrow ends when the reference value is no longer live.
+Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
+Dropping or freeing a value while it is borrowed is always an error.
+In strict mode, conflicting borrows and invalidating stores are errors.
+In lenient mode, the same situations produce warnings.
+
+**Raw pointers:**
+
+`*T` and `*mut T` are unsafe pointers with no borrow tracking.
+They lower directly to `ref<raw T>` and `ref<raw mut T>`.
+Deref and mutation use explicit `load`/`store` and pointer operations.
+Conversions between borrowed references and raw pointers are explicit.
 
 **Address spaces:**
 
 Lower preserves address space annotations on references for native and accelerator targets.
 The default address space is `generic`.
-Non-generic address spaces are only valid for borrowed and raw references.
+Non generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
 **Borrow Modes:**
 
-By default, `&T` and `&mut T` are hints with compiler warnings only.
+By default, `&T` and `&mut T` are hints and violations produce warnings.
 They help document APIs, guide drops, and enable limited optimizations.
 Set `borrowMode: "strict"` in `dsconfig.json` to enforce exclusive `&mut` borrows.
-Strict mode enables stronger `noalias` optimizations and hard errors on violations.
+Strict mode enables stronger `noalias` optimizations and errors on violations.
 Strict mode forbids:
 - Aliasing `&mut` with any other borrow
 - Storing `&mut` inside managed objects

@@ -186,13 +186,13 @@ pub enum Type {
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
-    /// Reference of `&T` to a `T`. Or `&mut T` for a mutable reference.
+    /// Borrowed reference type `&T` or `&mut T`.
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
         right: LocalTypeId,
     },
-    /// Pointer type `*T` to a `T` or `*mut T` for a mutable pointer.
+    /// Raw pointer type `*T` or `*mut T`.
     PointerOf {
         mutability: Option<Mutability>,
         right: LocalTypeId,

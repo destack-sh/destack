@@ -353,6 +353,7 @@ Subjective preferences for consistent coding style.
 | `LY072` | `prefer-tuple-swap` | Destack | AST | ✓ | Safe | Prefer tuple swap syntax over temporary variable |
 | `LY073` | `prefer-unary-negation` | Destack | AST | ✓ | Safe | Prefer unary negation over multiplying by -1 |
 | `LY074` | `promise-function-async` | TS-ESLint | DIR | ✓ | Safe | Require `async` keyword for Promise-returning functions |
+| `LY082` | `redundant-const-reference` | Destack | AST | ✓ | Safe | Disallow explicit `const` on borrows and raw pointers |
 | `LY075` | `require-jsdoc` | ESLint | AST | ✓ | Suggestion | Require documentation on public items |
 | `LY076` | `require-returns-doc` | ESLint | AST | ✓ | Suggestion | Require return type documentation |
 | `LY077` | `restrict-template-expressions` | TS-ESLint | DIR | ✓ | Suggestion | Require template expressions to be strings or numbers |

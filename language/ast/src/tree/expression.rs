@@ -699,7 +699,7 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Reference of operation (e.g., `&x`).
+    /// Borrowed reference operation (e.g., `&x`).
     ///
     /// Examples:
     /// ```
@@ -713,7 +713,7 @@ pub enum Expression {
         right: LocalNodeId<Expression>,
     },
 
-    /// Pointer type operation (e.g., `*T`).
+    /// Raw pointer type operation (e.g., `*T`).
     ///
     /// Examples:
     /// ```

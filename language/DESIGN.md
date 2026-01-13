@@ -278,7 +278,8 @@ If you need traditional exception semantics, target JS/TS output.
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives, nominal types, and readable constraints.
+Destack extends TypeScript's type system with precise primitives.
+It adds nominal types and readable constraints.
 
 ### Inference
 
@@ -286,7 +287,7 @@ Destack requires explicit types at public boundaries.
 This keeps inference local, fast, and predictable.
 There is no whole program inference or Hindley-Milner style generalization.
 
-Most non-local constructs should be explicitly typed:
+Most non local constructs should be explicitly typed:
 - Exported functions, methods, and constructors annotate dynamic parameters and return types.
 - Public fields and properties declare types.
 - Function types in type declarations annotate parameters and return types.
@@ -662,25 +663,47 @@ Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first mat
 
 ## Ownership
 
-TypeScript doesn't distinguish references from values in its type system, everything is implicitly GC-managed or copied purely based on type.
-Destack adds opt-in explicit control, enabling a spectrum from TypeScript simplicity to Rust-level control.
+TypeScript doesn't distinguish references from values in its type system, everything is implicitly GC managed or copied purely based on type.
+Destack adds opt in explicit control, enabling a spectrum from TypeScript simplicity to Rust level control.
 
 ### Ownership Modifiers
 
 In addition to the default `T`, there are four other ownership options:
 ```
-T            // automatic (TypeScript behavior, implicitly GC-managed)
-&T           // borrow (read-only reference)
+T            // automatic (TypeScript behavior, implicitly GC managed)
+&T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
 ^T           // ownership transfer (caller gives up ownership)
 ^mut T       // ownership transfer (explicitly mutable)
 ```
 
+Raw pointers are separate from ownership modifiers:
+```
+*T           // raw pointer (unsafe)
+*mut T       // raw pointer (mutable, unsafe)
+```
+**Borrow semantics:**
+- `&T` and `&mut T` are safe borrows verified by the borrow check pass.
+- Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+- A borrow ends when the reference value is no longer live.
+- Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
+- Derived borrows carry provenance so dropping any origin invalidates the derived borrows.
+- Dropping or freeing a value while it is borrowed is always an error.
+- In strict mode, conflicting borrows and invalidating stores are errors.
+- In lenient mode, the same situations produce warnings.
+
+**Raw pointers:**
+- `*T` and `*mut T` are unsafe pointers with no borrow tracking.
+- Raw pointers may be null or dangling and allow pointer arithmetic.
+- Converting between borrowed references and raw pointers is always explicit.
+- Raw pointers do not imply ownership or drop behavior.
+- `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
+
 ### Address Spaces
 
 References can target explicit address spaces for native and accelerated targets.
 The default is `generic`, which maps to the target's normal memory.
-Non-generic address spaces are only valid for borrowed and raw references.
+Non generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
 
 Address spaces are spelled with `addrspace(name)` or `addrspace(7)` on a reference:
@@ -691,7 +714,7 @@ ref<raw addrspace(7) mut i32>
 ```
 
 Address space changes are explicit (and lower to the `addrspace.cast` intrinsic).
-The VM provides deterministic host-side models for non-generic address spaces when available.
+The VM provides deterministic host side models for non generic address spaces when available.
 
 ### Ownership Semantics
 
@@ -703,7 +726,7 @@ consume(^node)    // ownership transferred
 print(node.value) // ERROR: use after ownership transfer
 ```
 
-`^T` values are dropped at their last proven use (non-lexical), not just at end of scope:
+`^T` values are dropped at their last proven use (non lexical), not just at end of scope:
 
 ```
 function process() {
@@ -714,15 +737,16 @@ function process() {
 ```
 
 This enables RAII patterns (files close, locks release, resources clean up).
-`Drop` is a marker interface that opts a type into last-use cleanup.
-Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-`using` always calls `Symbol.dispose`, even without `Drop`.
-Owned values are dropped at their last proven use unless `using` is specified.
-`using` bindings drop at scope end and cannot be moved.
-`^T` controls ownership transfer and move semantics.
-`using` controls drop timing and does not imply ownership.
-Combine `using` with `^T` for deterministic cleanup of owned values.
-The builtin `Error` interface is the conventional error shape for `Result<T, E>`, but any type can be used as `E`.
+
+**Drop behavior:**
+- `Drop` is a marker interface that opts a type into last use cleanup.
+- Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
+- `using` always calls `Symbol.dispose`, even without `Drop`.
+- Owned values are dropped at their last proven use unless `using` is specified.
+- `using` bindings drop at scope end and cannot be moved.
+- `^T` controls ownership transfer and move semantics.
+- `using` controls drop timing and does not imply ownership.
+- Combine `using` with `^T` for deterministic cleanup of owned values.
 
 ### Allocation and Drop
 
@@ -736,7 +760,7 @@ Ownership modifiers determine how values are allocated and cleaned up:
 
 The `raw.drop` operation performs **drop glue**: drop owned fields (reverse declaration order), call `Symbol.dispose` if the type implements `Drop`, then deallocate.
 The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis when the value doesn't escape the function.
-Stack-allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
+Stack allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
 
 For manual memory without destructors (FFI, low-level code), use `raw.free` directly instead of `raw.drop`.
 
@@ -756,7 +780,7 @@ When the container is owned (`^Container`), drops are **deterministic**: fields 
 When the container is managed (`Container`), drops are **nondeterministic**: GC finalizers handle owned fields when the container is collected.
 A warning is emitted in strict mode for `^T` fields in managed types.
 
-Strings follow the same ownership spectrum: `string` is GC-managed by default,
+Strings follow the same ownership spectrum: `string` is GC managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
 `Slice` is an explicit view type with a pointer and length.
 Borrowing an array object does not imply a slice view.
@@ -781,7 +805,10 @@ Elaborate inserts implicit borrows before other implicit casts.
 
 ### Returning References
 
-Functions can return borrowed references (`&T`). The compiler warns on obvious mistakes like returning a reference to a local variable, but does not enforce full lifetime tracking—GC ensures memory safety regardless.
+Functions can return borrowed references (`&T`).
+Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
+In strict mode, returning a borrow that may outlive its origin is an error.
+In lenient mode, the same situation produces a warning.
 
 ```
 function get(container: &Container): &Item {
@@ -796,10 +823,11 @@ function bad(): &Point {
 
 ### Borrow Modes
 
-By default, `&T` and `&mut T` are hints with warnings only.
-Strict mode enforces exclusive `&mut` borrows and no-escape rules.
+By default, `&T` and `&mut T` are hints and violations produce warnings.
+Strict mode enforces exclusive `&mut` borrows and no escape rules.
 Strict mode enables stronger optimizations like `noalias` on `&mut`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
+Borrow modes do not apply to raw pointers.
 
 ### Lifetime Annotations
 
