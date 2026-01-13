@@ -321,6 +321,18 @@ impl TestProgram {
         );
     }
 
+    /// Attach memory access metadata to an instruction.
+    pub(crate) fn insert_memory_accesses(
+        &mut self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        accesses: Vec<mir::MemoryAccessMetadata>,
+    ) {
+        // insert the metadata entries
+        self.tree
+            .memory_table
+            .insert_memory_accesses(instruction, accesses);
+    }
+
     /// Attach pointer access metadata to an instruction with flags.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn insert_pointer_access_with_options(

@@ -2213,23 +2213,14 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create a scope for the disjoint access
-        let scope = {
-            let scopes = &mut program.tree.memory_table.alias_scopes;
-            let domain = scopes.create_domain(None);
-            scopes.create_scope(domain, None)
-        };
+        let scope = program.create_alias_scope();
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (store_v0, store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (
-                block.instructions[1],
-                block.instructions[3],
-                block.instructions[4],
-            )
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v0 = instructions[1];
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // attach alias scope metadata to the store on v1
         program.insert_pointer_access(
@@ -2288,27 +2279,18 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create disjoint tbaa tags
-        let (int_tag, float_tag) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let int_node = tbaa.create_node(None, Some(root), false);
-            let float_node = tbaa.create_node(None, Some(root), false);
-            let int_tag = tbaa.create_tag(root, int_node, 0, 4, false);
-            let float_tag = tbaa.create_tag(root, float_node, 0, 4, false);
-            (int_tag, float_tag)
-        };
+        let root = program.create_tbaa_node(None, false);
+        let int_node = program.create_tbaa_node(Some(root), false);
+        let float_node = program.create_tbaa_node(Some(root), false);
+        let int_tag = program.create_tbaa_tag(root, int_node, 0, 4, false);
+        let float_tag = program.create_tbaa_tag(root, float_node, 0, 4, false);
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (store_v0, store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (
-                block.instructions[1],
-                block.instructions[3],
-                block.instructions[4],
-            )
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v0 = instructions[1];
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // tag store and load with disjoint tbaa metadata
         program.insert_pointer_access(
@@ -2367,23 +2349,14 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create a scope for the disjoint access
-        let scope = {
-            let scopes = &mut program.tree.memory_table.alias_scopes;
-            let domain = scopes.create_domain(None);
-            scopes.create_scope(domain, None)
-        };
+        let scope = program.create_alias_scope();
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (store_v0, store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (
-                block.instructions[1],
-                block.instructions[3],
-                block.instructions[4],
-            )
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v0 = instructions[1];
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // attach noalias metadata to the store on v1
         program.insert_pointer_access(
@@ -2443,26 +2416,17 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create disjoint tbaa tags with the same base and access
-        let (tag_a, tag_b) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let access = tbaa.create_node(None, Some(root), false);
-            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
-            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
-            (tag_a, tag_b)
-        };
+        let root = program.create_tbaa_node(None, false);
+        let access = program.create_tbaa_node(Some(root), false);
+        let tag_a = program.create_tbaa_tag(root, access, 0, 4, false);
+        let tag_b = program.create_tbaa_tag(root, access, 8, 4, false);
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (store_v0, store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (
-                block.instructions[1],
-                block.instructions[3],
-                block.instructions[4],
-            )
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v0 = instructions[1];
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // tag store and load with disjoint tbaa metadata
         program.insert_pointer_access(
@@ -2521,26 +2485,16 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create overlapping tbaa tags with the same base and access
-        let (tag_a, tag_b) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let access = tbaa.create_node(None, Some(root), false);
-            let tag_a = tbaa.create_tag(root, access, 0, 8, false);
-            let tag_b = tbaa.create_tag(root, access, 4, 8, false);
-            (tag_a, tag_b)
-        };
+        let root = program.create_tbaa_node(None, false);
+        let access = program.create_tbaa_node(Some(root), false);
+        let tag_a = program.create_tbaa_tag(root, access, 0, 8, false);
+        let tag_b = program.create_tbaa_tag(root, access, 4, 8, false);
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (_store_v0, store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (
-                block.instructions[1],
-                block.instructions[3],
-                block.instructions[4],
-            )
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // tag store and load with overlapping tbaa metadata
         program.insert_pointer_access(
@@ -2602,11 +2556,9 @@ block0:
 
         // locate store and load instructions
         let function_id = program.first_function_id();
-        let (store_v1, load_v0) = {
-            let function = program.tree.get(function_id);
-            let block = program.tree.get(function.blocks[0]);
-            (block.instructions[5], block.instructions[6])
-        };
+        let instructions = program.entry_instructions(function_id);
+        let store_v1 = instructions[5];
+        let load_v0 = instructions[6];
 
         // attach metadata that retargets the load to v1
         program.insert_pointer_access(
@@ -2963,6 +2915,7 @@ block0(v0: ref<raw i32>, v1: i32):
     /// Memory access metadata overrides default instruction effects.
     #[test]
     fn test_memory_ssa_access_metadata_override() {
+        // build the test program
         let mut program = TestProgram::new(
             r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
 function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
@@ -2973,6 +2926,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
 }"#,
         );
 
+        // collect parameter values and the call instruction
         let function_id = program.entry_function_id();
         let param_values = {
             let function = program.tree.get(function_id);
@@ -2984,7 +2938,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         };
         let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        // attach explicit access metadata
+        // build explicit access metadata
         let read_access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
             target: mir::MemoryAccessTarget::Pointer(param_values[0]),
@@ -3014,19 +2968,20 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
             tbaa_tag: None,
         };
 
-        program
-            .tree
-            .memory_table
-            .insert_memory_accesses(call_inst, vec![read_access, write_access]);
+        // attach memory access metadata to the call
+        program.insert_memory_accesses(call_inst, vec![read_access, write_access]);
 
+        // build analyses
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
+        // locate access effects for the call
         let accesses = instruction_accesses(memory_ssa, call_inst);
         assert_eq!(accesses.len(), 2);
 
+        // verify read and write effects
         let read_effect = access_effect(memory_ssa, accesses[0]);
         let write_effect = access_effect(memory_ssa, accesses[1]);
 
@@ -3035,6 +2990,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         assert!(write_effect.writes);
         assert!(!write_effect.reads);
 
+        // verify pointers and sizes
         let read_ptr = pointer_from_location(&read_effect.location).expect("missing read pointer");
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
