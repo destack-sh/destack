@@ -4,7 +4,8 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, PostDominatorTree,
+    AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA,
+    OwnershipAnalysis, PostDominatorTree,
 };
 use crate::optimize::common::{
     DecomposedPointer, PointerDecomposer, RangeRelation, build_value_definition_map,
@@ -68,18 +69,25 @@ impl FunctionPass for DeadStoreEliminate {
         };
 
         // get analyses
-        let (aa, memory_ssa, postdom) = {
+        let (aa, memory_ssa, ownership, postdom) = {
             let analyses = FunctionAnalyses::new(function, tree);
             (
                 analyses.get::<AliasAnalysis>().clone(),
                 analyses.get::<MemorySSA>(),
+                analyses.get::<OwnershipAnalysis>(),
                 analyses.get::<PostDominatorTree>(),
             )
         };
 
         // run dead store elimination
-        let changed =
-            run_dead_store_eliminate(function, tree, &aa, memory_ssa.as_ref(), postdom.as_ref());
+        let changed = run_dead_store_eliminate(
+            function,
+            tree,
+            &aa,
+            memory_ssa.as_ref(),
+            ownership.as_ref(),
+            postdom.as_ref(),
+        );
 
         // preserve analyses when unchanged
         if changed {
@@ -104,6 +112,7 @@ fn run_dead_store_eliminate(
     tree: &mut mir::NodeTree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
+    ownership: &OwnershipAnalysis,
     postdom: &PostDominatorTree,
 ) -> bool {
     // collect store candidates
@@ -162,6 +171,7 @@ fn run_dead_store_eliminate(
             tree,
             &definitions,
             &constants,
+            ownership.value_types(),
         ) {
             dead_stores.insert(store.instruction);
         }
@@ -187,7 +197,7 @@ struct StoreCandidate {
     access: MemoryAccessId,
     block: mir::LocalNodeId<mir::Block>,
     index: usize,
-    pointer: mir::Value,
+    pointer: Option<mir::Value>,
     location: MemoryAccessLocation,
     is_volatile: bool,
     is_barrier: bool,
@@ -218,32 +228,46 @@ fn collect_store_candidates(
             // read the instruction
             let instruction = tree.get(instruction_id);
 
-            // skip non store instructions
-            let mir::Instruction::Store { pointer, .. } = instruction else {
+            // collect store-like instructions
+            let is_mem_intrinsic = matches!(
+                instruction,
+                mir::Instruction::Intrinsic {
+                    intrinsic: mir::Intrinsic::Memcpy
+                        | mir::Intrinsic::Memmove
+                        | mir::Intrinsic::Memset,
+                    ..
+                }
+            );
+
+            if !matches!(instruction, mir::Instruction::Store { .. }) && !is_mem_intrinsic {
+                continue;
+            }
+
+            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
                 continue;
             };
 
-            // read the memory ssa access
-            let Some(access_id) = memory_ssa.access_for_instruction(instruction_id) else {
-                continue;
-            };
+            for &access_id in accesses {
+                let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
+                    continue;
+                };
 
-            // keep only memory defs
-            let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
-                continue;
-            };
+                let pointer = match &def_access.effect.location {
+                    MemoryAccessLocation::Pointer(location) => Some(location.ptr),
+                    _ => None,
+                };
 
-            // record the store candidate
-            stores.push(StoreCandidate {
-                instruction: instruction_id,
-                access: access_id,
-                block: block_id,
-                index,
-                pointer: *pointer,
-                location: def_access.effect.location.clone(),
-                is_volatile: def_access.effect.is_volatile,
-                is_barrier: def_access.effect.is_barrier,
-            });
+                stores.push(StoreCandidate {
+                    instruction: instruction_id,
+                    access: access_id,
+                    block: block_id,
+                    index,
+                    pointer,
+                    location: def_access.effect.location.clone(),
+                    is_volatile: def_access.effect.is_volatile,
+                    is_barrier: def_access.effect.is_barrier,
+                });
+            }
         }
     }
 
@@ -314,7 +338,7 @@ fn collect_live_defs(
                 match memory_ssa.access(access_id) {
                     MemoryAccess::Use(_use_access) => {
                         // record the def that feeds this use
-                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa);
+                        let clobber = memory_ssa.clobbering_access_for_use(access_id, aa, tree);
                         live_defs.insert(clobber);
                     }
                     MemoryAccess::Def(def_access) => {
@@ -328,6 +352,7 @@ fn collect_live_defs(
                             access_id,
                             &def_access.effect.location,
                             aa,
+                            tree,
                         );
                         live_defs.insert(clobber);
                     }
@@ -570,7 +595,10 @@ fn store_is_non_escaping_stack(
     };
 
     // resolve the stack base for this store pointer
-    let Some(base) = stack_alloc_base(store.pointer, definitions, tree) else {
+    let Some(pointer) = store.pointer else {
+        return false;
+    };
+    let Some(base) = stack_alloc_base(pointer, definitions, tree) else {
         return false;
     };
 
@@ -591,9 +619,16 @@ fn store_is_postdominated_by_clobber(
     tree: &mir::NodeTree,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     constants: &HashMap<mir::Value, i64>,
+    value_types: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
 ) -> bool {
-    let mut decomposer =
-        PointerDecomposer::new(constants, definitions, tree, &function.parameters, false);
+    let mut decomposer = PointerDecomposer::new(
+        constants,
+        definitions,
+        tree,
+        &function.parameters,
+        false,
+        Some(value_types),
+    );
 
     // search for clobbering defs that postdominate the store
     for def in def_accesses {
@@ -626,14 +661,16 @@ fn store_is_postdominated_by_clobber(
             &store.location,
             &mut decomposer,
         ) {
-            if overwrites {
+            if overwrites && memory_ssa.def_clobbers_access(def.access, store.access, aa, tree) {
                 return true;
             }
 
             continue;
         }
 
-        if memory_ssa.def_clobbers_location(def.access, &store.location, aa) {
+        if matches!(store.location, MemoryAccessLocation::Local(_))
+            && memory_ssa.def_clobbers_access(def.access, store.access, aa, tree)
+        {
             return true;
         }
     }
@@ -731,6 +768,7 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
+    /// Return store instructions from the entry block.
     fn store_instructions_in_entry(
         function_id: mir::LocalNodeId<mir::Function>,
         tree: &mir::NodeTree,
@@ -1200,6 +1238,303 @@ block0:
 
         program.run_pass(&DeadStoreEliminate);
         program.assert_unchanged(input);
+    }
+
+    /// Dead memset to non escaping stack memory is removed.
+    #[test]
+    fn test_remove_dead_memset() {
+        let input = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 0i8
+    v2 = iconst 4i64
+    intrinsic.memset(v0, v1, v2)
+    return
+}"#;
+        let expected = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 0i8
+    v2 = iconst 4i64
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Memset to a live location is preserved.
+    #[test]
+    fn test_preserve_memset_with_read() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 0i8
+    v2 = iconst 4i64
+    intrinsic.memset(v0, v1, v2)
+    v3 = load v0
+    return v3
+}"#;
+        let expected = input;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Dead memcpy to non escaping stack memory is removed.
+    #[test]
+    fn test_remove_dead_memcpy() {
+        // input program
+        let input = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    intrinsic.memcpy(v0, v1, v2)
+    return
+}"#;
+        let expected = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    return
+}"#;
+
+        // run dse
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Memcpy to a live location is preserved.
+    #[test]
+    fn test_preserve_memcpy_with_read() {
+        // input program
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    intrinsic.memcpy(v0, v1, v2)
+    v3 = load v0
+    return v3
+}"#;
+        let expected = input;
+
+        // run dse
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Dead memmove to non escaping stack memory is removed.
+    #[test]
+    fn test_remove_dead_memmove() {
+        // input program
+        let input = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    intrinsic.memmove(v0, v1, v2)
+    return
+}"#;
+        let expected = r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    return
+}"#;
+
+        // run dse
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Memmove to a live location is preserved.
+    #[test]
+    fn test_preserve_memmove_with_read() {
+        // input program
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 4i64
+    intrinsic.memmove(v0, v1, v2)
+    v3 = load v0
+    return v3
+}"#;
+        let expected = input;
+
+        // run dse
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Stores with unknown sizes are not treated as full overwrites.
+    #[test]
+    fn test_preserve_unknown_size_overwrite() {
+        // input program
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: ref<raw mut @Point>) -> void {
+block0(v0: ref<raw mut @Point>):
+    v1 = iconst 1i32
+    v2 = iconst 2i32
+    v3 = struct @Point (v1, v2)
+    store v0, v3
+    v4 = iconst 3i32
+    v5 = iconst 4i32
+    v6 = struct @Point (v4, v5)
+    store v0, v6
+    return
+}"#;
+        let expected = input;
+
+        // attach unknown size metadata to both stores
+        let mut program = TestProgram::new(input);
+        let function_id = program.entry_function_id();
+        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let [first_store, second_store] = store_ids.as_slice() else {
+            panic!("expected two store instructions");
+        };
+
+        program.insert_pointer_access(
+            *first_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        program.insert_pointer_access(
+            *second_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        // run dse
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Stores in disjoint alias scopes are not treated as clobbers.
+    #[test]
+    fn test_preserve_store_with_alias_scope_disjoint() {
+        // input program
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    return
+}"#;
+        let expected = input;
+
+        // create a scope for disambiguation
+        let mut program = TestProgram::new(input);
+        let scope = {
+            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let domain = scopes.create_domain(None);
+            scopes.create_scope(domain, None)
+        };
+
+        // attach disjoint scope metadata to the stores
+        let function_id = program.entry_function_id();
+        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let [first_store, second_store] = store_ids.as_slice() else {
+            panic!("expected two store instructions");
+        };
+
+        program.insert_pointer_access(
+            *first_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+        program.insert_pointer_access(
+            *second_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        // run dse
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
+    }
+
+    /// Stores with disjoint tbaa offsets are not treated as clobbers.
+    #[test]
+    fn test_preserve_store_with_tbaa_disjoint_offsets() {
+        // input program
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    return
+}"#;
+        let expected = input;
+
+        // create disjoint tbaa tags
+        let mut program = TestProgram::new(input);
+        let (tag_a, tag_b) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let access = tbaa.create_node(None, Some(root), false);
+            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
+            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
+            (tag_a, tag_b)
+        };
+
+        // attach disjoint tbaa metadata to the stores
+        let function_id = program.entry_function_id();
+        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let [first_store, second_store] = store_ids.as_slice() else {
+            panic!("expected two store instructions");
+        };
+
+        program.insert_pointer_access(
+            *first_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+        program.insert_pointer_access(
+            *second_store,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_b),
+        );
+
+        // run dse
+        program.run_pass(&DeadStoreEliminate);
+        program.assert_output(expected);
     }
 
     /// Cross-block dead store: store overwritten in successor block.

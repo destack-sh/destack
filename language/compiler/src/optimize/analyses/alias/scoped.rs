@@ -89,6 +89,7 @@ impl ScopedNoAliasAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
+            None,
         );
 
         let ptr_a = decomposer.decompose(loc_a.ptr);

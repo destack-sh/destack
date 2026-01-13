@@ -4,8 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA,
+    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessEffect,
+    MemoryAccessId, MemoryAccessLocation, MemorySSA,
+};
+use crate::optimize::common::{
+    alias_scopes_may_alias, memory_locations_compatible, tbaa_tags_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
@@ -184,6 +187,12 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// Value produced by the load.
     value: mir::Value,
+    /// Alias scopes applied to the access.
+    alias_scopes: Vec<mir::AliasScopeId>,
+    /// No alias scopes applied to the access.
+    noalias_scopes: Vec<mir::AliasScopeId>,
+    /// Optional TBAA tag for the access.
+    tbaa_tag: Option<mir::TbaaTagId>,
 }
 
 impl ScopedValueTable {
@@ -279,9 +288,12 @@ impl ScopedValueTable {
     fn get_memory(
         &self,
         clobber: MemoryAccessId,
-        location: &MemoryAccessLocation,
+        use_effect: &MemoryAccessEffect,
         alias: &AliasAnalysis,
+        tree: &mir::NodeTree,
     ) -> Option<mir::Value> {
+        let location = &use_effect.location;
+
         // skip unknown locations
         if matches!(location, MemoryAccessLocation::Unknown) {
             return None;
@@ -296,6 +308,24 @@ impl ScopedValueTable {
                     continue;
                 }
 
+                // disambiguate using alias scopes and tbaa tags
+                if !alias_scopes_may_alias(
+                    &entry.alias_scopes,
+                    &entry.noalias_scopes,
+                    &use_effect.alias_scopes,
+                    &use_effect.noalias_scopes,
+                ) {
+                    continue;
+                }
+
+                if !tbaa_tags_may_alias(
+                    &tree.memory_table.tbaa,
+                    entry.tbaa_tag,
+                    use_effect.tbaa_tag,
+                ) {
+                    continue;
+                }
+
                 // compare matching locations
                 match (&entry.location, location) {
                     (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
@@ -305,7 +335,11 @@ impl ScopedValueTable {
                     }
                     (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
                         if a.ptr == b.ptr {
-                            return Some(entry.value);
+                            if memory_locations_compatible(a, b) {
+                                return Some(entry.value);
+                            }
+
+                            return None;
                         }
 
                         // consult alias analysis for derived pointers
@@ -314,7 +348,11 @@ impl ScopedValueTable {
                             continue;
                         }
                         if result.is_must_alias() {
-                            return Some(entry.value);
+                            if memory_locations_compatible(a, b) {
+                                return Some(entry.value);
+                            }
+
+                            return None;
                         }
 
                         return None;
@@ -552,11 +590,10 @@ fn process_block(
             }
 
             // compute the clobbering access for the load
-            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
+            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias, tree);
 
             // forward from an existing load when possible
-            if let Some(existing) =
-                value_table.get_memory(clobber, &use_access.effect.location, alias)
+            if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias, tree)
             {
                 substitutions.insert(*destination, existing);
                 to_remove.insert(instruction_id);
@@ -565,6 +602,9 @@ fn process_block(
                     clobber,
                     location: use_access.effect.location.clone(),
                     value: *destination,
+                    alias_scopes: use_access.effect.alias_scopes.clone(),
+                    noalias_scopes: use_access.effect.noalias_scopes.clone(),
+                    tbaa_tag: use_access.effect.tbaa_tag,
                 });
             }
             continue;
@@ -1194,6 +1234,187 @@ block1:
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(input);
+    }
+
+    /// Scoped noalias metadata keeps unrelated stores from blocking load GVN.
+    #[test]
+    fn test_forward_loads_across_noalias_scope() {
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = load v0
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    v5 = iadd v2, v4
+    return v5
+}"#;
+        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = load v0
+    v3 = iconst 2i32
+    store v1, v3
+    v5 = iadd v2, v2
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // create alias scope metadata for the disjoint store
+        let scope = {
+            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let domain = scopes.create_domain(None);
+            scopes.create_scope(domain, None)
+        };
+
+        // locate the relevant instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let store_v1 = block.instructions[2];
+        let load_v0 = block.instructions[3];
+
+        // attach scoped metadata to disambiguate the store and load
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Disjoint TBAA offsets allow loads to forward across unrelated stores.
+    #[test]
+    fn test_forward_loads_across_tbaa_disjoint_offsets() {
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = load v0
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    v5 = iadd v2, v4
+    return v5
+}"#;
+        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = load v0
+    v3 = iconst 2i32
+    store v1, v3
+    v5 = iadd v2, v2
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // create tbaa tags with disjoint offsets
+        let (tag_a, tag_b) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let access = tbaa.create_node(None, Some(root), false);
+            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
+            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
+            (tag_a, tag_b)
+        };
+
+        // locate the relevant instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let load_v0 = block.instructions[0];
+        let store_v1 = block.instructions[2];
+        let load_v0_again = block.instructions[3];
+
+        // attach disjoint tbaa tags to the loads and store
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_b),
+        );
+        program.insert_pointer_access(
+            load_v0_again,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
+    }
+
+    /// Size mismatches prevent load forwarding.
+    #[test]
+    fn test_no_forward_load_size_mismatch() {
+        let input = r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    v1 = load v0
+    v2 = load v0
+    v3 = iadd v1, v2
+    return v3
+}"#;
+        let expected = input;
+
+        let mut program = TestProgram::new(input);
+
+        // locate the load instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let load_first = block.instructions[0];
+        let load_second = block.instructions[1];
+
+        // attach mismatched sizes to block forwarding
+        program.insert_pointer_access(
+            load_first,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(8),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        program.insert_pointer_access(
+            load_second,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
     }
 
     /// Readnone calls do not block load value numbering.

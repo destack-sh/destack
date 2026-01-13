@@ -4,8 +4,9 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::optimize::common::{
-    MemoryLocation, TypeKey, build_value_definition_map, collect_reachable_blocks,
-    compute_dominance_frontiers, resolve_pointer_pointee_type,
+    MemoryLocation, TypeKey, alias_scopes_may_alias, build_value_definition_map,
+    collect_reachable_blocks, compute_dominance_frontiers, resolve_pointer_pointee_type,
+    tbaa_tags_may_alias,
 };
 use crate::optimize::{
     Analysis, AnalysisId, ControlFlowGraph, DominatorTree, FunctionAnalyses, FunctionAnalysis,
@@ -79,6 +80,47 @@ pub struct MemoryAccessEffect {
     pub is_barrier: bool,
     /// The memory location being accessed.
     pub location: MemoryAccessLocation,
+    /// Alias scopes applied to this access.
+    pub alias_scopes: Vec<mir::AliasScopeId>,
+    /// No alias scopes applied to this access.
+    pub noalias_scopes: Vec<mir::AliasScopeId>,
+    /// Optional TBAA tag for this access.
+    pub tbaa_tag: Option<mir::TbaaTagId>,
+}
+
+/// Query information for clobbering access lookups.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct MemoryAccessQuery {
+    /// The memory location being accessed.
+    location: MemoryAccessLocation,
+    /// Alias scopes applied to this access.
+    alias_scopes: Vec<mir::AliasScopeId>,
+    /// No alias scopes applied to this access.
+    noalias_scopes: Vec<mir::AliasScopeId>,
+    /// Optional TBAA tag for the access.
+    tbaa_tag: Option<mir::TbaaTagId>,
+}
+
+impl MemoryAccessQuery {
+    /// Create a query from a full access effect.
+    fn from_effect(effect: &MemoryAccessEffect) -> Self {
+        Self {
+            location: effect.location.clone(),
+            alias_scopes: effect.alias_scopes.clone(),
+            noalias_scopes: effect.noalias_scopes.clone(),
+            tbaa_tag: effect.tbaa_tag,
+        }
+    }
+
+    /// Create a query from a location with no alias metadata.
+    fn from_location(location: &MemoryAccessLocation) -> Self {
+        Self {
+            location: location.clone(),
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        }
+    }
 }
 
 impl MemoryAccessEffect {
@@ -90,6 +132,9 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
         }
     }
 
@@ -101,6 +146,9 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
         }
     }
 
@@ -112,6 +160,9 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
         }
     }
 
@@ -123,6 +174,9 @@ impl MemoryAccessEffect {
             is_volatile: false,
             is_barrier: true,
             location: MemoryAccessLocation::Unknown,
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
         }
     }
 }
@@ -361,6 +415,7 @@ impl MemorySSA {
         &self,
         use_access: MemoryAccessId,
         alias: &crate::optimize::analyses::AliasAnalysis,
+        tree: &mir::NodeTree,
     ) -> MemoryAccessId {
         // read the memory use location
         let MemoryAccess::Use(use_access_data) = self.access(use_access) else {
@@ -372,13 +427,17 @@ impl MemorySSA {
             .defining_access
             .expect("memory use missing defining access");
 
+        // build the query for this use
+        let query = MemoryAccessQuery::from_effect(&use_access_data.effect);
+
         // compute the clobbering access
         let mut cache = HashMap::new();
         let mut visiting = HashSet::new();
         self.clobbering_access(
             defining_access,
-            &use_access_data.effect.location,
+            &query,
             alias,
+            tree,
             &mut cache,
             &mut visiting,
         )
@@ -390,16 +449,27 @@ impl MemorySSA {
         access_id: MemoryAccessId,
         location: &MemoryAccessLocation,
         alias: &crate::optimize::analyses::AliasAnalysis,
+        tree: &mir::NodeTree,
     ) -> MemoryAccessId {
         // resolve the defining access for this read
         let defining_access = self
             .defining_access(access_id)
             .unwrap_or(self.live_on_entry);
 
+        // build the query for this read
+        let query = MemoryAccessQuery::from_location(location);
+
         // compute the clobbering access
         let mut cache = HashMap::new();
         let mut visiting = HashSet::new();
-        self.clobbering_access(defining_access, location, alias, &mut cache, &mut visiting)
+        self.clobbering_access(
+            defining_access,
+            &query,
+            alias,
+            tree,
+            &mut cache,
+            &mut visiting,
+        )
     }
 
     /// Check if a def access clobbers the given location.
@@ -417,17 +487,44 @@ impl MemorySSA {
         access_clobbers_location(def_access, location, alias)
     }
 
+    /// Check if a def access clobbers another access.
+    pub fn def_clobbers_access(
+        &self,
+        def_access: MemoryAccessId,
+        target_access: MemoryAccessId,
+        alias: &crate::optimize::analyses::AliasAnalysis,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        // only defs can clobber accesses
+        let MemoryAccess::Def(def_access) = self.access(def_access) else {
+            return false;
+        };
+
+        // fetch the target access effect
+        let target_effect = match self.access(target_access) {
+            MemoryAccess::Use(use_access) => &use_access.effect,
+            MemoryAccess::Def(def_access) => &def_access.effect,
+            _ => return false,
+        };
+
+        // build a query for the target effect
+        let query = MemoryAccessQuery::from_effect(target_effect);
+
+        access_clobbers_query(def_access, &query, alias, tree)
+    }
+
     /// Compute the clobbering access for a memory location.
     fn clobbering_access(
         &self,
         access_id: MemoryAccessId,
-        location: &MemoryAccessLocation,
+        query: &MemoryAccessQuery,
         alias: &crate::optimize::analyses::AliasAnalysis,
-        cache: &mut HashMap<(MemoryAccessId, MemoryAccessLocation), MemoryAccessId>,
+        tree: &mir::NodeTree,
+        cache: &mut HashMap<(MemoryAccessId, MemoryAccessQuery), MemoryAccessId>,
         visiting: &mut HashSet<MemoryAccessId>,
     ) -> MemoryAccessId {
         // consult the cache
-        if let Some(cached) = cache.get(&(access_id, location.clone())) {
+        if let Some(cached) = cache.get(&(access_id, query.clone())) {
             return *cached;
         }
 
@@ -446,17 +543,17 @@ impl MemorySSA {
                 let defining_access = use_access
                     .defining_access
                     .expect("memory use missing defining access");
-                self.clobbering_access(defining_access, location, alias, cache, visiting)
+                self.clobbering_access(defining_access, query, alias, tree, cache, visiting)
             }
 
             MemoryAccess::Def(def_access) => {
-                if access_clobbers_location(def_access, location, alias) {
+                if access_clobbers_query(def_access, query, alias, tree) {
                     access_id
                 } else {
                     let defining_access = def_access
                         .defining_access
                         .expect("memory def missing defining access");
-                    self.clobbering_access(defining_access, location, alias, cache, visiting)
+                    self.clobbering_access(defining_access, query, alias, tree, cache, visiting)
                 }
             }
 
@@ -465,7 +562,7 @@ impl MemorySSA {
 
                 for (_, incoming) in &phi.incoming {
                     let clobber =
-                        self.clobbering_access(*incoming, location, alias, cache, visiting);
+                        self.clobbering_access(*incoming, query, alias, tree, cache, visiting);
                     match incoming_clobber {
                         Some(existing) if existing != clobber => {
                             incoming_clobber = Some(access_id);
@@ -482,7 +579,7 @@ impl MemorySSA {
 
         // store and return
         visiting.remove(&access_id);
-        cache.insert((access_id, location.clone()), result);
+        cache.insert((access_id, query.clone()), result);
         result
     }
 }
@@ -744,7 +841,7 @@ impl<'a> MemoryAccessCollector<'a> {
         };
 
         // map the access kind to an effect
-        match access.kind {
+        let mut effect = match access.kind {
             mir::MemoryAccessKind::Read => MemoryAccessEffect::read(location, access.is_volatile),
             mir::MemoryAccessKind::Write => MemoryAccessEffect::write(location, access.is_volatile),
             mir::MemoryAccessKind::ReadWrite | mir::MemoryAccessKind::ReadModifyWrite => {
@@ -758,7 +855,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 effect.is_volatile = access.is_volatile;
                 effect
             }
-        }
+        };
+
+        effect.alias_scopes = access.alias_scopes.clone();
+        effect.noalias_scopes = access.noalias_scopes.clone();
+        effect.tbaa_tag = access.tbaa_tag;
+        effect
     }
 
     /// Determine memory effects for a call instruction using metadata.
@@ -848,7 +950,7 @@ impl<'a> MemoryAccessCollector<'a> {
                     MemoryAccessLocation::from_pointer_with_size(arg_value, access_type, size);
 
                 // convert access mode to a memory effect
-                let effect = match access {
+                let mut effect = match access {
                     mir::ArgumentAccess::Read => MemoryAccessEffect::read(location, false),
                     mir::ArgumentAccess::Write => MemoryAccessEffect::write(location, false),
                     mir::ArgumentAccess::ReadWrite => {
@@ -856,6 +958,10 @@ impl<'a> MemoryAccessCollector<'a> {
                     }
                     mir::ArgumentAccess::None => continue,
                 };
+
+                effect.alias_scopes = arg_metadata.alias_scopes.clone();
+                effect.noalias_scopes = arg_metadata.noalias_scopes.clone();
+                effect.tbaa_tag = arg_metadata.tbaa_tag;
 
                 // record the access effect
                 arg_effects.push(effect);
@@ -1464,6 +1570,79 @@ impl<'a> MemoryRenamer<'a> {
     }
 }
 
+/// Determine whether a def access clobbers a query.
+fn access_clobbers_query(
+    def_access: &MemoryDef,
+    query: &MemoryAccessQuery,
+    alias: &crate::optimize::analyses::AliasAnalysis,
+    tree: &mir::NodeTree,
+) -> bool {
+    // treat barriers as clobbering all memory
+    if def_access.effect.is_barrier {
+        return true;
+    }
+
+    // ignore non-writing accesses
+    if !def_access.effect.writes {
+        return false;
+    }
+
+    // disambiguate by alias scopes and tbaa
+    if !effects_may_alias(&def_access.effect, query, tree) {
+        return false;
+    }
+
+    // check for local memory
+    if let MemoryAccessLocation::Local(local) = &query.location {
+        if let MemoryAccessLocation::Local(def_local) = &def_access.effect.location {
+            return def_local == local;
+        }
+
+        return false;
+    }
+
+    // handle unknown memory locations
+    if matches!(query.location, MemoryAccessLocation::Unknown) {
+        return def_access.effect.writes;
+    }
+
+    // check pointer-based aliasing
+    let Some(pointer_location) = query.location.as_pointer() else {
+        return def_access.effect.writes;
+    };
+
+    if let MemoryAccessLocation::Local(_) = def_access.effect.location {
+        return false;
+    }
+
+    let mod_ref = alias.get_mod_ref_info(def_access.instruction, pointer_location);
+    mod_ref.is_mod()
+}
+
+/// Check whether two access effects may alias.
+fn effects_may_alias(
+    def_effect: &MemoryAccessEffect,
+    query: &MemoryAccessQuery,
+    tree: &mir::NodeTree,
+) -> bool {
+    // check scoped noalias metadata
+    if !alias_scopes_may_alias(
+        &def_effect.alias_scopes,
+        &def_effect.noalias_scopes,
+        &query.alias_scopes,
+        &query.noalias_scopes,
+    ) {
+        return false;
+    }
+
+    // check tbaa disambiguation
+    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, def_effect.tbaa_tag, query.tbaa_tag) {
+        return false;
+    }
+
+    true
+}
+
 /// Determine whether a def access clobbers a location.
 fn access_clobbers_location(
     def_access: &MemoryDef,
@@ -1724,7 +1903,448 @@ block0:
             .expect("missing load access");
 
         // clobbering access should be the store to v0
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA uses alias scopes to ignore disjoint accesses.
+    #[test]
+    fn test_memory_ssa_clobber_skips_alias_scope() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // create a scope for the disjoint access
+        let scope = {
+            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let domain = scopes.create_domain(None);
+            scopes.create_scope(domain, None)
+        };
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (store_v0, store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (
+                block.instructions[1],
+                block.instructions[3],
+                block.instructions[4],
+            )
+        };
+
+        // attach alias scope metadata to the store on v1
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        // attach noalias metadata to the load of v0
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v0)
+            .expect("missing store access");
+
+        // clobber should skip the scoped store on v1
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA uses TBAA tags to ignore disjoint types.
+    #[test]
+    fn test_memory_ssa_clobber_skips_tbaa() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // create disjoint tbaa tags
+        let (int_tag, float_tag) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let int_node = tbaa.create_node(None, Some(root), false);
+            let float_node = tbaa.create_node(None, Some(root), false);
+            let int_tag = tbaa.create_tag(root, int_node, 0, 4, false);
+            let float_tag = tbaa.create_tag(root, float_node, 0, 4, false);
+            (int_tag, float_tag)
+        };
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (store_v0, store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (
+                block.instructions[1],
+                block.instructions[3],
+                block.instructions[4],
+            )
+        };
+
+        // tag store and load with disjoint tbaa metadata
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(float_tag),
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(int_tag),
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v0)
+            .expect("missing store access");
+
+        // clobber should skip the tbaa disjoint store
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA applies noalias metadata in either direction.
+    #[test]
+    fn test_memory_ssa_clobber_alias_scope_symmetry() {
+        // input program
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // create a scope for the disjoint access
+        let scope = {
+            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let domain = scopes.create_domain(None);
+            scopes.create_scope(domain, None)
+        };
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (store_v0, store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (
+                block.instructions[1],
+                block.instructions[3],
+                block.instructions[4],
+            )
+        };
+
+        // attach noalias metadata to the store on v1
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        // attach alias scope metadata to the load of v0
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v0)
+            .expect("missing store access");
+
+        // clobber should skip the scoped store on v1
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA respects disjoint TBAA offsets.
+    #[test]
+    fn test_memory_ssa_clobber_tbaa_disjoint_offsets() {
+        // input program
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // create disjoint tbaa tags with the same base and access
+        let (tag_a, tag_b) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let access = tbaa.create_node(None, Some(root), false);
+            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
+            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
+            (tag_a, tag_b)
+        };
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (store_v0, store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (
+                block.instructions[1],
+                block.instructions[3],
+                block.instructions[4],
+            )
+        };
+
+        // tag store and load with disjoint tbaa metadata
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_b),
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v0)
+            .expect("missing store access");
+
+        // clobber should skip the disjoint tbaa store
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA does not disambiguate overlapping TBAA offsets.
+    #[test]
+    fn test_memory_ssa_clobber_tbaa_overlap_offsets() {
+        // input program
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // create overlapping tbaa tags with the same base and access
+        let (tag_a, tag_b) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let access = tbaa.create_node(None, Some(root), false);
+            let tag_a = tbaa.create_tag(root, access, 0, 8, false);
+            let tag_b = tbaa.create_tag(root, access, 4, 8, false);
+            (tag_a, tag_b)
+        };
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (_store_v0, store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (
+                block.instructions[1],
+                block.instructions[3],
+                block.instructions[4],
+            )
+        };
+
+        // tag store and load with overlapping tbaa metadata
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(8),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_b),
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(8),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v1)
+            .expect("missing store access");
+
+        // clobber should see the overlapping tbaa store
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, store_access);
+    }
+
+    /// MemorySSA respects explicit metadata over instruction semantics.
+    #[test]
+    fn test_memory_ssa_metadata_overrides_instruction() {
+        // input program
+        let mut program = TestProgram::new(
+            r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#,
+        );
+
+        // locate store and load instructions
+        let function_id = program.first_function_id();
+        let (store_v1, load_v0) = {
+            let function = program.tree.get(function_id);
+            let block = program.tree.get(function.blocks[0]);
+            (block.instructions[5], block.instructions[6])
+        };
+
+        // attach metadata that retargets the load to v1
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        // build analyses
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        // locate memory accesses
+        let load_access = memory_ssa
+            .access_for_instruction(load_v0)
+            .expect("missing load access");
+        let store_access = memory_ssa
+            .access_for_instruction(store_v1)
+            .expect("missing store access");
+
+        // clobber should follow the metadata target
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
         assert_eq!(clobber, store_access);
     }
 

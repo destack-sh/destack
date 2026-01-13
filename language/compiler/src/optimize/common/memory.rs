@@ -97,6 +97,152 @@ impl MemoryLocation {
     }
 }
 
+/// Check whether alias scopes permit two accesses to alias.
+pub fn alias_scopes_may_alias(
+    alias_scopes_a: &[mir::AliasScopeId],
+    noalias_scopes_a: &[mir::AliasScopeId],
+    alias_scopes_b: &[mir::AliasScopeId],
+    noalias_scopes_b: &[mir::AliasScopeId],
+) -> bool {
+    // check noalias scopes from the first access
+    if scopes_intersect(noalias_scopes_a, alias_scopes_b) {
+        return false;
+    }
+
+    // check noalias scopes from the second access
+    if scopes_intersect(noalias_scopes_b, alias_scopes_a) {
+        return false;
+    }
+
+    // allow aliasing when no disambiguation applies
+    true
+}
+
+/// Check if two memory locations are compatible for value forwarding.
+pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bool {
+    if let (Some(size_a), Some(size_b)) = (a.size, b.size)
+        && size_a != size_b
+    {
+        return false;
+    }
+
+    if let (Some(type_a), Some(type_b)) = (&a.access_type, &b.access_type)
+        && type_a != type_b
+    {
+        return false;
+    }
+
+    true
+}
+
+/// Check whether two TBAA tags may alias.
+pub fn tbaa_tags_may_alias(
+    tbaa: &mir::TbaaTable,
+    tag_a: Option<mir::TbaaTagId>,
+    tag_b: Option<mir::TbaaTagId>,
+) -> bool {
+    // require both tags for disambiguation
+    let (Some(tag_a), Some(tag_b)) = (tag_a, tag_b) else {
+        return true;
+    };
+
+    // resolve tags to base and access nodes
+    let tag_a = tbaa.tag(tag_a);
+    let tag_b = tbaa.tag(tag_b);
+
+    // disjoint offsets within the same base access never alias
+    if tag_a.base == tag_b.base
+        && tag_a.access == tag_b.access
+        && tag_a.size != 0
+        && tag_b.size != 0
+        && ranges_disjoint(tag_a.offset, tag_a.size, tag_b.offset, tag_b.size)
+    {
+        return false;
+    }
+
+    // base nodes must be compatible
+    if !tbaa_nodes_may_alias(tbaa, tag_a.base, tag_b.base) {
+        return false;
+    }
+
+    // access nodes must be compatible
+    if !tbaa_nodes_may_alias(tbaa, tag_a.access, tag_b.access) {
+        return false;
+    }
+
+    true
+}
+
+/// Check whether two alias scope slices intersect.
+fn scopes_intersect(scopes_a: &[mir::AliasScopeId], scopes_b: &[mir::AliasScopeId]) -> bool {
+    // scan for any matching scope id
+    for scope_a in scopes_a {
+        // check for a matching id in the other list
+        if scopes_b.iter().any(|scope_b| scope_b == scope_a) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check if two half open byte ranges are disjoint.
+fn ranges_disjoint(offset_a: u64, size_a: u64, offset_b: u64, size_b: u64) -> bool {
+    // compute end offsets with saturation
+    let end_a = offset_a.saturating_add(size_a);
+    let end_b = offset_b.saturating_add(size_b);
+
+    end_a <= offset_b || end_b <= offset_a
+}
+
+/// Check whether two TBAA nodes may alias.
+fn tbaa_nodes_may_alias(
+    tbaa: &mir::TbaaTable,
+    node_a: mir::TbaaNodeId,
+    node_b: mir::TbaaNodeId,
+) -> bool {
+    // fast path for identical nodes
+    if node_a == node_b {
+        return true;
+    }
+
+    // allow aliasing when a is an ancestor of b
+    if tbaa_node_is_ancestor(tbaa, node_a, node_b) {
+        return true;
+    }
+
+    // allow aliasing when b is an ancestor of a
+    tbaa_node_is_ancestor(tbaa, node_b, node_a)
+}
+
+/// Check whether a TBAA node is an ancestor of another node.
+fn tbaa_node_is_ancestor(
+    tbaa: &mir::TbaaTable,
+    ancestor: mir::TbaaNodeId,
+    node: mir::TbaaNodeId,
+) -> bool {
+    // walk up the parent chain
+    let mut current = Some(node);
+    let mut visited = HashSet::new();
+
+    while let Some(node_id) = current {
+        // break on cycles
+        if !visited.insert(node_id) {
+            break;
+        }
+
+        // report when the ancestor is reached
+        if node_id == ancestor {
+            return true;
+        }
+
+        // climb to the parent node
+        current = tbaa.node(node_id).parent;
+    }
+
+    false
+}
+
 /// Resolve a pointer's pointee type when it is statically known.
 pub fn resolve_pointer_pointee_type(
     pointer: mir::Value,
@@ -324,6 +470,8 @@ pub struct PointerDecomposer<'a> {
     parameters: &'a [mir::TypedValue],
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
+    /// Optional value type map for element sizing.
+    value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
 }
 
 impl<'a> PointerDecomposer<'a> {
@@ -334,6 +482,7 @@ impl<'a> PointerDecomposer<'a> {
         tree: &'a mir::NodeTree,
         parameters: &'a [mir::TypedValue],
         strict_borrow_mode: bool,
+        value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
     ) -> Self {
         Self {
             cache: HashMap::new(),
@@ -342,6 +491,7 @@ impl<'a> PointerDecomposer<'a> {
             tree,
             parameters,
             strict_borrow_mode,
+            value_types,
         }
     }
 
@@ -417,10 +567,8 @@ impl<'a> PointerDecomposer<'a> {
             } if *destination == ptr => {
                 let mut base_decomp = self.decompose(*array);
 
-                // NOTE: add variable offset with scale=1 (element size unknown without layout info)
-                // we can still prove NoAlias when indices are provably different constants,
-                // but we can't reason about partial overlaps (yet, #Incomplete)
-                base_decomp.add_var_offset(*index, 1);
+                let scale = self.element_size(*array).unwrap_or(1).max(1);
+                base_decomp.add_var_offset(*index, scale);
                 base_decomp
             }
 
@@ -465,6 +613,46 @@ impl<'a> PointerDecomposer<'a> {
         } else {
             false
         }
+    }
+
+    /// Resolve the value type for an SSA value when possible.
+    fn value_type(&self, value: mir::Value) -> Option<mir::LocalNodeId<mir::Type>> {
+        if let Some(value_types) = self.value_types
+            && let Some(ty) = value_types.get(&value)
+        {
+            return Some(*ty);
+        }
+
+        for parameter in self.parameters {
+            if parameter.value == value {
+                return Some(parameter.ty);
+            }
+        }
+
+        None
+    }
+
+    /// Resolve the element size for an array value when possible.
+    fn element_size(&self, array: mir::Value) -> Option<u64> {
+        let ty_id = self.value_type(array)?;
+        let ty = self.tree.get(ty_id);
+
+        let element_id = match ty {
+            mir::Type::Array { element, .. } => *element,
+            mir::Type::Reference { pointee, .. } => {
+                let pointee_ty = self.tree.get(*pointee);
+                if let mir::Type::Array { element, .. } = pointee_ty {
+                    *element
+                } else {
+                    return None;
+                }
+            }
+            _ => return None,
+        };
+
+        let element_ty = self.tree.get(element_id);
+        let key = TypeKey::from_type(element_ty, self.tree);
+        key.byte_size()
     }
 }
 
