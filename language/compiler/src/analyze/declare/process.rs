@@ -20,6 +20,11 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
+        self.require_resolve_module_canonical(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         // load module state and dir tables
         let module = self.program.modules.get(module_id);
         let module = module.read();

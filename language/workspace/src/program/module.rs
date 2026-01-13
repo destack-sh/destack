@@ -8,7 +8,8 @@ use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{
-    ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ProfileId, SourceType, TargetId, TsConfigId,
+    Loader, ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ProfileId, SourceType, TargetId,
+    TsConfigId,
 };
 
 /// The source/origin of a module.
@@ -92,6 +93,8 @@ pub struct Module {
     pub source_type: SourceType,
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
+    /// How the module content is loaded/interpreted.
+    pub loader: Loader,
     /// The source/origin of the module (user code or builtin).
     pub source: ModuleSource,
     /// The type of module content (Code, Data, Text, Binary).
@@ -102,7 +105,7 @@ pub struct Module {
 
 #[allow(clippy::too_many_arguments)]
 impl Module {
-    /// Create a new blank code Module (no AST yet, will be populated by Import).
+    /// Create a new blank Module with the given loader (content not yet loaded).
     pub fn blank(
         id: ModuleId,
         file_id: FileId,
@@ -113,8 +116,14 @@ impl Module {
         tsconfig_id: Option<TsConfigId>,
         source_type: SourceType,
         language_type: LanguageType,
+        loader: Loader,
         source: ModuleSource,
     ) -> Self {
+        let module_type = loader.module_type();
+        let content = match module_type {
+            ModuleType::Code => ModuleContent::Code(ModuleCode::default()),
+            _ => ModuleContent::Unloaded,
+        };
         Self {
             id,
             version: ModuleVersion::INITIAL,
@@ -126,9 +135,10 @@ impl Module {
             tsconfig_id,
             source_type,
             language_type,
+            loader,
             source,
-            module_type: ModuleType::Code,
-            content: ModuleContent::Code(ModuleCode::default()),
+            module_type,
+            content,
         }
     }
 
@@ -143,6 +153,7 @@ impl Module {
         tsconfig_id: Option<TsConfigId>,
         source_type: SourceType,
         language_type: LanguageType,
+        loader: Loader,
         source: ModuleSource,
         ast: ModuleAst,
     ) -> Self {
@@ -157,6 +168,7 @@ impl Module {
             tsconfig_id,
             source_type,
             language_type,
+            loader,
             source,
             module_type: ModuleType::Code,
             content: ModuleContent::Code(ModuleCode {

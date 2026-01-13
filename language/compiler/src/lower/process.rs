@@ -28,7 +28,9 @@ impl Compiler {
         match task {
             LowerTask::LowerModule { module, target } => {
                 self.lower_module(module, target)?;
-                self.stats.record_lower();
+                if self.is_code_module(module) {
+                    self.stats.record_lower();
+                }
             }
         }
         Ok(())
@@ -46,6 +48,9 @@ impl Compiler {
 
         self.require_elaborate_module(module_id, profile)?;
         self.require_execute_module_patch(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
 
         // resolve target configuration
         let target = {

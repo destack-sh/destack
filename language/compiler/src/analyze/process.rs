@@ -44,17 +44,16 @@ impl Compiler {
                 self.require_analyze_module_validate(module, profile)?;
             }
             AnalyzeTask::AnalyzeModuleDeclare { module, profile } => {
-                self.require_resolve_module_canonical(module, profile)?;
                 self.analyze_module_declare(module, profile)?;
             }
             AnalyzeTask::AnalyzeModuleInfer { module, profile } => {
-                self.require_analyze_module_declare(module, profile)?;
                 self.analyze_module_infer(module, profile)?;
             }
             AnalyzeTask::AnalyzeModuleValidate { module, profile } => {
-                self.require_analyze_module_infer(module, profile)?;
                 self.analyze_module_validate(module, profile)?;
-                self.stats.record_analyze();
+                if self.is_code_module(module) {
+                    self.stats.record_analyze();
+                }
             }
         }
         Ok(())

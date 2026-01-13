@@ -219,6 +219,13 @@ impl Compiler {
         self.program.builtins.as_ref()
     }
 
+    /// Check if a module is a code module (vs data/text/binary).
+    /// Non-code modules skip most compiler phases.
+    #[inline]
+    pub fn is_code_module(&self, module_id: ModuleId) -> bool {
+        self.program.modules.get(module_id).read().is_code()
+    }
+
     /// Get the import lock for a URI.
     /// Used to serialize module creation and prevent race conditions when multiple import tasks
     /// resolve to the same file.

@@ -36,14 +36,17 @@ impl Compiler {
                 self.require_import_module_validate(module)?;
             }
             ImportTask::ImportModuleParse { module } => {
+                // parse runs for all modules (loads JSON/TOML/etc for non-code)
                 self.import_module_parse(module)?;
             }
             ImportTask::ImportModuleBind { module } => {
                 self.import_module_bind(module)?;
-                self.stats.record_bind();
+                if self.is_code_module(module) {
+                    self.stats.record_bind();
+                }
             }
             ImportTask::ImportModuleDesugar { module } => {
-                self.import_module_desugar_phase(module)?;
+                self.import_module_desugar(module)?;
             }
             ImportTask::ImportModuleValidate { module } => {
                 self.import_module_validate(module)?;

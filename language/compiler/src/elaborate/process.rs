@@ -50,11 +50,13 @@ impl Compiler {
                 self.require_elaborate_module_reify(module, profile)?;
             }
             ElaborateTask::ElaborateModuleTransform { module, profile } => {
-                self.elaborate_module_transform_phase(module, profile)?;
+                self.elaborate_module_transform(module, profile)?;
             }
             ElaborateTask::ElaborateModuleReify { module, profile } => {
-                self.elaborate_module_reify_phase(module, profile)?;
-                self.stats.record_elaborate();
+                self.elaborate_module_reify(module, profile)?;
+                if self.is_code_module(module) {
+                    self.stats.record_elaborate();
+                }
             }
         }
         Ok(())

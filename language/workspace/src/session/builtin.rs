@@ -14,8 +14,8 @@ use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, Packa
 use indexmap::IndexMap;
 
 use crate::{
-    Module, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry, ProfileKey,
-    SourceType,
+    Loader, Module, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry,
+    ProfileKey, SourceType,
 };
 
 /// A symbol group containing type and value space entries.
@@ -299,6 +299,7 @@ impl Builtins {
             );
 
             // create blank module (will be parsed/bound later)
+            let loader = Loader::from_file_type(file_type);
             let module = Module::blank(
                 module_id,
                 file_id,
@@ -309,6 +310,7 @@ impl Builtins {
                 None,
                 SourceType::Module,
                 language_type,
+                loader,
                 ModuleSource::Builtin(BuiltinLibKind::Core),
             );
             modules.insert(module);
@@ -624,6 +626,7 @@ impl Builtins {
         let module_id = ModuleId::from_relative_path(BUILTIN_PACKAGE_ID, Path::new(&module_path));
 
         // create blank module (will be parsed/bound later)
+        let loader = Loader::from_file_type(file_type);
         let module = Module::blank(
             module_id,
             file_id,
@@ -634,6 +637,7 @@ impl Builtins {
             None,
             SourceType::Module,
             language_type,
+            loader,
             ModuleSource::Builtin(kind),
         );
         modules.insert(module);

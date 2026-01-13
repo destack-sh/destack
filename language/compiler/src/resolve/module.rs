@@ -20,6 +20,11 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
+        self.require_import_module_validate(module_id)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         // resolve libs if needed
         if self.options.load_libs {
             let module = self.program.modules.get(module_id);
@@ -85,6 +90,11 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
+        self.require_resolve_module_prepare(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         // load module data for read
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -1332,6 +1342,11 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ResolveResult<()> {
+        self.require_resolve_module_direct(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         // load module data for canonical resolution
         let module = self.program.modules.get(module_id);
         let module = module.read();
