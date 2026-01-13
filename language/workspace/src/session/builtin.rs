@@ -7,7 +7,9 @@ use destack_base::{StringId, StringPool};
 use destack_builtin::{
     BuiltinLibKind, BuiltinLibSource, CORE_SOURCES, LanguageSymbol, PRELUDE_SOURCE, builtin_lib,
 };
-use destack_dir::{GlobalSymbolId, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey};
+use destack_dir::{
+    GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
+};
 use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
 use indexmap::IndexMap;
 
@@ -24,6 +26,15 @@ pub struct SymbolGroup {
     pub ty: Option<GlobalSymbolId>,
     /// The value-space symbol, if any.
     pub value: Option<GlobalSymbolId>,
+}
+
+/// A symbol key for ambient lib sources.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AmbientLibSymbolKey {
+    /// The symbol key.
+    pub key: StaticKey,
+    /// The symbol space.
+    pub space: SymbolSpace,
 }
 
 impl SymbolGroup {
@@ -221,6 +232,9 @@ pub struct Builtins {
     pub declared_lib_symbols_by_profile: DashMap<ProfileKey, IndexMap<StringId, SymbolGroup>>,
     /// Ambient lib symbols per profile key (all exported symbols from ambient libs).
     pub ambient_lib_symbols_by_profile: DashMap<ProfileKey, IndexMap<StringId, SymbolGroup>>,
+    /// Ambient lib symbol sources per profile key (all occurrences by key and space).
+    pub ambient_lib_symbol_sources_by_profile:
+        DashMap<ProfileKey, IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>>,
     /// Well-known symbols per profile key.
     pub well_known_by_profile: DashMap<ProfileKey, WellKnownSymbols>,
 
@@ -334,6 +348,7 @@ impl Builtins {
             ambient_libs_by_profile: DashMap::new(),
             declared_lib_symbols_by_profile: DashMap::new(),
             ambient_lib_symbols_by_profile: DashMap::new(),
+            ambient_lib_symbol_sources_by_profile: DashMap::new(),
             well_known_by_profile: DashMap::new(),
             items: DashMap::new(),
         }
@@ -529,6 +544,29 @@ impl Builtins {
     ) {
         self.ambient_lib_symbols_by_profile
             .insert(profile_key.clone(), symbols);
+    }
+
+    /// Set the ambient lib symbol sources for a profile key.
+    pub fn set_ambient_lib_symbol_sources(
+        &self,
+        profile_key: &ProfileKey,
+        sources: IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>>,
+    ) {
+        self.ambient_lib_symbol_sources_by_profile
+            .insert(profile_key.clone(), sources);
+    }
+
+    /// Get ambient lib symbol sources for a profile key, key, and space.
+    pub fn get_ambient_lib_symbol_sources(
+        &self,
+        profile_key: &ProfileKey,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        let lookup = AmbientLibSymbolKey { key, space };
+        self.ambient_lib_symbol_sources_by_profile
+            .get(profile_key)
+            .and_then(|sources| sources.get(&lookup).cloned())
     }
 
     /// Get an ambient lib symbol for the given space order.
