@@ -324,10 +324,10 @@ impl Compiler {
         let resolved_argument = match (static_parameter.kind, argument) {
             (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
                 // prefer value literals when type arguments stay unconverted
-                if !treat_type_arguments_as_types {
-                    if let Some(value) = self.evaluate_static_argument_as_value(node, tree) {
-                        return Ok(value);
-                    }
+                if !treat_type_arguments_as_types
+                    && let Some(value) = self.evaluate_static_argument_as_value(node, tree)
+                {
+                    return Ok(value);
                 }
 
                 let resolved = self.evaluate_static_argument_as_type(
@@ -448,6 +448,56 @@ impl Compiler {
         )
     }
 
+    /// Materialize a static type argument for validation.
+    pub(super) fn materialize_static_type_argument(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        error_node: GlobalNodeIdAny,
+        static_parameter: &StaticParameter,
+        resolved_static_argument: &StaticArgument,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // evaluate the declared bound when needed
+        if matches!(
+            types.get_type(static_parameter.declared_type_id),
+            Type::Unevaluated(_)
+        ) {
+            self.evaluate_type(
+                module,
+                profile,
+                static_parameter.declared_type_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        // build the substitution type from the argument
+        let substitution_ty_id =
+            self.convert_static_argument_type(resolved_static_argument, error_node.local_id, types);
+
+        // ensure referenced instance types are available for validation
+        self.ensure_reference_instance_types_for_type(
+            module,
+            profile,
+            error_node.local_id,
+            static_parameter.declared_type_id,
+            types,
+        )?;
+        self.ensure_reference_instance_types_for_type(
+            module,
+            profile,
+            error_node.local_id,
+            substitution_ty_id,
+            types,
+        )?;
+
+        Ok(substitution_ty_id)
+    }
+
     /// Validate a static argument against its declared type.
     pub(super) fn validate_static_argument(
         &self,
@@ -456,6 +506,7 @@ impl Compiler {
         error_node: GlobalNodeIdAny,
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
+        prepared_substitution: Option<LocalTypeId>,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
@@ -463,12 +514,23 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
-            let substitution_ty_id = self.convert_static_argument_type(
-                resolved_static_argument,
-                error_node.local_id,
-                types,
-            );
+            let substitution_ty_id = prepared_substitution.unwrap_or_else(|| {
+                self.convert_static_argument_type(
+                    resolved_static_argument,
+                    error_node.local_id,
+                    types,
+                )
+            });
 
+            // skip validation when the declared bound is still unevaluated
+            if matches!(
+                types.get_type(static_parameter.declared_type_id),
+                Type::Unevaluated(_)
+            ) {
+                return Some(substitution_ty_id);
+            }
+
+            // register an inference constraint for the declared bound
             if let Some(infer) = infer {
                 infer.push_constraint(Constraint::Subtype {
                     sub_type: substitution_ty_id,
@@ -606,11 +668,14 @@ impl Compiler {
             referenced_symbols.extend(parameter_symbols.iter().copied());
         }
 
+        // prefer type parameters in declaration modules
+        let force_type_parameters = self.static_parameters_are_type_only(module, symbol);
+
         // gather static parameter metadata with kinds
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = if referenced_symbols.contains(symbol_id) {
+                let kind = if force_type_parameters || referenced_symbols.contains(symbol_id) {
                     StaticParameterKind::Type
                 } else {
                     StaticParameterKind::Value
@@ -689,6 +754,24 @@ impl Compiler {
                     }
                 });
 
+            // materialized type argument validation when needed
+            let materialized_substitution = if validate_static_argument_bounds
+                && static_parameter.kind == StaticParameterKind::Type
+            {
+                Some(self.materialize_static_type_argument(
+                    module,
+                    profile,
+                    error_node,
+                    static_parameter,
+                    &resolved_argument,
+                    tree,
+                    symbols,
+                    types,
+                )?)
+            } else {
+                None
+            };
+
             // validate type and value arguments against declared bounds
             let validated_type = if validate_static_argument_bounds {
                 self.validate_static_argument(
@@ -697,6 +780,7 @@ impl Compiler {
                     error_node,
                     static_parameter,
                     &resolved_argument,
+                    materialized_substitution,
                     symbols,
                     types,
                     None,
@@ -765,11 +849,14 @@ impl Compiler {
             referenced_symbols.extend(parameter_symbols.iter().copied());
         }
 
+        // prefer type parameters in declaration modules
+        let force_type_parameters = self.static_parameters_are_type_only(module, symbol);
+
         // collect static parameters with kinds
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = if referenced_symbols.contains(symbol_id) {
+                let kind = if force_type_parameters || referenced_symbols.contains(symbol_id) {
                     StaticParameterKind::Type
                 } else {
                     StaticParameterKind::Value

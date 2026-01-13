@@ -921,11 +921,16 @@ impl Compiler {
             );
         }
 
+        // prefer type parameters in declaration modules
+        let force_type_parameters = static_parameter_symbols
+            .iter()
+            .any(|symbol| self.static_parameters_are_type_only(module, *symbol));
+
         // collect static parameters
         let static_parameters: Vec<_> = static_parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = if referenced_symbols.contains(symbol_id) {
+                let kind = if force_type_parameters || referenced_symbols.contains(symbol_id) {
                     StaticParameterKind::Type
                 } else {
                     StaticParameterKind::Value
@@ -991,6 +996,22 @@ impl Compiler {
                 )?,
             };
 
+            // materialized type argument validation when needed
+            let materialized_substitution = if static_parameter.kind == StaticParameterKind::Type {
+                Some(self.materialize_static_type_argument(
+                    module,
+                    profile,
+                    error_node,
+                    static_parameter,
+                    &resolved_argument,
+                    tree,
+                    symbols,
+                    types,
+                )?)
+            } else {
+                None
+            };
+
             // record substitutions and constraints
             if let Some(substitution_ty_id) = self.validate_static_argument(
                 module,
@@ -998,6 +1019,7 @@ impl Compiler {
                 error_node,
                 static_parameter,
                 &resolved_argument,
+                materialized_substitution,
                 symbols,
                 types,
                 Some(infer),

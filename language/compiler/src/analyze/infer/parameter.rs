@@ -19,7 +19,7 @@ pub(super) enum StaticParameterKind {
 }
 
 /// Parameter metadata needed to resolve and validate static parameters.
-/// #Cleanup: maybe move StaticParameter into DIR (next to StaticArgument)?
+// TODO #Cleanup: move StaticParameter into DIR, next to StaticArgument
 #[derive(Debug, Clone)]
 pub(super) struct StaticParameter {
     /// Whether this is a type or value parameter.
@@ -36,6 +36,21 @@ pub(super) struct StaticParameter {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Determine whether static parameters for a symbol should be treated as type parameters.
+    pub(super) fn static_parameters_are_type_only(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+    ) -> bool {
+        if symbol.module_id == module.id {
+            return module.language_type.is_declaration();
+        }
+
+        let symbol_module = self.program.modules.get(symbol.module_id);
+        let symbol_module = symbol_module.read();
+        symbol_module.language_type.is_declaration()
+    }
+
     /// Collect static parameter symbols for a declaration symbol.
     pub(super) fn collect_static_parameter_symbols(
         &self,
