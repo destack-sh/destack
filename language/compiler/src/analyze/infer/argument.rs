@@ -1,12 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use super::parameter::{StaticParameter, StaticParameterKind};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
     InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, StaticProperty, StringId, SymbolTable, Type, TypeField, TypeLiteral,
-    TypeMappedParameter, TypeTable,
+    StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable,
+    Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 

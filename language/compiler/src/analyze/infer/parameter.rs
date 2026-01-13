@@ -2,37 +2,12 @@ use std::collections::HashSet;
 
 use crate::Compiler;
 use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    Parameter, StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable, Type,
+    Declaration, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, Parameter, StaticArgument,
+    StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, SymbolTable, Type,
     TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
-
-/// Describe how a static parameter is used.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StaticParameterKind {
-    /// Use the parameter as a type argument.
-    Type,
-    /// Use the parameter as a value argument.
-    Value,
-}
-
-/// Parameter metadata needed to resolve and validate static parameters.
-// TODO #Cleanup: move StaticParameter into DIR, next to StaticArgument
-#[derive(Debug, Clone)]
-pub(super) struct StaticParameter {
-    /// Whether this is a type or value parameter.
-    pub(super) kind: StaticParameterKind,
-    /// Identify the static parameter symbol.
-    pub(super) symbol: GlobalSymbolId,
-    /// Parameter name for mapping and diagnostics.
-    pub(super) name: Option<StringId>,
-    /// Declared type for validation.
-    pub(super) declared_type_id: LocalTypeId,
-    /// Default expression for missing arguments.
-    pub(super) default_expression: Option<GlobalNodeId<Expression>>,
-}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {

@@ -1,6 +1,6 @@
 use crate::{
-    BindingModifier, Expression, LocalNodeId, LocalSymbolId, Node, NodeType, Pattern,
-    StaticExpression, StringId,
+    BindingModifier, Expression, GlobalNodeId, GlobalSymbolId, LocalNodeId, LocalSymbolId,
+    LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId,
 };
 
 /// A Parameter is a parameter to some construct.
@@ -121,4 +121,28 @@ impl StaticArgument {
     pub fn value(value: StaticExpression) -> Self {
         Self::Evaluated { name: None, value }
     }
+}
+
+/// Describe how a static parameter is interpreted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaticParameterKind {
+    /// Use the parameter as a type argument.
+    Type,
+    /// Use the parameter as a value argument.
+    Value,
+}
+
+/// Metadata for resolving and validating a static parameter.
+#[derive(Debug, Clone)]
+pub struct StaticParameter {
+    /// Whether this is a type or value parameter.
+    pub kind: StaticParameterKind,
+    /// Identify the static parameter symbol.
+    pub symbol: GlobalSymbolId,
+    /// Parameter name for mapping and diagnostics.
+    pub name: Option<StringId>,
+    /// Declared type for validation.
+    pub declared_type_id: LocalTypeId,
+    /// Default expression for missing arguments.
+    pub default_expression: Option<GlobalNodeId<Expression>>,
 }
