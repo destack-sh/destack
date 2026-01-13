@@ -183,6 +183,100 @@ impl Compiler {
         })
     }
 
+    /// Resolve a path against merged ambient namespace scopes when inside a namespace.
+    fn resolve_ambient_namespace_path(
+        &self,
+        module: &Module,
+        profile_id: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        node: GlobalNodeIdAny,
+        scope: (LocalScopeId, &Scope, LocalScopeMark),
+        path: &Path,
+        static_arguments: Option<Vec<LocalNodeId<Argument>>>,
+        space_order: SymbolSpaceOrder,
+        symbols: &SymbolTable,
+        tree: &mut NodeTree,
+    ) -> ResolveResult<Option<Expression>> {
+        if !self.module_is_ambient_lib(module) {
+            return Ok(None);
+        }
+
+        let mut scope = scope;
+        loop {
+            if scope.1.kind == ScopeKind::Namespace
+                && let Some(owner_id) = scope.1.owner_id
+            {
+                match self.resolve_relative_symbol_with_ambient_merge(
+                    module,
+                    profile_id,
+                    node,
+                    owner_id,
+                    path,
+                    space_order,
+                    symbols,
+                ) {
+                    Ok((resolved_id, None)) => {
+                        if resolved_id.module_id == module.id {
+                            return Ok(Some(self.resolve_symbol_to_expression(
+                                module,
+                                resolved_id.local_id,
+                                path,
+                                static_arguments,
+                                symbols,
+                            )));
+                        }
+
+                        return Ok(Some(Expression::GlobalReference {
+                            path: path.clone(),
+                            static_arguments,
+                            target_symbol: resolved_id,
+                        }));
+                    }
+                    Ok((resolved_id, Some(remaining))) => {
+                        let resolved_path =
+                            path.slice(0..path.segments.len() - remaining.segments.len());
+                        let root_expr = if resolved_id.module_id == module.id {
+                            self.resolve_symbol_to_expression(
+                                module,
+                                resolved_id.local_id,
+                                &resolved_path,
+                                None,
+                                symbols,
+                            )
+                        } else {
+                            Expression::GlobalReference {
+                                path: resolved_path,
+                                static_arguments: None,
+                                target_symbol: resolved_id,
+                            }
+                        };
+                        return Ok(Some(self.build_member_chain(
+                            expression_id,
+                            root_expr,
+                            &remaining,
+                            static_arguments,
+                            tree,
+                        )));
+                    }
+                    Err(ResolveError::MissingSymbol { .. }) => {}
+                    Err(error) => return Err(error),
+                }
+            }
+
+            if let Some((parent_scope_id, parent_mark)) = scope.1.parent {
+                scope = (
+                    parent_scope_id,
+                    symbols.get_scope_by_id(parent_scope_id),
+                    parent_mark,
+                );
+            } else {
+                break;
+            }
+        }
+
+        Ok(None)
+    }
+
     /// Resolve a symbol from the prelude by name.
     pub(super) fn resolve_prelude_symbol(
         &self,
@@ -748,6 +842,22 @@ impl Compiler {
                 static_arguments,
                 tree,
             ));
+        }
+
+        // try ambient namespace merges when inside a namespace
+        if let Some(expr) = self.resolve_ambient_namespace_path(
+            module,
+            profile,
+            expression_id,
+            node,
+            scope,
+            path,
+            static_arguments.clone(),
+            space_order,
+            symbols,
+            tree,
+        )? {
+            return Ok(expr);
         }
 
         // try prelude if enabled (skip for builtin modules to avoid circular dependencies)
