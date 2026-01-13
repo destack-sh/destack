@@ -150,6 +150,7 @@ impl Compiler {
             receiver_id,
             symbol,
             static_arguments.as_deref(),
+            true,
             options,
             tree,
             symbols,
@@ -255,23 +256,81 @@ impl Compiler {
         profile: ProfileId,
         static_parameter: &StaticParameter,
         assigned_argument: Option<StaticArgument>,
+        treat_type_arguments_as_types: bool,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // resolve explicit argument when provided
         if let Some(argument) = assigned_argument {
-            let resolved_argument = match (static_parameter.kind, argument) {
-                (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
-                    let resolved = self.evaluate_static_argument_as_type(
-                        module, profile, node, tree, symbols, types,
-                    )?;
-                    resolved.unwrap_or(StaticArgument::Unevaluated { node })
+            let resolved_argument = self.resolve_explicit_static_argument(
+                module,
+                profile,
+                static_parameter,
+                argument,
+                treat_type_arguments_as_types,
+                tree,
+                symbols,
+                types,
+            )?;
+
+            return Ok(Some(resolved_argument));
+        }
+
+        // default expression
+        if let Some(default_expression) = static_parameter.default_expression.as_ref() {
+            let resolved_argument = self.resolve_default_static_argument(
+                profile,
+                static_parameter,
+                default_expression,
+                treat_type_arguments_as_types,
+                types,
+            )?;
+
+            return Ok(Some(resolved_argument));
+        }
+
+        // no argument and no default (caller handles fallback)
+        Ok(None)
+    }
+
+    /// Resolve an explicit static argument for a parameter.
+    fn resolve_explicit_static_argument(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        static_parameter: &StaticParameter,
+        argument: StaticArgument,
+        treat_type_arguments_as_types: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<StaticArgument> {
+        // resolve explicit arguments based on parameter kind
+        let resolved_argument = match (static_parameter.kind, argument) {
+            (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
+                // prefer value literals when type arguments stay unconverted
+                if !treat_type_arguments_as_types {
+                    if let Some(value) = self.evaluate_static_argument_as_value(node, tree) {
+                        return Ok(value);
+                    }
                 }
-                (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => self
-                    .evaluate_static_argument_as_value(node, tree)
-                    .unwrap_or(StaticArgument::Unevaluated { node }),
-                (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
+
+                let resolved =
+                    self.evaluate_static_argument_as_type(module, profile, node, tree, symbols, types)?;
+                resolved.unwrap_or(StaticArgument::Unevaluated { node })
+            }
+            (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => self
+                .evaluate_static_argument_as_value(node, tree)
+                .unwrap_or(StaticArgument::Unevaluated { node }),
+            (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
+                // preserve explicit values when type arguments stay unconverted
+                if !treat_type_arguments_as_types {
+                    StaticArgument::Evaluated {
+                        name,
+                        value: value.clone(),
+                    }
+                } else {
                     let argument = StaticArgument::Evaluated {
                         name,
                         value: value.clone(),
@@ -287,27 +346,44 @@ impl Compiler {
                         value: StaticExpression::Type { ty: ty_id },
                     }
                 }
-                (_, argument) => argument,
-            };
+            }
+            (_, argument) => argument,
+        };
 
-            return Ok(Some(resolved_argument));
+        Ok(resolved_argument)
+    }
+
+    /// Resolve a default static argument for a parameter.
+    fn resolve_default_static_argument(
+        &self,
+        profile: ProfileId,
+        static_parameter: &StaticParameter,
+        default_expression: &GlobalNodeId<Expression>,
+        treat_type_arguments_as_types: bool,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<StaticArgument> {
+        // prefer value defaults when type arguments stay unconverted
+        if !treat_type_arguments_as_types {
+            let module = self.program.modules.get(default_expression.module_id);
+            let module = module.read();
+            let tree = module.dir(profile).tree.read();
+            if let Some(value) =
+                self.evaluate_static_expression_value(default_expression.local_id, &tree)
+            {
+                return Ok(StaticArgument::Evaluated {
+                    name: static_parameter.name,
+                    value,
+                });
+            }
         }
 
-        // default expression
-        if let Some(default_expression) = static_parameter.default_expression.as_ref() {
-            return self
-                .evaluate_static_default_argument(
-                    profile,
-                    static_parameter.kind,
-                    static_parameter.name,
-                    default_expression,
-                    types,
-                )
-                .map(Some);
-        }
-
-        // no argument and no default (caller handles fallback)
-        Ok(None)
+        self.evaluate_static_default_argument(
+            profile,
+            static_parameter.kind,
+            static_parameter.name,
+            default_expression,
+            types,
+        )
     }
 
     /// Validate a static argument against its declared type.
@@ -407,11 +483,15 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
         options: &AnalyzeOptions,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
+        // align type argument conversion with validation context
+        let treat_type_arguments_as_types = validate_static_argument_bounds;
+
         // skip non instantiable symbols
         if !self.is_instantiable_symbol(symbol) {
             return Ok(None);
@@ -515,6 +595,7 @@ impl Compiler {
                     profile,
                     static_parameter,
                     assigned_argument,
+                    treat_type_arguments_as_types,
                     tree,
                     symbols,
                     types,
@@ -547,17 +628,21 @@ impl Compiler {
                 });
 
             // validate type and value arguments against declared bounds
-            let validated_type = self.validate_static_argument(
-                module,
-                profile,
-                error_node,
-                static_parameter,
-                &resolved_argument,
-                symbols,
-                types,
-                None,
-                options,
-            );
+            let validated_type = if validate_static_argument_bounds {
+                self.validate_static_argument(
+                    module,
+                    profile,
+                    error_node,
+                    static_parameter,
+                    &resolved_argument,
+                    symbols,
+                    types,
+                    None,
+                    options,
+                )
+            } else {
+                None
+            };
 
             // update resolved type arguments with validated substitutions
             if static_parameter.kind == StaticParameterKind::Type

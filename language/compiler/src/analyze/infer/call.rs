@@ -975,6 +975,7 @@ impl Compiler {
                 profile,
                 static_parameter,
                 assigned_argument,
+                true,
                 tree,
                 symbols,
                 types,
