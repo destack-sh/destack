@@ -13,7 +13,7 @@ impl Compiler {
     ///
     /// Transforms control flow expressions used as values into explicit
     /// assignments or returns without changing evaluation order.
-    pub(super) fn transform_normalize_value_expressions(
+    pub(crate) fn transform_normalize_value_expressions(
         &self,
         tree: &mut NodeTree,
         module_id: ModuleId,
@@ -393,9 +393,18 @@ impl Compiler {
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
-        // wrap the value-producing part of each branch in return
+        // wrap the value producing part of each branch in return
         let then_transformed = self.wrap_branch_value_in_return(tree, scope, then_expression)?;
-        let else_transformed = self.wrap_branch_value_in_return(tree, scope, else_expression)?;
+        let else_expr = tree.get(else_expression).clone();
+        let else_transformed = match else_expr {
+            Expression::If {
+                kind: IfKind::If, ..
+            } => {
+                // normalize nested if for else if chains
+                self.normalize_if_expression_for_return(tree, scope, else_expression)?
+            }
+            _ => self.wrap_branch_value_in_return(tree, scope, else_expression)?,
+        };
 
         // create the new if expression
         let new_if_id = tree.reserve_from(
@@ -416,6 +425,59 @@ impl Compiler {
         new_expressions.push(new_if);
 
         Ok(())
+    }
+
+    /// Normalize nested if expressions when they appear in return branches.
+    /// Preserves else if chains by converting each branch to return form.
+    fn normalize_if_expression_for_return(
+        &self,
+        tree: &mut NodeTree,
+        scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
+        if_id: LocalNodeId<Expression>,
+    ) -> ElaborateResult<LocalNodeId<Expression>> {
+        let Expression::If {
+            kind: IfKind::If,
+            condition,
+            then_expression,
+            else_expression,
+        } = tree.get(if_id).clone()
+        else {
+            return Ok(if_id);
+        };
+
+        // wrap the value producing part of each branch in return
+        let then_transformed = self.wrap_branch_value_in_return(tree, scope, then_expression)?;
+        let else_transformed = match else_expression {
+            Some(else_expression) => {
+                let else_expr = tree.get(else_expression).clone();
+                match else_expr {
+                    Expression::If {
+                        kind: IfKind::If, ..
+                    } => {
+                        // normalize nested else if
+                        Some(self.normalize_if_expression_for_return(
+                            tree,
+                            scope,
+                            else_expression,
+                        )?)
+                    }
+                    _ => Some(self.wrap_branch_value_in_return(tree, scope, else_expression)?),
+                }
+            }
+            None => None,
+        };
+
+        tree.replace(
+            if_id,
+            Expression::If {
+                kind: IfKind::If,
+                condition,
+                then_expression: then_transformed,
+                else_expression: else_transformed,
+            },
+        );
+
+        Ok(if_id)
     }
 
     /// Convert a pattern to an assignment target expression.
@@ -564,7 +626,35 @@ impl Compiler {
             }
 
             // for simple expressions, wrap the whole thing
-            _ => self.wrap_in_return(tree, scope, branch),
+            _ => {
+                // wrap the return in a statement inside a block
+                let return_expr = self.wrap_in_return(tree, scope, branch)?;
+
+                let stmt_id =
+                    tree.reserve_from(NodeType::Expression, branch.into_any(), scope, None);
+                let stmt: LocalNodeId<Expression> = tree.insert(
+                    stmt_id,
+                    Expression::Statement {
+                        statement: return_expr,
+                    },
+                );
+
+                let block_id = tree.reserve_from(NodeType::Block, branch.into_any(), scope, None);
+                let block: LocalNodeId<Block> = tree.insert(
+                    block_id,
+                    Block {
+                        scope: scope.0,
+                        expressions: vec![stmt],
+                    },
+                );
+
+                let block_expr_id =
+                    tree.reserve_from(NodeType::Expression, branch.into_any(), scope, None);
+                let block_expr: LocalNodeId<Expression> =
+                    tree.insert(block_expr_id, Expression::Block { block });
+
+                Ok(block_expr)
+            }
         }
     }
 

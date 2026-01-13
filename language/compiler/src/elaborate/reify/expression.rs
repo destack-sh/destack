@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_dir::{
     Expression, IfKind, LocalNodeId, NodeTree, SymbolTable, TypeBinaryOperator, TypeTable,
 };
@@ -35,6 +37,28 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
 
+        // collect member expressions used as call or new callees
+        let mut member_callees: HashSet<u32> = HashSet::new();
+        for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            let (Expression::Call { left, .. } | Expression::New { left, .. }) =
+                tree.get(expression_id)
+            else {
+                continue;
+            };
+
+            let mut callee_id = *left;
+            loop {
+                let Expression::Parenthesized { expression } = tree.get(callee_id) else {
+                    break;
+                };
+                callee_id = *expression;
+            }
+
+            if matches!(tree.get(callee_id), Expression::Member { .. }) {
+                member_callees.insert(callee_id.id);
+            }
+        }
+
         // reify expression nodes
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             self.reify_expression(
@@ -45,8 +69,17 @@ impl Compiler {
                 &symbols,
                 &mut types,
                 &module,
+                &member_callees,
             )?;
         }
+
+        // normalize return if expressions introduced during reify
+        self.transform_normalize_value_expressions(&mut tree, module_id)?;
+
+        // collapse redundant nested casts
+        self.normalize_redundant_casts(
+            module_id, profile, &mut tree, &symbols, &mut types, &module,
+        )?;
 
         Ok(())
     }
@@ -61,6 +94,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         module: &Module,
+        member_callees: &HashSet<u32>,
     ) -> ElaborateResult<()> {
         // read the expression before mutating the tree
         let expression = tree.get(expression_id).clone();
@@ -248,6 +282,12 @@ impl Compiler {
 
             // member access may have resolutions (for union types with different fields)
             Expression::Member { .. } => {
+                // skip member reify when used as a call callee
+                if member_callees.contains(&expression_id.id) {
+                    return Ok(());
+                }
+
+                // reify member resolution when applicable
                 self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
             }
 

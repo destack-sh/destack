@@ -1892,6 +1892,21 @@ const y: string | number = getValue();
 handle(y);  
 ```
 
+##### Dynamic Resolution on Unions
+
+When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
+Dynamic resolution applies when **all** union variants expose the member and the resolved targets differ across variants.
+- If any union variant lacks the member, the access is an error.
+- If all variants resolve to the same target symbol and resolved signature, the compiler may treat the resolution as static.
+- If the target symbols or resolved signatures differ, the resolution is dynamic and dispatches on the receiver type.
+- Extension methods participate in member resolution for each variant.
+
+For method calls on unions, the call must be valid for every candidate signature:
+- Arguments must satisfy each candidate signature.
+- The return type is the union of per-candidate return types (after substitutions).
+
+Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
+
 #### Methods
 
 Methods are functions declared inside types (structs, classes, enums, interfaces, extensions).

@@ -956,7 +956,7 @@ impl Compiler {
             } if Self::is_numeric_primitive(p) => Some(*p),
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
-            } => Some(PrimitiveType::Number),
+            } => None,
             Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(_)),
             } => Some(PrimitiveType::Number),

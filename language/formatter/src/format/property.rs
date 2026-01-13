@@ -108,6 +108,15 @@ pub(crate) fn format_block_of_members<'ast>(
         // blank line between members
         if i > 0 {
             write!(f, [hard_line_break()])?;
+
+            let prev_member = f.context().tree.get(members[i - 1]);
+            let prev_is_field = matches!(prev_member, Member::Field { .. });
+            let member_is_field = matches!(member, Member::Field { .. });
+
+            // extra blank line between fields and methods
+            if prev_is_field && !member_is_field {
+                write!(f, [empty_line()])?;
+            }
         }
         member_id.format(f)?;
         // comma after field members

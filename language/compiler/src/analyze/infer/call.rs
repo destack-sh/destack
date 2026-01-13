@@ -3,9 +3,10 @@ use std::collections::{HashMap, HashSet};
 use super::member::MemberResolution;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Declaration, Expression, FunctionKind, GlobalSymbolId, InferTable,
-    LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, ResolvedSignature,
-    StaticArgument, StaticKey, StaticParameterKind, SymbolTable, Type, TypeLiteral, TypeTable,
+    Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
+    InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    ResolutionCandidate, ResolvedSignature, StaticArgument, StaticKey, StaticParameterKind,
+    SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -22,6 +23,32 @@ pub(super) struct ResolvedMemberFunction {
     pub(super) instance_arguments: Vec<StaticArgument>,
     /// Whether the member was found on the receiver type.
     pub(super) has_member: bool,
+}
+
+/// Candidate data for union member call dispatch.
+#[derive(Debug)]
+struct UnionMemberCallCandidate {
+    /// The union element type used for dispatch.
+    receiver_ty_id: LocalTypeId,
+    /// The member symbol resolved for this union element.
+    symbol: GlobalSymbolId,
+    /// The resolved call signature for this candidate.
+    signature: ResolvedSignature,
+    /// The static arguments for instancing this member.
+    instance_arguments: Vec<StaticArgument>,
+}
+
+/// Context for member calls inferred from a call expression.
+#[derive(Debug)]
+struct MemberCallContext {
+    /// The receiver expression id for the member call.
+    receiver_id: LocalNodeId<Expression>,
+    /// The inferred receiver type id.
+    receiver_ty_id: LocalTypeId,
+    /// The member key used for lookup.
+    member_key: StaticKey,
+    /// Static arguments supplied on the member expression.
+    member_static_arguments: Option<Vec<LocalNodeId<Argument>>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -407,6 +434,218 @@ impl Compiler {
         is_strict
     }
 
+    /// Resolve per variant member call candidates for a union receiver.
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_union_member_call_candidates(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_expression_id: LocalNodeId<Expression>,
+        receiver_union_ty_id: LocalTypeId,
+        element_ids: &[LocalTypeId],
+        member_key: &StaticKey,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) -> AnalyzeResult<Option<Vec<UnionMemberCallCandidate>>> {
+        // collect candidates across union variants
+        let mut candidates = Vec::new();
+
+        // resolve a candidate per union element
+        for element_id in element_ids {
+            let element_ty = types.get_type(*element_id).clone();
+
+            // locate the member symbol for this union variant
+            let mut visited = Vec::new();
+            let mut member_symbol = self.resolve_member_symbol_for_type(
+                module,
+                &element_ty,
+                member_key,
+                profile,
+                tree,
+                symbols,
+                types,
+                &mut visited,
+                true,
+            )?;
+            if member_symbol.is_none() {
+                // fall back to instance type owners when possible
+                if let Some(instance_symbol) = types.symbol_for_instance_type(*element_id) {
+                    member_symbol = self.resolve_member_symbol_for_symbol(
+                        module,
+                        instance_symbol,
+                        member_key,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                        &mut visited,
+                    )?;
+                }
+            }
+            let Some(member_symbol) = member_symbol else {
+                self.error(AnalyzeError::MissingMember {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    receiver_ty: receiver_union_ty_id.into_global(module.id),
+                    member_key: member_key.clone(),
+                });
+                return Ok(None);
+            };
+
+            // inherit static arguments and substitutions from the receiver
+            let inherited = self.resolve_inherited_static_arguments(
+                module,
+                profile,
+                receiver_expression_id.into_any(),
+                &element_ty,
+                options,
+                tree,
+                symbols,
+                types,
+            )?;
+
+            // resolve extension substitutions for this member symbol
+            let extension_context = self.resolve_extension_member_context(
+                module,
+                profile,
+                receiver_expression_id.into_any(),
+                member_symbol,
+                &inherited.arguments,
+                options,
+                tree,
+                symbols,
+                types,
+            )?;
+
+            // merge inherited and extension substitutions
+            let mut substitutions = inherited.substitutions.clone();
+            if let Some(context) = extension_context.as_ref() {
+                for (symbol, ty_id) in &context.substitutions {
+                    substitutions.insert(*symbol, *ty_id);
+                }
+            }
+
+            // select instance arguments for member instancing
+            let mut instance_arguments = match extension_context.as_ref() {
+                Some(context) => context.arguments.clone(),
+                None => inherited.arguments.clone(),
+            };
+
+            // resolve the member type for this variant
+            let mut member_type_visited = Vec::new();
+            let member_ty_id = self.infer_member_of_type(
+                module,
+                profile,
+                receiver_expression_id.into_any(),
+                &element_ty,
+                member_key,
+                types,
+                &mut member_type_visited,
+            )?;
+            let Some(member_ty_id) = member_ty_id else {
+                self.error(AnalyzeError::MissingMember {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    receiver_ty: receiver_union_ty_id.into_global(module.id),
+                    member_key: member_key.clone(),
+                });
+                return Ok(None);
+            };
+
+            // apply inherited substitutions before resolving call signatures
+            let member_ty_id = if substitutions.is_empty() {
+                member_ty_id
+            } else {
+                let mut cache = HashMap::new();
+                self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
+            };
+
+            // resolve call signatures for the member type
+            let call_signatures = self.call_signatures_for_type(member_ty_id, types);
+            let (_signature_ty_id, resolved) = if call_signatures.len() > 1 {
+                let selection = self.select_call_signature(
+                    module,
+                    expression_id,
+                    Some(member_symbol),
+                    static_arguments,
+                    &call_signatures,
+                    dynamic_arguments,
+                    Some(*element_id),
+                    profile,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                let Some(selection) = selection else {
+                    self.error(AnalyzeError::NoOverload {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                        receiver_ty: receiver_union_ty_id.into_global(module.id),
+                    });
+                    return Ok(None);
+                };
+                selection
+            } else if let Some(signature_ty_id) = call_signatures.first().copied() {
+                let resolved = self.resolve_call_signature(
+                    module,
+                    expression_id,
+                    Some(member_symbol),
+                    static_arguments,
+                    signature_ty_id,
+                    Some(*element_id),
+                    profile,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                let Some(resolved) = resolved else {
+                    self.error(AnalyzeError::MissingType {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(profile)),
+                    });
+                    return Ok(None);
+                };
+                (signature_ty_id, resolved)
+            } else {
+                self.error(AnalyzeError::MissingType {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+                return Ok(None);
+            };
+
+            // extend instance arguments with resolved static arguments
+            if !resolved.static_arguments.is_empty() {
+                instance_arguments.extend(resolved.static_arguments.iter().cloned());
+            }
+
+            // keep the candidate signature for union dispatch
+            candidates.push(UnionMemberCallCandidate {
+                receiver_ty_id: *element_id,
+                symbol: member_symbol,
+                signature: resolved,
+                instance_arguments,
+            });
+        }
+
+        Ok(Some(candidates))
+    }
+
     /// Infer a call expression.
     pub(super) fn infer_call_expression(
         &self,
@@ -440,6 +679,7 @@ impl Compiler {
         let mut member_instance_arguments = None;
         let mut call_member_resolution = None;
         let mut call_receiver_ty_id = None;
+        let mut member_call_context = None;
         let unwrapped_left_id = self.unwrap_parenthesized_expression(left_id, tree);
 
         // resolve inherited static arguments and the callee symbol
@@ -461,6 +701,13 @@ impl Compiler {
                 };
                 let receiver_ty = types.get_type(receiver_ty_id).clone();
                 call_receiver_ty_id = Some(receiver_ty_id);
+
+                member_call_context = Some(MemberCallContext {
+                    receiver_id: *receiver_id,
+                    receiver_ty_id,
+                    member_key: StaticKey::Name(*name),
+                    member_static_arguments: member_static_arguments.clone(),
+                });
 
                 let inherited = self.resolve_inherited_static_arguments(
                     module,
@@ -538,6 +785,243 @@ impl Compiler {
         } else {
             static_arguments
         };
+        let union_static_arguments = if has_static_argument_conflict {
+            None
+        } else if call_has_static_arguments {
+            static_arguments
+        } else {
+            member_call_context
+                .as_ref()
+                .and_then(|context| context.member_static_arguments.as_deref())
+        };
+
+        // handle union receiver member calls with dynamic resolution
+        if let Some(context) = member_call_context.as_ref()
+            && let Type::Union { elements } = types.get_type(context.receiver_ty_id)
+        {
+            // resolve union candidates for the member call
+            let element_ids = elements.clone();
+            let candidates = self.resolve_union_member_call_candidates(
+                module,
+                expression_id,
+                context.receiver_id,
+                context.receiver_ty_id,
+                &element_ids,
+                &context.member_key,
+                union_static_arguments,
+                dynamic_arguments,
+                ctx.profile,
+                &options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?;
+            let Some(candidates) = candidates else {
+                // infer arguments without contextual types
+                for argument_id in dynamic_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                // record unresolved union resolution
+                self.record_unresolved_resolution(
+                    expression_id.into_global_any(module.id),
+                    Some(context.receiver_ty_id),
+                    Vec::new(),
+                    Vec::new(),
+                    types,
+                );
+
+                // fall back to unknown when union lookup fails
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            };
+
+            // compute expected argument types when uniform across candidates
+            let mut expected_argument_types = Vec::with_capacity(dynamic_arguments.len());
+            for index in 0..dynamic_arguments.len() {
+                let mut expected = None;
+                let mut is_uniform = true;
+                for candidate in &candidates {
+                    let Some(param_ty_id) =
+                        candidate.signature.dynamic_parameters.get(index).copied()
+                    else {
+                        is_uniform = false;
+                        break;
+                    };
+                    if let Some(current) = expected {
+                        if current != param_ty_id {
+                            is_uniform = false;
+                            break;
+                        }
+                    } else {
+                        expected = Some(param_ty_id);
+                    }
+                }
+                expected_argument_types.push(if is_uniform { expected } else { None });
+            }
+
+            // infer arguments with contextual types when possible
+            let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+            for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+                let expected_arg_ty_id = expected_argument_types.get(index).copied().flatten();
+                self.infer_argument(
+                    module,
+                    *argument_id,
+                    expected_arg_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+
+                let argument = tree.get(*argument_id);
+                let argument_value_id = argument.value();
+                let argument_ty_id = if let Some(ty_id) =
+                    types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                {
+                    ty_id
+                } else {
+                    self.infer_expression(
+                        module,
+                        argument_value_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                };
+                argument_ty_ids.push(argument_ty_id);
+            }
+
+            // add constraints between arguments and parameters for each candidate
+            for candidate in &candidates {
+                for (argument_ty_id, param_ty_id) in argument_ty_ids
+                    .iter()
+                    .zip(candidate.signature.dynamic_parameters.iter())
+                {
+                    infer.push_constraint(Constraint::Subtype {
+                        sub_type: *argument_ty_id,
+                        super_type: *param_ty_id,
+                        variance: None,
+                    });
+                }
+            }
+
+            // check argument assignability against each candidate signature
+            let mut is_valid_for_all = true;
+            'candidate: for candidate in &candidates {
+                for (argument_ty_id, param_ty_id) in argument_ty_ids
+                    .iter()
+                    .zip(candidate.signature.dynamic_parameters.iter())
+                {
+                    if !self.is_infer_var_type(*param_ty_id, types)
+                        && !self.is_infer_var_type(*argument_ty_id, types)
+                        && self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            *param_ty_id,
+                            *argument_ty_id,
+                            types,
+                            &options,
+                        ) == Assignability::NotAssignable
+                    {
+                        is_valid_for_all = false;
+                        break 'candidate;
+                    }
+                }
+            }
+
+            // report overload mismatch across union candidates
+            if !is_valid_for_all {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: context.receiver_ty_id.into_global(module.id),
+                });
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            }
+
+            // compute union return type from candidate signatures
+            let mut void_type_id = None;
+            let mut return_type_ids = Vec::new();
+            for candidate in &candidates {
+                let return_type_id = match candidate.signature.return_type {
+                    Some(return_type_id) => return_type_id,
+                    None => *void_type_id.get_or_insert_with(|| {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Void,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    }),
+                };
+                return_type_ids.push(return_type_id);
+            }
+
+            // materialize the union return type
+            let return_type_id = match return_type_ids.len() {
+                0 => {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
+                1 => return_type_ids[0],
+                _ => self.union_type_from_list(return_type_ids, context.receiver_ty_id, types),
+            };
+
+            // record dynamic resolution for union dispatch
+            let resolution_candidates = candidates
+                .into_iter()
+                .map(|candidate| {
+                    let instance_id = if candidate.instance_arguments.is_empty() {
+                        None
+                    } else {
+                        Some(self.register_instance_for_symbol(
+                            candidate.symbol,
+                            candidate.instance_arguments,
+                            types,
+                        ))
+                    };
+                    ResolutionCandidate {
+                        key: Some(DispatchKey::single(candidate.receiver_ty_id)),
+                        target_symbol: candidate.symbol,
+                        instance: instance_id,
+                        resolved_signature: Some(candidate.signature),
+                    }
+                })
+                .collect();
+
+            self.record_dynamic_resolution(
+                expression_id.into_global_any(module.id),
+                Some(context.receiver_ty_id),
+                resolution_candidates,
+                types,
+            );
+
+            // short circuit because the union call is handled
+            return Ok(return_type_id);
+        }
+
         let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
         let ty_id = if !call_signatures.is_empty() {
             // select the matching overload

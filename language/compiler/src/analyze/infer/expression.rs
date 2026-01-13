@@ -1591,6 +1591,18 @@ impl Compiler {
                     types,
                 )?;
 
+                // narrow expected object types to struct fields for tagged literals
+                let expected_object_ty_id = self.expected_tagged_object_type(
+                    module,
+                    ctx.profile,
+                    expression_id,
+                    ty_id,
+                    expected_object_ty_id,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
                 // infer object literal shapes and fields
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
                     module,

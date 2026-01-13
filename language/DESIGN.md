@@ -663,7 +663,15 @@ extension for Vector2 implements Add<Vector2> {
 For operators, Destack uses **receiver-based dispatch**: `a + b` becomes `a.add(b)`.
 Relatedly, to avoid ambiguity, Destack uses **declaration order**: the first matching overload wins.
 
-<sub>See [test/fixtures/specification/dispatch/](test/fixtures/specification/dispatch/) for specification tests.</sub>
+### Dynamic Resolution
+
+When the receiver of a member access or method call is a union, Destack resolves the member for each union variant.
+If all variants resolve to the same symbol, the call is static.
+If the symbols differ, the compiler records a dynamic resolution and reifies it into `if (receiver is Type)` branches.
+
+Dynamic resolution only applies when every union variant exposes the member.
+Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
+Extension methods participate in member resolution, too.
 
 ## Ownership
 

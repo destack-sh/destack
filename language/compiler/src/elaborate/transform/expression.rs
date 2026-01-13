@@ -29,7 +29,7 @@ impl Compiler {
         let dir = module.dir(profile);
         let mut tree = dir.tree.write();
         let symbols = dir.symbols.read();
-        let types = dir.types.read();
+        let mut types = dir.types.write();
 
         // 0. split multi-declarators into individual lets
         if self.options.elaborate_split_declarators {
@@ -54,7 +54,7 @@ impl Compiler {
 
         // 5. implicit returns → explicit return statements
         if self.options.elaborate_explicit_return {
-            self.transform_explicit_return(&mut tree, &symbols)?;
+            self.transform_explicit_return(&mut tree, &symbols, &mut types)?;
         }
 
         // 6. drop parenthesized expressions
