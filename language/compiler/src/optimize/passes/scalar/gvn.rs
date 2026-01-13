@@ -3,11 +3,14 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{AliasAnalysis, DominatorTree};
+use crate::optimize::analyses::{
+    AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessId,
+    MemoryAccessLocation, MemorySSA,
+};
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
     apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
-    instruction_has_side_effects, instruction_may_affect_memory, resolve_substitution_chains,
+    instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -65,14 +68,24 @@ impl FunctionPass for GlobalValueNumbering {
             None => return AnalysisPreservation::all(),
         };
 
-        // get dominator tree children map (borrow immutably for analysis)
+        // get dominator tree children map for analysis
         let analyses = FunctionAnalyses::new(function, tree);
         let domtree = analyses.get::<DominatorTree>();
         let alias = analyses.get::<AliasAnalysis>();
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let constants = analyses.get::<ConstantPropagation>();
         let dom_children = build_dominator_children(function, domtree.as_ref());
 
         // run GVN
-        let changed = run_gvn(entry, function, tree, &dom_children, &alias);
+        let changed = run_gvn(
+            entry,
+            function,
+            tree,
+            &dom_children,
+            &alias,
+            memory_ssa.as_ref(),
+            constants.as_ref(),
+        );
 
         // preserve analyses when nothing changed
         if changed {
@@ -98,10 +111,19 @@ fn run_gvn(
     tree: &mut mir::NodeTree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    constants: &ConstantPropagation,
 ) -> bool {
     // run GVN using dominator tree traversal
-    let (substitutions, to_remove) =
-        find_redundant_expressions(entry, function, tree, dom_children, alias);
+    let (substitutions, to_remove) = find_redundant_expressions(
+        entry,
+        function,
+        tree,
+        dom_children,
+        alias,
+        memory_ssa,
+        constants,
+    );
 
     // nothing to do if no redundancies found
     if to_remove.is_empty() {
@@ -127,7 +149,7 @@ fn build_dominator_children(
         children.insert(block_id, Vec::new());
     }
 
-    // build parent -> children mapping from idom relationships
+    // build parent to children mapping from idom relationships
     for &block_id in &function.blocks {
         // skip the root without a dominator
         if let Some(idom) = domtree.immediate_dominator(block_id) {
@@ -156,8 +178,10 @@ struct ScopedValueTable {
 /// Memory entry tracked for load forwarding.
 #[derive(Clone)]
 struct MemoryEntry {
+    /// Clobbering access id for the memory state.
+    clobber: MemoryAccessId,
     /// Memory location accessed by the load.
-    location: crate::optimize::common::MemoryLocation,
+    location: MemoryAccessLocation,
     /// Value produced by the load.
     value: mir::Value,
 }
@@ -254,53 +278,60 @@ impl ScopedValueTable {
     /// Look up a forwarded load value.
     fn get_memory(
         &self,
-        location: &crate::optimize::common::MemoryLocation,
+        clobber: MemoryAccessId,
+        location: &MemoryAccessLocation,
         alias: &AliasAnalysis,
     ) -> Option<mir::Value> {
+        // skip unknown locations
+        if matches!(location, MemoryAccessLocation::Unknown) {
+            return None;
+        }
+
         // scan memory scopes from innermost to outermost
         for scope in self.memory_scopes.iter().rev() {
             // scan entries from newest to oldest
             for entry in scope.iter().rev() {
-                // treat identical pointers as a match
-                if entry.location.ptr == location.ptr {
-                    return Some(entry.value);
-                }
-
-                // consult alias analysis for the memory location
-                let result = alias.alias(&entry.location, location);
-                if result.is_no_alias() {
+                // skip entries with a different clobber
+                if entry.clobber != clobber {
                     continue;
                 }
-                if result.is_must_alias() {
-                    return Some(entry.value);
+
+                // compare matching locations
+                match (&entry.location, location) {
+                    (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
+                        if a == b {
+                            return Some(entry.value);
+                        }
+                    }
+                    (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
+                        if a.ptr == b.ptr {
+                            return Some(entry.value);
+                        }
+
+                        // consult alias analysis for derived pointers
+                        let result = alias.alias(a, b);
+                        if result.is_no_alias() {
+                            continue;
+                        }
+                        if result.is_must_alias() {
+                            return Some(entry.value);
+                        }
+
+                        return None;
+                    }
+                    _ => {}
                 }
-                return None;
             }
         }
+
         None
     }
 
     /// Record a forwarded load value.
-    fn insert_memory(
-        &mut self,
-        location: crate::optimize::common::MemoryLocation,
-        value: mir::Value,
-    ) {
+    fn insert_memory(&mut self, entry: MemoryEntry) {
         // insert into the current memory scope
         if let Some(scope) = self.memory_scopes.last_mut() {
-            scope.push(MemoryEntry { location, value });
-        }
-    }
-
-    /// Remove memory entries clobbered by an instruction.
-    fn clobber_memory(
-        &mut self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
-        alias: &AliasAnalysis,
-    ) {
-        // drop entries that may be clobbered by the instruction
-        for scope in &mut self.memory_scopes {
-            scope.retain(|entry| !alias.may_clobber(instruction_id, &entry.location));
+            scope.push(entry);
         }
     }
 }
@@ -314,6 +345,8 @@ fn find_redundant_expressions(
     tree: &mir::NodeTree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    constants: &ConstantPropagation,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -343,6 +376,8 @@ fn find_redundant_expressions(
                     block_id,
                     tree,
                     alias,
+                    memory_ssa,
+                    constants,
                     &mut value_table,
                     &mut substitutions,
                     &mut to_remove,
@@ -371,16 +406,22 @@ fn find_redundant_expressions(
 }
 
 /// Process a single block, recording expressions and finding redundancies.
+#[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    constants: &ConstantPropagation,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
 ) {
     // load the block for inspection
     let block = tree.get(block_id);
+
+    // capture constant propagation facts for this block
+    let block_constants = constants.exit(block_id);
 
     // scan the block instructions
     for &instruction_id in &block.instructions {
@@ -394,6 +435,7 @@ fn process_block(
                 fields,
                 ..
             } => {
+                // record struct operands for forwarding
                 let args = tree.get_arguments(*fields);
                 value_table.insert_aggregate(*destination, args.to_vec());
             }
@@ -407,6 +449,7 @@ fn process_block(
                 elements,
                 ..
             } => {
+                // record tuple or array operands for forwarding
                 let args = tree.get_arguments(*elements);
                 value_table.insert_aggregate(*destination, args.to_vec());
             }
@@ -423,6 +466,8 @@ fn process_block(
             } => {
                 // resolve through any existing substitutions
                 let agg = substitutions.get(aggregate).copied().unwrap_or(*aggregate);
+
+                // read aggregate operands when available
                 if let Some(operands) = value_table.get_aggregate(&agg) {
                     if let Some(&operand) = operands.get(*index as usize) {
                         Some((*destination, operand, instruction_id))
@@ -433,9 +478,30 @@ fn process_block(
                     None
                 }
             }
-            mir::Instruction::ElementGet { .. } => {
-                // NOTE #Incomplete: GVN needs constant propagation for ElementGet
-                None
+            mir::Instruction::ElementGet {
+                destination,
+                array,
+                index,
+                ..
+            } => {
+                // resolve through any existing substitutions
+                let agg = substitutions.get(array).copied().unwrap_or(*array);
+
+                // resolve the constant index for array forwarding
+                let mut result = None;
+                if let Some(index_constant) = block_constants.get(*index)
+                    && let Some(index_value) = constant_index_to_usize(index_constant)
+                {
+                    // read aggregate operands when available
+                    if let Some(operands) = value_table.get_aggregate(&agg) {
+                        // select the operand when the index is in range
+                        if let Some(&operand) = operands.get(index_value) {
+                            result = Some((*destination, operand, instruction_id));
+                        }
+                    }
+                }
+
+                result
             }
             _ => None,
         };
@@ -464,25 +530,44 @@ fn process_block(
         }
 
         // forward redundant loads
-        if let mir::Instruction::Load {
-            destination,
-            pointer,
-            ..
-        } = instruction
-        {
-            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
-            if let Some(existing) = value_table.get_memory(&location, alias) {
+        if let mir::Instruction::Load { destination, .. } = instruction {
+            // resolve the memory ssa use access
+            let Some(use_access_id) = load_use_access_id(memory_ssa, instruction_id) else {
+                continue;
+            };
+
+            // read the use access data
+            let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+                continue;
+            };
+
+            // skip volatile or barrier reads
+            if use_access.effect.is_volatile || use_access.effect.is_barrier {
+                continue;
+            }
+
+            // skip unknown locations
+            if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                continue;
+            }
+
+            // compute the clobbering access for the load
+            let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias);
+
+            // forward from an existing load when possible
+            if let Some(existing) =
+                value_table.get_memory(clobber, &use_access.effect.location, alias)
+            {
                 substitutions.insert(*destination, existing);
                 to_remove.insert(instruction_id);
             } else {
-                value_table.insert_memory(location, *destination);
+                value_table.insert_memory(MemoryEntry {
+                    clobber,
+                    location: use_access.effect.location.clone(),
+                    value: *destination,
+                });
             }
             continue;
-        }
-
-        // clear clobbered load entries
-        if instruction_may_affect_memory(instruction) {
-            value_table.clobber_memory(instruction_id, alias);
         }
 
         // skip instructions with side effects
@@ -516,6 +601,32 @@ fn process_block(
     }
 }
 
+/// Return the first MemorySSA use access for a load instruction.
+fn load_use_access_id(
+    memory_ssa: &MemorySSA,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Option<MemoryAccessId> {
+    // find the first use access for the instruction
+    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
+    for &access_id in accesses {
+        if matches!(memory_ssa.access(access_id), MemoryAccess::Use(_)) {
+            return Some(access_id);
+        }
+    }
+
+    None
+}
+
+/// Convert an integer constant into an array index when possible.
+fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
+    // map integer constants to indices
+    match constant {
+        mir::Constant::Int { value, .. } if *value >= 0 => usize::try_from(*value).ok(),
+        mir::Constant::UInt { value, .. } => usize::try_from(*value).ok(),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,6 +655,7 @@ block1:
 block2:
     return v3
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -564,7 +676,7 @@ block2:
 block3(v5: i32):
     return v5
 }"#;
-        // should be unchanged: block1 doesn't dominate block2
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_unchanged(input);
@@ -596,6 +708,7 @@ block2:
     v5 = iadd v3, v2
     return v5
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -621,6 +734,7 @@ block1:
     v4 = iadd v2, v2
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -643,9 +757,6 @@ block2:
     v7 = iadd v4, v6
     return v7
 }"#;
-        // v3 -> v2, v5 -> v2
-        // v4 = imul v2, v2
-        // v6 = imul v2, v2 -> v4
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -657,6 +768,7 @@ block2:
     v7 = iadd v4, v4
     return v7
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -678,6 +790,7 @@ block0(v0: i32, v1: i32):
     v4 = iadd v2, v2
     return v4
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -698,7 +811,6 @@ block3:
     v3 = iadd v0, v1
     return v3
 }"#;
-        // v3 should be replaced with v2 through the dominator chain
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -710,6 +822,7 @@ block2:
 block3:
     return v2
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -731,7 +844,6 @@ block2:
 block3(v6: i32):
     return v6
 }"#;
-        // v4 -> v3, v5 -> v3
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     v3 = iadd v0, v1
@@ -743,6 +855,7 @@ block2:
 block3(v6: i32):
     return v6
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -762,6 +875,7 @@ block2:
     v5 = imul v0, v1
     return v5
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_unchanged(input);
@@ -787,6 +901,7 @@ block1:
     v3 = iadd v1, v1
     return v3
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -812,6 +927,7 @@ block1:
     v3 = iadd v1, v1
     return v3
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -831,7 +947,6 @@ block1:
     v6 = iadd v4, v5
     return v6
 }"#;
-        // both v4 and v5 are redundant
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -841,6 +956,7 @@ block1:
     v6 = iadd v2, v3
     return v6
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -859,7 +975,6 @@ block1:
     v5 = iadd v3, v4
     return v5
 }"#;
-        // v3 -> v0, v4 -> v1
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = tuple (i32, i32) (v0, v1)
@@ -868,6 +983,7 @@ block1:
     v5 = iadd v0, v1
     return v5
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -887,7 +1003,6 @@ block1:
     v5 = iadd v3, v4
     return v5
 }"#;
-        // v3 -> v0, v4 -> v1
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -897,6 +1012,7 @@ block1:
     v5 = iadd v0, v1
     return v5
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -917,7 +1033,6 @@ block3:
     v3 = field.get v2, 1
     return v3
 }"#;
-        // v3 -> v1 through the dominator chain
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = tuple (i32, i32) (v0, v1)
@@ -929,6 +1044,7 @@ block2:
 block3:
     return v1
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -951,14 +1067,6 @@ block3(v6: (i32, i32)):
     v7 = field.get v6, 0
     return v7
 }"#;
-        // block1 doesn't dominate block2, so v3's tuple construction
-        // shouldn't affect the field.get in block2
-        // v5 should still be simplified to v1 (local simplification via InstructionCombine,
-        // but GVN should leave the non-dominated one alone)
-        // v7 cannot be simplified because v6 is a block parameter
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        // v5 should be simplified to v1 since v4 is constructed in same scope
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -972,6 +1080,9 @@ block3(v6: (i32, i32)):
     v7 = field.get v6, 0
     return v7
 }"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
     }
 
@@ -991,7 +1102,6 @@ block2:
 block3(v6: i32):
     return v6
 }"#;
-        // v4 -> v0, v5 -> v1
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     v3 = tuple (i32, i32) (v0, v1)
@@ -1003,6 +1113,7 @@ block2:
 block3(v6: i32):
     return v6
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -1022,7 +1133,6 @@ block1:
     v6 = iadd v4, v5
     return v6
 }"#;
-        // v4 -> v2 (regular GVN), v5 -> v2 (aggregate forwarding)
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -1032,6 +1142,7 @@ block1:
     v6 = iadd v2, v2
     return v6
 }"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(expected);
@@ -1083,5 +1194,46 @@ block1:
         let mut program = TestProgram::new(input);
         program.run_pass(&GlobalValueNumbering);
         program.assert_output(input);
+    }
+
+    /// Readnone calls do not block load value numbering.
+    #[test]
+    fn test_forward_loads_across_readnone_call() {
+        let input = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    call @external(v0)
+    v2 = load v0
+    v3 = iadd v1, v2
+    return v3
+}"#;
+        let expected = r#"extern function @external(ref<raw i32>) -> void
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = load v0
+    call @external(v0)
+    v3 = iadd v1, v1
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        let function_id = program.entry_function_id();
+        let (call_inst, callee) = program.first_call_in_entry(function_id);
+        let signature = program.call_signature_for_callee(callee);
+
+        let metadata = mir::CallMetadata::direct(callee, signature)
+            .with_memory_effects(mir::MemoryEffect::none());
+        program
+            .tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .insert(call_inst, metadata);
+
+        program.run_pass(&GlobalValueNumbering);
+        program.assert_output(expected);
     }
 }

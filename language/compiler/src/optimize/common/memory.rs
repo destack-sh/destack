@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
@@ -18,6 +18,45 @@ pub struct MemoryLocation {
     pub size: Option<u64>,
     /// Type being accessed, for TBAA.
     pub access_type: Option<TypeKey>,
+}
+
+/// Return the stack allocation base for a derived pointer value.
+pub fn stack_alloc_base(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+) -> Option<mir::Value> {
+    // walk pointer definitions to find the base allocation
+    let mut current = value;
+    let mut visited = HashSet::new();
+
+    loop {
+        // stop on cycles
+        if !visited.insert(current) {
+            return None;
+        }
+
+        // read the defining instruction
+        let instruction_id = definitions.get(&current)?;
+        let instruction = tree.get(*instruction_id);
+
+        // walk through address computations
+        match instruction {
+            mir::Instruction::StackAlloc { destination, .. } if *destination == current => {
+                return Some(current);
+            }
+            mir::Instruction::FieldAddr { aggregate, .. } => {
+                current = *aggregate;
+            }
+            mir::Instruction::ElementAddr { array, .. } => {
+                current = *array;
+            }
+            mir::Instruction::Cast { argument, .. } => {
+                current = *argument;
+            }
+            _ => return None,
+        }
+    }
 }
 
 impl MemoryLocation {

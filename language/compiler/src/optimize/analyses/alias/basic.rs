@@ -36,11 +36,18 @@ impl BasicAA {
     ) -> Self {
         let info = FunctionAA::collect(function, tree);
 
-        // NOTE #Incomplete: infer parameter attributes from function signature/annotations
+        // derive parameter attributes from mir metadata
         let param_attrs = function
             .parameters
             .iter()
-            .map(|_| ParameterAttributes::NONE)
+            .enumerate()
+            .map(|(index, _)| {
+                function
+                    .parameter_attributes
+                    .get(index)
+                    .map(Self::parameter_attributes)
+                    .unwrap_or(ParameterAttributes::NONE)
+            })
             .collect();
 
         Self {
@@ -145,8 +152,8 @@ impl BasicAA {
 
     /// Check noalias parameter aliasing rules.
     fn noalias_param_check(&self, base_a: &PointerBase, base_b: &PointerBase) -> bool {
-        let a_noalias = base_a.is_noalias_param();
-        let b_noalias = base_b.is_noalias_param();
+        let a_noalias = self.base_is_noalias_param(base_a);
+        let b_noalias = self.base_is_noalias_param(base_b);
 
         // two different noalias params don't alias each other
         if a_noalias && b_noalias {
@@ -162,6 +169,20 @@ impl BasicAA {
         }
 
         false
+    }
+
+    /// Check if a pointer base is a noalias parameter.
+    fn base_is_noalias_param(&self, base: &PointerBase) -> bool {
+        match base {
+            PointerBase::Parameter { index, noalias } => {
+                if *noalias {
+                    return true;
+                }
+
+                self.get_param_attrs(*index as usize).is_noalias()
+            }
+            _ => false,
+        }
     }
 
     /// Check if two bases are the same.
@@ -289,7 +310,7 @@ impl BasicAA {
             }
 
             mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                self.get_call_mod_ref(inst, loc, tree)
+                self.get_call_mod_ref(instruction_id, inst, loc, tree)
             }
 
             // intrinsics that access memory
@@ -321,13 +342,308 @@ impl BasicAA {
     /// Get mod/ref for a call instruction.
     fn get_call_mod_ref(
         &self,
-        _inst: &mir::Instruction,
-        _loc: &MemoryLocation,
-        _tree: &mir::NodeTree,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        inst: &mir::Instruction,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
     ) -> ModRefInfo {
-        // NOTE #Incomplete: check function attributes (readonly, argmemonly, etc.)
-        // NOTE #Incomplete: check if loc is derived from any call argument
-        ModRefInfo::MOD_REF
+        // read callsite metadata when present
+        let call_metadata = tree
+            .call_table
+            .call_metadata_by_instruction_id
+            .get(&instruction_id);
+
+        // read call memory effects from metadata or callee
+        let mut memory_effects = call_metadata
+            .and_then(|metadata| metadata.memory_effects.clone())
+            .or_else(|| self.callee_memory_effects(inst, tree));
+
+        // fall back to conservative behavior without effects
+        let Some(effects) = memory_effects.take() else {
+            return ModRefInfo::MOD_REF;
+        };
+
+        // calls with no memory effects are pure
+        if !effects.reads && !effects.writes {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // inaccessible memory does not alias normal locations
+        if effects.inaccessible_mem_only {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // honor address space restrictions when known
+        if let Some(address_spaces) = &effects.address_spaces
+            && let Some(location_space) = self.location_address_space(loc, tree)
+            && !address_spaces.contains(location_space)
+        {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // argmemonly calls only touch pointer arguments
+        if effects.argmemonly {
+            return self.argmemonly_mod_ref(inst, loc, tree, call_metadata, &effects);
+        }
+
+        // honor coarse location set restrictions when possible
+        if let Some(location_set) = self.location_set_for_location(loc, tree)
+            && !effects.locations.contains(location_set)
+        {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // return the summarized mod ref info
+        ModRefInfo::from_flags(effects.reads, effects.writes)
+    }
+
+    /// Refine mod ref for argmemonly calls.
+    fn argmemonly_mod_ref(
+        &self,
+        inst: &mir::Instruction,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
+        call_metadata: Option<&mir::CallMetadata>,
+        effects: &mir::MemoryEffect,
+    ) -> ModRefInfo {
+        // honor coarse location sets when args are not the only constraint
+        if !effects.locations.contains(mir::MemoryLocationSet::ARGUMENTS)
+            && let Some(location_set) = self.location_set_for_location(loc, tree)
+            && !effects.locations.contains(location_set)
+        {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // load call arguments
+        let Some(arg_slice) = inst.argument_slice() else {
+            return ModRefInfo::from_flags(effects.reads, effects.writes);
+        };
+
+        // handle empty argument lists
+        let args = tree.get_arguments(arg_slice);
+        if args.is_empty() {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        // resolve argument types
+        let arg_types = self.call_argument_types(inst, call_metadata, tree);
+        let Some(arg_types) = arg_types else {
+            return ModRefInfo::from_flags(effects.reads, effects.writes);
+        };
+
+        // collect mod ref info based on aliased arguments
+        let mut result = ModRefInfo::NO_MOD_REF;
+        for (index, &arg_value) in args.iter().enumerate() {
+            // read the argument type
+            let arg_type = match arg_types.get(index) {
+                Some(ty) => *ty,
+                None => continue,
+            };
+
+            // skip non reference arguments
+            let mir::Type::Reference { .. } = tree.get(arg_type) else {
+                continue;
+            };
+
+            // read argument metadata
+            let arg_metadata = call_metadata
+                .and_then(|metadata| metadata.argument_metadata.get(index))
+                .cloned()
+                .unwrap_or_default();
+
+            // clamp the argument access to call effects
+            let arg_access = self.clamp_argument_access(arg_metadata.access, effects);
+            if arg_access == mir::ArgumentAccess::None {
+                continue;
+            }
+
+            // build a location for the argument pointer
+            let arg_loc = if let Some(size) = arg_metadata
+                .attributes
+                .dereferenceable_bytes
+                .or(arg_metadata.attributes.dereferenceable_or_null_bytes)
+            {
+                MemoryLocation::with_size(arg_value, size)
+            } else {
+                MemoryLocation::from_ptr(arg_value)
+            };
+
+            // skip arguments that do not alias the location
+            if self.alias(&arg_loc, loc, tree).is_no_alias() {
+                continue;
+            }
+
+            // merge the access into the final mod ref info
+            result = result.union(self.mod_ref_from_access(arg_access));
+        }
+
+        result
+    }
+
+    /// Convert pointer attributes into basic alias parameter attributes.
+    fn parameter_attributes(attrs: &mir::PointerAttributes) -> ParameterAttributes {
+        let mut result = ParameterAttributes::NONE;
+
+        // apply noalias when guaranteed
+        if attrs.noalias {
+            result = result.with(ParameterAttributes::noalias());
+        }
+
+        // apply nocapture when guaranteed
+        if attrs.capture == mir::CaptureKind::NoCapture {
+            result = result.with(ParameterAttributes::nocapture());
+        }
+
+        // apply readonly or writeonly when present
+        if attrs.readonly {
+            result = result.with(ParameterAttributes::readonly());
+        }
+        if attrs.writeonly {
+            result = result.with(ParameterAttributes::writeonly());
+        }
+
+        result
+    }
+
+    /// Clamp argument access based on call memory effects.
+    fn clamp_argument_access(
+        &self,
+        access: mir::ArgumentAccess,
+        effects: &mir::MemoryEffect,
+    ) -> mir::ArgumentAccess {
+        // compute the read and write mask for this argument
+        let reads = effects.reads
+            && matches!(
+                access,
+                mir::ArgumentAccess::Read | mir::ArgumentAccess::ReadWrite
+            );
+        let writes = effects.writes
+            && matches!(
+                access,
+                mir::ArgumentAccess::Write | mir::ArgumentAccess::ReadWrite
+            );
+
+        // map the mask back to an access mode
+        match (reads, writes) {
+            (true, true) => mir::ArgumentAccess::ReadWrite,
+            (true, false) => mir::ArgumentAccess::Read,
+            (false, true) => mir::ArgumentAccess::Write,
+            (false, false) => mir::ArgumentAccess::None,
+        }
+    }
+
+    /// Convert argument access into ModRefInfo.
+    fn mod_ref_from_access(&self, access: mir::ArgumentAccess) -> ModRefInfo {
+        // map access flags to mod ref info
+        match access {
+            mir::ArgumentAccess::None => ModRefInfo::NO_MOD_REF,
+            mir::ArgumentAccess::Read => ModRefInfo::REF,
+            mir::ArgumentAccess::Write => ModRefInfo::MOD,
+            mir::ArgumentAccess::ReadWrite => ModRefInfo::MOD_REF,
+        }
+    }
+
+    /// Resolve call argument types for direct calls and metadata signatures.
+    fn call_argument_types(
+        &self,
+        inst: &mir::Instruction,
+        call_metadata: Option<&mir::CallMetadata>,
+        tree: &mir::NodeTree,
+    ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
+        // prefer the metadata signature when present
+        if let Some(metadata) = call_metadata {
+            let signature = tree.get(metadata.signature);
+            if let mir::Type::FunctionPointer { parameters, .. } = signature {
+                return Some(parameters.clone());
+            }
+        }
+
+        // fall back to direct call signatures
+        let mir::Instruction::Call { function, .. } = inst else {
+            return None;
+        };
+
+        // collect parameter types from the callee
+        let callee = tree.get(*function);
+        Some(callee.parameters.iter().map(|param| param.ty).collect())
+    }
+
+    /// Resolve memory effects from a direct callee when present.
+    fn callee_memory_effects(
+        &self,
+        inst: &mir::Instruction,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::MemoryEffect> {
+        // only direct calls have callee effects
+        let mir::Instruction::Call { function, .. } = inst else {
+            return None;
+        };
+
+        // read callee effects
+        let callee = tree.get(*function);
+        callee.memory_effects.clone()
+    }
+
+    /// Resolve a coarse memory location set for a pointer location.
+    fn location_set_for_location(
+        &self,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::MemoryLocationSet> {
+        // compute pointer base for region classification
+        let mut decomposer = PointerDecomposer::new(
+            &self.function.constants,
+            &self.function.definitions,
+            tree,
+            &self.function.parameters,
+            self.strict_borrow_mode,
+        );
+        let decomposed = decomposer.decompose(loc.ptr);
+
+        // map known bases to memory location sets
+        match decomposed.base {
+            PointerBase::StackAlloc(_) => Some(mir::MemoryLocationSet::STACK),
+            PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
+                Some(mir::MemoryLocationSet::HEAP)
+            }
+            PointerBase::Global(_) => Some(mir::MemoryLocationSet::GLOBAL),
+            _ => None,
+        }
+    }
+
+    /// Resolve an address space for a pointer location when possible.
+    fn location_address_space(
+        &self,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::AddressSpace> {
+        // compute pointer base for address space inference
+        let mut decomposer = PointerDecomposer::new(
+            &self.function.constants,
+            &self.function.definitions,
+            tree,
+            &self.function.parameters,
+            self.strict_borrow_mode,
+        );
+        let decomposed = decomposer.decompose(loc.ptr);
+
+        // map known bases to address spaces
+        match decomposed.base {
+            PointerBase::StackAlloc(_) => Some(mir::AddressSpace::Stack),
+            PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
+                Some(mir::AddressSpace::Heap)
+            }
+            PointerBase::Global(_) => Some(mir::AddressSpace::Global),
+            PointerBase::Parameter { index, .. } => {
+                // extract address space from parameter type when possible
+                let parameter = self.function.parameters.get(index as usize)?;
+                let mir::Type::Reference { address_space, .. } = tree.get(parameter.ty) else {
+                    return None;
+                };
+                Some(*address_space)
+            }
+            _ => None,
+        }
     }
 
     /// Get mod/ref for an intrinsic.
@@ -567,6 +883,34 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
 
         // without noalias, params may alias
         assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::MayAlias);
+    }
+
+    #[test]
+    fn test_noalias_parameters_no_alias() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    store v1, v2
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        {
+            let function = program.tree.get_mut(function_id);
+            function.parameter_attributes[0].noalias = true;
+            function.parameter_attributes[1].noalias = true;
+        }
+
+        let function = program.tree.get(function_id);
+        let aa = BasicAA::build(function, &program.tree, false);
+
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::NoAlias);
     }
 
     #[test]

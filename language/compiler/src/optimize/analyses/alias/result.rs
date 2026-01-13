@@ -239,6 +239,13 @@ impl ParameterAttributes {
         }
     }
 
+    /// Parameter is only written through (not read).
+    pub fn writeonly() -> Self {
+        Self {
+            flags: Self::WRITEONLY,
+        }
+    }
+
     /// Check if noalias.
     pub fn is_noalias(self) -> bool {
         self.flags & Self::NOALIAS != 0
@@ -443,6 +450,12 @@ mod tests {
         assert!(readonly.is_readonly());
         assert!(!readonly.is_writeonly());
         assert_eq!(readonly.get_mod_ref(), ModRefInfo::REF);
+
+        // writeonly
+        let writeonly = ParameterAttributes::writeonly();
+        assert!(writeonly.is_writeonly());
+        assert!(!writeonly.is_readonly());
+        assert_eq!(writeonly.get_mod_ref(), ModRefInfo::MOD);
 
         // combined attributes
         let combined = ParameterAttributes::noalias().with(ParameterAttributes::readonly());
