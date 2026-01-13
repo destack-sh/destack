@@ -8,6 +8,30 @@ Join our [Discord](https://discord.gg/xUFQ45TWYd) to chat and discuss.
 PRs for small fixes are probably fine, but larger unsolicited PRs are unlikely to be accepted - the whole point of the project is tight integration.
 Destack is in very active development with a singular focus: a fully integrated software stack for optimal, correct, integrated software. 
 
+## Before You Start
+
+If you want to make a non trivial change, please open an issue or start a Discord thread first.
+We move fast and make cohesive design decisions, so early alignment saves everyone time.
+
+## What We Expect
+
+We value clarity, correctness, and performance.
+Small, focused changes are easiest to review and merge.
+If you throw AI slop at us, we'll throw AI slop right back and tell your mom.
+
+If your change touches behavior, add or update tests.
+If your change introduces new concepts or APIs, update the relevant READMEs and docs.
+
+## Code Style
+
+We format code with `just fmt`.
+We run checks with `just check` and tests with `just test`.
+See [TESTING.md](TESTING.md) for the full testing matrix.
+
+## Security
+
+If you find a security issue, please follow [SECURITY.md](SECURITY.md).
+
 ## Structure
 
 This is the open source monorepo containing the language, library, and platform core:
@@ -45,4 +69,3 @@ just fuzz           # run all fuzzers
 just clean          # clean all build artifacts
 just publish        # publish all packages
 ```
-
