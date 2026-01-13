@@ -660,22 +660,21 @@ impl Compiler {
 
                 let argument = tree.get(*argument_id);
                 let argument_value_id = argument.value();
-                let argument_ty_id =
-                    if let Some(ty_id) =
-                        types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
-                    {
-                        ty_id
-                    } else {
-                        self.infer_expression(
-                            module,
-                            argument_value_id,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?
-                    };
+                let argument_ty_id = if let Some(ty_id) =
+                    types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                {
+                    ty_id
+                } else {
+                    self.infer_expression(
+                        module,
+                        argument_value_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?
+                };
                 argument_ty_ids.push(argument_ty_id);
             }
 

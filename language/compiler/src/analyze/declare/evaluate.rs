@@ -698,7 +698,7 @@ impl Compiler {
                     expression_id.into_any(),
                     target_symbol,
                     static_arguments.as_deref(),
-                    false,
+                    true,
                     &options,
                     tree,
                     symbols,

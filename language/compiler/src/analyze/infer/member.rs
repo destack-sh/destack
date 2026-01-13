@@ -695,7 +695,9 @@ impl Compiler {
             }
 
             // scan global augmentations for additional members
-            if let Some(key) = symbol_entry.key && !self.module_is_ambient_lib(module) {
+            if let Some(key) = symbol_entry.key
+                && !self.module_is_ambient_lib(module)
+            {
                 let mut merge_symbols = Vec::new();
                 if let Some(global_symbols) =
                     self.get_global_symbol_group(module.id, profile, key, symbol_entry.space)
