@@ -16,5 +16,4 @@ impl Compiler {
             profile,
         })
     }
-
 }

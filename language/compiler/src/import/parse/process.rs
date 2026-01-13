@@ -346,16 +346,18 @@ fn toml_to_json(toml: toml::Value) -> serde_json::Value {
     match toml {
         toml::Value::String(s) => serde_json::Value::String(s),
         toml::Value::Integer(i) => serde_json::Value::Number(i.into()),
-        toml::Value::Float(f) => {
-            serde_json::Number::from_f64(f).map_or(serde_json::Value::Null, serde_json::Value::Number)
-        }
+        toml::Value::Float(f) => serde_json::Number::from_f64(f)
+            .map_or(serde_json::Value::Null, serde_json::Value::Number),
         toml::Value::Boolean(b) => serde_json::Value::Bool(b),
         toml::Value::Datetime(dt) => serde_json::Value::String(dt.to_string()),
         toml::Value::Array(arr) => {
             serde_json::Value::Array(arr.into_iter().map(toml_to_json).collect())
         }
-        toml::Value::Table(table) => {
-            serde_json::Value::Object(table.into_iter().map(|(k, v)| (k, toml_to_json(v))).collect())
-        }
+        toml::Value::Table(table) => serde_json::Value::Object(
+            table
+                .into_iter()
+                .map(|(k, v)| (k, toml_to_json(v)))
+                .collect(),
+        ),
     }
 }

@@ -96,6 +96,17 @@ The compiler uses three main intermediate representations.
 | DIR | Destack IR | Semantic IR with symbols, scopes, and types (base, canonical, patched) |
 | MIR | Machine IR | Monomorphic, target-aware IR for comptime execution, optimization, and native codegen |
 
+## Security Model
+
+The compiler treats all inputs as untrusted and must never crash or allocate unboundedly.
+Security relevant guarantees include:
+
+- parse and resolve must be total and defensive on malformed input
+- MIR must be validated before execution, optimization, or codegen
+- optimization passes must not assume earlier passes succeeded without verification
+- comptime execution runs in the VM with strict limits and no ambient host access
+- codegen must emit versioned metadata for safepoints, deopt, and stack maps
+
 ## Layout
 
 The compiler is organized into modules corresponding to each phase.

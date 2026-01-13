@@ -1,6 +1,6 @@
 use super::{
     BorrowMode, CheckOptions, ExecutionMode, ExecutionOptions, ExternalCallPolicy, LimitOptions,
-    PolicyOptions, TelemetryOptions,
+    PolicyOptions, TelemetryOptions, TrustPolicy,
 };
 
 /// Configuration options for a VM isolate.
@@ -24,6 +24,7 @@ impl IsolateOptions {
         // use default options without instruction limits
         let mut options = Self::default();
         options.limits.max_instructions = None;
+        options.apply_trust_policy(TrustPolicy::Trusted);
         options
     }
 
@@ -56,7 +57,23 @@ impl IsolateOptions {
 
     /// Create options for comptime execution.
     pub fn comptime() -> Self {
-        // use default comptime settings
-        Self::default()
+        // use comptime defaults with internal trust
+        let mut options = Self::default();
+        options.apply_trust_policy(TrustPolicy::Internal);
+        options
+    }
+
+    /// Apply trust policy defaults to this isolate.
+    pub fn apply_trust_policy(&mut self, trust_policy: TrustPolicy) {
+        // set the trust policy
+        self.policy.trust_policy = trust_policy;
+
+        // apply untrusted defaults
+        if matches!(trust_policy, TrustPolicy::Untrusted) {
+            self.policy.borrow_mode = BorrowMode::Strict;
+            self.policy.external_calls = ExternalCallPolicy::Protected;
+            self.checks.enforce_reference_kinds = true;
+            self.checks.enforce_reference_mutability = true;
+        }
     }
 }

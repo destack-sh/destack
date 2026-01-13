@@ -69,6 +69,21 @@ The runtime owns scheduling, I/O, and platform integration.
 The VM executes MIR and reconstructs state.
 Platform services (I/O, bindings, scheduling, replay) live in the runtime.
 
+## Security Model
+
+The VM is designed to run untrusted MIR safely when configured by the runtime.
+Security is enforced by strict entrypoint validation, explicit host boundaries, and resource limits.
+
+The runtime selects a trust policy per isolate:
+- **Untrusted**: strict limits and checks, protected or forbidden externals, no unbounded execution
+- **Trusted**: relaxed limits for internal code, still with validated entrypoints
+
+The VM never performs syscalls or host I/O.
+All external effects must go through runtime-provided externals and their policy.
+
+Compiled entrypoints are only used when metadata is present and version-checked.
+External native binaries must be sandboxed by the runtime or rejected.
+
 ## Usage Scenarios
 
 | Scenario | Start | Transitions | Notes |
@@ -121,6 +136,7 @@ The isolate is configured by `IsolateOptions`:
 | Group | Option | Meaning |
 |-------|--------|---------|
 | `execution` | `mode` | comptime/debug/deopt/runtime role |
+| `policy` | `trust_policy` | untrusted/trusted/internal |
 | `policy` | `runtime` | full/no-managed/no-runtime |
 | `policy` | `borrow_mode` | hint or strict runtime enforcement |
 | `policy` | `external_calls` | allow/protect/forbid externals |

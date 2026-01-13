@@ -1,7 +1,7 @@
 use crate::{Compiler, ExecuteError, ExecuteResult, TaskResultCollector};
 
 use destack_source::ModuleId;
-use destack_workspace::{ComptimeOutput, ModuleComptime, ProfileId};
+use destack_workspace::{ComptimeOutput, ModuleComptime, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use {destack_dir as dir, destack_vm as vm};
@@ -200,10 +200,18 @@ impl Compiler {
                 self.lower_comptime_expression(&module, profile_id, *body)?;
 
             // execute the MIR with the interpreter
+            let mut options = vm::IsolateOptions::comptime();
+            let trust_policy = match self.comptime_target.trust_policy {
+                TrustPolicy::Untrusted => vm::TrustPolicy::Untrusted,
+                TrustPolicy::Trusted => vm::TrustPolicy::Trusted,
+                TrustPolicy::Internal => vm::TrustPolicy::Internal,
+            };
+            options.apply_trust_policy(trust_policy);
+
             let mut isolate = vm::Isolate::with_options(
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
-                vm::IsolateOptions::comptime(),
+                options,
             );
             let output = isolate.run_function(function_id, &[]).map_err(|error| {
                 ExecuteError::FailedExecution {
@@ -222,7 +230,6 @@ impl Compiler {
                 })?;
 
             Some(ComptimeOutput {
-                vm: Some(vm_value),
                 dir: Some(dir_value),
                 mir: None,
             })

@@ -1,14 +1,12 @@
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
-use {destack_dir as dir, destack_mir as mir, destack_vm as vm};
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{ProfileId, ProfileVersion};
 
 /// Output produced by executing a comptime slot.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ComptimeOutput {
-    /// VM value produced during execution.
-    pub vm: Option<vm::Value>,
     /// Static expression produced for DIR patching.
     pub dir: Option<dir::StaticExpression>,
     /// MIR constant derived from the comptime result.
@@ -19,7 +17,6 @@ impl ComptimeOutput {
     /// Create an empty comptime output with deliberately void data.
     pub fn empty() -> Self {
         Self {
-            vm: None,
             dir: None,
             mir: None,
         }

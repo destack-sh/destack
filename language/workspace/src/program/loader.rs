@@ -59,9 +59,11 @@ impl Loader {
             FileType::Env => Loader::Env,
 
             // Text formats
-            FileType::Text | FileType::Markdown | FileType::Html | FileType::Css | FileType::Svg => {
-                Loader::Text
-            }
+            FileType::Text
+            | FileType::Markdown
+            | FileType::Html
+            | FileType::Css
+            | FileType::Svg => Loader::Text,
 
             // Binary formats
             FileType::Wasm
@@ -104,7 +106,10 @@ impl Loader {
 
     /// Whether this loader produces data modules.
     pub fn is_data(&self) -> bool {
-        matches!(self, Loader::Json | Loader::Toml | Loader::Yaml | Loader::Env)
+        matches!(
+            self,
+            Loader::Json | Loader::Toml | Loader::Yaml | Loader::Env
+        )
     }
 
     /// Whether this loader produces text modules.

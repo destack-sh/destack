@@ -13,5 +13,4 @@ impl Compiler {
         use crate::ElaborateTask;
         self.do_require_task_internal_only(ElaborateTask::ElaborateModuleReify { module, profile })
     }
-
 }

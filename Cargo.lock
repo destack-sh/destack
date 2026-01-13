@@ -1108,7 +1108,6 @@ dependencies = [
  "destack_dir",
  "destack_mir",
  "destack_source",
- "destack_vm",
  "indexmap",
  "parking_lot",
  "rayon",
