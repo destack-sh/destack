@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    DynamicKey, Expression, NodeTree, PrimitiveType, ScalarLiteral, StaticKey, SymbolKey,
-    SymbolTable, Type, TypeLiteral, TypeTable, WellKnownSymbol,
+    DynamicKey, Expression, GlobalSymbolId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey,
+    SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable, WellKnownSymbol,
 };
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, WellKnownSymbols};
 
 use super::mapped::MappedIndexKind;
 use crate::Compiler;
@@ -114,11 +114,53 @@ impl Compiler {
     ) -> Option<StaticKey> {
         let expression = tree.get(expression_id);
 
+        // helpers for well-known symbol resolution across ambient libs
+        let symbol_key_for_global = |symbol: GlobalSymbolId| {
+            if symbol.module_id == symbols.module_id {
+                return symbols.get_symbol(symbol.local_id).key;
+            }
+
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
+            remote_symbols.get_symbol(symbol.local_id).key
+        };
+        let normalize_well_known_symbol =
+            |symbol: GlobalSymbolId, well_known: &WellKnownSymbols| -> Option<GlobalSymbolId> {
+                let base_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
+                if symbol == base_symbol {
+                    return Some(base_symbol);
+                }
+
+                let is_ambient = self.program.builtins.as_ref().is_some_and(|builtins| {
+                    let profile = self.program.profile(profile);
+                    builtins
+                        .ambient_libs(&profile.key)
+                        .is_some_and(|modules| modules.contains(&symbol.module_id))
+                });
+                if !is_ambient {
+                    return None;
+                }
+
+                let symbol_key = symbol_key_for_global(symbol)?;
+                let base_key = symbol_key_for_global(base_symbol)?;
+                if symbol_key != base_key {
+                    return None;
+                }
+
+                Some(base_symbol)
+            };
+
         // resolve Symbol.* member keys
         if let Expression::Member { left, name, .. } = expression {
             let base_symbol = tree.get(*left).target_symbol()?;
             let well_known = self.get_well_known_symbols(profile)?;
-            let symbol_key = well_known.symbol_key_for_member(base_symbol, *name)?;
+            let symbol_key = well_known
+                .symbol_key_for_member(base_symbol, *name)
+                .or_else(|| {
+                    let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
+                    well_known.symbol_key_for_member(normalized, *name)
+                })?;
             return Some(StaticKey::Symbol(SymbolKey::WellKnown(symbol_key)));
         }
 
@@ -136,7 +178,10 @@ impl Compiler {
             let symbol_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
             let base_symbol = tree.get(*left).target_symbol()?;
             if base_symbol != symbol_symbol {
-                return None;
+                let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
+                if normalized != symbol_symbol {
+                    return None;
+                }
             }
             let member_name = self.program.strings.get(*name);
             if member_name.as_ref() != "for" {
