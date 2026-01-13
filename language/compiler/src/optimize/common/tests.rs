@@ -26,7 +26,7 @@ pub(crate) struct TestProgram {
     pub(crate) tree: mir::NodeTree,
     /// String pool for identifiers (immutable, from parser).
     strings: ImmutableStringPool,
-    /// Thread-safe string pool for optimization context.
+    /// Thread safe string pool for optimization context.
     strings_pool: StringPool,
     /// Errors collected from the last pass run.
     errors: Vec<OptimizeError>,
@@ -98,16 +98,43 @@ impl TestProgram {
         noalias_scopes: Vec<mir::AliasScopeId>,
         tbaa_tag: Option<mir::TbaaTagId>,
     ) {
+        self.insert_pointer_access_with_options(
+            instruction,
+            kind,
+            pointer,
+            size,
+            alias_scopes,
+            noalias_scopes,
+            tbaa_tag,
+            false,
+            None,
+        );
+    }
+
+    /// Attach pointer access metadata to an instruction with flags.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn insert_pointer_access_with_options(
+        &mut self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        kind: mir::MemoryAccessKind,
+        pointer: mir::Value,
+        size: Option<u64>,
+        alias_scopes: Vec<mir::AliasScopeId>,
+        noalias_scopes: Vec<mir::AliasScopeId>,
+        tbaa_tag: Option<mir::TbaaTagId>,
+        is_volatile: bool,
+        ordering: Option<mir::MemoryOrdering>,
+    ) {
         // build the access metadata
         let access = mir::MemoryAccessMetadata {
             kind,
             target: mir::MemoryAccessTarget::Pointer(pointer),
             size,
             alignment: None,
-            is_volatile: false,
+            is_volatile,
             is_invariant: false,
             is_non_temporal: false,
-            ordering: None,
+            ordering,
             address_space: None,
             alias_scopes,
             noalias_scopes,

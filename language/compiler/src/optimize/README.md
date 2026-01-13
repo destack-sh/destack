@@ -191,8 +191,9 @@ Optimizations for memory allocation and access patterns.
 |----|------|-------|-------|------|----------|-------------|
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | cfg, domtree | Promote stack allocations to SSA values |
 | `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | constant-propagation | Break aggregates into individual scalar values |
-| `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias | Forward stored values to subsequent loads |
-| `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias | Remove stores that are overwritten before being read |
+| `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias, memory-ssa | Forward stored values to subsequent loads |
+| `mem-cse` | MemCse | function | O2 | ✓ | alias, memory-ssa | Remove redundant stores that write identical values |
+| `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias, memory-ssa | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
 | `gc-write-barrier-elide` | GcWriteBarrierElide | function | O2 | | alias, effect, escape | Remove redundant GC write barriers |
 | `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, exception-flow, block-freq | Hoist loads speculatively when safe |
@@ -205,7 +206,7 @@ Loop-specific transformations.
 |----|------|-------|-------|------|----------|-------------|
 | `loop-simplify` | LoopSimplify | function | O2 | ✓ | loops, cfg | Canonicalize loops (preheader, single latch, dedicated exits) |
 | `loop-rotate` | LoopRotate | function | O2 | ✓ | loops, cfg, domtree | Rotate simple loops (header with no instructions) |
-| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree, range, alias | Move loop invariant computations and safe loads to preheader |
+| `licm` | LoopInvariantCodeMotion | function | O2 | ✓ | loops, domtree, range, alias, memory-ssa | Move loop invariant computations and safe loads to preheader |
 | `induction-simplify` | InductionVariableSimplify | function | O2 | ✓ | loops, cfg, scalar-evolution | Simplify or eliminate derived induction variables |
 | `loop-strength-reduce` | LoopStrengthReduce | function | O2 | ✓ | loops, cfg, domtree, scalar-evolution, ownership, range | Replace expensive ops (mul) with cheaper ones (add) |
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |

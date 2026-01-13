@@ -636,7 +636,6 @@ fn store_is_postdominated_by_clobber(
         if def.access == store.access {
             continue;
         }
-
         if def.block == store.block && def.index <= store.index {
             continue;
         }
@@ -645,7 +644,6 @@ fn store_is_postdominated_by_clobber(
         if !postdom.postdominates(def.block, store.block) {
             continue;
         }
-
         let MemoryAccess::Def(def_access) = memory_ssa.access(def.access) else {
             continue;
         };

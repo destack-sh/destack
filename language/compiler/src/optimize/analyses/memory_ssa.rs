@@ -33,7 +33,7 @@ impl MemoryAccessId {
 /// Location being accessed by a memory operation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MemoryAccessLocation {
-    /// Pointer-based memory location.
+    /// Pointer based memory location.
     Pointer(MemoryLocation),
     /// Local slot access.
     Local(mir::LocalNodeId<mir::Local>),
@@ -59,7 +59,7 @@ impl MemoryAccessLocation {
 
     /// Return a pointer location if available.
     fn as_pointer(&self) -> Option<&MemoryLocation> {
-        // unwrap pointer-backed locations
+        // unwrap pointer backed locations
         match self {
             MemoryAccessLocation::Pointer(location) => Some(location),
             _ => None,
@@ -248,7 +248,7 @@ pub struct MemorySSA {
     instruction_access: HashMap<mir::LocalNodeId<mir::Instruction>, Vec<MemoryAccessId>>,
     /// Memory accesses per block.
     block_accesses: HashMap<mir::LocalNodeId<mir::Block>, Vec<MemoryAccessId>>,
-    /// Live-on-entry access id.
+    /// Live on entry access id.
     live_on_entry: MemoryAccessId,
 }
 
@@ -291,7 +291,7 @@ impl MemorySSA {
             &collected.reachable,
         );
 
-        // create memory access table with live-on-entry
+        // create memory access table with live on entry
         let mut accesses = Vec::new();
         accesses.push(MemoryAccess::LiveOnEntry);
         let live_on_entry = MemoryAccessId::from_index(0);
@@ -368,7 +368,7 @@ impl MemorySSA {
         ssa
     }
 
-    /// Return the live-on-entry access id.
+    /// Return the live on entry access id.
     pub fn live_on_entry(&self) -> MemoryAccessId {
         self.live_on_entry
     }
@@ -429,6 +429,39 @@ impl MemorySSA {
 
         // build the query for this use
         let query = MemoryAccessQuery::from_effect(&use_access_data.effect);
+
+        // compute the clobbering access
+        let mut cache = HashMap::new();
+        let mut visiting = HashSet::new();
+        self.clobbering_access(
+            defining_access,
+            &query,
+            alias,
+            tree,
+            &mut cache,
+            &mut visiting,
+        )
+    }
+
+    /// Compute the clobbering access for a memory def.
+    pub fn clobbering_access_for_def(
+        &self,
+        def_access: MemoryAccessId,
+        alias: &crate::optimize::analyses::AliasAnalysis,
+        tree: &mir::NodeTree,
+    ) -> MemoryAccessId {
+        // read the memory def location
+        let MemoryAccess::Def(def_access_data) = self.access(def_access) else {
+            panic!("expected memory def access");
+        };
+
+        // resolve the defining access
+        let defining_access = def_access_data
+            .defining_access
+            .unwrap_or(self.live_on_entry);
+
+        // build the query for this def
+        let query = MemoryAccessQuery::from_effect(&def_access_data.effect);
 
         // compute the clobbering access
         let mut cache = HashMap::new();
@@ -895,7 +928,7 @@ impl<'a> MemoryAccessCollector<'a> {
             return SmallVec::new();
         }
 
-        // inaccessible-only effects do not touch visible memory
+        // inaccessible only effects do not touch visible memory
         if effects.inaccessible_mem_only {
             return SmallVec::new();
         }
@@ -1323,7 +1356,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 let mut effects = SmallVec::new();
                 let pointer = args.first().copied();
 
-                // emit read-write effects when operands are present
+                // emit read write effects when operands are present
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
@@ -1453,7 +1486,7 @@ impl<'a> MemoryAccessCollector<'a> {
     }
 }
 
-/// MemorySSA renamer for def-use chains.
+/// MemorySSA renamer for def use chains.
 struct MemoryRenamer<'a> {
     /// MIR node tree.
     tree: &'a mir::NodeTree,
@@ -1499,7 +1532,7 @@ impl<'a> MemoryRenamer<'a> {
 
     /// Rename memory accesses to build SSA form.
     fn rename(&mut self, ssa: &mut MemorySSA) {
-        // initialize stack with live-on-entry
+        // initialize stack with live on entry
         let mut stack = Vec::new();
         stack.push(ssa.live_on_entry);
 
@@ -1582,7 +1615,7 @@ fn access_clobbers_query(
         return true;
     }
 
-    // ignore non-writing accesses
+    // ignore non writing accesses
     if !def_access.effect.writes {
         return false;
     }
@@ -1606,15 +1639,22 @@ fn access_clobbers_query(
         return def_access.effect.writes;
     }
 
-    // check pointer-based aliasing
+    // resolve pointer based queries
     let Some(pointer_location) = query.location.as_pointer() else {
         return def_access.effect.writes;
     };
 
+    // ignore local defs for pointer queries
     if let MemoryAccessLocation::Local(_) = def_access.effect.location {
         return false;
     }
 
+    // compare pointer locations when available
+    if let MemoryAccessLocation::Pointer(def_location) = &def_access.effect.location {
+        return alias.alias(def_location, pointer_location).may_alias();
+    }
+
+    // fall back to mod ref for unknown locations
     let mod_ref = alias.get_mod_ref_info(def_access.instruction, pointer_location);
     mod_ref.is_mod()
 }
@@ -1654,7 +1694,7 @@ fn access_clobbers_location(
         return true;
     }
 
-    // ignore non-writing accesses
+    // ignore non writing accesses
     if !def_access.effect.writes {
         return false;
     }
@@ -1673,7 +1713,7 @@ fn access_clobbers_location(
         return def_access.effect.writes;
     }
 
-    // check pointer-based aliasing
+    // check pointer based aliasing
     let Some(pointer_location) = location.as_pointer() else {
         return def_access.effect.writes;
     };
@@ -1750,7 +1790,7 @@ mod tests {
 
     /// Extract the pointer value from a location when available.
     fn pointer_from_location(location: &MemoryAccessLocation) -> Option<mir::Value> {
-        // unwrap pointer-backed locations
+        // unwrap pointer backed locations
         match location {
             MemoryAccessLocation::Pointer(location) => Some(location.ptr),
             _ => None,
@@ -1759,7 +1799,7 @@ mod tests {
 
     /// Extract the byte size from a location when available.
     fn size_from_location(location: &MemoryAccessLocation) -> Option<u64> {
-        // unwrap pointer-backed locations
+        // unwrap pointer backed locations
         match location {
             MemoryAccessLocation::Pointer(location) => location.size,
             _ => None,
@@ -1812,7 +1852,7 @@ block0(v0: ref<raw mut i32>):
         // load should depend on store
         assert_eq!(memory_ssa.defining_access(load_access), Some(store_access));
 
-        // store should depend on live-on-entry
+        // store should depend on live on entry
         assert_eq!(
             memory_ssa.defining_access(store_access),
             Some(memory_ssa.live_on_entry())
@@ -1867,7 +1907,7 @@ block3:
         assert_eq!(phi.incoming.len(), 2);
     }
 
-    /// MemorySSA uses alias analysis to skip non-aliasing defs.
+    /// MemorySSA uses alias analysis to skip non aliasing defs.
     #[test]
     fn test_memory_ssa_clobber_skips_noalias_def() {
         let program = TestProgram::new(
@@ -2551,7 +2591,7 @@ block0:
         ));
     }
 
-    /// Calls are modeled as unknown read-write effects.
+    /// Calls are modeled as unknown read write effects.
     #[test]
     fn test_memory_ssa_call_is_unknown_def() {
         let program = TestProgram::new(

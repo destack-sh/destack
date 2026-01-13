@@ -12,12 +12,11 @@ use super::result::{AliasResult, ModRefInfo, ParameterAttributes};
 
 /// Basic alias analysis using pointer provenance and offset tracking.
 ///
-/// This is the primary alias analysis that handles:
-/// - Pointer decomposition into base + offset
-/// - NoAlias from different identified bases (allocations, globals)
-/// - NoAlias from non-overlapping offsets within same base
-/// - NoAlias from noalias function parameters
-/// - MustAlias for identical pointers
+/// This is the primary alias analysis that handles pointer decomposition into base and offset.
+/// It returns NoAlias for different identified bases.
+/// It returns NoAlias for non overlapping offsets within the same base.
+/// It returns NoAlias for noalias function parameters.
+/// It returns MustAlias for identical pointers.
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(crate) struct BasicAA {
@@ -98,7 +97,7 @@ impl BasicAA {
             return AliasResult::NoAlias;
         }
 
-        // rule 3: same base, check offset-based aliasing
+        // rule 3: same base, check offset based aliasing
         if self.same_base(&ptr_a.base, &ptr_b.base) {
             return self.same_base_alias(&ptr_a, loc_a, &ptr_b, loc_b);
         }
@@ -230,7 +229,7 @@ impl BasicAA {
         }
 
         // with variable offsets, check if they're provably different
-        if self.var_offsets_disjoint(ptr_a, ptr_b) {
+        if self.var_offsets_disjoint(ptr_a, ptr_b, loc_a.size, loc_b.size) {
             return AliasResult::NoAlias;
         }
 
@@ -255,37 +254,50 @@ impl BasicAA {
     }
 
     /// Check if variable offsets are provably different.
-    fn var_offsets_disjoint(&self, ptr_a: &DecomposedPointer, ptr_b: &DecomposedPointer) -> bool {
-        // if same single variable index with same scale, check constant offset difference
-        if ptr_a.var_offsets.len() == 1
-            && ptr_b.var_offsets.len() == 1
-            && ptr_a.var_offsets[0].index == ptr_b.var_offsets[0].index
-            && ptr_a.var_offsets[0].scale == ptr_b.var_offsets[0].scale
-        {
-            // same index, different constant offsets
-            let scale = ptr_a.var_offsets[0].scale as i64;
-            let diff = (ptr_a.const_offset - ptr_b.const_offset).abs();
-            if diff > 0 && diff < scale {
-                // within same element but different constant offset
-                // this means they're at different byte positions
-                return true;
-            }
+    fn var_offsets_disjoint(
+        &self,
+        ptr_a: &DecomposedPointer,
+        ptr_b: &DecomposedPointer,
+        size_a: Option<u64>,
+        size_b: Option<u64>,
+    ) -> bool {
+        // require a single variable offset per pointer
+        if ptr_a.var_offsets.len() != 1 || ptr_b.var_offsets.len() != 1 {
+            return false;
         }
 
-        // check if indices are provably different constants
-        if ptr_a.var_offsets.len() == 1 && ptr_b.var_offsets.len() == 1 {
-            let idx_a = ptr_a.var_offsets[0].index;
-            let idx_b = ptr_b.var_offsets[0].index;
-            if let (Some(&c_a), Some(&c_b)) = (
-                self.function.constants.get(&idx_a),
-                self.function.constants.get(&idx_b),
-            ) && c_a != c_b
-            {
-                return true;
-            }
+        // require matching scale
+        let offset_a = &ptr_a.var_offsets[0];
+        let offset_b = &ptr_b.var_offsets[0];
+        if offset_a.scale != offset_b.scale {
+            return false;
         }
 
-        false
+        // require constant indices
+        let Some(&idx_a) = self.function.constants.get(&offset_a.index) else {
+            return false;
+        };
+        let Some(&idx_b) = self.function.constants.get(&offset_b.index) else {
+            return false;
+        };
+
+        // use explicit sizes or fall back to element scale
+        let size_a = size_a.or(Some(offset_a.scale));
+        let size_b = size_b.or(Some(offset_b.scale));
+        let (Some(size_a), Some(size_b)) = (size_a, size_b) else {
+            return false;
+        };
+
+        // compute byte offsets and compare ranges
+        let offset_a = ptr_a
+            .const_offset
+            .saturating_add(idx_a.saturating_mul(offset_a.scale as i64));
+        let offset_b = ptr_b
+            .const_offset
+            .saturating_add(idx_b.saturating_mul(offset_b.scale as i64));
+        let relation = range_relation(offset_a, size_a, offset_b, size_b);
+
+        matches!(relation, RangeRelation::Disjoint)
     }
 
     /// Get mod/ref info for an instruction relative to a memory location.
@@ -1072,7 +1084,7 @@ block0:
         let function = program.tree.get(function_id);
         let aa = BasicAA::build(function, &program.tree, false, None);
 
-        // v3 is outer.0.0, v4 is outer.1.0 - different top-level fields
+        // v3 is outer.0.0, v4 is outer.1.0, different top level fields
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));
         let loc4 = MemoryLocation::from_ptr(mir::Value::new(4));
 
