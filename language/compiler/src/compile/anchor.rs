@@ -48,7 +48,7 @@ impl DiagnosticAnchor {
             Self::DirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
                 let module = module.read();
-                let ast = module.ast.as_ref()?;
+                let ast = module.ast_maybe()?;
                 let local_id = anchored.local_id().id;
 
                 // look in profile-specific DIR if we have a profile
@@ -77,7 +77,7 @@ impl DiagnosticAnchor {
             Self::MirNode(anchored) => {
                 let module = program.modules.get(anchored.module_id());
                 let module = module.read();
-                let ast = module.ast.as_ref()?;
+                let ast = module.ast_maybe()?;
                 let mir = module.mir(&anchored.target_id);
                 let mir_tree = mir.tree.read();
 

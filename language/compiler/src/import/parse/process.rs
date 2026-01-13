@@ -13,7 +13,7 @@ impl Compiler {
         // check if already parsed
         {
             let module = module.read();
-            if module.ast.is_some() {
+            if module.ast_maybe().is_some() {
                 return Ok(());
             }
         }
@@ -76,7 +76,7 @@ impl Compiler {
         // update module with AST
         let mut module = module.write();
         let strings = StringPool::from_local(parser.strings);
-        module.ast = Some(ModuleAst::from_tree(
+        module.code_mut().ast = Some(ModuleAst::from_tree(
             module_id,
             module.version,
             parser.tree,

@@ -407,7 +407,9 @@ impl BasicAA {
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when args are not the only constraint
-        if !effects.locations.contains(mir::MemoryLocationSet::ARGUMENTS)
+        if !effects
+            .locations
+            .contains(mir::MemoryLocationSet::ARGUMENTS)
             && let Some(location_set) = self.location_set_for_location(loc, tree)
             && !effects.locations.contains(location_set)
         {

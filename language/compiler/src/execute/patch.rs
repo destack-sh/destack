@@ -125,7 +125,7 @@ impl Compiler {
         // resolve the source span for the comptime expression
         let module = self.program.modules.get(module_id);
         let module = module.read();
-        let ast = module.ast.as_ref()?;
+        let ast = module.ast_maybe()?;
         let source_id = tree.get_source(expression_id.id);
         let span = ast.tree.get_span_by_id(source_id);
         if span.is_empty() {

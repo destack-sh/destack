@@ -70,7 +70,7 @@ impl Session {
         module: &'a Module,
         profile: ProfileId,
     ) -> Option<QueryContext<'a>> {
-        let ast = module.ast.as_ref()?;
+        let ast = module.ast_maybe()?;
         let dir = module.dir_maybe(profile)?;
         Some(QueryContext {
             ast,

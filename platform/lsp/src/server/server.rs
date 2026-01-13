@@ -1424,7 +1424,7 @@ fn format_file(
     // try to use module's pre-parsed AST
     if let Some(module_lock) = query::get_module_by_file_id(session, file_id) {
         let module = module_lock.read();
-        if let Some(ast) = &module.ast {
+        if let Some(ast) = module.ast_maybe() {
             let side_span = Parser::compute_side_span_from_tree(&ast.tree);
             let strings = ast.strings.clone().into_immutable();
             let context = DestackFormatContext {

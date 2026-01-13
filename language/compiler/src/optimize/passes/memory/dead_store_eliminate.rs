@@ -592,13 +592,8 @@ fn store_is_postdominated_by_clobber(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     constants: &HashMap<mir::Value, i64>,
 ) -> bool {
-    let mut decomposer = PointerDecomposer::new(
-        constants,
-        definitions,
-        tree,
-        &function.parameters,
-        false,
-    );
+    let mut decomposer =
+        PointerDecomposer::new(constants, definitions, tree, &function.parameters, false);
 
     // search for clobbering defs that postdominate the store
     for def in def_accesses {

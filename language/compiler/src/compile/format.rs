@@ -34,6 +34,7 @@ impl DiagnosticFormat for GlobalTypeId {
         } else {
             // #Cleanup: fall back to any available profile in diagnostic format?
             module
+                .code()
                 .dirs
                 .iter()
                 .find_map(|dir| dir.profile_id)

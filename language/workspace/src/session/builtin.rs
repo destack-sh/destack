@@ -14,8 +14,8 @@ use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, Packa
 use indexmap::IndexMap;
 
 use crate::{
-    Module, ModuleRegistry, ModuleSource, ModuleType, Package, PackageKind, PackageRegistry,
-    ProfileKey,
+    Module, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry, ProfileKey,
+    SourceType,
 };
 
 /// A symbol group containing type and value space entries.
@@ -307,7 +307,7 @@ impl Builtins {
                 None,
                 BUILTIN_PACKAGE_ID,
                 None,
-                ModuleType::Module,
+                SourceType::Module,
                 language_type,
                 ModuleSource::Builtin(BuiltinLibKind::Core),
             );
@@ -632,7 +632,7 @@ impl Builtins {
             None,
             BUILTIN_PACKAGE_ID,
             None,
-            ModuleType::Module,
+            SourceType::Module,
             language_type,
             ModuleSource::Builtin(kind),
         );

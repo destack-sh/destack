@@ -11,8 +11,10 @@ impl Compiler {
         // initialize DIR
         {
             let mut module = module.write();
-            module.dir_base = Some(ModuleDir::new_base(module.id, module.version));
-            module.dirs.clear();
+            let (module_id, module_version) = (module.id, module.version);
+            let code = module.code_mut();
+            code.dir_base = Some(ModuleDir::new_base(module_id, module_version));
+            code.dirs.clear();
         }
 
         // bind module roots

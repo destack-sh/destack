@@ -593,7 +593,7 @@ impl Compiler {
 
             // import meta: statically known type
             Expression::ImportMeta => {
-                if module.module_type.is_script() {
+                if module.source_type.is_script() {
                     self.error(AnalyzeError::InvalidImportMeta {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
@@ -612,7 +612,7 @@ impl Compiler {
                     && let Some(ty_id) = types.get_value_type_id(this_symbol)
                 {
                     ty_id
-                } else if module.module_type.is_module() {
+                } else if module.source_type.is_module() {
                     let ty = Type::TypeLiteral {
                         value: TypeLiteral::Undefined,
                     };

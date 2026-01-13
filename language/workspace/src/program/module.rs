@@ -8,7 +8,7 @@ use destack_builtin::BuiltinLibKind;
 use destack_source::{FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri};
 
 use crate::{
-    ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ModuleType, ProfileId, TargetId, TsConfigId,
+    ModuleAst, ModuleComptime, ModuleDir, ModuleMir, ProfileId, SourceType, TargetId, TsConfigId,
 };
 
 /// The source/origin of a module.
@@ -18,6 +18,54 @@ pub enum ModuleSource {
     User,
     /// Builtin library code (core, std, or lib).
     Builtin(BuiltinLibKind),
+}
+
+/// The type of module content.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+pub enum ModuleType {
+    /// Code module (Destack, TypeScript, JavaScript).
+    #[default]
+    Code,
+    /// Data module (JSON, TOML, YAML).
+    Data,
+    /// Text module (plain text, markdown, etc.).
+    Text,
+    /// Binary module (images, fonts, wasm, etc.).
+    Binary,
+}
+
+/// Code-specific module data (AST, DIR, MIR).
+#[derive(Debug, Default)]
+pub struct ModuleCode {
+    /// The AST-level module data (syntactic). None until Import phase completes.
+    pub ast: Option<ModuleAst>,
+    /// The base DIR-level module data (bind-only, profile-independent).
+    pub dir_base: Option<ModuleDir>,
+    /// The DIR-level module data per profile (semantic, profile-dependent).
+    pub dirs: Vec<ModuleDir>,
+    /// Comptime results per profile.
+    pub comptimes: Vec<ModuleComptime>,
+    /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
+    pub mirs: Vec<ModuleMir>,
+}
+
+/// The content of a module.
+#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
+pub enum ModuleContent {
+    /// Code module with AST, DIR, MIR.
+    Code(ModuleCode),
+    /// Data module (JSON, TOML, YAML) with parsed value.
+    Data {
+        source: String,
+        value: serde_json::Value,
+    },
+    /// Text module (plain string content).
+    Text { content: String },
+    /// Binary module (raw bytes).
+    Binary { bytes: Vec<u8> },
+    /// Content not yet loaded.
+    Unloaded,
 }
 
 /// A Module is a single source unit.
@@ -41,30 +89,20 @@ pub struct Module {
     /// The tsconfig of the Module (if any).
     pub tsconfig_id: Option<TsConfigId>,
     /// The source type of the Module (Script vs Module).
-    pub module_type: ModuleType,
+    pub source_type: SourceType,
     /// The language type of the Module (Destack, TypeScript, JavaScript, etc.).
     pub language_type: LanguageType,
     /// The source/origin of the module (user code or builtin).
     pub source: ModuleSource,
-
-    // NOTE #Architecture: module state is globally shared in Module/ModuleRegistry/Program/Workspace
-    //  (dependencies and incrementalism work via compiler Task dependencies and explicit *Versions;
-    //   there are significant trade-offs here with fine granularity vs predictable access patterns)
-    /// The AST-level module data (syntactic). None until Import phase completes.
-    pub ast: Option<ModuleAst>,
-    /// The base DIR-level module data (bind-only, profile-independent).
-    pub dir_base: Option<ModuleDir>,
-    /// The DIR-level module data per profile (semantic, profile-dependent).
-    pub dirs: Vec<ModuleDir>,
-    /// Comptime results per profile.
-    pub comptimes: Vec<ModuleComptime>,
-    /// The MIR-level module data (target-specific). One per target, populated by Lower phase.
-    pub mirs: Vec<ModuleMir>,
+    /// The type of module content (Code, Data, Text, Binary).
+    pub module_type: ModuleType,
+    /// The module content (code-specific data, or data/text/binary content).
+    pub content: ModuleContent,
 }
 
 #[allow(clippy::too_many_arguments)]
 impl Module {
-    /// Create a new blank Module (no AST yet, will be populated by Import).
+    /// Create a new blank code Module (no AST yet, will be populated by Import).
     pub fn blank(
         id: ModuleId,
         file_id: FileId,
@@ -73,7 +111,7 @@ impl Module {
         path: Option<PathBuf>,
         package_id: PackageId,
         tsconfig_id: Option<TsConfigId>,
-        module_type: ModuleType,
+        source_type: SourceType,
         language_type: LanguageType,
         source: ModuleSource,
     ) -> Self {
@@ -86,18 +124,15 @@ impl Module {
             path,
             package_id,
             tsconfig_id,
-            module_type,
+            source_type,
             language_type,
             source,
-            ast: None,
-            dir_base: None,
-            dirs: Vec::new(),
-            comptimes: Vec::new(),
-            mirs: Vec::new(),
+            module_type: ModuleType::Code,
+            content: ModuleContent::Code(ModuleCode::default()),
         }
     }
 
-    /// Create a new Module from an AST.
+    /// Create a new code Module from an AST.
     pub fn from_ast(
         id: ModuleId,
         file_id: FileId,
@@ -106,7 +141,7 @@ impl Module {
         path: Option<PathBuf>,
         package_id: PackageId,
         tsconfig_id: Option<TsConfigId>,
-        module_type: ModuleType,
+        source_type: SourceType,
         language_type: LanguageType,
         source: ModuleSource,
         ast: ModuleAst,
@@ -120,14 +155,17 @@ impl Module {
             path,
             package_id,
             tsconfig_id,
-            module_type,
+            source_type,
             language_type,
             source,
-            ast: Some(ast),
-            dir_base: None,
-            dirs: Vec::new(),
-            comptimes: Vec::new(),
-            mirs: Vec::new(),
+            module_type: ModuleType::Code,
+            content: ModuleContent::Code(ModuleCode {
+                ast: Some(ast),
+                dir_base: None,
+                dirs: Vec::new(),
+                comptimes: Vec::new(),
+                mirs: Vec::new(),
+            }),
         }
     }
 
@@ -143,67 +181,117 @@ impl Module {
         matches!(self.source, ModuleSource::Builtin(_))
     }
 
+    /// Whether this module is a code module.
+    #[inline]
+    pub fn is_code(&self) -> bool {
+        matches!(self.content, ModuleContent::Code(_))
+    }
+
+    /// Get the code-specific data.
+    ///
+    /// # Panics
+    /// Panics if this is not a code module.
+    #[inline]
+    pub fn code(&self) -> &ModuleCode {
+        match &self.content {
+            ModuleContent::Code(code) => code,
+            _ => panic!("not a code module: {self:?}"),
+        }
+    }
+
+    /// Get the code-specific data mutably.
+    ///
+    /// # Panics
+    /// Panics if this is not a code module.
+    #[inline]
+    pub fn code_mut(&mut self) -> &mut ModuleCode {
+        match &mut self.content {
+            ModuleContent::Code(code) => code,
+            _ => panic!("not a code module"),
+        }
+    }
+
     /// Get the AST.
     ///
     /// # Panics
-    /// Panics if called before Import phase completes.
+    /// Panics if called before Import phase completes or if not a code module.
     #[inline]
     pub fn ast(&self) -> &ModuleAst {
-        self.ast.as_ref().expect("no AST on {self:?}")
+        self.code().ast.as_ref().expect("no AST on module")
     }
 
     /// Get the AST mutably.
     ///
     /// # Panics
-    /// Panics if called before Import phase completes.
+    /// Panics if called before Import phase completes or if not a code module.
     #[inline]
     pub fn ast_mut(&mut self) -> &mut ModuleAst {
-        self.ast.as_mut().expect("no AST on {self:?}")
+        self.code_mut().ast.as_mut().expect("no AST on module")
+    }
+
+    /// Get the AST if it exists.
+    #[inline]
+    pub fn ast_maybe(&self) -> Option<&ModuleAst> {
+        match &self.content {
+            ModuleContent::Code(code) => code.ast.as_ref(),
+            _ => None,
+        }
     }
 
     /// Get the base DIR.
     ///
     /// # Panics
-    /// Panics if called before Bind phase completes.
+    /// Panics if called before Bind phase completes or if not a code module.
     #[inline]
     pub fn dir_base(&self) -> &ModuleDir {
-        self.dir_base.as_ref().expect("no base DIR on {self:?}")
+        self.code()
+            .dir_base
+            .as_ref()
+            .expect("no base DIR on module")
     }
 
     /// Get the base DIR mutably.
     ///
     /// # Panics
-    /// Panics if called before Bind phase completes.
+    /// Panics if called before Bind phase completes or if not a code module.
     #[inline]
     pub fn dir_base_mut(&mut self) -> &mut ModuleDir {
-        self.dir_base.as_mut().expect("no base DIR on {self:?}")
+        self.code_mut()
+            .dir_base
+            .as_mut()
+            .expect("no base DIR on module")
     }
 
     /// Get the base DIR if it exists.
     #[inline]
     pub fn dir_base_maybe(&self) -> Option<&ModuleDir> {
-        self.dir_base.as_ref()
+        match &self.content {
+            ModuleContent::Code(code) => code.dir_base.as_ref(),
+            _ => None,
+        }
     }
 
     /// Get the DIR for a profile.
     ///
     /// # Panics
-    /// Panics if called before Resolve phase completes for the profile.
+    /// Panics if called before Resolve phase completes for the profile or if not a code module.
     #[inline]
     pub fn dir(&self, profile: ProfileId) -> &ModuleDir {
-        self.dirs
+        self.code()
+            .dirs
             .iter()
             .find(|dir| dir.profile_id == Some(profile))
-            .unwrap_or_else(|| panic!("no DIR for profile {profile:?} on {self:?}"))
+            .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
     }
 
     /// Get the DIR for a profile mutably.
     ///
     /// # Panics
-    /// Panics if called before Resolve phase completes for the profile.
+    /// Panics if called before Resolve phase completes for the profile or if not a code module.
     #[inline]
     pub fn dir_mut(&mut self, profile: ProfileId) -> &mut ModuleDir {
-        self.dirs
+        self.code_mut()
+            .dirs
             .iter_mut()
             .find(|dir| dir.profile_id == Some(profile))
             .unwrap_or_else(|| panic!("no DIR for profile {profile:?}"))
@@ -212,16 +300,22 @@ impl Module {
     /// Get the DIR for a profile if it exists.
     #[inline]
     pub fn dir_maybe(&self, profile: ProfileId) -> Option<&ModuleDir> {
-        self.dirs.iter().find(|dir| dir.profile_id == Some(profile))
+        match &self.content {
+            ModuleContent::Code(code) => {
+                code.dirs.iter().find(|dir| dir.profile_id == Some(profile))
+            }
+            _ => None,
+        }
     }
 
     /// Get the comptime results for a profile.
     ///
     /// # Panics
-    /// Panics if called before Execute phase completes for the profile.
+    /// Panics if called before Execute phase completes for the profile or if not a code module.
     #[inline]
     pub fn comptime(&self, profile: ProfileId) -> &ModuleComptime {
-        self.comptimes
+        self.code()
+            .comptimes
             .iter()
             .find(|comptime| comptime.profile_id == profile)
             .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
@@ -230,10 +324,11 @@ impl Module {
     /// Get the comptime results for a profile mutably.
     ///
     /// # Panics
-    /// Panics if called before Execute phase completes for the profile.
+    /// Panics if called before Execute phase completes for the profile or if not a code module.
     #[inline]
     pub fn comptime_mut(&mut self, profile: ProfileId) -> &mut ModuleComptime {
-        self.comptimes
+        self.code_mut()
+            .comptimes
             .iter_mut()
             .find(|comptime| comptime.profile_id == profile)
             .unwrap_or_else(|| panic!("no comptime results for profile {profile:?}"))
@@ -242,18 +337,23 @@ impl Module {
     /// Get the comptime results for a profile if they exist.
     #[inline]
     pub fn comptime_maybe(&self, profile: ProfileId) -> Option<&ModuleComptime> {
-        self.comptimes
-            .iter()
-            .find(|comptime| comptime.profile_id == profile)
+        match &self.content {
+            ModuleContent::Code(code) => code
+                .comptimes
+                .iter()
+                .find(|comptime| comptime.profile_id == profile),
+            _ => None,
+        }
     }
 
     /// Get the MIR for a target.
     ///
     /// # Panics
-    /// Panics if called before Lower phase completes.
+    /// Panics if called before Lower phase completes or if not a code module.
     #[inline]
     pub fn mir(&self, target: &TargetId) -> &ModuleMir {
-        self.mirs
+        self.code()
+            .mirs
             .iter()
             .find(|mir| &mir.target == target)
             .unwrap_or_else(|| panic!("no MIR for target {target:?}"))
@@ -262,10 +362,11 @@ impl Module {
     /// Get the MIR for a target mutably.
     ///
     /// # Panics
-    /// Panics if called before Lower phase completes.
+    /// Panics if called before Lower phase completes or if not a code module.
     #[inline]
     pub fn mir_mut(&mut self, target: &TargetId) -> &mut ModuleMir {
-        self.mirs
+        self.code_mut()
+            .mirs
             .iter_mut()
             .find(|mir| &mir.target == target)
             .unwrap_or_else(|| panic!("no MIR for target {target:?}"))

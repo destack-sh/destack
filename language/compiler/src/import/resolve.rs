@@ -10,7 +10,7 @@ use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
 use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
-use destack_workspace::{Module, ModuleSource, ModuleType, Package, PackageKind};
+use destack_workspace::{Module, ModuleSource, Package, PackageKind, SourceType};
 
 use crate::{Compiler, ImportError, ImportResult};
 
@@ -228,7 +228,7 @@ impl Compiler {
 
         // create and register blank module
         let module_id = ModuleId::from_path(package_id, path, package_root.as_deref());
-        let module_type = ModuleType::from_extension(path).unwrap_or(ModuleType::Script);
+        let source_type = SourceType::from_extension(path).unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
         let module = Module::blank(
             module_id,
@@ -238,7 +238,7 @@ impl Compiler {
             Some(path.clone()),
             package_id,
             tsconfig_id,
-            module_type,
+            source_type,
             language_type,
             ModuleSource::User,
         );

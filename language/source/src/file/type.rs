@@ -3,6 +3,7 @@ use std::path::Path;
 /// The format of a source file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FileType {
+    // code
     /// `.ds`
     Destack,
     /// `.d.ds`
@@ -11,7 +12,6 @@ pub enum FileType {
     DestackText,
     /// `.dsb`
     DestackBinary,
-
     /// `.js`
     JavaScript,
     /// `.jsx`
@@ -23,29 +23,67 @@ pub enum FileType {
     /// `.d.ts`
     TypeScriptDeclaration,
 
-    /// Text.
+    // data
+    /// `.txt`
     Text,
-    /// Toml,
+    /// `.toml`
     Toml,
-    /// Yaml.
+    /// `.yaml`, `.yml`
     Yaml,
-    /// Json.
+    /// `.json`
     Json,
-    /// Html.
-    Html,
-    /// Markdown.
-    Markdown,
-    /// Wasm.
-    Wasm,
-    /// Node.
-    Node,
+    /// `.env`
+    Env,
 
-    /// Source map (.map).
+    // markup/styling
+
+    /// `.html`, `.htm`
+    Html,
+    /// `.md`
+    Markdown,
+    /// `.css`
+    Css,
+    /// `.svg`
+    Svg,
+
+    // binary/system
+    /// `.wasm`
+    Wasm,
+    /// `.node`
+    Node,
+    /// Source map `.map`
     SourceMap,
-    /// Object file (.o).
+    /// Object file `.o`
     Object,
 
-    /// Unknown.
+    // compiler artifacts
+    /// `.ast` - Destack AST cache
+    DestackAst,
+    /// `.dir` - Destack DIR cache
+    DestackDir,
+    /// `.mir` - Destack MIR cache
+    DestackMir,
+
+    // media: coarse categories (pass-through)
+    /// Image files (png, jpg, gif, webp, avif, ico, bmp, tiff, dds, tga, exr, hdr, psd)
+    Image,
+    /// Font files (woff, woff2, ttf, otf, eot)
+    Font,
+    /// Audio files (mp3, wav, ogg, flac, aac, m4a, opus, mid, midi)
+    Audio,
+    /// Video files (mp4, webm, mov, avi, mkv, flv)
+    Video,
+    /// 3D model files (gltf, glb, obj, fbx, dae, stl, blend, 3ds)
+    Model,
+    /// AI/ML model weights (onnx, safetensors, pt, pth, h5, tflite, mlmodel, gguf, ggml)
+    Neural,
+    /// Document files (pdf, doc, docx, xls, xlsx, ppt, pptx, odt, ods, odp, rtf, epub, mobi)
+    Document,
+
+    // fallback
+    /// Binary (unknown binary format).
+    Binary,
+    /// Unknown file type.
     Unknown,
 }
 
@@ -53,28 +91,68 @@ impl FileType {
     /// Get a source format from a file extension.
     pub fn from_extension(s: &str) -> Option<Self> {
         let ty = match s {
+            // destack
             "ds" => FileType::Destack,
             "d.ds" => FileType::DestackDeclaration,
             "dst" => FileType::DestackText,
             "dsb" => FileType::DestackBinary,
 
-            "js" => FileType::JavaScript,
-            "mjs" => FileType::JavaScript,
-            "cjs" => FileType::JavaScript,
+            // javascript/typescript
+            "js" | "mjs" | "cjs" => FileType::JavaScript,
             "jsx" => FileType::JavaScriptXml,
-            "ts" => FileType::TypeScript,
+            "ts" | "mts" | "cts" => FileType::TypeScript,
             "tsx" => FileType::TypeScriptXml,
             "d.ts" => FileType::TypeScriptDeclaration,
 
+            // data formats
             "txt" => FileType::Text,
             "toml" => FileType::Toml,
-            "yaml" => FileType::Yaml,
+            "yaml" | "yml" => FileType::Yaml,
             "json" => FileType::Json,
-            "html" => FileType::Html,
+            "env" => FileType::Env,
+
+            // markup/styling
+            "html" | "htm" => FileType::Html,
+            "md" => FileType::Markdown,
+            "css" => FileType::Css,
+            "svg" => FileType::Svg,
+
+            // binary/system
             "wasm" => FileType::Wasm,
             "node" => FileType::Node,
             "map" => FileType::SourceMap,
             "o" => FileType::Object,
+
+            // compiler artifacts
+            "ast" => FileType::DestackAst,
+            "dir" => FileType::DestackDir,
+            "mir" => FileType::DestackMir,
+
+            // images
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "avif" | "ico" | "bmp" | "tiff" | "tif"
+            | "dds" | "tga" | "exr" | "hdr" | "psd" => FileType::Image,
+
+            // fonts
+            "woff" | "woff2" | "ttf" | "otf" | "eot" => FileType::Font,
+
+            // audio
+            "mp3" | "wav" | "ogg" | "flac" | "aac" | "m4a" | "opus" | "mid" | "midi" => {
+                FileType::Audio
+            }
+
+            // video
+            "mp4" | "webm" | "mov" | "avi" | "mkv" | "flv" => FileType::Video,
+
+            // 3D models
+            "gltf" | "glb" | "obj" | "fbx" | "dae" | "stl" | "blend" | "3ds" => FileType::Model,
+
+            // AI/ML weights
+            "onnx" | "safetensors" | "pt" | "pth" | "h5" | "tflite" | "mlmodel" | "gguf"
+            | "ggml" => FileType::Neural,
+
+            // documents
+            "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "odt" | "ods" | "odp"
+            | "rtf" | "epub" | "mobi" | "pages" | "numbers" | "keynote" => FileType::Document,
 
             _ => return None,
         };
@@ -112,62 +190,166 @@ impl FileType {
 
 impl FileType {
     /// Get the file extension for a source format.
+    ///
+    /// For coarse categories (Image, Font, etc.) returns None since they map to multiple extensions.
     pub fn extension(&self) -> Option<&str> {
         let extension = match self {
+            // destack
             FileType::Destack => "ds",
             FileType::DestackDeclaration => "d.ds",
             FileType::DestackText => "dst",
             FileType::DestackBinary => "dsb",
 
+            // javascript/typescript
             FileType::JavaScript => "js",
             FileType::JavaScriptXml => "jsx",
             FileType::TypeScript => "ts",
             FileType::TypeScriptXml => "tsx",
             FileType::TypeScriptDeclaration => "d.ts",
 
+            // data formats
             FileType::Text => "txt",
             FileType::Toml => "toml",
             FileType::Yaml => "yaml",
             FileType::Json => "json",
+            FileType::Env => "env",
+
+            // markup/styling
             FileType::Html => "html",
             FileType::Markdown => "md",
+            FileType::Css => "css",
+            FileType::Svg => "svg",
+
+            // binary/system
             FileType::Wasm => "wasm",
             FileType::Node => "node",
             FileType::SourceMap => "map",
             FileType::Object => "o",
 
-            FileType::Unknown => return None,
+            // compiler artifacts
+            FileType::DestackAst => "ast",
+            FileType::DestackDir => "dir",
+            FileType::DestackMir => "mir",
+
+            // coarse categories have no single extension
+            FileType::Image
+            | FileType::Font
+            | FileType::Audio
+            | FileType::Video
+            | FileType::Model
+            | FileType::Neural
+            | FileType::Document
+            | FileType::Binary
+            | FileType::Unknown => return None,
         };
         Some(extension)
     }
 
     /// Get the glob pattern for a source format.
+    ///
+    /// For coarse categories returns None since they map to multiple extensions.
     pub fn glob(&self) -> Option<&str> {
-        let extension = match self {
+        let pattern = match self {
+            // destack
             FileType::Destack => "**/*.ds",
             FileType::DestackDeclaration => "**/*.d.ds",
             FileType::DestackText => "**/*.dst",
             FileType::DestackBinary => "**/*.dsb",
 
+            // javascript/typescript
             FileType::JavaScript => "**/*.js",
             FileType::JavaScriptXml => "**/*.jsx",
             FileType::TypeScript => "**/*.ts",
             FileType::TypeScriptXml => "**/*.tsx",
             FileType::TypeScriptDeclaration => "**/*.d.ts",
 
+            // data formats
             FileType::Text => "**/*.txt",
             FileType::Toml => "**/*.toml",
             FileType::Yaml => "**/*.yaml",
             FileType::Json => "**/*.json",
+            FileType::Env => "**/*.env",
+
+            // markup/styling
             FileType::Html => "**/*.html",
             FileType::Markdown => "**/*.md",
+            FileType::Css => "**/*.css",
+            FileType::Svg => "**/*.svg",
+
+            // binary/system
             FileType::Wasm => "**/*.wasm",
             FileType::Node => "**/*.node",
             FileType::SourceMap => "**/*.map",
             FileType::Object => "**/*.o",
 
-            FileType::Unknown => return None,
+            // compiler artifacts
+            FileType::DestackAst => "**/*.ast",
+            FileType::DestackDir => "**/*.dir",
+            FileType::DestackMir => "**/*.mir",
+
+            // coarse categories have no single glob pattern
+            FileType::Image
+            | FileType::Font
+            | FileType::Audio
+            | FileType::Video
+            | FileType::Model
+            | FileType::Neural
+            | FileType::Document
+            | FileType::Binary
+            | FileType::Unknown => return None,
         };
-        Some(extension)
+        Some(pattern)
+    }
+
+    /// Whether this file type is a code file (can be parsed as code).
+    pub fn is_code(&self) -> bool {
+        matches!(
+            self,
+            FileType::Destack
+                | FileType::DestackDeclaration
+                | FileType::JavaScript
+                | FileType::JavaScriptXml
+                | FileType::TypeScript
+                | FileType::TypeScriptXml
+                | FileType::TypeScriptDeclaration
+        )
+    }
+
+    /// Whether this file type is a data file (JSON, TOML, YAML, etc.).
+    pub fn is_data(&self) -> bool {
+        matches!(
+            self,
+            FileType::Json | FileType::Toml | FileType::Yaml | FileType::Env
+        )
+    }
+
+    /// Whether this file type is a text file.
+    pub fn is_text(&self) -> bool {
+        matches!(
+            self,
+            FileType::Text | FileType::Markdown | FileType::Html | FileType::Css | FileType::Svg
+        )
+    }
+
+    /// Whether this file type is a binary file.
+    pub fn is_binary(&self) -> bool {
+        matches!(
+            self,
+            FileType::Wasm
+                | FileType::Node
+                | FileType::Object
+                | FileType::DestackBinary
+                | FileType::DestackAst
+                | FileType::DestackDir
+                | FileType::DestackMir
+                | FileType::Image
+                | FileType::Font
+                | FileType::Audio
+                | FileType::Video
+                | FileType::Model
+                | FileType::Neural
+                | FileType::Document
+                | FileType::Binary
+        )
     }
 }

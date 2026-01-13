@@ -33,6 +33,7 @@ impl Compiler {
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
         if module
+            .code()
             .dirs
             .iter()
             .any(|dir| dir.profile_id == Some(profile_id))
@@ -67,7 +68,7 @@ impl Compiler {
         // create the profile dir and attach import meta
         let mut dir = ModuleDir::from_base(base, profile_id);
         dir.import_meta = Some(import_meta);
-        module.dirs.push(dir);
+        module.code_mut().dirs.push(dir);
 
         // build export table from bound declarations
         let dir = module.dir(profile_id);
