@@ -450,6 +450,7 @@ impl_dump_display! {
     FunctionMode,
     IfKind,
     LoopKind,
+    MatchKind,
     MatchSource,
     Mutability,
     ReferenceType,
@@ -1289,6 +1290,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
             Expression::Match {
+                kind,
                 value: _,
                 cases: _,
                 source,
@@ -1296,6 +1298,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 symbol,
             } => {
                 self.node("Expression::Match", id.id)
+                    .field("kind", kind)
                     .field("source", source)
                     .field("scope", scope)
                     .field("symbol", symbol)

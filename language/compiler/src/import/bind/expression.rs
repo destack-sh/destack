@@ -2,8 +2,8 @@ use destack_ast::{self as ast};
 use destack_dir::{
     DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachBinding,
     ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind,
-    MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
+    MatchKind, MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
     TypePredicateSubject, TypeTable, YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
@@ -1696,11 +1696,7 @@ impl Compiler {
                     symbol: symbol_id,
                 }
             }
-            ast::Expression::Match {
-                kind: _,
-                value,
-                cases,
-            } => {
+            ast::Expression::Match { kind, value, cases } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -1735,7 +1731,12 @@ impl Compiler {
                         )
                     })
                     .collect();
+                let kind = match *kind {
+                    ast::MatchKind::Match => MatchKind::Match,
+                    ast::MatchKind::Switch => MatchKind::Switch,
+                };
                 Expression::Match {
+                    kind,
                     value,
                     cases,
                     source: MatchSource::Match,

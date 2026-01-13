@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, FlowContext, InferContext};
+use crate::{
+    AnalyzeError, AnalyzeResult, Assignability, BreakTargetKind, Compiler, FlowContext,
+    InferContext,
+};
 use destack_dir::{
     Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
     ForEachBinding, FunctionKind, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, MatchCase, MatchSelector, MatchSource, Mutability, NodeTree,
-    NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable, Type,
-    TypeElement, TypeField, TypeLiteral, TypeTable,
+    LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability,
+    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
+    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1067,8 +1070,9 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             }
 
-            // match: union of case result types
+            // match/switch: infer case result types
             Expression::Match {
+                kind,
                 value,
                 cases,
                 source,
@@ -1077,12 +1081,18 @@ impl Compiler {
             } => {
                 let value_ty_id =
                     self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
-                let mut ctx = if *source == MatchSource::Match {
-                    ctx.fork().in_match(expression_id.into_any())
-                } else {
-                    ctx.fork()
-                };
-                let mut result_ty_id = None;
+
+                // match and switch set different break contexts
+                let mut ctx = ctx.fork();
+                if *source == MatchSource::Match {
+                    if *kind == MatchKind::Match {
+                        ctx = ctx.in_match(expression_id.into_any());
+                    } else {
+                        ctx = ctx.in_switch(expression_id.into_any());
+                    }
+                }
+                let is_switch = *kind == MatchKind::Switch;
+                let mut case_type_ids = Vec::new();
                 for case_id in cases {
                     let case = tree.get(*case_id);
                     let (selector, body_expr, block_body) = match case {
@@ -1099,17 +1109,39 @@ impl Compiler {
                     };
                     // infer pattern and guard from selector
                     if let MatchSelector::Pattern { pattern, guard } = selector {
-                        self.infer_pattern(
-                            module,
-                            *pattern,
-                            Some(value_ty_id),
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            &mut ctx,
-                        )?;
-                        if let Some(guard_expr) = guard {
+                        let mut allow_pattern_infer = true;
+                        if is_switch {
+                            if guard.is_some() {
+                                self.error(AnalyzeError::InvalidSwitchCaseGuard {
+                                    node: case_id
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(ctx.profile)),
+                                });
+                            }
+                            if !matches!(tree.get(*pattern), Pattern::Expression { .. }) {
+                                self.error(AnalyzeError::InvalidSwitchCasePattern {
+                                    node: pattern
+                                        .into_global_any(module.id)
+                                        .into_anchored(Some(ctx.profile)),
+                                });
+                                allow_pattern_infer = false;
+                            }
+                        }
+                        if allow_pattern_infer {
+                            self.infer_pattern(
+                                module,
+                                *pattern,
+                                Some(value_ty_id),
+                                tree,
+                                symbols,
+                                types,
+                                infer,
+                                &mut ctx,
+                            )?;
+                        }
+                        if let Some(guard_expr) = guard
+                            && !is_switch
+                        {
                             self.infer_expression(
                                 module,
                                 *guard_expr,
@@ -1123,11 +1155,16 @@ impl Compiler {
                     }
 
                     // apply contextual typing to the case body
-                    let mut case_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                    let expected_type = if *kind == MatchKind::Match {
+                        ctx.expected_type
+                    } else {
+                        None
+                    };
+                    let mut case_ctx = ctx.fork().with_expected_type(expected_type);
 
-                    // default selector has no pattern or guard to infer
-                    if let Some(expr) = body_expr {
-                        let case_ty_id = self.infer_expression(
+                    // infer the case body and collect types for matches
+                    let case_ty_id = if let Some(expr) = body_expr {
+                        Some(self.infer_expression(
                             module,
                             expr,
                             tree,
@@ -1135,15 +1172,9 @@ impl Compiler {
                             types,
                             infer,
                             &mut case_ctx,
-                        )?;
-                        if result_ty_id.is_none() {
-                            result_ty_id = Some(case_ty_id);
-                        }
-                    }
-
-                    // body
-                    if let Some(body) = block_body {
-                        self.infer_block(
+                        )?)
+                    } else if let Some(body) = block_body {
+                        Some(self.infer_block(
                             module,
                             body,
                             tree,
@@ -1151,17 +1182,36 @@ impl Compiler {
                             types,
                             infer,
                             &mut case_ctx,
-                        )?;
+                        )?)
+                    } else {
+                        None
+                    };
+                    if let Some(case_ty_id) = case_ty_id
+                        && !is_switch
+                    {
+                        case_type_ids.push(case_ty_id);
                     }
-
-                    // #Incomplete: compute union of case types
                 }
-                result_ty_id.unwrap_or_else(|| {
+                if *kind == MatchKind::Switch {
                     let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Never,
+                        value: TypeLiteral::Void,
                     };
                     types.insert_type_from(ty, expression_id)
-                })
+                } else {
+                    match case_type_ids.len() {
+                        0 => {
+                            let ty = Type::TypeLiteral {
+                                value: TypeLiteral::Never,
+                            };
+                            types.insert_type_from(ty, expression_id)
+                        }
+                        1 => case_type_ids[0],
+                        _ => {
+                            let source_type_id = case_type_ids[0];
+                            self.union_type_from_list(case_type_ids, source_type_id, types)
+                        }
+                    }
+                }
             }
 
             // try: result type
@@ -1321,11 +1371,25 @@ impl Compiler {
             }
 
             // break: never
-            Expression::Break { target, target_symbol: _, value } => {
-                if !ctx.can_break() {
+            Expression::Break {
+                target,
+                target_symbol: _,
+                value,
+            } => {
+                let is_labelled = target.is_some();
+                if !is_labelled && !ctx.can_break() {
                     self.error(AnalyzeError::InvalidBreak {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                         label: *target,
+                    });
+                }
+                // determine the innermost break target
+                let break_target = ctx.break_stack.last().copied();
+                let is_switch_break =
+                    !is_labelled && matches!(break_target, Some(BreakTargetKind::Switch));
+                if is_switch_break && value.is_some() {
+                    self.error(AnalyzeError::InvalidSwitchBreakValue {
+                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
                 if let Some(val) = value {
@@ -1337,13 +1401,7 @@ impl Compiler {
                 };
                 types.insert_type_from(ty, expression_id)
             }
-            Expression::UnresolvedBreak { target, value } => {
-                if !ctx.can_break() {
-                    self.error(AnalyzeError::InvalidBreak {
-                        node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
-                        label: Some(*target),
-                    });
-                }
+            Expression::UnresolvedBreak { target: _, value } => {
                 if let Some(val) = value {
                     self.infer_expression(module, *val, tree, symbols, types, infer, ctx)?;
                 }
@@ -2076,7 +2134,29 @@ impl Compiler {
                 }
             }
             Pattern::Expression { value } => {
-                self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                let value_ty_id =
+                    self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+                // ensure the pattern expression is compatible with the binding type
+                if let Some(binding_ty_id) = binding_ty_id {
+                    let assignable = self.is_type_assignable(
+                        module,
+                        ctx.profile,
+                        symbols,
+                        binding_ty_id,
+                        value_ty_id,
+                        types,
+                        &ctx.options,
+                    );
+                    if !assignable.is_assignable() {
+                        self.error(AnalyzeError::UnassignableType {
+                            node: value
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                            expected_ty: binding_ty_id.into_global(module.id),
+                            actual_ty: value_ty_id.into_global(module.id),
+                        });
+                    }
+                }
             }
             Pattern::Range {
                 start,

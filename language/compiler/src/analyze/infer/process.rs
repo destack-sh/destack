@@ -155,8 +155,12 @@ impl Compiler {
                     },
                     source_id,
                 );
-                let array_type =
-                    types.insert_type_from_any(Type::Array { element: Some(element) }, source_id);
+                let array_type = types.insert_type_from_any(
+                    Type::Array {
+                        element: Some(element),
+                    },
+                    source_id,
+                );
                 types.set_value_type(default_symbol.into_global(module_id), array_type);
             }
             ModuleType::Code => {

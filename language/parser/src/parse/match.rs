@@ -122,12 +122,25 @@ impl Parser {
                 else {
                     self.eat_keyword(Keyword::Case)?;
                     let pattern = self.eat_pattern()?;
+                    // guard
+                    let guard = if self.peek_keyword(Keyword::If).is_ok() {
+                        self.eat_keyword(Keyword::If)?;
+                        let guard = self.with_options(
+                            ParserOptions {
+                                in_match_case: true,
+                                in_before_block: true,
+                                ..Default::default()
+                            },
+                            |parser| parser.eat_expression_parenthesized_maybe(),
+                        )?;
+                        Some(guard)
+                    } else {
+                        None
+                    };
+
                     self.eat_colon()?;
                     self.eat_newlines_maybe()?;
-                    MatchSelector::Pattern {
-                        pattern,
-                        guard: None,
-                    }
+                    MatchSelector::Pattern { pattern, guard }
                 }
             }
             // match-kind

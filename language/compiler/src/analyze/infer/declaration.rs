@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
-    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, Generics, GlobalSymbolId,
-    InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
-    ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type,
-    TypeLiteral, TypeTable, WhereClause,
+    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, Generics,
+    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral,
+    StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -911,24 +911,16 @@ impl Compiler {
                 mode,
                 ..
             } => {
-                // Check if we're importing from a non-code module
+                // check if we're importing from a non-code module
                 if let ModuleTarget::Module(target_module_id) = target_module {
                     let target = self.program.modules.get(*target_module_id);
                     let target = target.read();
-
-                    // Only handle data/text/binary module imports
-                    if !target.is_code() {
-                        // Only handle namespace imports (default imports from data modules)
-                        if *mode == DependencyMode::Namespace || *mode == DependencyMode::Default {
-                            let ty_id = self.infer_data_module_type(
-                                &target,
-                                item_id.into_any(),
-                                types,
-                            )?;
-                            // Set the type on the canonical symbol (the data module's default symbol)
-                            // This is what gets looked up when we access the imported binding
-                            types.set_value_type(*target_symbol, ty_id);
-                        }
+                    if !target.is_code()
+                        && (*mode == DependencyMode::Namespace || *mode == DependencyMode::Default)
+                    {
+                        let ty_id =
+                            self.infer_data_module_type(&target, item_id.into_any(), types)?;
+                        types.set_value_type(*target_symbol, ty_id);
                     }
                 }
             }

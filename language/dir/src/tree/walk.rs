@@ -717,6 +717,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 }
             }
             Expression::Match {
+                kind: _,
                 value,
                 cases,
                 source: _,

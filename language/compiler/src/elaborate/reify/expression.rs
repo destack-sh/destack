@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Expression, IfKind, LocalNodeId, NodeTree, SymbolTable, TypeBinaryOperator, TypeTable,
+    Expression, IfKind, LocalNodeId, MatchKind, NodeTree, SymbolTable, TypeBinaryOperator,
+    TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -183,17 +184,19 @@ impl Compiler {
                 )?;
             }
 
-            Expression::Match { cases, .. } => {
-                self.reify_implicit_casts_in_match(
-                    module_id,
-                    profile,
-                    expression_id,
-                    &cases,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+            Expression::Match { kind, cases, .. } => {
+                if kind == MatchKind::Match {
+                    self.reify_implicit_casts_in_match(
+                        module_id,
+                        profile,
+                        expression_id,
+                        &cases,
+                        tree,
+                        symbols,
+                        types,
+                        module,
+                    )?;
+                }
             }
 
             // operators to resolved method calls

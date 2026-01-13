@@ -760,10 +760,10 @@ impl Compiler {
                     ast::Expression::Try { try_expression, catch_pattern, catch_expression, finally_expression }
                 }
 
-                dir::Expression::Match { value, cases, source, .. } => {
-                    let kind = match source {
-                        dir::MatchSource::Match => ast::MatchKind::Match,
-                        _ => ast::MatchKind::Switch,
+                dir::Expression::Match { kind, value, cases, .. } => {
+                    let kind = match kind {
+                        dir::MatchKind::Match => ast::MatchKind::Match,
+                        dir::MatchKind::Switch => ast::MatchKind::Switch,
                     };
                     let value = self.unbind_expression(module, *value, tree, symbols, ast_tree, ast_strings, context);
                     let cases = cases.iter().map(|case| {

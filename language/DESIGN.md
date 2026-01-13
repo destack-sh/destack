@@ -108,6 +108,10 @@ match (result) {
 }
 ```
 
+`match` is an expression and does not allow `break`.
+The match expression type is the union of its case body types.
+`switch` keeps TypeScript style fallthrough semantics and remains a statement like expression that yields `void`.
+
 ### Loops
 
 Infinite loops with `loop`.

@@ -300,7 +300,6 @@ function sign(n: number): number {
 
 /// Lower and execute a switch statement.
 #[test]
-#[ignore] // FUGU #Incomplete: implement switch/match/break handling & type inference
 fn test_switch_statement() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(

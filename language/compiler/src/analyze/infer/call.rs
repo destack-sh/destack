@@ -494,7 +494,7 @@ impl Compiler {
                         .into_global_any(module.id)
                         .into_anchored(Some(profile)),
                     receiver_ty: receiver_union_ty_id.into_global(module.id),
-                    member_key: member_key.clone(),
+                    member_key: *member_key,
                 });
                 return Ok(None);
             };
@@ -555,7 +555,7 @@ impl Compiler {
                         .into_global_any(module.id)
                         .into_anchored(Some(profile)),
                     receiver_ty: receiver_union_ty_id.into_global(module.id),
-                    member_key: member_key.clone(),
+                    member_key: *member_key,
                 });
                 return Ok(None);
             };
