@@ -635,6 +635,51 @@ impl Compiler {
             }
         }
 
+        let (symbol_key, symbol_space) = if symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            (symbol_entry.key, symbol_entry.space)
+        } else {
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
+            let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
+            (symbol_entry.key, symbol_entry.space)
+        };
+        if let Some(symbol_key) = symbol_key
+            && let Some(ambient_symbols) =
+                self.get_ambient_lib_symbol_sources_for_merge(profile, symbol_key, symbol_space)
+        {
+            let resolved_parameter_types = parameter_symbols
+                .iter()
+                .map(|symbol| substitutions.get(symbol).copied())
+                .collect::<Vec<_>>();
+
+            if resolved_parameter_types.iter().any(|ty| ty.is_some()) {
+                for ambient_symbol in ambient_symbols {
+                    if ambient_symbol == symbol {
+                        continue;
+                    }
+
+                    let Some(other_parameters) = self.collect_static_parameter_symbols(
+                        module,
+                        ambient_symbol,
+                        profile,
+                        tree,
+                        symbols,
+                    ) else {
+                        continue;
+                    };
+
+                    for (index, parameter_symbol) in other_parameters.iter().enumerate() {
+                        let Some(Some(mapped)) = resolved_parameter_types.get(index) else {
+                            continue;
+                        };
+                        substitutions.entry(*parameter_symbol).or_insert(*mapped);
+                    }
+                }
+            }
+        }
+
         substitutions
     }
 

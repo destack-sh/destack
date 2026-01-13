@@ -29,6 +29,21 @@ pub(super) struct ResolvedMemberFunction {
 impl Compiler {
     /// Collect all callable signatures for a type.
     fn call_signatures_for_type(&self, ty_id: LocalTypeId, types: &TypeTable) -> Vec<LocalTypeId> {
+        let mut visited = HashSet::new();
+        self.call_signatures_for_type_inner(ty_id, types, &mut visited)
+    }
+
+    /// Collect all callable signatures for a type with cycle tracking.
+    fn call_signatures_for_type_inner(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Vec<LocalTypeId> {
+        if !visited.insert(ty_id) {
+            return Vec::new();
+        }
+
         // use direct function types as call signatures
         if matches!(types.get_type(ty_id), Type::Function { .. }) {
             return vec![ty_id];
@@ -39,22 +54,27 @@ impl Compiler {
             call_signatures, ..
         } = types.get_type(ty_id)
         {
-            return call_signatures.clone();
+            let mut collected = Vec::new();
+            for signature_id in call_signatures {
+                collected.extend(self.call_signatures_for_type_inner(
+                    *signature_id,
+                    types,
+                    visited,
+                ));
+            }
+            return collected;
         }
 
         // follow nominal references into their instance types
         if let Type::Reference { symbol, .. } = types.get_type(ty_id)
             && let Some(instance_id) = types.get_instance_type_id(*symbol)
-            && let Type::Object {
-                call_signatures, ..
-            } = types.get_type(instance_id)
         {
-            return call_signatures.clone();
+            return self.call_signatures_for_type_inner(instance_id, types, visited);
         }
 
         // unwrap value types to their underlying type
         if let Type::Value { value } = types.get_type(ty_id) {
-            return self.call_signatures_for_type(*value, types);
+            return self.call_signatures_for_type_inner(*value, types, visited);
         }
 
         Vec::new()
@@ -187,7 +207,7 @@ impl Compiler {
                 symbols,
                 types,
                 options,
-            ) {
+            )? {
                 continue;
             }
 
@@ -252,14 +272,14 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
-    ) -> bool {
+    ) -> AnalyzeResult<bool> {
         if dynamic_arguments.len() > resolved.dynamic_parameters.len() {
-            return false;
+            return Ok(false);
         }
 
         for (index, argument_id) in dynamic_arguments.iter().enumerate() {
             let Some(param_ty_id) = resolved.dynamic_parameters.get(index).copied() else {
-                return false;
+                return Ok(false);
             };
 
             let argument = tree.get(*argument_id);
@@ -269,38 +289,35 @@ impl Compiler {
             let argument_value_id = argument.value();
             let argument_value = tree.get(argument_value_id);
 
+            self.ensure_reference_instance_types_for_type(
+                module,
+                profile,
+                argument_value_id.into_any(),
+                param_ty_id,
+                types,
+            )?;
+
             if let Expression::Declaration { declaration } = argument_value
                 && let Declaration::Function { signature, .. } = tree.get(*declaration)
                 && matches!(signature.kind, FunctionKind::Lambda)
             {
-                let param_ty = types.get_type(param_ty_id);
-                let (expected_params, expected_return) = match param_ty {
-                    Type::Function {
-                        dynamic_parameters,
-                        return_type,
-                        ..
-                    } => (dynamic_parameters.as_slice(), *return_type),
-                    Type::Object {
-                        call_signatures, ..
-                    } => {
-                        let Some(signature_id) = call_signatures.first() else {
-                            return false;
-                        };
-                        let Type::Function {
-                            dynamic_parameters,
-                            return_type,
-                            ..
-                        } = types.get_type(*signature_id)
-                        else {
-                            return false;
-                        };
-                        (dynamic_parameters.as_slice(), *return_type)
-                    }
-                    _ => return false,
+                let param_signatures = self.call_signatures_for_type(param_ty_id, types);
+                let Some(signature_id) = param_signatures.first().copied() else {
+                    continue;
                 };
+                let Type::Function {
+                    dynamic_parameters,
+                    return_type,
+                    ..
+                } = types.get_type(signature_id)
+                else {
+                    continue;
+                };
+                let expected_params = dynamic_parameters.as_slice();
+                let expected_return = *return_type;
 
                 if signature.dynamic_parameters.len() > expected_params.len() {
-                    return false;
+                    return Ok(false);
                 }
 
                 let expects_predicate = expected_return.is_some_and(|return_ty_id| {
@@ -311,7 +328,7 @@ impl Compiler {
                         matches!(tree.get(return_id), Expression::TypePredicate { .. })
                     });
                     if !has_predicate_return {
-                        return false;
+                        return Ok(false);
                     }
                 }
 
@@ -332,12 +349,12 @@ impl Compiler {
                     options,
                 ) == Assignability::NotAssignable
                 {
-                    return false;
+                    return Ok(false);
                 }
             }
         }
 
-        true
+        Ok(true)
     }
 
     /// Return true when the left signature is more specific than the right.
@@ -428,6 +445,7 @@ impl Compiler {
 
         // resolve inherited static arguments and the callee symbol
         let mut inherited_static_arguments = Vec::new();
+        let mut inherited_substitutions = HashMap::new();
         let (callee_symbol, has_static_argument_conflict) = match tree.get(unwrapped_left_id) {
             Expression::Member {
                 left: receiver_id,
@@ -445,24 +463,18 @@ impl Compiler {
                 let receiver_ty = types.get_type(receiver_ty_id).clone();
                 call_receiver_ty_id = Some(receiver_ty_id);
 
-                if let Type::Reference {
-                    symbol,
-                    static_arguments,
-                } = &receiver_ty
-                    && let Some(resolved) = self.resolve_type_reference_static_arguments(
-                        module,
-                        ctx.profile,
-                        receiver_id.into_any(),
-                        *symbol,
-                        static_arguments.as_deref(),
-                        &options,
-                        tree,
-                        symbols,
-                        types,
-                    )?
-                {
-                    inherited_static_arguments = resolved;
-                }
+                let inherited = self.resolve_inherited_static_arguments(
+                    module,
+                    ctx.profile,
+                    receiver_id.into_any(),
+                    &receiver_ty,
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                inherited_static_arguments = inherited.arguments;
+                inherited_substitutions = inherited.substitutions;
 
                 // resolve member dispatch for the receiver type
                 let member_key = StaticKey::Name(*name);
@@ -598,7 +610,35 @@ impl Compiler {
                 }
             };
 
-            let resolved_signature = resolved;
+            let mut resolved_signature = resolved;
+            if !inherited_substitutions.is_empty() {
+                let mut cache = HashMap::new();
+                let dynamic_parameters = resolved_signature
+                    .dynamic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        self.substitute_static_parameters(
+                            *parameter,
+                            &inherited_substitutions,
+                            types,
+                            &mut cache,
+                        )
+                    })
+                    .collect();
+                let return_type = resolved_signature.return_type.map(|return_type| {
+                    self.substitute_static_parameters(
+                        return_type,
+                        &inherited_substitutions,
+                        types,
+                        &mut cache,
+                    )
+                });
+                resolved_signature = ResolvedSignature {
+                    dynamic_parameters,
+                    return_type,
+                    static_arguments: resolved_signature.static_arguments.clone(),
+                };
+            }
             let resolved_return_type = resolved_signature.return_type;
             let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
             let resolved_static_arguments = &resolved_signature.static_arguments;
@@ -620,15 +660,22 @@ impl Compiler {
 
                 let argument = tree.get(*argument_id);
                 let argument_value_id = argument.value();
-                let argument_ty_id = self.infer_expression(
-                    module,
-                    argument_value_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
+                let argument_ty_id =
+                    if let Some(ty_id) =
+                        types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+                    {
+                        ty_id
+                    } else {
+                        self.infer_expression(
+                            module,
+                            argument_value_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?
+                    };
                 argument_ty_ids.push(argument_ty_id);
             }
 
