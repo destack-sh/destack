@@ -691,6 +691,30 @@ impl Compiler {
                     symbols,
                     types,
                 )?;
+                let options = self.analyze_context_options_for_module(module.id);
+                let resolved_arguments = self.resolve_type_reference_static_arguments(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    target_symbol,
+                    static_arguments.as_deref(),
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let static_arguments = resolved_arguments.or(static_arguments);
+                if let Some(arguments) = static_arguments.as_deref()
+                    && arguments.iter().any(|argument| match argument {
+                        StaticArgument::Evaluated {
+                            value: StaticExpression::Type { ty },
+                            ..
+                        } => matches!(types.get_type(*ty), Type::Error),
+                        _ => false,
+                    })
+                {
+                    return Ok(Some(Type::Error));
+                }
 
                 // normalize well known references into canonical structural types
                 if let Some(normalized) = self.normalize_well_known_type_reference(
