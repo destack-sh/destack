@@ -1,3 +1,15 @@
+/// Trust policy for runtime execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TrustPolicy {
+    /// Untrusted code with strict limits and validation.
+    #[default]
+    Untrusted,
+    /// Trusted code with relaxed limits.
+    Trusted,
+    /// Internal toolchain code with full privileges.
+    Internal,
+}
+
 /// Policy for calling external functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExternalCallPolicy {
@@ -35,6 +47,8 @@ pub enum BorrowMode {
 /// Runtime policy options for a VM isolate.
 #[derive(Debug, Clone, Default)]
 pub struct PolicyOptions {
+    /// The trust policy for this isolate.
+    pub trust_policy: TrustPolicy,
     /// The runtime capability policy for this isolate.
     pub runtime: RuntimePolicy,
     /// The borrow checking mode for this isolate.

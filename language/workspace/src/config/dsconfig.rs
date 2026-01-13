@@ -16,8 +16,8 @@ use super::target::{
     Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismMode,
     DivisionCheckPolicy, FloatMathPolicy, LinkMode, NullCheckPolicy, OptimizeLevel, OsrMode,
     OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
-    RelocationModel, Runtime, SafepointMode, SafetyPreset, ShiftCheckPolicy, ShrinkLevel,
-    SpeculationMode, StripLevel, Target, TargetDiscovery, UnwindFormat,
+    RelocationModel, Runtime, SafepointMode, SafetyPreset, SandboxPolicy, ShiftCheckPolicy,
+    ShrinkLevel, SpeculationMode, StripLevel, Target, TargetDiscovery, TrustPolicy, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -724,6 +724,10 @@ pub struct DsConfigTargetOptions {
     pub profiling_mode: ProfilingMode,
     /// Determinism mode for runtime scheduling and I/O.
     pub determinism_mode: DeterminismMode,
+    /// Trust policy for runtime execution.
+    pub trust_policy: TrustPolicy,
+    /// Sandbox policy for runtime isolation.
+    pub sandbox_policy: SandboxPolicy,
     /// Symbol stripping policy.
     pub strip: StripLevel,
     /// Panic policy for unrecoverable errors.
@@ -787,6 +791,8 @@ impl Default for DsConfigTargetOptions {
             speculation_mode: SpeculationMode::default(),
             profiling_mode: ProfilingMode::default(),
             determinism_mode: DeterminismMode::default(),
+            trust_policy: TrustPolicy::default(),
+            sandbox_policy: SandboxPolicy::default(),
             strip: StripLevel::default(),
             panic: PanicPolicy::default(),
             unwind: UnwindFormat::default(),
@@ -862,6 +868,8 @@ impl DsConfigTargetOptions {
             speculation_mode: self.speculation_mode,
             profiling_mode: self.profiling_mode,
             determinism_mode: self.determinism_mode,
+            trust_policy: self.trust_policy,
+            sandbox_policy: self.sandbox_policy,
             strip: self.strip,
             panic: self.panic,
             unwind: self.unwind,
@@ -980,6 +988,11 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
             determinism_mode: json
                 .determinism_mode
                 .map(DeterminismMode::from)
+                .unwrap_or_default(),
+            trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
+            sandbox_policy: json
+                .sandbox_policy
+                .map(SandboxPolicy::from)
                 .unwrap_or_default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
@@ -1275,6 +1288,59 @@ impl From<DeterminismModeJson> for DeterminismMode {
             DeterminismModeJson::Deterministic => DeterminismMode::Deterministic,
             DeterminismModeJson::Record => DeterminismMode::Record,
             DeterminismModeJson::Replay => DeterminismMode::Replay,
+        }
+    }
+}
+
+/// Trust policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum TrustPolicyJson {
+    /// Untrusted code with strict limits and validation.
+    #[serde(alias = "sandboxed")]
+    Untrusted,
+    /// Trusted code with relaxed limits.
+    Trusted,
+    /// Internal toolchain code with full privileges.
+    Internal,
+}
+
+impl From<TrustPolicyJson> for TrustPolicy {
+    fn from(value: TrustPolicyJson) -> Self {
+        match value {
+            TrustPolicyJson::Untrusted => TrustPolicy::Untrusted,
+            TrustPolicyJson::Trusted => TrustPolicy::Trusted,
+            TrustPolicyJson::Internal => TrustPolicy::Internal,
+        }
+    }
+}
+
+/// Sandbox policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum SandboxPolicyJson {
+    /// In-process isolation with VM guardrails.
+    #[serde(alias = "in_process", alias = "inprocess")]
+    InProcess,
+    /// Process isolation with OS sandboxing.
+    Process,
+    /// Container or VM isolation.
+    #[serde(alias = "vm")]
+    Container,
+    /// Forbid execution without an external sandbox.
+    #[serde(alias = "forbid", alias = "deny")]
+    Forbidden,
+}
+
+impl From<SandboxPolicyJson> for SandboxPolicy {
+    fn from(value: SandboxPolicyJson) -> Self {
+        match value {
+            SandboxPolicyJson::InProcess => SandboxPolicy::InProcess,
+            SandboxPolicyJson::Process => SandboxPolicy::Process,
+            SandboxPolicyJson::Container => SandboxPolicy::Container,
+            SandboxPolicyJson::Forbidden => SandboxPolicy::Forbidden,
         }
     }
 }
@@ -1992,6 +2058,10 @@ pub struct DsConfigTargetJson {
     pub profiling_mode: Option<ProfilingModeJson>,
     /// Determinism mode for runtime scheduling and I/O.
     pub determinism_mode: Option<DeterminismModeJson>,
+    /// Trust policy for runtime execution.
+    pub trust_policy: Option<TrustPolicyJson>,
+    /// Sandbox policy for runtime isolation.
+    pub sandbox_policy: Option<SandboxPolicyJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
     /// Panic policy.

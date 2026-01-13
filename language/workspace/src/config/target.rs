@@ -408,6 +408,73 @@ impl DeterminismMode {
     }
 }
 
+/// Trust policy for runtime execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TrustPolicy {
+    /// Untrusted code with strict limits and validation.
+    #[default]
+    Untrusted,
+    /// Trusted code with relaxed limits.
+    Trusted,
+    /// Internal toolchain code with full privileges.
+    Internal,
+}
+
+impl std::str::FromStr for TrustPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "untrusted" | "sandboxed" => Ok(Self::Untrusted),
+            "trusted" => Ok(Self::Trusted),
+            "internal" => Ok(Self::Internal),
+            _ => Err(()),
+        }
+    }
+}
+
+impl TrustPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Sandbox policy for runtime isolation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SandboxPolicy {
+    /// In-process isolation with VM guardrails.
+    #[default]
+    InProcess,
+    /// Process isolation with OS sandboxing.
+    Process,
+    /// Container or VM isolation.
+    Container,
+    /// Forbid execution without an external sandbox.
+    Forbidden,
+}
+
+impl std::str::FromStr for SandboxPolicy {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "in_process" | "inprocess" => Ok(Self::InProcess),
+            "process" => Ok(Self::Process),
+            "container" | "vm" => Ok(Self::Container),
+            "forbid" | "forbidden" | "deny" => Ok(Self::Forbidden),
+            _ => Err(()),
+        }
+    }
+}
+
+impl SandboxPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Symbol stripping policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StripLevel {
@@ -1138,6 +1205,10 @@ pub struct Target {
     pub profiling_mode: ProfilingMode,
     /// Determinism mode for runtime scheduling and I/O.
     pub determinism_mode: DeterminismMode,
+    /// Trust policy for runtime execution.
+    pub trust_policy: TrustPolicy,
+    /// Sandbox policy for runtime isolation.
+    pub sandbox_policy: SandboxPolicy,
     /// Symbol stripping policy.
     pub strip: StripLevel,
     /// Panic policy for unrecoverable errors.
@@ -1250,6 +1321,7 @@ impl Target {
             runtime: Runtime::NativeHosted,
             platform: Platform::Universal,
             optimize: true,
+            trust_policy: TrustPolicy::Internal,
             ..Default::default()
         }
     }
@@ -1380,6 +1452,18 @@ impl Target {
     /// Set the platform.
     pub fn with_platform(mut self, platform: Platform) -> Self {
         self.platform = platform;
+        self
+    }
+
+    /// Set the trust policy for runtime execution.
+    pub fn with_trust_policy(mut self, trust_policy: TrustPolicy) -> Self {
+        self.trust_policy = trust_policy;
+        self
+    }
+
+    /// Set the sandbox policy for runtime isolation.
+    pub fn with_sandbox_policy(mut self, sandbox_policy: SandboxPolicy) -> Self {
+        self.sandbox_policy = sandbox_policy;
         self
     }
 

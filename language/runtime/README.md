@@ -73,6 +73,27 @@ This includes:
 - determinism controls: time, randomness, scheduling policy
 - telemetry: profiling, tracing, debug UX aggregation
 
+## Security and Trust Policy
+
+The runtime defines a trust policy for each isolate.
+This policy is part of the target configuration and must be enforced consistently.
+The sandbox policy is part of the target configuration as well.
+
+Untrusted execution requires:
+- strict VM limits and runtime checks
+- protected or forbidden external calls
+- all I/O through runtime shims
+- validation of all VM entrypoints and continuations
+
+Trusted execution may relax limits for internal code but keeps validation and telemetry.
+Compiled execution is allowed only for code produced by the toolchain with verified metadata.
+External native binaries must run under OS sandboxing or be rejected.
+
+Sandboxing levels are deployment-specific:
+- in-process isolation with VM guardrails
+- process isolation with rlimits and OS sandboxing
+- container or VM isolation for cloud providers
+
 # VM Contract
 
 The VM provides a complete MIR execution engine with continuations and GC.
