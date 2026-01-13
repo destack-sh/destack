@@ -18,8 +18,8 @@ pub(super) struct ResolvedMemberFunction {
     pub(super) member_resolution: MemberResolution,
     /// The resolved member symbol (if statically known).
     pub(super) member_symbol: Option<GlobalSymbolId>,
-    /// Inherited static arguments from the receiver type.
-    pub(super) inherited_arguments: Vec<StaticArgument>,
+    /// Static arguments used for the member instance.
+    pub(super) instance_arguments: Vec<StaticArgument>,
     /// Whether the member was found on the receiver type.
     pub(super) has_member: bool,
 }
@@ -1023,7 +1023,7 @@ impl Compiler {
                 types,
                 Some(infer),
                 options,
-            ) {
+            )? {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
             }
 
@@ -1094,6 +1094,37 @@ impl Compiler {
             _ => None,
         };
 
+        // resolve extension substitutions for member symbols
+        let extension_context = if let Some(member_symbol) = member_symbol {
+            self.resolve_extension_member_context(
+                module,
+                profile,
+                receiver_expression_id.into_any(),
+                member_symbol,
+                &inherited.arguments,
+                options,
+                tree,
+                symbols,
+                types,
+            )?
+        } else {
+            None
+        };
+
+        // merge inherited and extension substitutions
+        let mut substitutions = inherited.substitutions.clone();
+        if let Some(context) = extension_context.as_ref() {
+            for (symbol, ty_id) in &context.substitutions {
+                substitutions.insert(*symbol, *ty_id);
+            }
+        }
+
+        // select instance arguments for member instancing
+        let instance_arguments = match extension_context.as_ref() {
+            Some(context) => context.arguments.clone(),
+            None => inherited.arguments.clone(),
+        };
+
         // infer the member type
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
@@ -1117,20 +1148,15 @@ impl Compiler {
                 },
                 member_resolution,
                 member_symbol,
-                inherited_arguments: inherited.arguments,
+                instance_arguments,
                 has_member: false,
             }));
         };
 
-        // apply inherited substitutions
-        let member_ty_id = if !inherited.substitutions.is_empty() {
+        // apply static substitutions
+        let member_ty_id = if !substitutions.is_empty() {
             let mut cache = HashMap::new();
-            self.substitute_static_parameters(
-                member_ty_id,
-                &inherited.substitutions,
-                types,
-                &mut cache,
-            )
+            self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
         } else {
             member_ty_id
         };
@@ -1165,7 +1191,7 @@ impl Compiler {
             signature,
             member_resolution,
             member_symbol,
-            inherited_arguments: inherited.arguments,
+            instance_arguments,
             has_member,
         }))
     }
@@ -1185,7 +1211,7 @@ impl Compiler {
 
         // register instance if needed
         if let Some(member_symbol) = resolved.member_symbol {
-            let mut instance_arguments = resolved.inherited_arguments.clone();
+            let mut instance_arguments = resolved.instance_arguments.clone();
             instance_arguments.extend(resolved.signature.static_arguments.clone());
             if !instance_arguments.is_empty() {
                 instance_id = Some(self.register_instance_for_node(

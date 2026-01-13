@@ -1063,7 +1063,7 @@ impl Compiler {
         // register instance if needed
         let mut member_instance_id = None;
         if let Some(member_symbol) = resolved.member_symbol {
-            let mut instance_arguments = resolved.inherited_arguments.clone();
+            let mut instance_arguments = resolved.instance_arguments.clone();
             instance_arguments.extend(resolved.signature.static_arguments.clone());
 
             if !instance_arguments.is_empty() {

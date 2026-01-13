@@ -5,7 +5,7 @@ use destack_dir::{
     Argument, Constraint, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
     InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
     StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable,
-    Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
+    SymbolType, Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -497,6 +497,55 @@ impl Compiler {
         Ok(substitution_ty_id)
     }
 
+    /// Resolve the type of a static value argument for validation.
+    fn static_value_argument_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        error_node: GlobalNodeIdAny,
+        value: &StaticExpression,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // prefer static parameter constraints for referenced type expressions
+        if let StaticExpression::Type { ty } = value {
+            let referenced_type = types.get_type(*ty);
+            if let Type::Reference { symbol, .. } = referenced_type {
+                let constraint_id = self.static_parameter_constraint_type(
+                    module,
+                    profile,
+                    *symbol,
+                    error_node.local_id,
+                    symbols,
+                    types,
+                );
+                if let Some(constraint_id) = constraint_id {
+                    // evaluate unevaluated bounds before validation
+                    if matches!(types.get_type(constraint_id), Type::Unevaluated(_)) {
+                        let tree = module.dir(profile).tree.read();
+                        self.evaluate_type(module, profile, constraint_id, &tree, symbols, types)?;
+                    }
+                    return Ok(constraint_id);
+                }
+            }
+        }
+
+        // normalize literal arguments into value types
+        let ty = match value {
+            StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(value.clone()),
+            },
+            StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
+                value: value.clone(),
+            },
+            _ => Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+        };
+
+        Ok(types.insert_type_from_any(ty, error_node.local_id))
+    }
+
     /// Validate a static argument against its declared type.
     pub(super) fn validate_static_argument(
         &self,
@@ -510,7 +559,7 @@ impl Compiler {
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
         options: &AnalyzeOptions,
-    ) -> Option<LocalTypeId> {
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
             let substitution_ty_id = prepared_substitution.unwrap_or_else(|| {
@@ -526,7 +575,7 @@ impl Compiler {
                 types.get_type(static_parameter.declared_type_id),
                 Type::Unevaluated(_)
             ) {
-                return Some(substitution_ty_id);
+                return Ok(Some(substitution_ty_id));
             }
 
             // register an inference constraint for the declared bound
@@ -556,26 +605,18 @@ impl Compiler {
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: substitution_ty_id.into_global(module.id),
                 });
-                return Some(types.insert_type_from_any(Type::Error, error_node.local_id));
+                return Ok(Some(
+                    types.insert_type_from_any(Type::Error, error_node.local_id),
+                ));
             }
 
-            return Some(substitution_ty_id);
+            return Ok(Some(substitution_ty_id));
         }
 
         // validate value arguments against the declared type
         if let StaticArgument::Evaluated { value, .. } = resolved_static_argument {
-            let ty = match value {
-                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(value.clone()),
-                },
-                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
-                    value: value.clone(),
-                },
-                _ => Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                },
-            };
-            let value_ty_id = types.insert_type_from_any(ty, error_node.local_id);
+            let value_ty_id = self
+                .static_value_argument_type(module, profile, error_node, value, symbols, types)?;
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
                 && self.is_type_assignable(
                     module,
@@ -595,7 +636,7 @@ impl Compiler {
             }
         }
 
-        None
+        Ok(None)
     }
 
     /// Resolve static arguments for a type reference.
@@ -616,7 +657,7 @@ impl Compiler {
         let treat_type_arguments_as_types = false;
 
         // skip non instantiable symbols
-        if !self.is_instantiable_symbol(symbol) {
+        if !self.is_instantiable_symbol(symbol) && symbol.ty() != SymbolType::Extension {
             return Ok(None);
         }
 
@@ -753,6 +794,66 @@ impl Compiler {
                     }
                 });
 
+            // inherit value constraints when passing a static parameter through
+            if static_parameter.kind == StaticParameterKind::Value {
+                let referenced_symbol = match &resolved_argument {
+                    StaticArgument::Evaluated {
+                        value: StaticExpression::Type { ty },
+                        ..
+                    } => match types.get_type(*ty) {
+                        Type::Reference { symbol, .. } => Some(*symbol),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+
+                if let Some(referenced_symbol) = referenced_symbol {
+                    let constraint_id = self.static_parameter_constraint_type(
+                        module,
+                        profile,
+                        referenced_symbol,
+                        error_node.local_id,
+                        symbols,
+                        types,
+                    );
+
+                    if let Some(constraint_id) = constraint_id
+                        && matches!(
+                            types.get_type(constraint_id),
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Unknown
+                            }
+                        )
+                    {
+                        if matches!(
+                            types.get_type(static_parameter.declared_type_id),
+                            Type::Unevaluated(_)
+                        ) {
+                            self.evaluate_type(
+                                module,
+                                profile,
+                                static_parameter.declared_type_id,
+                                tree,
+                                symbols,
+                                types,
+                            )?;
+                        }
+
+                        if !matches!(
+                            types.get_type(static_parameter.declared_type_id),
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Unknown
+                            }
+                        ) {
+                            types.set_static_parameter_constraint_type(
+                                referenced_symbol,
+                                static_parameter.declared_type_id,
+                            );
+                        }
+                    }
+                }
+            }
+
             // materialized type argument validation when needed
             let materialized_substitution = if validate_static_argument_bounds
                 && static_parameter.kind == StaticParameterKind::Type
@@ -784,7 +885,7 @@ impl Compiler {
                     types,
                     None,
                     options,
-                )
+                )?
             } else {
                 None
             };

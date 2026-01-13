@@ -810,8 +810,10 @@ impl Compiler {
                 let expected_object_ty_id = self.expected_object_type(
                     module,
                     ctx.profile,
-                    expression_id.into_any(),
                     ctx.expected_type,
+                    &ctx.options,
+                    tree,
+                    symbols,
                     types,
                 )?;
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
@@ -1519,15 +1521,37 @@ impl Compiler {
 
             // tagged expressions for newtype construction
             Expression::TaggedScalarExpression { ty, value } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                // resolve the tag type
+                let ty_id = self.try_evaluate_expression_to_type(
+                    module,
+                    ctx.profile,
+                    *ty,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // infer the value expression
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
+
                 ty_id
             }
             Expression::TaggedTupleExpression { ty, elements } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                // resolve the tag type
+                let ty_id = self.try_evaluate_expression_to_type(
+                    module,
+                    ctx.profile,
+                    *ty,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // collect expected element types
                 let expected_element_types =
                     self.expected_element_types(Some(ty_id), elements.len(), types);
 
+                // infer each element using contextual types
                 for (index, elem) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
@@ -1542,17 +1566,32 @@ impl Compiler {
                         ctx,
                     )?;
                 }
+
                 ty_id
             }
             Expression::TaggedObjectExpression { ty, properties } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                // resolve the tag type
+                let ty_id = self.try_evaluate_expression_to_type(
+                    module,
+                    ctx.profile,
+                    *ty,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+
+                // derive an expected object type from the tag
                 let expected_object_ty_id = self.expected_object_type(
                     module,
                     ctx.profile,
-                    expression_id.into_any(),
                     Some(ty_id),
+                    &ctx.options,
+                    tree,
+                    symbols,
                     types,
                 )?;
+
+                // infer object literal shapes and fields
                 let (literal_fields, shapes, spread_override) = self.infer_object_literal_shapes(
                     module,
                     properties,
@@ -1571,6 +1610,8 @@ impl Compiler {
                     &literal_fields,
                     types,
                 )?;
+
+                // validate shapes against the expected type
                 if let Some(expected_object_ty_id) = expected_object_ty_id
                     && spread_override.is_none()
                 {
@@ -1597,6 +1638,7 @@ impl Compiler {
                         }
                     }
                 }
+
                 // unwrap Type::Value to get the actual instance type
                 self.expected_value_type(Some(ty_id), types).unwrap_or(ty_id)
             }

@@ -617,7 +617,7 @@ impl Compiler {
     }
 
     /// Import a remote instance type into the local type table.
-    fn import_instance_type_for_symbol(
+    pub(super) fn import_instance_type_for_symbol(
         &self,
         profile: ProfileId,
         node_id: LocalNodeIdAny,
@@ -1401,6 +1401,7 @@ impl Compiler {
     pub(super) fn infer_index_signature_value_type_for_key(
         &self,
         module: &Module,
+        profile: ProfileId,
         receiver_ty: &Type,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -1413,11 +1414,11 @@ impl Compiler {
             Type::Value { value } => {
                 let value_ty = types.get_type(*value).clone();
                 self.infer_index_signature_value_type_for_key(
-                    module, &value_ty, member_key, types, visited,
+                    module, profile, &value_ty, member_key, types, visited,
                 )
             }
             Type::Reference { symbol, .. } => self.infer_index_signature_value_type_for_symbol(
-                module, *symbol, member_key, types, visited,
+                module, profile, *symbol, member_key, types, visited,
             ),
             Type::Unary { right, .. }
             | Type::Mutable { right, .. }
@@ -1426,7 +1427,7 @@ impl Compiler {
             | Type::PointerOf { right, .. } => {
                 let inner_ty = types.get_type(*right).clone();
                 self.infer_index_signature_value_type_for_key(
-                    module, &inner_ty, member_key, types, visited,
+                    module, profile, &inner_ty, member_key, types, visited,
                 )
             }
             Type::Union { elements } => {
@@ -1435,6 +1436,7 @@ impl Compiler {
                     let element_ty = types.get_type(element_id).clone();
                     if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
                         module,
+                        profile,
                         &element_ty,
                         member_key,
                         types,
@@ -1459,6 +1461,7 @@ impl Compiler {
                     let element_ty = types.get_type(element_id).clone();
                     if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
                         module,
+                        profile,
                         &element_ty,
                         member_key,
                         types,
@@ -1541,8 +1544,14 @@ impl Compiler {
             }
         }
 
+        // resolve the canonical symbol for extension lookup
+        let canonical_symbol = {
+            let symbols = module.dir(profile).symbols.read();
+            self.canonical_symbol_id(module, &symbols, profile, symbol)
+        };
+
         // step 3: check visible extensions
-        let Some(extension_ids) = types.get_extensions_for_target(symbol) else {
+        let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) else {
             return Ok(None);
         };
         let extension_ids = extension_ids.clone();
@@ -1551,7 +1560,18 @@ impl Compiler {
             if !self.is_extension_visible(module, extension) {
                 continue;
             }
-            if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
+
+            // ensure the extension instance type is available
+            let extension_instance_id =
+                if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
+                    Some(ty_id)
+                } else if extension.symbol.module_id == module.id {
+                    None
+                } else {
+                    self.import_instance_type_for_symbol(profile, node_id, extension.symbol, types)?
+                };
+
+            if let Some(ty_id) = extension_instance_id {
                 let ty = types.get_type(ty_id).clone();
                 if let Type::Object { fields, .. } = ty
                     && let Some(field_ty) =
@@ -1569,6 +1589,7 @@ impl Compiler {
     fn infer_index_signature_value_type_for_symbol(
         &self,
         module: &Module,
+        profile: ProfileId,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
         types: &mut TypeTable,
@@ -1582,9 +1603,9 @@ impl Compiler {
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
-            if let Some(value_ty) = self
-                .infer_index_signature_value_type_for_key(module, &ty, member_key, types, visited)
-            {
+            if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
+                module, profile, &ty, member_key, types, visited,
+            ) {
                 return Some(value_ty);
             }
         }
@@ -1593,7 +1614,7 @@ impl Compiler {
         if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned() {
             if let Some(extends) = lineage.extends
                 && let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
-                    module, extends, member_key, types, visited,
+                    module, profile, extends, member_key, types, visited,
                 )
             {
                 return Some(value_ty);
@@ -1602,6 +1623,7 @@ impl Compiler {
             for implements in &lineage.implements {
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
                     module,
+                    profile,
                     *implements,
                     member_key,
                     types,
@@ -1613,15 +1635,21 @@ impl Compiler {
 
             for embedded in &lineage.embedded {
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_symbol(
-                    module, *embedded, member_key, types, visited,
+                    module, profile, *embedded, member_key, types, visited,
                 ) {
                     return Some(value_ty);
                 }
             }
         }
 
+        // resolve the canonical symbol for extension lookup
+        let canonical_symbol = {
+            let symbols = module.dir(profile).symbols.read();
+            self.canonical_symbol_id(module, &symbols, profile, symbol)
+        };
+
         // step 3: check visible extensions
-        let extension_ids = types.get_extensions_for_target(symbol)?.clone();
+        let extension_ids = types.get_extensions_for_target(canonical_symbol)?.clone();
         for extension_id in extension_ids {
             let extension = types.get_extension(extension_id);
             if !self.is_extension_visible(module, extension) {
@@ -1630,7 +1658,7 @@ impl Compiler {
             if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
                 let ty = types.get_type(ty_id).clone();
                 if let Some(value_ty) = self.infer_index_signature_value_type_for_key(
-                    module, &ty, member_key, types, visited,
+                    module, profile, &ty, member_key, types, visited,
                 ) {
                     return Some(value_ty);
                 }
@@ -1675,14 +1703,7 @@ impl Compiler {
         match extension.kind {
             ExtensionKind::Inherent => true,
             ExtensionKind::Local => extension.symbol.module_id == module.id,
-            ExtensionKind::Nominal => {
-                if extension.symbol.module_id == module.id {
-                    return true;
-                }
-
-                // TODO #Incomplete: local and named extensions for #Extensions
-                false
-            }
+            ExtensionKind::Nominal => true,
         }
     }
 

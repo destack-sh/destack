@@ -609,6 +609,10 @@ extension for Point { ... }  // ok
 Unlike Rust's blanket impls, Destack extensions only target concrete types—no `extension<T> T where T: Foo` patterns.
 This is an intentional simplification: most extensions are "add methods to this specific type," and the simpler model keeps the mental overhead low.
 
+Extension static parameters bind positionally to the target type's static parameters.
+The target type expression can reorder those parameters, and that order defines how receiver static arguments map to extension parameters.
+Defaults on the target type apply when static arguments are omitted at the use site.
+
 Extensions let you add methods to any nominal type: classes, structs, enums, newtypes, even primitives and foreign types without modifying the original definition.
 
 Extension visibility follows clear rules:

@@ -1,7 +1,9 @@
-use crate::{AnalyzeResult, Compiler};
+use std::collections::HashMap;
+
+use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
-    LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeLiteral,
-    TypeTable,
+    GlobalSymbolId, LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticKey,
+    SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -14,6 +16,7 @@ pub(super) struct ExpectedFunctionSignature {
     pub(super) return_type: Option<LocalTypeId>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Derive a contextual function signature from an expected type.
     pub(super) fn expected_function_signature(
@@ -40,8 +43,10 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        node_id: LocalNodeIdAny,
         expected_ty_id: Option<LocalTypeId>,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // skip when there is no contextual type
@@ -50,17 +55,85 @@ impl Compiler {
             return Ok(None);
         };
 
-        // resolve object types or instance types for references
-        let expected_type = types.get_type(expected_ty_id);
+        // reuse concrete object types
+        let expected_type = types.get_type(expected_ty_id).clone();
         if matches!(expected_type, Type::Object { .. }) {
             return Ok(Some(expected_ty_id));
         }
 
-        let Some(symbol) = expected_type.symbol() else {
+        // resolve the reference symbol and arguments
+        let source_id = types.get_type_source(expected_ty_id);
+        let (symbol, static_arguments): (GlobalSymbolId, Option<Vec<StaticArgument>>) =
+            match expected_type {
+                Type::Reference {
+                    symbol,
+                    static_arguments,
+                } => (symbol, static_arguments),
+                _ => {
+                    let Some(symbol) = expected_type.symbol() else {
+                        return Ok(None);
+                    };
+                    (symbol, None)
+                }
+            };
+
+        // resolve the instance type for the reference
+        let instance_ty_id =
+            self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)?;
+        let Some(instance_ty_id) = instance_ty_id else {
             return Ok(None);
         };
 
-        self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)
+        // return the instance type when no static arguments exist
+        let Some(static_arguments) = static_arguments else {
+            return Ok(Some(instance_ty_id));
+        };
+
+        // resolve static arguments for substitution
+        let resolved_arguments = self.resolve_type_reference_static_arguments(
+            module,
+            profile,
+            source_id,
+            symbol,
+            Some(static_arguments.as_slice()),
+            true,
+            options,
+            tree,
+            symbols,
+            types,
+        )?;
+        let Some(resolved_arguments) = resolved_arguments else {
+            return Ok(Some(instance_ty_id));
+        };
+
+        // reuse instance type when no substitutions are needed
+        if resolved_arguments.is_empty() {
+            return Ok(Some(instance_ty_id));
+        }
+
+        // build substitutions for type parameters
+        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+            module,
+            profile,
+            symbol,
+            source_id,
+            &resolved_arguments,
+            tree,
+            symbols,
+            types,
+        );
+
+        // reuse instance type when no substitutions are needed
+        if substitutions.is_empty() {
+            return Ok(Some(instance_ty_id));
+        }
+
+        // substitute parameters inside the instance type
+        let mut cache = HashMap::new();
+        let substituted =
+            self.substitute_static_parameters(instance_ty_id, &substitutions, types, &mut cache);
+
+        Ok(Some(substituted))
     }
 
     /// Resolve an expected field type from a contextual object type and key.

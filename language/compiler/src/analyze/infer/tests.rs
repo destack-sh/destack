@@ -3,10 +3,10 @@ use crate::{
     expect_let_declarator_by_name, root_expression_id,
 };
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, FlowEdgeKind, FlowGraphBuilder, InferTable,
-    LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    TypeUnaryOperator,
+    BinaryOperator, Declaration, Expression, ExtensionKind, FlowEdgeKind, FlowGraphBuilder,
+    GlobalSymbolId, InferTable, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
@@ -80,6 +80,41 @@ fn load_types(test: &TestProgram, module_id: ModuleId) -> TypeTable {
 
     // clone type table
     dir.types.read().clone()
+}
+
+/// Resolve a canonical symbol id for a module path.
+fn canonical_symbol_for_path(test: &TestProgram, module_uri: &str, path: &str) -> GlobalSymbolId {
+    // resolve the module symbol
+    let symbol = test
+        .resolve_to_symbol(module_uri, path)
+        .unwrap_or_else(|| panic!("expected symbol for {module_uri}:{path}"));
+
+    // resolve the module state
+    let module = test.module(module_uri);
+    let module = module.read();
+    let profile = test.default_profile_id(module.id);
+    let symbols = module.dir(profile).symbols.read();
+
+    // resolve the canonical symbol id
+    test.compiler
+        .canonical_symbol_id(&module, &symbols, profile, symbol)
+}
+
+/// Collect extension kinds for a target symbol.
+fn extension_kinds_for_target(
+    types: &TypeTable,
+    target_symbol: GlobalSymbolId,
+) -> Vec<ExtensionKind> {
+    // collect extension ids for the target symbol
+    let Some(extension_ids) = types.get_extensions_for_target(target_symbol) else {
+        return Vec::new();
+    };
+
+    // map extension ids to kinds
+    extension_ids
+        .iter()
+        .map(|extension_id| types.get_extension(*extension_id).kind)
+        .collect()
 }
 
 /// Read an inferred type for a local expression.
@@ -1049,14 +1084,55 @@ extension for Point {
         return 0; 
     }
 }
+
+let origin = Point { x: 0, y: 0 };
+let magnitude = origin.magnitude();
+let distance = origin.distance(origin);
 "#,
     );
 
     // run analyze pipeline
     test.analyze_module_and_check_clean(module_id);
 
-    let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-    // #Incomplete: #Extensions
+    // load typed module data
+    let types = load_types(&test, module_id);
+
+    // resolve the canonical target symbol
+    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
+
+    // verify extension kinds
+    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    assert_eq!(extension_kinds.len(), 2);
+    assert!(
+        extension_kinds
+            .iter()
+            .all(|kind| *kind == ExtensionKind::Inherent)
+    );
+
+    // verify extension method return types
+    let magnitude_symbol = test.resolve_to_symbol("test.ds", "magnitude").unwrap();
+    let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
+    let magnitude_ty_id = types
+        .get_value_type_id(magnitude_symbol)
+        .expect("expected magnitude type");
+    let distance_ty_id = types
+        .get_value_type_id(distance_symbol)
+        .expect("expected distance type");
+
+    assert_type!(
+        types,
+        magnitude_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
+    assert_type!(
+        types,
+        distance_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
 }
 
 /// Infer a local extension (on a foreign type).
@@ -1082,14 +1158,57 @@ import { Point } from "./point.ds";
 extension for Point {
     distance(other: Point): number { return 0; }
 }
+
+let origin = Point { x: 0, y: 0 };
+let distance = origin.distance(origin);
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ds",
+        r#"
+import { Point } from "./point.ds";
+
+let origin = Point { x: 0, y: 0 };
 "#,
     );
 
     // run analyze pipeline
     test.analyze_module_and_check_clean(module_id);
+    test.analyze_module_and_check_clean(consumer_id);
 
-    let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-    // #Incomplete: #Extensions
+    // load typed module data
+    let types = load_types(&test, module_id);
+    let consumer_types = load_types(&test, consumer_id);
+
+    // resolve the canonical target symbol
+    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
+    let consumer_point_symbol = canonical_symbol_for_path(&test, "consumer.ds", "Point");
+
+    // verify extension kinds in the defining module
+    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    assert!(!extension_kinds.is_empty());
+    assert!(
+        extension_kinds
+            .iter()
+            .all(|kind| *kind == ExtensionKind::Local)
+    );
+
+    // verify extension does not leak into other modules
+    let consumer_kinds = extension_kinds_for_target(&consumer_types, consumer_point_symbol);
+    assert!(consumer_kinds.is_empty());
+
+    // verify extension method return type
+    let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
+    let distance_ty_id = types
+        .get_value_type_id(distance_symbol)
+        .expect("expected distance type");
+    assert_type!(
+        types,
+        distance_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
 }
 
 /// Infer a named extension (on a foreign type, from a foreign extension).
@@ -1112,7 +1231,7 @@ export struct Point {
 import { Point } from "./point.ds";
 
 export extension PointHelpers for Point {
-    distance(other: Point): number { return 0; }
+    distance(): number { return 0; }
 }
 "#,
     );
@@ -1121,15 +1240,59 @@ export extension PointHelpers for Point {
         r#"
 import { PointHelpers } from "./extensions.ds";
 import { Point } from "./point.ds";
+
+declare function getPoint(): Point;
+
+let origin = getPoint();
+let distance = origin.distance();
+"#,
+    );
+    let consumer_id = test.add_module(
+        "consumer.ds",
+        r#"
+import { Point } from "./point.ds";
+
+let origin = Point { x: 0, y: 0 };
 "#,
     );
 
     // run analyze pipeline
     test.analyze_module_and_check_clean(module_id);
+    test.analyze_module_and_check_clean(consumer_id);
 
-    let _point_id = test.resolve_to_symbol("test.ds", "Point").unwrap();
-    let _point_helpers_id = test.resolve_to_symbol("test.ds", "PointHelpers").unwrap();
-    // #Incomplete: #Extensions
+    // load typed module data
+    let types = load_types(&test, module_id);
+    let consumer_types = load_types(&test, consumer_id);
+
+    // resolve the canonical target symbol
+    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
+    let consumer_point_symbol = canonical_symbol_for_path(&test, "consumer.ds", "Point");
+
+    // verify extension kinds in the importing module
+    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    assert!(!extension_kinds.is_empty());
+    assert!(
+        extension_kinds
+            .iter()
+            .all(|kind| *kind == ExtensionKind::Nominal)
+    );
+
+    // verify extension does not appear without an import
+    let consumer_kinds = extension_kinds_for_target(&consumer_types, consumer_point_symbol);
+    assert!(consumer_kinds.is_empty());
+
+    // verify extension method return type
+    let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
+    let distance_ty_id = types
+        .get_value_type_id(distance_symbol)
+        .expect("expected distance type");
+    assert_type!(
+        types,
+        distance_ty_id,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Number)
+        }
+    );
 }
 
 /// Analyze infer parameter types from call arguments.
