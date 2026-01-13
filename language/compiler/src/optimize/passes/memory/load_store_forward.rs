@@ -8,8 +8,9 @@ use crate::optimize::analyses::{
     MemoryAccessLocation, MemorySSA,
 };
 use crate::optimize::common::{
-    alias_scopes_may_alias, instruction_substitute_uses, memory_locations_compatible,
-    resolve_substitution_chains, tbaa_tags_may_alias, terminator_substitute_uses,
+    address_spaces_may_alias, alias_scopes_may_alias, instruction_substitute_uses,
+    location_sets_may_alias, memory_locations_compatible, resolve_substitution_chains,
+    tbaa_tags_may_alias, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -66,6 +67,10 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// The available value.
     value: mir::Value,
+    /// The memory location set for the access.
+    location_set: mir::MemoryLocationSet,
+    /// The address spaces for the access.
+    address_spaces: Option<mir::AddressSpaceSet>,
     /// Alias scopes applied to the access.
     alias_scopes: Vec<mir::AliasScopeId>,
     /// No alias scopes applied to the access.
@@ -238,6 +243,14 @@ impl AvailableMemory {
                     continue;
                 }
 
+                if !location_sets_may_alias(entry.location_set, use_effect.location_set) {
+                    continue;
+                }
+
+                if !address_spaces_may_alias(&entry.address_spaces, &use_effect.address_spaces) {
+                    continue;
+                }
+
                 if !tbaa_tags_may_alias(
                     &tree.memory_table.tbaa,
                     entry.tbaa_tag,
@@ -405,6 +418,8 @@ fn process_block(
                     clobber: def_access_id,
                     location: def_access.effect.location.clone(),
                     value: *value,
+                    location_set: def_access.effect.location_set,
+                    address_spaces: def_access.effect.address_spaces.clone(),
                     alias_scopes: def_access.effect.alias_scopes.clone(),
                     noalias_scopes: def_access.effect.noalias_scopes.clone(),
                     tbaa_tag: def_access.effect.tbaa_tag,
@@ -445,6 +460,8 @@ fn process_block(
                         clobber,
                         location: use_access.effect.location.clone(),
                         value: *destination,
+                        location_set: use_access.effect.location_set,
+                        address_spaces: use_access.effect.address_spaces.clone(),
                         alias_scopes: use_access.effect.alias_scopes.clone(),
                         noalias_scopes: use_access.effect.noalias_scopes.clone(),
                         tbaa_tag: use_access.effect.tbaa_tag,
@@ -1175,18 +1192,13 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut program = TestProgram::new(input);
 
         // create alias scope metadata for the disjoint store
-        let scope = {
-            let scopes = &mut program.tree.memory_table.alias_scopes;
-            let domain = scopes.create_domain(None);
-            scopes.create_scope(domain, None)
-        };
+        let scope = program.create_alias_scope();
 
         // locate the relevant instructions
         let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let store_v1 = block.instructions[3];
-        let load_v0 = block.instructions[4];
+        let instructions = program.entry_instructions(function_id);
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // attach scoped metadata to disambiguate the store
         program.insert_pointer_access(
@@ -1237,22 +1249,17 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut program = TestProgram::new(input);
 
         // create disjoint tbaa tags
-        let (int_tag, float_tag) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let int_node = tbaa.create_node(None, Some(root), false);
-            let float_node = tbaa.create_node(None, Some(root), false);
-            let int_tag = tbaa.create_tag(root, int_node, 0, 4, false);
-            let float_tag = tbaa.create_tag(root, float_node, 0, 4, false);
-            (int_tag, float_tag)
-        };
+        let root = program.create_tbaa_node(None, false);
+        let int_node = program.create_tbaa_node(Some(root), false);
+        let float_node = program.create_tbaa_node(Some(root), false);
+        let int_tag = program.create_tbaa_tag(root, int_node, 0, 4, false);
+        let float_tag = program.create_tbaa_tag(root, float_node, 0, 4, false);
 
         // locate the relevant instructions
         let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let store_v1 = block.instructions[3];
-        let load_v0 = block.instructions[4];
+        let instructions = program.entry_instructions(function_id);
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // attach disjoint tbaa tags to the store and load
         program.insert_pointer_access(
@@ -1303,21 +1310,16 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut program = TestProgram::new(input);
 
         // create tbaa tags with disjoint offsets
-        let (tag_a, tag_b) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
-            let root = tbaa.create_node(None, None, false);
-            let access = tbaa.create_node(None, Some(root), false);
-            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
-            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
-            (tag_a, tag_b)
-        };
+        let root = program.create_tbaa_node(None, false);
+        let access = program.create_tbaa_node(Some(root), false);
+        let tag_a = program.create_tbaa_tag(root, access, 0, 4, false);
+        let tag_b = program.create_tbaa_tag(root, access, 8, 4, false);
 
         // locate the relevant instructions
         let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let store_v1 = block.instructions[3];
-        let load_v0 = block.instructions[4];
+        let instructions = program.entry_instructions(function_id);
+        let store_v1 = instructions[3];
+        let load_v0 = instructions[4];
 
         // attach disjoint tbaa tags to the clobbering store and load
         program.insert_pointer_access(
@@ -1361,10 +1363,9 @@ block0:
 
         // locate the store and load
         let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let store_v0 = block.instructions[2];
-        let load_v0 = block.instructions[3];
+        let instructions = program.entry_instructions(function_id);
+        let store_v0 = instructions[2];
+        let load_v0 = instructions[3];
 
         // attach mismatched sizes to block forwarding
         program.insert_pointer_access(

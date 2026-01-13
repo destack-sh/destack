@@ -766,23 +766,39 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Return store instructions from the entry block.
-    fn store_instructions_in_entry(
-        function_id: mir::LocalNodeId<mir::Function>,
+    /// Return the pointer operand for a store instruction.
+    fn store_pointer(
         tree: &mir::NodeTree,
-    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
-        let function = tree.get(function_id);
-        let entry = function.entry.expect("missing entry block");
-        let block = tree.get(entry);
+        store_id: mir::LocalNodeId<mir::Instruction>,
+    ) -> mir::Value {
+        let mir::Instruction::Store { pointer, .. } = tree.get(store_id) else {
+            panic!("expected store instruction");
+        };
 
-        block
-            .instructions
-            .iter()
-            .copied()
-            .filter(|instruction_id| {
-                matches!(tree.get(*instruction_id), mir::Instruction::Store { .. })
-            })
-            .collect()
+        *pointer
+    }
+
+    /// Attach store access metadata for a store instruction.
+    fn tag_store_access(
+        program: &mut TestProgram,
+        store_id: mir::LocalNodeId<mir::Instruction>,
+        size: u64,
+        is_volatile: bool,
+        ordering: Option<mir::MemoryOrdering>,
+    ) {
+        let pointer = store_pointer(&program.tree, store_id);
+
+        program.insert_pointer_access_with_options(
+            store_id,
+            mir::MemoryAccessKind::Write,
+            pointer,
+            Some(size),
+            Vec::new(),
+            Vec::new(),
+            None,
+            is_volatile,
+            ordering,
+        );
     }
 
     /// Store overwritten before being read is eliminated.
@@ -880,34 +896,13 @@ block0:
 
         let mut program = TestProgram::new(input);
         let function_id = program.entry_function_id();
-        let store_id = store_instructions_in_entry(function_id, &program.tree)
+        let store_id = program
+            .store_instructions_in_entry(function_id)
             .into_iter()
             .next()
             .expect("missing store instruction");
 
-        let pointer = match program.tree.get(store_id) {
-            mir::Instruction::Store { pointer, .. } => *pointer,
-            _ => panic!("expected store instruction"),
-        };
-
-        let access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Write,
-            target: mir::MemoryAccessTarget::Pointer(pointer),
-            size: Some(4),
-            alignment: None,
-            is_volatile: true,
-            is_invariant: false,
-            is_non_temporal: false,
-            ordering: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            tbaa_tag: None,
-        };
-        program
-            .tree
-            .memory_table
-            .insert_memory_accesses(store_id, vec![access]);
+        tag_store_access(&mut program, store_id, 4, true, None);
 
         program.run_pass(&DeadStoreEliminate);
         program.assert_unchanged(input);
@@ -1182,57 +1177,13 @@ block0:
 
         let mut program = TestProgram::new(input);
         let function_id = program.entry_function_id();
-        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let store_ids = program.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
 
-        let first_pointer = match program.tree.get(*first_store) {
-            mir::Instruction::Store { pointer, .. } => *pointer,
-            _ => panic!("expected store instruction"),
-        };
-        let second_pointer = match program.tree.get(*second_store) {
-            mir::Instruction::Store { pointer, .. } => *pointer,
-            _ => panic!("expected store instruction"),
-        };
-
-        let first_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Write,
-            target: mir::MemoryAccessTarget::Pointer(first_pointer),
-            size: Some(8),
-            alignment: None,
-            is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
-            ordering: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            tbaa_tag: None,
-        };
-        let second_access = mir::MemoryAccessMetadata {
-            kind: mir::MemoryAccessKind::Write,
-            target: mir::MemoryAccessTarget::Pointer(second_pointer),
-            size: Some(4),
-            alignment: None,
-            is_volatile: false,
-            is_invariant: false,
-            is_non_temporal: false,
-            ordering: None,
-            address_space: None,
-            alias_scopes: Vec::new(),
-            noalias_scopes: Vec::new(),
-            tbaa_tag: None,
-        };
-
-        program
-            .tree
-            .memory_table
-            .insert_memory_accesses(*first_store, vec![first_access]);
-        program
-            .tree
-            .memory_table
-            .insert_memory_accesses(*second_store, vec![second_access]);
+        tag_store_access(&mut program, *first_store, 8, false, None);
+        tag_store_access(&mut program, *second_store, 4, false, None);
 
         program.run_pass(&DeadStoreEliminate);
         program.assert_unchanged(input);
@@ -1397,7 +1348,7 @@ block0(v0: ref<raw mut @Point>):
         // attach unknown size metadata to both stores
         let mut program = TestProgram::new(input);
         let function_id = program.entry_function_id();
-        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let store_ids = program.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
@@ -1450,7 +1401,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
 
         // attach disjoint scope metadata to the stores
         let function_id = program.entry_function_id();
-        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let store_ids = program.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
@@ -1506,7 +1457,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
 
         // attach disjoint tbaa metadata to the stores
         let function_id = program.entry_function_id();
-        let store_ids = store_instructions_in_entry(function_id, &program.tree);
+        let store_ids = program.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };

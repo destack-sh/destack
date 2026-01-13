@@ -135,6 +135,22 @@ pub fn memory_locations_compatible(a: &MemoryLocation, b: &MemoryLocation) -> bo
     true
 }
 
+/// Check whether two location sets may alias.
+pub fn location_sets_may_alias(a: mir::MemoryLocationSet, b: mir::MemoryLocationSet) -> bool {
+    !a.is_disjoint(b)
+}
+
+/// Check whether two address space sets may alias.
+pub fn address_spaces_may_alias(
+    a: &Option<mir::AddressSpaceSet>,
+    b: &Option<mir::AddressSpaceSet>,
+) -> bool {
+    match (a, b) {
+        (Some(a), Some(b)) => !a.is_disjoint(b),
+        _ => true,
+    }
+}
+
 /// Check whether two TBAA tags may alias.
 pub fn tbaa_tags_may_alias(
     tbaa: &mir::TbaaTable,
@@ -310,6 +326,65 @@ pub fn resolve_pointer_pointee_type(
             let ty = tree.get(callee.return_type);
             if let mir::Type::Reference { pointee, .. } = ty {
                 Some(*pointee)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Resolve a pointer's address space when it is statically known.
+pub fn resolve_pointer_address_space(
+    pointer: mir::Value,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    ownership: &OwnershipAnalysis,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> Option<mir::AddressSpace> {
+    // check parameter types first
+    if let Some(param_type) = parameter_type(pointer, function, tree)
+        && let mir::Type::Reference { address_space, .. } = tree.get(param_type)
+    {
+        return Some(*address_space);
+    }
+
+    // check ownership derived value types
+    if let Some(ty_id) = ownership.value_type(pointer)
+        && let mir::Type::Reference { address_space, .. } = tree.get(ty_id)
+    {
+        return Some(*address_space);
+    }
+
+    // resolve from defining instruction
+    let instruction_id = definitions.get(&pointer)?;
+    let instruction = tree.get(*instruction_id);
+
+    match instruction {
+        mir::Instruction::StackAlloc { .. } => Some(mir::AddressSpace::Stack),
+        mir::Instruction::RawAlloc { .. }
+        | mir::Instruction::ManagedAlloc { .. }
+        | mir::Instruction::ManagedAllocArray { .. } => Some(mir::AddressSpace::Heap),
+        mir::Instruction::GlobalAddr { .. } => Some(mir::AddressSpace::Global),
+        mir::Instruction::FieldAddr { aggregate, .. } => {
+            resolve_pointer_address_space(*aggregate, function, tree, ownership, definitions)
+        }
+        mir::Instruction::ElementAddr { array, .. } => {
+            resolve_pointer_address_space(*array, function, tree, ownership, definitions)
+        }
+        mir::Instruction::Cast {
+            argument, to_type, ..
+        } => {
+            if let mir::Type::Reference { address_space, .. } = tree.get(*to_type) {
+                Some(*address_space)
+            } else {
+                resolve_pointer_address_space(*argument, function, tree, ownership, definitions)
+            }
+        }
+        mir::Instruction::Call { function, .. } => {
+            let callee = tree.get(*function);
+            if let mir::Type::Reference { address_space, .. } = tree.get(callee.return_type) {
+                Some(*address_space)
             } else {
                 None
             }

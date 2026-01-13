@@ -4,8 +4,9 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::optimize::common::{
-    MemoryLocation, TypeKey, alias_scopes_may_alias, build_value_definition_map,
-    collect_reachable_blocks, compute_dominance_frontiers, resolve_pointer_pointee_type,
+    MemoryLocation, TypeKey, address_spaces_may_alias, alias_scopes_may_alias,
+    build_value_definition_map, collect_reachable_blocks, compute_dominance_frontiers,
+    location_sets_may_alias, resolve_pointer_address_space, resolve_pointer_pointee_type,
     tbaa_tags_may_alias,
 };
 use crate::optimize::{
@@ -80,6 +81,10 @@ pub struct MemoryAccessEffect {
     pub is_barrier: bool,
     /// The memory location being accessed.
     pub location: MemoryAccessLocation,
+    /// The memory location set associated with this access.
+    pub location_set: mir::MemoryLocationSet,
+    /// The address spaces associated with this access.
+    pub address_spaces: Option<mir::AddressSpaceSet>,
     /// Alias scopes applied to this access.
     pub alias_scopes: Vec<mir::AliasScopeId>,
     /// No alias scopes applied to this access.
@@ -93,6 +98,10 @@ pub struct MemoryAccessEffect {
 struct MemoryAccessQuery {
     /// The memory location being accessed.
     location: MemoryAccessLocation,
+    /// The memory location set associated with this query.
+    location_set: mir::MemoryLocationSet,
+    /// The address spaces associated with this query.
+    address_spaces: Option<mir::AddressSpaceSet>,
     /// Alias scopes applied to this access.
     alias_scopes: Vec<mir::AliasScopeId>,
     /// No alias scopes applied to this access.
@@ -106,6 +115,8 @@ impl MemoryAccessQuery {
     fn from_effect(effect: &MemoryAccessEffect) -> Self {
         Self {
             location: effect.location.clone(),
+            location_set: effect.location_set,
+            address_spaces: effect.address_spaces.clone(),
             alias_scopes: effect.alias_scopes.clone(),
             noalias_scopes: effect.noalias_scopes.clone(),
             tbaa_tag: effect.tbaa_tag,
@@ -116,10 +127,20 @@ impl MemoryAccessQuery {
     fn from_location(location: &MemoryAccessLocation) -> Self {
         Self {
             location: location.clone(),
+            location_set: location_set_for_location(location),
+            address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
         }
+    }
+}
+
+/// Determine the location set for a memory location.
+fn location_set_for_location(location: &MemoryAccessLocation) -> mir::MemoryLocationSet {
+    match location {
+        MemoryAccessLocation::Local(_) => mir::MemoryLocationSet::STACK,
+        _ => mir::MemoryLocationSet::ANY,
     }
 }
 
@@ -132,6 +153,8 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            location_set: mir::MemoryLocationSet::ANY,
+            address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
@@ -146,6 +169,8 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            location_set: mir::MemoryLocationSet::ANY,
+            address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
@@ -160,6 +185,8 @@ impl MemoryAccessEffect {
             is_volatile,
             is_barrier: false,
             location,
+            location_set: mir::MemoryLocationSet::ANY,
+            address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
@@ -174,6 +201,8 @@ impl MemoryAccessEffect {
             is_volatile: false,
             is_barrier: true,
             location: MemoryAccessLocation::Unknown,
+            location_set: mir::MemoryLocationSet::ANY,
+            address_spaces: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
@@ -788,51 +817,67 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Assume { .. } => SmallVec::new(),
             mir::Instruction::Load { pointer, .. } => {
                 let access_type = self.pointer_access_type(*pointer);
-                Self::single_effect(MemoryAccessEffect::read(
+                let mut effect = MemoryAccessEffect::read(
                     MemoryAccessLocation::from_pointer(*pointer, access_type),
                     false,
-                ))
+                );
+                self.apply_pointer_location(&mut effect, *pointer);
+                Self::single_effect(effect)
             }
             mir::Instruction::Store { pointer, .. } => {
                 let access_type = self.pointer_access_type(*pointer);
-                Self::single_effect(MemoryAccessEffect::write(
+                let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(*pointer, access_type),
                     false,
-                ))
+                );
+                self.apply_pointer_location(&mut effect, *pointer);
+                Self::single_effect(effect)
             }
-            mir::Instruction::LocalGet { local, .. } => Self::single_effect(
-                MemoryAccessEffect::read(MemoryAccessLocation::Local(*local), false),
-            ),
-            mir::Instruction::LocalSet { local, .. } => Self::single_effect(
-                MemoryAccessEffect::write(MemoryAccessLocation::Local(*local), false),
-            ),
+            mir::Instruction::LocalGet { local, .. } => {
+                let mut effect =
+                    MemoryAccessEffect::read(MemoryAccessLocation::Local(*local), false);
+                self.apply_local_location(&mut effect);
+                Self::single_effect(effect)
+            }
+            mir::Instruction::LocalSet { local, .. } => {
+                let mut effect =
+                    MemoryAccessEffect::write(MemoryAccessLocation::Local(*local), false);
+                self.apply_local_location(&mut effect);
+                Self::single_effect(effect)
+            }
             mir::Instruction::Call { arguments, .. }
             | mir::Instruction::CallIndirect { arguments, .. } => {
                 self.call_effects(instruction_id, instruction, *arguments)
             }
             mir::Instruction::RawFree { pointer } => {
                 let access_type = self.pointer_access_type(*pointer);
-                Self::single_effect(MemoryAccessEffect::write(
+                let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(*pointer, access_type),
                     false,
-                ))
+                );
+                self.apply_pointer_location(&mut effect, *pointer);
+                Self::single_effect(effect)
             }
             mir::Instruction::RawDrop { value } | mir::Instruction::StackDrop { value } => {
                 let access_type = self.pointer_access_type(*value);
-                Self::single_effect(MemoryAccessEffect::write(
+                let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(*value, access_type),
                     false,
-                ))
+                );
+                self.apply_pointer_location(&mut effect, *value);
+                Self::single_effect(effect)
             }
             mir::Instruction::ManagedAlloc { destination, .. }
             | mir::Instruction::ManagedAllocArray { destination, .. }
             | mir::Instruction::RawAlloc { destination, .. }
             | mir::Instruction::StackAlloc { destination, .. } => {
                 let access_type = self.pointer_access_type(*destination);
-                Self::single_effect(MemoryAccessEffect::write(
+                let mut effect = MemoryAccessEffect::write(
                     MemoryAccessLocation::from_pointer(*destination, access_type),
                     false,
-                ))
+                );
+                self.apply_pointer_location(&mut effect, *destination);
+                Self::single_effect(effect)
             }
             mir::Instruction::Intrinsic {
                 intrinsic,
@@ -890,10 +935,141 @@ impl<'a> MemoryAccessCollector<'a> {
             }
         };
 
+        // apply location metadata
+        let (location_set, address_spaces) =
+            self.location_set_for_metadata(access, &effect.location);
+        effect.location_set = location_set;
+        effect.address_spaces = address_spaces;
+
         effect.alias_scopes = access.alias_scopes.clone();
         effect.noalias_scopes = access.noalias_scopes.clone();
         effect.tbaa_tag = access.tbaa_tag;
         effect
+    }
+
+    /// Apply pointer location metadata to an effect.
+    fn apply_pointer_location(&mut self, effect: &mut MemoryAccessEffect, pointer: mir::Value) {
+        let (location_set, address_spaces) = self.location_set_for_pointer(pointer);
+        effect.location_set = location_set;
+        effect.address_spaces = address_spaces;
+    }
+
+    /// Apply local location metadata to an effect.
+    fn apply_local_location(&mut self, effect: &mut MemoryAccessEffect) {
+        effect.location_set = mir::MemoryLocationSet::STACK;
+        effect.address_spaces = self.address_space_set(mir::AddressSpace::Stack);
+    }
+
+    /// Resolve location metadata from an access description.
+    fn location_set_for_metadata(
+        &mut self,
+        access: &mir::MemoryAccessMetadata,
+        location: &MemoryAccessLocation,
+    ) -> (mir::MemoryLocationSet, Option<mir::AddressSpaceSet>) {
+        if let Some(address_space) = access.address_space {
+            let location_set = self.location_set_for_address_space(address_space);
+            return (location_set, self.address_space_set(address_space));
+        }
+
+        match access.target {
+            mir::MemoryAccessTarget::Local(_) => (
+                mir::MemoryLocationSet::STACK,
+                self.address_space_set(mir::AddressSpace::Stack),
+            ),
+            mir::MemoryAccessTarget::Global(_) => (
+                mir::MemoryLocationSet::GLOBAL,
+                self.address_space_set(mir::AddressSpace::Global),
+            ),
+            mir::MemoryAccessTarget::Pointer(pointer) => self.location_set_for_pointer(pointer),
+            mir::MemoryAccessTarget::Unknown => (location_set_for_location(location), None),
+        }
+    }
+
+    /// Resolve the location set for a pointer value.
+    fn location_set_for_pointer(
+        &mut self,
+        pointer: mir::Value,
+    ) -> (mir::MemoryLocationSet, Option<mir::AddressSpaceSet>) {
+        let Some(address_space) = resolve_pointer_address_space(
+            pointer,
+            self.function,
+            self.tree,
+            self.ownership,
+            &self.definitions,
+        ) else {
+            return (mir::MemoryLocationSet::ANY, None);
+        };
+
+        let location_set = self.location_set_for_address_space(address_space);
+        let address_spaces = self.address_space_set(address_space);
+        (location_set, address_spaces)
+    }
+
+    /// Map an address space to a location set.
+    fn location_set_for_address_space(
+        &self,
+        address_space: mir::AddressSpace,
+    ) -> mir::MemoryLocationSet {
+        match address_space {
+            mir::AddressSpace::Stack => mir::MemoryLocationSet::STACK,
+            mir::AddressSpace::Global => mir::MemoryLocationSet::GLOBAL,
+            mir::AddressSpace::Heap => mir::MemoryLocationSet::HEAP,
+            mir::AddressSpace::Shared => mir::MemoryLocationSet::SHARED,
+            mir::AddressSpace::Local => mir::MemoryLocationSet::LOCAL,
+            mir::AddressSpace::Constant => mir::MemoryLocationSet::CONSTANT,
+            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => {
+                mir::MemoryLocationSet::ANY
+            }
+        }
+    }
+
+    /// Build an address space set when the space is explicit.
+    fn address_space_set(&self, address_space: mir::AddressSpace) -> Option<mir::AddressSpaceSet> {
+        if address_space.is_generic() {
+            return None;
+        }
+
+        Some(mir::AddressSpaceSet::new(vec![address_space]))
+    }
+
+    /// Merge pointer and call location sets conservatively.
+    fn merge_location_sets(
+        &self,
+        pointer_set: mir::MemoryLocationSet,
+        call_set: mir::MemoryLocationSet,
+    ) -> mir::MemoryLocationSet {
+        let intersection = pointer_set.intersection(call_set);
+        if intersection.is_empty() {
+            mir::MemoryLocationSet::ANY
+        } else {
+            intersection
+        }
+    }
+
+    /// Merge pointer and call address space sets conservatively.
+    fn merge_address_spaces(
+        &self,
+        pointer_spaces: Option<mir::AddressSpaceSet>,
+        call_spaces: Option<&mir::AddressSpaceSet>,
+    ) -> Option<mir::AddressSpaceSet> {
+        match (pointer_spaces, call_spaces) {
+            (Some(pointer_spaces), Some(call_spaces)) => {
+                if pointer_spaces.is_disjoint(call_spaces) {
+                    None
+                } else {
+                    let spaces = pointer_spaces
+                        .spaces
+                        .iter()
+                        .copied()
+                        .filter(|space| call_spaces.contains(*space))
+                        .collect();
+                    Some(mir::AddressSpaceSet::new(spaces))
+                }
+            }
+            (Some(pointer_spaces), None) => Some(pointer_spaces),
+            (None, Some(call_spaces)) => Some(call_spaces.clone()),
+            (None, None) => None,
+        }
     }
 
     /// Determine memory effects for a call instruction using metadata.
@@ -992,6 +1168,14 @@ impl<'a> MemoryAccessCollector<'a> {
                     mir::ArgumentAccess::None => continue,
                 };
 
+                // apply location metadata for argument accesses
+                let (pointer_location_set, pointer_spaces) =
+                    self.location_set_for_pointer(arg_value);
+                effect.location_set =
+                    self.merge_location_sets(pointer_location_set, effects.locations);
+                effect.address_spaces =
+                    self.merge_address_spaces(pointer_spaces, effects.address_spaces.as_ref());
+
                 effect.alias_scopes = arg_metadata.alias_scopes.clone();
                 effect.noalias_scopes = arg_metadata.noalias_scopes.clone();
                 effect.tbaa_tag = arg_metadata.tbaa_tag;
@@ -1011,12 +1195,16 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Convert call memory effects to a MemorySSA effect.
     fn effect_from_call_effect(&self, effects: &mir::MemoryEffect) -> MemoryAccessEffect {
         // translate call summary into a generic access effect
-        match (effects.reads, effects.writes) {
+        let mut effect = match (effects.reads, effects.writes) {
             (true, true) => MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
             (true, false) => MemoryAccessEffect::read(MemoryAccessLocation::Unknown, false),
             (false, true) => MemoryAccessEffect::write(MemoryAccessLocation::Unknown, false),
             (false, false) => MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
-        }
+        };
+
+        effect.location_set = effects.locations;
+        effect.address_spaces = effects.address_spaces.clone();
+        effect
     }
 
     /// Clamp argument access based on the call wide effects.
@@ -1143,14 +1331,19 @@ impl<'a> MemoryAccessCollector<'a> {
                     (Some(dst), Some(src)) => {
                         let dst_type = self.pointer_access_type(dst);
                         let src_type = self.pointer_access_type(src);
-                        effects.push(MemoryAccessEffect::read(
+                        let mut read_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(src, src_type, size),
                             false,
-                        ));
-                        effects.push(MemoryAccessEffect::write(
+                        );
+                        self.apply_pointer_location(&mut read_effect, src);
+                        effects.push(read_effect);
+
+                        let mut write_effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(dst, dst_type, size),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut write_effect, dst);
+                        effects.push(write_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read_write(
                         MemoryAccessLocation::Unknown,
@@ -1171,10 +1364,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match dst {
                     Some(dst) => {
                         let dst_type = self.pointer_access_type(dst);
-                        effects.push(MemoryAccessEffect::write(
+                        let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer_with_size(dst, dst_type, size),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, dst);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
                         MemoryAccessLocation::Unknown,
@@ -1197,14 +1392,19 @@ impl<'a> MemoryAccessCollector<'a> {
                     (Some(left), Some(right)) => {
                         let left_type = self.pointer_access_type(left);
                         let right_type = self.pointer_access_type(right);
-                        effects.push(MemoryAccessEffect::read(
+                        let mut left_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(left, left_type, size),
                             false,
-                        ));
-                        effects.push(MemoryAccessEffect::read(
+                        );
+                        self.apply_pointer_location(&mut left_effect, left);
+                        effects.push(left_effect);
+
+                        let mut right_effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer_with_size(right, right_type, size),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut right_effect, right);
+                        effects.push(right_effect);
                     }
                     _ => effects.push(MemoryAccessEffect::read(
                         MemoryAccessLocation::Unknown,
@@ -1224,10 +1424,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::read(
+                        let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             true,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
                         MemoryAccessLocation::Unknown,
@@ -1247,10 +1449,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::write(
+                        let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             true,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
                         MemoryAccessLocation::Unknown,
@@ -1270,10 +1474,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::read(
+                        let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
                         MemoryAccessLocation::Unknown,
@@ -1307,10 +1513,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::read(
+                        let mut effect = MemoryAccessEffect::read(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read(
                         MemoryAccessLocation::Unknown,
@@ -1330,10 +1538,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::write(
+                        let mut effect = MemoryAccessEffect::write(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::write(
                         MemoryAccessLocation::Unknown,
@@ -1360,10 +1570,12 @@ impl<'a> MemoryAccessCollector<'a> {
                 match pointer {
                     Some(pointer) => {
                         let access_type = self.pointer_access_type(pointer);
-                        effects.push(MemoryAccessEffect::read_write(
+                        let mut effect = MemoryAccessEffect::read_write(
                             MemoryAccessLocation::from_pointer(pointer, access_type),
                             false,
-                        ));
+                        );
+                        self.apply_pointer_location(&mut effect, pointer);
+                        effects.push(effect);
                     }
                     None => effects.push(MemoryAccessEffect::read_write(
                         MemoryAccessLocation::Unknown,
@@ -1620,6 +1832,16 @@ fn access_clobbers_query(
         return false;
     }
 
+    // disambiguate by location sets
+    if !location_sets_may_alias(def_access.effect.location_set, query.location_set) {
+        return false;
+    }
+
+    // disambiguate by address spaces
+    if !address_spaces_may_alias(&def_access.effect.address_spaces, &query.address_spaces) {
+        return false;
+    }
+
     // disambiguate by alias scopes and tbaa
     if !effects_may_alias(&def_access.effect, query, tree) {
         return false;
@@ -1655,7 +1877,13 @@ fn access_clobbers_query(
     }
 
     // fall back to mod ref for unknown locations
-    let mod_ref = alias.get_mod_ref_info(def_access.instruction, pointer_location);
+    let mod_ref = alias.get_mod_ref_info_with_metadata(
+        def_access.instruction,
+        pointer_location,
+        &query.alias_scopes,
+        &query.noalias_scopes,
+        query.tbaa_tag,
+    );
     mod_ref.is_mod()
 }
 
@@ -1665,6 +1893,16 @@ fn effects_may_alias(
     query: &MemoryAccessQuery,
     tree: &mir::NodeTree,
 ) -> bool {
+    // check location sets
+    if !location_sets_may_alias(def_effect.location_set, query.location_set) {
+        return false;
+    }
+
+    // check address spaces
+    if !address_spaces_may_alias(&def_effect.address_spaces, &query.address_spaces) {
+        return false;
+    }
+
     // check scoped noalias metadata
     if !alias_scopes_may_alias(
         &def_effect.alias_scopes,
@@ -1699,6 +1937,12 @@ fn access_clobbers_location(
         return false;
     }
 
+    // disambiguate by location sets
+    let query_location_set = location_set_for_location(location);
+    if !location_sets_may_alias(def_access.effect.location_set, query_location_set) {
+        return false;
+    }
+
     // check for local memory
     if let MemoryAccessLocation::Local(local) = location {
         if let MemoryAccessLocation::Local(def_local) = &def_access.effect.location {
@@ -1722,7 +1966,13 @@ fn access_clobbers_location(
         return false;
     }
 
-    let mod_ref = alias.get_mod_ref_info(def_access.instruction, pointer_location);
+    let mod_ref = alias.get_mod_ref_info_with_metadata(
+        def_access.instruction,
+        pointer_location,
+        &[],
+        &[],
+        None,
+    );
     mod_ref.is_mod()
 }
 
@@ -2444,9 +2694,7 @@ block0:
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
-        // locate memcpy instruction
-        let block = program.tree.get(function.blocks[0]);
-        let memcpy_inst = block.instructions[3];
+        let memcpy_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
         let accesses = instruction_accesses(memory_ssa, memcpy_inst);
 
         // ensure we recorded a read and a write
@@ -2465,14 +2713,9 @@ block0:
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
 
-        let dest_value = match program.tree.get(block.instructions[0]) {
-            mir::Instruction::StackAlloc { destination, .. } => *destination,
-            _ => panic!("expected stack allocation"),
-        };
-        let src_value = match program.tree.get(block.instructions[1]) {
-            mir::Instruction::StackAlloc { destination, .. } => *destination,
-            _ => panic!("expected stack allocation"),
-        };
+        let stack_allocs = program.stack_alloc_destinations_in_entry(function_id);
+        let dest_value = *stack_allocs.first().expect("missing stack allocation");
+        let src_value = *stack_allocs.get(1).expect("missing stack allocation");
 
         assert_eq!(read_ptr, src_value);
         assert_eq!(write_ptr, dest_value);
@@ -2504,9 +2747,7 @@ block0:
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
-        // locate memcmp instruction
-        let block = program.tree.get(function.blocks[0]);
-        let memcmp_inst = block.instructions[3];
+        let memcmp_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
         let accesses = instruction_accesses(memory_ssa, memcmp_inst);
 
         // ensure we recorded two reads
