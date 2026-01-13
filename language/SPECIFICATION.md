@@ -2135,8 +2135,12 @@ match (user) {
 ```
 
 Match must be exhaustive—all possible values must be handled, or use `_` as a catch-all.
+The match expression type is the union of its case body types.
+`break` is not allowed inside `match` arms.
 
-TypeScript's `switch` also works unchanged:
+TypeScript's `switch` also works unchanged in syntax, but it is a statement like expression that yields `void` in Destack.
+Switch cases fall through by default and require `break` to stop.
+`break` in a `switch` cannot carry a value.
 
 ```
 switch (value) {

@@ -733,31 +733,30 @@ impl Compiler {
         }
 
         // skip when the value is already cast to an equivalent type
-        if let Expression::Cast { target_type, .. } = tree.get(value_id) {
-            if let Some(existing_target_type_id) =
+        if let Expression::Cast { target_type, .. } = tree.get(value_id)
+            && let Some(existing_target_type_id) =
                 self.type_id_for_type_expression(module_id, *target_type, tree, types)
-            {
-                let to_target = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    target_type_id,
-                    existing_target_type_id,
-                    types,
-                    &options,
-                );
-                let to_source = self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    existing_target_type_id,
-                    target_type_id,
-                    types,
-                    &options,
-                );
-                if to_target.is_assignable() && to_source.is_assignable() {
-                    return Ok(value_id);
-                }
+        {
+            let to_target = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_type_id,
+                existing_target_type_id,
+                types,
+                &options,
+            );
+            let to_source = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                existing_target_type_id,
+                target_type_id,
+                types,
+                &options,
+            );
+            if to_target.is_assignable() && to_source.is_assignable() {
+                return Ok(value_id);
             }
         }
 

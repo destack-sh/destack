@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 use crate::{
     Argument, BinaryOperator, Block, Declaration, Declarator, DynamicKey, Expression, FlowBlock,
     FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, ForEachBinding, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchSelector, MatchSource, NodeTree,
-    Pattern, PatternField, Property, TemplateLiteral, UnaryOperator,
+    LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource,
+    NodeTree, Pattern, PatternField, Property, TemplateLiteral, UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -14,8 +14,8 @@ use crate::{
 enum ControlTargetKind {
     /// Track loop targets for break and continue.
     Loop,
-    /// Track match targets for break.
-    Match,
+    /// Track switch targets for break.
+    Switch,
     /// Track labelled statements for break.
     Label,
 }
@@ -274,12 +274,20 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 current_block_id,
             ),
             Expression::Match {
+                kind,
                 value,
                 cases,
                 source,
                 symbol,
                 ..
-            } => self.build_match_expression(*value, cases, *source, *symbol, current_block_id),
+            } => self.build_match_expression(
+                *kind,
+                *value,
+                cases,
+                *source,
+                *symbol,
+                current_block_id,
+            ),
             Expression::Binary {
                 left,
                 operator,
@@ -1019,9 +1027,10 @@ impl<'tree> FlowGraphBuilder<'tree> {
     /// Build a match expression and return the exit block when it exists.
     fn build_match_expression(
         &mut self,
+        kind: MatchKind,
         value_id: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
-        source: MatchSource,
+        _source: MatchSource,
         symbol: LocalSymbolId,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
@@ -1030,11 +1039,11 @@ impl<'tree> FlowGraphBuilder<'tree> {
         let match_exit_block_id = self.create_block();
 
         // register match control targets when needed
-        let should_push_match = source == MatchSource::Match;
-        if should_push_match {
+        let should_push_switch = kind == MatchKind::Switch;
+        if should_push_switch {
             let match_symbol = symbol.into_global(self.module_id);
             self.control_stack.push(ControlTarget {
-                kind: ControlTargetKind::Match,
+                kind: ControlTargetKind::Switch,
                 symbol: Some(match_symbol),
                 break_target: match_exit_block_id,
                 continue_target: None,
@@ -1065,7 +1074,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
 
         // pop match control targets after processing cases
-        if should_push_match {
+        if should_push_switch {
             self.control_stack.pop();
         }
 
@@ -1422,7 +1431,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         for target in self.control_stack.iter().rev() {
             if matches!(
                 target.kind,
-                ControlTargetKind::Loop | ControlTargetKind::Match
+                ControlTargetKind::Loop | ControlTargetKind::Switch
             ) {
                 return Some(target.break_target);
             }

@@ -1,11 +1,12 @@
 use destack_dir::{
-    Declarator, Expression, GlobalSymbolId, LocalNodeId, MatchCase, MatchSelector, Pattern,
+    Declarator, Expression, GlobalSymbolId, LocalNodeId, MatchCase, MatchKind, MatchSelector,
+    Pattern,
 };
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::{FunctionContext, LocalBinding, LoopContext, Terminates};
+use super::{BreakContext, FunctionContext, LocalBinding, LoopContext, Terminates};
 
 impl FunctionContext<'_> {
     /// Lower a statement expression.
@@ -15,6 +16,9 @@ impl FunctionContext<'_> {
     ) -> LowerResult<Terminates> {
         match self.dir_tree.get(expression_id) {
             Expression::Statement { statement } => self.lower_statement_expression(*statement),
+            Expression::Labelled { body, symbol, .. } => {
+                self.lower_labelled_statement(expression_id, *symbol, *body)
+            }
             Expression::Block { block } => {
                 let block = self.dir_tree.get(*block);
                 for expr_id in &block.expressions {
@@ -51,7 +55,7 @@ impl FunctionContext<'_> {
                 body,
                 symbol,
                 ..
-            } => self.lower_loop_statement(*kind, *condition, *body, *symbol),
+            } => self.lower_loop_statement(*kind, *condition, *body, *symbol, None),
 
             Expression::For {
                 initialization,
@@ -60,7 +64,14 @@ impl FunctionContext<'_> {
                 body,
                 symbol,
                 ..
-            } => self.lower_for_statement(*initialization, *condition, *increment, *body, *symbol),
+            } => self.lower_for_statement(
+                *initialization,
+                *condition,
+                *increment,
+                *body,
+                *symbol,
+                None,
+            ),
 
             Expression::Break { target_symbol, .. } => {
                 self.lower_break_statement(expression_id, *target_symbol)
@@ -71,11 +82,12 @@ impl FunctionContext<'_> {
             }
 
             Expression::Match {
+                kind,
                 value,
                 cases,
                 symbol,
                 ..
-            } => self.lower_match_statement(expression_id, *value, cases, *symbol),
+            } => self.lower_match_statement(expression_id, *kind, *value, cases, *symbol),
 
             _ => {
                 let _ = self.lower_value_expression(expression_id)?;
@@ -171,6 +183,56 @@ impl FunctionContext<'_> {
         Ok(Terminates::No)
     }
 
+    /// Lower a labelled statement with an explicit break target.
+    fn lower_labelled_statement(
+        &mut self,
+        _expression_id: LocalNodeId<Expression>,
+        label_symbol: dir::LocalSymbolId,
+        body_id: LocalNodeId<Expression>,
+    ) -> LowerResult<Terminates> {
+        let label_symbol = label_symbol.into_global(self.module_id);
+        let body = self.dir_tree.get(body_id);
+
+        match body {
+            Expression::Loop {
+                kind,
+                condition,
+                body,
+                symbol,
+                ..
+            } => self.lower_loop_statement(*kind, *condition, *body, *symbol, Some(label_symbol)),
+            Expression::For {
+                initialization,
+                condition,
+                increment,
+                body,
+                symbol,
+                ..
+            } => self.lower_for_statement(
+                *initialization,
+                *condition,
+                *increment,
+                *body,
+                *symbol,
+                Some(label_symbol),
+            ),
+            _ => {
+                let break_block = self.builder.create_block();
+                let label_context = BreakContext { break_block };
+                self.labels_by_symbol.insert(label_symbol, label_context);
+
+                let terminated = self.lower_statement_expression(body_id)?;
+                if !terminated.is_yes() {
+                    self.builder.jump(break_block);
+                }
+
+                self.labels_by_symbol.remove(&label_symbol);
+                self.builder.switch_to_block(break_block);
+                Ok(Terminates::No)
+            }
+        }
+    }
+
     /// Lower an if statement into blocks and branches.
     fn lower_if_statement(
         &mut self,
@@ -221,6 +283,7 @@ impl FunctionContext<'_> {
         condition: Option<LocalNodeId<Expression>>,
         body_id: LocalNodeId<dir::Block>,
         loop_symbol_id: dir::LocalSymbolId,
+        label_symbol: Option<GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         let header_block = self.builder.create_block();
         let body_block = self.builder.create_block();
@@ -235,6 +298,12 @@ impl FunctionContext<'_> {
         self.loops_by_symbol
             .insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
+        self.break_stack.push(BreakContext {
+            break_block: exit_block,
+        });
+        if let Some(label_symbol) = label_symbol {
+            self.loops_by_symbol.insert(label_symbol, loop_context);
+        }
 
         match kind {
             dir::LoopKind::NoTest => {
@@ -299,7 +368,11 @@ impl FunctionContext<'_> {
 
         // cleanup loop context
         self.loop_stack.pop();
+        self.break_stack.pop();
         self.loops_by_symbol.remove(&global_loop_symbol_id);
+        if let Some(label_symbol) = label_symbol {
+            self.loops_by_symbol.remove(&label_symbol);
+        }
 
         // continue after the loop
         self.builder.switch_to_block(exit_block);
@@ -314,6 +387,7 @@ impl FunctionContext<'_> {
         increment: Option<LocalNodeId<Expression>>,
         body_id: LocalNodeId<dir::Block>,
         loop_symbol_id: dir::LocalSymbolId,
+        label_symbol: Option<GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
         // lower initialization in current block
         if let Some(init_id) = initialization {
@@ -334,6 +408,12 @@ impl FunctionContext<'_> {
         self.loops_by_symbol
             .insert(global_loop_symbol_id, loop_context);
         self.loop_stack.push(loop_context);
+        self.break_stack.push(BreakContext {
+            break_block: exit_block,
+        });
+        if let Some(label_symbol) = label_symbol {
+            self.loops_by_symbol.insert(label_symbol, loop_context);
+        }
 
         // jump to header to start loop
         self.builder.jump(header_block);
@@ -365,7 +445,11 @@ impl FunctionContext<'_> {
 
         // cleanup loop context
         self.loop_stack.pop();
+        self.break_stack.pop();
         self.loops_by_symbol.remove(&global_loop_symbol_id);
+        if let Some(label_symbol) = label_symbol {
+            self.loops_by_symbol.remove(&label_symbol);
+        }
 
         // continue after the loop
         self.builder.switch_to_block(exit_block);
@@ -378,8 +462,34 @@ impl FunctionContext<'_> {
         expression_id: LocalNodeId<Expression>,
         target_symbol: Option<GlobalSymbolId>,
     ) -> LowerResult<Terminates> {
-        let loop_context = self.resolve_loop_context(expression_id, target_symbol)?;
-        self.builder.jump(loop_context.break_block);
+        // labeled break
+        let break_block = if let Some(target_symbol) = target_symbol {
+            if let Some(label_context) = self.labels_by_symbol.get(&target_symbol) {
+                label_context.break_block
+            } else if let Some(loop_context) = self.loops_by_symbol.get(&target_symbol) {
+                loop_context.break_block
+            } else {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "break outside of loop or label".to_string(),
+                });
+            }
+        }
+        // unlabeled break
+        else {
+            let context = self.break_stack.last().copied().ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "break outside of loop or switch".to_string(),
+                }
+            })?;
+            context.break_block
+        };
+        self.builder.jump(break_block);
         Ok(Terminates::Yes)
     }
 
@@ -410,7 +520,7 @@ impl FunctionContext<'_> {
             node: expression_id
                 .into_global_any(self.module_id)
                 .into_anchored(Some(self.profile)),
-            message: "break/continue outside of loop".to_string(),
+            message: "continue outside of loop".to_string(),
         })
     }
 
@@ -432,6 +542,7 @@ impl FunctionContext<'_> {
     fn lower_match_statement(
         &mut self,
         expression_id: LocalNodeId<Expression>,
+        kind: MatchKind,
         value_id: LocalNodeId<Expression>,
         cases: &[LocalNodeId<MatchCase>],
         _symbol: dir::LocalSymbolId,
@@ -442,6 +553,11 @@ impl FunctionContext<'_> {
         // create blocks
         let exit_block = self.builder.create_block();
         let case_blocks: Vec<_> = cases.iter().map(|_| self.builder.create_block()).collect();
+        if kind == MatchKind::Switch {
+            self.break_stack.push(BreakContext {
+                break_block: exit_block,
+            });
+        }
 
         // analyze cases: find default and collect pattern case indices
         let mut default_index: Option<usize> = None;
@@ -539,7 +655,12 @@ impl FunctionContext<'_> {
             };
 
             if !terminated.is_yes() {
-                self.builder.jump(exit_block);
+                let fallthrough_target = if kind == MatchKind::Switch && i + 1 < case_blocks.len() {
+                    case_blocks[i + 1]
+                } else {
+                    exit_block
+                };
+                self.builder.jump(fallthrough_target);
                 all_terminate = false;
             }
         }
@@ -547,6 +668,10 @@ impl FunctionContext<'_> {
         // switch to exit block for continuation
         if !all_terminate || default_index.is_none() {
             self.builder.switch_to_block(exit_block);
+        }
+
+        if kind == MatchKind::Switch {
+            self.break_stack.pop();
         }
 
         // terminates only if all cases terminate and there's a default

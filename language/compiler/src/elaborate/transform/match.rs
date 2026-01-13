@@ -1,8 +1,8 @@
 use destack_dir::{
     BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase, MatchSelector,
-    MatchSource, Mutability, Name, NodeTree, NodeType, Pattern, PatternField, ScalarLiteral,
-    StringId, TypeBinaryOperator,
+    Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase, MatchKind,
+    MatchSelector, MatchSource, Mutability, Name, NodeTree, NodeType, Pattern, PatternField,
+    ScalarLiteral, StringId, TypeBinaryOperator,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -39,6 +39,7 @@ impl Compiler {
                 matches!(
                     tree.get(*id),
                     Expression::Match {
+                        kind: MatchKind::Match,
                         source: MatchSource::Match,
                         ..
                     }

@@ -4,10 +4,11 @@ use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, CastOperator, CastSource,
     Declaration, DeclarationDescriptor, Declarator, DependencyItem, DependencyKind,
     DependencySource, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
-    MatchCase, MatchSource, ModuleTarget, Mutability, Node, NodeType, OwnershipCastOperator,
-    OwnershipCastSource, Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty,
-    SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
-    TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    MatchCase, MatchKind, MatchSource, ModuleTarget, Mutability, Node, NodeType,
+    OwnershipCastOperator, OwnershipCastSource, Path, Pattern, Property, ScalarLiteral,
+    StaticArgument, StaticProperty, SymbolSpaceOrder, TemplateLiteral, TypeBinaryOperator,
+    TypeLiteral, TypeMappedModifiers, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+    VarianceBound,
 };
 
 /// A mapped type parameter for expressions.
@@ -380,6 +381,7 @@ pub enum Expression {
     },
     /// Match expression.
     Match {
+        kind: MatchKind,
         value: LocalNodeId<Expression>,
         cases: Vec<LocalNodeId<MatchCase>>,
         source: MatchSource,

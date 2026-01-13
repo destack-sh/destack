@@ -383,7 +383,8 @@ impl Compiler {
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
     ) -> ImportResult<()> {
-        use base64::{engine::general_purpose::STANDARD, Engine};
+        use base64::Engine;
+        use base64::engine::general_purpose::STANDARD;
 
         let module = self.program.modules.get(module_id);
 

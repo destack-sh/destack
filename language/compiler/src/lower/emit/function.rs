@@ -8,7 +8,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::{LocalBinding, LoopContext, Terminates};
+use super::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
 use crate::lower::r#type::TypeLowerer;
 
@@ -41,8 +41,12 @@ pub(crate) struct FunctionContext<'a> {
     pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
     /// Track loop contexts by symbol for labeled break/continue.
     pub(crate) loops_by_symbol: HashMap<GlobalSymbolId, LoopContext>,
+    /// Track labelled block contexts by symbol for labeled breaks.
+    pub(crate) labels_by_symbol: HashMap<GlobalSymbolId, BreakContext>,
     /// Track loop nesting for unlabeled break/continue.
     pub(crate) loop_stack: Vec<LoopContext>,
+    /// Track breakable contexts for unlabeled breaks.
+    pub(crate) break_stack: Vec<BreakContext>,
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
 }
@@ -75,7 +79,9 @@ impl<'a> FunctionContext<'a> {
             builder,
             locals_by_symbol: HashMap::new(),
             loops_by_symbol: HashMap::new(),
+            labels_by_symbol: HashMap::new(),
             loop_stack: Vec::new(),
+            break_stack: Vec::new(),
             this_binding: None,
         }
     }

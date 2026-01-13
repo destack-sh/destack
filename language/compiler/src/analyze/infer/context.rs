@@ -26,8 +26,12 @@ pub struct InferContext {
     pub is_unreachable: bool,
     /// The enclosing loop node (if any) (enables break and continue).
     pub in_loop: Option<LocalNodeIdAny>,
-    /// The enclosing match node (if any) (enables break only).
+    /// The enclosing match node (if any).
     pub in_match: Option<LocalNodeIdAny>,
+    /// The enclosing switch node (if any) (enables break only).
+    pub in_switch: Option<LocalNodeIdAny>,
+    /// Stack of active break targets (innermost last).
+    pub break_stack: Vec<BreakTargetKind>,
     /// The enclosing function node (if any) (enables return).
     pub in_function: Option<LocalNodeIdAny>,
     /// Whether the enclosing function is async (enables await).
@@ -55,6 +59,15 @@ pub struct FlowContext {
     pub table: Arc<FlowTable>,
 }
 
+/// Track the innermost break target kind.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum BreakTargetKind {
+    /// Break exits a loop.
+    Loop,
+    /// Break exits a switch.
+    Switch,
+}
+
 /// Track try catch state during inference.
 #[derive(Debug, Clone)]
 pub struct TryContextFrame {
@@ -76,6 +89,8 @@ impl InferContext {
             is_unreachable: false,
             in_loop: None,
             in_match: None,
+            in_switch: None,
+            break_stack: Vec::new(),
             in_function: None,
             is_async: false,
             is_generator: false,
@@ -97,6 +112,8 @@ impl InferContext {
             is_unreachable: self.is_unreachable,
             in_loop: self.in_loop,
             in_match: self.in_match,
+            in_switch: self.in_switch,
+            break_stack: self.break_stack.clone(),
             in_function: self.in_function,
             is_async: self.is_async,
             is_generator: self.is_generator,
@@ -118,6 +135,8 @@ impl InferContext {
             is_unreachable: false,
             in_loop: None,
             in_match: None,
+            in_switch: None,
+            break_stack: Vec::new(),
             in_function: None,
             is_async: false,
             is_generator: false,
@@ -159,13 +178,23 @@ impl InferContext {
 
     /// Enter a loop context.
     pub fn in_loop(mut self, loop_id: LocalNodeIdAny) -> Self {
+        // record loop as the innermost break target
         self.in_loop = Some(loop_id);
+        self.break_stack.push(BreakTargetKind::Loop);
+
         self
     }
 
     /// Enter a match context.
     pub fn in_match(mut self, match_id: LocalNodeIdAny) -> Self {
         self.in_match = Some(match_id);
+        self
+    }
+
+    /// Enter a switch context.
+    pub fn in_switch(mut self, switch_id: LocalNodeIdAny) -> Self {
+        self.in_switch = Some(switch_id);
+        self.break_stack.push(BreakTargetKind::Switch);
         self
     }
 
@@ -225,9 +254,9 @@ impl InferContext {
         false
     }
 
-    /// Check if we can break (in loop or match).
+    /// Check if we can break (in loop or switch).
     pub fn can_break(&self) -> bool {
-        self.in_loop.is_some() || self.in_match.is_some()
+        !self.break_stack.is_empty()
     }
 
     /// Check if we can continue (in loop only).

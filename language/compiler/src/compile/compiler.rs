@@ -142,6 +142,7 @@ impl std::fmt::Debug for CompilerOptions {
 
 /// Compile files and sources into something (via DIR).
 /// #Architecture: should Compiler be per-target? what about comptime though?
+#[allow(clippy::type_complexity)]
 pub struct Compiler {
     /// The session (shared state).
     pub session: Arc<Session>,

@@ -33,3 +33,10 @@ pub(crate) struct LoopContext {
     /// Block to jump to on break (loop exit).
     pub(crate) break_block: mir::LocalNodeId<mir::Block>,
 }
+
+/// Track break context for non-loop control flow.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct BreakContext {
+    /// Block to jump to on break.
+    pub(crate) break_block: mir::LocalNodeId<mir::Block>,
+}

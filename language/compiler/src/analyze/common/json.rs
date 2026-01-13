@@ -238,7 +238,10 @@ mod tests {
         let strings = test_strings();
         let value = serde_json::json!([1, 2, 3]);
         let ty_id = json_value_to_type(&value, test_node_id(), &mut types, &strings);
-        let Type::Array { element: Some(elem_id) } = types.get_type(ty_id) else {
+        let Type::Array {
+            element: Some(elem_id),
+        } = types.get_type(ty_id)
+        else {
             panic!("expected array type");
         };
         assert!(matches!(
@@ -255,7 +258,10 @@ mod tests {
         let strings = test_strings();
         let value = serde_json::json!([1, "hello", true]);
         let ty_id = json_value_to_type(&value, test_node_id(), &mut types, &strings);
-        let Type::Array { element: Some(elem_id) } = types.get_type(ty_id) else {
+        let Type::Array {
+            element: Some(elem_id),
+        } = types.get_type(ty_id)
+        else {
             panic!("expected array type");
         };
         let Type::Union { elements } = types.get_type(*elem_id) else {

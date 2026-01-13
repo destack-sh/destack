@@ -101,7 +101,9 @@ impl Compiler {
         }
 
         // get base DIR (must exist for parsed data modules)
-        let base = module.dir_base_maybe().expect("data module missing base DIR");
+        let base = module
+            .dir_base_maybe()
+            .expect("data module missing base DIR");
 
         // create profile DIR from base
         let dir = ModuleDir::from_base(base, profile_id);
@@ -115,9 +117,10 @@ impl Compiler {
             destack_dir::SymbolSpace::Value,
             dir.default_symbol,
         );
-        dir.exported_symbols
-            .write()
-            .insert((destack_dir::SymbolSpace::Value, default_key), default_export);
+        dir.exported_symbols.write().insert(
+            (destack_dir::SymbolSpace::Value, default_key),
+            default_export,
+        );
 
         // add DIR to module
         match &mut module.content {

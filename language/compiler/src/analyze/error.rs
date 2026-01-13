@@ -163,6 +163,18 @@ pub enum AnalyzeError {
         label: Option<StringId>,
     },
 
+    /// Break values are not allowed in switch statements.
+    #[error(code = "EA308", message = "switch break cannot have a value")]
+    InvalidSwitchBreakValue { node: AnchoredGlobalNodeId },
+
+    /// Switch cases must use expression patterns.
+    #[error(code = "EA309", message = "switch cases require expression patterns")]
+    InvalidSwitchCasePattern { node: AnchoredGlobalNodeId },
+
+    /// Switch cases do not support guards.
+    #[error(code = "EA310", message = "switch cases do not support guards")]
+    InvalidSwitchCaseGuard { node: AnchoredGlobalNodeId },
+
     /// Invalid continue.
     #[error(code = "EA301", message = "invalid continue to '{label}'")]
     InvalidContinue {

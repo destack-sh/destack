@@ -12,6 +12,7 @@ In Destack, everything is an expression. The last non-statement expression becom
 | Directory | Description |
 |-----------|-------------|
 | `match/` | Pattern matching with exhaustiveness checking |
+| `switch/` | Switch statements with fallthrough |
 | `ranges/` | Range literals (`0..10`, `0..=10`) |
 | `tuples/` | Tuple literals and types `(a, b)` |
 | `loops/` | Infinite `loop { }` construct |
