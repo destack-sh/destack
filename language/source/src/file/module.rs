@@ -104,12 +104,36 @@ impl ModuleId {
     /// Create a ModuleId from a package and a path, computing the relative path.
     /// If the path is not within the package root, uses the full path as fallback.
     pub fn from_path(package: PackageId, path: &Path, package_root: Option<&Path>) -> Self {
+        Self::from_path_with_loader(package, path, package_root, None)
+    }
+
+    /// Create a ModuleId from a package, path, and optional loader salt.
+    ///
+    /// When a non-default loader is used (e.g., `with { type: "text" }`), the loader
+    /// name is included in the hash to ensure different loaders produce different ModuleIds.
+    /// This allows the same file to be imported with different loaders as separate modules.
+    pub fn from_path_with_loader(
+        package: PackageId,
+        path: &Path,
+        package_root: Option<&Path>,
+        loader_salt: Option<&str>,
+    ) -> Self {
         let relative = if let Some(root) = package_root {
             path.strip_prefix(root).unwrap_or(path)
         } else {
             path
         };
-        Self::from_relative_path(package, relative)
+
+        // include loader in hash if provided (for non-default loaders)
+        let hash_input = match loader_salt {
+            Some(salt) => format!("{}::{}", relative.to_string_lossy(), salt),
+            None => relative.to_string_lossy().into_owned(),
+        };
+
+        Self {
+            package_id: package,
+            local_id: fnv1a_32(hash_input.as_bytes()),
+        }
     }
 }
 

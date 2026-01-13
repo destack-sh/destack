@@ -188,6 +188,14 @@ impl Compiler {
     ) -> ResolveResult<(destack_dir::GlobalScopeId, Option<ModuleId>)> {
         match target {
             ModuleTarget::Module(module_id) => {
+                // non-code modules don't have scopes - use origin module scope
+                if !self.is_code_module(module_id) {
+                    let module = self.program.modules.get(origin_module_id);
+                    let module = module.read();
+                    let dir = module.dir(profile);
+                    return Ok((dir.namespace_scope.into_global(origin_module_id), None));
+                }
+
                 // ensure the target module is prepared
                 self.require_resolve_module_prepare_if_needed(
                     origin_module_id,
@@ -291,6 +299,15 @@ impl Compiler {
                 let Some(export) = export else {
                     return Ok(None);
                 };
+
+                // for data/text/binary modules, return the default symbol directly
+                // (no need to resolve through export entry since it's a simple local export)
+                if !self.is_code_module(module_id) {
+                    if let Some(symbol) = export.symbol {
+                        return Ok(Some(symbol.into_global(module_id)));
+                    }
+                    return Ok(None);
+                }
 
                 // resolve the export entry for this module
                 self.resolve_export_entry_symbol(
@@ -778,12 +795,29 @@ impl Compiler {
         _source: DependencySource,
         target: StringId,
     ) -> ResolveResult<ModuleTarget> {
+        self.resolve_import_with_loader(module, dir, profile, node, _source, target, None)
+    }
+
+    /// Try to resolve an import with an optional loader override.
+    pub(super) fn resolve_import_with_loader(
+        &self,
+        module: &Module,
+        dir: &ModuleDir,
+        profile: ProfileId,
+        node: GlobalNodeIdAny,
+        _source: DependencySource,
+        target: StringId,
+        loader_override: Option<destack_workspace::Loader>,
+    ) -> ResolveResult<ModuleTarget> {
         // derive the relative module context
         let is_relative = self.is_import_relative(target);
         let relative_module = if is_relative { Some(module.id) } else { None };
 
+        // cache key includes loader to distinguish different import modes
+        let cache_key = (relative_module, target, loader_override);
+
         // check if already resolved locally
-        if let Some(&remote_target) = dir.imported_modules.read().get(&(relative_module, target)) {
+        if let Some(&remote_target) = dir.imported_modules.read().get(&cache_key) {
             return Ok(remote_target);
         }
 
@@ -796,26 +830,29 @@ impl Compiler {
             )?;
             let global_module = self.program.modules.get(self.program.root_module_id);
             let global_module = global_module.read();
+            let global_key = (None, target, loader_override);
             if let Some(&remote_target) = global_module
                 .dir(profile)
                 .imported_modules
                 .read()
-                .get(&(None, target))
+                .get(&global_key)
             {
                 dir.imported_modules
                     .write()
-                    .insert((None, target), remote_target);
+                    .insert(cache_key, remote_target);
                 return Ok(remote_target);
             }
         }
 
         // check for module bindings (i.e. `declare module`)
-        if let Some(binding_target) =
-            self.resolve_module_binding_target(module.id, profile, target)?
+        // (module bindings don't use loader overrides)
+        if loader_override.is_none()
+            && let Some(binding_target) =
+                self.resolve_module_binding_target(module.id, profile, target)?
         {
             dir.imported_modules
                 .write()
-                .insert((relative_module, target), binding_target);
+                .insert(cache_key, binding_target);
             // cache globally for non-relative imports (see above)
             if !is_relative && !module.is_builtin() {
                 self.require_resolve_module_prepare_if_needed(
@@ -829,7 +866,7 @@ impl Compiler {
                     .dir(profile)
                     .imported_modules
                     .write()
-                    .insert((None, target), binding_target);
+                    .insert((None, target, None), binding_target);
             }
             return Ok(binding_target);
         }
@@ -842,7 +879,7 @@ impl Compiler {
             relative_module
         };
         let remote_module_id = self
-            .resolve_specifier_to_module(target, source_module)
+            .resolve_specifier_to_module_with_loader(target, source_module, loader_override)
             .map_err(|_| ResolveError::UnresolvedModule {
                 node: node.into_anchored(Some(profile)),
                 target,
@@ -855,7 +892,7 @@ impl Compiler {
         let remote_target = ModuleTarget::Module(remote_module_id);
         dir.imported_modules
             .write()
-            .insert((relative_module, target), remote_target);
+            .insert(cache_key, remote_target);
         Ok(remote_target)
     }
 
@@ -869,6 +906,14 @@ impl Compiler {
     ) -> ResolveResult<GlobalSymbolId> {
         match target {
             ModuleTarget::Module(module_id) => {
+                // non-code modules (data, text, binary) don't have a namespace symbol
+                if !self.is_code_module(module_id) {
+                    return Err(ResolveError::DataModuleNamespace {
+                        node: node.into_anchored(Some(profile)),
+                        module: module_id,
+                    });
+                }
+
                 // ensure the target module is prepared
                 self.require_resolve_module_prepare_if_needed(
                     origin_module_id,
@@ -931,6 +976,11 @@ impl Compiler {
     ) -> ResolveResult<Option<GlobalSymbolId>> {
         match target {
             ModuleTarget::Module(module_id) => {
+                // non-code modules (data, text, binary) don't have export assignments
+                if !self.is_code_module(module_id) {
+                    return Ok(None);
+                }
+
                 // ensure the target module is prepared
                 self.require_resolve_module_prepare_if_needed(
                     origin_module_id,

@@ -4,11 +4,12 @@ use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 
-use crate::{ImportMeta, ProfileId};
+use crate::{ImportMeta, Loader, ProfileId};
 
 /// DIR-level module data.
 /// The base DIR uses `profile_id: None`.
 #[derive(Debug)]
+#[allow(clippy::type_complexity)]
 pub struct ModuleDir {
     /// The profile id this is targeting, if any.
     pub profile_id: Option<ProfileId>,
@@ -46,8 +47,9 @@ pub struct ModuleDir {
     pub module_bindings: RwLock<Vec<dir::ModuleBinding>>,
     /// Export tables for module bindings.
     pub module_binding_exports: RwLock<IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>>,
-    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier)).
-    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId), dir::ModuleTarget>>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
+    /// The loader component distinguishes imports with non-default loaders.
+    pub imported_modules: RwLock<IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
 }
@@ -91,6 +93,81 @@ impl ModuleDir {
             (namespace_scope_id, dir::LocalScopeMark::end()),
             None,
         );
+
+        Self {
+            profile_id: None,
+            id,
+            version,
+            tree: RwLock::new(dir::NodeTree::new(id)),
+            symbols: RwLock::new(symbols),
+            types: RwLock::new(dir::TypeTable::new(id)),
+            roots: Vec::new(),
+            import_meta: None,
+            namespace_symbol: namespace_symbol_id,
+            namespace_scope: namespace_scope_id,
+            global_augmentation_scope: global_augmentation_scope_id,
+            default_symbol: default_symbol_id,
+            export_assignment_symbol: export_assignment_symbol_id,
+            export_assignment: RwLock::new(None),
+            namespace_exports: RwLock::new(Vec::new()),
+            module_bindings: RwLock::new(Vec::new()),
+            module_binding_exports: RwLock::new(IndexMap::new()),
+            imported_modules: RwLock::new(IndexMap::new()),
+            exported_symbols: RwLock::new(IndexMap::new()),
+        }
+    }
+
+    /// Create a minimal base DIR for data modules (JSON, TOML, text, binary).
+    ///
+    /// Data modules have a simpler structure than code modules:
+    /// - No AST to parse
+    /// - Single default export (the data value itself)
+    /// - No named exports
+    pub fn new_data_base(id: ModuleId, version: ModuleVersion) -> Self {
+        // create minimal symbol table with namespace and default symbols
+        let mut symbols = dir::SymbolTable::new(id);
+        let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
+        let global_augmentation_scope_id = symbols.insert_scope(
+            dir::ScopeKind::Namespace,
+            Some((namespace_scope_id, dir::LocalScopeMark::end())),
+            None,
+        );
+
+        // namespace symbol
+        let (namespace_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Namespace,
+            dir::SymbolType::Void,
+            dir::SymbolSpace::Value,
+            dir::SymbolBinding::Runtime,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            Some(dir::DependencyMode::Namespace),
+        );
+        symbols.get_scope_by_id_mut(namespace_scope_id).owner_id = Some(namespace_symbol_id);
+
+        // default symbol - this is what gets exported as `default`
+        let (default_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Item,
+            dir::SymbolType::Void,
+            dir::SymbolSpace::Value,
+            dir::SymbolBinding::Runtime,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            Some(dir::DependencyMode::Default),
+        );
+
+        // export assignment symbol (not used for data modules, but needed for structure)
+        let (export_assignment_symbol_id, _) = symbols.insert_symbol(
+            dir::SymbolKind::Namespace,
+            dir::SymbolType::Void,
+            dir::SymbolSpace::Value,
+            dir::SymbolBinding::Runtime,
+            None,
+            (namespace_scope_id, dir::LocalScopeMark::end()),
+            None,
+        );
+
+        // (exported_symbols will be populated during resolve phase when string pool is available)
 
         Self {
             profile_id: None,

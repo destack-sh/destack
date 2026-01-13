@@ -912,6 +912,60 @@ Key levers:
 - Explicit SIMD with scalar fallback
 - LTO and PGO for whole-program optimization
 
+## Module Imports
+
+Destack supports importing various file types beyond code modules, following Bun's approach to asset imports.
+
+### Data Modules (JSON, TOML, YAML)
+
+Data files are parsed at compile time and typed structurally:
+
+```
+import config from "./config.json";
+// config: { server: { host: string, port: number }, debug: boolean }
+
+config.server.host satisfies string;
+config.debug satisfies boolean;
+```
+
+Types are inferred from the data:
+- `null` → `null`
+- `true`/`false` → `boolean`
+- Numbers → `number`
+- Strings → `string`
+- Arrays → `T[]` (union for mixed elements: `(T | U)[]`)
+- Objects → `{ key: Type, ... }` (readonly fields)
+
+### Text Modules
+
+Text files (markdown, CSS, HTML, plain text) import as `string`:
+
+```
+import readme from "./README.md";
+// readme: string
+```
+
+### Binary Modules
+
+Binary files (images, fonts, wasm, etc.) import as `uint8[]`:
+
+```
+import icon from "./icon.png";
+// icon: uint8[]
+```
+
+### Import Attributes
+
+Override the default loader with import attributes:
+
+```
+import data from "./config.toml" with { type: "json" };  // parse as JSON
+import raw from "./data.json" with { type: "text" };     // import as string
+import bytes from "./file.txt" with { type: "binary" };  // import as uint8[]
+```
+
+The same file with different loaders produces different modules.
+
 ## Compatibility
 
 **Destack aims for 100% compatibility with modern TypeScript.**

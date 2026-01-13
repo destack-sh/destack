@@ -5,6 +5,7 @@ mod error;
 mod expression;
 mod globals;
 mod language;
+mod loader;
 mod module;
 mod operator;
 mod process;

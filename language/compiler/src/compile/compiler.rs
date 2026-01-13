@@ -165,8 +165,9 @@ pub struct Compiler {
     /// Compilation statistics.
     pub stats: Arc<CompilerStats>,
 
-    /// Locks for serializing module creation per URI (to lock the File->Module import/bind race).
-    import_locks: DashMap<Uri, Arc<Mutex<Option<ModuleId>>>>,
+    /// Locks for serializing module creation per (URI, loader) pair.
+    /// The loader salt distinguishes imports with non-default loaders.
+    import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
     /// Global symbol tables indexed by target and profile.
     pub(crate) global_symbol_caches: DashMap<GlobalSymbolCacheKey, GlobalSymbolCache>,
     /// Module binding tables indexed by target and profile.
@@ -226,17 +227,20 @@ impl Compiler {
         self.program.modules.get(module_id).read().is_code()
     }
 
-    /// Get the import lock for a URI.
+    /// Get the import lock for a (URI, loader) pair.
     /// Used to serialize module creation and prevent race conditions when multiple import tasks
-    /// resolve to the same file.
+    /// resolve to the same file with the same loader.
     ///
-    /// Usage pattern:
-    /// 1. Acquire lock: `let lock = compiler.get_import_lock(&uri); let mut guard = lock.lock();`
-    /// 2. Check value: if `Some(module_id)`, module already exists, use it
-    /// 3. If `None`: create module, set `*guard = Some(module_id)`, then drop guard
-    pub(crate) fn get_import_lock(&self, uri: &Uri) -> Arc<Mutex<Option<ModuleId>>> {
+    /// The `loader_salt` parameter distinguishes imports with non-default loaders
+    /// (e.g., `with { type: "text" }`). Default loaders use `None`.
+    pub(crate) fn get_import_lock(
+        &self,
+        uri: &Uri,
+        loader_salt: Option<&str>,
+    ) -> Arc<Mutex<Option<ModuleId>>> {
+        let key = (uri.clone(), loader_salt.map(String::from));
         self.import_locks
-            .entry(uri.clone())
+            .entry(key)
             .or_insert_with(|| Arc::new(Mutex::new(None)))
             .clone()
     }

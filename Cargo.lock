@@ -754,6 +754,7 @@ dependencies = [
 name = "destack_compiler"
 version = "0.51.6"
 dependencies = [
+ "base64",
  "criterion",
  "crossbeam-deque",
  "dashmap",

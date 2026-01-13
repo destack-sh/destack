@@ -2845,6 +2845,80 @@ export { type MyType, myValue };
 Destack uses the same module resolution as TypeScript/Node.
 Destack also follows `tsconfig.json` configuration (incl. re-mapping).
 
+### Data Imports
+
+Destack supports importing non-code files with automatic type inference.
+
+#### JSON, TOML, YAML
+
+Data files are parsed and typed structurally:
+
+```
+import config from "./config.json";
+
+config.name     // string
+config.port     // number
+config.debug    // boolean
+```
+
+Type inference rules:
+| JSON Value | Inferred Type |
+|------------|---------------|
+| `null` | `null` |
+| `true`/`false` | `boolean` |
+| Numbers | `number` |
+| Strings | `string` |
+| Arrays | `T[]` or `(T \| U \| V)[]` for mixed elements |
+| Objects | `{ key: Type, ... }` with readonly fields |
+
+Empty arrays infer element type `unknown`.
+
+#### Text Files
+
+Text files (`.md`, `.txt`, `.css`, `.html`, `.svg`, etc.) import as `string`:
+
+```
+import content from "./README.md";
+// content: string
+```
+
+#### Binary Files
+
+Binary files (images, fonts, wasm, etc.) import as `uint8[]`:
+
+```
+import data from "./image.png";
+// data: uint8[]
+```
+
+#### Import Attributes
+
+Override the default loader using import attributes:
+
+```
+import data from "./file.toml" with { type: "json" };   // parse as JSON
+import raw from "./data.json" with { type: "text" };    // import as string
+import bytes from "./file.txt" with { type: "binary" }; // import as uint8[]
+```
+
+Valid loader types:
+| Type | Description |
+|------|-------------|
+| `json` | Parse as JSON, infer structural type |
+| `toml` | Parse as TOML, infer structural type |
+| `yaml` | Parse as YAML, infer structural type |
+| `text` | Import as `string` |
+| `binary` | Import as `uint8[]` |
+| `base64` | Encode binary as base64 `string` |
+
+The same file with different loaders produces different modules:
+
+```
+import a from "./data.json";                           // parsed JSON
+import b from "./data.json" with { type: "text" };    // raw string
+// a and b are different modules
+```
+
 ## Annotations
 
 Destack has three kinds of annotations: comments, documentation, and decorators.
