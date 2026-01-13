@@ -29,6 +29,16 @@ impl AddressSpaceSet {
     pub fn is_empty(&self) -> bool {
         self.spaces.is_empty()
     }
+
+    /// Check whether two address space sets intersect.
+    pub fn intersects(&self, other: &Self) -> bool {
+        self.spaces.iter().any(|space| other.contains(*space))
+    }
+
+    /// Check whether two address space sets are disjoint.
+    pub fn is_disjoint(&self, other: &Self) -> bool {
+        !self.intersects(other)
+    }
 }
 
 impl MemoryLocationSet {
@@ -78,6 +88,21 @@ impl MemoryLocationSet {
     /// Insert another set of locations.
     pub fn insert(&mut self, other: Self) {
         self.0 |= other.0;
+    }
+
+    /// Return the intersection of two location sets.
+    pub fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+
+    /// Check whether two location sets intersect.
+    pub fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+
+    /// Check whether two location sets are disjoint.
+    pub fn is_disjoint(self, other: Self) -> bool {
+        self.0 & other.0 == 0
     }
 }
 
