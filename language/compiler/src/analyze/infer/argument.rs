@@ -417,6 +417,12 @@ impl Compiler {
             return Ok(None);
         }
 
+        // ensure remote declarations are resolved before reading defaults
+        if symbol.module_id != module.id {
+            self.require_resolve_module_direct(symbol.module_id, profile)
+                .map_err(AnalyzeError::from)?;
+        }
+
         // collect parameter symbols for the declaration
         let parameter_symbols =
             self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
@@ -453,6 +459,9 @@ impl Compiler {
                 &mut referenced_symbols,
                 &mut visited,
             );
+        } else {
+            // fallback to type parameters when the instance type is not ready
+            referenced_symbols.extend(parameter_symbols.iter().copied());
         }
 
         // gather static parameter metadata with kinds
@@ -604,6 +613,9 @@ impl Compiler {
                 &mut referenced_symbols,
                 &mut visited,
             );
+        } else {
+            // fallback to type parameters when the instance type is not ready
+            referenced_symbols.extend(parameter_symbols.iter().copied());
         }
 
         // collect static parameters with kinds
