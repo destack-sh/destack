@@ -180,6 +180,11 @@ impl OwnershipAnalysis {
         self.value_types.get(&value).copied()
     }
 
+    /// Return the value type map for this function.
+    pub fn value_types(&self) -> &HashMap<Value, mir::LocalNodeId<Type>> {
+        &self.value_types
+    }
+
     /// Check if a type has copy semantics.
     pub fn is_copy_type(&self, ty_id: mir::LocalNodeId<Type>, tree: &mir::NodeTree) -> bool {
         let ty = tree.get(ty_id);

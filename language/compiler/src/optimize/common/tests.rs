@@ -87,6 +87,39 @@ impl TestProgram {
             .0
     }
 
+    /// Attach pointer access metadata to an instruction.
+    pub(crate) fn insert_pointer_access(
+        &mut self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        kind: mir::MemoryAccessKind,
+        pointer: mir::Value,
+        size: Option<u64>,
+        alias_scopes: Vec<mir::AliasScopeId>,
+        noalias_scopes: Vec<mir::AliasScopeId>,
+        tbaa_tag: Option<mir::TbaaTagId>,
+    ) {
+        // build the access metadata
+        let access = mir::MemoryAccessMetadata {
+            kind,
+            target: mir::MemoryAccessTarget::Pointer(pointer),
+            size,
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: None,
+            alias_scopes,
+            noalias_scopes,
+            tbaa_tag,
+        };
+
+        // insert the metadata entry
+        self.tree
+            .memory_table
+            .insert_memory_accesses(instruction, vec![access]);
+    }
+
     /// Return the first call instruction and callee in the entry function.
     pub(crate) fn first_call_in_entry(
         &self,

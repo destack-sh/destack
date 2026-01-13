@@ -4,10 +4,12 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA,
+    AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
+    MemoryAccessLocation, MemorySSA,
 };
 use crate::optimize::common::{
-    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
+    alias_scopes_may_alias, instruction_substitute_uses, memory_locations_compatible,
+    resolve_substitution_chains, tbaa_tags_may_alias, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -64,6 +66,12 @@ struct MemoryEntry {
     location: MemoryAccessLocation,
     /// The available value.
     value: mir::Value,
+    /// Alias scopes applied to the access.
+    alias_scopes: Vec<mir::AliasScopeId>,
+    /// No alias scopes applied to the access.
+    noalias_scopes: Vec<mir::AliasScopeId>,
+    /// Optional TBAA tag for the access.
+    tbaa_tag: Option<mir::TbaaTagId>,
 }
 
 impl FunctionPass for LoadStoreForward {
@@ -200,9 +208,12 @@ impl AvailableMemory {
     fn get(
         &self,
         clobber: MemoryAccessId,
-        location: &MemoryAccessLocation,
+        use_effect: &MemoryAccessEffect,
         aa: &AliasAnalysis,
+        tree: &mir::NodeTree,
     ) -> Option<mir::Value> {
+        let location = &use_effect.location;
+
         // skip unknown locations
         if matches!(location, MemoryAccessLocation::Unknown) {
             return None;
@@ -217,6 +228,24 @@ impl AvailableMemory {
                     continue;
                 }
 
+                // disambiguate using alias scopes and tbaa tags
+                if !alias_scopes_may_alias(
+                    &entry.alias_scopes,
+                    &entry.noalias_scopes,
+                    &use_effect.alias_scopes,
+                    &use_effect.noalias_scopes,
+                ) {
+                    continue;
+                }
+
+                if !tbaa_tags_may_alias(
+                    &tree.memory_table.tbaa,
+                    entry.tbaa_tag,
+                    use_effect.tbaa_tag,
+                ) {
+                    continue;
+                }
+
                 // compare matching locations
                 match (&entry.location, location) {
                     (MemoryAccessLocation::Local(a), MemoryAccessLocation::Local(b)) => {
@@ -226,7 +255,11 @@ impl AvailableMemory {
                     }
                     (MemoryAccessLocation::Pointer(a), MemoryAccessLocation::Pointer(b)) => {
                         if a.ptr == b.ptr {
-                            return Some(entry.value);
+                            if memory_locations_compatible(a, b) {
+                                return Some(entry.value);
+                            }
+
+                            return None;
                         }
 
                         // consult alias analysis for derived pointers
@@ -235,7 +268,11 @@ impl AvailableMemory {
                             continue;
                         }
                         if alias_result.is_must_alias() {
-                            return Some(entry.value);
+                            if memory_locations_compatible(a, b) {
+                                return Some(entry.value);
+                            }
+
+                            return None;
                         }
 
                         return None;
@@ -368,6 +405,9 @@ fn process_block(
                     clobber: def_access_id,
                     location: def_access.effect.location.clone(),
                     value: *value,
+                    alias_scopes: def_access.effect.alias_scopes.clone(),
+                    noalias_scopes: def_access.effect.noalias_scopes.clone(),
+                    tbaa_tag: def_access.effect.tbaa_tag,
                 });
             }
 
@@ -394,10 +434,10 @@ fn process_block(
                 }
 
                 // compute the clobbering access for this read
-                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa);
+                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect.location, aa) {
+                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree) {
                     substitutions.insert(*destination, existing);
                     to_remove.insert(instruction_id);
                 } else {
@@ -405,6 +445,9 @@ fn process_block(
                         clobber,
                         location: use_access.effect.location.clone(),
                         value: *destination,
+                        alias_scopes: use_access.effect.alias_scopes.clone(),
+                        noalias_scopes: use_access.effect.noalias_scopes.clone(),
+                        tbaa_tag: use_access.effect.tbaa_tag,
                     });
                 }
             }
@@ -1104,6 +1147,246 @@ block0:
         let expected = input;
 
         let mut program = TestProgram::new(input);
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Scoped noalias metadata keeps stores from clobbering unrelated loads.
+    #[test]
+    fn test_forward_across_noalias_scope() {
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#;
+        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // create alias scope metadata for the disjoint store
+        let scope = {
+            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let domain = scopes.create_domain(None);
+            scopes.create_scope(domain, None)
+        };
+
+        // locate the relevant instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let store_v1 = block.instructions[3];
+        let load_v0 = block.instructions[4];
+
+        // attach scoped metadata to disambiguate the store
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// TBAA tags disambiguate unrelated accesses.
+    #[test]
+    fn test_forward_across_tbaa_disjoint() {
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#;
+        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // create disjoint tbaa tags
+        let (int_tag, float_tag) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let int_node = tbaa.create_node(None, Some(root), false);
+            let float_node = tbaa.create_node(None, Some(root), false);
+            let int_tag = tbaa.create_tag(root, int_node, 0, 4, false);
+            let float_tag = tbaa.create_tag(root, float_node, 0, 4, false);
+            (int_tag, float_tag)
+        };
+
+        // locate the relevant instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let store_v1 = block.instructions[3];
+        let load_v0 = block.instructions[4];
+
+        // attach disjoint tbaa tags to the store and load
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(float_tag),
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(int_tag),
+        );
+
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Disjoint TBAA offsets prevent clobbering stores from blocking forwarding.
+    #[test]
+    fn test_forward_across_tbaa_disjoint_offsets() {
+        let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    v4 = load v0
+    return v4
+}"#;
+        let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
+block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
+    v2 = iconst 1i32
+    store v0, v2
+    v3 = iconst 2i32
+    store v1, v3
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+
+        // create tbaa tags with disjoint offsets
+        let (tag_a, tag_b) = {
+            let tbaa = &mut program.tree.memory_table.tbaa;
+            let root = tbaa.create_node(None, None, false);
+            let access = tbaa.create_node(None, Some(root), false);
+            let tag_a = tbaa.create_tag(root, access, 0, 4, false);
+            let tag_b = tbaa.create_tag(root, access, 8, 4, false);
+            (tag_a, tag_b)
+        };
+
+        // locate the relevant instructions
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let store_v1 = block.instructions[3];
+        let load_v0 = block.instructions[4];
+
+        // attach disjoint tbaa tags to the clobbering store and load
+        program.insert_pointer_access(
+            store_v1,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_b),
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Size mismatches prevent forwarding from matching pointers.
+    #[test]
+    fn test_no_forward_size_mismatch() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 1i32
+    store v0, v1
+    v2 = load v0
+    return v2
+}"#;
+        let expected = input;
+
+        let mut program = TestProgram::new(input);
+
+        // locate the store and load
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[0]);
+        let store_v0 = block.instructions[2];
+        let load_v0 = block.instructions[3];
+
+        // attach mismatched sizes to block forwarding
+        program.insert_pointer_access(
+            store_v0,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            Some(8),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        program.insert_pointer_access(
+            load_v0,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
     }

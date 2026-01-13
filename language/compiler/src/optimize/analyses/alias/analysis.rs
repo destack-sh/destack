@@ -10,6 +10,7 @@ use super::globals::GlobalsAA;
 use super::result::{AliasResult, ModRefInfo};
 use super::scoped::ScopedNoAliasAA;
 use super::tbaa::TypeBasedAA;
+use crate::optimize::analyses::OwnershipAnalysis;
 
 /// Combined alias analysis results.
 ///
@@ -37,9 +38,14 @@ pub struct AliasAnalysis {
 
 impl AliasAnalysis {
     /// Build combined AA for a function with explicit options.
-    pub fn build(function: &mir::Function, tree: &mir::NodeTree, strict_borrow_mode: bool) -> Self {
+    pub fn build(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        strict_borrow_mode: bool,
+        value_types: Option<&std::collections::HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+    ) -> Self {
         Self {
-            basic: BasicAA::build(function, tree, strict_borrow_mode),
+            basic: BasicAA::build(function, tree, strict_borrow_mode, value_types),
             tbaa: TypeBasedAA::default(),
             globals: GlobalsAA::build(function, tree),
             scoped: ScopedNoAliasAA::build(function, tree, strict_borrow_mode),
@@ -170,7 +176,7 @@ impl AliasAnalysis {
 
 impl Analysis for AliasAnalysis {
     const ID: AnalysisId = AnalysisId("alias");
-    const DEPENDENCIES: &'static [AnalysisId] = &[];
+    const DEPENDENCIES: &'static [AnalysisId] = &[OwnershipAnalysis::ID];
 }
 
 impl FunctionAnalysis for AliasAnalysis {
@@ -179,7 +185,13 @@ impl FunctionAnalysis for AliasAnalysis {
         tree: &mir::NodeTree,
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
-        Self::build(function, tree, analyses.options().strict_borrow_mode)
+        let ownership = analyses.get::<OwnershipAnalysis>();
+        Self::build(
+            function,
+            tree,
+            analyses.options().strict_borrow_mode,
+            Some(ownership.value_types()),
+        )
     }
 }
 
