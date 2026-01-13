@@ -120,7 +120,9 @@ The tree literal syntax is customizable via traits, so your domain types can def
 
 ## Types
 
-Destack extends TypeScript's type system with precise primitives, explicit reference semantics, types as values, static parameterisation of values, and some other goodies.
+Destack extends TypeScript's type system with precise primitives.
+It adds explicit reference semantics and types as values.
+It supports static parameterisation of values and other advanced type features.
 
 ### Inference
 
@@ -132,7 +134,7 @@ Inference is local and never relies on whole program analysis.
 
 #### Explicit Typing
 
-Most non-local constructs must be explicitly typed unless surface inference applies.
+Most non local constructs must be explicitly typed unless surface inference applies.
 
 - Non lambda functions, methods, and constructors must annotate dynamic parameters.
 
@@ -436,21 +438,43 @@ By default, any `T` behaves like in TypeScript (with value primitives and refere
 Destack additionally supports explicit ownership control:
 
 ```
-T            // automatic (TypeScript behavior, implicitly GC-managed)
-&T           // borrow (read-only reference)
+T            // automatic (TypeScript behavior, implicitly GC managed)
+&T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
 ^T           // ownership transfer (caller gives up ownership)
 ^mut T       // ownership transfer (explicitly mutable)
 ```
+Raw pointers are separate from ownership modifiers:
+```
+*T           // raw pointer (unsafe)
+*mut T       // raw pointer (mutable, unsafe)
+```
+
+**Borrow semantics:**
+- `&T` and `&mut T` are safe borrows verified by the borrow check pass.
+- Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+- A borrow ends when the reference value is no longer live.
+- Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
+- Derived borrows carry provenance so dropping any origin invalidates the derived borrows.
+- Dropping or freeing a value while it is borrowed is always an error.
+- In strict mode, conflicting borrows and invalidating stores are errors.
+- In lenient mode, the same situations produce warnings.
+
+**Raw pointers:**
+- `*T` and `*mut T` are unsafe pointers with no borrow tracking.
+- Raw pointers may be null or dangling and allow pointer arithmetic.
+- Converting between borrowed references and raw pointers is always explicit.
+- Raw pointers do not imply ownership or drop behavior.
+- `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
 
 | Modifier | Meaning | After `foo(x)` | Who cleans up? |
 |----------|---------|----------------|----------------|
-| `T` | GC-managed (implicit) | `x` still valid | GC |
+| `T` | GC managed (implicit) | `x` still valid | GC |
 | `&T` | Borrow (read) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
 | `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
 
-**Use-after-move:**
+**Use after move:**
 
 ```
 const node = AstNode { ... }
@@ -462,7 +486,7 @@ Using a value after ownership transfer is an error (suppressible to warning).
 
 **Drop as soon as possible:**
 
-`^T` values are dropped at their last proven use (non-lexical).
+`^T` values are dropped at their last proven use (non lexical).
 The compiler inserts a drop as soon as it can prove the value is no longer needed,
 even if the lexical scope continues.
 
@@ -474,15 +498,16 @@ function process() {
 }
 ```
 
-`Drop` is a marker interface that opts a type into last-use cleanup.
-Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
-`using` always calls `Symbol.dispose`, even without `Drop`.
-Owned values are dropped at their last proven use unless `using` is specified.
-`using` bindings drop at scope end and cannot be moved.
-`^T` controls ownership transfer and move semantics.
-`using` controls drop timing and does not imply ownership.
-Combine `using` with `^T` for deterministic cleanup of owned values.
-`using` can wrap managed values to enforce scope-based cleanup when they implement `Symbol.dispose`.
+**Drop behavior:**
+- `Drop` is a marker interface that opts a type into last use cleanup.
+- Types that implement `Drop` must also implement `Symbol.dispose`, which is invoked by the drop glue.
+- `using` always calls `Symbol.dispose`, even without `Drop`.
+- Owned values are dropped at their last proven use unless `using` is specified.
+- `using` bindings drop at scope end and cannot be moved.
+- `^T` controls ownership transfer and move semantics.
+- `using` controls drop timing and does not imply ownership.
+- Combine `using` with `^T` for deterministic cleanup of owned values.
+- `using` can wrap managed values to enforce scope based cleanup when they implement `Symbol.dispose`.
 
 **Allocation and drop:**
 
@@ -500,17 +525,17 @@ The `raw.drop` instruction performs **drop glue**:
 3. Deallocate the memory
 
 The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis.
-Stack-allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
+Stack allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
 For manual deallocation without dispose (FFI), use `raw.free` directly.
 
 **Address spaces:**
 
 References can target explicit address spaces for native and accelerator memory.
 The default is `generic`, which maps to the target's normal memory.
-Non-generic address spaces are only valid for borrowed and raw references.
+Non generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
-The VM may provide deterministic host-side models for non-generic address spaces, and otherwise rejects them with precise diagnostics.
+The VM may provide deterministic host side models for non generic address spaces, and otherwise rejects them with precise diagnostics.
 
 **Nested ownership:**
 
@@ -520,7 +545,7 @@ Structs can contain `^T` fields regardless of how the struct itself is allocated
 ```
 struct Container { data: ^Data }
 
-const managed: Container = ...        // GC-managed container
+const managed: Container = ...        // GC managed container
 const owned: ^Container = ...         // manually owned container
 ```
 
@@ -532,7 +557,7 @@ When the container is `Container` (managed):
 - Drop is nondeterministic (GC finalizer)
 - A warning is emitted in strict mode for `^T` fields in managed types
 
-Strings follow the same ownership spectrum: `string` is GC-managed by default,
+Strings follow the same ownership spectrum: `string` is GC managed by default,
 `&string` is a borrowed view, and `^string` is explicitly owned.
 Similarly, `Slice` is an explicit view type with a pointer and length.
 Borrowing an array object does not imply a slice view.
@@ -593,8 +618,10 @@ file.write("hello");
 
 **Returning references:**
 
-Functions can return `&T`. 
-The compiler warns on obvious mistakes (returning reference to local), but does not enforce full lifetime tracking.
+Functions can return `&T`.
+Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
+In strict mode, returning a borrow that may outlive its origin is an error.
+In lenient mode, the same situation produces a warning.
 
 ```
 function get(c: &Container): &Item { &c.item }  // ok
@@ -607,16 +634,16 @@ function bad(): &Point {
 
 ### Borrow Modes
 
-By default, `&T` and `&mut T` are hints with warnings only.
-Strict mode enforces exclusive `&mut` borrows and no-escape rules.
+By default, `&T` and `&mut T` are hints and violations produce warnings.
+Strict mode enforces exclusive `&mut` borrows and no escape rules.
 Strict mode enables stronger optimizations like `noalias` on `&mut`.
 Enable strict mode with `borrowMode: "strict"` in `dsconfig.json`.
+Borrow modes do not apply to raw pointers.
 
 ### Lifetime Annotations
 
-When a function returns `&T` or a type containing borrowed references, the compiler
-tracks which input parameters the return value borrows from. This is usually inferred
-automatically:
+When a function returns `&T` or a type containing borrowed references, the compiler tracks which input parameters the return value borrows from.
+This is usually inferred automatically:
 
 | Input Parameters | Inference |
 |------------------|-----------|
@@ -671,7 +698,7 @@ function wrong(a: &string, b: &string): @lifetime("a") &string {
 }
 ```
 
-**Call-site tracking:**
+**Call site tracking:**
 
 At call sites, the compiler uses lifetime information to check safety:
 

@@ -3,9 +3,9 @@ use std::cmp::Ordering;
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
     DependencyMode, Expression, ForEachBinding, ForEachKind, IfKind, ImportSource, Keyword,
-    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, NodeTree, OperatorPrecedence,
-    Pattern, PostfixPosition, Property, ScalarLiteral, TypeModifier, TypePredicateSubject,
-    TypeUnaryOperator, WhileKind, YieldCardinality,
+    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Mutability, NodeTree,
+    OperatorPrecedence, Pattern, PostfixPosition, Property, ScalarLiteral, TypeModifier,
+    TypePredicateSubject, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
 use destack_base::StringId;
 use destack_fir::format::{BestFittingMode, FormatError};
@@ -2886,7 +2886,9 @@ pub(crate) fn format_expression<'ast>(
             right,
         } => {
             write!(f, [token("&")])?;
-            if let Some(mutability) = mutability {
+            if let Some(mutability) = mutability
+                && *mutability == Mutability::Mutable
+            {
                 write!(f, [*mutability])?;
             }
             if let Some(variance) = variance {
@@ -2898,7 +2900,9 @@ pub(crate) fn format_expression<'ast>(
         // pointer
         Expression::PointerOf { mutability, right } => {
             write!(f, [token("*")])?;
-            if let Some(mutability) = mutability {
+            if let Some(mutability) = mutability
+                && *mutability == Mutability::Mutable
+            {
                 write!(f, [*mutability])?;
             }
             right.format(f)?;
@@ -3341,6 +3345,18 @@ mod tests {
             |p| p.eat_expression(),
             DestackFormatOptions::default()
         );
+    }
+
+    /// Redundant const on borrows is omitted in type formatting.
+    #[test]
+    fn test_format_type_redundant_const_borrow() {
+        assert_format!("&const Foo", "&Foo", |p| p.eat_type());
+    }
+
+    /// Redundant const on pointers is omitted in type formatting.
+    #[test]
+    fn test_format_type_redundant_const_pointer() {
+        assert_format!("*const Foo", "*Foo", |p| p.eat_type());
     }
 
     #[test]

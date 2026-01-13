@@ -98,7 +98,7 @@ LLVM and Swift SIL use the same hybrid approach as MIR because:
 - The aggregate is an SSA value, not behind a reference
 
 **Use memory operations when:**
-- Accessing through a reference (`&T`, `&mut T`, `^T`)
+- Accessing through a reference (`&T`, `&mut T`, `^T`, `*T`)
 - Taking the address of a field or element
 - The result needs to be a pointer (for passing to functions, etc.)
 
@@ -319,7 +319,7 @@ These invariants keep metadata sound for optimization and codegen.
 - Memory effects: `inaccessibleMemOnly` implies `locations` is `INACCESSIBLE` or `NONE`.
 - Memory effects: `nosync` implies the operation does not perform atomic or fence operations.
 - Memory access: `ordering` is only set for atomic accesses.
-- Memory access: `isInvariant` is only set for read-only accesses.
+- Memory access: `isInvariant` is only set for read only accesses.
 - Memory access: `isVolatile` implies the access cannot be eliminated or reordered.
 - Type layout: `fieldOffsets` length matches the field or element count for the type.
 - Dispatch tables: `slots` are ordered exactly as the lowering rules define.
@@ -422,6 +422,18 @@ Address spaces are optional and appear after the kind.
 | raw | shared | `ref<raw @T>` | raw pointer (immutable) |
 | raw | mutable | `ref<raw mut @T>` | raw pointer (mutable) |
 
+Borrowed references are safe aliases verified by the borrow check pass.
+Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+A borrow ends when the reference value is no longer live.
+Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
+Derived borrows carry provenance so dropping any origin invalidates derived borrows.
+Dropping or freeing a value while it is borrowed is always an error.
+In strict mode, conflicting borrows and invalidating stores are errors.
+In lenient mode, the same situations produce warnings.
+Raw references are unsafe pointers with no borrow tracking.
+Raw references may be null or dangling and allow pointer arithmetic.
+Deref and mutation use explicit `load` and `store` instructions.
+
 Nullable references use `ref?<...>` with the same kind and mutability rules.
 Mutability can be encoded for any reference kind, but is only relevant semantically for borrowed and raw references.
 
@@ -434,7 +446,7 @@ ref<raw addrspace(shared) i32>
 ref<raw addrspace(7) mut i32>
 ```
 
-Non-generic address spaces are only valid for borrowed and raw references.
+Non generic address spaces are only valid for borrowed and raw references.
 `addrspace(constant)` references are always immutable.
 `addrspace(generic)` is the default and is omitted in canonical MIR formatting.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
