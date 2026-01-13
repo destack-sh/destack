@@ -30,6 +30,11 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
+        self.require_analyze_module_infer(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);

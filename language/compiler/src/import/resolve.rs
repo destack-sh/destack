@@ -10,7 +10,7 @@ use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
 use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
-use destack_workspace::{Module, ModuleSource, Package, PackageKind, SourceType};
+use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
 
 use crate::{Compiler, ImportError, ImportResult};
 
@@ -230,6 +230,7 @@ impl Compiler {
         let module_id = ModuleId::from_path(package_id, path, package_root.as_deref());
         let source_type = SourceType::from_extension(path).unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
+        let loader = Loader::from_file_type(ty);
         let module = Module::blank(
             module_id,
             file_id,
@@ -240,6 +241,7 @@ impl Compiler {
             tsconfig_id,
             source_type,
             language_type,
+            loader,
             ModuleSource::User,
         );
         self.program.modules.insert(module);

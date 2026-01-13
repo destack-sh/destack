@@ -51,7 +51,9 @@ impl Compiler {
             }
             ExecuteTask::ExecuteModulePatch { module, profile } => {
                 self.execute_module_patch(module, profile)?;
-                self.stats.record_execute();
+                if self.is_code_module(module) {
+                    self.stats.record_execute();
+                }
             }
             ExecuteTask::ExecuteExpression {
                 module,

@@ -19,6 +19,12 @@ impl Compiler {
         module_id: ModuleId,
         profile: ProfileId,
     ) -> ElaborateResult<()> {
+        // ensure transform phase is complete
+        self.require_elaborate_module_transform(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         // read the module state
         let module = self.program.modules.get(module_id);
         let module = module.read();

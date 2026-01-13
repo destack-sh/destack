@@ -26,9 +26,10 @@ impl Compiler {
     pub fn process_lint(&self, task: LintTask) -> LintResult<()> {
         match task {
             LintTask::LintModule { module, profile } => {
-                self.require_analyze_module(module, profile)?;
                 self.lint_module(module, profile)?;
-                self.stats.record_lint();
+                if self.is_code_module(module) {
+                    self.stats.record_lint();
+                }
             }
             LintTask::LintPackage { package } => self.lint_package(package)?,
         };
@@ -56,6 +57,11 @@ impl Compiler {
 
     /// Lint a module.
     fn lint_module(&self, module_id: ModuleId, profile: ProfileId) -> LintResult<()> {
+        self.require_analyze_module(module_id, profile)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
         let options = self.program.get_linter_options(module_id);
         if !options.enabled {
             return Ok(());

@@ -4,9 +4,13 @@ use destack_workspace::ModuleDir;
 
 impl Compiler {
     /// Bind a module's AST to DIR (create symbols, scopes, and base DIR).
-    pub(crate) fn import_module_bind(&self, module: ModuleId) -> ImportResult<()> {
-        self.require_import_module_parse(module)?;
-        let module = self.program.modules.get(module);
+    pub(crate) fn import_module_bind(&self, module_id: ModuleId) -> ImportResult<()> {
+        self.require_import_module_parse(module_id)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
+
+        let module = self.program.modules.get(module_id);
 
         // initialize DIR
         {

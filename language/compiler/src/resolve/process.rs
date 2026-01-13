@@ -61,17 +61,16 @@ impl Compiler {
                 self.require_resolve_module_canonical(module, profile)?;
             }
             ResolveTask::ResolveModuleDirect { module, profile } => {
-                self.require_resolve_module_prepare(module, profile)?;
                 self.resolve_module_direct(module, profile)?;
             }
             ResolveTask::ResolveModulePrepare { module, profile } => {
-                self.require_import_module_validate(module)?;
                 self.resolve_module_prepare(module, profile)?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {
-                self.require_resolve_module_direct(module, profile)?;
                 self.resolve_module_canonical(module, profile)?;
-                self.stats.record_resolve();
+                if self.is_code_module(module) {
+                    self.stats.record_resolve();
+                }
             }
         }
         Ok(())

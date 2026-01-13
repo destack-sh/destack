@@ -1,7 +1,7 @@
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 
-use crate::{Compiler, ElaborateResult, TaskDependencyError};
+use crate::{Compiler, TaskDependencyError};
 
 impl Compiler {
     /// Ensure a module has been transformed (post-analysis simplification).
@@ -17,14 +17,4 @@ impl Compiler {
         })
     }
 
-    /// Transform a module (task entry point).
-    pub(crate) fn elaborate_module_transform_phase(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-    ) -> ElaborateResult<()> {
-        self.require_analyze_module(module, profile)?;
-        self.elaborate_module_transform(module, profile)?;
-        Ok(())
-    }
 }

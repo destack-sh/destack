@@ -15,6 +15,9 @@ impl Compiler {
     ) -> ExecuteResult<()> {
         // ensure DIR exists
         self.require_elaborate_module(module_id, profile_id)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
 
         let profile_version = self.program.profile(profile_id).version;
         let module = self.program.modules.get(module_id);
@@ -59,6 +62,9 @@ impl Compiler {
     ) -> ExecuteResult<()> {
         // ensure module comptime state exists
         self.require_execute_module_prepare(module_id, profile_id)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
 
         // collect comptime expressions in this module
         let comptime_nodes: Vec<dir::LocalNodeIdAny> = {
@@ -152,6 +158,9 @@ impl Compiler {
 
         // ensure module comptime state exists
         self.require_execute_module_prepare(module_id, profile_id)?;
+        if !self.is_code_module(module_id) {
+            return Ok(());
+        }
 
         // run comptime evaluation for this expression
         let result = {
