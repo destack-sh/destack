@@ -274,6 +274,13 @@ impl Compiler {
                 types,
             )?;
 
+            // normalize value arguments back into value expressions
+            let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
+                self.normalize_value_static_argument(resolved_argument, types)
+            } else {
+                resolved_argument
+            };
+
             return Ok(Some(resolved_argument));
         }
 
@@ -286,6 +293,13 @@ impl Compiler {
                 treat_type_arguments_as_types,
                 types,
             )?;
+
+            // normalize value defaults back into value expressions
+            let resolved_argument = if static_parameter.kind == StaticParameterKind::Value {
+                self.normalize_value_static_argument(resolved_argument, types)
+            } else {
+                resolved_argument
+            };
 
             return Ok(Some(resolved_argument));
         }
@@ -316,8 +330,9 @@ impl Compiler {
                     }
                 }
 
-                let resolved =
-                    self.evaluate_static_argument_as_type(module, profile, node, tree, symbols, types)?;
+                let resolved = self.evaluate_static_argument_as_type(
+                    module, profile, node, tree, symbols, types,
+                )?;
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => self
@@ -351,6 +366,53 @@ impl Compiler {
         };
 
         Ok(resolved_argument)
+    }
+
+    /// Coerce value static arguments into literal value expressions when possible.
+    fn normalize_value_static_argument(
+        &self,
+        argument: StaticArgument,
+        types: &TypeTable,
+    ) -> StaticArgument {
+        // normalize type-backed literal arguments into value expressions
+        match argument {
+            StaticArgument::Evaluated {
+                name,
+                value: StaticExpression::Type { ty },
+            } => match types.get_type(ty) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(value),
+                } => StaticArgument::Evaluated {
+                    name,
+                    value: StaticExpression::ScalarLiteral {
+                        value: value.clone(),
+                    },
+                },
+                Type::TypeLiteral { value } => StaticArgument::Evaluated {
+                    name,
+                    value: StaticExpression::TypeLiteral {
+                        value: value.clone(),
+                    },
+                },
+                _ => StaticArgument::Evaluated {
+                    name,
+                    value: StaticExpression::Type { ty },
+                },
+            },
+            StaticArgument::Evaluated {
+                name,
+                value:
+                    StaticExpression::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(value),
+                    },
+            } => StaticArgument::Evaluated {
+                name,
+                value: StaticExpression::ScalarLiteral {
+                    value: value.clone(),
+                },
+            },
+            _ => argument,
+        }
     }
 
     /// Resolve a default static argument for a parameter.
@@ -489,8 +551,8 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        // align type argument conversion with validation context
-        let treat_type_arguments_as_types = validate_static_argument_bounds;
+        // keep value arguments intact for type references
+        let treat_type_arguments_as_types = false;
 
         // skip non instantiable symbols
         if !self.is_instantiable_symbol(symbol) {
