@@ -467,6 +467,10 @@ impl Compiler {
             return Ok(None);
         }
 
+        if symbol.module_id != module.id && self.module_is_ambient_lib(module) {
+            return Ok(None);
+        }
+
         // ensure the defining module is declared before reading its types
         if symbol.module_id != module.id {
             self.require_analyze_module_declare(symbol.module_id, profile)
@@ -479,13 +483,25 @@ impl Compiler {
 
         // select the global merge group when the symbol participates
         let mut group_symbols = Vec::new();
-        if let Some(key) = symbol_key
-            && let Some(group) = self.get_global_symbol_group(module.id, profile, key, symbol_space)
-        {
-            group_symbols = group;
+        if !self.module_is_ambient_lib(module) {
+            if let Some(key) = symbol_key {
+                if let Some(group) =
+                    self.get_global_symbol_group(module.id, profile, key, symbol_space)
+                {
+                    group_symbols.extend(group);
+                }
+                if let Some(ambient_symbols) =
+                    self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_space)
+                {
+                    group_symbols.extend(ambient_symbols);
+                }
+            }
         }
         if group_symbols.is_empty() {
             group_symbols.push(symbol);
+        } else {
+            let mut seen = HashSet::new();
+            group_symbols.retain(|symbol| seen.insert(*symbol));
         }
 
         // normalize group symbols to the stored symbol types

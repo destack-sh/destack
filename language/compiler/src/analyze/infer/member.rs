@@ -5,7 +5,7 @@ use destack_dir::{
     NodeTree, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Describe the resolution outcome for a member lookup.
 #[derive(Debug, Clone)]
@@ -487,6 +487,10 @@ impl Compiler {
             );
         }
 
+        if self.module_is_ambient_lib(module) {
+            return Ok(None);
+        }
+
         // ensure the remote module is declared before reading its DIR
         self.require_analyze_module_declare(symbol.module_id, profile)
             .map_err(AnalyzeError::from)?;
@@ -567,26 +571,42 @@ impl Compiler {
             }
 
             // scan global augmentations for additional members
-            if let Some(key) = symbol_entry.key
-                && let Some(global_symbols) =
+            if let Some(key) = symbol_entry.key && !self.module_is_ambient_lib(module) {
+                let mut merge_symbols = Vec::new();
+                if let Some(global_symbols) =
                     self.get_global_symbol_group(module.id, profile, key, symbol_entry.space)
-            {
-                for global_symbol in global_symbols {
-                    if global_symbol == symbol {
-                        continue;
-                    }
-
-                    if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
-                        module,
-                        global_symbol,
-                        member_key,
+                {
+                    merge_symbols.extend(global_symbols);
+                }
+                if !self.module_is_ambient_lib(module)
+                    && let Some(ambient_symbols) = self.get_ambient_lib_symbol_sources_for_merge(
                         profile,
-                        tree,
-                        symbols,
-                        types,
-                        visited,
-                    )? {
-                        return Ok(Some(member_symbol));
+                        key,
+                        symbol_entry.space,
+                    )
+                {
+                    merge_symbols.extend(ambient_symbols);
+                }
+
+                if !merge_symbols.is_empty() {
+                    let mut seen = HashSet::new();
+                    for merge_symbol in merge_symbols {
+                        if !seen.insert(merge_symbol) || merge_symbol == symbol {
+                            continue;
+                        }
+
+                        if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
+                            module,
+                            merge_symbol,
+                            member_key,
+                            profile,
+                            tree,
+                            symbols,
+                            types,
+                            visited,
+                        )? {
+                            return Ok(Some(member_symbol));
+                        }
                     }
                 }
             }

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
 use destack_dir::{
     Declaration, LocalNodeId, LocalSymbolId, LocalTypeId, SymbolTable, SymbolType, Type, TypeField,
@@ -300,19 +302,35 @@ impl Compiler {
         types: &mut TypeTable,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
+        if self.module_is_ambient_lib(module) {
+            return Ok(());
+        }
+
         let symbol_entry = symbols.get_symbol(symbol_id);
         let Some(key) = symbol_entry.key else {
             return Ok(());
         };
 
-        let Some(global_symbols) =
+        let mut merge_symbols = Vec::new();
+        if let Some(global_symbols) =
             self.get_global_symbol_group(module.id, profile, key, symbol_entry.space)
-        else {
+        {
+            merge_symbols.extend(global_symbols);
+        }
+        if !self.module_is_ambient_lib(module)
+            && let Some(ambient_symbols) =
+                self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_entry.space)
+        {
+            merge_symbols.extend(ambient_symbols);
+        }
+        if merge_symbols.is_empty() {
             return Ok(());
-        };
+        }
+        let mut seen = HashSet::new();
+        merge_symbols.retain(|symbol| seen.insert(*symbol));
 
         // import and merge each global symbol instance type
-        for global_symbol in global_symbols {
+        for global_symbol in merge_symbols {
             // skip the symbol that owns this declaration
             if global_symbol.module_id == module.id && global_symbol.local_id == symbol_id {
                 continue;
