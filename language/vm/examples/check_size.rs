@@ -19,7 +19,7 @@ fn main() {
     );
     println!(
         "ThreadedState: {} bytes",
-        std::mem::size_of::<ThreadedState<'_>>()
+        std::mem::size_of::<ThreadedState<'_, '_>>()
     );
 
     println!("Value: {} bytes", std::mem::size_of::<Value>());

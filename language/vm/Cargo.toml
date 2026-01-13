@@ -21,6 +21,7 @@ perf-counters = ["dep:perf-event"]
 destack_base = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
+destack_vm_abi = { workspace = true }
 
 # util
 smallvec = { workspace = true }

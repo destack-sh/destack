@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::ThreadedHandler;
 use crate::memory::{ReferenceMeta, Value};
 
-use super::dispatch;
+use super::super::execute::dispatch;
 use super::threaded::{
     ArgumentRange, ConstValue, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     SwitchCase, SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
@@ -630,7 +630,7 @@ fn select_switch_table_handler(value_kinds: &ValueKinds, value: mir::Value) -> T
 }
 
 /// Convert a MIR function to threaded form for fast execution.
-pub(super) fn thread_function(
+pub(crate) fn thread_function(
     tree: &mir::NodeTree,
     func_id: mir::LocalNodeId<mir::Function>,
     function_indices: &[u32],

@@ -5,7 +5,7 @@ use crate::memory::{RawPointer, Value, ValueTag};
 
 /// Execute a binary operation.
 #[inline(always)]
-pub(super) fn execute_binary(
+pub(crate) fn execute_binary(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -193,7 +193,7 @@ pub(super) fn execute_binary(
 
 /// Execute a signed integer binary operation.
 #[inline(always)]
-pub(super) fn execute_binary_int(
+pub(crate) fn execute_binary_int(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -247,7 +247,7 @@ pub(super) fn execute_binary_int(
 
 /// Execute an unsigned integer binary operation.
 #[inline(always)]
-pub(super) fn execute_binary_uint(
+pub(crate) fn execute_binary_uint(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -299,7 +299,7 @@ pub(super) fn execute_binary_uint(
 
 /// Execute a float32 binary operation.
 #[inline(always)]
-pub(super) fn execute_binary_float32(
+pub(crate) fn execute_binary_float32(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -336,7 +336,7 @@ pub(super) fn execute_binary_float32(
 
 /// Execute a float64 binary operation.
 #[inline(always)]
-pub(super) fn execute_binary_float64(
+pub(crate) fn execute_binary_float64(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -373,7 +373,7 @@ pub(super) fn execute_binary_float64(
 
 /// Execute a boolean binary operation.
 #[inline(always)]
-pub(super) fn execute_binary_bool(
+pub(crate) fn execute_binary_bool(
     op: mir::BinaryOperator,
     lhs: Value,
     rhs: Value,
@@ -403,7 +403,7 @@ pub(super) fn execute_binary_bool(
 
 /// Execute a unary operation.
 #[inline(always)]
-pub(super) fn execute_unary(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // compute result by operator
@@ -446,7 +446,7 @@ pub(super) fn execute_unary(op: mir::UnaryOperator, arg: Value) -> Result<Value,
 
 /// Execute a signed integer unary operation.
 #[inline(always)]
-pub(super) fn execute_unary_int(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary_int(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // decode operand
@@ -471,7 +471,7 @@ pub(super) fn execute_unary_int(op: mir::UnaryOperator, arg: Value) -> Result<Va
 
 /// Execute an unsigned integer unary operation.
 #[inline(always)]
-pub(super) fn execute_unary_uint(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary_uint(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // decode operand
@@ -495,7 +495,7 @@ pub(super) fn execute_unary_uint(op: mir::UnaryOperator, arg: Value) -> Result<V
 
 /// Execute a float32 unary operation.
 #[inline(always)]
-pub(super) fn execute_unary_float32(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary_float32(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // decode operand
@@ -518,7 +518,7 @@ pub(super) fn execute_unary_float32(op: mir::UnaryOperator, arg: Value) -> Resul
 
 /// Execute a float64 unary operation.
 #[inline(always)]
-pub(super) fn execute_unary_float64(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary_float64(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // decode operand
@@ -541,7 +541,7 @@ pub(super) fn execute_unary_float64(op: mir::UnaryOperator, arg: Value) -> Resul
 
 /// Execute a boolean unary operation.
 #[inline(always)]
-pub(super) fn execute_unary_bool(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
+pub(crate) fn execute_unary_bool(op: mir::UnaryOperator, arg: Value) -> Result<Value, Error> {
     use mir::UnaryOperator::*;
 
     // decode operand
@@ -564,7 +564,7 @@ pub(super) fn execute_unary_bool(op: mir::UnaryOperator, arg: Value) -> Result<V
 
 /// Execute a cast operation.
 #[inline(always)]
-pub(super) fn execute_cast(
+pub(crate) fn execute_cast(
     tree: &mir::NodeTree,
     operator: mir::CastOperator,
     argument: Value,

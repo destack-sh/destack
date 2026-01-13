@@ -190,22 +190,22 @@ impl Compiler {
                 self.lower_comptime_expression(&module, profile_id, *body)?;
 
             // execute the MIR with the interpreter
-            let mut interpreter = vm::Interpreter::with_options(
+            let mut isolate = vm::Isolate::with_options(
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
-                vm::MachineOptions::comptime(),
+                vm::IsolateOptions::comptime(),
             );
-            let output = interpreter
-                .run_function(function_id, &[])
-                .map_err(|error| ExecuteError::FailedExecution {
+            let output = isolate.run_function(function_id, &[]).map_err(|error| {
+                ExecuteError::FailedExecution {
                     module: module_id,
                     message: format!("{error}"),
-                })?;
+                }
+            })?;
 
             // convert the vm value to a static expression
             let vm_value = output.value;
             let dir_value = self
-                .value_to_static_expression(&interpreter, &vm_value)
+                .value_to_static_expression(&isolate, &vm_value)
                 .ok_or_else(|| ExecuteError::FailedExecution {
                     module: module_id,
                     message: "unsupported comptime result".to_string(),

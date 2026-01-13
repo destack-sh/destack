@@ -6,14 +6,12 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::memory::Value;
 
-use super::interpreter::{Continuation, YieldState};
-use super::threaded::{
+use super::super::decode::{
     ArgumentRange, ControlFlow, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedState, is_invalid_value,
 };
-use super::{
-    ExecutionOutcome, ExecutionOutput, ExecutionYield, Frame, Interpreter, resize_and_clear_stack,
-};
+use super::super::state::{Frame, InterpreterContext, resize_and_clear_stack};
+use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, YieldState};
 
 // tuning: small contiguous ranges copy faster with a loop
 const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
@@ -394,11 +392,11 @@ fn argument_slice(argument_pool: &[mir::Value], arguments: ArgumentRange) -> &[m
     arguments.slice(argument_pool)
 }
 
-impl Interpreter {
+impl<'a> InterpreterContext<'a> {
     /// Execute a function by name.
     ///
     /// Looks up a function in the MIR tree by name and executes it.
-    pub fn run_function_by_name(
+    pub(crate) fn run_function_by_name(
         &mut self,
         name: &str,
         arguments: &[Value],
@@ -416,17 +414,22 @@ impl Interpreter {
     /// Execute a function by name with yield support.
     ///
     /// Returns a yielded value when the coroutine suspends.
-    pub fn run_function_by_name_yielding(
+    pub(crate) fn run_function_by_name_yielding(
         &mut self,
         name: &str,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
         // resolve function id by name
-        let func_id = self.function_name_map.get(name).copied().ok_or_else(|| {
-            self.make_error(Error::ExternalFunctionNotFound {
-                name: name.to_string(),
-            })
-        })?;
+        let func_id = self
+            .isolate
+            .function_name_map
+            .get(name)
+            .copied()
+            .ok_or_else(|| {
+                self.make_error(Error::ExternalFunctionNotFound {
+                    name: name.to_string(),
+                })
+            })?;
 
         // execute function
         self.run_function_yielding(func_id, arguments)
@@ -436,7 +439,7 @@ impl Interpreter {
     ///
     /// Uses direct-threaded dispatch for maximum performance. Functions are
     /// pre-compiled to threaded form when the interpreter is created.
-    pub fn run_function(
+    pub(crate) fn run_function(
         &mut self,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
@@ -454,19 +457,19 @@ impl Interpreter {
     /// Execute a function by id with yield support.
     ///
     /// Returns a yielded value when the coroutine suspends.
-    pub fn run_function_yielding(
+    pub(crate) fn run_function_yielding(
         &mut self,
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> RuntimeResult<ExecutionOutcome> {
         // reset interpreter state for this call
-        self.statistics.reset();
-        self.call_stack.clear();
-        self.value_stack.clear();
-        self.local_stack.clear();
+        self.engine.statistics.reset();
+        self.engine.call_stack.clear();
+        self.engine.value_stack.clear();
+        self.engine.local_stack.clear();
 
         // load function metadata
-        let function = self.tree.get(func_id);
+        let function = self.isolate.tree.get(func_id);
 
         // handle imported or external functions
         if function.is_import() {
@@ -490,32 +493,32 @@ impl Interpreter {
     /// Resume a previously yielded coroutine.
     ///
     /// The resume value is appended after explicit resume arguments.
-    pub fn resume(
+    pub(crate) fn resume(
         &mut self,
         continuation: Continuation,
         resume_value: Value,
     ) -> RuntimeResult<ExecutionOutcome> {
         // validate continuation ownership
-        if continuation.interpreter_id != self.id {
+        if continuation.isolate_id != self.isolate.isolate_id {
             return Err(self.make_error(Error::InvalidContinuation));
         }
 
         // ensure the interpreter is idle
-        if !self.call_stack.is_empty()
-            || !self.value_stack.is_empty()
-            || !self.local_stack.is_empty()
+        if !self.engine.call_stack.is_empty()
+            || !self.engine.value_stack.is_empty()
+            || !self.engine.local_stack.is_empty()
         {
             return Err(self.make_error(Error::InvalidContinuation));
         }
 
         // restore execution state
-        self.call_stack = continuation.call_stack;
-        self.value_stack = continuation.value_stack;
-        self.local_stack = continuation.local_stack;
-        self.statistics = continuation.statistics;
+        self.engine.call_stack = continuation.call_stack;
+        self.engine.value_stack = continuation.value_stack;
+        self.engine.local_stack = continuation.local_stack;
+        self.engine.statistics = continuation.statistics;
         #[cfg(feature = "stats")]
         {
-            self.instruction_profile = continuation.instruction_profile;
+            self.engine.instruction_profile = continuation.instruction_profile;
         }
 
         // resume from the captured state
@@ -530,6 +533,7 @@ impl Interpreter {
     ) -> RuntimeResult<ExecutionOutcome> {
         // load the frame to resume
         let frame = self
+            .engine
             .call_stack
             .get_mut(yield_state.frame_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidContinuation))?;
@@ -543,7 +547,7 @@ impl Interpreter {
 
         // bind resume arguments
         copy_values_with_plan(
-            &mut self.value_stack,
+            &mut self.engine.value_stack,
             frame,
             frame,
             yield_state.resume_copies,
@@ -553,7 +557,7 @@ impl Interpreter {
         // bind resumed value after explicit arguments
         if !is_invalid_value(yield_state.resume_value) {
             frame.set_value(
-                &mut self.value_stack,
+                &mut self.engine.value_stack,
                 yield_state.resume_value,
                 resume_value,
             );
@@ -572,19 +576,19 @@ impl Interpreter {
     /// Capture execution state into a continuation.
     fn suspend_continuation(&mut self, yield_state: YieldState) -> Continuation {
         // move execution stacks into the continuation
-        let call_stack = std::mem::take(&mut self.call_stack);
-        let value_stack = std::mem::take(&mut self.value_stack);
-        let local_stack = std::mem::take(&mut self.local_stack);
+        let call_stack = std::mem::take(&mut self.engine.call_stack);
+        let value_stack = std::mem::take(&mut self.engine.value_stack);
+        let local_stack = std::mem::take(&mut self.engine.local_stack);
 
         // move execution statistics into the continuation
-        let statistics = std::mem::take(&mut self.statistics);
+        let statistics = std::mem::take(&mut self.engine.statistics);
 
         // move instruction profile state into the continuation
         #[cfg(feature = "stats")]
-        let instruction_profile = self.instruction_profile.take();
+        let instruction_profile = self.engine.instruction_profile.take();
 
         Continuation {
-            interpreter_id: self.id,
+            isolate_id: self.isolate.isolate_id,
             call_stack,
             value_stack,
             local_stack,
@@ -600,9 +604,9 @@ impl Interpreter {
         // assemble output
         let output = ExecutionOutput {
             value,
-            statistics: self.statistics.clone(),
-            heap_cells: self.managed_heap.cell_count(),
-            raw_heap_cells: self.raw_heap.cell_count(),
+            statistics: self.engine.statistics.clone(),
+            heap_cells: self.isolate.managed_heap.cell_count(),
+            raw_heap_cells: self.isolate.raw_heap.cell_count(),
         };
 
         // return completed outcome
@@ -620,10 +624,12 @@ impl Interpreter {
     ) -> RuntimeResult<ExecutionOutcome> {
         // get pre threaded function
         let threaded_index = self
+            .engine
             .threaded_functions
             .index_for(func_id)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
         let threaded = self
+            .engine
             .threaded_functions
             .get_by_index(threaded_index)
             .ok_or_else(|| RuntimeError::new(Error::UndefinedFunction { function: func_id }))?;
@@ -632,11 +638,13 @@ impl Interpreter {
         let entry_block = &threaded.blocks[threaded.entry as usize];
         let entry_block_id = entry_block.mir_block;
         let entry_block_ptr = NonNull::from(entry_block);
-        let value_base = self.value_stack.len();
-        let local_base = self.local_stack.len();
-        self.value_stack
+        let value_base = self.engine.value_stack.len();
+        let local_base = self.engine.local_stack.len();
+        self.engine
+            .value_stack
             .resize(value_base + threaded.value_count, Value::VOID);
-        self.local_stack
+        self.engine
+            .local_stack
             .resize(local_base + threaded.local_count, Value::VOID);
         let threaded_ptr = NonNull::from(threaded);
         let frame = Frame::new(
@@ -656,14 +664,17 @@ impl Interpreter {
             argument_slice(threaded.argument_pool.as_slice(), threaded.parameters);
         for (i, param) in parameter_slice.iter().enumerate() {
             let value = arguments.get(i).copied().unwrap_or(Value::VOID);
-            frame.set_value(&mut self.value_stack, *param, value);
+            frame.set_value(&mut self.engine.value_stack, *param, value);
         }
 
         // call stack for nested function calls
-        self.call_stack.push(frame);
-        if self.options.collect_stats {
-            self.statistics.max_stack_depth =
-                self.statistics.max_stack_depth.max(self.call_stack.len());
+        self.engine.call_stack.push(frame);
+        if self.isolate.options.telemetry.collect_stats {
+            self.engine.statistics.max_stack_depth = self
+                .engine
+                .statistics
+                .max_stack_depth
+                .max(self.engine.call_stack.len());
         }
 
         // execute until completion or yield
@@ -675,19 +686,20 @@ impl Interpreter {
     /// Returns when execution completes or yields.
     fn execute_threaded_loop(&mut self) -> RuntimeResult<ExecutionOutcome> {
         // cache stats settings
-        let collect_stats = self.options.collect_stats;
-        let track_instructions = collect_stats || self.options.max_instructions.is_some();
+        let collect_stats = self.isolate.options.telemetry.collect_stats;
+        let track_instructions =
+            collect_stats || self.isolate.options.limits.max_instructions.is_some();
 
         // ensure there is an active frame
-        if self.call_stack.is_empty() {
+        if self.engine.call_stack.is_empty() {
             return Err(self.make_error(Error::InvalidInstruction));
         }
 
         // main execution loop (trampoline pattern)
         loop {
             // check step limit
-            if let Some(max) = self.options.max_instructions
-                && self.statistics.threaded_instructions_executed >= max
+            if let Some(max) = self.isolate.options.limits.max_instructions
+                && self.engine.statistics.threaded_instructions_executed >= max
             {
                 return Err(self.make_error(Error::StepLimitExceeded));
             }
@@ -695,6 +707,7 @@ impl Interpreter {
             // get current frame info
             let (threaded_ptr, block_ptr, start_pc) = {
                 let frame = self
+                    .engine
                     .call_stack
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -714,7 +727,7 @@ impl Interpreter {
 
             // execute block starting from resume_pc
             let control = {
-                let frame_index = self.call_stack.len() - 1;
+                let frame_index = self.engine.call_stack.len() - 1;
                 let mut state = ThreadedState::new(
                     self,
                     frame_index,
@@ -726,17 +739,20 @@ impl Interpreter {
 
             // update statistics
             if track_instructions {
-                self.statistics.threaded_instructions_executed += (block_len - start_pc) as u64;
+                self.engine.statistics.threaded_instructions_executed +=
+                    (block_len - start_pc) as u64;
             }
             if collect_stats && start_pc == 0 {
                 // only count MIR instructions on first entry to block (start_pc == 0)
                 // to avoid double-counting when resuming after calls
-                self.statistics.mir_instructions_executed += block.mir_instruction_count as u64;
+                self.engine.statistics.mir_instructions_executed +=
+                    block.mir_instruction_count as u64;
             }
 
             // refresh threaded function after handler chain (tail calls can swap frames)
             let current_func = {
                 let frame = self
+                    .engine
                     .call_stack
                     .last()
                     .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -752,11 +768,12 @@ impl Interpreter {
                     // bind block parameters for target block
                     let target_block = &current_func.blocks[target as usize];
                     let frame = self
+                        .engine
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     copy_values_with_plan(
-                        &mut self.value_stack,
+                        &mut self.engine.value_stack,
                         frame,
                         frame,
                         copies,
@@ -765,6 +782,7 @@ impl Interpreter {
 
                     // update current block
                     let frame = self
+                        .engine
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -786,9 +804,10 @@ impl Interpreter {
 
                     // check for external or imported function
                     if callee_index == INVALID_FUNCTION_INDEX
-                        && self.threaded_functions.is_import(function_id)
+                        && self.engine.threaded_functions.is_import(function_id)
                     {
                         let caller = self
+                            .engine
                             .call_stack
                             .last()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -796,14 +815,14 @@ impl Interpreter {
                         // resolve arguments from caller
                         let args = if let Some(copies) = copies {
                             collect_argument_values_from_copies(
-                                &self.value_stack,
+                                &self.engine.value_stack,
                                 caller,
                                 current_func.copy_pool.as_slice(),
                                 copies,
                             )
                         } else {
                             collect_argument_values_range(
-                                &self.value_stack,
+                                &self.engine.value_stack,
                                 caller,
                                 current_func.argument_pool.as_slice(),
                                 arguments,
@@ -820,11 +839,12 @@ impl Interpreter {
 
                         // store result and continue from resume_pc
                         let frame = self
+                            .engine
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                         if !is_invalid_value(destination) {
-                            frame.set_value(&mut self.value_stack, destination, result);
+                            frame.set_value(&mut self.engine.value_stack, destination, result);
                         }
                         frame.resume_pc = resume_pc;
                         continue;
@@ -832,7 +852,7 @@ impl Interpreter {
 
                     // resolve callee index
                     let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
-                        self.threaded_functions.index_for(function_id)
+                        self.engine.threaded_functions.index_for(function_id)
                     } else {
                         Some(callee_index)
                     };
@@ -844,6 +864,7 @@ impl Interpreter {
                         })
                     })?;
                     let callee = self
+                        .engine
                         .threaded_functions
                         .get_by_index(callee_index)
                         .ok_or_else(|| {
@@ -853,12 +874,13 @@ impl Interpreter {
                         })?;
 
                     // check stack overflow
-                    if self.call_stack.len() >= self.options.max_stack_depth {
+                    if self.engine.call_stack.len() >= self.isolate.options.limits.max_stack_depth {
                         return Err(self.make_error(Error::StackOverflow));
                     }
 
                     // store return destination and resume_pc in caller frame
                     let caller_frame = self
+                        .engine
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -867,11 +889,13 @@ impl Interpreter {
                     caller_frame.resume_pc = resume_pc;
 
                     // create new frame for callee
-                    let value_base = self.value_stack.len();
-                    let local_base = self.local_stack.len();
-                    self.value_stack
+                    let value_base = self.engine.value_stack.len();
+                    let local_base = self.engine.local_stack.len();
+                    self.engine
+                        .value_stack
                         .resize(value_base + callee.value_count, Value::VOID);
-                    self.local_stack
+                    self.engine
+                        .local_stack
                         .resize(local_base + callee.local_count, Value::VOID);
                     let entry_block = &callee.blocks[callee.entry as usize];
                     let entry_block_id = entry_block.mir_block;
@@ -891,6 +915,7 @@ impl Interpreter {
 
                     // bind callee's parameters
                     let caller = self
+                        .engine
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -901,7 +926,7 @@ impl Interpreter {
                     if let Some(copies) = copies {
                         // copy with precomputed plan
                         copy_values_with_plan(
-                            &mut self.value_stack,
+                            &mut self.engine.value_stack,
                             caller,
                             &new_frame,
                             copies,
@@ -910,7 +935,7 @@ impl Interpreter {
                     } else {
                         // copy with parameter slices
                         copy_values_between_frames(
-                            &mut self.value_stack,
+                            &mut self.engine.value_stack,
                             caller,
                             &new_frame,
                             callee.argument_pool.as_slice(),
@@ -921,11 +946,14 @@ impl Interpreter {
                     }
 
                     // push callee frame
-                    self.call_stack.push(new_frame);
+                    self.engine.call_stack.push(new_frame);
                     if collect_stats {
-                        self.statistics.calls_made += 1;
-                        self.statistics.max_stack_depth =
-                            self.statistics.max_stack_depth.max(self.call_stack.len());
+                        self.engine.statistics.calls_made += 1;
+                        self.engine.statistics.max_stack_depth = self
+                            .engine
+                            .statistics
+                            .max_stack_depth
+                            .max(self.engine.call_stack.len());
                     }
                 }
 
@@ -940,19 +968,20 @@ impl Interpreter {
 
                     // collect argument values from the current frame
                     let caller = self
+                        .engine
                         .call_stack
                         .last()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let argument_values = if let Some(copies) = copies {
                         collect_argument_values_from_copies(
-                            &self.value_stack,
+                            &self.engine.value_stack,
                             caller,
                             current_func.copy_pool.as_slice(),
                             copies,
                         )
                     } else {
                         collect_argument_values_range(
-                            &self.value_stack,
+                            &self.engine.value_stack,
                             caller,
                             current_func.argument_pool.as_slice(),
                             arguments,
@@ -960,7 +989,7 @@ impl Interpreter {
                     };
 
                     // check for external or imported function
-                    if self.threaded_functions.is_import(function_id) {
+                    if self.engine.threaded_functions.is_import(function_id) {
                         // resolve external handler
                         let handler = self.external_for_id(function_id)?;
 
@@ -971,33 +1000,35 @@ impl Interpreter {
 
                         // pop completed frame
                         let frame = self
+                            .engine
                             .call_stack
                             .pop()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                        self.value_stack.truncate(frame.value_base);
-                        self.local_stack.truncate(frame.local_base);
+                        self.engine.value_stack.truncate(frame.value_base);
+                        self.engine.local_stack.truncate(frame.local_base);
 
                         // if stack is empty, execution is complete
-                        if self.call_stack.is_empty() {
+                        if self.engine.call_stack.is_empty() {
                             return Ok(self.finish_execution(result));
                         }
 
                         // store return value in caller's frame
                         let caller = self
+                            .engine
                             .call_stack
                             .last_mut()
                             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                         let dest = caller.return_destination;
                         if !is_invalid_value(dest) {
                             caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                            caller.set_value(&mut self.value_stack, dest, result);
+                            caller.set_value(&mut self.engine.value_stack, dest, result);
                         }
                         continue;
                     }
 
                     // resolve callee index
                     let callee_index = if callee_index == INVALID_FUNCTION_INDEX {
-                        self.threaded_functions.index_for(function_id)
+                        self.engine.threaded_functions.index_for(function_id)
                     } else {
                         Some(callee_index)
                     };
@@ -1009,6 +1040,7 @@ impl Interpreter {
                         })
                     })?;
                     let callee = self
+                        .engine
                         .threaded_functions
                         .get_by_index(callee_index)
                         .ok_or_else(|| {
@@ -1019,6 +1051,7 @@ impl Interpreter {
 
                     // reuse the current frame for the tail call
                     let frame = self
+                        .engine
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
@@ -1031,8 +1064,8 @@ impl Interpreter {
                     frame.stack_cells.clear();
 
                     // resize stacks to callee requirements
-                    resize_and_clear_stack(&mut self.value_stack, value_base, value_end);
-                    resize_and_clear_stack(&mut self.local_stack, local_base, local_end);
+                    resize_and_clear_stack(&mut self.engine.value_stack, value_base, value_end);
+                    resize_and_clear_stack(&mut self.engine.local_stack, local_base, local_end);
 
                     // update frame metadata
                     let entry_block = &callee.blocks[callee.entry as usize];
@@ -1048,7 +1081,7 @@ impl Interpreter {
 
                     // bind callee parameters
                     bind_parameters_from_values(
-                        &mut self.value_stack,
+                        &mut self.engine.value_stack,
                         frame,
                         callee.argument_pool.as_slice(),
                         callee.parameters,
@@ -1057,7 +1090,7 @@ impl Interpreter {
 
                     // update statistics
                     if collect_stats {
-                        self.statistics.calls_made += 1;
+                        self.engine.statistics.calls_made += 1;
                     }
                 }
 
@@ -1068,7 +1101,7 @@ impl Interpreter {
                     resume_value,
                 } => {
                     // capture yield state
-                    let frame_index = self.call_stack.len() - 1;
+                    let frame_index = self.engine.call_stack.len() - 1;
                     let yield_state = YieldState {
                         frame_index,
                         resume_block,
@@ -1090,26 +1123,28 @@ impl Interpreter {
                 ControlFlow::Return(value) => {
                     // pop completed frame
                     let frame = self
+                        .engine
                         .call_stack
                         .pop()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-                    self.value_stack.truncate(frame.value_base);
-                    self.local_stack.truncate(frame.local_base);
+                    self.engine.value_stack.truncate(frame.value_base);
+                    self.engine.local_stack.truncate(frame.local_base);
 
                     // if stack is empty, execution is complete
-                    if self.call_stack.is_empty() {
+                    if self.engine.call_stack.is_empty() {
                         return Ok(self.finish_execution(value));
                     }
 
                     // store return value in caller's frame
                     let caller = self
+                        .engine
                         .call_stack
                         .last_mut()
                         .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
                     let dest = caller.return_destination;
                     if !is_invalid_value(dest) {
                         caller.return_destination = mir::Value(INVALID_VALUE_ID);
-                        caller.set_value(&mut self.value_stack, dest, value);
+                        caller.set_value(&mut self.engine.value_stack, dest, value);
                     }
                 }
 

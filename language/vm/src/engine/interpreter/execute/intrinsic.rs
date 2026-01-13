@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::memory::{Value, ValueTag};
 
-use super::Interpreter;
+use super::super::state::InterpreterContext;
 
 /// Reduction operation for SIMD horizontal reductions.
 #[derive(Debug, Clone, Copy)]
@@ -24,7 +24,7 @@ enum ReduceOp {
     Xor,
 }
 
-impl Interpreter {
+impl<'a> InterpreterContext<'a> {
     /// Execute an intrinsic with already-resolved argument values.
     ///
     /// Used by threaded interpreter where values are pre-resolved.
@@ -1205,7 +1205,7 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                if let Some(cell) = self.managed_heap.get(handle) {
+                if let Some(cell) = self.isolate.managed_heap.get(handle) {
                     cell.slots
                         .get(slot_index)
                         .copied()
@@ -1231,6 +1231,7 @@ impl Interpreter {
             ValueTag::StackPointer => {
                 let sp = ptr.as_stack_pointer().unwrap();
                 let frame = self
+                    .engine
                     .call_stack
                     .get(sp.frame_idx)
                     .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
@@ -1276,7 +1277,7 @@ impl Interpreter {
                     })
                 })?;
                 // resolve the managed cell
-                let error = match self.managed_heap.get_mut(handle) {
+                let error = match self.isolate.managed_heap.get_mut(handle) {
                     Some(cell) => {
                         // ensure the slot exists
                         let required_len = slot_index + 1;
@@ -1323,7 +1324,7 @@ impl Interpreter {
                         field_count: 0,
                     })
                 })?;
-                let error = match self.call_stack.get_mut(sp.frame_idx) {
+                let error = match self.engine.call_stack.get_mut(sp.frame_idx) {
                     Some(frame) => {
                         let cell = match frame.get_stack_cell_mut(sp.slot) {
                             Some(cell) => cell,
@@ -1580,11 +1581,11 @@ impl Interpreter {
 
     /// Get the return address (synthetic).
     fn execute_return_address(&self) -> RuntimeResult<Value> {
-        if self.call_stack.len() < 2 {
+        if self.engine.call_stack.len() < 2 {
             return Ok(Value::uint(0, 64));
         }
 
-        let caller_frame = &self.call_stack[self.call_stack.len() - 2];
+        let caller_frame = &self.engine.call_stack[self.engine.call_stack.len() - 2];
         let func_id = caller_frame.function.id as u64;
         let block_id = caller_frame.current_block.id as u64;
 
@@ -1594,7 +1595,7 @@ impl Interpreter {
 
     /// Get the frame address (synthetic).
     fn execute_frame_address(&self) -> RuntimeResult<Value> {
-        let frame_idx = self.call_stack.len() as u64;
+        let frame_idx = self.engine.call_stack.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
         Ok(Value::uint(synthetic_addr, 64))
     }

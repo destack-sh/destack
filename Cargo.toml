@@ -16,6 +16,7 @@ members = [
 	"language/linter",
 	"language/linter/macros",
 	"language/vm",
+	"language/vm/abi",
 	"language/mir",
 	"language/parser",
 	"language/resolver",
@@ -58,6 +59,7 @@ destack_formatter = { path = "language/formatter" }
 destack_linter = { path = "language/linter" }
 destack_linter_macros = { path = "language/linter/macros" }
 destack_vm = { path = "language/vm" }
+destack_vm_abi = { path = "language/vm/abi" }
 destack_mir = { path = "language/mir" }
 destack_parser = { path = "language/parser" }
 destack_resolver = { path = "language/resolver" }

@@ -6,10 +6,8 @@ use clap::ValueEnum;
 use destack_mir as mir;
 use destack_mir::parse::Parser;
 use destack_vm::diagnostic::RuntimeResult;
-use destack_vm::interpreter::{
-    CheckPolicy, ExecutionOutcome, ExecutionOutput, Interpreter, MachineOptions,
-};
 use destack_vm::memory::Value;
+use destack_vm::{CheckPolicy, ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
 
 use super::{arithmetic, calls, dispatch, function_id_by_name, intrinsics, memory, perf};
 
@@ -465,7 +463,7 @@ pub(crate) struct Program {
     /// Expected result for validation.
     pub expected: fn() -> Value,
     /// Default arguments for benchmarking.
-    pub default_args: fn(&Interpreter) -> Vec<Value>,
+    pub default_args: fn(&Isolate) -> Vec<Value>,
     /// Scale axes for this program.
     pub scales: &'static [ScaleAxis],
     /// Runner selection for this program.
@@ -918,7 +916,7 @@ fn scale_label(program: &Program, args: &[Value]) -> String {
 /// Calibrate the primary scale axis to hit a target duration.
 fn calibrate_scale(
     program: &Program,
-    interp: &mut Interpreter,
+    isolate: &mut Isolate,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &mut [Value],
     axis: ScaleAxis,
@@ -937,10 +935,10 @@ fn calibrate_scale(
     let mut sample = Duration::ZERO;
     for _ in 0..2 {
         if needs_gc {
-            let _ = interp.collect_garbage();
+            let _ = isolate.collect_garbage();
         }
         let start = Instant::now();
-        let _ = program.run_or_panic(interp, entry_id, args);
+        let _ = program.run_or_panic(isolate, entry_id, args);
         sample = sample.max(start.elapsed());
     }
 
@@ -997,13 +995,13 @@ fn matches_filters(entry: &ProgramEntry, options: &BenchOptions) -> bool {
 
 /// Run a coroutine program to completion.
 fn run_coroutine(
-    interp: &mut Interpreter,
+    isolate: &mut Isolate,
     entry_id: mir::LocalNodeId<mir::Function>,
     args: &[Value],
     resume_value: ResumeValueFn,
 ) -> RuntimeResult<ExecutionOutput> {
     // start execution
-    let mut outcome = interp.run_function_yielding(entry_id, args)?;
+    let mut outcome = isolate.run_function_yielding(entry_id, args)?;
     let mut yield_index = 0usize;
 
     // continue until completion
@@ -1018,64 +1016,66 @@ fn run_coroutine(
                 let resume = resume_value(args, yield_index, yielded.value);
                 yield_index += 1;
                 // resume execution
-                outcome = interp.resume(yielded.continuation, resume)?;
+                outcome = isolate.resume(yielded.continuation, resume)?;
             }
         }
     }
 }
 
 impl Program {
-    /// Create an interpreter for this program.
-    pub(crate) fn interpreter(&self) -> Interpreter {
+    /// Create an isolate for this program.
+    pub(crate) fn isolate(&self) -> Isolate {
         let (tree, strings) = Parser::parse(self.source)
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks
-        let mut options = MachineOptions::unbounded();
-        options.max_stack_depth = 4096;
-        options.max_heap_cells = 5_000_000;
+        let mut options = IsolateOptions::unbounded();
+        options.limits.max_stack_depth = 4096;
+        options.limits.max_heap_cells = 5_000_000;
+        options.limits.max_raw_cells = 5_000_000;
 
-        Interpreter::with_options(tree, strings, options)
+        Isolate::with_options(tree, strings, options)
     }
 
-    /// Create an interpreter with benchmark options applied.
-    pub(crate) fn interpreter_with_options(&self, bench_options: &BenchOptions) -> Interpreter {
+    /// Create an isolate with benchmark options applied.
+    pub(crate) fn isolate_with_options(&self, bench_options: &BenchOptions) -> Isolate {
         let (tree, strings) = Parser::parse(self.source)
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks
-        let mut options = MachineOptions::unbounded();
-        options.max_stack_depth = 4096;
-        options.max_heap_cells = 5_000_000;
+        let mut options = IsolateOptions::unbounded();
+        options.limits.max_stack_depth = 4096;
+        options.limits.max_heap_cells = 5_000_000;
+        options.limits.max_raw_cells = 5_000_000;
 
         // disable runtime checks for fast benchmarking
         if bench_options.fast {
-            options.bounds_checks = CheckPolicy::Never;
-            options.null_checks = CheckPolicy::Never;
-            options.enforce_reference_kinds = false;
-            options.enforce_reference_mutability = false;
+            options.checks.bounds = CheckPolicy::Never;
+            options.checks.null = CheckPolicy::Never;
+            options.checks.enforce_reference_kinds = false;
+            options.checks.enforce_reference_mutability = false;
         }
 
-        Interpreter::with_options(tree, strings, options)
+        Isolate::with_options(tree, strings, options)
     }
 
     /// Resolve the entry function id for this program.
-    pub(crate) fn entry_id(&self, interp: &Interpreter) -> mir::LocalNodeId<mir::Function> {
-        function_id_by_name(interp, self.entry)
+    pub(crate) fn entry_id(&self, isolate: &Isolate) -> mir::LocalNodeId<mir::Function> {
+        function_id_by_name(isolate, self.entry)
     }
 
     /// Run the program once using the configured runner.
     pub(crate) fn run_once(
         &self,
-        interp: &mut Interpreter,
+        isolate: &mut Isolate,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
     ) -> RuntimeResult<ExecutionOutput> {
         // dispatch to the selected runner
         match self.runner {
-            ProgramRunner::Function => interp.run_function(entry_id, args),
+            ProgramRunner::Function => isolate.run_function(entry_id, args),
             ProgramRunner::Coroutine { resume_value } => {
-                run_coroutine(interp, entry_id, args, resume_value)
+                run_coroutine(isolate, entry_id, args, resume_value)
             }
         }
     }
@@ -1083,13 +1083,13 @@ impl Program {
     /// Run the program once and panic on failure.
     pub(crate) fn run_or_panic(
         &self,
-        interp: &mut Interpreter,
+        isolate: &mut Isolate,
         entry_id: mir::LocalNodeId<mir::Function>,
         args: &[Value],
     ) -> ExecutionOutput {
         // execute program
         let result = self
-            .run_once(interp, entry_id, args)
+            .run_once(isolate, entry_id, args)
             .unwrap_or_else(|e| panic!("'{}' failed: {:?}", self.name, e));
 
         // return output
@@ -1099,11 +1099,11 @@ impl Program {
     /// Build arguments for a given profile.
     pub(crate) fn args_for_profile(
         &self,
-        interp: &Interpreter,
+        isolate: &Isolate,
         profile: BenchProfileKind,
     ) -> Vec<Value> {
         // build base args
-        let mut args = (self.default_args)(interp);
+        let mut args = (self.default_args)(isolate);
 
         // apply scale axes
         apply_profile_scales(self, &mut args, profile);
@@ -1115,9 +1115,9 @@ impl Program {
     /// Get actual instruction count by running once.
     #[allow(dead_code)]
     pub(crate) fn actual_instruction_count(&self, args: &[Value]) -> u64 {
-        let mut interp = self.interpreter();
-        let entry_id = self.entry_id(&interp);
-        let result = self.run_or_panic(&mut interp, entry_id, args);
+        let mut isolate = self.isolate();
+        let entry_id = self.entry_id(&isolate);
+        let result = self.run_or_panic(&mut isolate, entry_id, args);
         result.statistics.threaded_instructions_executed
     }
 
@@ -1126,11 +1126,11 @@ impl Program {
     pub(crate) fn validate(&self) {
         let expected = (self.expected)();
 
-        // build interpreter and arguments
-        let mut interp = self.interpreter();
-        let args = (self.default_args)(&interp);
-        let entry_id = self.entry_id(&interp);
-        let result = self.run_or_panic(&mut interp, entry_id, &args);
+        // build isolate and arguments
+        let mut isolate = self.isolate();
+        let args = (self.default_args)(&isolate);
+        let entry_id = self.entry_id(&isolate);
+        let result = self.run_or_panic(&mut isolate, entry_id, &args);
 
         assert_eq!(
             result.value, expected,
@@ -1573,13 +1573,13 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
         // build display name
         let full_name = format!("{}/{}", entry.category, entry.program.name);
 
-        // build interpreter and arguments
-        let mut interp = entry.program.interpreter_with_options(options);
-        let entry_id = entry.program.entry_id(&interp);
-        let mut args = entry.program.args_for_profile(&interp, profile.kind);
+        // build isolate and arguments
+        let mut isolate = entry.program.isolate_with_options(options);
+        let entry_id = entry.program.entry_id(&isolate);
+        let mut args = entry.program.args_for_profile(&isolate, profile.kind);
 
         // run once for stats
-        let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
+        let result = entry.program.run_or_panic(&mut isolate, entry_id, &args);
         let mut stats = result.statistics;
         let mut needs_gc = stats.heap_allocations > 0;
 
@@ -1588,7 +1588,7 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             if let Some(axis) = calibrate_axis(entry.program) {
                 calibrate_scale(
                     entry.program,
-                    &mut interp,
+                    &mut isolate,
                     entry_id,
                     &mut args,
                     axis,
@@ -1597,14 +1597,14 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
                 );
             }
 
-            let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
+            let result = entry.program.run_or_panic(&mut isolate, entry_id, &args);
             stats = result.statistics;
             needs_gc = stats.heap_allocations > 0;
         }
 
         // disable stats for fast timing runs
         if options.fast {
-            interp.set_collect_stats(false);
+            isolate.set_collect_stats(false);
         }
 
         // resolve scale label
@@ -1615,9 +1615,9 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             let warmup_start = Instant::now();
             while warmup_start.elapsed() < profile.warmup {
                 if needs_gc {
-                    let _ = interp.collect_garbage();
+                    let _ = isolate.collect_garbage();
                 }
-                let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
+                let _ = entry.program.run_or_panic(&mut isolate, entry_id, &args);
             }
         }
 
@@ -1637,11 +1637,11 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
             let run_start = Instant::now();
             while run_start.elapsed() < min_duration {
                 if needs_gc {
-                    let gc = interp.collect_garbage();
+                    let gc = isolate.collect_garbage();
                     gc_collections += 1;
                     gc_freed_cells += gc.freed_cells as u64;
                 }
-                let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
+                let _ = entry.program.run_or_panic(&mut isolate, entry_id, &args);
                 iterations += 1;
             }
             let elapsed = run_start.elapsed();
@@ -1680,19 +1680,19 @@ pub(crate) fn quick_bench_with_options(options: &BenchOptions) {
         let instruction_profile = if options.instruction_profile {
             #[cfg(feature = "stats")]
             {
-                interp.enable_instruction_profile(INSTRUCTION_PROFILE_INTERVAL);
-                interp.reset_instruction_profile();
+                isolate.enable_instruction_profile(INSTRUCTION_PROFILE_INTERVAL);
+                isolate.reset_instruction_profile();
 
                 let profile_start = Instant::now();
                 while profile_start.elapsed() < min_duration {
                     if needs_gc {
-                        let _ = interp.collect_garbage();
+                        let _ = isolate.collect_garbage();
                     }
-                    let _ = entry.program.run_or_panic(&mut interp, entry_id, &args);
+                    let _ = entry.program.run_or_panic(&mut isolate, entry_id, &args);
                 }
 
-                let report = interp.instruction_profile_report(INSTRUCTION_PROFILE_TARGET_PERCENT);
-                interp.clear_instruction_profile();
+                let report = isolate.instruction_profile_report(INSTRUCTION_PROFILE_TARGET_PERCENT);
+                isolate.clear_instruction_profile();
                 report
             }
             #[cfg(not(feature = "stats"))]
@@ -1850,15 +1850,15 @@ pub(crate) fn print_stats(options: &BenchOptions) {
             continue;
         }
 
-        // build interpreter and arguments
-        let mut interp = entry.program.interpreter_with_options(options);
+        // build isolate and arguments
+        let mut isolate = entry.program.isolate_with_options(options);
         let args = entry
             .program
-            .args_for_profile(&interp, options.profile.kind);
-        let entry_id = entry.program.entry_id(&interp);
+            .args_for_profile(&isolate, options.profile.kind);
+        let entry_id = entry.program.entry_id(&isolate);
 
         // run program and capture stats
-        let result = entry.program.run_or_panic(&mut interp, entry_id, &args);
+        let result = entry.program.run_or_panic(&mut isolate, entry_id, &args);
         let stats = result.statistics;
         let label = scale_label(entry.program, &args);
         rows.push(StatsRow {

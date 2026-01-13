@@ -8,14 +8,15 @@ use smallvec::SmallVec;
 use crate::diagnostic::Error;
 use crate::memory::{ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
 
-use super::call::copy_values_with_plan;
-use super::statistics::stat_inc;
-use super::threaded::{
+use super::super::decode::{
     ArgumentRange, ConstValue, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
-    UNKNOWN_SLOT_COUNT, is_invalid_value,
+    UNKNOWN_SLOT_COUNT, is_invalid_value, operator,
 };
-use super::{Frame, instruction, operator, resize_and_clear_stack};
+use super::super::state::{Frame, resize_and_clear_stack};
+use super::call::copy_values_with_plan;
+use super::instruction;
+use crate::telemetry::stat_inc;
 
 // helper macro: do work, then become next handler
 macro_rules! next {
@@ -40,7 +41,10 @@ fn type_id(raw: u32) -> mir::LocalNodeId<mir::Type> {
 
 /// Collect argument values into a smallvec.
 #[inline]
-fn collect_values(state: &mut ThreadedState, arguments: ArgumentRange) -> SmallVec<[Value; 16]> {
+fn collect_values(
+    state: &mut ThreadedState<'_, '_>,
+    arguments: ArgumentRange,
+) -> SmallVec<[Value; 16]> {
     // load argument slice
     let argument_slice = state.argument_slice(arguments);
     let mut args = SmallVec::with_capacity(argument_slice.len());
@@ -72,11 +76,17 @@ fn reference_label(reference: ReferenceMeta) -> String {
 
 /// Validate reference kind against the pointer storage.
 fn check_reference_kind(
-    state: &ThreadedState,
+    state: &ThreadedState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
-    if !state.interpreter.options.enforce_reference_kinds {
+    if !state
+        .interpreter
+        .isolate
+        .options
+        .checks
+        .enforce_reference_kinds
+    {
         return Ok(());
     }
 
@@ -106,11 +116,17 @@ fn check_reference_kind(
 
 /// Validate reference address space against the pointer storage.
 fn check_reference_address_space(
-    state: &ThreadedState,
+    state: &ThreadedState<'_, '_>,
     reference: ReferenceMeta,
     pointer: Value,
 ) -> Result<(), Error> {
-    if !state.interpreter.options.enforce_reference_kinds {
+    if !state
+        .interpreter
+        .isolate
+        .options
+        .checks
+        .enforce_reference_kinds
+    {
         return Ok(());
     }
 
@@ -160,10 +176,16 @@ fn check_reference_address_space(
 
 /// Validate reference mutability for stores.
 fn check_reference_mutability(
-    state: &ThreadedState,
+    state: &ThreadedState<'_, '_>,
     reference: ReferenceMeta,
 ) -> Result<(), Error> {
-    if !state.interpreter.options.enforce_reference_mutability {
+    if !state
+        .interpreter
+        .isolate
+        .options
+        .checks
+        .enforce_reference_mutability
+    {
         return Ok(());
     }
 
@@ -181,8 +203,8 @@ fn check_reference_mutability(
 }
 
 /// Handle constant load.
-pub(super) fn handle_const(
-    state: &mut ThreadedState,
+pub(crate) fn handle_const(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -205,8 +227,8 @@ pub(super) fn handle_const(
 }
 
 /// Handle binary operation.
-pub(super) fn handle_binary(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -240,8 +262,8 @@ pub(super) fn handle_binary(
 
 /// Handle signed integer binary operation.
 #[inline(always)]
-pub(super) fn handle_binary_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -275,8 +297,8 @@ pub(super) fn handle_binary_int(
 
 /// Handle unsigned integer binary operation.
 #[inline(always)]
-pub(super) fn handle_binary_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -310,8 +332,8 @@ pub(super) fn handle_binary_uint(
 
 /// Handle float32 binary operation.
 #[inline(always)]
-pub(super) fn handle_binary_float32(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_float32(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -345,8 +367,8 @@ pub(super) fn handle_binary_float32(
 
 /// Handle float64 binary operation.
 #[inline(always)]
-pub(super) fn handle_binary_float64(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_float64(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -379,8 +401,8 @@ pub(super) fn handle_binary_float64(
 }
 
 /// Handle boolean binary operation.
-pub(super) fn handle_binary_bool(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_bool(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -418,8 +440,8 @@ pub(super) fn handle_binary_bool(
 
 /// Execute integer addition without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_add_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_add_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -435,8 +457,8 @@ pub(super) fn handle_add_int(
 
 /// Execute integer subtraction without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_sub_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_sub_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -452,8 +474,8 @@ pub(super) fn handle_sub_int(
 
 /// Execute integer multiplication without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_mul_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_mul_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -469,8 +491,8 @@ pub(super) fn handle_mul_int(
 
 /// Execute integer bitwise AND without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_and_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_and_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -486,8 +508,8 @@ pub(super) fn handle_and_int(
 
 /// Execute integer bitwise OR without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_or_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_or_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -503,8 +525,8 @@ pub(super) fn handle_or_int(
 
 /// Execute integer bitwise XOR without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_xor_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_xor_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -520,8 +542,8 @@ pub(super) fn handle_xor_int(
 
 /// Execute shift left without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_shl_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_shl_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -537,8 +559,8 @@ pub(super) fn handle_shl_int(
 
 /// Execute arithmetic shift right without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_shr_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_shr_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -558,8 +580,8 @@ pub(super) fn handle_shr_int(
 
 /// Execute unsigned integer addition without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_add_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_add_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -575,8 +597,8 @@ pub(super) fn handle_add_uint(
 
 /// Execute unsigned integer subtraction without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_sub_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_sub_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -592,8 +614,8 @@ pub(super) fn handle_sub_uint(
 
 /// Execute unsigned integer multiplication without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_mul_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_mul_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -609,8 +631,8 @@ pub(super) fn handle_mul_uint(
 
 /// Execute unsigned bitwise AND without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_and_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_and_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -626,8 +648,8 @@ pub(super) fn handle_and_uint(
 
 /// Execute unsigned bitwise OR without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_or_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_or_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -643,8 +665,8 @@ pub(super) fn handle_or_uint(
 
 /// Execute unsigned bitwise XOR without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_xor_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_xor_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -660,8 +682,8 @@ pub(super) fn handle_xor_uint(
 
 /// Execute unsigned shift left without operator dispatch.
 #[inline(always)]
-pub(super) fn handle_shl_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_shl_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -677,8 +699,8 @@ pub(super) fn handle_shl_uint(
 
 /// Execute logical shift right for unsigned values.
 #[inline(always)]
-pub(super) fn handle_shr_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_shr_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -698,8 +720,8 @@ pub(super) fn handle_shr_uint(
 
 /// Execute integer equality comparison.
 #[inline(always)]
-pub(super) fn handle_eq_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_eq_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -714,8 +736,8 @@ pub(super) fn handle_eq_int(
 
 /// Execute integer inequality comparison.
 #[inline(always)]
-pub(super) fn handle_ne_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ne_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -730,8 +752,8 @@ pub(super) fn handle_ne_int(
 
 /// Execute signed less than comparison.
 #[inline(always)]
-pub(super) fn handle_lt_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_lt_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -746,8 +768,8 @@ pub(super) fn handle_lt_int(
 
 /// Execute signed less than or equal comparison.
 #[inline(always)]
-pub(super) fn handle_le_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_le_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -762,8 +784,8 @@ pub(super) fn handle_le_int(
 
 /// Execute signed greater than comparison.
 #[inline(always)]
-pub(super) fn handle_gt_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_gt_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -778,8 +800,8 @@ pub(super) fn handle_gt_int(
 
 /// Execute signed greater than or equal comparison.
 #[inline(always)]
-pub(super) fn handle_ge_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ge_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -794,8 +816,8 @@ pub(super) fn handle_ge_int(
 
 /// Execute unsigned less than comparison.
 #[inline(always)]
-pub(super) fn handle_lt_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_lt_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -810,8 +832,8 @@ pub(super) fn handle_lt_uint(
 
 /// Execute unsigned less than or equal comparison.
 #[inline(always)]
-pub(super) fn handle_le_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_le_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -826,8 +848,8 @@ pub(super) fn handle_le_uint(
 
 /// Execute unsigned greater than comparison.
 #[inline(always)]
-pub(super) fn handle_gt_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_gt_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -842,8 +864,8 @@ pub(super) fn handle_gt_uint(
 
 /// Execute unsigned greater than or equal comparison.
 #[inline(always)]
-pub(super) fn handle_ge_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ge_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -862,8 +884,8 @@ pub(super) fn handle_ge_uint(
 
 /// Execute integer addition with constant right operand.
 #[inline(always)]
-pub(super) fn handle_add_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_add_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -884,8 +906,8 @@ pub(super) fn handle_add_const_int(
 
 /// Execute integer subtraction with constant right operand.
 #[inline(always)]
-pub(super) fn handle_sub_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_sub_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -906,8 +928,8 @@ pub(super) fn handle_sub_const_int(
 
 /// Execute integer multiplication with constant right operand.
 #[inline(always)]
-pub(super) fn handle_mul_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_mul_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -928,8 +950,8 @@ pub(super) fn handle_mul_const_int(
 
 /// Execute equality comparison with constant right operand.
 #[inline(always)]
-pub(super) fn handle_eq_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_eq_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -949,8 +971,8 @@ pub(super) fn handle_eq_const_int(
 
 /// Execute inequality comparison with constant right operand.
 #[inline(always)]
-pub(super) fn handle_ne_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ne_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -970,8 +992,8 @@ pub(super) fn handle_ne_const_int(
 
 /// Execute signed less than with constant right operand.
 #[inline(always)]
-pub(super) fn handle_lt_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_lt_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -991,8 +1013,8 @@ pub(super) fn handle_lt_const_int(
 
 /// Execute signed less equal with constant right operand.
 #[inline(always)]
-pub(super) fn handle_le_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_le_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1012,8 +1034,8 @@ pub(super) fn handle_le_const_int(
 
 /// Execute signed greater than with constant right operand.
 #[inline(always)]
-pub(super) fn handle_gt_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_gt_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1033,8 +1055,8 @@ pub(super) fn handle_gt_const_int(
 
 /// Execute signed greater equal with constant right operand.
 #[inline(always)]
-pub(super) fn handle_ge_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ge_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1058,8 +1080,8 @@ pub(super) fn handle_ge_const_int(
 
 /// Execute unsigned addition with constant right operand.
 #[inline(always)]
-pub(super) fn handle_add_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_add_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1080,8 +1102,8 @@ pub(super) fn handle_add_const_uint(
 
 /// Execute unsigned subtraction with constant right operand.
 #[inline(always)]
-pub(super) fn handle_sub_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_sub_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1102,8 +1124,8 @@ pub(super) fn handle_sub_const_uint(
 
 /// Execute unsigned multiplication with constant right operand.
 #[inline(always)]
-pub(super) fn handle_mul_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_mul_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1124,8 +1146,8 @@ pub(super) fn handle_mul_const_uint(
 
 /// Execute unsigned less than with constant right operand.
 #[inline(always)]
-pub(super) fn handle_lt_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_lt_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1145,8 +1167,8 @@ pub(super) fn handle_lt_const_uint(
 
 /// Execute unsigned less equal with constant right operand.
 #[inline(always)]
-pub(super) fn handle_le_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_le_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1166,8 +1188,8 @@ pub(super) fn handle_le_const_uint(
 
 /// Execute unsigned greater than with constant right operand.
 #[inline(always)]
-pub(super) fn handle_gt_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_gt_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1187,8 +1209,8 @@ pub(super) fn handle_gt_const_uint(
 
 /// Execute unsigned greater equal with constant right operand.
 #[inline(always)]
-pub(super) fn handle_ge_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_ge_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1212,8 +1234,8 @@ pub(super) fn handle_ge_const_uint(
 
 /// Execute generic binary operation with constant right operand.
 #[inline(always)]
-pub(super) fn handle_binary_const_right(
-    state: &mut ThreadedState,
+pub(crate) fn handle_binary_const_right(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1238,8 +1260,8 @@ pub(super) fn handle_binary_const_right(
 }
 
 /// Handle unary operation.
-pub(super) fn handle_unary(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1266,8 +1288,8 @@ pub(super) fn handle_unary(
 
 /// Handle signed integer unary operation.
 #[inline(always)]
-pub(super) fn handle_unary_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1294,8 +1316,8 @@ pub(super) fn handle_unary_int(
 
 /// Handle unsigned integer unary operation.
 #[inline(always)]
-pub(super) fn handle_unary_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1322,8 +1344,8 @@ pub(super) fn handle_unary_uint(
 
 /// Handle float32 unary operation.
 #[inline(always)]
-pub(super) fn handle_unary_float32(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary_float32(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1350,8 +1372,8 @@ pub(super) fn handle_unary_float32(
 
 /// Handle float64 unary operation.
 #[inline(always)]
-pub(super) fn handle_unary_float64(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary_float64(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1377,8 +1399,8 @@ pub(super) fn handle_unary_float64(
 }
 
 /// Handle boolean unary operation.
-pub(super) fn handle_unary_bool(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unary_bool(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1404,8 +1426,8 @@ pub(super) fn handle_unary_bool(
 }
 
 /// Handle cast operation.
-pub(super) fn handle_cast(
-    state: &mut ThreadedState,
+pub(crate) fn handle_cast(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1425,10 +1447,11 @@ pub(super) fn handle_cast(
 
     // execute cast
     let cast_type = type_id(*to_type);
-    let result = match operator::execute_cast(&state.interpreter.tree, *op, argument, cast_type) {
-        Ok(value) => value,
-        Err(error) => return ControlFlow::Error(error),
-    };
+    let result =
+        match operator::execute_cast(&state.interpreter.isolate.tree, *op, argument, cast_type) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
 
     // store result
     state.set(*dest, result);
@@ -1438,8 +1461,8 @@ pub(super) fn handle_cast(
 }
 
 /// Handle select operation.
-pub(super) fn handle_select(
-    state: &mut ThreadedState,
+pub(crate) fn handle_select(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1470,8 +1493,8 @@ pub(super) fn handle_select(
 }
 
 /// Handle function call (returns to trampoline).
-pub(super) fn handle_call(
-    state: &mut ThreadedState,
+pub(crate) fn handle_call(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1493,22 +1516,46 @@ pub(super) fn handle_call(
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
 
     // skip fast path when stats or step limits are active
-    let allow_direct = !state.collect_stats && state.interpreter.options.max_instructions.is_none();
+    let allow_direct = !state.collect_stats
+        && state
+            .interpreter
+            .isolate
+            .options
+            .limits
+            .max_instructions
+            .is_none();
 
     // try direct threaded call when possible
-    if allow_direct && !state.interpreter.threaded_functions.is_import(function_id) {
+    if allow_direct
+        && !state
+            .interpreter
+            .engine
+            .threaded_functions
+            .is_import(function_id)
+    {
         let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
-            state.interpreter.threaded_functions.index_for(function_id)
+            state
+                .interpreter
+                .engine
+                .threaded_functions
+                .index_for(function_id)
         } else {
             Some(*callee_index)
         };
-        let callee_ptr = resolved_index
-            .and_then(|index| state.interpreter.threaded_functions.get_ptr_by_index(index));
+        let callee_ptr = resolved_index.and_then(|index| {
+            state
+                .interpreter
+                .engine
+                .threaded_functions
+                .get_ptr_by_index(index)
+        });
         if let Some(callee_ptr) = callee_ptr {
             let callee = unsafe { callee_ptr.as_ref() };
 
             // check stack overflow
-            if state.interpreter.call_stack.len() >= state.interpreter.options.max_stack_depth {
+            if state.interpreter.engine.call_stack.len()
+                >= state.interpreter.isolate.options.limits.max_stack_depth
+            {
                 return ControlFlow::Error(Error::StackOverflow);
             }
 
@@ -1520,14 +1567,16 @@ pub(super) fn handle_call(
             }
 
             // allocate new frame for callee
-            let value_base = state.interpreter.value_stack.len();
-            let local_base = state.interpreter.local_stack.len();
+            let value_base = state.interpreter.engine.value_stack.len();
+            let local_base = state.interpreter.engine.local_stack.len();
             state
                 .interpreter
+                .engine
                 .value_stack
                 .resize(value_base + callee.value_count, Value::VOID);
             state
                 .interpreter
+                .engine
                 .local_stack
                 .resize(local_base + callee.local_count, Value::VOID);
             let entry_block = &callee.blocks[callee.entry as usize];
@@ -1560,7 +1609,7 @@ pub(super) fn handle_call(
             };
             let caller = unsafe { &*caller_ptr };
             copy_values_with_plan(
-                &mut state.interpreter.value_stack,
+                &mut state.interpreter.engine.value_stack,
                 caller,
                 &new_frame,
                 *copies,
@@ -1568,8 +1617,8 @@ pub(super) fn handle_call(
             );
 
             // push new frame and refresh state
-            state.interpreter.call_stack.push(new_frame);
-            let new_index = state.interpreter.call_stack.len() - 1;
+            state.interpreter.engine.call_stack.push(new_frame);
+            let new_index = state.interpreter.engine.call_stack.len() - 1;
             state.enter_frame(new_index, callee);
 
             // continue at entry block
@@ -1590,8 +1639,8 @@ pub(super) fn handle_call(
 }
 
 /// Handle indirect call (returns to trampoline).
-pub(super) fn handle_call_indirect(
-    state: &mut ThreadedState,
+pub(crate) fn handle_call_indirect(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1640,6 +1689,7 @@ pub(super) fn handle_call_indirect(
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let resolved_index = state
         .interpreter
+        .engine
         .threaded_functions
         .index_for(function_id)
         .unwrap_or(INVALID_FUNCTION_INDEX);
@@ -1659,8 +1709,8 @@ pub(super) fn handle_call_indirect(
 
 /// Handle local variable load.
 #[inline(always)]
-pub(super) fn handle_local_get(
-    state: &mut ThreadedState,
+pub(crate) fn handle_local_get(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1681,8 +1731,8 @@ pub(super) fn handle_local_get(
 
 /// Handle local variable store.
 #[inline(always)]
-pub(super) fn handle_local_set(
-    state: &mut ThreadedState,
+pub(crate) fn handle_local_set(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1702,8 +1752,8 @@ pub(super) fn handle_local_set(
 }
 
 /// Handle global address.
-pub(super) fn handle_global_addr(
-    state: &mut ThreadedState,
+pub(crate) fn handle_global_addr(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1732,8 +1782,8 @@ pub(super) fn handle_global_addr(
 }
 
 /// Handle global constant load.
-pub(super) fn handle_global_const(
-    state: &mut ThreadedState,
+pub(crate) fn handle_global_const(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1744,7 +1794,7 @@ pub(super) fn handle_global_const(
 
     // load global value
     let global_id = global_id(*global);
-    let value = match state.interpreter.globals.get(global_id).copied() {
+    let value = match state.interpreter.isolate.globals.get(global_id).copied() {
         Some(v) => v,
         None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
     };
@@ -1758,8 +1808,8 @@ pub(super) fn handle_global_const(
 
 /// Handle fused global address + load.
 #[inline(always)]
-pub(super) fn handle_global_load(
-    state: &mut ThreadedState,
+pub(crate) fn handle_global_load(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1770,12 +1820,12 @@ pub(super) fn handle_global_load(
 
     // track loads
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, loads);
+        stat_inc!(state.interpreter.engine.statistics, loads);
     }
 
     // load global value directly
     let global_id = global_id(*global);
-    let value = match state.interpreter.globals.get(global_id).copied() {
+    let value = match state.interpreter.isolate.globals.get(global_id).copied() {
         Some(v) => v,
         None => return ControlFlow::Error(Error::UndefinedGlobal { global: global_id }),
     };
@@ -1789,8 +1839,8 @@ pub(super) fn handle_global_load(
 
 /// Handle fused global address + store.
 #[inline(always)]
-pub(super) fn handle_global_store(
-    state: &mut ThreadedState,
+pub(crate) fn handle_global_store(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1806,7 +1856,7 @@ pub(super) fn handle_global_store(
 
     // track stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // load value to store
@@ -1819,15 +1869,15 @@ pub(super) fn handle_global_store(
     }
 
     // store to global directly
-    state.interpreter.globals.set(global_id, val);
+    state.interpreter.isolate.globals.set(global_id, val);
 
     // continue to next instruction
     next!(state, block, pc)
 }
 
 /// Handle pointer load.
-pub(super) fn handle_load(
-    state: &mut ThreadedState,
+pub(crate) fn handle_load(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1853,8 +1903,8 @@ pub(super) fn handle_load(
 }
 
 /// Handle pointer store.
-pub(super) fn handle_store(
-    state: &mut ThreadedState,
+pub(crate) fn handle_store(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1888,8 +1938,8 @@ pub(super) fn handle_store(
 
 /// Handle managed pointer load.
 #[inline(always)]
-pub(super) fn handle_load_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_load_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1916,8 +1966,8 @@ pub(super) fn handle_load_managed(
 
 /// Handle raw pointer load.
 #[inline(always)]
-pub(super) fn handle_load_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_load_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1944,8 +1994,8 @@ pub(super) fn handle_load_raw(
 
 /// Handle stack pointer load.
 #[inline(always)]
-pub(super) fn handle_load_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_load_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -1972,8 +2022,8 @@ pub(super) fn handle_load_stack(
 
 /// Handle global pointer load.
 #[inline(always)]
-pub(super) fn handle_load_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_load_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2000,8 +2050,8 @@ pub(super) fn handle_load_global(
 
 /// Handle managed pointer store.
 #[inline(always)]
-pub(super) fn handle_store_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_store_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2035,8 +2085,8 @@ pub(super) fn handle_store_managed(
 
 /// Handle raw pointer store.
 #[inline(always)]
-pub(super) fn handle_store_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_store_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2070,8 +2120,8 @@ pub(super) fn handle_store_raw(
 
 /// Handle stack pointer store.
 #[inline(always)]
-pub(super) fn handle_store_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_store_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2105,8 +2155,8 @@ pub(super) fn handle_store_stack(
 
 /// Handle global pointer store.
 #[inline(always)]
-pub(super) fn handle_store_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_store_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2139,8 +2189,8 @@ pub(super) fn handle_store_global(
 }
 
 /// Handle field get.
-pub(super) fn handle_field_get(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_get(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2173,8 +2223,8 @@ pub(super) fn handle_field_get(
 
 /// Handle field get for small inline aggregates (≤2 fields).
 #[inline(always)]
-pub(super) fn handle_field_get_inline(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_get_inline(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2203,7 +2253,7 @@ pub(super) fn handle_field_get_inline(
 
     // fast path: directly access heap cell and inline slots
     let value = unsafe {
-        let cell = state.interpreter.managed_heap.get_unchecked(handle);
+        let cell = state.interpreter.isolate.managed_heap.get_unchecked(handle);
         let slot_index = handle.slot_index().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked(slot_index)
@@ -2218,8 +2268,8 @@ pub(super) fn handle_field_get_inline(
 
 /// Handle field store on small managed aggregates (≤2 fields, inline storage).
 #[inline(always)]
-pub(super) fn handle_field_store_inline(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_inline(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2237,7 +2287,7 @@ pub(super) fn handle_field_store_inline(
 
     // track stores
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, stores);
+        stat_inc!(state.interpreter.engine.statistics, stores);
     }
 
     // load aggregate and extract heap handle
@@ -2257,7 +2307,11 @@ pub(super) fn handle_field_store_inline(
 
     // fast path: directly access heap cell and inline slots
     unsafe {
-        let cell = state.interpreter.managed_heap.get_unchecked_mut(handle);
+        let cell = state
+            .interpreter
+            .isolate
+            .managed_heap
+            .get_unchecked_mut(handle);
         let slot_index = handle.slot_index().wrapping_add(*index as usize);
         // inline storage is guaranteed for field_count ≤ 2
         *cell.slots.get_unchecked_mut(slot_index) = val;
@@ -2268,8 +2322,8 @@ pub(super) fn handle_field_store_inline(
 }
 
 /// Handle field addr.
-pub(super) fn handle_field_addr(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2310,8 +2364,8 @@ pub(super) fn handle_field_addr(
 }
 
 /// Handle field addr on aggregate values.
-pub(super) fn handle_field_addr_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2359,8 +2413,8 @@ pub(super) fn handle_field_addr_aggregate(
 }
 
 /// Handle field addr on managed references.
-pub(super) fn handle_field_addr_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2407,8 +2461,8 @@ pub(super) fn handle_field_addr_managed(
 }
 
 /// Handle field addr on raw pointers.
-pub(super) fn handle_field_addr_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2455,8 +2509,8 @@ pub(super) fn handle_field_addr_raw(
 }
 
 /// Handle field addr on stack pointers.
-pub(super) fn handle_field_addr_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2503,8 +2557,8 @@ pub(super) fn handle_field_addr_stack(
 }
 
 /// Handle field addr on global pointers.
-pub(super) fn handle_field_addr_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_addr_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2551,8 +2605,8 @@ pub(super) fn handle_field_addr_global(
 }
 
 /// Handle field load.
-pub(super) fn handle_field_load(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2590,8 +2644,8 @@ pub(super) fn handle_field_load(
 }
 
 /// Handle field load on aggregate values.
-pub(super) fn handle_field_load_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2630,8 +2684,8 @@ pub(super) fn handle_field_load_aggregate(
 }
 
 /// Handle field load on managed references.
-pub(super) fn handle_field_load_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2669,8 +2723,8 @@ pub(super) fn handle_field_load_managed(
 }
 
 /// Handle field load on raw pointers.
-pub(super) fn handle_field_load_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2708,8 +2762,8 @@ pub(super) fn handle_field_load_raw(
 }
 
 /// Handle field load on stack pointers.
-pub(super) fn handle_field_load_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2747,8 +2801,8 @@ pub(super) fn handle_field_load_stack(
 }
 
 /// Handle field load on global pointers.
-pub(super) fn handle_field_load_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_load_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2786,8 +2840,8 @@ pub(super) fn handle_field_load_global(
 }
 
 /// Handle field set.
-pub(super) fn handle_field_set(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_set(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2820,8 +2874,8 @@ pub(super) fn handle_field_set(
 }
 
 /// Handle field store.
-pub(super) fn handle_field_store(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2864,8 +2918,8 @@ pub(super) fn handle_field_store(
 }
 
 /// Handle field store on aggregate values.
-pub(super) fn handle_field_store_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2908,8 +2962,8 @@ pub(super) fn handle_field_store_aggregate(
 }
 
 /// Handle field store on managed references.
-pub(super) fn handle_field_store_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2951,8 +3005,8 @@ pub(super) fn handle_field_store_managed(
 }
 
 /// Handle field store on raw pointers.
-pub(super) fn handle_field_store_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -2995,8 +3049,8 @@ pub(super) fn handle_field_store_raw(
 }
 
 /// Handle field store on stack pointers.
-pub(super) fn handle_field_store_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3043,8 +3097,8 @@ pub(super) fn handle_field_store_stack(
 }
 
 /// Handle field store on global pointers.
-pub(super) fn handle_field_store_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_field_store_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3092,8 +3146,8 @@ pub(super) fn handle_field_store_global(
 }
 
 /// Handle element get.
-pub(super) fn handle_element_get(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_get(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3121,8 +3175,8 @@ pub(super) fn handle_element_get(
 }
 
 /// Handle element addr.
-pub(super) fn handle_element_addr(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3165,8 +3219,8 @@ pub(super) fn handle_element_addr(
 }
 
 /// Handle element addr on aggregate values.
-pub(super) fn handle_element_addr_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3216,8 +3270,8 @@ pub(super) fn handle_element_addr_aggregate(
 }
 
 /// Handle element addr on managed references.
-pub(super) fn handle_element_addr_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3266,8 +3320,8 @@ pub(super) fn handle_element_addr_managed(
 }
 
 /// Handle element addr on raw pointers.
-pub(super) fn handle_element_addr_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3316,8 +3370,8 @@ pub(super) fn handle_element_addr_raw(
 }
 
 /// Handle element addr on stack pointers.
-pub(super) fn handle_element_addr_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3366,8 +3420,8 @@ pub(super) fn handle_element_addr_stack(
 }
 
 /// Handle element addr on global pointers.
-pub(super) fn handle_element_addr_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_addr_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3416,8 +3470,8 @@ pub(super) fn handle_element_addr_global(
 }
 
 /// Handle element load.
-pub(super) fn handle_element_load(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3457,8 +3511,8 @@ pub(super) fn handle_element_load(
 }
 
 /// Handle element load on aggregate values.
-pub(super) fn handle_element_load_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3499,8 +3553,8 @@ pub(super) fn handle_element_load_aggregate(
 }
 
 /// Handle element load on managed references.
-pub(super) fn handle_element_load_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3540,8 +3594,8 @@ pub(super) fn handle_element_load_managed(
 }
 
 /// Handle element load on raw pointers.
-pub(super) fn handle_element_load_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3581,8 +3635,8 @@ pub(super) fn handle_element_load_raw(
 }
 
 /// Handle element load on stack pointers.
-pub(super) fn handle_element_load_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3622,8 +3676,8 @@ pub(super) fn handle_element_load_stack(
 }
 
 /// Handle element load on global pointers.
-pub(super) fn handle_element_load_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_load_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3663,8 +3717,8 @@ pub(super) fn handle_element_load_global(
 }
 
 /// Handle element set.
-pub(super) fn handle_element_set(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_set(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3699,8 +3753,8 @@ pub(super) fn handle_element_set(
 }
 
 /// Handle element store.
-pub(super) fn handle_element_store(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3748,8 +3802,8 @@ pub(super) fn handle_element_store(
 }
 
 /// Handle element store on aggregate values.
-pub(super) fn handle_element_store_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3799,8 +3853,8 @@ pub(super) fn handle_element_store_aggregate(
 }
 
 /// Handle element store on managed references.
-pub(super) fn handle_element_store_managed(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store_managed(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3849,8 +3903,8 @@ pub(super) fn handle_element_store_managed(
 }
 
 /// Handle element store on raw pointers.
-pub(super) fn handle_element_store_raw(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store_raw(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3899,8 +3953,8 @@ pub(super) fn handle_element_store_raw(
 }
 
 /// Handle element store on stack pointers.
-pub(super) fn handle_element_store_stack(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store_stack(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -3949,8 +4003,8 @@ pub(super) fn handle_element_store_stack(
 }
 
 /// Handle element store on global pointers.
-pub(super) fn handle_element_store_global(
-    state: &mut ThreadedState,
+pub(crate) fn handle_element_store_global(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4000,8 +4054,8 @@ pub(super) fn handle_element_store_global(
 }
 
 /// Handle managed allocation.
-pub(super) fn handle_managed_alloc(
-    state: &mut ThreadedState,
+pub(crate) fn handle_managed_alloc(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4016,21 +4070,24 @@ pub(super) fn handle_managed_alloc(
     };
 
     // enforce heap limit
-    if state.interpreter.managed_heap.cell_count() >= state.interpreter.options.max_heap_cells {
+    if state.interpreter.isolate.managed_heap.cell_count()
+        >= state.interpreter.isolate.options.limits.max_heap_cells
+    {
         return ControlFlow::Error(Error::AllocationFailed);
     }
 
     // allocate heap cell
     let handle = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.interpreter.managed_heap.allocate()
+        state.interpreter.isolate.managed_heap.allocate()
     } else {
         state
             .interpreter
+            .isolate
             .managed_heap
             .allocate_with_slots(*slot_count as usize)
     };
     if state.collect_stats {
-        state.interpreter.statistics.heap_allocations += 1;
+        state.interpreter.engine.statistics.heap_allocations += 1;
     }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
@@ -4046,8 +4103,8 @@ pub(super) fn handle_managed_alloc(
 }
 
 /// Handle managed array allocation.
-pub(super) fn handle_managed_alloc_array(
-    state: &mut ThreadedState,
+pub(crate) fn handle_managed_alloc_array(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4062,7 +4119,9 @@ pub(super) fn handle_managed_alloc_array(
     };
 
     // enforce heap limit
-    if state.interpreter.managed_heap.cell_count() >= state.interpreter.options.max_heap_cells {
+    if state.interpreter.isolate.managed_heap.cell_count()
+        >= state.interpreter.isolate.options.limits.max_heap_cells
+    {
         return ControlFlow::Error(Error::AllocationFailed);
     }
 
@@ -4071,9 +4130,13 @@ pub(super) fn handle_managed_alloc_array(
     let length = len_val.as_uint().unwrap_or(0) as usize;
 
     // allocate heap cell with slots
-    let handle = state.interpreter.managed_heap.allocate_with_slots(length);
+    let handle = state
+        .interpreter
+        .isolate
+        .managed_heap
+        .allocate_with_slots(length);
     if state.collect_stats {
-        state.interpreter.statistics.heap_allocations += 1;
+        state.interpreter.engine.statistics.heap_allocations += 1;
     }
     let value = Value::managed_reference_with_meta(handle, *reference);
 
@@ -4089,8 +4152,8 @@ pub(super) fn handle_managed_alloc_array(
 }
 
 /// Handle raw allocation.
-pub(super) fn handle_raw_alloc(
-    state: &mut ThreadedState,
+pub(crate) fn handle_raw_alloc(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4105,21 +4168,24 @@ pub(super) fn handle_raw_alloc(
     };
 
     // enforce heap limit
-    if state.interpreter.raw_heap.cell_count() >= state.interpreter.options.max_heap_cells {
+    if state.interpreter.isolate.raw_heap.cell_count()
+        >= state.interpreter.isolate.options.limits.max_raw_cells
+    {
         return ControlFlow::Error(Error::AllocationFailed);
     }
 
     // allocate raw heap cell
     let ptr = if *slot_count == UNKNOWN_SLOT_COUNT {
-        state.interpreter.raw_heap.allocate()
+        state.interpreter.isolate.raw_heap.allocate()
     } else {
         state
             .interpreter
+            .isolate
             .raw_heap
             .allocate_with_slots(*slot_count as usize)
     };
     if state.collect_stats {
-        state.interpreter.statistics.heap_allocations += 1;
+        state.interpreter.engine.statistics.heap_allocations += 1;
     }
     let value = Value::raw_pointer_with_meta(ptr, *reference);
 
@@ -4135,8 +4201,8 @@ pub(super) fn handle_raw_alloc(
 }
 
 /// Handle raw free.
-pub(super) fn handle_raw_free(
-    state: &mut ThreadedState,
+pub(crate) fn handle_raw_free(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4151,7 +4217,7 @@ pub(super) fn handle_raw_free(
     // accept raw pointer values
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        if !state.interpreter.raw_heap.free(p) {
+        if !state.interpreter.isolate.raw_heap.free(p) {
             return ControlFlow::Error(Error::InvalidHeapHandle);
         }
     }
@@ -4169,8 +4235,8 @@ pub(super) fn handle_raw_free(
 
 /// Handle raw drop (compiler-inserted deallocation at ownership end).
 /// Semantically equivalent to raw_free but signals ownership transfer.
-pub(super) fn handle_raw_drop(
-    state: &mut ThreadedState,
+pub(crate) fn handle_raw_drop(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4185,7 +4251,7 @@ pub(super) fn handle_raw_drop(
     // accept raw pointer values - deallocate like raw_free
     if let Some(p) = ptr.as_raw_pointer() {
         // report invalid handle
-        if !state.interpreter.raw_heap.free(p) {
+        if !state.interpreter.isolate.raw_heap.free(p) {
             return ControlFlow::Error(Error::InvalidHeapHandle);
         }
     }
@@ -4202,8 +4268,8 @@ pub(super) fn handle_raw_drop(
 }
 
 /// Handle stack allocation.
-pub(super) fn handle_stack_alloc(
-    state: &mut ThreadedState,
+pub(crate) fn handle_stack_alloc(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4243,8 +4309,8 @@ pub(super) fn handle_stack_alloc(
 /// Handle stack drop (compiler-inserted lifetime end marker).
 /// Currently a no-op - stack memory is freed when the frame exits.
 /// Exists for NLL support and potential future optimizations.
-pub(super) fn handle_stack_drop(
-    state: &mut ThreadedState,
+pub(crate) fn handle_stack_drop(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4261,8 +4327,8 @@ pub(super) fn handle_stack_drop(
 }
 
 /// Handle assume (optimizer hint).
-pub(super) fn handle_assume(
-    state: &mut ThreadedState,
+pub(crate) fn handle_assume(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4278,8 +4344,8 @@ pub(super) fn handle_assume(
 }
 
 /// Handle intrinsic call.
-pub(super) fn handle_intrinsic(
-    state: &mut ThreadedState<'_>,
+pub(crate) fn handle_intrinsic(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4315,8 +4381,8 @@ pub(super) fn handle_intrinsic(
 }
 
 /// Handle return (exits tail-call chain).
-pub(super) fn handle_return(
-    state: &mut ThreadedState,
+pub(crate) fn handle_return(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4339,8 +4405,8 @@ pub(super) fn handle_return(
 }
 
 /// Handle yield (exits tail-call chain).
-pub(super) fn handle_yield(
-    state: &mut ThreadedState,
+pub(crate) fn handle_yield(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4370,8 +4436,8 @@ pub(super) fn handle_yield(
 }
 
 /// Handle unconditional jump (exits tail-call chain).
-pub(super) fn handle_jump(
-    state: &mut ThreadedState,
+pub(crate) fn handle_jump(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4390,8 +4456,8 @@ pub(super) fn handle_jump(
 }
 
 /// Handle conditional branch (exits tail-call chain).
-pub(super) fn handle_branch(
-    state: &mut ThreadedState,
+pub(crate) fn handle_branch(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4415,7 +4481,7 @@ pub(super) fn handle_branch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // handle truthy branch
@@ -4437,8 +4503,8 @@ pub(super) fn handle_branch(
 }
 
 /// Handle boolean branch (exits tail-call chain).
-pub(super) fn handle_branch_bool(
-    state: &mut ThreadedState,
+pub(crate) fn handle_branch_bool(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4462,7 +4528,7 @@ pub(super) fn handle_branch_bool(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // handle truthy branch
@@ -4485,8 +4551,8 @@ pub(super) fn handle_branch_bool(
 
 /// Handle fused compare-and-branch for signed integers (most common).
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4523,7 +4589,7 @@ pub(super) fn handle_compare_and_branch_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4542,8 +4608,8 @@ pub(super) fn handle_compare_and_branch_int(
 
 /// Handle fused compare-and-branch for unsigned integers.
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4578,7 +4644,7 @@ pub(super) fn handle_compare_and_branch_uint(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4597,8 +4663,8 @@ pub(super) fn handle_compare_and_branch_uint(
 
 /// Handle fused compare-and-branch for floats.
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_float(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_float(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4635,7 +4701,7 @@ pub(super) fn handle_compare_and_branch_float(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4653,8 +4719,8 @@ pub(super) fn handle_compare_and_branch_float(
 }
 
 /// Handle fused compare-and-branch (generic fallback).
-pub(super) fn handle_compare_and_branch(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4704,7 +4770,7 @@ pub(super) fn handle_compare_and_branch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4723,8 +4789,8 @@ pub(super) fn handle_compare_and_branch(
 
 /// Handle fused compare-and-branch with constant right operand for signed integers.
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_const_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_const_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4761,7 +4827,7 @@ pub(super) fn handle_compare_and_branch_const_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4780,8 +4846,8 @@ pub(super) fn handle_compare_and_branch_const_int(
 
 /// Handle fused compare-and-branch with constant right operand for unsigned integers.
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_const_uint(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_const_uint(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4816,7 +4882,7 @@ pub(super) fn handle_compare_and_branch_const_uint(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4835,8 +4901,8 @@ pub(super) fn handle_compare_and_branch_const_uint(
 
 /// Handle fused compare-and-branch with constant right operand for floats.
 #[inline(always)]
-pub(super) fn handle_compare_and_branch_const_float(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_const_float(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4873,7 +4939,7 @@ pub(super) fn handle_compare_and_branch_const_float(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4891,8 +4957,8 @@ pub(super) fn handle_compare_and_branch_const_float(
 }
 
 /// Handle fused compare-and-branch with constant right operand (generic fallback).
-pub(super) fn handle_compare_and_branch_const(
-    state: &mut ThreadedState,
+pub(crate) fn handle_compare_and_branch_const(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4941,7 +5007,7 @@ pub(super) fn handle_compare_and_branch_const(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // branch based on comparison result
@@ -4959,8 +5025,8 @@ pub(super) fn handle_compare_and_branch_const(
 }
 
 /// Handle switch (exits tail-call chain).
-pub(super) fn handle_switch(
-    state: &mut ThreadedState,
+pub(crate) fn handle_switch(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -4983,7 +5049,7 @@ pub(super) fn handle_switch(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // find matching case
@@ -5007,8 +5073,8 @@ pub(super) fn handle_switch(
 }
 
 /// Handle switch via dense jump table (exits tail-call chain).
-pub(super) fn handle_switch_table(
-    state: &mut ThreadedState,
+pub(crate) fn handle_switch_table(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5032,7 +5098,7 @@ pub(super) fn handle_switch_table(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // resolve jump table entry
@@ -5059,8 +5125,8 @@ pub(super) fn handle_switch_table(
 }
 
 /// Handle integer switch (exits tail-call chain).
-pub(super) fn handle_switch_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_switch_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5083,7 +5149,7 @@ pub(super) fn handle_switch_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // find matching case
@@ -5107,8 +5173,8 @@ pub(super) fn handle_switch_int(
 }
 
 /// Handle integer switch via dense jump table (exits tail-call chain).
-pub(super) fn handle_switch_table_int(
-    state: &mut ThreadedState,
+pub(crate) fn handle_switch_table_int(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5132,7 +5198,7 @@ pub(super) fn handle_switch_table_int(
 
     // update branch statistics
     if state.collect_stats {
-        stat_inc!(state.interpreter.statistics, branches);
+        stat_inc!(state.interpreter.engine.statistics, branches);
     }
 
     // resolve jump table entry
@@ -5159,8 +5225,8 @@ pub(super) fn handle_switch_table_int(
 }
 
 /// Handle aggregate construction.
-pub(super) fn handle_aggregate(
-    state: &mut ThreadedState,
+pub(crate) fn handle_aggregate(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5201,8 +5267,8 @@ pub(super) fn handle_aggregate(
 }
 
 /// Handle unreachable (errors).
-pub(super) fn handle_unreachable(
-    state: &mut ThreadedState,
+pub(crate) fn handle_unreachable(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5214,7 +5280,7 @@ pub(super) fn handle_unreachable(
 
 /// Enter a tail call by reusing the current frame.
 fn enter_tail_call(
-    state: &mut ThreadedState,
+    state: &mut ThreadedState<'_, '_>,
     function_id: mir::LocalNodeId<mir::Function>,
     callee: &ThreadedFunction,
     argument_values: &[Value],
@@ -5231,8 +5297,16 @@ fn enter_tail_call(
     // resize stacks to callee requirements
     let value_end = value_base + callee.value_count;
     let local_end = local_base + callee.local_count;
-    resize_and_clear_stack(&mut state.interpreter.value_stack, value_base, value_end);
-    resize_and_clear_stack(&mut state.interpreter.local_stack, local_base, local_end);
+    resize_and_clear_stack(
+        &mut state.interpreter.engine.value_stack,
+        value_base,
+        value_end,
+    );
+    resize_and_clear_stack(
+        &mut state.interpreter.engine.local_stack,
+        local_base,
+        local_end,
+    );
 
     // update frame metadata
     let entry_block = &callee.blocks[callee.entry as usize];
@@ -5271,15 +5345,15 @@ fn enter_tail_call(
 
     // update statistics
     if state.collect_stats {
-        state.interpreter.statistics.calls_made += 1;
+        state.interpreter.engine.statistics.calls_made += 1;
     }
 
     // keep frame ready for entry execution
 }
 
 /// Handle tail call to function.
-pub(super) fn handle_tail_call(
-    state: &mut ThreadedState,
+pub(crate) fn handle_tail_call(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5298,7 +5372,11 @@ pub(super) fn handle_tail_call(
     // resolve callee index
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
-        state.interpreter.threaded_functions.index_for(function_id)
+        state
+            .interpreter
+            .engine
+            .threaded_functions
+            .index_for(function_id)
     } else {
         Some(*callee_index)
     };
@@ -5314,6 +5392,7 @@ pub(super) fn handle_tail_call(
     };
     let Some(callee_ptr) = state
         .interpreter
+        .engine
         .threaded_functions
         .get_ptr_by_index(resolved_index)
     else {
@@ -5357,8 +5436,8 @@ pub(super) fn handle_tail_call(
 }
 
 /// Handle self tail call by reusing the current frame.
-pub(super) fn handle_tail_call_self(
-    state: &mut ThreadedState,
+pub(crate) fn handle_tail_call_self(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5373,7 +5452,7 @@ pub(super) fn handle_tail_call_self(
     let args = collect_values(state, *arguments);
 
     if state.collect_stats {
-        state.interpreter.statistics.calls_made += 1;
+        state.interpreter.engine.statistics.calls_made += 1;
     }
 
     // resolve current function entry block
@@ -5395,9 +5474,9 @@ pub(super) fn handle_tail_call_self(
 
     // clear value and local slots
     let value_end = value_base + value_count;
-    state.interpreter.value_stack[value_base..value_end].fill(Value::VOID);
+    state.interpreter.engine.value_stack[value_base..value_end].fill(Value::VOID);
     let local_end = local_base + local_count;
-    state.interpreter.local_stack[local_base..local_end].fill(Value::VOID);
+    state.interpreter.engine.local_stack[local_base..local_end].fill(Value::VOID);
 
     // update frame to entry block
     {
@@ -5432,8 +5511,8 @@ pub(super) fn handle_tail_call_self(
 }
 
 /// Handle indirect tail call.
-pub(super) fn handle_tail_call_indirect(
-    state: &mut ThreadedState,
+pub(crate) fn handle_tail_call_indirect(
+    state: &mut ThreadedState<'_, '_>,
     block: &[ThreadedInstruction],
     pc: usize,
 ) -> ControlFlow {
@@ -5488,7 +5567,11 @@ pub(super) fn handle_tail_call_indirect(
     }
 
     // resolve callee index
-    let resolved_index = state.interpreter.threaded_functions.index_for(function_id);
+    let resolved_index = state
+        .interpreter
+        .engine
+        .threaded_functions
+        .index_for(function_id);
 
     // fall back to trampoline for non-threaded targets
     let Some(resolved_index) = resolved_index else {
@@ -5503,6 +5586,7 @@ pub(super) fn handle_tail_call_indirect(
     };
     let Some(callee_ptr) = state
         .interpreter
+        .engine
         .threaded_functions
         .get_ptr_by_index(resolved_index)
     else {

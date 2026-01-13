@@ -1,184 +1,96 @@
-use std::collections::HashMap;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(feature = "stats")]
 use std::time::Duration;
 
-use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
+use crate::execute::Continuation;
+use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
 use crate::memory::{
-    HeapHandle, ManagedHeap, RawCellStorage, RawHeap, RawPointer, STRING_FLAG_IS_ASCII,
-    STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout, Value,
+    GcStats, HeapHandle, RawCellStorage, RawPointer, STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED,
+    STRING_FLAG_IS_STATIC, StringLayout, Value,
 };
+use crate::telemetry::Statistics;
 
-use super::decode::thread_function;
+use super::super::decode::{
+    ConstValue, INVALID_FUNCTION_INDEX, ThreadedFunction, ThreadedInstructionData, thread_function,
+};
+use super::Frame;
 #[cfg(feature = "stats")]
-use super::statistics::InstructionProfile;
-use super::threaded::{
-    ConstValue, CopyRange, INVALID_FUNCTION_INDEX, ThreadedFunction, ThreadedInstructionData,
-};
-use super::{Frame, GlobalStorage, MachineOptions, Statistics};
+use crate::telemetry::InstructionProfile;
 
-/// External function type.
-pub type ExternalFn = Box<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
-
-/// Cached external handler pointer.
-type ExternalFnPtr = NonNull<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
-
-/// Interpreter id generator for continuation validation.
-static INTERPRETER_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
-
-/// Output from executing MIR code.
-#[derive(Debug, Clone)]
-pub struct ExecutionOutput {
-    /// The return value of the executed function.
-    pub value: Value,
-    /// Statistics from this execution.
-    pub statistics: Statistics,
-    /// Number of managed heap cells at end of execution.
-    pub heap_cells: usize,
-    /// Number of raw heap cells at end of execution.
-    pub raw_heap_cells: usize,
-}
-
-/// Resume state captured at a yield terminator.
-#[derive(Debug, Clone)]
-pub(super) struct YieldState {
-    /// Frame index to resume execution in.
-    pub frame_index: usize,
-    /// Resume block index in the threaded function.
-    pub resume_block: u32,
-    /// Copy plan for resume arguments.
-    pub resume_copies: CopyRange,
-    /// Destination for the resumed value.
-    pub resume_value: mir::Value,
-}
-
-/// Continuation snapshot captured at a yield terminator.
+/// Interpreter engine state for threaded execution.
 #[derive(Debug)]
-pub struct Continuation {
-    /// The interpreter id used to validate the continuation.
-    pub(super) interpreter_id: u64,
-    /// The call stack for the suspended execution.
-    pub(super) call_stack: Vec<Frame>,
-    /// The SSA value stack for the suspended execution.
-    pub(super) value_stack: Vec<Value>,
-    /// The local variable stack for the suspended execution.
-    pub(super) local_stack: Vec<Value>,
-    /// The resume state captured at the yield point.
-    pub(super) yield_state: YieldState,
-    /// The statistics captured for the suspended execution.
-    pub(super) statistics: Statistics,
-    /// The instruction profile state for the suspended execution.
-    #[cfg(feature = "stats")]
-    pub(super) instruction_profile: Option<InstructionProfile>,
-}
-
-impl Continuation {
-    /// Clone this continuation for multi-shot resumption.
-    pub fn clone_for_fork(&self) -> Self {
-        let call_stack = self.call_stack.iter().map(Frame::clone_for_fork).collect();
-        let value_stack = self.value_stack.clone();
-        let local_stack = self.local_stack.clone();
-        let yield_state = self.yield_state.clone();
-        let statistics = self.statistics.clone();
-        #[cfg(feature = "stats")]
-        let instruction_profile = self.instruction_profile.clone();
-
-        Self {
-            interpreter_id: self.interpreter_id,
-            call_stack,
-            value_stack,
-            local_stack,
-            yield_state,
-            statistics,
-            #[cfg(feature = "stats")]
-            instruction_profile,
-        }
-    }
-
-    /// Collect managed heap roots referenced by this continuation.
-    pub fn collect_roots(&self, roots: &mut Vec<HeapHandle>) {
-        // collect roots from captured frames
-        for frame in &self.call_stack {
-            frame.collect_roots(&self.value_stack, &self.local_stack, roots);
-        }
-    }
-}
-
-/// Yield result from a suspended coroutine execution.
-#[derive(Debug)]
-pub struct ExecutionYield {
-    /// The value yielded to the caller.
-    pub value: Value,
-    /// The continuation used to resume execution.
-    pub continuation: Continuation,
-}
-
-/// Outcome from a coroutine-capable execution entry.
-#[derive(Debug)]
-pub enum ExecutionOutcome {
-    /// Execution completed with a final result.
-    Completed {
-        /// Completed execution output.
-        output: ExecutionOutput,
-    },
-    /// Execution suspended with a yielded value.
-    Yielded {
-        /// Yield information for the suspended execution.
-        yielded: ExecutionYield,
-    },
-}
-
-/// MIR interpreter using direct-threaded dispatch for fast execution.
-///
-/// The interpreter pre-compiles all MIR functions into a threaded form at
-/// construction time, enabling efficient dispatch via tail calls between
-/// instruction handlers.
-pub struct Interpreter {
-    /// Unique id used to validate continuation ownership.
-    pub(super) id: u64,
-    /// The MIR tree being executed.
-    pub tree: mir::NodeTree,
-    /// String pool for names.
-    pub strings: ImmutableStringPool,
-    /// The managed heap (GC-tracked allocations).
-    pub(super) managed_heap: ManagedHeap,
-    /// The raw heap (manually managed allocations).
-    pub(super) raw_heap: RawHeap,
-    /// Interned string literals mapped to heap handles.
-    pub(super) string_literals: HashMap<String, HeapHandle>,
-    /// Raw heap buffers for string payloads.
-    pub(super) string_buffers: HashMap<HeapHandle, RawPointer>,
-    /// Global variable storage.
-    pub(super) globals: GlobalStorage,
-    /// External function handlers.
-    pub(super) externals: HashMap<String, ExternalFn>,
-    /// Cached external handlers by function id.
-    pub(super) externals_by_id: Vec<Option<ExternalFnPtr>>,
-    /// Lookup table for function ids by name.
-    pub(super) function_name_map: HashMap<String, mir::LocalNodeId<mir::Function>>,
-    /// Configuration options.
-    pub(super) options: MachineOptions,
+pub(crate) struct InterpreterState {
     /// Pre-threaded functions for fast dispatch.
-    pub(super) threaded_functions: ThreadedFunctionTable,
+    pub(crate) threaded_functions: ThreadedFunctionTable,
     /// Explicit call stack (used for GC roots and error reporting).
-    pub(super) call_stack: Vec<Frame>,
+    pub(crate) call_stack: Vec<Frame>,
     /// SSA value stack for all active frames.
-    pub(super) value_stack: Vec<Value>,
+    pub(crate) value_stack: Vec<Value>,
     /// Local variable stack for all active frames.
-    pub(super) local_stack: Vec<Value>,
+    pub(crate) local_stack: Vec<Value>,
     /// Execution statistics.
-    pub statistics: Statistics,
+    pub(crate) statistics: Statistics,
     /// Optional instruction profiling sampler.
     #[cfg(feature = "stats")]
-    pub(super) instruction_profile: Option<InstructionProfile>,
+    pub(crate) instruction_profile: Option<InstructionProfile>,
+}
+
+/// Interpreter execution engine for threaded dispatch.
+#[derive(Debug)]
+pub struct InterpreterEngine {
+    /// Interpreter engine state for execution.
+    pub(crate) state: InterpreterState,
+}
+
+impl InterpreterEngine {
+    /// Create a new interpreter engine for the given isolate state.
+    pub(crate) fn new(isolate: &IsolateState) -> Self {
+        let threaded_functions = ThreadedFunctionTable::new(&isolate.tree);
+
+        Self {
+            state: InterpreterState {
+                threaded_functions,
+                call_stack: Vec::new(),
+                value_stack: Vec::new(),
+                local_stack: Vec::new(),
+                statistics: Statistics::new(),
+                #[cfg(feature = "stats")]
+                instruction_profile: None,
+            },
+        }
+    }
+
+    /// Borrow a context with access to isolate and engine state.
+    pub(crate) fn context<'a>(
+        &'a mut self,
+        isolate: &'a mut IsolateState,
+    ) -> InterpreterContext<'a> {
+        InterpreterContext {
+            isolate,
+            engine: &mut self.state,
+        }
+    }
+
+    /// Get the current call stack for this engine.
+    pub(crate) fn call_stack(&self) -> &[Frame] {
+        &self.state.call_stack
+    }
+}
+
+/// Interpreter context with access to isolate and engine state.
+pub(crate) struct InterpreterContext<'a> {
+    /// Shared isolate state for this execution.
+    pub(crate) isolate: &'a mut IsolateState,
+    /// Interpreter engine state for execution.
+    pub(crate) engine: &'a mut InterpreterState,
 }
 
 /// Threaded function registry for fast lookup.
-pub(super) struct ThreadedFunctionTable {
+#[derive(Debug)]
+pub(crate) struct ThreadedFunctionTable {
     /// Threaded functions by dense index.
     functions: Vec<ThreadedFunction>,
     /// Mapping from function id to threaded index (INVALID_FUNCTION_INDEX if missing).
@@ -189,7 +101,7 @@ pub(super) struct ThreadedFunctionTable {
 
 impl ThreadedFunctionTable {
     /// Build a threaded function table for the MIR tree.
-    pub(super) fn new(tree: &mir::NodeTree) -> Self {
+    pub(crate) fn new(tree: &mir::NodeTree) -> Self {
         // size tables using the max function id
         let mut max_id = 0usize;
         for (func_id, _) in tree.iter_nodes::<mir::Function>() {
@@ -233,7 +145,7 @@ impl ThreadedFunctionTable {
     }
 
     /// Resolve a threaded function index for the given id.
-    pub(super) fn index_for(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
+    pub(crate) fn index_for(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
         // look up raw index
         let index = self.index_by_id.get(func_id.id as usize).copied()?;
 
@@ -247,17 +159,17 @@ impl ThreadedFunctionTable {
     }
 
     /// Get a threaded function by index.
-    pub(super) fn get_by_index(&self, index: u32) -> Option<&ThreadedFunction> {
+    pub(crate) fn get_by_index(&self, index: u32) -> Option<&ThreadedFunction> {
         self.functions.get(index as usize)
     }
 
     /// Get a threaded function pointer by index.
-    pub(super) fn get_ptr_by_index(&self, index: u32) -> Option<NonNull<ThreadedFunction>> {
+    pub(crate) fn get_ptr_by_index(&self, index: u32) -> Option<NonNull<ThreadedFunction>> {
         self.functions.get(index as usize).map(NonNull::from)
     }
 
     /// Report whether a function id references an import.
-    pub(super) fn is_import(&self, func_id: mir::LocalNodeId<mir::Function>) -> bool {
+    pub(crate) fn is_import(&self, func_id: mir::LocalNodeId<mir::Function>) -> bool {
         self.is_import_by_id
             .get(func_id.id as usize)
             .copied()
@@ -265,121 +177,44 @@ impl ThreadedFunctionTable {
     }
 }
 
-impl std::fmt::Debug for Interpreter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Interpreter")
-            .field("managed_heap", &self.managed_heap)
-            .field("raw_heap", &self.raw_heap)
-            .field(
-                "string_literals",
-                &format!("<{} literals>", self.string_literals.len()),
-            )
-            .field(
-                "string_buffers",
-                &format!("<{} buffers>", self.string_buffers.len()),
-            )
-            .field("globals", &format!("<{} globals>", self.globals.len()))
-            .field("externals", &format!("<{} handlers>", self.externals.len()))
-            .field("options", &self.options)
-            .field("call_stack_depth", &self.call_stack.len())
-            .field("statistics", &self.statistics)
-            .finish_non_exhaustive()
-    }
-}
-
-impl Interpreter {
-    /// Create a new interpreter with default options.
-    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Self {
-        Self::with_options(tree, strings, MachineOptions::default())
-    }
-
-    /// Create a new interpreter with custom options.
-    ///
-    /// This pre-compiles all MIR functions into threaded form for fast execution.
-    pub fn with_options(
-        tree: mir::NodeTree,
-        strings: ImmutableStringPool,
-        options: MachineOptions,
-    ) -> Self {
-        let function_name_map = Self::build_function_name_map(&tree, &strings);
-
-        // pre-thread all functions for fast dispatch
-        let threaded_functions = ThreadedFunctionTable::new(&tree);
-
-        // assign a unique interpreter id
-        let id = INTERPRETER_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-
-        let mut interpreter = Self {
-            id,
-            tree,
-            strings,
-            managed_heap: ManagedHeap::new(),
-            raw_heap: RawHeap::new(),
-            string_literals: HashMap::new(),
-            string_buffers: HashMap::new(),
-            globals: GlobalStorage::new(),
-            externals: HashMap::new(),
-            externals_by_id: Vec::new(),
-            function_name_map,
-            options,
-            threaded_functions,
-            call_stack: Vec::new(),
-            value_stack: Vec::new(),
-            local_stack: Vec::new(),
-            statistics: Statistics::new(),
-            #[cfg(feature = "stats")]
-            instruction_profile: None,
-        };
-
-        // initialize global storage after heap setup
-        interpreter.globals = interpreter.initialize_globals();
-
-        // pre-intern string literals for threaded const instructions
-        interpreter.pre_intern_threaded_strings();
-
-        interpreter
-    }
-
-    /// Set whether to collect execution statistics.
-    pub fn set_collect_stats(&mut self, collect: bool) {
-        self.options.collect_stats = collect;
-    }
-
+impl<'a> InterpreterContext<'a> {
     /// Enable instruction profiling with the given sampling interval.
     #[cfg(feature = "stats")]
-    pub fn enable_instruction_profile(&mut self, sample_interval: Duration) {
-        self.instruction_profile = Some(InstructionProfile::new(sample_interval));
+    pub(crate) fn enable_instruction_profile(&mut self, sample_interval: Duration) {
+        self.engine.instruction_profile = Some(InstructionProfile::new(sample_interval));
     }
 
     /// Reset instruction profiling samples without disabling sampling.
     #[cfg(feature = "stats")]
-    pub fn reset_instruction_profile(&mut self) {
-        if let Some(profile) = self.instruction_profile.as_mut() {
+    pub(crate) fn reset_instruction_profile(&mut self) {
+        if let Some(profile) = self.engine.instruction_profile.as_mut() {
             profile.reset();
         }
     }
 
     /// Clear instruction profiling data and disable sampling.
     #[cfg(feature = "stats")]
-    pub fn clear_instruction_profile(&mut self) {
-        self.instruction_profile = None;
+    pub(crate) fn clear_instruction_profile(&mut self) {
+        self.engine.instruction_profile = None;
     }
 
     /// Return a compact instruction profile report if available.
     #[cfg(feature = "stats")]
-    pub fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
-        self.instruction_profile
+    pub(crate) fn instruction_profile_report(&self, target_percent: f64) -> Option<String> {
+        self.engine
+            .instruction_profile
             .as_ref()
             .map(|profile| profile.summary_target(target_percent).format_compact())
     }
 
     /// Initialize global variables from the MIR tree.
-    fn initialize_globals(&mut self) -> GlobalStorage {
+    pub(crate) fn initialize_globals(&mut self) {
         // seed empty global storage
         let mut globals = GlobalStorage::new();
 
         // snapshot globals to avoid borrowing self during initialization
         let global_entries: Vec<_> = self
+            .isolate
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, global)| {
@@ -407,23 +242,8 @@ impl Interpreter {
             globals.set(id, value);
         }
 
-        globals
-    }
-
-    /// Build the function name lookup table.
-    fn build_function_name_map(
-        tree: &mir::NodeTree,
-        strings: &ImmutableStringPool,
-    ) -> HashMap<String, mir::LocalNodeId<mir::Function>> {
-        // collect names into a lookup map
-        let mut map = HashMap::new();
-        for (id, func) in tree.iter_nodes::<mir::Function>() {
-            let name = strings.get(func.name).to_string();
-            map.entry(name).or_insert(id);
-        }
-
-        // return lookup map
-        map
+        // store initialized globals
+        self.isolate.globals = globals;
     }
 
     /// Convert a global initializer to a runtime value.
@@ -441,7 +261,7 @@ impl Interpreter {
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
 
                 // allocate managed aggregate for bytes
-                let handle = self.managed_heap.allocate_with_values(values);
+                let handle = self.isolate.managed_heap.allocate_with_values(values);
 
                 Value::aggregate(handle)
             }
@@ -453,7 +273,7 @@ impl Interpreter {
                     .collect();
 
                 // allocate managed aggregate for elements
-                let handle = self.managed_heap.allocate_with_values(values);
+                let handle = self.isolate.managed_heap.allocate_with_values(values);
 
                 Value::aggregate(handle)
             }
@@ -474,7 +294,7 @@ impl Interpreter {
     /// Create a zero value for a given type.
     fn zero_value(&mut self, ty: mir::LocalNodeId<mir::Type>) -> Value {
         // resolve the type node
-        let ty_node = self.tree.get(ty).clone();
+        let ty_node = self.isolate.tree.get(ty).clone();
 
         // build a zero value based on type
         match ty_node {
@@ -503,7 +323,7 @@ impl Interpreter {
                 let values: Vec<Value> = elements.into_iter().map(|e| self.zero_value(e)).collect();
 
                 // allocate managed aggregate for tuple
-                let handle = self.managed_heap.allocate_with_values(values);
+                let handle = self.isolate.managed_heap.allocate_with_values(values);
 
                 Value::aggregate(handle)
             }
@@ -517,7 +337,7 @@ impl Interpreter {
                 let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
 
                 // allocate managed aggregate for array
-                let handle = self.managed_heap.allocate_with_values(values);
+                let handle = self.isolate.managed_heap.allocate_with_values(values);
 
                 Value::aggregate(handle)
             }
@@ -527,9 +347,9 @@ impl Interpreter {
     }
 
     /// Intern a string literal and return its managed value.
-    pub(super) fn intern_string_literal(&mut self, value: &str) -> Value {
+    pub(crate) fn intern_string_literal(&mut self, value: &str) -> Value {
         // reuse existing interned handle
-        if let Some(handle) = self.string_literals.get(value).copied() {
+        if let Some(handle) = self.isolate.string_literals.get(value).copied() {
             return Value::string(handle);
         }
 
@@ -562,19 +382,21 @@ impl Interpreter {
             self.allocate_string_cell(length_utf16, length_bytes, 0, length_bytes, flags, data);
 
         // record interned handle and payload buffer
-        self.string_literals.insert(value.to_string(), handle);
+        self.isolate
+            .string_literals
+            .insert(value.to_string(), handle);
         if !data.is_null() {
-            self.string_buffers.insert(handle, data);
+            self.isolate.string_buffers.insert(handle, data);
         }
 
         Value::string(handle)
     }
 
     /// Pre-intern string literals referenced by threaded const instructions.
-    fn pre_intern_threaded_strings(&mut self) {
+    pub(crate) fn pre_intern_threaded_strings(&mut self) {
         // collect string literals without holding a mutable borrow
         let mut literals = Vec::new();
-        for function in &self.threaded_functions.functions {
+        for function in &self.engine.threaded_functions.functions {
             for block in &function.blocks {
                 for instruction in &block.instructions {
                     let ThreadedInstructionData::Const { value, .. } = &instruction.data else {
@@ -602,7 +424,7 @@ impl Interpreter {
         }
 
         // allocate raw heap buffer for payload
-        self.raw_heap.allocate_with_bytes(bytes)
+        self.isolate.raw_heap.allocate_with_bytes(bytes)
     }
 
     /// Allocate a managed string header cell.
@@ -625,22 +447,26 @@ impl Interpreter {
         slots[StringLayout::DATA] = Value::raw_pointer(data);
 
         // allocate managed heap cell for the header
-        self.managed_heap.allocate_with_values(slots)
+        self.isolate.managed_heap.allocate_with_values(slots)
     }
 
     /// Get the slot count for a raw pointer.
-    pub(super) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
-        Some(self.raw_heap.get(pointer)?.storage.len())
+    pub(crate) fn raw_slot_count(&self, pointer: RawPointer) -> Option<usize> {
+        Some(self.isolate.raw_heap.get(pointer)?.storage.len())
     }
 
     /// Read a raw slot, dispatching to the correct raw heap.
-    pub(super) fn read_raw_slot(
+    pub(crate) fn read_raw_slot(
         &self,
         pointer: RawPointer,
         slot_index: usize,
         bounds_checks: bool,
     ) -> Result<Value, Error> {
-        let cell = self.raw_heap.get(pointer).ok_or(Error::InvalidHeapHandle)?;
+        let cell = self
+            .isolate
+            .raw_heap
+            .get(pointer)
+            .ok_or(Error::InvalidHeapHandle)?;
 
         match &cell.storage {
             RawCellStorage::Bytes(bytes) => {
@@ -688,7 +514,7 @@ impl Interpreter {
     }
 
     /// Write a raw slot, dispatching to the correct raw heap.
-    pub(super) fn write_raw_slot(
+    pub(crate) fn write_raw_slot(
         &mut self,
         pointer: RawPointer,
         slot_index: usize,
@@ -696,6 +522,7 @@ impl Interpreter {
         bounds_checks: bool,
     ) -> Result<(), Error> {
         let cell = self
+            .isolate
             .raw_heap
             .get_mut(pointer)
             .ok_or(Error::InvalidHeapHandle)?;
@@ -753,125 +580,112 @@ impl Interpreter {
     fn sweep_string_buffers(&mut self) {
         // collect handles to free without mutating during iteration
         let mut freed_buffers = Vec::new();
-        for (&handle, &raw_ptr) in &self.string_buffers {
-            if !self.managed_heap.is_allocated(handle) {
+        for (&handle, &raw_ptr) in &self.isolate.string_buffers {
+            if !self.isolate.managed_heap.is_allocated(handle) {
                 freed_buffers.push((handle, raw_ptr));
             }
         }
 
         // release raw payloads for freed strings
         for (handle, raw_ptr) in freed_buffers {
-            self.string_buffers.remove(&handle);
+            self.isolate.string_buffers.remove(&handle);
             if !raw_ptr.is_null() {
-                self.raw_heap.free(raw_ptr);
+                self.isolate.raw_heap.free(raw_ptr);
             }
         }
     }
 
     /// Register an external function handler.
-    pub fn register_external<F>(&mut self, name: &str, handler: F)
+    pub(crate) fn register_external<F>(&mut self, name: &str, handler: F)
     where
         F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
     {
-        self.externals.insert(name.to_string(), Box::new(handler));
+        self.isolate
+            .externals
+            .insert(name.to_string(), Box::new(handler));
 
         // cache handler pointer for direct id lookup
-        if let Some(func_id) = self.function_name_map.get(name).copied() {
+        if let Some(func_id) = self.isolate.function_name_map.get(name).copied() {
             let index = func_id.id as usize;
-            if self.externals_by_id.len() <= index {
-                self.externals_by_id.resize(index + 1, None);
+            if self.isolate.externals_by_id.len() <= index {
+                self.isolate.externals_by_id.resize(index + 1, None);
             }
-            if let Some(handler) = self.externals.get(name) {
-                self.externals_by_id[index] = Some(NonNull::from(handler.as_ref()));
+            if let Some(handler) = self.isolate.externals.get(name) {
+                self.isolate.externals_by_id[index] = Some(NonNull::from(handler.as_ref()));
             }
         }
     }
 
-    /// Resolve a function id by name.
-    pub fn function_id_by_name(
-        &self,
-        name: &str,
-    ) -> Result<mir::LocalNodeId<mir::Function>, RuntimeError> {
-        // look up function id
-        let func_id = self.function_name_map.get(name).copied().ok_or_else(|| {
-            self.make_error(Error::ExternalFunctionNotFound {
-                name: name.to_string(),
-            })
-        })?;
-
-        // return function id
-        Ok(func_id)
-    }
-
     /// Resolve an external handler for an imported function id.
-    pub(super) fn external_for_id(
+    pub(crate) fn external_for_id(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Result<ExternalFnPtr, RuntimeError> {
         let index = function_id.id as usize;
-        if let Some(handler) = self.externals_by_id.get(index).copied().flatten() {
+        if let Some(handler) = self.isolate.externals_by_id.get(index).copied().flatten() {
             return Ok(handler);
         }
 
-        if self.externals_by_id.len() <= index {
-            self.externals_by_id.resize(index + 1, None);
+        if self.isolate.externals_by_id.len() <= index {
+            self.isolate.externals_by_id.resize(index + 1, None);
         }
 
-        let func = self.tree.get(function_id);
-        let name = self.strings.get(func.name).to_string();
+        let func = self.isolate.tree.get(function_id);
+        let name = self.isolate.strings.get(func.name).to_string();
         let handler = self
+            .isolate
             .externals
             .get(&name)
             .ok_or_else(|| self.make_error(Error::ExternalFunctionNotFound { name }))?;
         let handler_ptr = NonNull::from(handler.as_ref());
-        self.externals_by_id[index] = Some(handler_ptr);
+        self.isolate.externals_by_id[index] = Some(handler_ptr);
 
         Ok(handler_ptr)
     }
 
     /// Create an error with current call stack.
     #[cold]
-    pub(super) fn make_error(&self, error: Error) -> RuntimeError {
+    pub(crate) fn make_error(&self, error: Error) -> RuntimeError {
         RuntimeError::new(error).with_call_stack(self.get_call_stack_info())
     }
 
     /// Allocate an aggregate on the heap and return it as a Value.
-    pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        let handle = self.managed_heap.allocate_with_values(values);
+    pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
+        let handle = self.isolate.managed_heap.allocate_with_values(values);
         Value::aggregate(handle)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     #[inline]
-    pub fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self.managed_heap.allocate_pair(first, second);
+    pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
+        let handle = self.isolate.managed_heap.allocate_pair(first, second);
         Value::aggregate(handle)
     }
 
     /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
     #[inline]
-    pub fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self.managed_heap.allocate_single(value);
+    pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
+        let handle = self.isolate.managed_heap.allocate_single(value);
         Value::aggregate(handle)
     }
 
     /// Get the slots of an aggregate value (looking up from heap if needed).
-    pub(super) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
+    pub(crate) fn get_aggregate_slots(&self, value: &Value) -> Option<&[Value]> {
         value
             .as_heap_handle()
-            .and_then(|handle| self.managed_heap.get(handle))
+            .and_then(|handle| self.isolate.managed_heap.get(handle))
             .map(|cell| cell.slots.as_slice())
     }
 
     /// Create an error with instruction anchor.
     #[cold]
     #[allow(dead_code)]
-    pub(super) fn make_error_at(
+    pub(crate) fn make_error_at(
         &self,
         error: Error,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> RuntimeError {
-        let frame = self.call_stack.last();
+        let frame = self.engine.call_stack.last();
         let anchor = if let Some(f) = frame {
             DiagnosticAnchor::Instruction {
                 function: f.function,
@@ -889,11 +703,12 @@ impl Interpreter {
 
     /// Get call stack info for error reporting.
     fn get_call_stack_info(&self) -> Vec<FrameInfo> {
-        self.call_stack
+        self.engine
+            .call_stack
             .iter()
             .map(|f| {
-                let func = self.tree.get(f.function);
-                let name = self.strings.get(func.name).to_string();
+                let func = self.isolate.tree.get(f.function);
+                let name = self.isolate.strings.get(func.name).to_string();
                 FrameInfo {
                     function: f.function,
                     block: f.current_block,
@@ -903,115 +718,24 @@ impl Interpreter {
             .collect()
     }
 
-    /// Get a reference to the managed heap.
-    pub fn managed_heap(&self) -> &ManagedHeap {
-        &self.managed_heap
-    }
-
-    /// Get a mutable reference to the managed heap.
-    pub fn managed_heap_mut(&mut self) -> &mut ManagedHeap {
-        &mut self.managed_heap
-    }
-
-    /// Read a UTF-8 string value from the heap.
-    pub fn string_value(&self, value: Value) -> Result<String, Error> {
-        let handle = match value.tag() {
-            crate::memory::ValueTag::String => value.as_heap_handle().unwrap(),
-            _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "string".to_string(),
-                    actual: format!("{value:?}"),
-                });
-            }
-        };
-
-        self.string_value_for_handle(handle)
-    }
-
-    /// Read a UTF-8 string from a managed handle.
-    pub fn string_value_for_handle(&self, handle: HeapHandle) -> Result<String, Error> {
-        if handle.is_null() {
-            return Err(Error::NullPointerDereference);
-        }
-
-        let cell = self
-            .managed_heap
-            .get(handle)
-            .ok_or(Error::InvalidHeapHandle)?;
-        let length_value = cell
-            .slots
-            .get(StringLayout::LENGTH_BYTES)
-            .copied()
-            .ok_or(Error::InvalidHeapHandle)?;
-        let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
-            expected: "u32".to_string(),
-            actual: format!("{length_value:?}"),
-        })? as usize;
-        if length == 0 {
-            return Ok(String::new());
-        }
-
-        let data_value = cell
-            .slots
-            .get(StringLayout::DATA)
-            .copied()
-            .ok_or(Error::InvalidHeapHandle)?;
-        let data_ptr = data_value
-            .as_raw_pointer()
-            .ok_or_else(|| Error::TypeMismatch {
-                expected: "raw_pointer".to_string(),
-                actual: format!("{data_value:?}"),
-            })?;
-        if data_ptr.is_null() {
-            return Err(Error::NullPointerDereference);
-        }
-
-        let raw_cell = self
-            .raw_heap
-            .get(data_ptr)
-            .ok_or(Error::InvalidHeapHandle)?;
-        let bytes = match &raw_cell.storage {
-            RawCellStorage::Bytes(bytes) => bytes,
-            _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "byte buffer".to_string(),
-                    actual: format!("{data_value:?}"),
-                });
-            }
-        };
-
-        if length > bytes.len() {
-            return Err(Error::InvalidHeapHandle);
-        }
-
-        let slice = &bytes[..length];
-        String::from_utf8(slice.to_vec()).map_err(|_| Error::InvalidCast)
-    }
-
-    /// Get a reference to the raw heap.
-    pub fn raw_heap(&self) -> &RawHeap {
-        &self.raw_heap
-    }
-
-    /// Get a mutable reference to the raw heap.
-    pub fn raw_heap_mut(&mut self) -> &mut RawHeap {
-        &mut self.raw_heap
-    }
-
     /// Run garbage collection on the managed heap.
-    pub fn collect_garbage(&mut self) -> GcStats {
+    pub(crate) fn collect_garbage(&mut self) -> GcStats {
         self.collect_garbage_with_continuations(&[])
     }
 
     /// Run garbage collection including suspended continuations.
-    pub fn collect_garbage_with_continuations(
+    pub(crate) fn collect_garbage_with_continuations(
         &mut self,
         continuations: &[Continuation],
     ) -> GcStats {
         // collect roots from active frames
         let mut roots = Vec::new();
-        for frame in &self.call_stack {
-            frame.collect_roots(&self.value_stack, &self.local_stack, &mut roots);
+        for frame in &self.engine.call_stack {
+            frame.collect_roots(
+                &self.engine.value_stack,
+                &self.engine.local_stack,
+                &mut roots,
+            );
         }
 
         // collect roots from continuations
@@ -1020,36 +744,27 @@ impl Interpreter {
         }
 
         // collect roots from globals
-        for value in self.globals.values() {
+        for value in self.isolate.globals.values() {
             if let Some(handle) = value.as_heap_handle() {
                 roots.push(handle);
             }
         }
 
         // collect roots from interned string literals
-        for handle in self.string_literals.values() {
+        for handle in self.isolate.string_literals.values() {
             roots.push(*handle);
         }
 
         // run collection
-        let freed_cells = self.managed_heap.collect(&roots);
+        let freed_cells = self.isolate.managed_heap.collect(&roots);
 
         // sweep raw payload buffers for freed strings
         self.sweep_string_buffers();
-        let live_cells = self.managed_heap.cell_count();
+        let live_cells = self.isolate.managed_heap.cell_count();
 
         GcStats {
             freed_cells,
             live_cells,
         }
     }
-}
-
-/// Summary statistics for a garbage collection cycle.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct GcStats {
-    /// Number of cells freed by the collection.
-    pub freed_cells: usize,
-    /// Number of live cells after the collection.
-    pub live_cells: usize,
 }

@@ -116,25 +116,26 @@ The runtime must not call into the VM from an external callback while the VM is 
 
 ## Configuration
 
-The interpreter is configured by `MachineOptions`:
+The isolate is configured by `IsolateOptions`:
 
-| Option | Meaning |
-|--------|---------|
-| `executionMode` | comptime/debug/deopt/runtime role |
-| `runtimePolicy` | full/no-managed/no-runtime |
-| `borrowMode` | hint or strict runtime enforcement |
-| `boundsChecks` | bounds check policy |
-| `nullChecks` | null check policy |
-| `externalCalls` | allow/protect/forbid externals |
-| `maxStackDepth` | stack overflow limit |
-| `maxHeapBytes` | managed heap budget in bytes |
-| `maxRawBytes` | raw heap budget in bytes |
-| `maxInstructions` | step limit (timeout) |
-| `enforceReferenceKinds` | debug-only reference checks |
-| `enforceReferenceMutability` | debug-only mutability checks |
-| `collectStats` | enable execution statistics |
+| Group | Option | Meaning |
+|-------|--------|---------|
+| `execution` | `mode` | comptime/debug/deopt/runtime role |
+| `policy` | `runtime` | full/no-managed/no-runtime |
+| `policy` | `borrow_mode` | hint or strict runtime enforcement |
+| `policy` | `external_calls` | allow/protect/forbid externals |
+| `checks` | `bounds` | bounds check policy |
+| `checks` | `null` | null check policy |
+| `checks` | `enforce_reference_kinds` | debug-only reference checks |
+| `checks` | `enforce_reference_mutability` | debug-only mutability checks |
+| `limits` | `max_stack_depth` | stack overflow limit |
+| `limits` | `max_heap_cells` | managed heap budget in cells |
+| `limits` | `max_raw_cells` | raw heap budget in cells |
+| `limits` | `max_instructions` | step limit (timeout) |
+| `telemetry` | `collect_stats` | enable execution statistics |
 
-Heap budgets are specified in bytes and include allocation headers and payloads.
+Heap budgets are specified in cells.
+Each cell accounts for its header and slot storage.
 
 ## Execution Entry Points
 
@@ -174,8 +175,6 @@ type VmError = {
     detail: string,
 };
 ```
-
-### Entry Invariants
 
 The VM reports explicit errors for invalid entry usage:
 
@@ -228,9 +227,7 @@ type Continuation = {
 };
 ```
 
-### Frame Invariants
-
-Each frame must satisfy the following invariants:
+Frames follow these rules:
 
 - `callStack[0]` is the bottom frame, `callStack.last()` is the current frame
 - each frame owns a contiguous slice of `valueStack` and `localStack`
