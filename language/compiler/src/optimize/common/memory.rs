@@ -67,17 +67,17 @@ pub fn resolve_pointer_pointee_type(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // check parameter types first
-    if let Some(param_type) = parameter_type(pointer, function, tree) {
-        if let mir::Type::Reference { pointee, .. } = tree.get(param_type) {
-            return Some(*pointee);
-        }
+    if let Some(param_type) = parameter_type(pointer, function, tree)
+        && let mir::Type::Reference { pointee, .. } = tree.get(param_type)
+    {
+        return Some(*pointee);
     }
 
     // check ownership-derived value types
-    if let Some(ty_id) = ownership.value_type(pointer) {
-        if let mir::Type::Reference { pointee, .. } = tree.get(ty_id) {
-            return Some(*pointee);
-        }
+    if let Some(ty_id) = ownership.value_type(pointer)
+        && let mir::Type::Reference { pointee, .. } = tree.get(ty_id)
+    {
+        return Some(*pointee);
     }
 
     // resolve from defining instruction

@@ -143,6 +143,8 @@ pub enum Instruction {
 
     // memory (pointers)
     /// Load from a pointer (dereference).
+    ///
+    /// Optional memory access metadata is stored in `NodeTree::memory_table`.
     Load {
         /// The SSA value to define with the loaded value.
         destination: Value,
@@ -150,6 +152,8 @@ pub enum Instruction {
         pointer: Value,
     },
     /// Store to a pointer (write through pointer).
+    ///
+    /// Optional memory access metadata is stored in `NodeTree::memory_table`.
     Store {
         /// The pointer to store to.
         pointer: Value,
@@ -252,6 +256,8 @@ pub enum Instruction {
 
     // function calls (call, call.indirect)
     /// Call a function directly.
+    ///
+    /// Callsite metadata, including memory effects, is stored in `NodeTree::call_table`.
     Call {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
@@ -261,6 +267,8 @@ pub enum Instruction {
         arguments: ArgumentSlice,
     },
     /// Call through a function pointer (call.indirect).
+    ///
+    /// Callsite metadata, including memory effects, is stored in `NodeTree::call_table`.
     CallIndirect {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,

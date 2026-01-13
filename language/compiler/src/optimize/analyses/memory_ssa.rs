@@ -721,7 +721,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let dst = args.get(0).copied();
+                let dst = args.first().copied();
                 let src = args.get(1).copied();
                 let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
@@ -751,7 +751,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memset => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let dst = args.get(0).copied();
+                let dst = args.first().copied();
                 let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
                 // emit write effects when operands are present
@@ -775,7 +775,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Memcmp => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let left = args.get(0).copied();
+                let left = args.first().copied();
                 let right = args.get(1).copied();
                 let size = args.get(2).and_then(|len| self.constant_u64(*len));
 
@@ -805,7 +805,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::VolatileLoad => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit read effects when operands are present
                 match pointer {
@@ -828,7 +828,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::VolatileStore => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit write effects when operands are present
                 match pointer {
@@ -851,7 +851,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::PrefetchRead | mir::Intrinsic::PrefetchWrite => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit read effects when operands are present
                 match pointer {
@@ -888,7 +888,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::AtomicLoad => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit read effects when operands are present
                 match pointer {
@@ -911,7 +911,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::AtomicStore => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit write effects when operands are present
                 match pointer {
@@ -941,7 +941,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Intrinsic::AtomicFetchMax => {
                 // collect the memory operands
                 let mut effects = SmallVec::new();
-                let pointer = args.get(0).copied();
+                let pointer = args.first().copied();
 
                 // emit read-write effects when operands are present
                 match pointer {
@@ -1047,15 +1047,13 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Resolve the access type for a pointer value.
     fn pointer_access_type(&mut self, pointer: mir::Value) -> Option<TypeKey> {
         // reuse cached type keys
-        let Some(pointee_type) = resolve_pointer_pointee_type(
+        let pointee_type = resolve_pointer_pointee_type(
             pointer,
             self.function,
             self.tree,
             self.ownership,
             &self.definitions,
-        ) else {
-            return None;
-        };
+        )?;
 
         Some(self.type_key(pointee_type))
     }
@@ -1104,10 +1102,10 @@ impl<'a> MemoryRenamer<'a> {
             children.insert(block, Vec::new());
         }
         for &block in reachable_blocks {
-            if let Some(idom) = domtree.immediate_dominator(block) {
-                if let Some(list) = children.get_mut(&idom) {
-                    list.push(block);
-                }
+            if let Some(idom) = domtree.immediate_dominator(block)
+                && let Some(list) = children.get_mut(&idom)
+            {
+                list.push(block);
             }
         }
 
@@ -1170,11 +1168,11 @@ impl<'a> MemoryRenamer<'a> {
         // wire phi incoming edges for successors
         let block_data = self.tree.get(block);
         for successor in block_data.terminator.successors() {
-            if let Some(phi_id) = ssa.block_phis.get(&successor).copied() {
-                if let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index()) {
-                    let incoming = *stack.last().expect("missing memory definition");
-                    phi.incoming.push((block, incoming));
-                }
+            if let Some(phi_id) = ssa.block_phis.get(&successor).copied()
+                && let Some(MemoryAccess::Phi(phi)) = ssa.accesses.get_mut(phi_id.index())
+            {
+                let incoming = *stack.last().expect("missing memory definition");
+                phi.incoming.push((block, incoming));
             }
         }
 
@@ -1262,11 +1260,12 @@ fn compute_phi_blocks(
                 continue;
             }
 
-            if phi_blocks.insert(df_block) {
-                if !def_blocks.contains(&df_block) && !in_worklist.contains(&df_block) {
-                    worklist.push_back(df_block);
-                    in_worklist.insert(df_block);
-                }
+            if phi_blocks.insert(df_block)
+                && !def_blocks.contains(&df_block)
+                && !in_worklist.contains(&df_block)
+            {
+                worklist.push_back(df_block);
+                in_worklist.insert(df_block);
             }
         }
     }

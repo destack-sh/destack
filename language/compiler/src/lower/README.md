@@ -568,6 +568,13 @@ Child classes inherit parent slots; overrides reuse the same slot.
 - All class lineages are computed
 - All vtable slots are assigned (but vtables not yet generated)
 
+### MIR Metadata Emission
+Lower populates MIR metadata tables incrementally as phases complete.
+Phase 1 records type layouts and lineages in `NodeTree.type_table.type_metadata_by_id`.
+Phase 2 records function memory effects and pointer attributes on MIR `Function`.
+Phase 3 registers dispatch tables and type descriptors in `NodeTree.type_table.dispatch_tables` and type metadata.
+Phase 4 records callsite metadata in `NodeTree.call_table` and debug scopes in `NodeTree.debug_info`.
+
 ## Phase 2: Declarations
 
 Create function signatures and global variable bindings.

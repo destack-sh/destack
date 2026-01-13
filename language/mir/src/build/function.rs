@@ -1,10 +1,10 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocationMode, BinaryOperator, Block, CallMetadata, CastOperator, CheckConstraint,
-    CheckTarget, Constant, Function, Global, Instruction, Intrinsic, Lifetime, Linkage, Local,
-    LocalNodeId, MemoryOrdering, Mutability, NodeTree, Ownership, Terminator, Type, TypedValue,
-    UnaryOperator, Value,
+    AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallMetadata, CastOperator,
+    CheckConstraint, CheckTarget, Constant, Function, Global, Instruction, Intrinsic, Lifetime,
+    Linkage, Local, LocalNodeId, MemoryEffect, MemoryOrdering, Mutability, NodeTree, Ownership,
+    PointerAttributes, Terminator, Type, TypedValue, UnaryOperator, Value,
 };
 
 use super::Variable;
@@ -92,6 +92,11 @@ impl<'a> FunctionBuilder<'a> {
             parameters,
             return_type,
             return_lifetime: Lifetime::Inferred,
+            memory_effects: None,
+            call_behavior: None,
+            alloc_size: None,
+            parameter_attributes: vec![PointerAttributes::default(); parameter_types.len()],
+            return_attributes: PointerAttributes::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
@@ -115,6 +120,62 @@ impl<'a> FunctionBuilder<'a> {
             variable_types: IndexMap::new(),
             blocks: Vec::new(),
         }
+    }
+
+    /// Set memory effects for the function.
+    pub fn set_memory_effects(&mut self, effects: MemoryEffect) {
+        // update the function memory effects
+        let function = self.tree.get_mut(self.function_id);
+        function.memory_effects = Some(effects);
+    }
+
+    /// Set behavioral effects for the function.
+    pub fn set_call_behavior(&mut self, behavior: CallBehavior) {
+        // update the function call behavior
+        let function = self.tree.get_mut(self.function_id);
+        function.call_behavior = Some(behavior);
+    }
+
+    /// Set allocation size metadata for the function.
+    pub fn set_alloc_size(&mut self, alloc_size: AllocSize) {
+        // update the allocation size metadata
+        let function = self.tree.get_mut(self.function_id);
+        function.alloc_size = Some(alloc_size);
+    }
+
+    /// Set pointer attributes for all parameters.
+    pub fn set_parameter_attributes(&mut self, attributes: Vec<PointerAttributes>) {
+        // validate the parameter count
+        let parameter_count = self.tree.get(self.function_id).parameters.len();
+        assert_eq!(
+            parameter_count,
+            attributes.len(),
+            "parameter attribute count does not match parameters"
+        );
+
+        // update parameter attributes
+        let function = self.tree.get_mut(self.function_id);
+        function.parameter_attributes = attributes;
+    }
+
+    /// Set pointer attributes for a single parameter.
+    pub fn set_parameter_attribute(&mut self, index: usize, attributes: PointerAttributes) {
+        // access the parameter attributes
+        let function = self.tree.get_mut(self.function_id);
+        let parameter_attributes = &mut function.parameter_attributes;
+
+        // update the requested parameter
+        let Some(target) = parameter_attributes.get_mut(index) else {
+            panic!("parameter index out of range");
+        };
+        *target = attributes;
+    }
+
+    /// Set pointer attributes for the return value.
+    pub fn set_return_attributes(&mut self, attributes: PointerAttributes) {
+        // update the return attributes
+        let function = self.tree.get_mut(self.function_id);
+        function.return_attributes = attributes;
     }
 
     /// Get the function id being built.
@@ -1164,7 +1225,7 @@ impl<'a> FunctionBuilder<'a> {
 
         // store call metadata for later optimization passes
         self.tree
-            .metadata
+            .call_table
             .insert_call_metadata(instruction_id, metadata);
 
         Some(destination)

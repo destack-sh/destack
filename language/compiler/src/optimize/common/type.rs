@@ -148,7 +148,7 @@ impl TypeKey {
 
 /// Convert a bit width into bytes when the width is byte aligned.
 fn bytes_for_width(width: u16) -> Option<u64> {
-    if width % 8 == 0 {
+    if width.is_multiple_of(8) {
         Some(u64::from(width / 8))
     } else {
         None

@@ -317,7 +317,7 @@ fn emit_drop_sequence(
 ) {
     // check if value's type has a drop function
     if let Some(type_id) = ownership.value_type(value)
-        && let Some(&drop_fn) = tree.metadata.drop_function_by_type_id.get(&type_id)
+        && let Some(&drop_fn) = tree.type_table.drop_function_by_type_id.get(&type_id)
     {
         let arguments = tree.add_arguments(&[value]);
         let call = Instruction::Call {
@@ -435,7 +435,7 @@ mod tests {
         for type_id in type_ids {
             program
                 .tree
-                .metadata
+                .type_table
                 .drop_function_by_type_id
                 .insert(type_id, drop_fn);
         }
