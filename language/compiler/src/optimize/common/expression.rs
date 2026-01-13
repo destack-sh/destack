@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::optimize::analyses::ConstantPropagation;
+
 use super::TypeKey;
 
 /// Hashable key for identifying equivalent expressions in value numbering.
@@ -54,12 +56,359 @@ pub enum ExpressionKey {
     },
 }
 
+/// Cached value equivalence for pure expressions.
+#[derive(Debug)]
+pub struct ValueEquivalence<'a> {
+    /// MIR node tree.
+    tree: &'a mir::NodeTree,
+    /// Map from values to their defining instructions.
+    definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    /// Constant propagation results when available.
+    constants: Option<&'a ConstantPropagation>,
+    /// Instruction to block ownership for constant lookup.
+    instruction_blocks:
+        Option<&'a HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>>,
+    /// Cache of pairwise equivalence results.
+    cache: HashMap<(mir::Value, mir::Value), bool>,
+    /// Cached type keys.
+    type_keys: HashMap<mir::LocalNodeId<mir::Type>, TypeKey>,
+}
+
+impl<'a> ValueEquivalence<'a> {
+    /// Create a new equivalence helper.
+    pub fn new(
+        tree: &'a mir::NodeTree,
+        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    ) -> Self {
+        Self {
+            tree,
+            definitions,
+            constants: None,
+            instruction_blocks: None,
+            cache: HashMap::new(),
+            type_keys: HashMap::new(),
+        }
+    }
+
+    /// Create a new equivalence helper with constant propagation support.
+    pub fn new_with_constants(
+        tree: &'a mir::NodeTree,
+        definitions: &'a HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+        constants: &'a ConstantPropagation,
+        instruction_blocks: &'a HashMap<
+            mir::LocalNodeId<mir::Instruction>,
+            mir::LocalNodeId<mir::Block>,
+        >,
+    ) -> Self {
+        Self {
+            tree,
+            definitions,
+            constants: Some(constants),
+            instruction_blocks: Some(instruction_blocks),
+            cache: HashMap::new(),
+            type_keys: HashMap::new(),
+        }
+    }
+
+    /// Return true when two values are provably equivalent.
+    pub fn equivalent(&mut self, left: mir::Value, right: mir::Value) -> bool {
+        // handle direct identity
+        if left == right {
+            return true;
+        }
+
+        // canonicalize the cache key
+        let (a, b) = if left < right {
+            (left, right)
+        } else {
+            (right, left)
+        };
+        if let Some(result) = self.cache.get(&(a, b)) {
+            return *result;
+        }
+
+        // compute and store the result
+        let result = self.equivalent_impl(left, right);
+        self.cache.insert((a, b), result);
+        result
+    }
+
+    fn equivalent_impl(&mut self, left: mir::Value, right: mir::Value) -> bool {
+        if let Some((left_constant, right_constant)) = self.constant_pair(left, right) {
+            return left_constant == right_constant;
+        }
+
+        let Some(left_inst_id) = self.definitions.get(&left) else {
+            return false;
+        };
+        let Some(right_inst_id) = self.definitions.get(&right) else {
+            return false;
+        };
+
+        let left_inst = self.tree.get(*left_inst_id);
+        let right_inst = self.tree.get(*right_inst_id);
+
+        match (left_inst, right_inst) {
+            (
+                mir::Instruction::Const {
+                    value: left_value, ..
+                },
+                mir::Instruction::Const {
+                    value: right_value, ..
+                },
+            ) => left_value == right_value,
+            (
+                mir::Instruction::GlobalConst {
+                    global: left_global,
+                    ..
+                },
+                mir::Instruction::GlobalConst {
+                    global: right_global,
+                    ..
+                },
+            )
+            | (
+                mir::Instruction::GlobalAddr {
+                    global: left_global,
+                    ..
+                },
+                mir::Instruction::GlobalAddr {
+                    global: right_global,
+                    ..
+                },
+            ) => left_global == right_global,
+            (
+                mir::Instruction::Binary {
+                    operator: left_op,
+                    left: left_arg,
+                    right: right_arg,
+                    ..
+                },
+                mir::Instruction::Binary {
+                    operator: right_op,
+                    left: right_left,
+                    right: right_right,
+                    ..
+                },
+            ) => {
+                if left_op != right_op {
+                    return false;
+                }
+
+                if !binary_operator_is_commutative(*left_op) {
+                    return self.equivalent(*left_arg, *right_left)
+                        && self.equivalent(*right_arg, *right_right);
+                }
+
+                (self.equivalent(*left_arg, *right_left)
+                    && self.equivalent(*right_arg, *right_right))
+                    || (self.equivalent(*left_arg, *right_right)
+                        && self.equivalent(*right_arg, *right_left))
+            }
+            (
+                mir::Instruction::Unary {
+                    operator: left_op,
+                    argument: left_arg,
+                    ..
+                },
+                mir::Instruction::Unary {
+                    operator: right_op,
+                    argument: right_arg,
+                    ..
+                },
+            ) => left_op == right_op && self.equivalent(*left_arg, *right_arg),
+            (
+                mir::Instruction::Cast {
+                    operator: left_op,
+                    argument: left_arg,
+                    to_type: left_type,
+                    ..
+                },
+                mir::Instruction::Cast {
+                    operator: right_op,
+                    argument: right_arg,
+                    to_type: right_type,
+                    ..
+                },
+            ) => {
+                if left_op != right_op {
+                    return false;
+                }
+
+                let left_key = self.type_key(*left_type);
+                let right_key = self.type_key(*right_type);
+                left_key == right_key && self.equivalent(*left_arg, *right_arg)
+            }
+            (
+                mir::Instruction::Select {
+                    condition: left_cond,
+                    then_value: left_then,
+                    else_value: left_else,
+                    ..
+                },
+                mir::Instruction::Select {
+                    condition: right_cond,
+                    then_value: right_then,
+                    else_value: right_else,
+                    ..
+                },
+            ) => {
+                self.equivalent(*left_cond, *right_cond)
+                    && self.equivalent(*left_then, *right_then)
+                    && self.equivalent(*left_else, *right_else)
+            }
+            (
+                mir::Instruction::FieldGet {
+                    aggregate: left_aggregate,
+                    index: left_index,
+                    ..
+                },
+                mir::Instruction::FieldGet {
+                    aggregate: right_aggregate,
+                    index: right_index,
+                    ..
+                },
+            )
+            | (
+                mir::Instruction::FieldAddr {
+                    aggregate: left_aggregate,
+                    index: left_index,
+                    ..
+                },
+                mir::Instruction::FieldAddr {
+                    aggregate: right_aggregate,
+                    index: right_index,
+                    ..
+                },
+            ) => left_index == right_index && self.equivalent(*left_aggregate, *right_aggregate),
+            (
+                mir::Instruction::ElementGet {
+                    array: left_array,
+                    index: left_index,
+                    ..
+                },
+                mir::Instruction::ElementGet {
+                    array: right_array,
+                    index: right_index,
+                    ..
+                },
+            )
+            | (
+                mir::Instruction::ElementAddr {
+                    array: left_array,
+                    index: left_index,
+                    ..
+                },
+                mir::Instruction::ElementAddr {
+                    array: right_array,
+                    index: right_index,
+                    ..
+                },
+            ) => {
+                self.equivalent(*left_array, *right_array)
+                    && self.equivalent(*left_index, *right_index)
+            }
+            (
+                mir::Instruction::Struct {
+                    ty: left_type,
+                    fields: left_fields,
+                    ..
+                },
+                mir::Instruction::Struct {
+                    ty: right_type,
+                    fields: right_fields,
+                    ..
+                },
+            ) => {
+                let left_key = self.type_key(*left_type);
+                let right_key = self.type_key(*right_type);
+                left_key == right_key && self.arguments_equivalent(*left_fields, *right_fields)
+            }
+            (
+                mir::Instruction::Tuple {
+                    ty: left_type,
+                    elements: left_elements,
+                    ..
+                },
+                mir::Instruction::Tuple {
+                    ty: right_type,
+                    elements: right_elements,
+                    ..
+                },
+            )
+            | (
+                mir::Instruction::Array {
+                    ty: left_type,
+                    elements: left_elements,
+                    ..
+                },
+                mir::Instruction::Array {
+                    ty: right_type,
+                    elements: right_elements,
+                    ..
+                },
+            ) => {
+                let left_key = self.type_key(*left_type);
+                let right_key = self.type_key(*right_type);
+                left_key == right_key && self.arguments_equivalent(*left_elements, *right_elements)
+            }
+            _ => false,
+        }
+    }
+
+    fn arguments_equivalent(
+        &mut self,
+        left: mir::ArgumentSlice,
+        right: mir::ArgumentSlice,
+    ) -> bool {
+        let left_args = self.tree.get_arguments(left);
+        let right_args = self.tree.get_arguments(right);
+        if left_args.len() != right_args.len() {
+            return false;
+        }
+
+        left_args
+            .iter()
+            .zip(right_args.iter())
+            .all(|(left, right)| self.equivalent(*left, *right))
+    }
+
+    fn type_key(&mut self, ty: mir::LocalNodeId<mir::Type>) -> TypeKey {
+        if let Some(existing) = self.type_keys.get(&ty) {
+            return existing.clone();
+        }
+
+        let key = TypeKey::from_type(self.tree.get(ty), self.tree);
+        self.type_keys.insert(ty, key.clone());
+        key
+    }
+
+    fn constant_pair(
+        &self,
+        left: mir::Value,
+        right: mir::Value,
+    ) -> Option<(&mir::Constant, &mir::Constant)> {
+        let constants = self.constants?;
+        let instruction_blocks = self.instruction_blocks?;
+        let left_inst_id = self.definitions.get(&left)?;
+        let right_inst_id = self.definitions.get(&right)?;
+        let left_block = instruction_blocks.get(left_inst_id)?;
+        let right_block = instruction_blocks.get(right_inst_id)?;
+        let left_constant = constants
+            .constant_at_exit(*left_block, left)
+            .or_else(|| constants.constant_at_entry(*left_block, left))?;
+        let right_constant = constants
+            .constant_at_exit(*right_block, right)
+            .or_else(|| constants.constant_at_entry(*right_block, right))?;
+        Some((left_constant, right_constant))
+    }
+}
+
 /// Try to create an expression key for an instruction.
 ///
-/// Returns `None` for instructions that:
-/// - Have side effects (calls, stores, allocations)
-/// - Are not pure computations (loads, local ops)
-/// - Cannot be safely deduplicated (constants handled separately)
+/// Returns `None` for instructions with side effects such as calls and stores.
+/// Returns `None` for instructions that are not pure computations like loads.
+/// Returns `None` for instructions that cannot be safely deduplicated.
 pub fn expression_key_from_instruction(
     instruction: &mir::Instruction,
     tree: &mir::NodeTree,
@@ -196,7 +545,7 @@ pub fn binary_operator_is_commutative(operator: mir::BinaryOperator) -> bool {
 /// Apply value substitutions to an expression key.
 ///
 /// Replaces value references in the key according to the substitution map.
-/// Re-canonicalizes commutative operations after substitution.
+/// Re canonicalizes commutative operations after substitution.
 pub fn expression_key_substitute(
     key: ExpressionKey,
     substitutions: &HashMap<mir::Value, mir::Value>,
@@ -210,7 +559,7 @@ pub fn expression_key_substitute(
             let left = *substitutions.get(&left).unwrap_or(&left);
             let right = *substitutions.get(&right).unwrap_or(&right);
 
-            // re-canonicalize after substitution
+            // re canonicalize after substitution
             let (left, right) = if binary_operator_is_commutative(operator) && right.0 < left.0 {
                 (right, left)
             } else {
@@ -275,7 +624,7 @@ pub fn expression_key_substitute(
 
 /// Resolve transitive substitution chains.
 ///
-/// If we have `v4 -> v2` and `v2 -> v0`, this produces `v4 -> v0` and `v2 -> v0`.
+/// If we have `v4` mapping to `v2` and `v2` mapping to `v0`, this produces `v4` to `v0` and `v2` to `v0`.
 /// Handles cycles by stopping when a value maps to itself.
 pub fn resolve_substitution_chains(
     mut substitutions: HashMap<mir::Value, mir::Value>,
@@ -324,7 +673,7 @@ mod tests {
             mir::BinaryOperator::NotEqual
         ));
 
-        // non-commutative
+        // non commutative
         assert!(!binary_operator_is_commutative(
             mir::BinaryOperator::Subtract
         ));

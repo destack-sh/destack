@@ -7,9 +7,9 @@ use mir::Instruction;
 /// Check if an instruction is pure (result depends only on operands).
 ///
 /// A pure instruction has no side effects AND does not read mutable state.
-/// This is stricter than `!instruction_has_side_effects`:
-/// - `Load`/`LocalGet` have no side effects (can be removed if unused)
-/// - But they read mutable state (cannot be hoisted out of a loop)
+/// This is stricter than `!instruction_has_side_effects`.
+/// `Load` and `LocalGet` have no side effects so they can be removed if unused.
+/// They still read mutable state, so they cannot be hoisted out of a loop.
 ///
 /// Use this for LICM, code motion, and speculation optimizations.
 pub fn instruction_is_pure(instruction: &Instruction) -> bool {
@@ -653,7 +653,7 @@ pub fn build_value_use_counts(
     function: &mir::Function,
     tree: &mir::NodeTree,
 ) -> HashMap<mir::Value, usize> {
-    // reuse use-def map and count occurrences
+    // reuse use def map and count occurrences
     let use_def = build_use_def_maps(function, tree);
     let mut counts = HashMap::new();
 
@@ -663,7 +663,6 @@ pub fn build_value_use_counts(
     }
 
     // return the counts
-
     counts
 }
 
@@ -694,6 +693,24 @@ pub fn build_value_definition_map(
             if let Some(destination) = instruction.destination() {
                 map.insert(destination, instruction_id);
             }
+        }
+    }
+
+    map
+}
+
+/// Build a map from instruction ids to their containing blocks.
+pub fn build_instruction_block_map(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>> {
+    let mut map = HashMap::new();
+
+    // scan blocks for instruction ownership
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            map.insert(instruction_id, block_id);
         }
     }
 

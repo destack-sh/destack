@@ -1,37 +1,56 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
-    ValueRange,
+    AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
+    MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
 };
-use crate::optimize::common::{
-    MemoryLocation, instruction_is_speculatable, instruction_may_affect_memory,
-};
+use crate::optimize::common::{build_instruction_block_map, instruction_is_speculatable};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
-    /// Move loop-invariant computations outside of loops.
+    /// Move loop invariant computations outside of loops.
     ///
-    /// An instruction is loop-invariant if all its operands are defined outside
-    /// the loop or by other loop-invariant instructions. Loop-invariant instructions
-    /// can be hoisted to the loop preheader, reducing redundant computation.
+    /// An instruction is loop invariant if all its operands are defined outside the loop or by other loop invariant instructions.
+    /// Loop invariant instructions can be hoisted to the loop preheader, reducing redundant computation.
     ///
-    /// This pass hoists:
-    /// - Pure arithmetic (Binary, Unary, Cast)
-    /// - Constants
-    /// - Pure aggregate operations (FieldGet, FieldSet, FieldAddr, ElementGet, ElementSet, ElementAddr)
-    /// - Immutable global references (GlobalConst, GlobalAddr)
+    /// This pass hoists pure arithmetic, casts, and selects.
+    /// It hoists constants and immutable global constants.
+    /// It hoists address computations for fields and elements.
+    /// It hoists loads and local gets that are invariant and not clobbered in the loop.
     ///
-    /// Loop invariant loads are hoisted when alias analysis proves the memory
-    /// location is not clobbered inside the loop.
+    /// Load invariance is checked with Memory SSA and alias analysis.
+    /// Potentially trapping instructions such as integer division are only hoisted when range analysis proves the operation is safe and the block executes on every iteration.
     ///
-    /// Potentially trapping instructions (e.g. integer division) are only hoisted
-    /// when range analysis proves the operation is safe.
+    /// ```mir
+    /// function @before(v0: bool, v1: i32) -> i32 {
+    /// block0(v0: bool, v1: i32):
+    ///     v2 = iconst 3i32
+    ///     jump block1
+    /// block1:
+    ///     v3 = iadd v1, v2
+    ///     branch v0, block1, block2
+    /// block2:
+    ///     return v3
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @after(v0: bool, v1: i32) -> i32 {
+    /// block0(v0: bool, v1: i32):
+    ///     v2 = iconst 3i32
+    ///     v3 = iadd v1, v2
+    ///     jump block1
+    /// block1:
+    ///     branch v0, block1, block2
+    /// block2:
+    ///     return v3
+    /// }
+    /// ```
     ///
-    /// Requires canonical loop form (preheader, single latch) from LoopSimplify.
+    /// Requires canonical loop form from LoopSimplify.
     #[pass(id = "licm")]
     pub Licm,
     "Loop invariant code motion"
@@ -51,7 +70,7 @@ impl FunctionPass for Licm {
         };
 
         // get analyses
-        let (loops, domtree, ranges, constants, alias) = {
+        let (loops, domtree, ranges, constants, alias, memory_ssa) = {
             let analyses = FunctionAnalyses::new(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
@@ -59,6 +78,7 @@ impl FunctionPass for Licm {
                 analyses.get::<RangeAnalysis>().clone(),
                 analyses.get::<ConstantPropagation>().clone(),
                 analyses.get::<AliasAnalysis>().clone(),
+                analyses.get::<MemorySSA>(),
             )
         };
         if loops.num_loops() == 0 {
@@ -67,7 +87,15 @@ impl FunctionPass for Licm {
 
         // run LICM
         let changed = run_licm(
-            entry, function, tree, &loops, &domtree, &ranges, &constants, &alias,
+            entry,
+            function,
+            tree,
+            &loops,
+            &domtree,
+            &ranges,
+            &constants,
+            &alias,
+            memory_ssa.as_ref(),
         );
 
         if changed {
@@ -99,185 +127,331 @@ fn run_licm(
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
 ) -> bool {
-    // collect hoisting work for each loop, outermost first
-    let mut all_work: Vec<HoistWork> = Vec::new();
-    let mut already_queued: HashSet<(mir::LocalNodeId<mir::Block>, usize)> = HashSet::new();
+    // order loops from inner to outer
+    let mut loop_order: Vec<&Loop> = loops.loops().iter().collect();
+    loop_order.sort_by(|a, b| b.depth.cmp(&a.depth).then(a.header.cmp(&b.header)));
 
-    for lp in loops.loops().iter() {
-        // find preheader (immediate dominator outside the loop)
-        let preheader = match find_preheader(lp, domtree, entry) {
-            Some(p) => p,
+    // build instruction to block mapping
+    let instruction_blocks = build_instruction_block_map(function, tree);
+
+    // build dominator preorder index
+    let block_order = build_dominator_preorder(entry, function, domtree);
+
+    // collect hoisting work for each loop
+    let mut all_work: Vec<HoistWork> = Vec::new();
+
+    for lp in loop_order {
+        // find the loop preheader
+        let preheader = match find_preheader(lp, domtree) {
+            Some(preheader) => preheader,
             None => continue,
         };
 
-        // collect values defined outside the loop
-        let mut invariant_values: HashSet<mir::Value> = HashSet::new();
+        // collect blocks owned by this loop but not by subloops
+        let loop_blocks = collect_loop_blocks(function, loops, lp);
 
-        // function parameters
-        for param in &function.parameters {
-            invariant_values.insert(param.value);
+        // skip loops without owned blocks
+        if loop_blocks.is_empty() {
+            continue;
         }
 
-        // values from blocks outside the loop
-        for &block_id in &function.blocks {
-            if lp.blocks.contains(&block_id) {
-                continue;
-            }
-            let block = tree.get(block_id);
+        // compute blocks that execute every iteration
+        let guaranteed_blocks = compute_guaranteed_blocks(lp, domtree);
 
-            for param in &block.parameters {
-                invariant_values.insert(param.value);
-            }
+        // seed invariants with values defined outside the loop
+        let mut invariant_values = collect_invariant_seed_values(function, tree, &lp.blocks);
 
-            for &instruction_id in &block.instructions {
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    invariant_values.insert(destination);
-                }
-            }
-        }
-
-        // iteratively find loop-invariant instructions
+        // fixpoint to find loop invariant instructions
         let mut changed = true;
         while changed {
             changed = false;
-            for &block_id in &function.blocks {
-                if !lp.blocks.contains(&block_id) {
-                    continue;
-                }
+
+            // scan loop blocks for new invariants
+            for &block_id in &loop_blocks {
                 let block = tree.get(block_id);
 
+                // scan instructions in the block
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
-                    if let Some(destination) = instruction.destination() {
-                        if invariant_values.contains(&destination) {
-                            continue;
-                        }
-                        let operands_invariant = instruction
-                            .uses()
-                            .iter()
-                            .all(|v| invariant_values.contains(v));
-                        let can_hoist = instruction_is_hoistable(
-                            instruction_id,
-                            instruction,
-                            &lp.blocks,
-                            tree,
-                            alias,
-                            block_id,
-                            ranges,
-                            constants,
-                        );
-                        if can_hoist && operands_invariant {
-                            invariant_values.insert(destination);
-                            changed = true;
-                        }
+                    let Some(destination) = instruction.destination() else {
+                        continue;
+                    };
+
+                    if invariant_values.contains(&destination) {
+                        continue;
+                    }
+
+                    let operands_invariant = instruction
+                        .uses()
+                        .iter()
+                        .all(|value| invariant_values.contains(value));
+                    if !operands_invariant {
+                        continue;
+                    }
+
+                    let can_hoist = instruction_is_hoistable(
+                        instruction_id,
+                        instruction,
+                        &lp.blocks,
+                        &guaranteed_blocks,
+                        tree,
+                        alias,
+                        memory_ssa,
+                        &instruction_blocks,
+                        block_id,
+                        ranges,
+                        constants,
+                    );
+                    if can_hoist {
+                        invariant_values.insert(destination);
+                        changed = true;
                     }
                 }
             }
         }
 
         // collect instructions to hoist
-        for &block_id in &function.blocks {
-            if !lp.blocks.contains(&block_id) {
-                continue;
-            }
+        // scan loop blocks for hoistable instructions
+        for &block_id in &loop_blocks {
             let block = tree.get(block_id);
 
+            // scan block instructions in order
             for (index, &instruction_id) in block.instructions.iter().enumerate() {
-                if already_queued.contains(&(block_id, index)) {
+                let instruction = tree.get(instruction_id);
+                let Some(destination) = instruction.destination() else {
+                    continue;
+                };
+
+                if !invariant_values.contains(&destination) {
                     continue;
                 }
 
-                let instruction = tree.get(instruction_id);
-                if let Some(destination) = instruction.destination() {
-                    let operands_invariant = instruction
-                        .uses()
-                        .iter()
-                        .all(|v| invariant_values.contains(v));
+                let operands_invariant = instruction
+                    .uses()
+                    .iter()
+                    .all(|value| invariant_values.contains(value));
+                if !operands_invariant {
+                    continue;
+                }
 
-                    // hoist if pure and all operands are invariant
-                    let can_hoist = instruction_is_hoistable(
+                let can_hoist = instruction_is_hoistable(
+                    instruction_id,
+                    instruction,
+                    &lp.blocks,
+                    &guaranteed_blocks,
+                    tree,
+                    alias,
+                    memory_ssa,
+                    &instruction_blocks,
+                    block_id,
+                    ranges,
+                    constants,
+                );
+                if can_hoist {
+                    all_work.push(HoistWork {
+                        source_block: block_id,
+                        instruction_index: index,
                         instruction_id,
-                        instruction,
-                        &lp.blocks,
-                        tree,
-                        alias,
-                        block_id,
-                        ranges,
-                        constants,
-                    );
-                    if can_hoist && invariant_values.contains(&destination) && operands_invariant {
-                        already_queued.insert((block_id, index));
-                        all_work.push(HoistWork {
-                            source_block: block_id,
-                            instruction_index: index,
-                            target_preheader: preheader,
-                        });
-                    }
+                        target_preheader: preheader,
+                    });
                 }
             }
         }
     }
 
+    // exit early when no instructions move
     if all_work.is_empty() {
         return false;
     }
 
-    // sort descending by (block, index) so removal doesn't invalidate indices
-    all_work.sort_by(|a, b| {
-        b.source_block
-            .cmp(&a.source_block)
-            .then(b.instruction_index.cmp(&a.instruction_index))
+    // sort for insertion order
+    let mut insertion_order = all_work.clone();
+    insertion_order.sort_by_key(|work| {
+        let block_index = block_order
+            .get(&work.source_block)
+            .copied()
+            .unwrap_or(usize::MAX);
+        (work.target_preheader, block_index, work.instruction_index)
     });
 
-    let mut hoisted_count = 0;
-    let mut current_block: Option<mir::LocalNodeId<mir::Block>> = None;
-    let mut block_data: Option<mir::Block> = None;
-    let mut preheader_insertions: Vec<(
+    // build insertion and removal sets
+    let mut insertion_by_preheader: HashMap<
         mir::LocalNodeId<mir::Block>,
-        mir::LocalNodeId<mir::Instruction>,
-    )> = Vec::new();
+        Vec<mir::LocalNodeId<mir::Instruction>>,
+    > = HashMap::new();
+    let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
-    for work in all_work {
-        // flush previous block if switching
-        if current_block != Some(work.source_block) {
-            if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
-                tree.replace(block_id, data);
-            }
-            current_block = Some(work.source_block);
-            block_data = Some(tree.get(work.source_block).clone());
-        }
-
-        let data = block_data.as_mut().unwrap();
-        let instr_id = data.instructions.remove(work.instruction_index);
-        preheader_insertions.push((work.target_preheader, instr_id));
-        hoisted_count += 1;
+    for work in insertion_order {
+        to_remove.insert(work.instruction_id);
+        insertion_by_preheader
+            .entry(work.target_preheader)
+            .or_default()
+            .push(work.instruction_id);
     }
 
-    // flush last block
-    if let (Some(block_id), Some(data)) = (current_block, block_data.take()) {
-        tree.replace(block_id, data);
+    // remove hoisted instructions
+    for &block_id in &function.blocks {
+        let block = tree.get_mut(block_id);
+        block.instructions.retain(|id| !to_remove.contains(id));
     }
 
-    // insert into preheaders
-    preheader_insertions.reverse();
-    let mut preheaders_to_update: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
-    for (preheader, _) in &preheader_insertions {
-        preheaders_to_update.insert(*preheader);
-    }
-
-    for preheader_id in preheaders_to_update {
+    // insert instructions into preheaders
+    for (preheader_id, instructions) in insertion_by_preheader {
         let mut preheader = tree.get(preheader_id).clone();
-        for (target, instr_id) in &preheader_insertions {
-            if *target == preheader_id {
-                preheader.instructions.push(*instr_id);
-            }
+        for instruction_id in instructions {
+            preheader.instructions.push(instruction_id);
         }
         tree.replace(preheader_id, preheader);
     }
 
-    hoisted_count > 0
+    true
+}
+
+/// Collect loop blocks owned by this loop and not by subloops.
+fn collect_loop_blocks(
+    function: &mir::Function,
+    loops: &LoopAnalysis,
+    lp: &Loop,
+) -> Vec<mir::LocalNodeId<mir::Block>> {
+    let mut blocks = Vec::new();
+
+    // scan blocks in function order
+    for &block_id in &function.blocks {
+        if !lp.blocks.contains(&block_id) {
+            continue;
+        }
+
+        let innermost = loops
+            .innermost_loop(block_id)
+            .map(|loop_data| loop_data.header);
+        if innermost != Some(lp.header) {
+            continue;
+        }
+
+        blocks.push(block_id);
+    }
+
+    blocks
+}
+
+/// Collect values that are defined outside the loop.
+fn collect_invariant_seed_values(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+) -> HashSet<mir::Value> {
+    let mut invariant_values = HashSet::new();
+
+    // include function parameters
+    for param in &function.parameters {
+        invariant_values.insert(param.value);
+    }
+
+    // include values defined outside the loop
+    for &block_id in &function.blocks {
+        if loop_blocks.contains(&block_id) {
+            continue;
+        }
+
+        let block = tree.get(block_id);
+
+        for param in &block.parameters {
+            invariant_values.insert(param.value);
+        }
+
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if let Some(destination) = instruction.destination() {
+                invariant_values.insert(destination);
+            }
+        }
+    }
+
+    invariant_values
+}
+
+/// Compute blocks that execute on every iteration of the loop.
+fn compute_guaranteed_blocks(
+    lp: &Loop,
+    domtree: &DominatorTree,
+) -> HashSet<mir::LocalNodeId<mir::Block>> {
+    let mut guaranteed = HashSet::new();
+
+    // select blocks that dominate all latches and exits
+    for &block_id in &lp.blocks {
+        let dominates_latches = lp
+            .latches
+            .iter()
+            .all(|latch| domtree.dominates(block_id, *latch));
+        if !dominates_latches {
+            continue;
+        }
+
+        let dominates_exits = lp
+            .exiting_blocks
+            .iter()
+            .all(|exit_block| domtree.dominates(block_id, *exit_block));
+        if !dominates_exits {
+            continue;
+        }
+
+        guaranteed.insert(block_id);
+    }
+
+    guaranteed
+}
+
+/// Build a dominator tree preorder index.
+fn build_dominator_preorder(
+    entry: mir::LocalNodeId<mir::Block>,
+    function: &mir::Function,
+    domtree: &DominatorTree,
+) -> HashMap<mir::LocalNodeId<mir::Block>, usize> {
+    let mut children: HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> =
+        HashMap::new();
+
+    // prepare empty child lists
+    for &block_id in &function.blocks {
+        children.insert(block_id, Vec::new());
+    }
+
+    // build the idom child mapping
+    for &block_id in &function.blocks {
+        if let Some(idom) = domtree.immediate_dominator(block_id) {
+            children.entry(idom).or_default().push(block_id);
+        }
+    }
+
+    // sort children for deterministic order
+    for child_list in children.values_mut() {
+        child_list.sort();
+    }
+
+    // traverse dominator tree in preorder
+    let mut order = HashMap::new();
+    let mut stack = vec![entry];
+    let mut index = 0;
+
+    while let Some(block_id) = stack.pop() {
+        if order.contains_key(&block_id) {
+            continue;
+        }
+
+        order.insert(block_id, index);
+        index += 1;
+
+        let Some(child_list) = children.get(&block_id) else {
+            continue;
+        };
+
+        for &child in child_list.iter().rev() {
+            stack.push(child);
+        }
+    }
+
+    order
 }
 
 /// Return true when an instruction can be hoisted safely.
@@ -286,8 +460,11 @@ fn instruction_is_hoistable(
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    guaranteed_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::NodeTree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     constants: &ConstantPropagation,
@@ -297,9 +474,24 @@ fn instruction_is_hoistable(
         return true;
     }
 
-    // allow invariant loads when the location is not clobbered in the loop
-    if let mir::Instruction::Load { pointer, .. } = instruction {
-        return load_is_hoistable(instruction_id, *pointer, loop_blocks, tree, alias);
+    // require guaranteed execution for non speculatable operations
+    if !guaranteed_blocks.contains(&block_id) {
+        return false;
+    }
+
+    // handle invariant loads and local gets
+    if matches!(
+        instruction,
+        mir::Instruction::Load { .. } | mir::Instruction::LocalGet { .. }
+    ) {
+        return load_is_hoistable(
+            instruction_id,
+            loop_blocks,
+            tree,
+            alias,
+            memory_ssa,
+            instruction_blocks,
+        );
     }
 
     // handle divisions with explicit safety checks
@@ -326,37 +518,94 @@ fn instruction_is_hoistable(
 /// Return true when a loop invariant load is not clobbered in the loop.
 fn load_is_hoistable(
     load_id: mir::LocalNodeId<mir::Instruction>,
-    pointer: mir::Value,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::NodeTree,
     alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
-    // scan loop instructions for clobbers
-    let location = MemoryLocation::from_ptr(pointer);
+    // read memory ssa access for the load
+    let Some(accesses) = memory_ssa.accesses_for_instruction(load_id) else {
+        return false;
+    };
+
+    let mut load_access = None;
+    for access_id in accesses {
+        if matches!(memory_ssa.access(*access_id), MemoryAccess::Use(_)) {
+            if load_access.is_some() {
+                return false;
+            }
+            load_access = Some(*access_id);
+        }
+    }
+
+    let Some(load_access) = load_access else {
+        return false;
+    };
+
+    let MemoryAccess::Use(use_access) = memory_ssa.access(load_access) else {
+        return false;
+    };
+
+    if use_access.effect.is_volatile || use_access.effect.is_barrier {
+        return false;
+    }
+
+    if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+        return false;
+    }
+
+    // reject loads when the loop clobbers the access
+    if loop_clobbers_access(load_id, load_access, loop_blocks, tree, memory_ssa, alias) {
+        return false;
+    }
+
+    // resolve the clobbering access before the load
+    let clobber = memory_ssa.clobbering_access_for_use(load_access, alias, tree);
+    match memory_ssa.access(clobber) {
+        MemoryAccess::LiveOnEntry => true,
+        MemoryAccess::Def(def_access) => {
+            let Some(block_id) = instruction_blocks.get(&def_access.instruction) else {
+                return false;
+            };
+
+            !loop_blocks.contains(block_id)
+        }
+        _ => false,
+    }
+}
+
+/// Check if any def in the loop may clobber the access.
+fn loop_clobbers_access(
+    load_id: mir::LocalNodeId<mir::Instruction>,
+    load_access: MemoryAccessId,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    tree: &mir::NodeTree,
+    memory_ssa: &MemorySSA,
+    alias: &AliasAnalysis,
+) -> bool {
+    // scan loop blocks for clobbering defs
     for block_id in loop_blocks {
         let block = tree.get(*block_id);
+
         for &instruction_id in &block.instructions {
-            // skip the load itself
             if instruction_id == load_id {
                 continue;
             }
 
-            // skip instructions that do not affect memory
-            let instruction = tree.get(instruction_id);
-            let affects_memory = instruction_may_affect_memory(instruction);
-            if !affects_memory {
+            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
                 continue;
-            }
+            };
 
-            // reject any potential clobber
-            let may_clobber = alias.may_clobber(instruction_id, &location);
-            if may_clobber {
-                return false;
+            for access_id in accesses {
+                if memory_ssa.def_clobbers_access(*access_id, load_access, alias, tree) {
+                    return true;
+                }
             }
         }
     }
 
-    true
+    false
 }
 
 /// Return true when a division or remainder cannot trap in the loop.
@@ -408,7 +657,7 @@ fn division_is_safe(
     true
 }
 
-/// Resolve a best-effort integer range for a value at a block boundary.
+/// Resolve a best effort integer range for a value at a block boundary.
 fn integer_range_for_value(
     value: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
@@ -520,11 +769,14 @@ fn integer_range_from_constant(constant: &mir::Constant) -> Option<IntegerRange>
 }
 
 /// Work item for hoisting an instruction.
+#[derive(Clone)]
 struct HoistWork {
     /// The block containing the instruction to hoist.
     source_block: mir::LocalNodeId<mir::Block>,
     /// The index of the instruction to hoist.
     instruction_index: usize,
+    /// The instruction to hoist.
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
     /// The preheader to hoist the instruction to.
     target_preheader: mir::LocalNodeId<mir::Block>,
 }
@@ -532,11 +784,7 @@ struct HoistWork {
 /// Find the preheader of a loop.
 ///
 /// The preheader is the immediate dominator of the header that is outside the loop.
-fn find_preheader(
-    lp: &Loop,
-    domtree: &DominatorTree,
-    _entry: mir::LocalNodeId<mir::Block>,
-) -> Option<mir::LocalNodeId<mir::Block>> {
+fn find_preheader(lp: &Loop, domtree: &DominatorTree) -> Option<mir::LocalNodeId<mir::Block>> {
     let idom = domtree.immediate_dominator(lp.header)?;
     if lp.blocks.contains(&idom) {
         // idom is inside the loop, no proper preheader
@@ -640,7 +888,7 @@ block2:
         program.assert_output(expected);
     }
 
-    /// Operation using loop-variant value is not hoisted.
+    /// Operation using loop variant value is not hoisted.
     #[test]
     fn test_no_hoist_variant() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
@@ -702,7 +950,7 @@ block2:
         program.assert_unchanged(input);
     }
 
-    /// Invariant in inner loop is hoisted to inner preheader.
+    /// Invariant in inner loop is hoisted to the inner preheader.
     #[test]
     fn test_hoist_nested_inner() {
         let input = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
@@ -719,15 +967,12 @@ block3:
 block4:
     return v4
 }"#;
-        // v3 and v4 are invariant to the inner loop, hoist to block1 (inner preheader)
-        // actually v4 uses v2 which is a function param, so both are invariant to outer too
-        // they should be hoisted to block0
         let expected = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
 block0(v0: bool, v1: bool, v2: i32):
-    v3 = iconst 5i32
-    v4 = iadd v2, v3
     jump block1
 block1:
+    v3 = iconst 5i32
+    v4 = iadd v2, v3
     jump block2
 block2:
     branch v1, block2, block3
@@ -866,6 +1111,160 @@ block2:
         program.assert_output(expected);
     }
 
+    /// Load in a conditional block is not hoisted.
+    #[test]
+    fn test_skip_hoist_conditional_load() {
+        let input = r#"function @test(v0: bool, v1: bool) -> i32 {
+block0(v0: bool, v1: bool):
+    v2 = stack.alloc i32
+    v3 = iconst 1i32
+    store v2, v3
+    jump block1
+block1:
+    branch v0, block2, block3
+block2:
+    v4 = load v2
+    jump block4(v4)
+block3:
+    jump block4(v3)
+block4(v5: i32):
+    branch v1, block1, block5
+block5:
+    return v5
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_unchanged(input);
+    }
+
+    /// Invariant local get is hoisted to the preheader.
+    #[test]
+    fn test_hoist_local_get() {
+        let input = r#"function @test(v0: bool) -> i32 {
+    local0: i32 ; owned
+block0(v0: bool):
+    v1 = iconst 3i32
+    local.set local0, v1
+    jump block1
+block1:
+    v2 = local.get local0
+    branch v0, block1, block2
+block2:
+    return v2
+}"#;
+        let expected = r#"function @test(v0: bool) -> i32 {
+    local0: i32 ; owned
+block0(v0: bool):
+    v1 = iconst 3i32
+    local.set local0, v1
+    v2 = local.get local0
+    jump block1
+block1:
+    branch v0, block1, block2
+block2:
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
+    }
+
+    /// Load with a clobbering call is not hoisted.
+    #[test]
+    fn test_skip_hoist_load_with_call() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32
+    v2 = iconst 1i32
+    store v1, v2
+    jump block1
+block1:
+    v3 = load v1
+    call @touch(v1)
+    branch v0, block1, block2
+block2:
+    return v3
+}
+function @touch(v0: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>):
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_unchanged(input);
+    }
+
+    /// Load with a disjoint alias scope is hoisted.
+    #[test]
+    fn test_hoist_load_with_noalias_scope() {
+        let input = r#"function @test(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>) -> i32 {
+block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
+    jump block1
+block1:
+    v3 = load v1
+    v4 = iconst 1i32
+    store v2, v4
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+        let expected = r#"function @test(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>) -> i32 {
+block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
+    v3 = load v1
+    v4 = iconst 1i32
+    jump block1
+block1:
+    store v2, v4
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.first_function_id();
+        let function = program.tree.get(function_id);
+        let block = program.tree.get(function.blocks[1]);
+        let load_v1 = block.instructions[0];
+        let store_v2 = block.instructions[2];
+
+        let domain = program.tree.memory_table.alias_scopes.create_domain(None);
+        let scope_a = program
+            .tree
+            .memory_table
+            .alias_scopes
+            .create_scope(domain, None);
+
+        program.insert_pointer_access(
+            load_v1,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(1),
+            None,
+            vec![scope_a],
+            Vec::new(),
+            None,
+        );
+
+        program.insert_pointer_access(
+            store_v2,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(2),
+            None,
+            Vec::new(),
+            vec![scope_a],
+            None,
+        );
+
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
+    }
+
     /// Multiple independent loops each get their invariants hoisted.
     #[test]
     fn test_multiple_loops() {
@@ -909,7 +1308,7 @@ block4:
         program.assert_output(expected);
     }
 
-    /// Safe division is hoisted when the divisor is proven non-zero.
+    /// Safe division is hoisted when the divisor is proven not zero.
     #[test]
     fn test_hoist_safe_division() {
         let input = r#"function @test() -> i32 {

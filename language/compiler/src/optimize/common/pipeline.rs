@@ -16,8 +16,8 @@ use crate::optimize::passes::{
     CorrelatedValueProp, DeadCodeEliminate, DeadStoreEliminate, DropInsert, GlobalValueNumbering,
     GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, Licm,
     LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopRotate, LoopSimplify,
-    LoopStrengthReduce, LoopUnroll, LoopUnswitch, Mem2Reg, MoveCheck, Reassociate, SimplifyCfg,
-    Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
+    LoopStrengthReduce, LoopUnroll, LoopUnswitch, Mem2Reg, MemCse, MoveCheck, Reassociate,
+    SimplifyCfg, Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
     ValueRangePropagation,
 };
 use crate::{OptimizeError, OptimizeWarning};
@@ -25,7 +25,7 @@ use crate::{OptimizeError, OptimizeWarning};
 /// Context for pipeline execution.
 ///
 /// Provides access to strings, options, and diagnostic accumulation.
-/// Module-level analyses are created on-demand by passes that need them.
+/// Module level analyses are created on demand by passes that need them.
 pub struct PipelineContext<'a> {
     /// String pool for identifiers.
     pub strings: &'a StringPool,
@@ -36,7 +36,7 @@ pub struct PipelineContext<'a> {
     module_id: ModuleId,
     /// The target being optimized.
     target_id: TargetId,
-    /// Optional profile-guided optimization data.
+    /// Optional profile guided optimization data.
     profile: Option<Arc<mir::ProfileTable>>,
 
     /// Accumulated errors from verification passes.
@@ -128,9 +128,9 @@ impl<'a> PipelineContext<'a> {
         self.profile.is_some()
     }
 
-    /// Create module-level analyses for a tree.
+    /// Create module level analyses for a tree.
     ///
-    /// Module analyses are created on-demand since the context doesn't hold
+    /// Module analyses are created on demand since the context doesn't hold
     /// a reference to the tree (to allow mutation during pipeline execution).
     pub fn module_analyses<'b>(&self, tree: &'b mir::NodeTree) -> ModuleAnalyses<'b> {
         ModuleAnalyses::new(tree)
@@ -155,12 +155,12 @@ impl<'a> PipelineContext<'a> {
         self.warnings.lock().push(warning);
     }
 
-    /// Mark that aliasing violations were found (code is not strict-safe).
+    /// Mark that aliasing violations were found (code is not strict safe).
     pub fn mark_aliasing_violation(&self) {
         self.is_strict_safe.store(false, Ordering::Relaxed);
     }
 
-    /// Check if code is strict-safe (no aliasing violations found in lenient mode).
+    /// Check if code is strict safe (no aliasing violations found in lenient mode).
     pub fn is_strict_safe(&self) -> bool {
         self.is_strict_safe.load(Ordering::Relaxed)
     }
@@ -390,7 +390,7 @@ impl Pipeline for ModulePipeline {
     }
 }
 
-/// Adaptor that wraps a function pipeline to run as a module-level pipeline.
+/// Adaptor that wraps a function pipeline to run as a module level pipeline.
 #[derive(Debug)]
 pub struct FunctionToModuleAdaptor {
     inner: FunctionPipeline,
@@ -446,7 +446,7 @@ impl<P: Pipeline> Pipeline for RepeatedPipeline<P> {
             let changed = self.inner.run(tree, ctx);
             any_changed |= changed;
 
-            // stop if no changes (fixed-point reached)
+            // stop if no changes (fixed point reached)
             if !changed {
                 break;
             }
@@ -537,7 +537,7 @@ impl PipelineBuilder {
         self
     }
 
-    /// Add function passes (auto-wrapped in FunctionToModule adaptor).
+    /// Add function passes (auto wrapped in FunctionToModule adaptor).
     pub fn function_passes(mut self, passes: Vec<Box<dyn FunctionPass>>) -> Self {
         let inner = FunctionPipeline::new(passes);
         self.pipelines
@@ -545,14 +545,14 @@ impl PipelineBuilder {
         self
     }
 
-    /// Add a function pipeline (auto-wrapped in FunctionToModule adaptor).
+    /// Add a function pipeline (auto wrapped in FunctionToModule adaptor).
     pub fn function_pipeline(mut self, pipeline: FunctionPipeline) -> Self {
         self.pipelines
             .push(Box::new(FunctionToModuleAdaptor::new(pipeline)));
         self
     }
 
-    /// Repeat an inner pipeline until fixed-point.
+    /// Repeat an inner pipeline until fixed point.
     pub fn repeat<P: Pipeline + 'static>(mut self, max: usize, inner: P) -> Self {
         self.pipelines
             .push(Box::new(RepeatedPipeline::new(inner, max)));
@@ -627,7 +627,7 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
     ]
 }
 
-/// Lightweight scalar fixed-point island.
+/// Lightweight scalar fixed point island.
 fn scalar_island_light() -> Vec<Box<dyn FunctionPass>> {
     let mut passes = Vec::new();
     passes.extend(simplify());
@@ -636,7 +636,7 @@ fn scalar_island_light() -> Vec<Box<dyn FunctionPass>> {
     passes
 }
 
-/// Full scalar fixed-point island.
+/// Full scalar fixed point island.
 fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes = Vec::new();
     passes.extend(eliminate_redundancy());
@@ -650,7 +650,11 @@ fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 }
 
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
-    vec![Box::new(LoadStoreForward), Box::new(DeadStoreEliminate)]
+    vec![
+        Box::new(LoadStoreForward),
+        Box::new(MemCse),
+        Box::new(DeadStoreEliminate),
+    ]
 }
 
 fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
@@ -707,7 +711,7 @@ fn o2_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
         .function_passes(canonicalize())
-        // early scalar fixed-point island
+        // early scalar fixed point island
         .repeat(
             2,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
@@ -738,7 +742,7 @@ fn o3_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
         .function_passes(canonicalize())
-        // early scalar fixed-point island (more iterations)
+        // early scalar fixed point island (more iterations)
         .repeat(
             3,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),

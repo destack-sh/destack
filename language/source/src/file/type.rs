@@ -36,7 +36,6 @@ pub enum FileType {
     Env,
 
     // markup/styling
-
     /// `.html`, `.htm`
     Html,
     /// `.md`
