@@ -12,9 +12,9 @@ use indexmap::IndexMap;
 
 use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
-    FormatterOptions, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleSource, ModuleType,
-    Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
-    ProfileId, ProfileKey, ProfileRegistry, Target, TargetId, TsConfigOptions, TsConfigRegistry,
+    FormatterOptions, LinterOptions, Module, ModuleAst, ModuleRegistry, ModuleSource, Package,
+    PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId,
+    ProfileKey, ProfileRegistry, SourceType, Target, TargetId, TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -236,7 +236,7 @@ impl Program {
             None,
             root_package_id,
             None, // no tsconfig for root module
-            ModuleType::Script,
+            SourceType::Script,
             LanguageType::Destack,
             ModuleSource::User,
             root_module_ast,
@@ -269,8 +269,8 @@ impl Program {
             ModuleId::from_relative_path(package_id, std::path::Path::new(uri.as_ref()));
         let module_type = uri
             .to_path()
-            .and_then(ModuleType::from_extension)
-            .unwrap_or(ModuleType::Script);
+            .and_then(SourceType::from_extension)
+            .unwrap_or(SourceType::Script);
         let language_type = LanguageType::from(ty);
         let module = Module::blank(
             module_id,

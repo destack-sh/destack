@@ -70,9 +70,9 @@ impl Compiler {
             let mut module = module.write();
             let version = module.version;
             // replace existing MIR for this target, if any
-            module.mirs.retain(|mir| mir.target != target_id);
-            module
-                .mirs
+            let code = module.code_mut();
+            code.mirs.retain(|mir| mir.target != target_id);
+            code.mirs
                 .push(ModuleMir::new(module_id, version, target_id.clone()));
         }
 

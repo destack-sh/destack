@@ -22,7 +22,8 @@ impl Compiler {
         let module_version = module.version;
 
         // initialize or refresh module comptime entry
-        match module
+        let code = module.code_mut();
+        match code
             .comptimes
             .iter_mut()
             .find(|entry| entry.profile_id == profile_id)
@@ -37,7 +38,7 @@ impl Compiler {
                 }
             }
             None => {
-                module.comptimes.push(ModuleComptime {
+                code.comptimes.push(ModuleComptime {
                     module_id,
                     profile_id,
                     module_version,

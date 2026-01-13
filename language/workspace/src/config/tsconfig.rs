@@ -713,7 +713,7 @@ impl ModuleDetection {
     }
 }
 
-/// Module type that determines how a file is parsed (Script vs Module).
+/// Source type that determines how a file is parsed (Script vs Module).
 ///
 /// This is the **result** of module detection, not the strategy.
 /// See [`ModuleDetection`] for the detection strategy.
@@ -724,7 +724,7 @@ impl ModuleDetection {
 /// - Default strict mode (Module is always strict)
 /// - Whether `import`/`export` statements are allowed (Module only)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ModuleType {
+pub enum SourceType {
     /// Script mode: classic `<script>` behavior.
     /// - HTML comments are allowed (legacy web compat)
     /// - `this` at top level is the global object
@@ -739,7 +739,7 @@ pub enum ModuleType {
     Module,
 }
 
-impl ModuleType {
+impl SourceType {
     /// Whether this is module mode.
     pub fn is_module(&self) -> bool {
         matches!(self, Self::Module)
@@ -1642,37 +1642,37 @@ mod tests {
     #[test]
     fn test_module_type_from_extension() {
         assert_eq!(
-            ModuleType::from_extension(&PathBuf::from("foo.mjs")),
-            Some(ModuleType::Module)
+            SourceType::from_extension(&PathBuf::from("foo.mjs")),
+            Some(SourceType::Module)
         );
         assert_eq!(
-            ModuleType::from_extension(&PathBuf::from("foo.mts")),
-            Some(ModuleType::Module)
+            SourceType::from_extension(&PathBuf::from("foo.mts")),
+            Some(SourceType::Module)
         );
         assert_eq!(
-            ModuleType::from_extension(&PathBuf::from("foo.cjs")),
-            Some(ModuleType::Script)
+            SourceType::from_extension(&PathBuf::from("foo.cjs")),
+            Some(SourceType::Script)
         );
         assert_eq!(
-            ModuleType::from_extension(&PathBuf::from("foo.cts")),
-            Some(ModuleType::Script)
+            SourceType::from_extension(&PathBuf::from("foo.cts")),
+            Some(SourceType::Script)
         );
-        assert_eq!(ModuleType::from_extension(&PathBuf::from("foo.js")), None);
-        assert_eq!(ModuleType::from_extension(&PathBuf::from("foo.ts")), None);
+        assert_eq!(SourceType::from_extension(&PathBuf::from("foo.js")), None);
+        assert_eq!(SourceType::from_extension(&PathBuf::from("foo.ts")), None);
     }
 
     #[test]
     fn test_module_type_detect_by_extension() {
         let path = PathBuf::from("test.mjs");
         assert_eq!(
-            ModuleType::detect(&path, false, ModuleDetection::Auto, None),
-            ModuleType::Module
+            SourceType::detect(&path, false, ModuleDetection::Auto, None),
+            SourceType::Module
         );
 
         let path = PathBuf::from("test.cjs");
         assert_eq!(
-            ModuleType::detect(&path, true, ModuleDetection::Auto, None),
-            ModuleType::Script
+            SourceType::detect(&path, true, ModuleDetection::Auto, None),
+            SourceType::Script
         );
     }
 
@@ -1680,12 +1680,12 @@ mod tests {
     fn test_module_type_detect_by_package_type() {
         let path = PathBuf::from("test.js");
         assert_eq!(
-            ModuleType::detect(&path, false, ModuleDetection::Auto, Some("module")),
-            ModuleType::Module
+            SourceType::detect(&path, false, ModuleDetection::Auto, Some("module")),
+            SourceType::Module
         );
         assert_eq!(
-            ModuleType::detect(&path, false, ModuleDetection::Auto, Some("commonjs")),
-            ModuleType::Script
+            SourceType::detect(&path, false, ModuleDetection::Auto, Some("commonjs")),
+            SourceType::Script
         );
     }
 
@@ -1693,12 +1693,12 @@ mod tests {
     fn test_module_type_detect_by_content() {
         let path = PathBuf::from("test.js");
         assert_eq!(
-            ModuleType::detect(&path, true, ModuleDetection::Auto, None),
-            ModuleType::Module
+            SourceType::detect(&path, true, ModuleDetection::Auto, None),
+            SourceType::Module
         );
         assert_eq!(
-            ModuleType::detect(&path, false, ModuleDetection::Auto, None),
-            ModuleType::Script
+            SourceType::detect(&path, false, ModuleDetection::Auto, None),
+            SourceType::Script
         );
     }
 
@@ -1706,8 +1706,8 @@ mod tests {
     fn test_module_type_force_module() {
         let path = PathBuf::from("test.cjs");
         assert_eq!(
-            ModuleType::detect(&path, false, ModuleDetection::Force, Some("commonjs")),
-            ModuleType::Module
+            SourceType::detect(&path, false, ModuleDetection::Force, Some("commonjs")),
+            SourceType::Module
         );
     }
 }
