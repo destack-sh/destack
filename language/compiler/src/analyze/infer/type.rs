@@ -467,10 +467,6 @@ impl Compiler {
             return Ok(None);
         }
 
-        if symbol.module_id != module.id && self.module_is_ambient_lib(module) {
-            return Ok(None);
-        }
-
         // ensure the defining module is declared before reading its types
         if symbol.module_id != module.id {
             self.require_analyze_module_declare(symbol.module_id, profile)
@@ -483,18 +479,17 @@ impl Compiler {
 
         // select the global merge group when the symbol participates
         let mut group_symbols = Vec::new();
-        if !self.module_is_ambient_lib(module) {
-            if let Some(key) = symbol_key {
-                if let Some(group) =
-                    self.get_global_symbol_group(module.id, profile, key, symbol_space)
-                {
-                    group_symbols.extend(group);
-                }
-                if let Some(ambient_symbols) =
-                    self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_space)
-                {
-                    group_symbols.extend(ambient_symbols);
-                }
+        if !self.module_is_ambient_lib(module)
+            && let Some(key) = symbol_key
+        {
+            if let Some(group) = self.get_global_symbol_group(module.id, profile, key, symbol_space)
+            {
+                group_symbols.extend(group);
+            }
+            if let Some(ambient_symbols) =
+                self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_space)
+            {
+                group_symbols.extend(ambient_symbols);
             }
         }
         if group_symbols.is_empty() {
@@ -1558,12 +1553,11 @@ impl Compiler {
             }
             if let Some(ty_id) = types.get_instance_type_id(extension.symbol) {
                 let ty = types.get_type(ty_id).clone();
-                if let Type::Object { fields, .. } = ty {
-                    if let Some(field_ty) =
+                if let Type::Object { fields, .. } = ty
+                    && let Some(field_ty) =
                         self.member_type_from_fields(&fields, member_key, node_id, types)
-                    {
-                        return Ok(Some(field_ty));
-                    }
+                {
+                    return Ok(Some(field_ty));
                 }
             }
         }
