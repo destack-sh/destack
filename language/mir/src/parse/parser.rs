@@ -6,8 +6,8 @@ use crate::{
     AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
     CheckTarget, Constant, Copyability, Field, Function, Global, GlobalInitializer, Instruction,
     Intrinsic, Lifetime, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
-    Ownership, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias, TypedValue, UnaryOperator,
-    Value,
+    Ownership, PointerAttributes, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
+    TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
 
@@ -240,11 +240,17 @@ impl<'a> Parser<'a> {
                         if !self.function_map.contains_key(&name) {
                             let name_id = self.strings.intern(&name);
                             let void_ty = self.tree.insert(Type::Void);
+                            let parameter_attributes = Vec::new();
                             let placeholder = Function {
                                 name: name_id,
                                 parameters: Vec::new(),
                                 return_type: void_ty,
                                 return_lifetime: Lifetime::Inferred,
+                                memory_effects: None,
+                                call_behavior: None,
+                                alloc_size: None,
+                                parameter_attributes,
+                                return_attributes: PointerAttributes::default(),
                                 linkage: Linkage::Local,
                                 allocation: AllocationMode::Any,
                                 coroutine: None,
@@ -415,11 +421,17 @@ impl<'a> Parser<'a> {
         // imports have no body
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
+            let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
             let function = Function {
                 name: name_id,
                 parameters,
                 return_type,
                 return_lifetime: Lifetime::Inferred,
+                memory_effects: None,
+                call_behavior: None,
+                alloc_size: None,
+                parameter_attributes,
+                return_attributes: PointerAttributes::default(),
                 linkage,
                 allocation: AllocationMode::Any, // #Incomplete: set proper MIR allocation mode?
                 coroutine: None,
@@ -449,6 +461,11 @@ impl<'a> Parser<'a> {
         function.parameters = parameters.clone();
         function.return_type = return_type;
         function.linkage = linkage;
+        function.memory_effects = None;
+        function.call_behavior = None;
+        function.alloc_size = None;
+        function.parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        function.return_attributes = PointerAttributes::default();
 
         // body
         self.eat_token(TokenType::OpenBrace)?;

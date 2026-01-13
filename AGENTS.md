@@ -21,6 +21,7 @@ Inline comments should be short and begin with a lowercase letter.
  - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
 Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
+Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 
 Documentation comments for functions/types/etc. should be proper sentences with punctuation.
  - Files should NOT have a top-level documentation comments. They always get stale.
@@ -153,6 +154,11 @@ Lints and warnings:
 - Most clippy allow stuff should go on top of the impl, not individual functions (like too many arguments is almost always fine at a broad scope)
 - In general, ignore too many arguments and type complexity warnings
 
+## Markdown
+
+- One sentence per line.
+- Use proper rich formatting: sections, sub-sections, highlighting, code examples, tables, etc.
+- Non-prose items (lists, code blocks, tables) in a subsection should be preceded by a prose line
 
 ## Commands
 

@@ -141,6 +141,196 @@ They are helpful for explicit borrowing and aliasing rules.
 `drop` invokes the type-specific drop glue for owned values.
 Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
 
+## Memory Semantics and Metadata
+
+MIR carries precise memory semantics through explicit fields on `Function`.
+MIR carries callsite and access metadata through the `NodeTree.call_table` and `NodeTree.memory_table` tables.
+Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
+The memory metadata includes:
+- **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
+- **Function behaviors**: `noreturn`, `will_return`, `convergent`, plus `allocates`/`frees` with optional location and address space refinements.
+- **Allocator size metadata**: `alloc_size` ties allocator returns to parameter sizes for more precise aliasing and bounds reasoning.
+- **Pointer attributes** for parameters and returns: `noalias`, `capture`, `readonly`, `writeonly`, `nonnull`, `noundef`, `dereferenceable`, `dereferenceable_or_null`, `align`, and `returned`.
+- `capture` is one of `nocapture`, `return_only`, `store`, or `escape`.
+- **Callsite memory metadata**: overrides for memory effects and argument attributes when a call is known to be more precise than the callee signature.
+- **Instruction access metadata**: size, alignment, volatile, invariant, non temporal, ordering, address space, alias scopes, and TBAA tags for each memory access.
+- **Alias scopes and TBAA tables** describe scoped aliasing and type-based alias analysis relationships.
+
+Instructions with multiple memory accesses, such as `memcpy`, record multiple access descriptors.
+Function effects and pointer attributes live on `Function`.
+Callsite and per access metadata live in the call and memory tables.
+Backends and optimizers query the metadata directly.
+
+### Metadata Structures
+
+This section defines the canonical metadata structures used by MIR.
+These structures are stored either on `Function` or in the `NodeTree` metadata tables.
+
+```ds
+enum MemoryLocation {
+    Arguments,
+    Heap,
+    Stack,
+    Global,
+    Shared,
+    Local,
+    Constant,
+    Inaccessible,
+    Io,
+}
+
+type MemoryLocationSet = MemoryLocation[]
+
+struct MemoryEffect {
+    reads: bool,
+    writes: bool,
+    locations: MemoryLocationSet,
+    addressSpaces: AddressSpaceSet | null,
+    argmemonly: bool,
+    inaccessibleMemOnly: bool,
+    nosync: bool,
+}
+
+struct AllocSize {
+    elementSizeIndex: u32,
+    elementCountIndex: u32 | null,
+}
+
+struct CallBehavior {
+    noreturn: bool,
+    willReturn: bool,
+    convergent: bool,
+    allocates: bool,
+    allocLocations: MemoryLocationSet | null,
+    allocAddressSpaces: AddressSpaceSet | null,
+    frees: bool,
+    freeLocations: MemoryLocationSet | null,
+    freeAddressSpaces: AddressSpaceSet | null,
+}
+
+enum CaptureKind {
+    NoCapture,
+    ReturnOnly,
+    Store,
+    Escape,
+}
+
+struct PointerAttributes {
+    nonnull: bool,
+    noalias: bool,
+    capture: CaptureKind,
+    readonly: bool,
+    writeonly: bool,
+    noundef: bool,
+    dereferenceableBytes: u64 | null,
+    dereferenceableOrNullBytes: u64 | null,
+    alignment: u32 | null,
+    returned: bool,
+}
+
+enum ArgumentAccess {
+    None,
+    Read,
+    Write,
+    ReadWrite,
+}
+
+struct CallArgumentMetadata {
+    attributes: PointerAttributes,
+    access: ArgumentAccess,
+    aliasScopes: AliasScopeId[],
+    noaliasScopes: AliasScopeId[],
+    tbaaTag: TbaaTagId | null,
+}
+
+enum CallDispatchKind {
+    Direct,
+    Virtual { slotId: u32 },
+    Interface { slotId: u32 },
+    Indirect,
+    Dynamic,
+}
+
+struct CallMetadata {
+    dispatch: CallDispatchKind,
+    receiver: Value | null,
+    declaredTarget: LocalNodeId<Function> | null,
+    declaringType: LocalNodeId<Type> | null,
+    signature: LocalNodeId<Type>,
+    memoryEffects: MemoryEffect | null,
+    behavior: CallBehavior | null,
+    allocSize: AllocSize | null,
+    argumentMetadata: CallArgumentMetadata[],
+    returnAttributes: PointerAttributes,
+}
+
+enum MemoryAccessKind {
+    Read,
+    Write,
+    ReadWrite,
+    ReadModifyWrite,
+    Fence,
+    PrefetchRead,
+    PrefetchWrite,
+}
+
+enum MemoryAccessTarget {
+    Pointer(Value),
+    Local(LocalNodeId<Local>),
+    Global(LocalNodeId<Global>),
+    Unknown,
+}
+
+type AddressSpaceSet = AddressSpace[]
+
+struct MemoryAccessMetadata {
+    kind: MemoryAccessKind,
+    target: MemoryAccessTarget,
+    size: u64 | null,
+    alignment: u32 | null,
+    isVolatile: bool,
+    isInvariant: bool,
+    isNonTemporal: bool,
+    ordering: MemoryOrdering | null,
+    addressSpace: AddressSpace | null,
+    aliasScopes: AliasScopeId[],
+    noaliasScopes: AliasScopeId[],
+    tbaaTag: TbaaTagId | null,
+}
+```
+
+`MemoryOrdering` follows the atomic ordering definitions in the instruction section.
+`AddressSpace` follows the reference type address space definitions.
+`MemoryLocationSet` summarizes effect regions, while `addressSpaces` optionally refines which address spaces may be accessed.
+Per-access address space is recorded in `MemoryAccessMetadata.addressSpace`.
+
+### Metadata Invariants
+
+These invariants keep metadata sound for optimization and codegen.
+- Pointer attributes: `readonly` and `writeonly` are mutually exclusive.
+- Pointer attributes: `dereferenceableOrNullBytes` is only valid when the pointer can be null.
+- Call behavior: `noreturn` implies `willReturn` is false.
+- Call behavior: `allocLocations` is only set when `allocates` is true.
+- Call behavior: `allocAddressSpaces` is only set when `allocates` is true.
+- Call behavior: `freeLocations` is only set when `frees` is true.
+- Call behavior: `freeAddressSpaces` is only set when `frees` is true.
+- Memory effects: `reads` and `writes` are both false only when `locations` is `NONE`.
+- Memory effects: `argmemonly` implies `locations` is `ARGUMENTS` or `NONE`.
+- Memory effects: `inaccessibleMemOnly` implies `locations` is `INACCESSIBLE` or `NONE`.
+- Memory effects: `nosync` implies the operation does not perform atomic or fence operations.
+- Memory access: `ordering` is only set for atomic accesses.
+- Memory access: `isInvariant` is only set for read-only accesses.
+- Memory access: `isVolatile` implies the access cannot be eliminated or reordered.
+- Type layout: `fieldOffsets` length matches the field or element count for the type.
+- Dispatch tables: `slots` are ordered exactly as the lowering rules define.
+
+### Metadata Update Points
+
+Lowering provides the initial metadata for types, functions, and debug scopes.
+Lowering records callsite metadata when dispatch or effects are known.
+Optimization passes may refine callsite metadata and memory access descriptors.
+Codegen consumes the metadata without mutating it.
+
 ### Terminators
 
 Blocks end with a terminator that transfers control:
@@ -258,8 +448,10 @@ type @Point = { x: f32, y: f32 }
 ### Debug Info
 
 MIR preserves enough info to produce high-quality native debug symbols later in codegen.
-Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF (or platform equivalents).
-Debug metadata isn't required for execution, but it's needed for precise variable scopes, call stacks, and type names in debuggers.
+Lowering records source spans, names, and lexical scope boundaries so codegen can emit DWARF or platform equivalents.
+Debug metadata is not required for execution.
+Debug metadata is required for precise variable scopes, call stacks, and type names in debuggers.
+Debug metadata is stored in `NodeTree.debug_info`.
 
 At a minimum, lowering should provide:
 - source spans for every instruction and terminator
@@ -269,6 +461,20 @@ At a minimum, lowering should provide:
 
 The concrete shape of this metadata belongs in MIR so all backends can consume it consistently.
 Cranelift codegen maps this metadata to its own debug facilities and then into DWARF.
+The debug metadata table stores scopes, variables, instruction locations, and variable locations.
+Scopes are nested and may include inline callsite chains.
+Variable locations can reference SSA values, locals, or globals.
+
+### Type Metadata and Dispatch
+
+Type metadata captures layout, lineage, and dispatch structure for nominal types.
+Type metadata is stored in `NodeTree.type_table.type_metadata_by_id`.
+Layouts store size, alignment, stride, and field offsets in declaration order.
+Lineage tracks parent types, interfaces, and sealed or final flags.
+Dispatch tables describe vtables and itabs with slot ordering and targets.
+Dispatch tables are stored in `NodeTree.type_table.dispatch_tables`.
+Type descriptors link types to runtime metadata globals when needed.
+Field maps provide name to field lookups for property access specialization.
 
 ### Type Aliases
 
@@ -298,6 +504,11 @@ struct Function {
     name: StringId,
     parameters: TypedValue[],
     returnType: LocalNodeId<Type>,
+    memoryEffects: MemoryEffect | null,
+    callBehavior: CallBehavior | null,
+    allocSize: AllocSize | null,
+    parameterAttributes: PointerAttributes[],
+    returnAttributes: PointerAttributes,
     linkage: Linkage,
     allocation: AllocationMode,  // Any, NoManaged, StackOnly
     coroutine: CoroutineKind | null, // Generator, Async, AsyncGenerator

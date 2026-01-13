@@ -3,8 +3,8 @@ use std::fmt::{Debug, Formatter};
 use destack_base::Arena;
 
 use crate::{
-    ArgumentSlice, Block, Field, Function, Global, Instruction, Local, LocalNodeId, MetadataTable,
-    Node, NodeType, Type, TypeAlias, Value,
+    ArgumentSlice, Block, CallTable, DebugInfoTable, Field, Function, Global, Instruction, Local,
+    LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
 };
 
 /// MIR node tree for a single module.
@@ -41,9 +41,15 @@ pub struct NodeTree {
     /// Instructions reference slices of this buffer via ArgumentSlice.
     pub(crate) instruction_arguments: Vec<Value>,
 
-    // type metadata
-    /// Metadata about types (dispose functions, etc).
-    pub metadata: MetadataTable,
+    // metadata tables
+    /// Type metadata table.
+    pub type_table: TypeTable,
+    /// Callsite metadata table.
+    pub call_table: CallTable,
+    /// Memory metadata table.
+    pub memory_table: MemoryTable,
+    /// Debug metadata table.
+    pub debug_info: DebugInfoTable,
 }
 
 impl Debug for NodeTree {
@@ -91,7 +97,10 @@ impl NodeTree {
 
             source_id_by_node_id: Vec::with_capacity(capacity),
             instruction_arguments: Vec::new(),
-            metadata: MetadataTable::new(),
+            type_table: TypeTable::new(),
+            call_table: CallTable::new(),
+            memory_table: MemoryTable::new(),
+            debug_info: DebugInfoTable::new(),
         }
     }
 

@@ -1,7 +1,8 @@
 use destack_base::StringId;
 
 use crate::{
-    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeTree, NodeType, Type, TypedValue, Value,
+    AllocSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
+    NodeTree, NodeType, PointerAttributes, Type, TypedValue, Value,
 };
 
 /// Memory allocation restrictions for a function.
@@ -96,6 +97,16 @@ pub struct Function {
     /// Only meaningful when return type contains borrowed references.
     /// Defaults to `Inferred`, which uses signature-based inference rules.
     pub return_lifetime: Lifetime,
+    /// Memory effects for this function, when known.
+    pub memory_effects: Option<MemoryEffect>,
+    /// Behavioral effects for this function, when known.
+    pub call_behavior: Option<CallBehavior>,
+    /// Allocation size metadata for allocator-like functions.
+    pub alloc_size: Option<AllocSize>,
+    /// Pointer attributes for parameters, indexed by parameter position.
+    pub parameter_attributes: Vec<PointerAttributes>,
+    /// Pointer attributes for the return value.
+    pub return_attributes: PointerAttributes,
     /// Linkage (local, export, or import).
     pub linkage: Linkage,
     /// Memory allocation restrictions for this function.
@@ -129,12 +140,23 @@ impl Function {
         return_type: LocalNodeId<Type>,
         entry: LocalNodeId<Block>,
     ) -> Self {
+        // seed parameter attributes
+        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+
+        // compute the next value id from parameters
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
+
+        // construct the function
         Self {
             name,
             parameters,
             return_type,
             return_lifetime: Lifetime::Inferred,
+            memory_effects: None,
+            call_behavior: None,
+            alloc_size: None,
+            parameter_attributes,
+            return_attributes: PointerAttributes::default(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
             coroutine: None,
@@ -151,11 +173,20 @@ impl Function {
         parameters: Vec<TypedValue>,
         return_type: LocalNodeId<Type>,
     ) -> Self {
+        // seed parameter attributes
+        let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+
+        // construct the imported function
         Self {
             name,
             parameters,
             return_type,
             return_lifetime: Lifetime::Inferred,
+            memory_effects: None,
+            call_behavior: None,
+            alloc_size: None,
+            parameter_attributes,
+            return_attributes: PointerAttributes::default(),
             linkage: Linkage::Import,
             allocation: AllocationMode::Any,
             coroutine: None,
