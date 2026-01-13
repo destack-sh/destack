@@ -103,6 +103,200 @@ impl TestProgram {
         fallback.expect("missing function")
     }
 
+    /// Return the function id for a named function.
+    pub(crate) fn function_id_by_name(&self, name: &str) -> mir::LocalNodeId<mir::Function> {
+        self.tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| self.strings.get(function.name) == name)
+            .expect("missing function")
+            .0
+    }
+
+    /// Return the entry block id for a function.
+    pub(crate) fn entry_block_id(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> mir::LocalNodeId<mir::Block> {
+        // read the function
+        let function = self.tree.get(function_id);
+
+        // use the explicit entry when present
+        if let Some(entry) = function.entry {
+            return entry;
+        }
+
+        // fall back to the first block when no entry exists
+        *function.blocks.first().expect("missing block")
+    }
+
+    /// Return the first intrinsic instruction in a function.
+    pub(crate) fn first_intrinsic_in_function(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+        intrinsic: mir::Intrinsic,
+    ) -> mir::LocalNodeId<mir::Instruction> {
+        // read the function blocks
+        let function = self.tree.get(function_id);
+
+        // scan blocks in order
+        for block_id in &function.blocks {
+            let block = self.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if matches!(
+                    self.tree.get(*instruction_id),
+                    mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
+                ) {
+                    return *instruction_id;
+                }
+            }
+        }
+
+        panic!("missing intrinsic instruction");
+    }
+
+    /// Return the first intrinsic instruction in the entry block.
+    pub(crate) fn first_intrinsic_in_entry(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+        intrinsic: mir::Intrinsic,
+    ) -> mir::LocalNodeId<mir::Instruction> {
+        // read the entry block
+        let block_id = self.entry_block_id(function_id);
+        let block = self.tree.get(block_id);
+
+        // scan instructions in order
+        for instruction_id in &block.instructions {
+            if matches!(
+                self.tree.get(*instruction_id),
+                mir::Instruction::Intrinsic { intrinsic: inst, .. } if *inst == intrinsic
+            ) {
+                return *instruction_id;
+            }
+        }
+
+        panic!("missing intrinsic instruction");
+    }
+
+    /// Return the instruction ids in a block.
+    pub(crate) fn instructions_in_block(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+        // clone the instruction ids for this block
+        self.tree.get(block_id).instructions.clone()
+    }
+
+    /// Return the instruction ids in the entry block.
+    pub(crate) fn entry_instructions(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+        // read the entry block and clone the instruction ids
+        self.instructions_in_block(self.entry_block_id(function_id))
+    }
+
+    /// Create a new alias scope.
+    pub(crate) fn create_alias_scope(&mut self) -> mir::AliasScopeId {
+        // create a new domain for the scope
+        let domain = self.tree.memory_table.alias_scopes.create_domain(None);
+
+        // create the scope within the domain
+        self.tree
+            .memory_table
+            .alias_scopes
+            .create_scope(domain, None)
+    }
+
+    /// Create a new tbaa node.
+    pub(crate) fn create_tbaa_node(
+        &mut self,
+        parent: Option<mir::TbaaNodeId>,
+        is_constant: bool,
+    ) -> mir::TbaaNodeId {
+        // insert a new node into the table
+        self.tree
+            .memory_table
+            .tbaa
+            .create_node(None, parent, is_constant)
+    }
+
+    /// Create a new tbaa tag.
+    pub(crate) fn create_tbaa_tag(
+        &mut self,
+        base: mir::TbaaNodeId,
+        access: mir::TbaaNodeId,
+        offset: u64,
+        size: u64,
+        is_immutable: bool,
+    ) -> mir::TbaaTagId {
+        // insert a new tag into the table
+        self.tree
+            .memory_table
+            .tbaa
+            .create_tag(base, access, offset, size, is_immutable)
+    }
+
+    /// Return the destination of a stack allocation instruction.
+    pub(crate) fn stack_alloc_destination(
+        &self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+    ) -> mir::Value {
+        // extract the destination value from the instruction
+        let mir::Instruction::StackAlloc { destination, .. } = self.tree.get(instruction_id) else {
+            panic!("expected stack allocation");
+        };
+
+        *destination
+    }
+
+    /// Return stack allocation destinations from the entry block.
+    pub(crate) fn stack_alloc_destinations_in_entry(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> Vec<mir::Value> {
+        // read the entry block
+        let block_id = self.entry_block_id(function_id);
+        let block = self.tree.get(block_id);
+
+        // collect stack allocation destinations in order
+        block
+            .instructions
+            .iter()
+            .filter_map(|instruction_id| {
+                if let mir::Instruction::StackAlloc { destination, .. } =
+                    self.tree.get(*instruction_id)
+                {
+                    Some(*destination)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Return store instruction ids from the entry block.
+    pub(crate) fn store_instructions_in_entry(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+        // read the entry block
+        let block_id = self.entry_block_id(function_id);
+        let block = self.tree.get(block_id);
+
+        // collect store instructions in order
+        block
+            .instructions
+            .iter()
+            .copied()
+            .filter(|instruction_id| {
+                matches!(
+                    self.tree.get(*instruction_id),
+                    mir::Instruction::Store { .. }
+                )
+            })
+            .collect()
+    }
+
     /// Attach pointer access metadata to an instruction.
     pub(crate) fn insert_pointer_access(
         &mut self,

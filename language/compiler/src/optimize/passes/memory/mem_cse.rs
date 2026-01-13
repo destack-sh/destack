@@ -8,8 +8,9 @@ use crate::optimize::analyses::{
     MemoryAccessId, MemoryAccessLocation, MemoryDef, MemorySSA,
 };
 use crate::optimize::common::{
-    ValueEquivalence, alias_scopes_may_alias, build_instruction_block_map,
-    build_value_definition_map, memory_locations_compatible, tbaa_tags_may_alias,
+    ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
+    build_instruction_block_map, build_value_definition_map, location_sets_may_alias,
+    memory_locations_compatible, tbaa_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -515,6 +516,16 @@ fn effects_match_location(
         return false;
     }
 
+    // check location sets
+    if !location_sets_may_alias(current.location_set, previous.location_set) {
+        return false;
+    }
+
+    // check address spaces
+    if !address_spaces_may_alias(&current.address_spaces, &previous.address_spaces) {
+        return false;
+    }
+
     // check tbaa disambiguation
     if !tbaa_tags_may_alias(&tree.memory_table.tbaa, current.tbaa_tag, previous.tbaa_tag) {
         return false;
@@ -605,6 +616,16 @@ fn memop_alias_result(
         &source_effect.alias_scopes,
         &source_effect.noalias_scopes,
     ) {
+        return AliasResult::NoAlias;
+    }
+
+    // apply location sets
+    if !location_sets_may_alias(dest_effect.location_set, source_effect.location_set) {
+        return AliasResult::NoAlias;
+    }
+
+    // apply address spaces
+    if !address_spaces_may_alias(&dest_effect.address_spaces, &source_effect.address_spaces) {
         return AliasResult::NoAlias;
     }
 
@@ -813,7 +834,7 @@ block0:
 }"#;
 
         let mut program = TestProgram::new(input);
-        let function_id = program.entry_function_id();
+        let function_id = program.function_id_by_name("test");
         let (_, callee) = program.first_call_in_entry(function_id);
         program.tree.get_mut(callee).memory_effects =
             Some(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY));
@@ -841,13 +862,97 @@ block0:
 }"#;
 
         let mut program = TestProgram::new(input);
-        let function_id = program.entry_function_id();
+        let function_id = program.function_id_by_name("test");
         let (_, callee) = program.first_call_in_entry(function_id);
         program.tree.get_mut(callee).memory_effects =
             Some(mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY));
 
         program.run_pass(&MemCse);
         program.assert_unchanged(input);
+    }
+
+    /// Redundant store across heap only call is removed.
+    #[test]
+    fn test_remove_redundant_store_across_heap_only_call() {
+        let input = r#"function @callee() -> void {
+block0:
+    return
+}
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 7i32
+    store v0, v1
+    call @callee()
+    store v0, v1
+    v2 = load v0
+    return v2
+}"#;
+        let expected = r#"function @callee() -> void {
+block0:
+    return
+}
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 7i32
+    store v0, v1
+    call @callee()
+    v2 = load v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.function_id_by_name("test");
+        let (_, callee) = program.first_call_in_entry(function_id);
+        program.tree.get_mut(callee).memory_effects =
+            Some(mir::MemoryEffect::write_only(mir::MemoryLocationSet::HEAP));
+
+        program.run_pass(&MemCse);
+        program.assert_output(expected);
+    }
+
+    /// Redundant store across disjoint address space call is removed.
+    #[test]
+    fn test_remove_redundant_store_across_address_space_call() {
+        let input = r#"function @callee() -> void {
+block0:
+    return
+}
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 7i32
+    store v0, v1
+    call @callee()
+    store v0, v1
+    v2 = load v0
+    return v2
+}"#;
+        let expected = r#"function @callee() -> void {
+block0:
+    return
+}
+function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32
+    v1 = iconst 7i32
+    store v0, v1
+    call @callee()
+    v2 = load v0
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.function_id_by_name("test");
+        let (_, callee) = program.first_call_in_entry(function_id);
+        program.tree.get_mut(callee).memory_effects = Some(
+            mir::MemoryEffect::write_only(mir::MemoryLocationSet::ANY)
+                .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared])),
+        );
+
+        program.run_pass(&MemCse);
+        program.assert_output(expected);
     }
 
     /// Distinct store values are preserved.
@@ -906,10 +1011,10 @@ block0:
         let function_id = program.first_function_id();
         let function = program.tree.get(function_id);
         let block = program.tree.get(function.blocks[0]);
-        let pointer = match program.tree.get(block.instructions[0]) {
-            mir::Instruction::StackAlloc { destination, .. } => *destination,
-            _ => panic!("expected stack allocation"),
-        };
+        let pointer = *program
+            .stack_alloc_destinations_in_entry(function_id)
+            .first()
+            .expect("missing stack allocation");
 
         let volatile_store = block.instructions[3];
         program.insert_pointer_access_with_options(
@@ -945,10 +1050,10 @@ block0:
         let function_id = program.first_function_id();
         let function = program.tree.get(function_id);
         let block = program.tree.get(function.blocks[0]);
-        let pointer = match program.tree.get(block.instructions[0]) {
-            mir::Instruction::StackAlloc { destination, .. } => *destination,
-            _ => panic!("expected stack allocation"),
-        };
+        let pointer = *program
+            .stack_alloc_destinations_in_entry(function_id)
+            .first()
+            .expect("missing stack allocation");
 
         let ordered_store = block.instructions[3];
         program.insert_pointer_access_with_options(

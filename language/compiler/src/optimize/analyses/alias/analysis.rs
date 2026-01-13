@@ -107,15 +107,34 @@ impl AliasAnalysis {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         loc: &MemoryLocation,
     ) -> ModRefInfo {
-        // start with BasicAA's assessment
-        let mut result = self.basic.get_mod_ref_info(instruction_id, loc, &self.tree);
+        self.get_mod_ref_info_with_metadata(instruction_id, loc, &[], &[], None)
+    }
 
-        // if BasicAA says no mod/ref, we're done
+    /// Get mod ref info for an instruction relative to a memory location.
+    pub fn get_mod_ref_info_with_metadata(
+        &self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        loc: &MemoryLocation,
+        alias_scopes: &[mir::AliasScopeId],
+        noalias_scopes: &[mir::AliasScopeId],
+        tbaa_tag: Option<mir::TbaaTagId>,
+    ) -> ModRefInfo {
+        // start with basic aa's assessment
+        let mut result = self.basic.get_mod_ref_info_with_metadata(
+            instruction_id,
+            loc,
+            alias_scopes,
+            noalias_scopes,
+            tbaa_tag,
+            &self.tree,
+        );
+
+        // if basic aa says no mod ref, we're done
         if result.is_no_mod_ref() {
             return result;
         }
 
-        // global analysis can refine for global accesses
+        // allow global analysis to refine call effects
         let inst = self.tree.get(instruction_id);
         if matches!(
             inst,
@@ -416,5 +435,163 @@ block0:
 
         assert!(aa.get_mod_ref_info(call_inst, &loc0).is_ref());
         assert!(aa.get_mod_ref_info(call_inst, &loc1).is_no_mod_ref());
+    }
+
+    #[test]
+    fn test_metadata_alias_scopes_refine_mod_ref() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let scope = program.create_alias_scope();
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+
+        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
+
+        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[scope], &[], None);
+
+        assert!(mod_ref.is_no_mod_ref());
+    }
+
+    #[test]
+    fn test_metadata_tbaa_refine_mod_ref() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let int_node = program.create_tbaa_node(None, false);
+        let float_node = program.create_tbaa_node(None, false);
+        let int_tag = program.create_tbaa_tag(int_node, int_node, 0, 4, false);
+        let float_tag = program.create_tbaa_tag(float_node, float_node, 0, 4, false);
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(int_tag),
+        );
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+
+        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
+
+        let mod_ref =
+            aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[], Some(float_tag));
+
+        assert!(mod_ref.is_no_mod_ref());
+    }
+
+    #[test]
+    fn test_metadata_alias_scopes_reverse_direction() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let scope = program.create_alias_scope();
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+
+        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
+
+        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[scope], None);
+
+        assert!(mod_ref.is_no_mod_ref());
+    }
+
+    #[test]
+    fn test_metadata_tbaa_disjoint_offsets() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 16i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let node = program.create_tbaa_node(None, false);
+        let tag_a = program.create_tbaa_tag(node, node, 0, 8, false);
+        let tag_b = program.create_tbaa_tag(node, node, 8, 8, false);
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(16),
+            Vec::new(),
+            Vec::new(),
+            Some(tag_a),
+        );
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let aa = analyses.get::<AliasAnalysis>();
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+
+        assert!(aa.get_mod_ref_info(memset_inst, &loc0).is_mod());
+
+        let mod_ref = aa.get_mod_ref_info_with_metadata(memset_inst, &loc0, &[], &[], Some(tag_b));
+
+        assert!(mod_ref.is_no_mod_ref());
     }
 }

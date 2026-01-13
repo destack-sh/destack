@@ -4,7 +4,7 @@ use destack_mir as mir;
 
 use crate::optimize::common::{
     DecomposedPointer, MemoryLocation, PointerBase, PointerDecomposer, RangeRelation,
-    range_relation,
+    alias_scopes_may_alias, range_relation, tbaa_tags_may_alias,
 };
 
 use super::common::FunctionAA;
@@ -307,6 +307,31 @@ impl BasicAA {
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
+        self.get_mod_ref_info_with_metadata(instruction_id, loc, &[], &[], None, tree)
+    }
+
+    /// Get mod ref info for an instruction relative to a memory location.
+    pub(super) fn get_mod_ref_info_with_metadata(
+        &self,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        loc: &MemoryLocation,
+        query_alias_scopes: &[mir::AliasScopeId],
+        query_noalias_scopes: &[mir::AliasScopeId],
+        query_tbaa_tag: Option<mir::TbaaTagId>,
+        tree: &mir::NodeTree,
+    ) -> ModRefInfo {
+        // prefer explicit memory metadata when present
+        if let Some(accesses) = tree.memory_table.memory_accesses(instruction_id) {
+            return self.mod_ref_from_metadata(
+                accesses,
+                loc,
+                query_alias_scopes,
+                query_noalias_scopes,
+                query_tbaa_tag,
+                tree,
+            );
+        }
+
         let inst = tree.get(instruction_id);
 
         match inst {
@@ -355,6 +380,187 @@ impl BasicAA {
 
             // pure instructions don't access memory
             _ => ModRefInfo::NO_MOD_REF,
+        }
+    }
+
+    /// Compute mod ref info for memory metadata entries.
+    fn mod_ref_from_metadata(
+        &self,
+        accesses: &[mir::MemoryAccessMetadata],
+        loc: &MemoryLocation,
+        query_alias_scopes: &[mir::AliasScopeId],
+        query_noalias_scopes: &[mir::AliasScopeId],
+        query_tbaa_tag: Option<mir::TbaaTagId>,
+        tree: &mir::NodeTree,
+    ) -> ModRefInfo {
+        if accesses.is_empty() {
+            return ModRefInfo::NO_MOD_REF;
+        }
+
+        let mut result = ModRefInfo::NO_MOD_REF;
+
+        for access in accesses {
+            if !self.metadata_may_alias(
+                access,
+                loc,
+                query_alias_scopes,
+                query_noalias_scopes,
+                query_tbaa_tag,
+                tree,
+            ) {
+                continue;
+            }
+
+            let access_mod_ref = match access.kind {
+                mir::MemoryAccessKind::Read | mir::MemoryAccessKind::PrefetchRead => {
+                    ModRefInfo::REF
+                }
+                mir::MemoryAccessKind::Write => ModRefInfo::MOD,
+                mir::MemoryAccessKind::ReadWrite | mir::MemoryAccessKind::ReadModifyWrite => {
+                    ModRefInfo::MOD_REF
+                }
+                mir::MemoryAccessKind::PrefetchWrite => ModRefInfo::REF,
+                mir::MemoryAccessKind::Fence => ModRefInfo::MOD_REF,
+            };
+
+            result = result.union(access_mod_ref);
+        }
+
+        result
+    }
+
+    /// Check whether a memory metadata entry may alias a location.
+    fn metadata_may_alias(
+        &self,
+        access: &mir::MemoryAccessMetadata,
+        loc: &MemoryLocation,
+        query_alias_scopes: &[mir::AliasScopeId],
+        query_noalias_scopes: &[mir::AliasScopeId],
+        query_tbaa_tag: Option<mir::TbaaTagId>,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        if !self.location_sets_overlap(access, loc, tree) {
+            return false;
+        }
+
+        if !self.address_spaces_overlap(access, loc, tree) {
+            return false;
+        }
+
+        if !alias_scopes_may_alias(
+            &access.alias_scopes,
+            &access.noalias_scopes,
+            query_alias_scopes,
+            query_noalias_scopes,
+        ) {
+            return false;
+        }
+
+        if !tbaa_tags_may_alias(&tree.memory_table.tbaa, access.tbaa_tag, query_tbaa_tag) {
+            return false;
+        }
+
+        match access.target {
+            mir::MemoryAccessTarget::Pointer(pointer) => {
+                let access_loc = MemoryLocation::new(pointer, access.size, None);
+                !self.alias(&access_loc, loc, tree).is_no_alias()
+            }
+            mir::MemoryAccessTarget::Local(_) => false,
+            mir::MemoryAccessTarget::Global(_) | mir::MemoryAccessTarget::Unknown => true,
+        }
+    }
+
+    /// Check location set overlap for metadata.
+    fn location_sets_overlap(
+        &self,
+        access: &mir::MemoryAccessMetadata,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        let Some(loc_set) = self.location_set_for_location(loc, tree) else {
+            return true;
+        };
+
+        let access_set = self.location_set_for_access(access, tree);
+        access_set.intersects(loc_set)
+    }
+
+    /// Check address space overlap for metadata.
+    fn address_spaces_overlap(
+        &self,
+        access: &mir::MemoryAccessMetadata,
+        loc: &MemoryLocation,
+        tree: &mir::NodeTree,
+    ) -> bool {
+        let Some(loc_space) = self.location_address_space(loc, tree) else {
+            return true;
+        };
+
+        let Some(access_space) = self.address_space_for_access(access, tree) else {
+            return true;
+        };
+
+        loc_space == access_space
+    }
+
+    /// Resolve the coarse location set for a metadata access.
+    fn location_set_for_access(
+        &self,
+        access: &mir::MemoryAccessMetadata,
+        tree: &mir::NodeTree,
+    ) -> mir::MemoryLocationSet {
+        if let Some(address_space) = access.address_space {
+            return self.location_set_for_address_space(address_space);
+        }
+
+        match access.target {
+            mir::MemoryAccessTarget::Pointer(pointer) => {
+                let access_loc = MemoryLocation::from_ptr(pointer);
+                self.location_set_for_location(&access_loc, tree)
+                    .unwrap_or(mir::MemoryLocationSet::ANY)
+            }
+            mir::MemoryAccessTarget::Local(_) => mir::MemoryLocationSet::STACK,
+            mir::MemoryAccessTarget::Global(_) => mir::MemoryLocationSet::GLOBAL,
+            mir::MemoryAccessTarget::Unknown => mir::MemoryLocationSet::ANY,
+        }
+    }
+
+    /// Resolve the address space for a metadata access.
+    fn address_space_for_access(
+        &self,
+        access: &mir::MemoryAccessMetadata,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::AddressSpace> {
+        if let Some(address_space) = access.address_space {
+            return Some(address_space);
+        }
+
+        match access.target {
+            mir::MemoryAccessTarget::Pointer(pointer) => {
+                let access_loc = MemoryLocation::from_ptr(pointer);
+                self.location_address_space(&access_loc, tree)
+            }
+            mir::MemoryAccessTarget::Local(_) => Some(mir::AddressSpace::Stack),
+            mir::MemoryAccessTarget::Global(_) => Some(mir::AddressSpace::Global),
+            mir::MemoryAccessTarget::Unknown => None,
+        }
+    }
+
+    /// Map address spaces to coarse location sets.
+    fn location_set_for_address_space(
+        &self,
+        address_space: mir::AddressSpace,
+    ) -> mir::MemoryLocationSet {
+        match address_space {
+            mir::AddressSpace::Stack => mir::MemoryLocationSet::STACK,
+            mir::AddressSpace::Global => mir::MemoryLocationSet::GLOBAL,
+            mir::AddressSpace::Heap => mir::MemoryLocationSet::HEAP,
+            mir::AddressSpace::Shared => mir::MemoryLocationSet::SHARED,
+            mir::AddressSpace::Local => mir::MemoryLocationSet::LOCAL,
+            mir::AddressSpace::Constant => mir::MemoryLocationSet::CONSTANT,
+            mir::AddressSpace::Generic | mir::AddressSpace::Target(_) => {
+                mir::MemoryLocationSet::ANY
+            }
         }
     }
 
@@ -761,6 +967,140 @@ block0:
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
 
         assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::NoAlias);
+    }
+
+    #[test]
+    fn test_memory_metadata_disambiguates_intrinsic() {
+        let mut program = TestProgram::new(
+            r#"function @test() -> void {
+block0:
+    v0 = stack.alloc i32
+    v1 = stack.alloc i32
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let pointers = program.stack_alloc_destinations_in_entry(function_id);
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+
+        assert_eq!(pointers.len(), 2);
+
+        let pointer_target = pointers[1];
+        let pointer_query = pointers[0];
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            pointer_target,
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+
+        let function = program.tree.get(function_id);
+        let aa = BasicAA::build(function, &program.tree, false, None);
+        let loc = MemoryLocation::from_ptr(pointer_query);
+        let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
+
+        assert_eq!(mod_ref, ModRefInfo::NO_MOD_REF);
+    }
+
+    #[test]
+    fn test_memory_metadata_respects_alias_scopes() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let scope = program.create_alias_scope();
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        let function = program.tree.get(function_id);
+        let aa = BasicAA::build(function, &program.tree, false, None);
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::MayAlias);
+
+        let mod_ref = aa.get_mod_ref_info_with_metadata(
+            memset_inst,
+            &loc0,
+            &[scope],
+            &[],
+            None,
+            &program.tree,
+        );
+
+        assert_eq!(mod_ref, ModRefInfo::NO_MOD_REF);
+    }
+
+    #[test]
+    fn test_memory_metadata_respects_tbaa_tags() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> void {
+block0(v0: ref<raw i32>, v1: ref<raw i32>):
+    v2 = iconst 0i8
+    v3 = iconst 4i64
+    intrinsic.memset(v1, v2, v3)
+    return
+}"#,
+        );
+
+        let function_id = program.entry_function_id();
+        let memset_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memset);
+        let int_node = program.create_tbaa_node(None, false);
+        let float_node = program.create_tbaa_node(None, false);
+        let int_tag = program.create_tbaa_tag(int_node, int_node, 0, 4, false);
+        let float_tag = program.create_tbaa_tag(float_node, float_node, 0, 4, false);
+
+        program.insert_pointer_access(
+            memset_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(1),
+            Some(4),
+            Vec::new(),
+            Vec::new(),
+            Some(int_tag),
+        );
+
+        let function = program.tree.get(function_id);
+        let aa = BasicAA::build(function, &program.tree, false, None);
+        let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
+        let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
+
+        assert_eq!(aa.alias(&loc0, &loc1, &program.tree), AliasResult::MayAlias);
+
+        let mod_ref = aa.get_mod_ref_info_with_metadata(
+            memset_inst,
+            &loc0,
+            &[],
+            &[],
+            Some(float_tag),
+            &program.tree,
+        );
+
+        assert_eq!(mod_ref, ModRefInfo::NO_MOD_REF);
     }
 
     #[test]
