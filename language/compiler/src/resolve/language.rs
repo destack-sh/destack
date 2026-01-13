@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
-use destack_workspace::{Builtins, ProfileId, SymbolGroup, WellKnownSymbols};
+use destack_workspace::{AmbientLibSymbolKey, Builtins, ProfileId, SymbolGroup, WellKnownSymbols};
 use indexmap::IndexMap;
 
 use crate::resolve::globals::GlobalSymbolCache;
@@ -114,12 +114,15 @@ impl Compiler {
         // collect all ambient lib symbols
         let ambient_symbols =
             self.collect_ambient_lib_symbols(profile_id, &ambient_modules, &global_cache);
+        let ambient_symbol_sources =
+            self.collect_ambient_lib_symbol_sources(&ambient_modules, &global_cache);
 
         // cache declared lib symbols
         builtins.set_declared_lib_symbols(&profile_key, declared_symbols.clone());
 
         // cache ambient lib symbols
         builtins.set_ambient_lib_symbols(&profile_key, ambient_symbols);
+        builtins.set_ambient_lib_symbol_sources(&profile_key, ambient_symbol_sources);
 
         // cache well-known symbols
         let well_known_symbols = WellKnownSymbols::build(&self.program.strings, &declared_symbols);
@@ -336,6 +339,39 @@ impl Compiler {
         ambient_symbols
     }
 
+    /// Collect ambient lib symbol sources grouped by key and space.
+    fn collect_ambient_lib_symbol_sources(
+        &self,
+        ambient_modules: &[destack_source::ModuleId],
+        global_cache: &GlobalSymbolCache,
+    ) -> IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>> {
+        let mut sources = IndexMap::new();
+        let ambient_set: HashSet<_> = ambient_modules.iter().copied().collect();
+
+        for (group_key, group_sources) in &global_cache.sources_by_space {
+            let mut filtered = Vec::new();
+            for symbol in group_sources {
+                if ambient_set.contains(&symbol.module_id) {
+                    filtered.push(*symbol);
+                }
+            }
+
+            if filtered.is_empty() {
+                continue;
+            }
+
+            sources.insert(
+                AmbientLibSymbolKey {
+                    key: group_key.key,
+                    space: group_key.space,
+                },
+                filtered,
+            );
+        }
+
+        sources
+    }
+
     /// Load lib modules in dependency order and collect module lists.
     fn load_lib_modules_in_order(
         &self,
@@ -509,6 +545,94 @@ impl Compiler {
         let builtins = self.program.builtins.as_ref()?;
         let profile = self.program.profile(profile_id);
         builtins.get_declared_lib_symbol_for_space_order(&profile.key, name, order)
+    }
+
+    /// Get ambient lib symbol sources for a profile, key, and space.
+    pub fn get_ambient_lib_symbol_sources(
+        &self,
+        profile_id: ProfileId,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        let builtins = self.program.builtins.as_ref()?;
+        let profile = self.program.profile(profile_id);
+        builtins.get_ambient_lib_symbol_sources(&profile.key, key, space)
+    }
+
+    /// Get ambient lib symbol sources for merge (includes type-value sources).
+    pub fn get_ambient_lib_symbol_sources_for_merge(
+        &self,
+        profile_id: ProfileId,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        let mut sources = Vec::new();
+        let mut seen = HashSet::new();
+        let mut push_sources = |space| {
+            if let Some(group) = self.get_ambient_lib_symbol_sources(profile_id, key, space) {
+                for symbol in group {
+                    if seen.insert(symbol) {
+                        sources.push(symbol);
+                    }
+                }
+            }
+        };
+
+        match space {
+            SymbolSpace::Type => {
+                push_sources(SymbolSpace::Type);
+                push_sources(SymbolSpace::TypeValue);
+            }
+            SymbolSpace::Value => {
+                push_sources(SymbolSpace::Value);
+                push_sources(SymbolSpace::TypeValue);
+            }
+            SymbolSpace::TypeValue => {
+                push_sources(SymbolSpace::Type);
+                push_sources(SymbolSpace::Value);
+                push_sources(SymbolSpace::TypeValue);
+            }
+            SymbolSpace::Label => {}
+        }
+
+        if sources.is_empty() {
+            None
+        } else {
+            Some(sources)
+        }
+    }
+
+    /// Get ambient lib symbol sources for a profile, key, and space order.
+    pub fn get_ambient_lib_symbol_sources_for_space_order(
+        &self,
+        profile_id: ProfileId,
+        key: StaticKey,
+        order: SymbolSpaceOrder,
+    ) -> Option<Vec<GlobalSymbolId>> {
+        let mut sources = Vec::new();
+        let mut seen = HashSet::new();
+        let mut push_sources = |space| {
+            if let Some(group) = self.get_ambient_lib_symbol_sources(profile_id, key, space) {
+                for symbol in group {
+                    if seen.insert(symbol) {
+                        sources.push(symbol);
+                    }
+                }
+            }
+        };
+
+        for space in order.spaces() {
+            push_sources(*space);
+            if matches!(space, SymbolSpace::Type | SymbolSpace::Value) {
+                push_sources(SymbolSpace::TypeValue);
+            }
+        }
+
+        if sources.is_empty() {
+            None
+        } else {
+            Some(sources)
+        }
     }
 
     /// Get a declared lib symbol from the cache, panicking if not found.
