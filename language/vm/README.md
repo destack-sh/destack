@@ -68,6 +68,7 @@ The runtime owns scheduling, I/O, and platform integration.
 
 The VM executes MIR and reconstructs state.
 Platform services (I/O, bindings, scheduling, replay) live in the runtime.
+External bindings are defined by the runtime ABI for native code and by `ExternalContext` for the interpreter.
 
 ## Security Model
 
@@ -508,8 +509,10 @@ Telemetry libraries should correlate VM signals with runtime traces.
 Given the same input values and runtime configuration, VM execution is deterministic.
 Time, randomness, and scheduling are provided by the runtime and must be explicitly configured for deterministic simulations.
 
-Determinism is controlled via `determinismMode`:
+Determinism is controlled via `determinism`:
 - `Deterministic` uses a deterministic scheduler and fixed PRNG seeds.
+
+Replay is controlled via `replay`:
 - `Record` uses runtime-provided recording for external I/O.
 - `Replay` uses runtime-provided replay for external I/O.
 

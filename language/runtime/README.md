@@ -60,6 +60,21 @@ It must:
 
 Determinism is defined by scheduler policy, platform sources, and replay.
 
+## Native Binding ABI
+
+Native code calls runtime bindings through a typed C ABI.
+The runtime provides a TLS-backed host call context that carries the active host state and binding policy.
+
+The native ABI uses simple FFI-safe structs:
+
+- `HostStringRef`: `{ data: *const u8, len: u64 }` UTF-8 string view
+- `HostStringSlice`: `{ data: *const HostStringRef, len: u64 }` slice of strings
+- `HostStatus`: `{ code: u32 }` status code (0 = success)
+
+Bindings are exported under stable names like `destack.console.log` and `destack.process.args`.
+The runtime enforces binding policy (determinism and replay) at the ABI boundary.
+VM execution uses `ExternalContext` and `Value` shims instead of this typed ABI.
+
 # Responsibilities
 
 The runtime owns platform integration and orchestration around the VM or native code.

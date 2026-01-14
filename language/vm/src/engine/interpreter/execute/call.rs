@@ -12,6 +12,7 @@ use super::super::decode::{
 };
 use super::super::state::{Frame, InterpreterContext, resize_and_clear_stack};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput, ExecutionYield, YieldState};
+use crate::isolate::ExternalContext;
 
 // tuning: small contiguous ranges copy faster with a loop
 const CONTIGUOUS_COPY_THRESHOLD: usize = 8;
@@ -479,7 +480,11 @@ impl<'a> InterpreterContext<'a> {
             // execute external handler
             // safety: handler pointer is stable for interpreter lifetime
             let handler = unsafe { handler.as_ref() };
-            let value = handler(arguments).map_err(|e| self.make_error(e))?;
+            let value = {
+                let mut context = ExternalContext::new(self.isolate);
+                handler(&mut context, arguments)
+            }
+            .map_err(|e| self.make_error(e))?;
 
             // return external result
             let outcome = self.finish_execution(value);
@@ -835,7 +840,11 @@ impl<'a> InterpreterContext<'a> {
                         // execute external handler
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
-                        let result = handler(&args).map_err(|e| self.make_error(e))?;
+                        let result = {
+                            let mut context = ExternalContext::new(self.isolate);
+                            handler(&mut context, &args)
+                        }
+                        .map_err(|e| self.make_error(e))?;
 
                         // store result and continue from resume_pc
                         let frame = self
@@ -996,7 +1005,11 @@ impl<'a> InterpreterContext<'a> {
                         // execute external handler
                         // safety: handler pointer is stable for interpreter lifetime
                         let handler = unsafe { handler.as_ref() };
-                        let result = handler(&argument_values).map_err(|e| self.make_error(e))?;
+                        let result = {
+                            let mut context = ExternalContext::new(self.isolate);
+                            handler(&mut context, &argument_values)
+                        }
+                        .map_err(|e| self.make_error(e))?;
 
                         // pop completed frame
                         let frame = self

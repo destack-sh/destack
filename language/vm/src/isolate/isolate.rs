@@ -3,12 +3,12 @@ use std::fmt;
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use super::IsolateState;
+use super::{ExternalHandler, IsolateState};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::engine::compiled::CompiledEngine;
 use crate::engine::interpreter::{InterpreterContext, InterpreterEngine};
 use crate::execute::{Continuation, ExecutionOutcome, ExecutionOutput};
-use crate::memory::{GcStats, HeapHandle, ManagedHeap, RawHeap, StringLayout, Value};
+use crate::memory::{GcStats, HeapHandle, ManagedHeap, RawHeap, RawPointer, Value};
 use crate::options::IsolateOptions;
 
 /// VM isolate with its own heaps, globals, and execution state.
@@ -100,11 +100,18 @@ impl Isolate {
     }
 
     /// Register an external function handler.
-    pub fn register_external<F>(&mut self, name: &str, handler: F)
-    where
-        F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
-    {
-        self.with_interpreter(|context| context.register_external(name, handler));
+    pub fn register_external(&mut self, name: &str, handler: impl ExternalHandler + 'static) {
+        self.state.register_external(name, handler);
+    }
+
+    /// Intern a UTF-8 string and return the managed string value.
+    pub fn intern_string(&mut self, value: &str) -> Value {
+        self.state.intern_string_literal(value)
+    }
+
+    /// Allocate a raw heap cell with value slots and return its pointer.
+    pub fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
+        self.state.allocate_raw_values(values)
     }
 
     /// Resolve a function id by name.
@@ -173,17 +180,17 @@ impl Isolate {
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        self.with_interpreter(|context| context.allocate_aggregate(values))
+        self.state.allocate_aggregate(values)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     pub fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        self.with_interpreter(|context| context.allocate_pair(first, second))
+        self.state.allocate_pair(first, second)
     }
 
     /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
     pub fn allocate_single(&mut self, value: Value) -> Value {
-        self.with_interpreter(|context| context.allocate_single(value))
+        self.state.allocate_single(value)
     }
 
     /// Get a reference to the managed heap.
@@ -198,66 +205,12 @@ impl Isolate {
 
     /// Read a UTF-8 string value from the heap.
     pub fn string_value(&self, value: Value) -> Result<String, Error> {
-        let handle = match value.tag() {
-            crate::memory::ValueTag::String => value.as_heap_handle().unwrap(),
-            _ => {
-                return Err(Error::TypeMismatch {
-                    expected: "string".to_string(),
-                    actual: format!("{value:?}"),
-                });
-            }
-        };
-
-        self.string_value_for_handle(handle)
+        self.state.string_value(value)
     }
 
     /// Read a UTF-8 string from a managed handle.
     pub fn string_value_for_handle(&self, handle: HeapHandle) -> Result<String, Error> {
-        if handle.is_null() {
-            return Err(Error::NullPointerDereference);
-        }
-
-        let cell = self
-            .state
-            .managed_heap
-            .get(handle)
-            .ok_or(Error::InvalidHeapHandle)?;
-        let length_value = cell
-            .slots
-            .get(StringLayout::LENGTH_BYTES)
-            .copied()
-            .ok_or(Error::InvalidHeapHandle)?;
-        let length = length_value.as_uint().ok_or_else(|| Error::TypeMismatch {
-            expected: "u32".to_string(),
-            actual: format!("{length_value:?}"),
-        })? as usize;
-        if length == 0 {
-            return Ok(String::new());
-        }
-
-        let data_value = cell
-            .slots
-            .get(StringLayout::DATA)
-            .copied()
-            .ok_or(Error::InvalidHeapHandle)?;
-        let data_ptr = data_value
-            .as_raw_pointer()
-            .ok_or(Error::InvalidHeapHandle)?;
-        let raw_cell = self
-            .state
-            .raw_heap
-            .get(data_ptr)
-            .ok_or(Error::InvalidHeapHandle)?;
-        let bytes = match &raw_cell.storage {
-            crate::memory::RawCellStorage::Bytes(bytes) => bytes,
-            _ => return Err(Error::InvalidHeapHandle),
-        };
-        let value = String::from_utf8(bytes.clone()).map_err(|_| Error::TypeMismatch {
-            expected: "string".to_string(),
-            actual: "bytes".to_string(),
-        })?;
-
-        Ok(value)
+        self.state.string_value_for_handle(handle)
     }
 
     /// Get a reference to the raw heap.

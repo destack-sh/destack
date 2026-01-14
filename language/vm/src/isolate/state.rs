@@ -1,20 +1,15 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_base::ImmutableStringPool;
 use destack_mir as mir;
 
-use super::GlobalStorage;
+use super::string::StringInterner;
+use super::{ExternalFn, ExternalFnPtr, ExternalHandler, GlobalStorage};
 use crate::diagnostic::Error;
 use crate::memory::{HeapHandle, ManagedHeap, RawHeap, RawPointer, Value};
 use crate::options::IsolateOptions;
-
-/// External function type.
-pub type ExternalFn = Box<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
-/// Cached external handler pointer.
-pub(crate) type ExternalFnPtr = NonNull<dyn Fn(&[Value]) -> Result<Value, Error> + Send + Sync>;
 
 // isolate id generator for continuation validation
 static ISOLATE_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
@@ -31,10 +26,8 @@ pub(crate) struct IsolateState {
     pub(crate) managed_heap: ManagedHeap,
     /// The raw heap (manually managed allocations).
     pub(crate) raw_heap: RawHeap,
-    /// Interned string literals mapped to heap handles.
-    pub(crate) string_literals: HashMap<String, HeapHandle>,
-    /// Raw heap buffers for string payloads.
-    pub(crate) string_buffers: HashMap<HeapHandle, RawPointer>,
+    /// String interner for literal storage.
+    pub(crate) string_interner: StringInterner,
     /// Global variable storage.
     pub(crate) globals: GlobalStorage,
     /// External function handlers.
@@ -65,14 +58,93 @@ impl IsolateState {
             strings,
             managed_heap: ManagedHeap::new(),
             raw_heap: RawHeap::new(),
-            string_literals: HashMap::new(),
-            string_buffers: HashMap::new(),
+            string_interner: StringInterner::new(),
             globals: GlobalStorage::new(),
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
             function_name_map,
             options,
         }
+    }
+
+    /// Register an external function handler.
+    pub(crate) fn register_external(
+        &mut self,
+        name: &str,
+        handler: impl ExternalHandler + 'static,
+    ) {
+        self.externals.insert(name.to_string(), Box::new(handler));
+
+        // cache handler pointer for direct id lookup
+        if let Some(func_id) = self.function_name_map.get(name).copied() {
+            let index = func_id.id as usize;
+            if self.externals_by_id.len() <= index {
+                self.externals_by_id.resize(index + 1, None);
+            }
+            if let Some(handler) = self.externals.get(name) {
+                self.externals_by_id[index] = Some(ExternalFnPtr::from(handler.as_ref()));
+            }
+        }
+    }
+
+    /// Intern a string literal and return its managed value.
+    pub(crate) fn intern_string_literal(&mut self, value: &str) -> Value {
+        // delegate to the string interner
+        self.string_interner.intern_string_literal(
+            &mut self.managed_heap,
+            &mut self.raw_heap,
+            value,
+        )
+    }
+
+    /// Read a UTF-8 string value from the heap.
+    pub(crate) fn string_value(&self, value: Value) -> Result<String, Error> {
+        // delegate to the string interner
+        self.string_interner
+            .string_value(&self.managed_heap, &self.raw_heap, value)
+    }
+
+    /// Read a UTF-8 string from a managed handle.
+    pub(crate) fn string_value_for_handle(&self, handle: HeapHandle) -> Result<String, Error> {
+        // delegate to the string interner
+        self.string_interner
+            .string_value_for_handle(&self.managed_heap, &self.raw_heap, handle)
+    }
+
+    /// Allocate an aggregate on the heap and return it as a Value.
+    pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
+        let handle = self.managed_heap.allocate_with_values(values);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
+    pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
+        let handle = self.managed_heap.allocate_pair(first, second);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
+    pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
+        let handle = self.managed_heap.allocate_single(value);
+        Value::aggregate(handle)
+    }
+
+    /// Allocate a raw heap cell with value slots and return its pointer.
+    pub(crate) fn allocate_raw_values(&mut self, values: Vec<Value>) -> RawPointer {
+        self.raw_heap.allocate_with_values(values)
+    }
+
+    /// Collect string literal handles as GC roots.
+    pub(crate) fn collect_string_roots(&self, roots: &mut Vec<HeapHandle>) {
+        // delegate to the string interner
+        self.string_interner.collect_roots(roots);
+    }
+
+    /// Sweep raw string payloads for freed managed string headers.
+    pub(crate) fn sweep_string_buffers(&mut self) {
+        // delegate to the string interner
+        self.string_interner
+            .sweep_buffers(&self.managed_heap, &mut self.raw_heap);
     }
 }
 
@@ -81,14 +153,7 @@ impl fmt::Debug for IsolateState {
         f.debug_struct("IsolateState")
             .field("managed_heap", &self.managed_heap)
             .field("raw_heap", &self.raw_heap)
-            .field(
-                "string_literals",
-                &format!("<{} literals>", self.string_literals.len()),
-            )
-            .field(
-                "string_buffers",
-                &format!("<{} buffers>", self.string_buffers.len()),
-            )
+            .field("string_interner", &self.string_interner)
             .field("globals", &format!("<{} globals>", self.globals.len()))
             .field("externals", &format!("<{} handlers>", self.externals.len()))
             .field("options", &self.options)
