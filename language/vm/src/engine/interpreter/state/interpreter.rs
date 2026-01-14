@@ -7,10 +7,7 @@ use destack_mir as mir;
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
 use crate::execute::Continuation;
 use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
-use crate::memory::{
-    GcStats, HeapHandle, RawCellStorage, RawPointer, STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED,
-    STRING_FLAG_IS_STATIC, StringLayout, Value,
-};
+use crate::memory::{GcStats, RawCellStorage, RawPointer, Value};
 use crate::telemetry::Statistics;
 
 use super::super::decode::{
@@ -177,6 +174,7 @@ impl ThreadedFunctionTable {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> InterpreterContext<'a> {
     /// Enable instruction profiling with the given sampling interval.
     #[cfg(feature = "stats")]
@@ -348,48 +346,7 @@ impl<'a> InterpreterContext<'a> {
 
     /// Intern a string literal and return its managed value.
     pub(crate) fn intern_string_literal(&mut self, value: &str) -> Value {
-        // reuse existing interned handle
-        if let Some(handle) = self.isolate.string_literals.get(value).copied() {
-            return Value::string(handle);
-        }
-
-        // compute UTF-8 byte length
-        let length_bytes = value.len();
-
-        // compute UTF-16 code unit length
-        let length_utf16 = value.encode_utf16().count();
-
-        // validate length bounds for string metadata
-        if length_bytes > u32::MAX as usize || length_utf16 > u32::MAX as usize {
-            panic!("string literal exceeds u32 length limits");
-        }
-
-        // materialize length fields
-        let length_bytes = length_bytes as u32;
-        let length_utf16 = length_utf16 as u32;
-
-        // compute string flags for literal storage
-        let mut flags = STRING_FLAG_IS_INTERNED | STRING_FLAG_IS_STATIC;
-        if value.is_ascii() {
-            flags |= STRING_FLAG_IS_ASCII;
-        }
-
-        // allocate raw UTF-8 payload
-        let data = self.allocate_string_bytes(value.as_bytes());
-
-        // allocate the managed string header
-        let handle =
-            self.allocate_string_cell(length_utf16, length_bytes, 0, length_bytes, flags, data);
-
-        // record interned handle and payload buffer
-        self.isolate
-            .string_literals
-            .insert(value.to_string(), handle);
-        if !data.is_null() {
-            self.isolate.string_buffers.insert(handle, data);
-        }
-
-        Value::string(handle)
+        self.isolate.intern_string_literal(value)
     }
 
     /// Pre-intern string literals referenced by threaded const instructions.
@@ -414,40 +371,6 @@ impl<'a> InterpreterContext<'a> {
         for literal in literals {
             self.intern_string_literal(&literal);
         }
-    }
-
-    /// Allocate raw heap storage for string payload bytes.
-    fn allocate_string_bytes(&mut self, bytes: &[u8]) -> RawPointer {
-        // treat empty payloads as null pointers
-        if bytes.is_empty() {
-            return RawPointer::NULL;
-        }
-
-        // allocate raw heap buffer for payload
-        self.isolate.raw_heap.allocate_with_bytes(bytes)
-    }
-
-    /// Allocate a managed string header cell.
-    fn allocate_string_cell(
-        &mut self,
-        length_utf16: u32,
-        length_bytes: u32,
-        hash: u64,
-        capacity: u32,
-        flags: u32,
-        data: RawPointer,
-    ) -> HeapHandle {
-        // assemble header slots for the string layout
-        let mut slots = vec![Value::VOID; StringLayout::SLOT_COUNT];
-        slots[StringLayout::LENGTH_UTF16] = Value::uint(length_utf16 as u64, 32);
-        slots[StringLayout::LENGTH_BYTES] = Value::uint(length_bytes as u64, 32);
-        slots[StringLayout::HASH] = Value::uint(hash, 64);
-        slots[StringLayout::CAPACITY] = Value::uint(capacity as u64, 32);
-        slots[StringLayout::FLAGS] = Value::uint(flags as u64, 32);
-        slots[StringLayout::DATA] = Value::raw_pointer(data);
-
-        // allocate managed heap cell for the header
-        self.isolate.managed_heap.allocate_with_values(slots)
     }
 
     /// Get the slot count for a raw pointer.
@@ -578,42 +501,8 @@ impl<'a> InterpreterContext<'a> {
 
     /// Sweep raw string payloads for freed managed string headers.
     fn sweep_string_buffers(&mut self) {
-        // collect handles to free without mutating during iteration
-        let mut freed_buffers = Vec::new();
-        for (&handle, &raw_ptr) in &self.isolate.string_buffers {
-            if !self.isolate.managed_heap.is_allocated(handle) {
-                freed_buffers.push((handle, raw_ptr));
-            }
-        }
-
-        // release raw payloads for freed strings
-        for (handle, raw_ptr) in freed_buffers {
-            self.isolate.string_buffers.remove(&handle);
-            if !raw_ptr.is_null() {
-                self.isolate.raw_heap.free(raw_ptr);
-            }
-        }
-    }
-
-    /// Register an external function handler.
-    pub(crate) fn register_external<F>(&mut self, name: &str, handler: F)
-    where
-        F: Fn(&[Value]) -> Result<Value, Error> + Send + Sync + 'static,
-    {
-        self.isolate
-            .externals
-            .insert(name.to_string(), Box::new(handler));
-
-        // cache handler pointer for direct id lookup
-        if let Some(func_id) = self.isolate.function_name_map.get(name).copied() {
-            let index = func_id.id as usize;
-            if self.isolate.externals_by_id.len() <= index {
-                self.isolate.externals_by_id.resize(index + 1, None);
-            }
-            if let Some(handler) = self.isolate.externals.get(name) {
-                self.isolate.externals_by_id[index] = Some(NonNull::from(handler.as_ref()));
-            }
-        }
+        // delegate to the isolate string interner
+        self.isolate.sweep_string_buffers();
     }
 
     /// Resolve an external handler for an imported function id.
@@ -651,22 +540,19 @@ impl<'a> InterpreterContext<'a> {
 
     /// Allocate an aggregate on the heap and return it as a Value.
     pub(crate) fn allocate_aggregate(&mut self, values: Vec<Value>) -> Value {
-        let handle = self.isolate.managed_heap.allocate_with_values(values);
-        Value::aggregate(handle)
+        self.isolate.allocate_aggregate(values)
     }
 
     /// Allocate a 2-element aggregate on the heap (avoids Vec allocation).
     #[inline]
     pub(crate) fn allocate_pair(&mut self, first: Value, second: Value) -> Value {
-        let handle = self.isolate.managed_heap.allocate_pair(first, second);
-        Value::aggregate(handle)
+        self.isolate.allocate_pair(first, second)
     }
 
     /// Allocate a 1-element aggregate on the heap (avoids Vec allocation).
     #[inline]
     pub(crate) fn allocate_single(&mut self, value: Value) -> Value {
-        let handle = self.isolate.managed_heap.allocate_single(value);
-        Value::aggregate(handle)
+        self.isolate.allocate_single(value)
     }
 
     /// Get the slots of an aggregate value (looking up from heap if needed).
@@ -679,7 +565,6 @@ impl<'a> InterpreterContext<'a> {
 
     /// Create an error with instruction anchor.
     #[cold]
-    #[allow(dead_code)]
     pub(crate) fn make_error_at(
         &self,
         error: Error,
@@ -751,9 +636,7 @@ impl<'a> InterpreterContext<'a> {
         }
 
         // collect roots from interned string literals
-        for handle in self.isolate.string_literals.values() {
-            roots.push(*handle);
-        }
+        self.isolate.collect_string_roots(&mut roots);
 
         // run collection
         let freed_cells = self.isolate.managed_heap.collect(&roots);

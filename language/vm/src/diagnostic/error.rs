@@ -5,14 +5,14 @@ use destack_mir as mir;
 pub enum DiagnosticAnchor {
     /// No specific location.
     None,
-    /// A specific function.
+    /// Specific function.
     Function(mir::LocalNodeId<mir::Function>),
-    /// A specific block within a function.
+    /// Specific block within a function.
     Block {
         function: mir::LocalNodeId<mir::Function>,
         block: mir::LocalNodeId<mir::Block>,
     },
-    /// A specific instruction within a block.
+    /// Specific instruction within a block.
     Instruction {
         function: mir::LocalNodeId<mir::Function>,
         block: mir::LocalNodeId<mir::Block>,
@@ -69,6 +69,9 @@ pub enum Error {
 
     /// External function not found.
     ExternalFunctionNotFound { name: String } = 10,
+
+    /// External call forbidden by policy.
+    ExternalCallForbidden { name: String } = 32,
 
     /// Invalid instruction.
     InvalidInstruction = 11,
@@ -171,6 +174,9 @@ impl Error {
             Self::Unreachable => "reached unreachable code".to_string(),
             Self::ExternalFunctionNotFound { name } => {
                 format!("external function not found: {name}")
+            }
+            Self::ExternalCallForbidden { name } => {
+                format!("external call forbidden: {name}")
             }
             Self::InvalidInstruction => "invalid instruction".to_string(),
             Self::AllocationFailed => "memory allocation failed (heap limit exceeded)".to_string(),

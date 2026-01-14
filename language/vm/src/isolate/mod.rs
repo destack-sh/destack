@@ -1,7 +1,10 @@
+mod external;
 mod globals;
 mod isolate;
 mod state;
+mod string;
 
+pub use external::*;
 pub use globals::*;
 pub use isolate::*;
-pub use state::*;
+pub(crate) use state::*;

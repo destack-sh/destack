@@ -1,7 +1,7 @@
 /// String header slot layout for managed heap strings.
 pub(crate) struct StringLayout;
 
-// see [string.ds](language/builtin/lib/native/string/string.ds)
+// StringLayout as defined by the builtin/lib/native/string/string.ds file.
 impl StringLayout {
     /// The slot index for `lengthUtf16`.
     pub(crate) const LENGTH_UTF16: usize = 0;
