@@ -804,6 +804,33 @@ impl Compiler {
                 continue;
             }
 
+            // allow merged symbols to satisfy value or type paths
+            if let Some(group_id) = symbol.merge_group {
+                let group_symbols = symbols.merge_group_symbols(group_id);
+                let match_space = |requested: SymbolSpace, actual: SymbolSpace| match requested {
+                    SymbolSpace::Type => {
+                        matches!(actual, SymbolSpace::Type | SymbolSpace::TypeValue)
+                    }
+                    SymbolSpace::Value => {
+                        matches!(actual, SymbolSpace::Value | SymbolSpace::TypeValue)
+                    }
+                    SymbolSpace::TypeValue => matches!(actual, SymbolSpace::TypeValue),
+                    SymbolSpace::Label => false,
+                };
+
+                for requested_space in space_order.spaces() {
+                    let candidate = group_symbols.iter().copied().find(|group_symbol| {
+                        let merged_symbol = symbols.get_symbol(*group_symbol);
+                        merged_symbol.kind != SymbolKind::Namespace
+                            && match_space(*requested_space, merged_symbol.space)
+                    });
+                    if let Some(group_symbol) = candidate {
+                        let remaining = path.slice(i..);
+                        return Ok((group_symbol, Some(remaining)));
+                    }
+                }
+            }
+
             // report a missing symbol in the namespace scope
             return Err(ResolveError::MissingSymbol {
                 node: node.into_anchored(Some(profile_id)),
@@ -961,8 +988,14 @@ impl Compiler {
             return Ok(expr);
         }
 
-        // try prelude if enabled (skip for builtin modules to avoid circular dependencies)
-        if module.is_user()
+        // avoid prelude lookup inside the prelude module itself
+        let is_prelude_module = self
+            .program
+            .builtins
+            .as_ref()
+            .is_some_and(|builtins| builtins.prelude_module_id == module.id);
+
+        if !is_prelude_module
             && let Some(prelude_symbol) = self.resolve_prelude_symbol(first_segment, profile)?
         {
             return self.resolve_prelude_path(

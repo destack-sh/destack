@@ -128,9 +128,13 @@ impl Compiler {
         };
         let normalize_well_known_symbol =
             |symbol: GlobalSymbolId, well_known: &WellKnownSymbols| -> Option<GlobalSymbolId> {
-                let base_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
-                if symbol == base_symbol {
-                    return Some(base_symbol);
+                let group = well_known.get_group(WellKnownSymbol::Symbol)?;
+                let candidates = [group.value, group.ty];
+
+                for candidate in candidates.iter().flatten() {
+                    if symbol == *candidate {
+                        return Some(*candidate);
+                    }
                 }
 
                 let is_ambient = self.program.builtins.as_ref().is_some_and(|builtins| {
@@ -144,24 +148,27 @@ impl Compiler {
                 }
 
                 let symbol_key = symbol_key_for_global(symbol)?;
-                let base_key = symbol_key_for_global(base_symbol)?;
-                if symbol_key != base_key {
-                    return None;
+                for candidate in candidates.iter().flatten() {
+                    let base_key = symbol_key_for_global(*candidate)?;
+                    if symbol_key == base_key {
+                        return Some(*candidate);
+                    }
                 }
 
-                Some(base_symbol)
+                None
             };
 
         // resolve Symbol.* member keys
         if let Expression::Member { left, name, .. } = expression {
-            let base_symbol = tree.get(*left).target_symbol()?;
             let well_known = self.get_well_known_symbols(profile)?;
-            let symbol_key = well_known
-                .symbol_key_for_member(base_symbol, *name)
-                .or_else(|| {
-                    let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
-                    well_known.symbol_key_for_member(normalized, *name)
-                })?;
+            let symbol_key = tree.get(*left).target_symbol().and_then(|base_symbol| {
+                well_known
+                    .symbol_key_for_member(base_symbol, *name)
+                    .or_else(|| {
+                        let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
+                        well_known.symbol_key_for_member(normalized, *name)
+                    })
+            })?;
             return Some(StaticKey::Symbol(SymbolKey::WellKnown(symbol_key)));
         }
 
@@ -178,11 +185,10 @@ impl Compiler {
             let well_known = self.get_well_known_symbols(profile)?;
             let symbol_symbol = well_known.get_symbol(WellKnownSymbol::Symbol)?;
             let base_symbol = tree.get(*left).target_symbol()?;
-            if base_symbol != symbol_symbol {
-                let normalized = normalize_well_known_symbol(base_symbol, &well_known)?;
-                if normalized != symbol_symbol {
-                    return None;
-                }
+            if base_symbol != symbol_symbol
+                && normalize_well_known_symbol(base_symbol, &well_known).is_none()
+            {
+                return None;
             }
             let member_name = self.program.strings.get(*name);
             if member_name.as_ref() != "for" {
@@ -237,7 +243,8 @@ impl Compiler {
                 |symbols: &SymbolTable, types: &TypeTable, tree: &NodeTree| {
                     let symbol_entry = symbols.get_symbol(symbol.local_id);
                     let primary_declaration = symbol_entry.primary_declaration?;
-                    if let Some(declared_type_id) = types.get_declared_type_id(primary_declaration) {
+                    if let Some(declared_type_id) = types.get_declared_type_id(primary_declaration)
+                    {
                         return Some(declared_type_id);
                     }
 
@@ -245,8 +252,7 @@ impl Compiler {
                     let mut current_id = primary_declaration.local_id;
                     while let Some(parent) = tree.get_parent(current_id.id) {
                         if parent.ty == NodeType::Declarator {
-                            let global_parent =
-                                GlobalNodeIdAny::new(symbols.module_id, parent);
+                            let global_parent = GlobalNodeIdAny::new(symbols.module_id, parent);
                             return types.get_declared_type_id(global_parent);
                         }
                         current_id = parent;
@@ -261,8 +267,7 @@ impl Compiler {
                 if symbol_entry.primary_declaration.is_none() {
                     return false;
                 };
-                let Some(declared_type_id) =
-                    declared_type_id_for_symbol(symbols, types, tree)
+                let Some(declared_type_id) = declared_type_id_for_symbol(symbols, types, tree)
                 else {
                     return false;
                 };

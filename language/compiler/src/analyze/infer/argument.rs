@@ -459,6 +459,20 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
+        // pre evaluate local type aliases used as bounds
+        if let Type::Reference { symbol, .. } = types.get_type(static_parameter.declared_type_id)
+            && symbol.ty() == SymbolType::TypeAlias
+        {
+            self.unwrap_type_alias_reference(
+                module,
+                profile,
+                static_parameter.declared_type_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
         // evaluate the declared bound when needed
         if matches!(
             types.get_type(static_parameter.declared_type_id),
@@ -578,11 +592,24 @@ impl Compiler {
                 return Ok(Some(substitution_ty_id));
             }
 
+            // substitute the argument into self referential bounds
+            let expected_ty_id = {
+                let mut substitutions = HashMap::new();
+                substitutions.insert(static_parameter.symbol, substitution_ty_id);
+                let mut cache = HashMap::new();
+                self.substitute_static_parameters(
+                    static_parameter.declared_type_id,
+                    &substitutions,
+                    types,
+                    &mut cache,
+                )
+            };
+
             // register an inference constraint for the declared bound
             if let Some(infer) = infer {
                 infer.push_constraint(Constraint::Subtype {
                     sub_type: substitution_ty_id,
-                    super_type: static_parameter.declared_type_id,
+                    super_type: expected_ty_id,
                     variance: None,
                 });
             }
@@ -594,7 +621,7 @@ impl Compiler {
                     module,
                     profile,
                     symbols,
-                    static_parameter.declared_type_id,
+                    expected_ty_id,
                     substitution_ty_id,
                     types,
                     options,
@@ -602,7 +629,7 @@ impl Compiler {
             {
                 self.error(AnalyzeError::UnassignableType {
                     node: error_node.into_anchored(Some(profile)),
-                    expected_ty: static_parameter.declared_type_id.into_global(module.id),
+                    expected_ty: expected_ty_id.into_global(module.id),
                     actual_ty: substitution_ty_id.into_global(module.id),
                 });
                 return Ok(Some(
@@ -1126,7 +1153,12 @@ impl Compiler {
                         );
                         element_types.push(TypeElement::new(element_ty));
                     }
-                    types.insert_type_from_any(Type::Tuple { elements: element_types }, source_id)
+                    types.insert_type_from_any(
+                        Type::Tuple {
+                            elements: element_types,
+                        },
+                        source_id,
+                    )
                 }
                 _ => types.insert_type_from_any(
                     Type::TypeLiteral {
@@ -1138,9 +1170,7 @@ impl Compiler {
         };
 
         match argument {
-            StaticArgument::Evaluated { value, .. } => {
-                convert_value(value, source_id, types, self)
-            }
+            StaticArgument::Evaluated { value, .. } => convert_value(value, source_id, types, self),
             StaticArgument::Unevaluated { .. } => types.insert_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
