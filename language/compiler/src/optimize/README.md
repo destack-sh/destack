@@ -116,6 +116,7 @@ Package and program pipelines reuse module pipelines and add summary driven pass
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
 | `memory-ssa` | MemorySSA | function | ✓ | domtree, ownership | Memory versioning for precise load/store analysis |
 | `callgraph` | CallGraph | module | ✓ | — | Which functions call which, with call sites |
+| `callgraph-scc` | CallGraphScc | module | ✓ | callgraph | Strongly connected components for recursion detection |
 | `package-callgraph` | PackageCallGraph | package | ✓ | — | Cross-module call edges for a package workset |
 | `program-callgraph` | ProgramCallGraph | program | ✓ | — | Cross-package call edges for a program workset |
 | `profile` | ProfileSummary | module | | — | Profile counters, hotness, and value profiles |
@@ -195,8 +196,8 @@ Cross-function optimizations that require module-level analysis.
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `inline` | Inline | module | O2 | | callgraph, loops | Inline function calls based on cost/benefit heuristics |
-| `dead-function-eliminate` | DeadFunctionEliminate | module | O2 | | callgraph | Remove functions that are never called |
+| `inline` | Inline | module | O2 | ✓ | callgraph, loops | Inline function calls based on cost/benefit heuristics |
+| `dead-function-eliminate` | DeadFunctionEliminate | module | O2 | ✓ | callgraph | Remove functions that are never called |
 | `dead-arg-eliminate` | DeadArgEliminate | module | O2 | | callgraph | Remove unused function arguments |
 | `ip-constant-prop` | InterproceduralConstantProp | module | O2 | | callgraph | Propagate constant arguments across call sites |
 | `argument-promote` | ArgumentPromotion | module | O3 | | callgraph, alias | Pass struct fields as separate arguments |
@@ -205,7 +206,7 @@ Cross-function optimizations that require module-level analysis.
 | `partial-inline` | PartialInline | module | O3 | | callgraph, loops | Inline only the hot path of a function |
 | `constant-merge` | ConstantMerge | module | O2 | | — | Deduplicate identical constants across module |
 | `global-opt` | GlobalOpt | module | O2 | | callgraph | Internalize globals, propagate constants, convert never-written to immutable |
-| `function-attrs` | FunctionAttrs | module | O2 | | callgraph | Deduce function attributes (nounwind, noreturn, readonly, noescape) |
+| `function-attrs` | FunctionAttrs | module | O2 | ✓ | callgraph | Infer memory effects and call behavior for functions and callsites |
 | `hot-cold-split` | HotColdSplit | module | O3 | | callgraph, loops | Split functions into hot and cold regions for better code layout |
 | `pgo-inline` | ProfileGuidedInline | module | O2 | | callgraph, profile | Inline based on callsite hotness and value profiles |
 | `indirect-call-promotion` | IndirectCallPromotion | module | O3 | | callgraph, profile | Promote hot indirect calls to direct with fallback |
