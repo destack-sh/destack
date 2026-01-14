@@ -8,6 +8,36 @@ use super::super::common::NormalizationMode;
 use super::{field_key_matches_index_kind, index_key_kind_for_type, index_key_kinds_compatible};
 use crate::{AnalyzeOptions, Compiler};
 
+/// Clear assignability recursion state on drop.
+struct AssignabilityGuard {
+    /// The type table to clear.
+    types: *mut TypeTable,
+    /// The assignability target id.
+    target_id: LocalTypeId,
+    /// The assignability source id.
+    source_id: LocalTypeId,
+}
+
+impl AssignabilityGuard {
+    /// Create a guard for a single assignability pair.
+    fn new(types: &mut TypeTable, target_id: LocalTypeId, source_id: LocalTypeId) -> Self {
+        Self {
+            types: types as *mut TypeTable,
+            target_id,
+            source_id,
+        }
+    }
+}
+
+impl Drop for AssignabilityGuard {
+    /// Clear the recursion marker for the guarded pair.
+    fn drop(&mut self) {
+        unsafe {
+            (*self.types).clear_assignability_in_progress(self.target_id, self.source_id);
+        }
+    }
+}
+
 /// Result of a type assignability check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Assignability {
@@ -87,8 +117,103 @@ impl Compiler {
         let target_id = self.unwrap_assignability_alias_type(target_id, types);
         let source_id = self.unwrap_assignability_alias_type(source_id, types);
 
+        // recheck equality after alias unwrapping
+        if target_id == source_id {
+            return Assignability::Assignable;
+        }
+
+        // recursion guard for assignability pairs
+        if !types.mark_assignability_in_progress(target_id, source_id) {
+            return Assignability::Assignable;
+        }
+        let _assignability_guard = AssignabilityGuard::new(types, target_id, source_id);
+
         let target = types.get_type(target_id).clone();
         let source = types.get_type(source_id).clone();
+
+        // infer targets: treat as wildcard with optional constraints
+        if let Type::Infer { constraint, .. } = &target {
+            if let Some(constraint_id) = *constraint {
+                return self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    constraint_id,
+                    source_id,
+                    types,
+                    options,
+                );
+            }
+
+            return Assignability::Assignable;
+        }
+
+        // infer sources: treat as wildcard with optional constraints
+        if let Type::Infer { constraint, .. } = &source {
+            if let Some(constraint_id) = *constraint {
+                return self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_id,
+                    constraint_id,
+                    types,
+                    options,
+                );
+            }
+
+            return Assignability::Assignable;
+        }
+
+        // conditional targets: allow either branch
+        if let Type::Conditional {
+            then_type,
+            else_type,
+            ..
+        } = &target
+        {
+            let then_assignable = self
+                .is_type_assignable(
+                    module, profile, symbols, *then_type, source_id, types, options,
+                )
+                .is_assignable();
+            let else_assignable = self
+                .is_type_assignable(
+                    module, profile, symbols, *else_type, source_id, types, options,
+                )
+                .is_assignable();
+
+            if then_assignable || else_assignable {
+                return Assignability::Assignable;
+            }
+
+            return Assignability::NotAssignable;
+        }
+
+        // conditional sources: require all branches
+        if let Type::Conditional {
+            then_type,
+            else_type,
+            ..
+        } = &source
+        {
+            let then_assignable = self
+                .is_type_assignable(
+                    module, profile, symbols, target_id, *then_type, types, options,
+                )
+                .is_assignable();
+            let else_assignable = self
+                .is_type_assignable(
+                    module, profile, symbols, target_id, *else_type, types, options,
+                )
+                .is_assignable();
+
+            if then_assignable && else_assignable {
+                return Assignability::Assignable;
+            }
+
+            return Assignability::NotAssignable;
+        }
 
         // handle special target types first
         match &target {
@@ -373,7 +498,7 @@ impl Compiler {
                     let mut is_assignable = false;
                     for target_elem in &target_elems {
                         if self
-                            .is_type_assignable_inner(
+                            .is_type_assignable(
                                 module,
                                 profile,
                                 symbols,
@@ -404,7 +529,7 @@ impl Compiler {
             ) => {
                 for target_elem in target_elems {
                     if self
-                        .is_type_assignable_inner(
+                        .is_type_assignable(
                             module,
                             profile,
                             symbols,
@@ -643,7 +768,7 @@ impl Compiler {
             ) => {
                 for source_elem in source_elems {
                     if !self
-                        .is_type_assignable_inner(
+                        .is_type_assignable(
                             module,
                             profile,
                             symbols,
@@ -669,7 +794,7 @@ impl Compiler {
             ) => {
                 for target_elem in target_elems {
                     if !self
-                        .is_type_assignable_inner(
+                        .is_type_assignable(
                             module,
                             profile,
                             symbols,
@@ -695,7 +820,7 @@ impl Compiler {
             ) => {
                 for source_elem in source_elems {
                     if self
-                        .is_type_assignable_inner(
+                        .is_type_assignable(
                             module,
                             profile,
                             symbols,
@@ -1172,7 +1297,7 @@ impl Compiler {
                     }
 
                     let mut is_assignable = self
-                        .is_type_assignable_inner(
+                        .is_type_assignable(
                             module,
                             profile,
                             symbols,
@@ -1185,7 +1310,7 @@ impl Compiler {
 
                     if !options.exact_optional_property_types && target_field.is_optional {
                         is_assignable |= self
-                            .is_type_assignable_inner(
+                            .is_type_assignable(
                                 module,
                                 profile,
                                 symbols,
@@ -1199,7 +1324,7 @@ impl Compiler {
 
                     if !options.exact_optional_property_types && source_field.is_optional {
                         let undefined_assignable = self
-                            .is_type_assignable_inner(
+                            .is_type_assignable(
                                 module,
                                 profile,
                                 symbols,
@@ -1496,14 +1621,14 @@ impl Compiler {
         );
 
         let mut is_assignable = self
-            .is_type_assignable_inner(
+            .is_type_assignable(
                 module, profile, symbols, value_type, field.ty, types, options,
             )
             .is_assignable();
 
         if !options.exact_optional_property_types && field.is_optional {
             let undefined_assignable = self
-                .is_type_assignable_inner(
+                .is_type_assignable(
                     module,
                     profile,
                     symbols,
