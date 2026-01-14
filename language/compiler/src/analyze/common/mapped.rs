@@ -758,6 +758,21 @@ impl Compiler {
                         }
                     }
                 }
+                Type::Tuple { elements } => {
+                    // map numeric tuple keys to element types
+                    let StaticKey::Number(name) = key else {
+                        continue;
+                    };
+                    let index_str = self.program.strings.get(*name);
+                    let Ok(index) = index_str.as_ref().parse::<usize>() else {
+                        continue;
+                    };
+                    if let Some(element) = elements.get(index) {
+                        field_types.push(element.ty);
+                    } else if let Some(rest) = elements.iter().find(|element| element.is_rest) {
+                        field_types.push(rest.ty);
+                    }
+                }
                 Type::Reference { symbol, .. } => {
                     if let Some(instance_id) = types.get_instance_type_id(*symbol) {
                         pending.push(instance_id);
@@ -808,6 +823,14 @@ impl Compiler {
                     for field in fields {
                         if self.static_key_matches_index_kind(&field.key, kind) {
                             field_types.push(field.ty);
+                        }
+                    }
+                }
+                Type::Tuple { elements } => {
+                    // map numeric tuple indices to element types
+                    if kind == MappedIndexKind::Number {
+                        for element in elements {
+                            field_types.push(element.ty);
                         }
                     }
                 }

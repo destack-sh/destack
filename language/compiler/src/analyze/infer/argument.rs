@@ -5,7 +5,7 @@ use destack_dir::{
     Argument, Constraint, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
     InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
     StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable,
-    SymbolType, Type, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
+    SymbolType, Type, TypeElement, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -653,8 +653,8 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
-        // keep value arguments intact for type references
-        let treat_type_arguments_as_types = false;
+        // treat type arguments as types for type references
+        let treat_type_arguments_as_types = true;
 
         // skip non instantiable symbols
         if !self.is_instantiable_symbol(symbol) && symbol.ty() != SymbolType::Extension {
@@ -1093,25 +1093,61 @@ impl Compiler {
         source_id: LocalNodeIdAny,
         types: &mut TypeTable,
     ) -> LocalTypeId {
-        let ty = match argument {
-            StaticArgument::Evaluated { value, .. } => match value {
-                StaticExpression::Type { ty } => return *ty,
-                StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
-                    value: value.clone(),
-                },
-                StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(value.clone()),
-                },
-                _ => Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                },
-            },
-            StaticArgument::Unevaluated { .. } => Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            },
+        // convert evaluated static expressions into type ids
+        let convert_value = |value: &StaticExpression,
+                             source_id: LocalNodeIdAny,
+                             types: &mut TypeTable,
+                             compiler: &Compiler| {
+            match value {
+                StaticExpression::Type { ty } => *ty,
+                StaticExpression::TypeLiteral { value } => types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: value.clone(),
+                    },
+                    source_id,
+                ),
+                StaticExpression::ScalarLiteral { value } => types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(value.clone()),
+                    },
+                    source_id,
+                ),
+                StaticExpression::ArrayExpression { elements }
+                | StaticExpression::TupleExpression { elements } => {
+                    let mut element_types = Vec::with_capacity(elements.len());
+                    for element in elements {
+                        let element_ty = compiler.convert_static_argument_type(
+                            &StaticArgument::Evaluated {
+                                name: None,
+                                value: element.clone(),
+                            },
+                            source_id,
+                            types,
+                        );
+                        element_types.push(TypeElement::new(element_ty));
+                    }
+                    types.insert_type_from_any(Type::Tuple { elements: element_types }, source_id)
+                }
+                _ => types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    },
+                    source_id,
+                ),
+            }
         };
 
-        types.insert_type_from_any(ty, source_id)
+        match argument {
+            StaticArgument::Evaluated { value, .. } => {
+                convert_value(value, source_id, types, self)
+            }
+            StaticArgument::Unevaluated { .. } => types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                },
+                source_id,
+            ),
+        }
     }
 
     /// Create a fallback static argument for function instantiation.
