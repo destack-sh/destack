@@ -42,6 +42,8 @@ pub struct TypeTable {
     pub(crate) normalized_flow_epoch_by_id: Vec<u64>,
     /// Epoch for invalidating normalization caches.
     pub(crate) normalization_epoch: u64,
+    /// Alias normalization currently in progress.
+    pub(crate) normalization_alias_in_progress: HashSet<GlobalSymbolId>,
 
     // static parameter constraints
     /// Cached constraint types by static parameter symbol.
@@ -115,6 +117,7 @@ impl TypeTable {
             normalized_flow_type_by_id: Vec::new(),
             normalized_flow_epoch_by_id: Vec::new(),
             normalization_epoch: 0,
+            normalization_alias_in_progress: HashSet::new(),
 
             // static parameter constraints
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
@@ -269,6 +272,22 @@ impl TypeTable {
     pub fn invalidate_normalization_cache(&mut self) {
         // bump the cache epoch to invalidate existing entries
         self.normalization_epoch = self.normalization_epoch.wrapping_add(1);
+    }
+
+    /// Mark an alias normalization as in progress.
+    pub fn mark_normalization_alias_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        self.normalization_alias_in_progress.insert(symbol_id);
+    }
+
+    /// Clear the alias normalization in progress marker.
+    pub fn clear_normalization_alias_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        self.normalization_alias_in_progress.remove(&symbol_id);
+    }
+
+    /// Check whether an alias normalization is in progress.
+    pub fn is_normalization_alias_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
+        self.normalization_alias_in_progress
+            .contains(&symbol_id)
     }
 
     /// Get the number of types in the table.
