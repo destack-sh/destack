@@ -5,6 +5,7 @@ use clap::Args;
 use destack_ast::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
     DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri, glob,
@@ -14,6 +15,11 @@ use serde::Deserialize;
 
 use crate::common::{DiagnosticArgs, ProgramArgs, print_diagnostics};
 use crate::console;
+
+/// File types that the formatter can process.
+///
+/// Add new file types here to enable formatting support.
+const FORMATTABLE_TYPES: &[FileType] = &[FileType::Destack, FileType::Json];
 
 #[derive(Args, Debug, Clone)]
 pub struct FmtArgs {
@@ -148,6 +154,27 @@ fn get_formatting_options(path: &Path, default: FormatterOptions) -> FormatterOp
     default
 }
 
+/// Collect all formattable files in a directory.
+fn collect_formattable_files(directory: &Path) -> Vec<PathBuf> {
+    FORMATTABLE_TYPES
+        .iter()
+        .filter_map(|ty| ty.glob())
+        .flat_map(|pattern| {
+            let full_pattern = format!("{}/{pattern}", directory.display());
+            glob(&full_pattern)
+        })
+        .collect()
+}
+
+/// Format JSON content.
+fn format_json_content(content: &str, formatter: FormatterOptions) -> Result<String, String> {
+    let file_id = FileId::new(0);
+    let doc = parse_json(content, file_id).map_err(|e| e.to_string())?;
+    let options: JsonFormatOptions = formatter.into();
+
+    Ok(format_json(&doc, &options))
+}
+
 /// Print diagnostics and return whether there were errors.
 fn check_and_print_errors(program: &Arc<Program>, diagnostic_options: &DiagnosticOptions) -> bool {
     let diagnostics = program.diagnostics.collect().map(diagnostic_options);
@@ -273,9 +300,8 @@ pub fn run(args: &FmtArgs) -> i32 {
                     FormatResult::Error => had_errors = true,
                 }
             } else if path.is_dir() {
-                // format all .ds files in directory
-                let pattern = format!("{}/**/*.ds", path.display());
-                let paths = glob(&pattern);
+                // format all formattable files in directory
+                let paths = collect_formattable_files(path);
                 for file_path in paths {
                     let result = format_single_file(
                         &program,
@@ -305,7 +331,7 @@ pub fn run(args: &FmtArgs) -> i32 {
         return 0;
     }
 
-    // case 3: format all .ds files in current directory
+    // case 3: format all formattable files in current directory
     let base_directory = program.cwd.clone();
     if !base_directory.exists() {
         console::error(&format!(
@@ -315,11 +341,10 @@ pub fn run(args: &FmtArgs) -> i32 {
         return 1;
     }
 
-    // find all .ds files in directory
-    let pattern = format!("{}/**/*.ds", base_directory.display());
-    let paths = glob(&pattern);
+    // find all formattable files in directory
+    let paths = collect_formattable_files(&base_directory);
     if paths.is_empty() {
-        console::info("no .ds files found");
+        console::info("no formattable files found");
         return 0;
     }
 
@@ -337,25 +362,47 @@ pub fn run(args: &FmtArgs) -> i32 {
                 return 1;
             }
         };
-        let file_id = program.files.next_id();
-        let (name, uri) = Uri::from_path_with_name(path);
-        let file = File::from_text(
-            file_id,
-            name,
-            uri.clone(),
-            Some(path.clone()),
-            FileType::Destack,
-            content.clone(),
-        );
-        program.files.insert(file);
 
-        // format file
-        let file = program.files.get_by_uri(&uri).expect("file not found");
-        let formatted = format_file(file.clone(), formatting_options, program.clone());
+        // dispatch by file type
+        let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
+        let formatted = match file_type {
+            FileType::Json => match format_json_content(&content, formatting_options) {
+                Ok(f) => f,
+                Err(e) => {
+                    console::error(&format!("error parsing '{}': {e}", path.display()));
+                    return 1;
+                }
+            },
+            _ => {
+                // destack formatting
+                let file_id = program.files.next_id();
+                let (name, uri) = Uri::from_path_with_name(path);
+                let file = File::from_text(
+                    file_id,
+                    name,
+                    uri.clone(),
+                    Some(path.clone()),
+                    file_type,
+                    content.clone(),
+                );
+                program.files.insert(file);
+
+                let file = program.files.get_by_uri(&uri).expect("file not found");
+                format_file(file.clone(), formatting_options, program.clone())
+            }
+        };
+
+        // ensure trailing newline
+        let formatted = if !formatted.is_empty() && !formatted.ends_with('\n') {
+            format!("{formatted}\n")
+        } else {
+            formatted
+        };
+
         files.push((path.clone(), content, formatted));
     }
 
-    // check for any parse errors across all files
+    // check for any parse errors across all files (destack only)
     if check_and_print_errors(&program, &diagnostic_options) {
         return 1;
     }
@@ -389,12 +436,17 @@ pub fn run(args: &FmtArgs) -> i32 {
     0
 }
 
+/// Result of formatting a single file.
 enum FormatResult {
+    /// File content unchanged.
     Unchanged,
+    /// File content changed (formatted or would be formatted in check mode).
     Changed,
+    /// Error occurred during formatting.
     Error,
 }
 
+/// Format a single file, dispatching by file type.
 fn format_single_file(
     program: &Arc<Program>,
     path: &Path,
@@ -414,27 +466,50 @@ fn format_single_file(
         }
     };
 
-    let file_id = program.files.next_id();
-    let (name, uri) = Uri::from_path_with_name(path);
-    let file = File::from_text(
-        file_id,
-        name,
-        uri.clone(),
-        Some(path.to_path_buf()),
-        FileType::Destack,
-        content.clone(),
-    );
-    program.files.insert(file);
+    // dispatch by file type
+    let file_type = FileType::from_path(path).unwrap_or(FileType::Unknown);
+    let formatted = match file_type {
+        FileType::Json => match format_json_content(&content, formatting_options) {
+            Ok(f) => f,
+            Err(e) => {
+                console::error(&format!("error parsing '{}': {e}", path.display()));
+                return FormatResult::Error;
+            }
+        },
+        _ => {
+            // destack formatting
+            let file_id = program.files.next_id();
+            let (name, uri) = Uri::from_path_with_name(path);
+            let file = File::from_text(
+                file_id,
+                name,
+                uri.clone(),
+                Some(path.to_path_buf()),
+                file_type,
+                content.clone(),
+            );
+            program.files.insert(file);
 
-    // format file
-    let file = program.files.get_by_uri(&uri).expect("file not found");
-    let formatted = format_file(file.clone(), formatting_options, program.clone());
+            let file = program.files.get_by_uri(&uri).expect("file not found");
+            let result = format_file(file.clone(), formatting_options, program.clone());
 
-    // check for parse errors
-    if check_and_print_errors(program, diagnostic_options) {
-        return FormatResult::Error;
-    }
+            // check for parse errors
+            if check_and_print_errors(program, diagnostic_options) {
+                return FormatResult::Error;
+            }
 
+            result
+        }
+    };
+
+    // ensure trailing newline
+    let formatted = if !formatted.is_empty() && !formatted.ends_with('\n') {
+        format!("{formatted}\n")
+    } else {
+        formatted
+    };
+
+    // check or write
     if check {
         if content != formatted {
             console::error(&format!("{}", path.display()));

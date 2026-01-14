@@ -15,6 +15,7 @@ doctest = false
 # language
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 serde_json = { workspace = true }
