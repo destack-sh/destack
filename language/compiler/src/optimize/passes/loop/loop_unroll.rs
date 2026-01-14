@@ -7,7 +7,7 @@ use crate::optimize::analyses::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, constant_from_global, instruction_map,
+    BlockParamForwarding, clone_loop_blocks, constant_from_global,
     terminator_arguments_for_successor, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
@@ -16,8 +16,7 @@ declare_pass! {
     /// Unroll loops with a constant trip count.
     ///
     /// Replaces the loop backedge with a chain of unrolled iterations.
-    /// This eliminates the loop control overhead and exposes instruction level
-    /// parallelism for further scalar optimizations.
+    /// This eliminates loop control overhead and exposes instruction level parallelism for further scalar optimizations.
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -63,10 +62,9 @@ declare_pass! {
     /// }
     /// ```
     ///
-    /// Restrictions:
-    /// - Requires a single latch and a single exiting block
-    /// - Requires a constant trip count computed from scalar evolution
-    /// - Only unrolls loops with speculatable guards
+    /// Requires a single latch and a single exiting block.
+    /// Requires a constant trip count computed from scalar evolution.
+    /// Only unrolls loops with speculatable guards.
     #[pass(id = "loop-unroll")]
     pub LoopUnroll,
     "Unroll loops with constant trip counts"
@@ -80,6 +78,8 @@ const MAX_PARTIAL_UNROLL_FACTOR: u64 = 4;
 const MAX_PARTIAL_UNROLL_TRIP_COUNT: u64 = 64;
 /// Maximum total instructions to duplicate when unrolling.
 const MAX_UNROLL_BODY_INSTRUCTIONS: usize = 200;
+/// Maximum number of loops to unroll per pass invocation.
+const MAX_UNROLL_LOOPS_PER_FUNCTION: usize = 8;
 
 impl FunctionPass for LoopUnroll {
     /// Run loop unrolling on the function.
@@ -187,49 +187,77 @@ struct UnrollIteration {
 
 /// Run loop unrolling and return true when changes were made.
 fn run_loop_unroll(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
-    // gather analyses
-    let analyses = FunctionAnalyses::new(function, tree);
-    let loops = analyses.get::<LoopAnalysis>().clone();
-    let cfg = analyses.get::<ControlFlowGraph>().clone();
-    let scev = analyses.get::<ScalarEvolution>().clone();
-    let domtree = analyses.get::<DominatorTree>().clone();
+    // track loop unrolling progress in this pass
+    let mut changed = false;
+    let mut unrolled_headers = HashSet::new();
+    let mut iterations = 0usize;
 
-    // bail out when no loops exist
-    if loops.num_loops() == 0 {
-        return false;
-    }
+    loop {
+        // gather analyses
+        let analyses = FunctionAnalyses::new(function, tree);
+        let loops = analyses.get::<LoopAnalysis>().clone();
+        let cfg = analyses.get::<ControlFlowGraph>().clone();
+        let scev = analyses.get::<ScalarEvolution>().clone();
+        let domtree = analyses.get::<DominatorTree>().clone();
 
-    // build forwarding to normalize values
-    let forwarding = BlockParamForwarding::build(function, tree, &cfg);
+        // bail out when no loops exist
+        if loops.num_loops() == 0 {
+            break;
+        }
 
-    // gather candidates in order of inner loops first
-    let mut loop_indices: Vec<usize> = (0..loops.num_loops()).collect();
-    loop_indices.sort_by_key(|index| {
-        let lp = &loops.loops()[*index];
-        (std::cmp::Reverse(lp.depth), lp.blocks.len(), lp.header)
-    });
+        // build forwarding to normalize values
+        let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
-    // attempt unroll on the first viable candidate
-    for loop_index in loop_indices {
-        // find a candidate for this loop
-        let lp = &loops.loops()[loop_index];
-        let Some(candidate) =
-            find_unroll_candidate(lp, loop_index, function, tree, &scev, &forwarding)
-        else {
-            continue;
-        };
+        // gather candidates in order of inner loops first
+        let mut loop_indices: Vec<usize> = (0..loops.num_loops()).collect();
+        loop_indices.sort_by_key(|index| {
+            let lp = &loops.loops()[*index];
+            (std::cmp::Reverse(lp.depth), lp.blocks.len(), lp.header)
+        });
 
-        // select unroll mode
-        let Some(mode) = select_unroll_mode(&candidate, tree) else {
-            continue;
+        // pick the first viable candidate for unrolling
+        let mut selected: Option<(UnrollCandidate, UnrollMode)> = None;
+        for loop_index in loop_indices {
+            let lp = &loops.loops()[loop_index];
+            if unrolled_headers.contains(&lp.header) {
+                continue;
+            }
+
+            let Some(candidate) =
+                find_unroll_candidate(lp, loop_index, function, tree, &scev, &forwarding)
+            else {
+                continue;
+            };
+
+            let Some(mode) = select_unroll_mode(&candidate, tree) else {
+                continue;
+            };
+
+            selected = Some((candidate, mode));
+            break;
+        }
+
+        // exit when no eligible loops remain
+        let Some((candidate, mode)) = selected else {
+            break;
         };
 
         // apply transformation
         function.recompute_next_value_id(tree);
-        return unroll_loop(function, tree, &candidate, mode, &cfg, &domtree);
+        if !unroll_loop(function, tree, &candidate, mode, &cfg, &domtree) {
+            break;
+        }
+
+        // record the successful unroll and guard the iteration count
+        unrolled_headers.insert(candidate.header);
+        changed = true;
+        iterations += 1;
+        if iterations >= MAX_UNROLL_LOOPS_PER_FUNCTION {
+            break;
+        }
     }
 
-    false
+    changed
 }
 
 /// Find a loop candidate with a constant trip count.
@@ -898,6 +926,7 @@ fn constant_to_u128(constant: &mir::Constant) -> Option<u128> {
 
 /// Return the ceil division for a non negative signed span and positive step.
 #[allow(clippy::manual_div_ceil)]
+/// Return the ceil division for a non negative signed span and positive step.
 fn div_ceil_signed(span: i128, step: i128) -> i128 {
     // validate preconditions
     debug_assert!(span >= 0);
@@ -911,6 +940,7 @@ fn div_ceil_signed(span: i128, step: i128) -> i128 {
 
 /// Return the ceil division for a non negative unsigned span and positive step.
 #[allow(clippy::manual_div_ceil)]
+/// Return the ceil division for a non negative unsigned span and positive step.
 fn div_ceil_unsigned(span: u128, step: u128) -> u128 {
     // validate preconditions
     debug_assert!(step > 0);
@@ -1009,82 +1039,6 @@ fn trip_count_unsigned(start: u128, bound: u128, step: u128, is_strict: bool) ->
     };
 
     u64::try_from(count).ok()
-}
-
-/// Clone all blocks in the loop, creating fresh block and value ids.
-fn clone_loop_blocks(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
-) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
-) {
-    let mut block_map = HashMap::new();
-    let mut value_map = HashMap::new();
-
-    // sort blocks for deterministic insertion
-    let mut sorted_blocks: Vec<_> = loop_blocks.iter().copied().collect();
-    sorted_blocks.sort();
-
-    // first pass: allocate values and create blocks
-    for block_id in &sorted_blocks {
-        let original = tree.get(*block_id);
-
-        // clone block parameters
-        let new_params: Vec<mir::TypedValue> = original
-            .parameters
-            .iter()
-            .map(|param| {
-                let new_value = function.next_value();
-                value_map.insert(param.value, new_value);
-                mir::TypedValue {
-                    value: new_value,
-                    ty: param.ty,
-                }
-            })
-            .collect();
-
-        // allocate destinations for instructions
-        for &instruction_id in &original.instructions {
-            let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
-                let new_value = function.next_value();
-                value_map.insert(destination, new_value);
-            }
-        }
-
-        // create a placeholder block with cloned terminator
-        let new_block = mir::Block {
-            parameters: new_params,
-            instructions: Vec::new(),
-            terminator: original.terminator.clone(),
-        };
-        let new_block_id = tree.insert(new_block);
-        block_map.insert(*block_id, new_block_id);
-    }
-
-    // second pass: clone instructions with remapped values
-    for block_id in &sorted_blocks {
-        let new_block_id = block_map[block_id];
-
-        // clone instructions
-        let instruction_ids: Vec<_> = tree.get(*block_id).instructions.clone();
-        let mut new_instructions = Vec::new();
-        for instruction_id in instruction_ids {
-            let original_instruction = tree.get(instruction_id).clone();
-            let new_instruction = instruction_map(&original_instruction, &value_map, tree);
-            let new_instruction_id = tree.insert(new_instruction);
-            new_instructions.push(new_instruction_id);
-        }
-
-        // update block contents
-        let mut new_block = tree.get(new_block_id).clone();
-        new_block.instructions = new_instructions;
-        tree.replace(new_block_id, new_block);
-    }
-
-    (block_map, value_map)
 }
 
 /// Map from values to the instructions that define them.
@@ -1199,6 +1153,59 @@ block7(v14: i32):
         program.assert_output(expected);
     }
 
+    /// Fully unroll a decreasing loop with constant trip count.
+    #[test]
+    fn test_full_unroll_decreasing_trip_count() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_sgt v3, v1
+    branch v4, block2(v3), block3(v3)
+block2(v5: i32):
+    v6 = isub v5, v2
+    jump block1(v6)
+block3(v7: i32):
+    return v7
+}"#;
+
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 3i32
+    v1 = iconst 0i32
+    v2 = iconst 1i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_sgt v3, v1
+    branch v4, block2(v3), block3(v3)
+block2(v5: i32):
+    v6 = isub v5, v2
+    jump block4(v6)
+block3(v7: i32):
+    return v7
+block4(v8: i32):
+    v9 = icmp_sgt v8, v1
+    branch v9, block5(v8), block3(v8)
+block5(v10: i32):
+    v11 = isub v10, v2
+    jump block6(v11)
+block6(v12: i32):
+    v13 = icmp_sgt v12, v1
+    branch v13, block7(v12), block3(v12)
+block7(v14: i32):
+    v15 = isub v14, v2
+    jump block3(v15)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnroll);
+        program.assert_output(expected);
+    }
+
     /// Do not unroll loops without constant trip count.
     #[test]
     fn test_unroll_requires_constant_trip_count() {
@@ -1282,7 +1289,6 @@ block7(v19: i32):
     /// Header guarded loops are partially unrolled with guard chaining.
     #[test]
     fn test_partial_unroll_header_guard() {
-        // source program
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 0i32
@@ -1298,7 +1304,6 @@ block2(v5: i32):
 block3(v7: i32):
     return v7
 }"#;
-        // expected output
         let expected = r#"function @test() -> i32 {
 block0:
     v0 = iconst 0i32
@@ -1333,10 +1338,91 @@ block9(v18: i32):
     jump block1(v19)
 }"#;
 
-        // run the passes and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
         program.run_pass(&LoopUnroll);
         program.assert_output(expected);
+    }
+
+    /// Non unit stride loops can be unrolled when the trip count is constant.
+    #[test]
+    fn test_unroll_non_unit_stride() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 0i32
+    v1 = iconst 6i32
+    v2 = iconst 2i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_slt v3, v1
+    branch v4, block2(v3), block3(v3)
+block2(v5: i32):
+    v6 = iadd v5, v2
+    jump block1(v6)
+block3(v7: i32):
+    return v7
+}"#;
+
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 0i32
+    v1 = iconst 6i32
+    v2 = iconst 2i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_slt v3, v1
+    branch v4, block2(v3), block3(v3)
+block2(v5: i32):
+    v6 = iadd v5, v2
+    jump block4(v6)
+block3(v7: i32):
+    return v7
+block4(v8: i32):
+    v9 = icmp_slt v8, v1
+    branch v9, block5(v8), block3(v8)
+block5(v10: i32):
+    v11 = iadd v10, v2
+    jump block6(v11)
+block6(v12: i32):
+    v13 = icmp_slt v12, v1
+    branch v13, block7(v12), block3(v12)
+block7(v14: i32):
+    v15 = iadd v14, v2
+    jump block3(v15)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnroll);
+        program.assert_output(expected);
+    }
+
+    /// Multiple exits prevent unrolling.
+    #[test]
+    fn test_unroll_skips_multiple_exits() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = iconst 0i32
+    v2 = iconst 4i32
+    v3 = iconst 1i32
+    jump block1(v1)
+block1(v4: i32):
+    v5 = icmp_slt v4, v2
+    branch v5, block2(v4), block5(v4)
+block2(v6: i32):
+    branch v0, block3(v6), block4(v6)
+block3(v7: i32):
+    v8 = iadd v7, v3
+    jump block1(v8)
+block4(v9: i32):
+    return v9
+block5(v10: i32):
+    return v10
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnroll);
+        program.assert_output(input);
     }
 }

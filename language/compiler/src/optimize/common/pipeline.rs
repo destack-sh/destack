@@ -15,10 +15,10 @@ use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
     CorrelatedValueProp, DeadCodeEliminate, DeadStoreEliminate, DropInsert, GlobalValueNumbering,
     GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, Licm,
-    LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopRotate, LoopSimplify,
-    LoopStrengthReduce, LoopUnroll, LoopUnswitch, Mem2Reg, MemCse, MoveCheck, Reassociate,
-    SimplifyCfg, Sink, SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim,
-    ValueRangePropagation,
+    LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopIdiomRecognize, LoopPeel,
+    LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll, LoopUnswitch, LoopVersioning,
+    Mem2Reg, MemCse, MoveCheck, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
+    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim, ValueRangePropagation,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -618,7 +618,9 @@ fn eliminate_redundancy() -> Vec<Box<dyn FunctionPass>> {
         Box::new(Reassociate),
         Box::new(CorrelatedValueProp),
         Box::new(ValueRangePropagation),
+        Box::new(Narrow),
         Box::new(GuardEliminate),
+        Box::new(PartialRedundancyElim),
         Box::new(GlobalValueNumbering),
         Box::new(CodeHoisting),
         Box::new(IfConvert),
@@ -661,8 +663,11 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![
         Box::new(LoopSimplify),
         Box::new(LoopRotate),
+        Box::new(LoopPeel),
         Box::new(InductionVariableSimplify),
         Box::new(LoopStrengthReduce),
+        Box::new(LoopVersioning),
+        Box::new(LoopIdiomRecognize),
         Box::new(Licm),
     ];
     if aggressive {

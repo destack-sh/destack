@@ -301,6 +301,7 @@ impl BasicAA {
     }
 
     /// Get mod/ref info for an instruction relative to a memory location.
+    #[cfg(test)]
     pub(super) fn get_mod_ref_info(
         &self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,

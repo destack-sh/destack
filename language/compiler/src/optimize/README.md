@@ -150,11 +150,11 @@ Local and global optimizations within a single function.
 | `reassociate` | Reassociate | function | O2 | ✓ | constant-propagation | Reorder associative operations for better constant folding |
 | `sink` | CodeSinking | function | O2 | ✓ | cfg, domtree, loops | Move instructions closer to their uses |
 | `hoist` | CodeHoisting | function | O2 | ✓ | cfg, domtree | Move identical instructions to common dominator |
-| `pre` | PartialRedundancyElim | function | O3 | | domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
+| `pre` | PartialRedundancyElim | function | O3 | ✓ | cfg, domtree, available-exprs | Insert computations to make partially redundant expressions fully redundant |
 | `tail-call-eliminate` | TailCallEliminate | module | O2 | ✓ | — | Convert tail calls to jumps |
 | `correlated-value-prop` | CorrelatedValueProp | function | O2 | ✓ | domtree | Use dominating conditions to narrow value ranges |
 | `if-convert` | IfConvert | function | O2 | ✓ | cfg | Convert simple if-then-else diamonds to select/conditional-move |
-| `narrow` | Narrow | function | O2 | | — | Use narrower integer types when upper bits are unused |
+| `narrow` | Narrow | function | O2 | ✓ | range, ownership | Use narrower integer types when upper bits are unused |
 | `guard-eliminate` | GuardEliminate | function | O2 | ✓ | cfg, range | Remove redundant guard and check terminators |
 | `value-range-prop` | ValueRangePropagation | function | O2 | ✓ | range | Fold values proven constant by range analysis |
 | `path-clone` | PathClone | function | O3 | | cfg, domtree, profile | Clone hot paths to expose constants and simplify control flow |
@@ -212,9 +212,9 @@ Loop-specific transformations.
 | `loop-delete` | LoopDelete | function | O2 | ✓ | loops, domtree, constant-propagation | Delete loops that compute nothing useful |
 | `loop-unroll` | LoopUnroll | function | O3 | ✓ | scalar-evolution | Unroll loops with known or small trip counts |
 | `loop-unswitch` | LoopUnswitch | function | O3 | ✓ | loops, cfg, domtree | Move loop-invariant conditionals outside the loop |
-| `loop-peel` | LoopPeel | function | O3 | | loops, scalar-evolution | Peel iterations to simplify guards and expose invariants |
-| `loop-versioning` | LoopVersioning | function | O3 | | loops, scalar-evolution, range | Create fast path loops guarded by assumptions |
-| `loop-idiom` | LoopIdiomRecognize | function | O2 | | loops, scalar-evolution | Recognize memcpy and memset style loops |
+| `loop-peel` | LoopPeel | function | O3 | ✓ | loops, cfg, domtree | Peel iterations to simplify guards and expose invariants |
+| `loop-versioning` | LoopVersioning | function | O3 | ✓ | loops, cfg, scalar-evolution | Create fast path loops guarded by assumptions |
+| `loop-idiom` | LoopIdiomRecognize | function | O2 | ✓ | loops, cfg, scalar-evolution, ownership | Recognize memset style loops |
 | `unroll-and-jam` | LoopUnrollAndJam | function | O3 | | loops, scalar-evolution | Unroll outer loops and jam inner loops |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
