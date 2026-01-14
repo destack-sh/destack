@@ -353,8 +353,8 @@ impl Compiler {
                 then_type,
                 else_type,
             } => self.normalize_conditional_type(
-                module, profile, source_id, left, right, then_type, else_type, symbols, types,
-                mode, visited,
+                module, profile, type_id, source_id, left, right, then_type, else_type, symbols,
+                types, mode, visited,
             ),
             Type::Mapped {
                 parameter,

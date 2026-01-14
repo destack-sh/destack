@@ -425,6 +425,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
         left: LocalTypeId,
         right: LocalTypeId,
@@ -436,10 +437,38 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // normalize the condition operands
-        let left =
-            self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
+        let original_left = left;
+        let original_right = right;
+        let original_then = then_type;
+        let original_else = else_type;
+        let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
         let right =
             self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
+
+        // keep conditional types unresolved for assignability normalization
+        if matches!(mode, NormalizationMode::Assign) {
+            let normalized_then = self
+                .normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
+            let normalized_else = self
+                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
+            let did_change = left != original_left
+                || right != original_right
+                || normalized_then != original_then
+                || normalized_else != original_else;
+            if !did_change {
+                return type_id;
+            }
+
+            return types.insert_type_from_any(
+                Type::Conditional {
+                    left,
+                    right,
+                    then_type: normalized_then,
+                    else_type: normalized_else,
+                },
+                source_id,
+            );
+        }
 
         // keep conditional types on static parameters unresolved
         let is_static_parameter = match types.get_type(left) {
@@ -458,10 +487,10 @@ impl Compiler {
             _ => false,
         };
         if is_static_parameter {
-            let normalized_then =
-                self.normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
-            let normalized_else =
-                self.normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
+            let normalized_then = self
+                .normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
+            let normalized_else = self
+                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
 
             return types.insert_type_from_any(
                 Type::Conditional {
@@ -481,8 +510,8 @@ impl Compiler {
             // evaluate each union element independently
             for element_id in elements {
                 let branch = self.normalize_conditional_type(
-                    module, profile, source_id, element_id, right, then_type, else_type, symbols,
-                    types, mode, visited,
+                    module, profile, type_id, source_id, element_id, right, then_type, else_type,
+                    symbols, types, mode, visited,
                 );
                 branch_types.push(branch);
             }
@@ -626,6 +655,24 @@ impl Compiler {
         key: StaticKey,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // guard against recursive index access cycles
+        let mut visited = HashSet::new();
+        self.index_access_for_literal_key_inner(type_id, key, types, &mut visited)
+    }
+
+    /// Resolve a literal key access on a type id with a recursion guard.
+    fn index_access_for_literal_key_inner(
+        &self,
+        type_id: LocalTypeId,
+        key: StaticKey,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<LocalTypeId> {
+        // stop when revisiting the same type
+        if !visited.insert(type_id) {
+            return None;
+        }
+
         // use the receiver type as the source for synthesized unions
         let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
@@ -635,7 +682,8 @@ impl Compiler {
 
                 // union values across elements
                 for element_id in elements {
-                    let value_type = self.index_access_for_literal_key(element_id, key, types)?;
+                    let value_type =
+                        self.index_access_for_literal_key_inner(element_id, key, types, visited)?;
                     value_types.push(value_type);
                 }
 
@@ -646,7 +694,8 @@ impl Compiler {
 
                 // intersect values across elements
                 for element_id in elements {
-                    let value_type = self.index_access_for_literal_key(element_id, key, types)?;
+                    let value_type =
+                        self.index_access_for_literal_key_inner(element_id, key, types, visited)?;
                     value_types.push(value_type);
                 }
 
@@ -683,6 +732,24 @@ impl Compiler {
         kind: MappedIndexKind,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
+        // guard against recursive index access cycles
+        let mut visited = HashSet::new();
+        self.index_access_for_index_kind_inner(type_id, kind, types, &mut visited)
+    }
+
+    /// Resolve an index access for a primitive index kind with a recursion guard.
+    fn index_access_for_index_kind_inner(
+        &self,
+        type_id: LocalTypeId,
+        kind: MappedIndexKind,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<LocalTypeId> {
+        // stop when revisiting the same type
+        if !visited.insert(type_id) {
+            return None;
+        }
+
         // use the receiver type as the source for synthesized unions
         let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
@@ -692,7 +759,8 @@ impl Compiler {
 
                 // union values across elements
                 for element_id in elements {
-                    let value_type = self.index_access_for_index_kind(element_id, kind, types)?;
+                    let value_type =
+                        self.index_access_for_index_kind_inner(element_id, kind, types, visited)?;
                     value_types.push(value_type);
                 }
 
@@ -703,7 +771,8 @@ impl Compiler {
 
                 // intersect values across elements
                 for element_id in elements {
-                    let value_type = self.index_access_for_index_kind(element_id, kind, types)?;
+                    let value_type =
+                        self.index_access_for_index_kind_inner(element_id, kind, types, visited)?;
                     value_types.push(value_type);
                 }
 
@@ -1480,6 +1549,24 @@ impl Compiler {
         types: &mut TypeTable,
         keys: &mut Vec<MappedKey>,
     ) {
+        // track visited types to avoid recursion cycles
+        let mut visited = HashSet::new();
+        self.collect_mapped_keys_for_type_inner(type_id, types, keys, &mut visited);
+    }
+
+    /// Collect mapped keys for a constraint type with a recursion guard.
+    fn collect_mapped_keys_for_type_inner(
+        &self,
+        type_id: LocalTypeId,
+        types: &mut TypeTable,
+        keys: &mut Vec<MappedKey>,
+        visited: &mut HashSet<LocalTypeId>,
+    ) {
+        // stop when revisiting the same type
+        if !visited.insert(type_id) {
+            return;
+        }
+
         // reuse the current type source for synthesized key types
         let source_id = types.get_type_source(type_id);
         let ty = types.get_type(type_id).clone();
@@ -1487,7 +1574,7 @@ impl Compiler {
             Type::Union { elements } => {
                 // expand each union member
                 for element_id in elements {
-                    self.collect_mapped_keys_for_type(element_id, types, keys);
+                    self.collect_mapped_keys_for_type_inner(element_id, types, keys, visited);
                 }
             }
             Type::TypeLiteral {
