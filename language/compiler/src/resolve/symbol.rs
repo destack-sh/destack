@@ -634,6 +634,7 @@ impl Compiler {
         space_order: SymbolSpaceOrder,
         symbols: &SymbolTable,
     ) -> ResolveResult<(GlobalSymbolId, Option<Path>)> {
+        // try resolving within the current module first
         let resolved = self.resolve_relative_symbol(
             module,
             profile_id,
@@ -651,10 +652,12 @@ impl Compiler {
             Err(error) => return Err(error),
         };
 
+        // stop if the module is not an ambient lib module
         if !self.module_is_ambient_lib(module) {
             return Err(missing);
         }
 
+        // gather ambient merge sources for the symbol key
         let symbol_entry = symbols.get_symbol(symbol_id);
         let Some(key) = symbol_entry.key else {
             return Err(missing);
@@ -665,11 +668,35 @@ impl Compiler {
             return Err(missing);
         };
 
+        // search ambient sources for a matching path
         for source_symbol in ambient_sources {
-            if source_symbol.module_id == module.id && source_symbol.local_id == symbol_id {
+            // avoid re locking the same module while holding its symbols lock
+            if source_symbol.module_id == module.id {
+                // skip the original symbol, then try resolving within this module scope
+                if source_symbol.local_id == symbol_id {
+                    continue;
+                }
+
+                // resolve using the existing symbols table
+                match self.resolve_relative_symbol(
+                    module,
+                    profile_id,
+                    node,
+                    source_symbol.local_id,
+                    path,
+                    space_order,
+                    symbols,
+                ) {
+                    Ok((resolved_id, remaining)) => {
+                        return Ok((resolved_id.into_global(source_symbol.module_id), remaining));
+                    }
+                    Err(ResolveError::MissingSymbol { .. }) => {}
+                    Err(error) => return Err(error),
+                }
                 continue;
             }
 
+            // prepare and read the source module before resolving
             self.require_resolve_module_prepare_if_needed(
                 module.id,
                 source_symbol.module_id,
@@ -680,6 +707,7 @@ impl Compiler {
             let source_dir = source_module.dir(profile_id);
             let source_symbols = source_dir.symbols.read();
 
+            // resolve using the source module symbols table
             match self.resolve_relative_symbol(
                 &source_module,
                 profile_id,
