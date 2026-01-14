@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{
     AnalyzeTask, Compiler, CompilerEventHandler, CompilerOptions, GenerateTask, LintTask,
-    StatsSnapshot,
+    LowerTask, StatsSnapshot,
 };
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
 use destack_workspace::{Program, Session, TargetId};
@@ -41,6 +41,11 @@ pub enum CompilerMode {
     Check,
     /// Type check + lint rules.
     Lint,
+    /// Lower DIR to MIR for a target.
+    Lower {
+        /// The target name to lower for.
+        target: String,
+    },
     /// Full build for a target (type check + codegen).
     Build {
         /// The target name to build for.
@@ -95,6 +100,20 @@ impl CompilerContext {
             program_args,
             diagnostic_args,
             CompilerMode::Build { target },
+            None,
+        )
+    }
+
+    /// Create a new compilation context for lowering to MIR.
+    pub fn for_run(
+        program_args: &ProgramArgs,
+        diagnostic_args: &DiagnosticArgs,
+        target: String,
+    ) -> Self {
+        Self::new(
+            program_args,
+            diagnostic_args,
+            CompilerMode::Lower { target },
             None,
         )
     }
@@ -220,6 +239,15 @@ impl CompilerContext {
                 let profile = self.program.default_profile_id_for_module(module);
                 self.compiler
                     .enqueue(LintTask::LintModule { module, profile });
+            }
+            CompilerMode::Lower { target } => {
+                let module_ref = self.program.modules.get(module);
+                let package_id = module_ref.read().package_id;
+                let target_id = TargetId::new(package_id, target);
+                self.compiler.enqueue(LowerTask::LowerModule {
+                    module,
+                    target: target_id,
+                });
             }
             CompilerMode::Build { target } => {
                 let module_ref = self.program.modules.get(module);

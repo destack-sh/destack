@@ -34,6 +34,8 @@ destack_parser = { workspace = true }
 destack_source = { workspace = true }
 destack_resolver = { workspace = true }
 destack_workspace = { workspace = true }
+destack_runtime = { workspace = true }
+destack_vm = { workspace = true }
 
 # platform
 destack_daemon = { workspace = true }
