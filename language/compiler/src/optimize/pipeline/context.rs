@@ -1,0 +1,521 @@
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use destack_base::StringPool;
+use destack_mir as mir;
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{FloatMathPolicy, TargetId};
+use parking_lot::Mutex;
+
+use crate::optimize::{
+    DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem, PackageAnalyses,
+    PackageWorkset, ProgramAnalyses, ProgramWorkset,
+};
+use crate::{OptimizeError, OptimizeWarning};
+
+/// Shared diagnostics state for pipeline contexts.
+#[derive(Debug)]
+pub struct PipelineDiagnostics {
+    /// Accumulated errors from verification passes.
+    errors: Mutex<Vec<OptimizeError>>,
+    /// Accumulated warnings from verification passes.
+    warnings: Mutex<Vec<OptimizeWarning>>,
+    /// Whether all verification passed with no aliasing violations.
+    is_strict_safe: AtomicBool,
+}
+
+impl PipelineDiagnostics {
+    /// Create a new diagnostics state.
+    pub fn new() -> Self {
+        Self {
+            errors: Mutex::new(Vec::new()),
+            warnings: Mutex::new(Vec::new()),
+            is_strict_safe: AtomicBool::new(true),
+        }
+    }
+
+    /// Emit an optimization error.
+    pub fn emit_error(&self, error: OptimizeError) {
+        self.errors.lock().push(error);
+    }
+
+    /// Emit an optimization warning.
+    pub fn emit_warning(&self, warning: OptimizeWarning) {
+        self.warnings.lock().push(warning);
+    }
+
+    /// Mark that aliasing violations were found.
+    pub fn mark_aliasing_violation(&self) {
+        self.is_strict_safe.store(false, Ordering::Relaxed);
+    }
+
+    /// Check if code is strict safe.
+    pub fn is_strict_safe(&self) -> bool {
+        self.is_strict_safe.load(Ordering::Relaxed)
+    }
+
+    /// Take all accumulated errors.
+    pub fn take_errors(&self) -> Vec<OptimizeError> {
+        std::mem::take(&mut *self.errors.lock())
+    }
+
+    /// Take all accumulated warnings.
+    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+        std::mem::take(&mut *self.warnings.lock())
+    }
+
+    /// Check if any errors were accumulated.
+    pub fn has_errors(&self) -> bool {
+        !self.errors.lock().is_empty()
+    }
+
+    /// Check if any warnings were accumulated.
+    pub fn has_warnings(&self) -> bool {
+        !self.warnings.lock().is_empty()
+    }
+}
+
+impl Default for PipelineDiagnostics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Options for pipeline execution.
+#[derive(Debug, Clone)]
+pub struct PipelineOptions {
+    /// Enable strict borrow checking mode.
+    pub strict_borrow_mode: bool,
+    /// Maximum array elements for SROA to split (larger arrays are left intact).
+    pub sroa_max_array_elements: usize,
+    /// Floating point math optimization policy.
+    pub float_math: FloatMathPolicy,
+}
+
+impl Default for PipelineOptions {
+    fn default() -> Self {
+        Self {
+            strict_borrow_mode: false,
+            sroa_max_array_elements: 8,
+            float_math: FloatMathPolicy::Strict,
+        }
+    }
+}
+
+/// Context for pipeline execution.
+///
+/// Provides access to strings, options, and diagnostic accumulation.
+/// Module level analyses are created on demand by passes that need them.
+pub struct PipelineContext<'a> {
+    /// String pool for identifiers.
+    pub strings: &'a StringPool,
+    /// Optimization options.
+    pub options: PipelineOptions,
+
+    /// The module being optimized.
+    module_id: ModuleId,
+    /// The target being optimized.
+    target_id: TargetId,
+    /// Optional profile guided optimization data.
+    profile: Option<Arc<mir::ProfileTable>>,
+
+    /// Shared diagnostics state.
+    diagnostics: Arc<PipelineDiagnostics>,
+}
+
+impl std::fmt::Debug for PipelineContext<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PipelineContext")
+            .field("strings", &"...")
+            .field("options", &self.options)
+            .field("module_id", &self.module_id)
+            .field("target_id", &self.target_id)
+            .field("has_profile", &self.profile.is_some())
+            .field("errors", &self.diagnostics.errors.lock().len())
+            .field("warnings", &self.diagnostics.warnings.lock().len())
+            .field("is_strict_safe", &self.diagnostics.is_strict_safe())
+            .finish()
+    }
+}
+
+impl<'a> PipelineContext<'a> {
+    /// Create a new pipeline context.
+    pub fn new(
+        strings: &'a StringPool,
+        options: PipelineOptions,
+        module_id: ModuleId,
+        target_id: TargetId,
+        profile: Option<Arc<mir::ProfileTable>>,
+    ) -> Self {
+        Self::with_diagnostics(
+            strings,
+            options,
+            module_id,
+            target_id,
+            profile,
+            Arc::new(PipelineDiagnostics::default()),
+        )
+    }
+
+    /// Create a new pipeline context with shared diagnostics.
+    pub fn with_diagnostics(
+        strings: &'a StringPool,
+        options: PipelineOptions,
+        module_id: ModuleId,
+        target_id: TargetId,
+        profile: Option<Arc<mir::ProfileTable>>,
+        diagnostics: Arc<PipelineDiagnostics>,
+    ) -> Self {
+        Self {
+            strings,
+            options,
+            module_id,
+            target_id,
+            profile,
+            diagnostics,
+        }
+    }
+
+    /// Get the module id.
+    pub fn module_id(&self) -> ModuleId {
+        self.module_id
+    }
+
+    /// Get the target id.
+    pub fn target_id(&self) -> &TargetId {
+        &self.target_id
+    }
+
+    /// Get profile data if available.
+    pub fn profile(&self) -> Option<&mir::ProfileTable> {
+        self.profile.as_deref()
+    }
+
+    /// Return true when profile data is available.
+    pub fn has_profile(&self) -> bool {
+        self.profile.is_some()
+    }
+
+    /// Create module level analyses for a tree.
+    ///
+    /// Module analyses are created on demand since the context doesn't hold
+    /// a reference to the tree (to allow mutation during pipeline execution).
+    pub fn module_analyses<'b>(&self, tree: &'b mir::NodeTree) -> ModuleAnalyses<'b> {
+        ModuleAnalyses::new(tree)
+    }
+
+    /// Create function analyses for a specific function.
+    pub fn function_analyses<'b>(
+        &self,
+        function: &'b mir::Function,
+        tree: &'b mir::NodeTree,
+    ) -> FunctionAnalyses<'b> {
+        FunctionAnalyses::with_options(function, tree, self.options.clone())
+    }
+
+    /// Emit an optimization error.
+    pub fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    /// Emit an optimization warning.
+    pub fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    /// Mark that aliasing violations were found (code is not strict safe).
+    pub fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+
+    /// Check if code is strict safe (no aliasing violations found in lenient mode).
+    pub fn is_strict_safe(&self) -> bool {
+        self.diagnostics.is_strict_safe()
+    }
+
+    /// Check if `&mut T` should have noalias semantics for optimization.
+    /// True if strict mode enabled OR lenient mode with no violations.
+    pub fn use_strict_aliasing(&self) -> bool {
+        self.options.strict_borrow_mode || self.is_strict_safe()
+    }
+
+    /// Take all accumulated errors.
+    pub fn take_errors(&self) -> Vec<OptimizeError> {
+        self.diagnostics.take_errors()
+    }
+
+    /// Take all accumulated warnings.
+    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+        self.diagnostics.take_warnings()
+    }
+
+    /// Check if any errors were accumulated.
+    pub fn has_errors(&self) -> bool {
+        self.diagnostics.has_errors()
+    }
+
+    /// Check if any warnings were accumulated.
+    pub fn has_warnings(&self) -> bool {
+        self.diagnostics.has_warnings()
+    }
+
+    /// Get the shared diagnostics state.
+    pub fn diagnostics(&self) -> Arc<PipelineDiagnostics> {
+        self.diagnostics.clone()
+    }
+}
+
+impl DiagnosticEmitter for PipelineContext<'_> {
+    fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+}
+
+/// Context for package pipeline execution.
+#[derive(Debug)]
+pub struct PackagePipelineContext {
+    /// The package being optimized.
+    package_id: PackageId,
+    /// The target being optimized.
+    target_id: TargetId,
+    /// Shared diagnostics state.
+    diagnostics: Arc<PipelineDiagnostics>,
+}
+
+impl PackagePipelineContext {
+    /// Create a new package pipeline context.
+    pub fn new(package_id: PackageId, target_id: TargetId) -> Self {
+        Self::with_diagnostics(
+            package_id,
+            target_id,
+            Arc::new(PipelineDiagnostics::default()),
+        )
+    }
+
+    /// Create a new package pipeline context with shared diagnostics.
+    pub fn with_diagnostics(
+        package_id: PackageId,
+        target_id: TargetId,
+        diagnostics: Arc<PipelineDiagnostics>,
+    ) -> Self {
+        Self {
+            package_id,
+            target_id,
+            diagnostics,
+        }
+    }
+
+    /// Get the package id.
+    pub fn package_id(&self) -> PackageId {
+        self.package_id
+    }
+
+    /// Get the target id.
+    pub fn target_id(&self) -> &TargetId {
+        &self.target_id
+    }
+
+    /// Create a module context for a work item.
+    pub fn with_module_context<T>(
+        &self,
+        module: &ModuleWorkItem,
+        f: impl for<'a> FnOnce(&mut PipelineContext<'a>) -> T,
+    ) -> T {
+        // capture module strings and profile
+        let strings = module.clone_strings();
+        let profile = module.clone_profile();
+
+        // build the module context
+        let mut context = PipelineContext::with_diagnostics(
+            &strings,
+            module.options().clone(),
+            module.module_id(),
+            module.target_id().clone(),
+            profile,
+            self.diagnostics.clone(),
+        );
+
+        f(&mut context)
+    }
+
+    /// Emit an optimization error.
+    pub fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    /// Emit an optimization warning.
+    pub fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    /// Mark that aliasing violations were found.
+    pub fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+
+    /// Check if code is strict safe.
+    pub fn is_strict_safe(&self) -> bool {
+        self.diagnostics.is_strict_safe()
+    }
+
+    /// Take all accumulated errors.
+    pub fn take_errors(&self) -> Vec<OptimizeError> {
+        self.diagnostics.take_errors()
+    }
+
+    /// Take all accumulated warnings.
+    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+        self.diagnostics.take_warnings()
+    }
+
+    /// Check if any errors were accumulated.
+    pub fn has_errors(&self) -> bool {
+        self.diagnostics.has_errors()
+    }
+
+    /// Check if any warnings were accumulated.
+    pub fn has_warnings(&self) -> bool {
+        self.diagnostics.has_warnings()
+    }
+
+    /// Get the shared diagnostics state.
+    pub fn diagnostics(&self) -> Arc<PipelineDiagnostics> {
+        self.diagnostics.clone()
+    }
+
+    /// Create package analyses for a workset.
+    pub fn package_analyses<'a>(&self, workset: &'a PackageWorkset) -> PackageAnalyses<'a> {
+        PackageAnalyses::new(workset)
+    }
+}
+
+impl DiagnosticEmitter for PackagePipelineContext {
+    fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+}
+
+/// Context for program pipeline execution.
+#[derive(Debug)]
+pub struct ProgramPipelineContext {
+    /// The target name being optimized.
+    target_name: String,
+    /// Shared diagnostics state.
+    diagnostics: Arc<PipelineDiagnostics>,
+}
+
+impl ProgramPipelineContext {
+    /// Create a new program pipeline context.
+    pub fn new(target_name: String) -> Self {
+        Self::with_diagnostics(target_name, Arc::new(PipelineDiagnostics::default()))
+    }
+
+    /// Create a new program pipeline context with shared diagnostics.
+    pub fn with_diagnostics(target_name: String, diagnostics: Arc<PipelineDiagnostics>) -> Self {
+        Self {
+            target_name,
+            diagnostics,
+        }
+    }
+
+    /// Get the target name.
+    pub fn target_name(&self) -> &str {
+        &self.target_name
+    }
+
+    /// Create a package context for a workset.
+    pub fn with_package_context<T>(
+        &self,
+        package: &mut PackageWorkset,
+        f: impl FnOnce(&mut PackageWorkset, &mut PackagePipelineContext) -> T,
+    ) -> T {
+        // build the package context
+        let mut context = PackagePipelineContext::with_diagnostics(
+            package.package_id(),
+            package.target_id().clone(),
+            self.diagnostics.clone(),
+        );
+
+        f(package, &mut context)
+    }
+
+    /// Emit an optimization error.
+    pub fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    /// Emit an optimization warning.
+    pub fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    /// Mark that aliasing violations were found.
+    pub fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+
+    /// Check if code is strict safe.
+    pub fn is_strict_safe(&self) -> bool {
+        self.diagnostics.is_strict_safe()
+    }
+
+    /// Take all accumulated errors.
+    pub fn take_errors(&self) -> Vec<OptimizeError> {
+        self.diagnostics.take_errors()
+    }
+
+    /// Take all accumulated warnings.
+    pub fn take_warnings(&self) -> Vec<OptimizeWarning> {
+        self.diagnostics.take_warnings()
+    }
+
+    /// Check if any errors were accumulated.
+    pub fn has_errors(&self) -> bool {
+        self.diagnostics.has_errors()
+    }
+
+    /// Check if any warnings were accumulated.
+    pub fn has_warnings(&self) -> bool {
+        self.diagnostics.has_warnings()
+    }
+
+    /// Get the shared diagnostics state.
+    pub fn diagnostics(&self) -> Arc<PipelineDiagnostics> {
+        self.diagnostics.clone()
+    }
+
+    /// Create program analyses for a workset.
+    pub fn program_analyses<'a>(&self, workset: &'a ProgramWorkset) -> ProgramAnalyses<'a> {
+        ProgramAnalyses::new(workset)
+    }
+}
+
+impl DiagnosticEmitter for ProgramPipelineContext {
+    fn emit_error(&self, error: OptimizeError) {
+        self.diagnostics.emit_error(error);
+    }
+
+    fn emit_warning(&self, warning: OptimizeWarning) {
+        self.diagnostics.emit_warning(warning);
+    }
+
+    fn mark_aliasing_violation(&self) {
+        self.diagnostics.mark_aliasing_violation();
+    }
+}

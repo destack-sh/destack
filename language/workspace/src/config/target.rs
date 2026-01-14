@@ -79,6 +79,43 @@ pub enum OptimizeLevel {
     O2,
     /// Aggressive optimization (O3).
     O3,
+    /// Maximal optimization (O4).
+    O4,
+}
+
+/// Link time optimization mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum LtoMode {
+    /// Use defaults based on optimization level.
+    #[default]
+    Auto,
+    /// Disable link time optimization.
+    None,
+    /// Enable thin link time optimization at package scope.
+    Thin,
+    /// Enable full link time optimization at program scope.
+    Full,
+}
+
+impl std::str::FromStr for LtoMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "auto" => Ok(Self::Auto),
+            "none" | "off" | "disabled" => Ok(Self::None),
+            "thin" | "thinlto" | "thin_lto" => Ok(Self::Thin),
+            "full" | "lto" => Ok(Self::Full),
+            _ => Err(()),
+        }
+    }
+}
+
+impl LtoMode {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
 }
 
 impl From<u8> for OptimizeLevel {
@@ -87,7 +124,8 @@ impl From<u8> for OptimizeLevel {
             0 => Self::O0,
             1 => Self::O1,
             2 => Self::O2,
-            _ => Self::O3,
+            3 => Self::O3,
+            _ => Self::O4,
         }
     }
 }
@@ -99,6 +137,7 @@ impl From<OptimizeLevel> for u8 {
             OptimizeLevel::O1 => 1,
             OptimizeLevel::O2 => 2,
             OptimizeLevel::O3 => 3,
+            OptimizeLevel::O4 => 4,
         }
     }
 }
@@ -1185,6 +1224,8 @@ pub struct Target {
     pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
+    /// Link time optimization mode.
+    pub lto_mode: LtoMode,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
     /// Floating point math optimization policy.
@@ -1655,6 +1696,12 @@ impl Target {
     /// Set the optimization level.
     pub fn with_optimize_level(mut self, level: OptimizeLevel) -> Self {
         self.optimize_level = level;
+        self
+    }
+
+    /// Set the link time optimization mode.
+    pub fn with_lto_mode(mut self, mode: LtoMode) -> Self {
+        self.lto_mode = mode;
         self
     }
 

@@ -96,6 +96,7 @@ impl CodegenCraneliftBackend {
                 destack_workspace::OptimizeLevel::O1 => "speed",
                 destack_workspace::OptimizeLevel::O2 => "speed",
                 destack_workspace::OptimizeLevel::O3 => "speed_and_size",
+                destack_workspace::OptimizeLevel::O4 => "speed_and_size",
             }
         } else {
             "none"

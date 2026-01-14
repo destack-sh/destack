@@ -32,14 +32,39 @@ JS or TS targets lower and generate code directly from DIR without MIR.
 | `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization + type cleanup |
 | `O2` | Release | O1 + global scalar, memory, and loop optimizations |
 | `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
+| `O4` | Max | O3 + extra fixed point rounds and full LTO when enabled |
 
 ---
 
 ## Analyses
 
 Analyses compute properties of the MIR without modifying it.
-Passes request analyses from the cache; the cache computes them lazily and invalidates them when passes modify the MIR.
+Passes request analyses from the cache and the cache computes them lazily.
 Analysis results are shared across passes until invalidated.
+
+## Optimization Scopes
+
+The optimizer runs at different scopes depending on the build mode.
+These scopes are kept distinct to balance fast builds with maximal optimization.
+
+- Function scope operates on a single function body.
+- Module scope operates on a single MIR module.
+- Package scope operates on all modules in a build package.
+- Program scope operates on all packages that link into the final output.
+
+The default pipelines operate at function and module scope.
+Package scope is used for Thin LTO summaries and selective importing.
+Program scope is used for full LTO with whole program inlining and devirtualization.
+Optimization scope is selected by target ltoMode.
+Auto enables Thin LTO at O4 and disables LTO at lower levels.
+Package and program pipelines operate on worksets that aggregate module MIR.
+Program scope routes each package through the pipeline for its configured optimization level.
+
+## Pipeline Composition
+
+Pipelines are assembled from shared pass bundles.
+Function and module pipelines reuse these bundles to avoid duplicated pass lists.
+Package and program pipelines reuse module pipelines and add summary driven passes.
 
 ### Dependency Graph
 
@@ -241,9 +266,10 @@ These are MIR-only optimizations that justify having an optimizer above the back
 ## Pipeline
 
 Target pipelines evolve with new analyses, but the expected layering is:
-- `O1`: verify, SSA/memory canonicalization, light scalar fixed-point, type cleanup
-- `O2`: `O1` + global scalar fixed-point islands around memory/loop/type transforms
-- `O3`: `O2` + more aggressive fixed-point islands and loop transforms
+- `O1`: verify, SSA/memory canonicalization, light scalar fixed point, type cleanup
+- `O2`: `O1` + global scalar fixed point islands around memory, loop, and type transforms
+- `O3`: `O2` + more aggressive fixed point islands and loop transforms
+- `O4`: `O3` + extra fixed point rounds, Thin LTO, and optional full LTO
 
 Module passes run first, then function passes run on each function.
 Pipelines may iterate passes until a fixed point when profitable.

@@ -528,6 +528,10 @@ The optimizer may promote `raw.alloc` to `stack.alloc` via escape analysis.
 Stack allocated owned values use `stack.drop`, which runs the same drop glue but skips deallocation (the frame handles it).
 For manual deallocation without dispose (FFI), use `raw.free` directly.
 
+Optimization defaults to module scope for fast builds.
+Target ltoMode selects the optimization scope.
+Package scope Thin LTO and program scope Full LTO are used for maximal performance when enabled.
+
 **Address spaces:**
 
 References can target explicit address spaces for native and accelerator memory.

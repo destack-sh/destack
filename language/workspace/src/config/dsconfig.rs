@@ -14,8 +14,8 @@ use crate::{
 
 use super::target::{
     Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismMode,
-    DivisionCheckPolicy, FloatMathPolicy, LinkMode, NullCheckPolicy, OptimizeLevel, OsrMode,
-    OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
+    DivisionCheckPolicy, FloatMathPolicy, LinkMode, LtoMode, NullCheckPolicy, OptimizeLevel,
+    OsrMode, OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
     RelocationModel, Runtime, SafepointMode, SafetyPreset, SandboxPolicy, ShiftCheckPolicy,
     ShrinkLevel, SpeculationMode, StripLevel, Target, TargetDiscovery, TrustPolicy, UnwindFormat,
 };
@@ -704,6 +704,8 @@ pub struct DsConfigTargetOptions {
     pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
+    /// Link time optimization mode.
+    pub lto_mode: LtoMode,
     /// Shrink level (code size reduction).
     pub shrink_level: ShrinkLevel,
     /// Floating point math optimization policy.
@@ -781,6 +783,7 @@ impl Default for DsConfigTargetOptions {
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
+            lto_mode: LtoMode::default(),
             shrink_level: ShrinkLevel::S0,
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
@@ -858,6 +861,7 @@ impl DsConfigTargetOptions {
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
+            lto_mode: self.lto_mode,
             shrink_level: self.shrink_level,
             float_math: self.float_math,
             debug_info: self.debug_info,
@@ -961,6 +965,7 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .optimize_level
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
+            lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
             float_math: json
                 .float_math
@@ -1479,6 +1484,41 @@ impl From<FloatMathPolicyJson> for FloatMathPolicy {
             FloatMathPolicyJson::Strict => FloatMathPolicy::Strict,
             FloatMathPolicyJson::Reassociate => FloatMathPolicy::Reassociate,
             FloatMathPolicyJson::Fast => FloatMathPolicy::Fast,
+        }
+    }
+}
+
+/// Link time optimization mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum LtoModeJson {
+    /// Choose mode based on optimization level.
+    #[serde(alias = "auto")]
+    Auto,
+    /// Disable link time optimization.
+    #[serde(alias = "none")]
+    #[serde(alias = "off")]
+    #[serde(alias = "disabled")]
+    None,
+    /// Enable thin link time optimization.
+    #[serde(alias = "thin")]
+    #[serde(alias = "thinlto")]
+    #[serde(alias = "thin_lto")]
+    Thin,
+    /// Enable full link time optimization.
+    #[serde(alias = "full")]
+    #[serde(alias = "lto")]
+    Full,
+}
+
+impl From<LtoModeJson> for LtoMode {
+    fn from(value: LtoModeJson) -> Self {
+        match value {
+            LtoModeJson::Auto => LtoMode::Auto,
+            LtoModeJson::None => LtoMode::None,
+            LtoModeJson::Thin => LtoMode::Thin,
+            LtoModeJson::Full => LtoMode::Full,
         }
     }
 }
@@ -2036,8 +2076,10 @@ pub struct DsConfigTargetJson {
     /// Whether optimization is enabled.
     #[serde(default)]
     pub optimize: bool,
-    /// Optimization level (0-3).
+    /// Optimization level (0-4).
     pub optimize_level: Option<u8>,
+    /// Link time optimization mode.
+    pub lto_mode: Option<LtoModeJson>,
     /// Shrink level (0-3).
     pub shrink_level: Option<u8>,
     /// Floating point math optimization policy.
