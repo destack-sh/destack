@@ -60,7 +60,7 @@ const DOM_DECLARED_SYMBOLS: &[&str] = &[
     "window",
 ];
 
-pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient_lib("dom", &[LIB_DOM_INDEX_D_DS], &["es5"])
+pub const LIB_DOM: BuiltinLib = BuiltinLib::ambient_lib("dom", &[LIB_DOM_INDEX_D_DS], &["es2020"])
     .with_declared_symbols(DOM_DECLARED_SYMBOLS);
 pub const LIB_DOM_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "dom.asynciterable",
