@@ -2,7 +2,7 @@ use crate::{Compiler, ImportError, ImportResult};
 
 use destack_base::StringPool;
 use destack_parser::Parser;
-use destack_source::{File, LanguageType, ModuleId};
+use destack_source::{File, FileType, LanguageType, ModuleId, Span};
 use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
 
 impl Compiler {
@@ -156,10 +156,12 @@ impl Compiler {
         };
 
         // parse JSON
-        let value: serde_json::Value = serde_json::from_str(&content).map_err(|_e| {
-            ImportError::ModuleNotFound {
-                target: self.program.strings.intern(uri.as_ref()),
-                error: None, // TODO: add proper data parse error reporting
+        let value: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+            let offset = File::byte_offset_from_position(&content, e.line(), e.column());
+            ImportError::DataParseError {
+                span: Span::at(file_id, offset, 1),
+                file_type: FileType::Json,
+                message: e.to_string(),
             }
         })?;
 
@@ -210,10 +212,17 @@ impl Compiler {
         };
 
         // parse TOML to serde_json::Value
-        let toml_value: toml::Value = toml::from_str(&content).map_err(|_e| {
-            ImportError::ModuleNotFound {
-                target: self.program.strings.intern(uri.as_ref()),
-                error: None, // TODO: add proper data parse error reporting
+        let toml_value: toml::Value = toml::from_str(&content).map_err(|e| {
+            // TOML errors provide byte span directly
+            let span = if let Some(range) = e.span() {
+                Span::new(file_id, range.start as u32, range.end as u32)
+            } else {
+                Span::empty(file_id)
+            };
+            ImportError::DataParseError {
+                span,
+                file_type: FileType::Toml,
+                message: e.message().to_string(),
             }
         })?;
         let value = toml_to_json(toml_value);
@@ -265,10 +274,18 @@ impl Compiler {
         };
 
         // parse YAML to serde_json::Value
-        let value: serde_json::Value = serde_yaml_ng::from_str(&content).map_err(|_e| {
-            ImportError::ModuleNotFound {
-                target: self.program.strings.intern(uri.as_ref()),
-                error: None, // TODO: add proper data parse error reporting
+        let value: serde_json::Value = serde_yaml_ng::from_str(&content).map_err(|e| {
+            // YAML errors provide line/column via location()
+            let span = if let Some(loc) = e.location() {
+                let offset = File::byte_offset_from_position(&content, loc.line(), loc.column());
+                Span::at(file_id, offset, 1)
+            } else {
+                Span::empty(file_id)
+            };
+            ImportError::DataParseError {
+                span,
+                file_type: FileType::Yaml,
+                message: e.to_string(),
             }
         })?;
 

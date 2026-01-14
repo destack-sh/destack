@@ -5,7 +5,7 @@ use destack_ast::StringId;
 use destack_compiler_macros::DefineError;
 use destack_dir::{AnchoredGlobalNodeId, GlobalScopeId, StaticKey};
 use destack_parser::ParseError;
-use destack_source::{ModuleId, Span};
+use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::Program;
 
 /// Errors during the import phase.
@@ -38,6 +38,14 @@ pub enum ImportError {
     ParseError {
         node: AnchoredGlobalNodeId,
         diagnostics: Vec<ParseError>,
+    },
+
+    /// Failed to parse a data module.
+    #[error(code = "EI102", message = "failed to parse {file_type}: {message}")]
+    DataParseError {
+        span: Span,
+        file_type: FileType,
+        message: String,
     },
 
     // -------------------------------------------------------------------------
