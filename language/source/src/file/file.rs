@@ -424,6 +424,36 @@ impl File {
         Some(byte_pos)
     }
 
+    /// Compute byte offset from 1-indexed line and column in raw content.
+    ///
+    /// Useful when the file is not loaded but we have content (e.g., from filesystem read).
+    /// Line and column are 1-indexed (as typical from parser error messages).
+    /// Returns the byte offset, clamped to content length if out of bounds.
+    pub fn byte_offset_from_position(content: &str, line: usize, column: usize) -> u32 {
+        let mut current_line = 1;
+        let mut line_start = 0;
+
+        for (i, ch) in content.char_indices() {
+            if current_line == line {
+                // found the target line, compute column offset
+                let col_offset = content[line_start..]
+                    .char_indices()
+                    .take(column.saturating_sub(1))
+                    .last()
+                    .map(|(i, c)| i + c.len_utf8())
+                    .unwrap_or(0);
+                return (line_start + col_offset) as u32;
+            }
+            if ch == '\n' {
+                current_line += 1;
+                line_start = i + 1;
+            }
+        }
+
+        // if line not found, return end of content
+        content.len() as u32
+    }
+
     /// Get the number of lines in the source (at least 1 for empty content).
     pub fn line_count(&self) -> u32 {
         if let Some(line_start_offsets) = &self.line_start_offsets {
