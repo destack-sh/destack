@@ -216,8 +216,13 @@ impl Compiler {
 
         // ensure reference symbols have instance types
         if let Type::Reference { symbol, .. } = ty {
-            let _ =
+            let instance_id =
                 self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+            if let Some(instance_id) = instance_id {
+                self.ensure_reference_instance_types_for_type_inner(
+                    module, profile, node_id, instance_id, types, visited,
+                )?;
+            }
             return Ok(());
         }
 
