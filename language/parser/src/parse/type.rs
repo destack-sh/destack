@@ -2165,4 +2165,69 @@ mod tests {
             });
         });
     }
+
+    /// Arrow function type with conditional return.
+    #[test]
+    fn test_parse_type_arrow_with_conditional_return() {
+        let mut test = TestParser::new_with_options(
+            "type T = <X>() => X extends A | B ? true : false",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = <X>() => X extends A | B ? true : false
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Declaration(fn_id) => {
+                    assert_node!(parser.tree, *fn_id, Declaration::Function { signature, .. } => {
+                        assert_node!(parser.tree, signature.return_type.unwrap(), Expression::TypeConditional { .. });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Nested conditional types with arrow functions (expect-type pattern).
+    #[test]
+    fn test_parse_type_nested_conditional_with_arrows() {
+        let input = r#"type StrictEqual<L, R> =
+  (<T>() => T extends (L & T) | T ? true : false) extends <T>() => T extends (R & T) | T ? true : false
+    ? IsNever<L> extends IsNever<R>
+      ? true
+      : false
+    : false"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type StrictEqual<L, R> = (outer conditional with nested conditional in then branch)
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { then_type, else_type, .. } => {
+                    assert_node!(parser.tree, *then_type, Expression::TypeConditional { .. });
+                    assert_node!(parser.tree, *else_type, Expression::ScalarLiteral(ScalarLiteral::Boolean(false)));
+                });
+            });
+        });
+    }
+
+    /// Generic arrow functions in static arguments.
+    #[test]
+    #[ignore = "generic arrow functions in static arguments not yet supported"]
+    fn test_parse_type_generic_arrow_in_static_arguments() {
+        let input = "type T = Extends<<T>() => T extends X ? true : false, <T>() => T extends Y ? true : false>";
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = Extends<arrow1, arrow2>
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { static_arguments: Some(args), .. } => {
+                    assert_eq!(args.len(), 2);
+                });
+            });
+        });
+    }
 }
