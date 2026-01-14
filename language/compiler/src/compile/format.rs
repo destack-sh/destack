@@ -178,7 +178,13 @@ impl DiagnosticFormat for Uri {
 
 impl DiagnosticFormat for FileType {
     fn diagnostic_fmt(&self, _program: &Program) -> String {
-        self.extension().unwrap_or("<unknown>").to_string()
+        // use uppercase for common data formats in error messages
+        match self {
+            FileType::Json => "JSON".to_string(),
+            FileType::Toml => "TOML".to_string(),
+            FileType::Yaml => "YAML".to_string(),
+            _ => self.extension().unwrap_or("<unknown>").to_string(),
+        }
     }
 }
 

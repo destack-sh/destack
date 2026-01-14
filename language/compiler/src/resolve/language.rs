@@ -977,25 +977,20 @@ mod tests {
     }
 
     /// Analyze all builtin libs (without errors).
+    ///
+    /// Tests each lib individually to avoid inter-library conflicts
+    /// (e.g., `bun` depends on `node.v24` which conflicts with base `node`).
     #[test]
-    #[ignore] // FUGU: compile_check_clean on test_analyze_all_builtin_libs (again..)
+    #[ignore] // FUGU: bun lib's vendor/expect-type uses complex nested conditional types the parser doesn't support yet
     fn test_analyze_all_builtin_libs() {
-        // collect all libs into one test program
-        let lib_names: Vec<&str> = std::iter::once(&STD_LIB)
-            .chain(LIBS.iter())
-            .map(|lib| lib.name)
-            .collect();
-        let test =
-            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&lib_names);
-
-        // resolve once
-        test.resolve_builtins();
-        test.resolve_libs();
-        test.compile_check_clean();
-
-        // analyze each module from each lib
-        let builtins = test.program.builtins.as_ref().unwrap();
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
+            let test = TestProgram::memory_sequential_with_prelude_and_libs()
+                .with_profile_libs(&[lib.name]);
+            test.resolve_builtins();
+            test.resolve_libs();
+            test.compile_check_clean();
+
+            let builtins = test.program.builtins.as_ref().unwrap();
             let lib_modules = builtins
                 .load_lib(
                     lib.name,
@@ -1006,7 +1001,7 @@ mod tests {
             for module_id in lib_modules {
                 test.analyze_module(module_id);
             }
+            test.compile_check_clean();
         }
-        test.compile_check_clean();
     }
 }

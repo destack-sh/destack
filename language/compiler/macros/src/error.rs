@@ -395,7 +395,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
                     quote! { Self::#name { node, .. } => DiagnosticAnchor::DirNode((*node).into()) }
                 }
             } else if v.fields.iter().any(|(n, _)| n == "span") {
-                quote! { Self::#name { span, .. } => DiagnosticAnchor::File(span.file) }
+                quote! { Self::#name { span, .. } => DiagnosticAnchor::Span(*span) }
             } else if v.fields.iter().any(|(n, _)| n == "package") {
                 quote! { Self::#name { package, .. } => DiagnosticAnchor::Package(*package) }
             } else if v.fields.iter().any(|(n, _)| n == "module") {
