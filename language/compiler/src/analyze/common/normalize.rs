@@ -625,61 +625,84 @@ impl Compiler {
         mode: NormalizationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
-        // fetch the alias instance type
-        let instance_type_id = types.get_instance_type_id(symbol)?;
+        // skip alias expansion when already resolving the same alias
+        if types.is_normalization_alias_in_progress(symbol) {
+            return None;
+        }
+        types.mark_normalization_alias_in_progress(symbol);
 
-        // prefer resolved instance arguments when available
-        let resolved_arguments = self
-            .resolved_static_arguments_for_reference(module, source_id, types)
-            .unwrap_or_else(|| {
-                // use provided arguments directly during normalization
-                // (validation should have happened during original type resolution)
-                arguments.to_vec()
-            });
-        if resolved_arguments.is_empty() {
-            return Some(self.normalize_type_inner(
+        let normalized = (|| {
+            // fetch the alias instance type
+            let instance_type_id = types.get_instance_type_id(symbol)?;
+
+            // prefer resolved instance arguments when available
+            let resolved_arguments = self
+                .resolved_static_arguments_for_reference(module, source_id, types)
+                .unwrap_or_else(|| {
+                    // use provided arguments directly during normalization
+                    // (validation should have happened during original type resolution)
+                    arguments.to_vec()
+                });
+            if resolved_arguments.is_empty() {
+                return Some(self.normalize_type_inner(
+                    module,
+                    profile,
+                    instance_type_id,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
+                ));
+            }
+
+            // build type parameter substitutions
+            let tree = module.dir(profile).tree.read();
+            let substitutions = self.build_type_parameter_substitutions_for_symbol(
                 module,
                 profile,
+                symbol,
+                source_id,
+                &resolved_arguments,
+                &tree,
+                symbols,
+                types,
+            );
+            if substitutions.is_empty() {
+                // normalize the instance type (even when no substitutions are available)
+                return Some(self.normalize_type_inner(
+                    module,
+                    profile,
+                    instance_type_id,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
+                ));
+            }
+
+            // substitute parameters inside the instance type
+            let mut cache = HashMap::new();
+            let substituted = self.substitute_static_parameters(
                 instance_type_id,
+                &substitutions,
+                types,
+                &mut cache,
+            );
+
+            // normalize the substituted shape
+            Some(self.normalize_type_inner(
+                module,
+                profile,
+                substituted,
                 symbols,
                 types,
                 mode,
                 visited,
-            ));
-        }
+            ))
+        })();
 
-        // build type parameter substitutions
-        let tree = module.dir(profile).tree.read();
-        let substitutions = self.build_type_parameter_substitutions_for_symbol(
-            module,
-            profile,
-            symbol,
-            source_id,
-            &resolved_arguments,
-            &tree,
-            symbols,
-            types,
-        );
-        if substitutions.is_empty() {
-            // normalize the instance type (even when no substitutions are available)
-            return Some(self.normalize_type_inner(
-                module,
-                profile,
-                instance_type_id,
-                symbols,
-                types,
-                mode,
-                visited,
-            ));
-        }
-
-        // substitute parameters inside the instance type
-        let mut cache = HashMap::new();
-        let substituted =
-            self.substitute_static_parameters(instance_type_id, &substitutions, types, &mut cache);
-
-        // normalize the substituted shape
-        Some(self.normalize_type_inner(module, profile, substituted, symbols, types, mode, visited))
+        types.clear_normalization_alias_in_progress(symbol);
+        normalized
     }
 
     /// Resolve static arguments from registered instances.
