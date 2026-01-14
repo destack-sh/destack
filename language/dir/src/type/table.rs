@@ -20,6 +20,7 @@ pub enum NormalizationMode {
 }
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
+/// NOTE #Cleanup #Architecture: revisit TypeTable.*_in_progress markers
 #[derive(Debug, Clone)]
 pub struct TypeTable {
     /// The module id of the type table.
@@ -44,6 +45,8 @@ pub struct TypeTable {
     pub(crate) normalization_epoch: u64,
     /// Alias normalization currently in progress.
     pub(crate) normalization_alias_in_progress: HashSet<GlobalSymbolId>,
+    /// Assignability pairs currently in progress.
+    pub(crate) assignability_in_progress: HashSet<(LocalTypeId, LocalTypeId)>,
 
     // static parameter constraints
     /// Cached constraint types by static parameter symbol.
@@ -118,6 +121,7 @@ impl TypeTable {
             normalized_flow_epoch_by_id: Vec::new(),
             normalization_epoch: 0,
             normalization_alias_in_progress: HashSet::new(),
+            assignability_in_progress: HashSet::new(),
 
             // static parameter constraints
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
@@ -286,8 +290,27 @@ impl TypeTable {
 
     /// Check whether an alias normalization is in progress.
     pub fn is_normalization_alias_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
-        self.normalization_alias_in_progress
-            .contains(&symbol_id)
+        self.normalization_alias_in_progress.contains(&symbol_id)
+    }
+
+    /// Mark assignability for a target and source pair.
+    pub fn mark_assignability_in_progress(
+        &mut self,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+    ) -> bool {
+        self.assignability_in_progress
+            .insert((target_id, source_id))
+    }
+
+    /// Clear assignability in progress for a target and source pair.
+    pub fn clear_assignability_in_progress(
+        &mut self,
+        target_id: LocalTypeId,
+        source_id: LocalTypeId,
+    ) {
+        self.assignability_in_progress
+            .remove(&(target_id, source_id));
     }
 
     /// Get the number of types in the table.
