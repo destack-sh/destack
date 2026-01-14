@@ -1825,6 +1825,56 @@ let number_value: number = value;
     assert!(assignable.is_assignable());
 }
 
+/// Analyze tuple index access on constrained type parameters.
+#[test]
+fn test_analyze_tuple_index_access_uses_parameter_constraint() {
+    // tuple index access respects the parameter constraint type
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+type Element<Types extends [boolean, boolean]> = Types[0];
+
+declare let value: Element<[true, false]>;
+let ok: boolean = value;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let profile = test.default_profile_id(module_id);
+    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+
+    // locate declarators by name
+    let value_name = test.program.strings.intern("value");
+    let ok_name = test.program.strings.intern("ok");
+    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
+    let ok_declarator_id = expect_let_declarator_by_name(&roots, &tree, ok_name);
+
+    // compare assignability using the module profile
+    let value_type_id = types
+        .get_declared_type_id(value_declarator_id.into_global(module_id).into())
+        .expect("expected value declared type");
+    let ok_type_id = types
+        .get_declared_type_id(ok_declarator_id.into_global(module_id).into())
+        .expect("expected ok declared type");
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let options = test.compiler.analyze_context_options_for_module(module.id);
+    let assignable = test.compiler.is_type_assignable(
+        &module,
+        profile,
+        &symbols,
+        ok_type_id,
+        value_type_id,
+        &mut types,
+        &options,
+    );
+    assert!(assignable.is_assignable());
+}
+
 /// Analyze member instance inherited static arguments.
 #[test]
 fn test_analyze_member_instance_inherited_static_arguments() {

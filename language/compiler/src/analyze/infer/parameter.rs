@@ -208,7 +208,21 @@ impl Compiler {
                 let declared_type_id = types
                     .get_declared_type_id(primary_declaration)
                     .unwrap_or_else(|| types.insert_type_from_any(unknown_type.clone(), source_id));
-                Some(declared_type_id)
+
+                // evaluate unevaluated constraint types on demand
+                if matches!(types.get_type(declared_type_id), Type::Unevaluated(_)) {
+                    let tree = module.dir(profile).tree.read();
+                    if self
+                        .evaluate_type(module, profile, declared_type_id, &tree, symbols, types)
+                        .is_err()
+                    {
+                        Some(types.insert_type_from_any(unknown_type.clone(), source_id))
+                    } else {
+                        Some(declared_type_id)
+                    }
+                } else {
+                    Some(declared_type_id)
+                }
             } else {
                 Some(types.insert_type_from_any(unknown_type.clone(), source_id))
             }
