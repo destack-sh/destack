@@ -33,6 +33,9 @@ pub enum DiagnosticAnchor {
     Module(ModuleId),
     /// Anchored to a file (e.g., config file, entry point).
     File(FileId),
+    /// Anchored to a specific span in a file.
+    /// Use this for errors in non-AST files (JSON, TOML, YAML) where we have line/column info.
+    Span(Span),
     /// Anchored to a package.
     Package(PackageId),
     /// No specific anchor (global/CLI errors).
@@ -104,6 +107,10 @@ impl DiagnosticAnchor {
             Self::File(file_id) => {
                 // point to file start
                 Some((*file_id, Span::empty(*file_id)))
+            }
+            Self::Span(span) => {
+                // use the exact span provided
+                Some((span.file, *span))
             }
             Self::Package(package_id) => {
                 // point to dsconfig.json or package.json if available
@@ -184,6 +191,12 @@ impl From<ModuleId> for DiagnosticAnchor {
 impl From<FileId> for DiagnosticAnchor {
     fn from(file: FileId) -> Self {
         Self::File(file)
+    }
+}
+
+impl From<Span> for DiagnosticAnchor {
+    fn from(span: Span) -> Self {
+        Self::Span(span)
     }
 }
 
