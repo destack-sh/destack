@@ -25,12 +25,15 @@ impl Compiler {
             return Ok(());
         }
 
+        // ensure builtins are resolved before declaring symbols
+        self.require_resolve_builtins(profile)?;
+
         // load module state and dir tables
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
         let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
+        let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
         let mut has_dependency = false;
@@ -94,6 +97,12 @@ impl Compiler {
         self.collect(
             &mut collector,
             self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
+        );
+
+        // attach well known decorator metadata to symbols
+        self.collect(
+            &mut collector,
+            self.register_symbol_decorators(&module, profile, &tree, &mut symbols),
         );
 
         // declare exported value types with local-only inference

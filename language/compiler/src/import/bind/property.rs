@@ -260,7 +260,7 @@ impl Compiler {
                 // Type members are in Type space
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Type, scope, None, symbols);
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::Type {
                         modifiers,
@@ -269,7 +269,12 @@ impl Compiler {
                         value,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
             ast::Member::Field {
                 modifiers,
@@ -322,7 +327,7 @@ impl Compiler {
                 });
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::Field {
                         modifiers,
@@ -331,7 +336,12 @@ impl Compiler {
                         default,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
             ast::Member::Method {
                 modifiers,
@@ -402,7 +412,7 @@ impl Compiler {
                         SymbolSpaceOrder::ValueThenType,
                     )
                 });
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::Method {
                         modifiers,
@@ -411,7 +421,12 @@ impl Compiler {
                         body,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
             ast::Member::Embed {
                 modifiers, value, ..
@@ -433,14 +448,19 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::Embed {
                         modifiers,
                         value,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
             ast::Member::StaticBlock { modifiers, body } => {
                 let member_id =
@@ -461,14 +481,19 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::StaticBlock {
                         modifiers,
                         body,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
             ast::Member::ComptimeBlock { modifiers, body } => {
                 let member_id =
@@ -488,14 +513,19 @@ impl Compiler {
                 );
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                tree.insert(
+                let member_id = tree.insert(
                     member_id,
                     Member::ComptimeBlock {
                         modifiers,
                         body,
                         symbol: symbol_id,
                     },
-                )
+                );
+
+                // bind symbol to member node
+                symbols.get_symbol_mut(symbol_id).declare_primary(member_id);
+
+                member_id
             }
         }
     }

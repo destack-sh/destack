@@ -1,6 +1,7 @@
 mod anchor;
 mod compiler;
 mod diagnostic;
+mod directive;
 mod error;
 mod event;
 mod format;

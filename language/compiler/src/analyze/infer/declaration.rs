@@ -923,9 +923,8 @@ impl Compiler {
                 if let ModuleTarget::Module(target_module_id) = target_module {
                     let target = self.program.modules.get(*target_module_id);
                     let target = target.read();
-                    // handle data text or binary module imports
+                    // only handle data module namespace and default imports
                     if !target.is_code() {
-                        // allow namespace and default imports for data modules
                         if *mode == DependencyMode::Namespace || *mode == DependencyMode::Default {
                             let ty_id =
                                 self.infer_data_module_type(&target, item_id.into_any(), types)?;

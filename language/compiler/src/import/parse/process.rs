@@ -34,7 +34,6 @@ impl Compiler {
                 needs_load,
             )
         };
-
         if !needs_load {
             return Ok(());
         }

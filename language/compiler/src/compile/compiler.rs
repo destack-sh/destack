@@ -4,7 +4,7 @@ use std::thread;
 
 use dashmap::DashMap;
 
-use destack_source::{DiagnosticCollector, DiagnosticOptions, ModuleId, Uri};
+use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
 
@@ -316,9 +316,21 @@ impl Compiler {
             std::mem::take(&mut *seen)
         };
         for warning in warnings {
-            let diagnostic: CompileDiagnostic = warning.into();
-            self.pending_diagnostics
-                .insert(diagnostic.to_diagnostic(&self.program));
+            // apply warning directive overrides
+            // NOTE #Architecture: is Compiler.flush_diagnostics the right place for directive overrides?
+            let Some(severity) = self.warning_effective_severity(&warning) else {
+                continue;
+            };
+
+            // build the diagnostic for the warning
+            let mut diagnostic = CompileDiagnostic::Warning(warning).to_diagnostic(&self.program);
+            if severity != DiagnosticSeverity::Warning {
+                diagnostic.original_severity = Some(DiagnosticSeverity::Warning);
+                diagnostic.severity = severity;
+            }
+
+            // store the diagnostic
+            self.pending_diagnostics.insert(diagnostic);
         }
 
         // flush to program

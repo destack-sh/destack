@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_base::StringPool;
 use destack_dir::{Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_workspace::{ProfileId, Program};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -21,6 +21,8 @@ pub(crate) struct FunctionContext<'a> {
     pub(crate) module_id: ModuleId,
     /// Identify the profile used for DIR access.
     pub(crate) profile: ProfileId,
+    /// Provide access to program metadata for remote symbol lookup.
+    pub(crate) program: &'a Program,
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::NodeTree,
     /// Provide access to symbol metadata for type resolution.
@@ -57,6 +59,7 @@ impl<'a> FunctionContext<'a> {
     pub(crate) fn new(
         module_id: ModuleId,
         profile: ProfileId,
+        program: &'a Program,
         dir_tree: &'a dir::NodeTree,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
@@ -69,6 +72,7 @@ impl<'a> FunctionContext<'a> {
         Self {
             module_id,
             profile,
+            program,
             dir_tree,
             symbols,
             types,
@@ -92,6 +96,24 @@ impl<'a> FunctionContext<'a> {
         body_id: dir::LocalNodeId<dir::Expression>,
     ) -> LowerResult<Terminates> {
         self.lower_statement_expression(body_id)
+    }
+
+    /// Check whether a receiver expression resolves to a namespace symbol.
+    pub(crate) fn receiver_is_namespace_reference(
+        &self,
+        receiver_id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        let symbol = match self.dir_tree.get(receiver_id) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            _ => return false,
+        };
+
+        let module = self.program.modules.get(symbol.module_id);
+        let module = module.read();
+        let symbols = module.dir(self.profile).symbols.read();
+        symbols.get_symbol(symbol.local_id).kind == dir::SymbolKind::Namespace
     }
 
     /// Create an UnsupportedConstruct error for the given expression.

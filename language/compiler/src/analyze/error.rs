@@ -295,6 +295,16 @@ pub enum AnalyzeError {
     },
 
     // -------------------------------------------------------------------------
+    // 7xx: Decorators
+    // -------------------------------------------------------------------------
+    /// Invalid well-known decorator usage.
+    #[error(code = "EA700", message = "invalid well-known decorator: {message}")]
+    InvalidWellKnownDecorator {
+        node: AnchoredGlobalNodeId,
+        message: StringId,
+    },
+
+    // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.
