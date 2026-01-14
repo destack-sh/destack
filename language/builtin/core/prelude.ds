@@ -1,8 +1,3 @@
-// @destack/core/prelude - Auto-imported symbols
-//
-// This module defines what gets automatically imported into every Destack file.
-// It re-exports the most fundamental types and traits from core/.
-
 // reflection
 export { Type, typeOf } from "./reflect/type.ds";
 
@@ -44,12 +39,18 @@ export {
     deny,
     forbid,
     expect,
+    extern,
     intrinsic,
+    languageItem,
+    noManaged,
+    stackOnly,
     inline,
     noinline,
     unroll,
     taint,
     tag,
+    lifetime,
+    addrspace,
 } from "./intrinsic/decorator.ds";
 
 // arithmetic operators

@@ -17,6 +17,9 @@ pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     "Record",
     // set types
     "Set",
+    // host namespaces
+    "console",
+    "process",
 ];
 
 // root
@@ -25,6 +28,42 @@ const LIB_NATIVE_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
     "native",
     "index.ds",
     include_str!("../../../lib/native/index.ds"),
+);
+
+// host/
+const LIB_NATIVE_HOST_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
+    "lib",
+    "native/host",
+    "index.ds",
+    include_str!("../../../lib/native/host/index.ds"),
+);
+
+const LIB_NATIVE_HOST_CONSOLE_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
+    "lib",
+    "native/host/console",
+    "index.ds",
+    include_str!("../../../lib/native/host/console/index.ds"),
+);
+
+const LIB_NATIVE_HOST_CONSOLE_DS: BuiltinLibSource = BuiltinLibSource::new(
+    "lib",
+    "native/host/console",
+    "console.ds",
+    include_str!("../../../lib/native/host/console/console.ds"),
+);
+
+const LIB_NATIVE_HOST_PROCESS_INDEX_DS: BuiltinLibSource = BuiltinLibSource::new(
+    "lib",
+    "native/host/process",
+    "index.ds",
+    include_str!("../../../lib/native/host/process/index.ds"),
+);
+
+const LIB_NATIVE_HOST_PROCESS_DS: BuiltinLibSource = BuiltinLibSource::new(
+    "lib",
+    "native/host/process",
+    "process.ds",
+    include_str!("../../../lib/native/host/process/process.ds"),
 );
 
 // string/
@@ -156,6 +195,12 @@ pub const LIB_NATIVE: BuiltinLib = BuiltinLib::ambient_lib(
     &[
         // root
         LIB_NATIVE_INDEX_DS,
+        // host/
+        LIB_NATIVE_HOST_INDEX_DS,
+        LIB_NATIVE_HOST_CONSOLE_INDEX_DS,
+        LIB_NATIVE_HOST_CONSOLE_DS,
+        LIB_NATIVE_HOST_PROCESS_INDEX_DS,
+        LIB_NATIVE_HOST_PROCESS_DS,
         // string/
         LIB_NATIVE_STRING_INDEX_DS,
         LIB_NATIVE_STRING_STRING_DS,
