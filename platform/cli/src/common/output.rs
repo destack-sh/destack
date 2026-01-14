@@ -192,4 +192,38 @@ impl TargetArgs {
 
         target
     }
+
+    /// Apply CLI arguments to an existing target.
+    pub fn apply_to_target(&self, target: &mut Target) {
+        // apply output and runtime overrides
+        if let Some(output) = self.output {
+            target.output = output.into();
+        }
+        if let Some(runtime) = self.runtime {
+            target.runtime = runtime.into();
+        }
+        if let Some(platform) = self.platform {
+            target.platform = platform.into();
+        }
+
+        // apply output paths
+        if let Some(ref out_dir) = self.out_dir {
+            target.out_dir = out_dir.clone();
+        }
+        if let Some(ref out_file) = self.out_file {
+            target.out_file = Some(out_file.clone());
+        }
+
+        // apply emission flags
+        target.declaration = self.declaration;
+        target.source_map = self.source_map;
+
+        // apply optimization settings
+        if self.optimize {
+            target.optimize = true;
+        }
+        if let Some(level) = self.opt_level {
+            target.optimize_level = level.into();
+        }
+    }
 }
