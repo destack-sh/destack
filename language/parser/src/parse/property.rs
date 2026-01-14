@@ -75,10 +75,15 @@ impl Parser {
         let modifiers = self.eat_binding_modifiers_prefix_maybe(true)?;
 
         // abstraction
-        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+        let abstract_is_abstraction = self.peek_keyword(Keyword::Abstract).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_err()
+            && self.peek_next_token(TokenType::Maybe).is_err()
             && self.peek_next_token(TokenType::LessThan).is_err()
-            && self.peek_next_token(TokenType::OpenParenthesis).is_err()
-        {
+            && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+        let override_is_abstraction = self.peek_keyword(Keyword::Override).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_err()
+            && self.peek_next_token(TokenType::Maybe).is_err();
+        let abstraction = if abstract_is_abstraction {
             self.bump(); // eat abstract keyword
             if self.peek_keyword(Keyword::Override).is_ok() {
                 self.bump(); // eat override keyword
@@ -86,7 +91,7 @@ impl Parser {
             } else {
                 Some(FunctionAbstraction::Abstract)
             }
-        } else if self.peek_keyword(Keyword::Override).is_ok() {
+        } else if override_is_abstraction {
             self.bump(); // eat override keyword
             Some(FunctionAbstraction::ConcreteOverride)
         } else {
@@ -491,10 +496,15 @@ impl Parser {
         }
 
         // abstraction
-        let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
+        let abstract_is_abstraction = self.peek_keyword(Keyword::Abstract).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_err()
+            && self.peek_next_token(TokenType::Maybe).is_err()
             && self.peek_next_token(TokenType::LessThan).is_err()
-            && self.peek_next_token(TokenType::OpenParenthesis).is_err()
-        {
+            && self.peek_next_token(TokenType::OpenParenthesis).is_err();
+        let override_is_abstraction = self.peek_keyword(Keyword::Override).is_ok()
+            && self.peek_next_token(TokenType::Colon).is_err()
+            && self.peek_next_token(TokenType::Maybe).is_err();
+        let abstraction = if abstract_is_abstraction {
             self.bump(); // eat abstract keyword
             if self.peek_keyword(Keyword::Override).is_ok() {
                 self.bump(); // eat override keyword
@@ -502,7 +512,7 @@ impl Parser {
             } else {
                 Some(FunctionAbstraction::Abstract)
             }
-        } else if self.peek_keyword(Keyword::Override).is_ok() {
+        } else if override_is_abstraction {
             self.bump(); // eat override keyword
             Some(FunctionAbstraction::ConcreteOverride)
         } else {

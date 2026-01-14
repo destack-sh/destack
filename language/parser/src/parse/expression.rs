@@ -122,7 +122,7 @@ fn to_infix_operator(
         Ok((InfixOperator::Binary(binary_operator), 1))
     }
     // regular type binary operator
-    // (forbidden in super type clauses, cannot glue across newlines in non-destack)
+    // (forbidden in super type clauses, avoid newline glue in TS mode)
     else if !options.in_super_type
         && let Some(type_binary_operator) =
             TypeBinaryOperator::from_token(token_str, token.token.ty)
@@ -1739,7 +1739,7 @@ impl Parser {
             self.bump_by(operator_offset); // eat infix operator
             let operator_span = self.get_span_from(operator_start);
 
-            self.eat_newline_maybe()?; // allow newlines after infix operator
+            self.eat_newlines_maybe()?; // allow newlines after infix operator
 
             // eat right expression
             let mut right_options = self

@@ -613,13 +613,43 @@ interface Add<T, R = Self> {
         );
         let mut parser = test.prepare();
 
-        // parse the export declaration wrapper
-        let expressions = parser.parse();
-        assert!(
-            parser.diagnostics.is_empty(),
-            "expected no parser errors, got: {:?}",
-            parser.diagnostics
-        );
-        assert_eq!(expressions.len(), 1);
+        let expression_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Interface { descriptor, members, .. } => {
+                assert_string!(parser, descriptor.name.unwrap().string(), "Webidl");
+                assert!(descriptor.export.is_some());
+                assert_eq!(members.len(), 5);
+
+                // errors: WebidlErrors
+                assert_node!(parser.tree, members[0], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                    assert_string!(parser, *name, "errors");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "WebidlErrors");
+                });
+
+                // util: WebidlUtil
+                assert_node!(parser.tree, members[1], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                    assert_string!(parser, *name, "util");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "WebidlUtil");
+                });
+
+                // converters: WebidlConverters
+                assert_node!(parser.tree, members[2], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                    assert_string!(parser, *name, "converters");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "WebidlConverters");
+                });
+
+                // is: WebidlIs
+                assert_node!(parser.tree, members[3], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                    assert_string!(parser, *name, "is");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "WebidlIs");
+                });
+
+                // attributes: WebIDLExtendedAttributes
+                assert_node!(parser.tree, members[4], Member::Field { key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), .. } => {
+                    assert_string!(parser, *name, "attributes");
+                    assert_expression_path!(parser, parser.tree.get(*ty), "WebIDLExtendedAttributes");
+                });
+            });
+        });
     }
 }
