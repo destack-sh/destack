@@ -1535,10 +1535,12 @@ impl Parser {
                         self.eat_newlines_maybe()?;
                         self.eat_colon()?;
                         self.eat_newlines_maybe()?;
-                        let else_expression_id = self
-                            .with_options(self.options.not_in_position().in_type(), |parser| {
-                                parser.eat_expression()
-                            })?;
+                        let mut else_options = self.options.not_in_position().in_type();
+                        if self.options.in_type_conditional_right {
+                            else_options = else_options.in_type_conditional_right();
+                        }
+                        let else_expression_id =
+                            self.with_options(else_options, |parser| parser.eat_expression())?;
                         let expression = Expression::TypeConditional {
                             left,
                             right,
@@ -1778,10 +1780,12 @@ impl Parser {
             self.eat_newlines_maybe()?;
             self.eat_colon()?;
             self.eat_newlines_maybe()?;
-            let else_expression_id = self
-                .with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression()
-                })?;
+            let mut else_options = self.options.not_in_position().in_type();
+            if self.options.in_type_conditional_right {
+                else_options = else_options.in_type_conditional_right();
+            }
+            let else_expression_id =
+                self.with_options(else_options, |parser| parser.eat_expression())?;
             let expression = Expression::TypeConditional {
                 left,
                 right,
