@@ -366,7 +366,7 @@ impl Parser {
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize);
+                let start = ParserMark::new(span.start as usize, None, false);
                 self.try_recover(start, recover, Some(err))?;
                 let error_id = self
                     .tree
@@ -1159,29 +1159,48 @@ impl Parser {
                 })?
             }
             // statically parameterized lambda: <T>(...) or <T,>(...) #Cleanup
+            // (also handles multiline in type context: `<\nT\n>(...) => ...`)
             else if token_type == TokenType::LessThan
-                && self.peek_next_token(TokenType::Identifier).is_ok()
+                && {
+                    let cond1 = self.peek_next_token(TokenType::Identifier).is_ok();
+                    let cond2 = self.options.in_type
+                        && self.peek_next_token(TokenType::Newline).is_ok()
+                        && self
+                            .peek_token_after_newlines(self.pos(), TokenType::Identifier)
+                            .is_ok();
+                    cond1 || cond2
+                }
                 && (self.peek_next_next_token(TokenType::Comma).is_ok()
                     || (self.options.in_type || !self.language.supports_jsx())
                         && self
                             .find_matching_close(None, TokenType::LessThan, TokenType::GreaterThan)
                             .ok()
                             .and_then(|gt_pos| {
-                                // must be `<T>(...` pattern
-                                let after_gt = self.tokens.get(gt_pos as usize + 1)?;
+                                // must be `<T>(...` pattern, skip newlines in type context
+                                let after_gt_pos = if self.options.in_type {
+                                    self.skip_newlines(gt_pos).ok()?
+                                } else {
+                                    gt_pos
+                                };
+                                let after_gt = self.tokens.get(after_gt_pos as usize + 1)?;
                                 if after_gt.token.ty != TokenType::OpenParenthesis {
                                     return None;
                                 }
-                                // find `)` and check for `:` or `=>` after
+                                // find `)` and check for `:` or `=>` after (skip newlines in type context)
                                 let parenthesis_close = self
                                     .find_matching_close(
-                                        Some(gt_pos + 1),
+                                        Some(after_gt_pos + 1),
                                         TokenType::OpenParenthesis,
                                         TokenType::CloseParenthesis,
                                     )
                                     .ok()?;
+                                let after_close_pos = if self.options.in_type {
+                                    self.skip_newlines(parenthesis_close).ok()?
+                                } else {
+                                    parenthesis_close
+                                };
                                 let after_parenthesis_close =
-                                    self.tokens.get(parenthesis_close as usize + 1)?;
+                                    self.tokens.get(after_close_pos as usize + 1)?;
                                 (after_parenthesis_close.token.ty == TokenType::Colon
                                     || after_parenthesis_close.token.ty == TokenType::Arrow
                                     || after_parenthesis_close.token.ty == TokenType::ArrowWide)
@@ -1230,10 +1249,12 @@ impl Parser {
             else if token_type == TokenType::Identifier {
                 let path = self.eat_path().for_node_type(NodeType::Expression)?;
 
-                // speculatively unwrap postfix static parameterisation with `<`
+                // speculatively unwrap postfix static parameterisation with `<` or `<<`
                 //  (might also be just a comparison operator)
+                //  `<<` (ShiftLeft) handles cases like `Extends<<T>() => ...>`
                 let static_arguments = if !self.options.in_new_receiver
-                    && self.peek_token(TokenType::LessThan).is_ok()
+                    && (self.peek_token(TokenType::LessThan).is_ok()
+                        || self.peek_token(TokenType::ShiftLeft).is_ok())
                 {
                     let speculative_start = self.mark();
                     let speculative_start_idx = self.tree.next_id();

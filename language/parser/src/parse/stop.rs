@@ -249,9 +249,16 @@ impl Parser {
         let mut depth = 0;
         let mut pos = pos.unwrap_or(self.pos()) as usize;
 
-        // we should start at the open token
+        // if there's a split token that matches the open token, start with depth = 1
+        // (the split token counts as the opening bracket)
+        let has_split_open = self.has_split_token(open_token);
+        if has_split_open {
+            depth = 1;
+        }
+
+        // we should start at the open token (unless we have a split token)
         #[cfg(debug_assertions)]
-        {
+        if !has_split_open {
             let first_token = self
                 .tokens
                 .get(pos)
@@ -273,12 +280,14 @@ impl Parser {
             else if token.token.ty == close_token {
                 depth -= 1;
             }
+
             // end: return position
             if depth == 0 {
                 return Ok(pos as u32);
             }
             pos += 1;
         }
+
         Err(ParseError::expected(
             self.peek().unwrap_or(&self.eof_token).span,
             open_token,
