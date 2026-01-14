@@ -727,8 +727,8 @@ mod tests {
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
         FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
-        Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral, TypeMappedModifiers,
-        TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        Name, Parameter, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
+        TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
 
@@ -1205,6 +1205,30 @@ mod tests {
                     // second element: number (positional)
                     assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
                         assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_tuple_type_with_spread() {
+        let mut test = TestParser::new("type T = [...Parts, string]");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = [...Parts, string]
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                    assert_eq!(elements.len(), 2);
+                    assert_node!(parser.tree, elements[0], Argument::Spread { label, value, modifiers } => {
+                        assert!(label.is_none());
+                        assert!(modifiers.is_none());
+                        assert_expression_path!(parser, parser.tree.get(*value), "Parts");
+                    });
+                    assert_node!(parser.tree, elements[1], Argument::Positional { modifiers: _, value } => {
+                        assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
                     });
                 });
             });
@@ -2126,6 +2150,61 @@ mod tests {
                             _ => panic!("expected Key::NamedExpression, got {key:?}"),
                         }
                         assert_expression_path!(parser, parser.tree.get(value.unwrap()), "Foo");
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_literal_readonly_property_name() {
+        let mut test = TestParser::new("type T = { readonly?: boolean }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { readonly?: boolean }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { modifiers, key, value, .. } => {
+                        let modifiers = modifiers.as_ref().expect("expected modifiers");
+                        assert_eq!(modifiers.kind, Some(BindingKind::Maybe));
+                        assert!(modifiers.mutability.is_none());
+                        let key = key.as_ref().expect("expected key");
+                        match key {
+                            Key::Name(Name::Identifier(name)) => {
+                                assert_string!(parser, *name, "readonly");
+                            }
+                            _ => panic!("expected Key::Name, got {key:?}"),
+                        }
+                        assert_node!(parser.tree, value.unwrap(), Expression::TypeLiteral(TypeLiteral::Boolean));
+                    });
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_type_literal_computed_key() {
+        let mut test = TestParser::new("type T = { [mismatch]: string }");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { [mismatch]: string }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { key, value, .. } => {
+                        let key = key.as_ref().expect("expected key");
+                        match key {
+                            Key::Expression(key) => {
+                                assert_expression_path!(parser, parser.tree.get(*key), "mismatch");
+                            }
+                            _ => panic!("expected Key::Expression, got {key:?}"),
+                        }
+                        assert_node!(parser.tree, value.unwrap(), Expression::TypeLiteral(TypeLiteral::String));
                     });
                 });
             });

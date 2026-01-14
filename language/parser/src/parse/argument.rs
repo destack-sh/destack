@@ -10,57 +10,67 @@ use crate::{ParseResult, Parser};
 
 impl Parser {
     /// Eat a binding modifiers prefix (visibility and mutability).
-    pub fn eat_binding_modifiers_prefix_maybe(&mut self) -> ParseResult<Option<BindingModifier>> {
-        let mut modifiers: Option<BindingModifier> = None;
+    pub fn eat_binding_modifiers_prefix_maybe(
+        &mut self,
+        allow_readonly_key: bool,
+    ) -> ParseResult<Option<BindingModifier>> {
+        let mut modifiers = BindingModifier::default();
+        let mut has_modifiers = false;
+
         // visibility
         if let Ok(Some(visibility)) = self.peek_visibility() {
             self.bump(); // eat visibility
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().visibility = Some(visibility);
+            modifiers.visibility = Some(visibility);
+            has_modifiers = true;
         }
+
         // scope
         if self.peek_keyword(Keyword::Static).is_ok() {
             self.bump(); // eat static
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().anchor = Some(BindingAnchor::Static);
+            modifiers.anchor = Some(BindingAnchor::Static);
+            has_modifiers = true;
         }
+
         // mutability
-        if self.peek_keyword(Keyword::Readonly).is_ok() {
+        // allow treating readonly as a key in property contexts
+        let readonly_is_modifier = if allow_readonly_key {
+            self.peek_next_token(TokenType::Identifier).is_ok()
+                || self.peek_next_token(TokenType::OpenBracket).is_ok()
+        } else {
+            true
+        };
+        if self.peek_keyword(Keyword::Readonly).is_ok() && readonly_is_modifier {
             self.bump(); // eat readonly
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().mutability = Some(Mutability::Immutable);
+            modifiers.mutability = Some(Mutability::Immutable);
+            has_modifiers = true;
         }
+
         // operator
         if self.peek_keyword(Keyword::Const).is_ok() {
             self.bump(); // eat const
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().operator = Some(BindingOperator::AsConst);
+            modifiers.operator = Some(BindingOperator::AsConst);
+            has_modifiers = true;
         }
+
         // accessor
         if self.peek_keyword(Keyword::Accessor).is_ok() {
             self.bump(); // eat accessor
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().accessor = Some(AccessorKind::Accessor);
+            modifiers.accessor = Some(AccessorKind::Accessor);
+            has_modifiers = true;
         }
+
         // timing
         if self.peek_keyword(Keyword::Comptime).is_ok() {
             self.bump(); // eat comptime
-            if modifiers.is_none() {
-                modifiers = Some(BindingModifier::default());
-            }
-            modifiers.as_mut().unwrap().timing = Some(Timing::Comptime);
+            modifiers.timing = Some(Timing::Comptime);
+            has_modifiers = true;
         }
-        Ok(modifiers)
+
+        if has_modifiers {
+            Ok(Some(modifiers))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Eat a binding modifiers postfix (maybe).
@@ -123,7 +133,7 @@ impl Parser {
     pub fn eat_parameter(&mut self) -> ParseResult<LocalNodeId<Parameter>> {
         let start = self.mark();
 
-        let mut modifiers = self.eat_binding_modifiers_prefix_maybe()?;
+        let mut modifiers = self.eat_binding_modifiers_prefix_maybe(false)?;
 
         // variadic
         let is_variadic = if self.peek_token(TokenType::Spread).is_ok() {
