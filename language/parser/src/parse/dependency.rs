@@ -57,31 +57,8 @@ impl Parser {
                 return Err(ParseError::unexpected(span));
             }
             let value = self.eat_expression()?;
-            let pattern = self.tree.insert(
-                Pattern::Binding {
-                    mutability: None,
-                    name,
-                    pattern: None,
-                },
-                self.get_span_from(start),
-            );
-            let declarator = self.tree.insert(
-                Declarator {
-                    pattern,
-                    ty: None,
-                    value: Some(value),
-                },
-                self.get_span_from(start),
-            );
-            let let_id = self.tree.insert(
-                Expression::Let {
-                    kind: LetKind::Const,
-                    descriptor: DeclarationDescriptor::default(),
-                    mutability: Mutability::Immutable,
-                    declarators: vec![declarator],
-                },
-                self.get_span_from(start),
-            );
+            let descriptor = DeclarationDescriptor::default();
+            let let_id = self.build_import_equals_let(start, descriptor, name, value);
             return Ok(let_id);
         }
 
@@ -170,6 +147,86 @@ impl Parser {
         );
         self.tree.set_main_span(import_id, target_span);
         Ok(Some(import_id))
+    }
+
+    /// Eat `export import Foo = Bar.Baz` as an exported const binding.
+    pub fn eat_export_import_equals(
+        &mut self,
+        start: ParserMark,
+        mut descriptor: DeclarationDescriptor,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // import keyword
+        self.eat_keyword(Keyword::Import)?;
+
+        // kind
+        let kind = if self.peek_keyword(Keyword::Type).is_ok() {
+            self.bump(); // eat type
+            Some(DependencyKind::Type)
+        } else {
+            None
+        };
+
+        // name and assignment
+        let name = self.eat_identifier()?;
+        self.eat_token(TokenType::Assign)?;
+
+        // export import uses value bindings only
+        if kind == Some(DependencyKind::Type) {
+            let span = self.peek()?.span;
+            return Err(ParseError::unexpected(span));
+        }
+
+        // value expression
+        let value = self.eat_expression()?;
+
+        // normalize descriptor export mode
+        if descriptor.export.is_none() {
+            descriptor.export = Some(DependencyMode::Item);
+        }
+
+        // build the exported let binding
+        let let_id = self.build_import_equals_let(start, descriptor, name, value);
+        Ok(let_id)
+    }
+
+    /// Build a const binding for `import X = Y`-style aliases.
+    fn build_import_equals_let(
+        &mut self,
+        start: ParserMark,
+        descriptor: DeclarationDescriptor,
+        name: StringId,
+        value: LocalNodeId<Expression>,
+    ) -> LocalNodeId<Expression> {
+        // pattern binding
+        let pattern = self.tree.insert(
+            Pattern::Binding {
+                mutability: None,
+                name,
+                pattern: None,
+            },
+            self.get_span_from(start),
+        );
+
+        // declarator
+        let declarator = self.tree.insert(
+            Declarator {
+                pattern,
+                ty: None,
+                value: Some(value),
+            },
+            self.get_span_from(start),
+        );
+
+        // exported const binding
+        self.tree.insert(
+            Expression::Let {
+                kind: LetKind::Const,
+                descriptor,
+                mutability: Mutability::Immutable,
+                declarators: vec![declarator],
+            },
+            self.get_span_from(start),
+        )
     }
 
     /// Eat an export declaration (including the `export` keyword and an optional body).

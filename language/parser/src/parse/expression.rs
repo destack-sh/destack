@@ -970,7 +970,15 @@ impl Parser {
                 ]
                 .contains(&next_token_type)
             {
-                self.eat_import()?
+                // export import equals binding
+                if descriptor.export.is_some()
+                    && next_token_type == TokenType::Identifier
+                    && self.peek_next_next_token(TokenType::Assign).is_ok()
+                {
+                    self.eat_export_import_equals(start, descriptor)?
+                } else {
+                    self.eat_import()?
+                }
             }
             // type infer
             else if self.options.in_type && keyword == Some(Keyword::Infer) {
@@ -2095,6 +2103,26 @@ type = type * 2
             assert_node!(parser.tree, *decl_id, Declaration::Type { descriptor: DeclarationDescriptor { name, export, .. }, .. } => {
                 assert_string!(parser, name.unwrap().string(), "NonNullValue");
                 assert!(export.is_some());
+            });
+        });
+    }
+
+    /// Parse `export import foo = bar.baz`.
+    #[test]
+    fn test_parse_export_import_equals() {
+        let mut test = TestParser::new("export import atob = globalThis.atob");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Let { descriptor, mutability, declarators, .. } => {
+            assert_eq!(*mutability, Mutability::Immutable);
+            assert!(descriptor.export.is_some());
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty: None, value: Some(value) } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "atob");
+                });
+                assert_expression_path!(parser, parser.tree.get(*value), "globalThis.atob");
             });
         });
     }
