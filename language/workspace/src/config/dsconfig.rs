@@ -13,11 +13,12 @@ use crate::{
 };
 
 use super::target::{
-    Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismMode,
+    Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismPolicy,
     DivisionCheckPolicy, FloatMathPolicy, LinkMode, LtoMode, NullCheckPolicy, OptimizeLevel,
     OsrMode, OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
-    RelocationModel, Runtime, SafepointMode, SafetyPreset, SandboxPolicy, ShiftCheckPolicy,
-    ShrinkLevel, SpeculationMode, StripLevel, Target, TargetDiscovery, TrustPolicy, UnwindFormat,
+    RelocationModel, ReplayMode, Runtime, SafepointMode, SafetyPreset, SandboxPolicy,
+    ShiftCheckPolicy, ShrinkLevel, SpeculationMode, StripLevel, Target, TargetDiscovery,
+    TrustPolicy, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -724,8 +725,10 @@ pub struct DsConfigTargetOptions {
     pub speculation_mode: SpeculationMode,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: ProfilingMode,
-    /// Determinism mode for runtime scheduling and I/O.
-    pub determinism_mode: DeterminismMode,
+    /// Determinism policy for runtime scheduling and I/O.
+    pub determinism: DeterminismPolicy,
+    /// Replay policy for external effects.
+    pub replay: ReplayMode,
     /// Trust policy for runtime execution.
     pub trust_policy: TrustPolicy,
     /// Sandbox policy for runtime isolation.
@@ -793,7 +796,8 @@ impl Default for DsConfigTargetOptions {
             safepoint_interval: None,
             speculation_mode: SpeculationMode::default(),
             profiling_mode: ProfilingMode::default(),
-            determinism_mode: DeterminismMode::default(),
+            determinism: DeterminismPolicy::default(),
+            replay: ReplayMode::default(),
             trust_policy: TrustPolicy::default(),
             sandbox_policy: SandboxPolicy::default(),
             strip: StripLevel::default(),
@@ -871,7 +875,8 @@ impl DsConfigTargetOptions {
             safepoint_interval: self.safepoint_interval,
             speculation_mode: self.speculation_mode,
             profiling_mode: self.profiling_mode,
-            determinism_mode: self.determinism_mode,
+            determinism: self.determinism,
+            replay: self.replay,
             trust_policy: self.trust_policy,
             sandbox_policy: self.sandbox_policy,
             strip: self.strip,
@@ -990,10 +995,11 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .profiling_mode
                 .map(ProfilingMode::from)
                 .unwrap_or_default(),
-            determinism_mode: json
-                .determinism_mode
-                .map(DeterminismMode::from)
+            determinism: json
+                .determinism
+                .map(DeterminismPolicy::from)
                 .unwrap_or_default(),
+            replay: json.replay.map(ReplayMode::from).unwrap_or_default(),
             trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
             sandbox_policy: json
                 .sandbox_policy
@@ -1269,30 +1275,48 @@ impl From<ProfilingModeJson> for ProfilingMode {
     }
 }
 
-/// Determinism mode for JSON deserialization.
+/// Determinism policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum DeterminismModeJson {
-    /// No determinism guarantees.
+pub enum DeterminismPolicyJson {
+    /// Best-effort execution without determinism guarantees.
     #[serde(alias = "off")]
-    None,
+    BestEffort,
     /// Deterministic scheduling with controlled randomness.
     #[serde(alias = "determinism")]
     Deterministic,
-    /// Deterministic scheduling + record external I/O.
+}
+
+impl From<DeterminismPolicyJson> for DeterminismPolicy {
+    fn from(value: DeterminismPolicyJson) -> Self {
+        match value {
+            DeterminismPolicyJson::BestEffort => DeterminismPolicy::BestEffort,
+            DeterminismPolicyJson::Deterministic => DeterminismPolicy::Deterministic,
+        }
+    }
+}
+
+/// Replay policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ReplayModeJson {
+    /// Disable record/replay.
+    #[serde(alias = "none")]
+    Off,
+    /// Record external effects for replay.
     Record,
-    /// Deterministic scheduling + replay external I/O.
+    /// Replay external effects from the log.
     Replay,
 }
 
-impl From<DeterminismModeJson> for DeterminismMode {
-    fn from(value: DeterminismModeJson) -> Self {
+impl From<ReplayModeJson> for ReplayMode {
+    fn from(value: ReplayModeJson) -> Self {
         match value {
-            DeterminismModeJson::None => DeterminismMode::None,
-            DeterminismModeJson::Deterministic => DeterminismMode::Deterministic,
-            DeterminismModeJson::Record => DeterminismMode::Record,
-            DeterminismModeJson::Replay => DeterminismMode::Replay,
+            ReplayModeJson::Off => ReplayMode::Off,
+            ReplayModeJson::Record => ReplayMode::Record,
+            ReplayModeJson::Replay => ReplayMode::Replay,
         }
     }
 }
@@ -2098,8 +2122,14 @@ pub struct DsConfigTargetJson {
     pub speculation_mode: Option<SpeculationModeJson>,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: Option<ProfilingModeJson>,
-    /// Determinism mode for runtime scheduling and I/O.
-    pub determinism_mode: Option<DeterminismModeJson>,
+    /// Determinism policy for runtime scheduling and I/O.
+    #[serde(alias = "determinismMode")]
+    #[serde(alias = "determinism_mode")]
+    pub determinism: Option<DeterminismPolicyJson>,
+    /// Replay policy for external effects.
+    #[serde(alias = "replayMode")]
+    #[serde(alias = "replay_mode")]
+    pub replay: Option<ReplayModeJson>,
     /// Trust policy for runtime execution.
     pub trust_policy: Option<TrustPolicyJson>,
     /// Sandbox policy for runtime isolation.

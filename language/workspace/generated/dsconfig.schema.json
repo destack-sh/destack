@@ -1512,11 +1512,44 @@
             }
           ]
         },
-        "determinismMode": {
-          "description": "Determinism mode for runtime scheduling and I/O.",
+        "determinism": {
+          "description": "Determinism policy for runtime scheduling and I/O.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DeterminismModeJson"
+              "$ref": "#/$defs/DeterminismPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "replay": {
+          "description": "Replay policy for external effects.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReplayModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trustPolicy": {
+          "description": "Trust policy for runtime execution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandboxPolicy": {
+          "description": "Sandbox policy for runtime isolation.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SandboxPolicyJson"
             },
             {
               "type": "null"
@@ -1898,26 +1931,36 @@
         }
       ]
     },
-    "DeterminismModeJson": {
-      "description": "Determinism mode for JSON deserialization.",
+    "DeterminismPolicyJson": {
+      "description": "Determinism policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "No determinism guarantees.",
+          "description": "Best-effort execution without determinism guarantees.",
           "type": "string",
-          "const": "none"
+          "const": "besteffort"
         },
         {
           "description": "Deterministic scheduling with controlled randomness.",
           "type": "string",
           "const": "deterministic"
+        }
+      ]
+    },
+    "ReplayModeJson": {
+      "description": "Replay policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable record/replay.",
+          "type": "string",
+          "const": "off"
         },
         {
-          "description": "Deterministic scheduling + record external I/O.",
+          "description": "Record external effects for replay.",
           "type": "string",
           "const": "record"
         },
         {
-          "description": "Deterministic scheduling + replay external I/O.",
+          "description": "Replay external effects from the log.",
           "type": "string",
           "const": "replay"
         }
