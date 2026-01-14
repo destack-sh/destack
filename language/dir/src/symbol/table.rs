@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 
 use crate::{
     Arena, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolKind,
-    SymbolOrigin, SymbolSpace, SymbolType,
+    LocalSymbolId, Node, NodeTree, Scope, ScopeKind, StaticKey, Symbol, SymbolBinding,
+    SymbolDecorators, SymbolKind, SymbolOrigin, SymbolSpace, SymbolType,
 };
 use std::fmt::Debug;
 
@@ -89,6 +89,7 @@ impl SymbolTable {
             merge_group: None,
             target_symbol: None,
             canonical_symbol: None,
+            decorators: SymbolDecorators::default(),
         };
         self.symbols.allocate(symbol);
         let mark = self.scopes.get_mut(scope.0.0).append(key, symbol_id);

@@ -1,3 +1,4 @@
+mod decorator;
 mod export;
 mod key;
 mod known;
@@ -6,6 +7,7 @@ mod scope;
 mod symbol;
 mod table;
 
+pub use decorator::*;
 pub use export::*;
 pub use key::*;
 pub use known::*;
