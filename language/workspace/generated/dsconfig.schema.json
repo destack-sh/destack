@@ -1396,7 +1396,7 @@
           "default": false
         },
         "optimizeLevel": {
-          "description": "Optimization level (0-3).",
+          "description": "Optimization level (0-4).",
           "type": [
             "integer",
             "null"
@@ -1404,6 +1404,17 @@
           "format": "uint8",
           "minimum": 0,
           "maximum": 255
+        },
+        "ltoMode": {
+          "description": "Link time optimization mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LtoModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "shrinkLevel": {
           "description": "Shrink level (0-3).",
@@ -1506,6 +1517,28 @@
           "anyOf": [
             {
               "$ref": "#/$defs/DeterminismModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trustPolicy": {
+          "description": "Trust policy for runtime execution.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandboxPolicy": {
+          "description": "Sandbox policy for runtime isolation.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SandboxPolicyJson"
             },
             {
               "type": "null"
@@ -1695,6 +1728,31 @@
         }
       ]
     },
+    "LtoModeJson": {
+      "description": "Link time optimization mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Choose mode based on optimization level.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Disable link time optimization.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Enable thin link time optimization.",
+          "type": "string",
+          "const": "thin"
+        },
+        {
+          "description": "Enable full link time optimization.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
     "FloatMathPolicyJson": {
       "description": "Floating point math policy for JSON deserialization.",
       "oneOf": [
@@ -1862,6 +1920,51 @@
           "description": "Deterministic scheduling + replay external I/O.",
           "type": "string",
           "const": "replay"
+        }
+      ]
+    },
+    "TrustPolicyJson": {
+      "description": "Trust policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Untrusted code with strict limits and validation.",
+          "type": "string",
+          "const": "untrusted"
+        },
+        {
+          "description": "Trusted code with relaxed limits.",
+          "type": "string",
+          "const": "trusted"
+        },
+        {
+          "description": "Internal toolchain code with full privileges.",
+          "type": "string",
+          "const": "internal"
+        }
+      ]
+    },
+    "SandboxPolicyJson": {
+      "description": "Sandbox policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "In-process isolation with VM guardrails.",
+          "type": "string",
+          "const": "inprocess"
+        },
+        {
+          "description": "Process isolation with OS sandboxing.",
+          "type": "string",
+          "const": "process"
+        },
+        {
+          "description": "Container or VM isolation.",
+          "type": "string",
+          "const": "container"
+        },
+        {
+          "description": "Forbid execution without an external sandbox.",
+          "type": "string",
+          "const": "forbidden"
         }
       ]
     },

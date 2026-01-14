@@ -56,8 +56,9 @@ Cranelift supports three optimization levels:
 |-------|---------|-------------|
 | O0 | `none` | No optimization, fastest compile |
 | O1/O2 | `speed` | Standard optimizations |
-| O3 | `speed_and_size` | Optimize for both speed and size |
+| O3/O4 | `speed_and_size` | Optimize for both speed and size |
 
 Debug builds use `none` for fast iteration.
 Release builds use `speed` or `speed_and_size`.
+O4 uses the same backend setting as O3 and relies on additional MIR and LTO work for extra gains.
 (The difference between O1 and O2 is mostly in our own MIR optimizations.)

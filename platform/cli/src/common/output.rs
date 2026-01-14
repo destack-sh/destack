@@ -135,8 +135,8 @@ pub struct TargetArgs {
     #[arg(long)]
     pub optimize: bool,
 
-    /// Optimization level (0-3).
-    #[arg(long = "opt-level", value_parser = clap::value_parser!(u8).range(0..=3))]
+    /// Optimization level (0-4).
+    #[arg(long = "opt-level", value_parser = clap::value_parser!(u8).range(0..=4))]
     pub opt_level: Option<u8>,
 }
 

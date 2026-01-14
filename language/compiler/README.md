@@ -62,13 +62,15 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 ### Middle-End
 
 The middle-end performs comptime execution, lowers DIR to MIR, and runs verification and optimization.
-This region may be skipped for targets that don't require low-level IR (e.g., JS/TS transpilation).
+This region may be skipped for targets that do not require low level IR.
+Optimization runs at function and module scope by default, with optional package and program scope for LTO builds.
+Optimization scope is selected by target ltoMode.
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
 | Execute | `X` | DIR | DIR | Execute comptime code via internal MIR and patch DIR |
 | Lower | `M` | DIR | MIR | Lower patched DIR to MIR (monomorphization, layouts, RTTI as needed) |
-| Optimize | `O` | MIR | MIR | Verify MIR (safety, borrowing, control flow) then run optimization passes |
+| Optimize | `O` | MIR | MIR | Verify MIR then run optimization passes |
 
 ### Back-End
 

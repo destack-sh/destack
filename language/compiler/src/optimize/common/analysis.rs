@@ -11,7 +11,7 @@ use crate::optimize::analyses::{
     PostDominatorTree, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
 };
 
-use super::pipeline::PipelineOptions;
+use crate::optimize::{PackageWorkset, PipelineOptions, ProgramWorkset};
 
 /// Unique identifier for an analysis type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,6 +51,18 @@ pub trait FunctionAnalysis: Analysis {
 pub trait ModuleAnalysis: Analysis {
     /// Compute this analysis for the module.
     fn compute(tree: &mir::NodeTree, analyses: &ModuleAnalyses<'_>) -> Self;
+}
+
+/// Package scoped analysis.
+pub trait PackageAnalysis: Analysis {
+    /// Compute this analysis for a package workset.
+    fn compute(workset: &PackageWorkset, analyses: &PackageAnalyses<'_>) -> Self;
+}
+
+/// Program scoped analysis.
+pub trait ProgramAnalysis: Analysis {
+    /// Compute this analysis for a program workset.
+    fn compute(workset: &ProgramWorkset, analyses: &ProgramAnalyses<'_>) -> Self;
 }
 
 /// Dependency graph for cascading invalidation.
@@ -302,6 +314,164 @@ impl<'a> ModuleAnalyses<'a> {
 impl std::fmt::Debug for ModuleAnalyses<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ModuleAnalyses")
+            .field("cached_count", &self.cache.borrow().len())
+            .finish()
+    }
+}
+
+/// Stores package scoped analyses with lazy computation.
+pub struct PackageAnalyses<'a> {
+    workset: &'a PackageWorkset,
+    cache: RefCell<HashMap<AnalysisId, Arc<dyn Any + Send + Sync>>>,
+    dependency_graph: DependencyGraph,
+}
+
+impl<'a> PackageAnalyses<'a> {
+    /// Create a new package analyses storage.
+    pub fn new(workset: &'a PackageWorkset) -> Self {
+        // build the dependency graph
+        let mut dependency_graph = DependencyGraph::default();
+        Self::register_all(&mut dependency_graph);
+
+        // store workset and caches
+        Self {
+            workset,
+            cache: RefCell::new(HashMap::new()),
+            dependency_graph,
+        }
+    }
+
+    /// Register all known package analyses.
+    fn register_all(_graph: &mut DependencyGraph) {}
+
+    /// Get the workset.
+    pub fn workset(&self) -> &PackageWorkset {
+        self.workset
+    }
+
+    /// Get or compute a package analysis.
+    pub fn get<A: PackageAnalysis>(&self) -> Arc<A> {
+        let id = A::ID;
+
+        // check cache
+        if let Some(cached) = self.cache.borrow().get(&id).cloned() {
+            return cached.downcast::<A>().expect("analysis type mismatch");
+        }
+
+        // compute
+        let result = Arc::new(A::compute(self.workset, self));
+
+        // cache
+        self.cache.borrow_mut().insert(id, result.clone());
+
+        result
+    }
+
+    /// Check if an analysis is cached.
+    pub fn is_cached<A: PackageAnalysis>(&self) -> bool {
+        self.cache.borrow().contains_key(&A::ID)
+    }
+
+    /// Invalidate a package analysis and all its dependents.
+    pub fn invalidate(&self, id: AnalysisId) {
+        // remove the cached analysis
+        self.cache.borrow_mut().remove(&id);
+
+        // invalidate dependent analyses
+        for dependent in self.dependency_graph.get_dependents(id) {
+            self.invalidate(*dependent);
+        }
+    }
+
+    /// Invalidate all cached analyses.
+    pub fn invalidate_all(&self) {
+        // clear all cached analyses
+        self.cache.borrow_mut().clear();
+    }
+}
+
+impl std::fmt::Debug for PackageAnalyses<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PackageAnalyses")
+            .field("cached_count", &self.cache.borrow().len())
+            .finish()
+    }
+}
+
+/// Stores program scoped analyses with lazy computation.
+pub struct ProgramAnalyses<'a> {
+    workset: &'a ProgramWorkset,
+    cache: RefCell<HashMap<AnalysisId, Arc<dyn Any + Send + Sync>>>,
+    dependency_graph: DependencyGraph,
+}
+
+impl<'a> ProgramAnalyses<'a> {
+    /// Create a new program analyses storage.
+    pub fn new(workset: &'a ProgramWorkset) -> Self {
+        // build the dependency graph
+        let mut dependency_graph = DependencyGraph::default();
+        Self::register_all(&mut dependency_graph);
+
+        // store workset and caches
+        Self {
+            workset,
+            cache: RefCell::new(HashMap::new()),
+            dependency_graph,
+        }
+    }
+
+    /// Register all known program analyses.
+    fn register_all(_graph: &mut DependencyGraph) {}
+
+    /// Get the workset.
+    pub fn workset(&self) -> &ProgramWorkset {
+        self.workset
+    }
+
+    /// Get or compute a program analysis.
+    pub fn get<A: ProgramAnalysis>(&self) -> Arc<A> {
+        let id = A::ID;
+
+        // check cache
+        if let Some(cached) = self.cache.borrow().get(&id).cloned() {
+            return cached.downcast::<A>().expect("analysis type mismatch");
+        }
+
+        // compute
+        let result = Arc::new(A::compute(self.workset, self));
+
+        // cache
+        self.cache.borrow_mut().insert(id, result.clone());
+
+        result
+    }
+
+    /// Check if an analysis is cached.
+    pub fn is_cached<A: ProgramAnalysis>(&self) -> bool {
+        self.cache.borrow().contains_key(&A::ID)
+    }
+
+    /// Invalidate a program analysis and all its dependents.
+    pub fn invalidate(&self, id: AnalysisId) {
+        // remove the cached analysis
+        self.cache.borrow_mut().remove(&id);
+
+        // invalidate dependent analyses
+        for dependent in self.dependency_graph.get_dependents(id) {
+            self.invalidate(*dependent);
+        }
+    }
+
+    /// Invalidate all cached analyses.
+    pub fn invalidate_all(&self) {
+        // clear all cached analyses
+        self.cache.borrow_mut().clear();
+    }
+}
+
+impl std::fmt::Debug for ProgramAnalyses<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProgramAnalyses")
             .field("cached_count", &self.cache.borrow().len())
             .finish()
     }

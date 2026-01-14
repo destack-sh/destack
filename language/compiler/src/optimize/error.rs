@@ -1,6 +1,7 @@
 use destack_compiler_macros::DefineError;
 use destack_mir as mir;
-use destack_workspace::Program;
+use destack_source::PackageId;
+use destack_workspace::{Program, TargetId};
 
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
@@ -20,6 +21,17 @@ pub enum OptimizeError {
     /// Yield dependency has failed.
     #[error(code = "EO001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    // -------------------------------------------------------------------------
+    // 1xx: Target / setup
+    // -------------------------------------------------------------------------
+    /// Invalid target configuration for optimization.
+    #[error(code = "EO110", message = "invalid target {target}: {message}")]
+    InvalidTarget {
+        package: PackageId,
+        target: TargetId,
+        message: String,
+    },
 
     // -------------------------------------------------------------------------
     // 1xx: Move / ownership errors

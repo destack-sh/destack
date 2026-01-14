@@ -1,0 +1,215 @@
+use std::sync::Arc;
+
+use destack_base::StringPool;
+use destack_mir as mir;
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{Module, TargetId};
+use parking_lot::RwLock;
+
+use crate::optimize::{OptimizationLevel, PipelineOptions};
+
+/// A module entry tracked by package and program pipelines.
+#[derive(Debug, Clone)]
+pub struct ModuleWorkItem {
+    /// The module id for this work item.
+    module_id: ModuleId,
+    /// The target id for this work item.
+    target_id: TargetId,
+    /// The backing module reference.
+    module_ref: Arc<RwLock<Module>>,
+    /// The pipeline options for this module.
+    options: PipelineOptions,
+}
+
+impl ModuleWorkItem {
+    /// Create a new module work item.
+    pub fn new(
+        module_id: ModuleId,
+        target_id: TargetId,
+        module_ref: Arc<RwLock<Module>>,
+        options: PipelineOptions,
+    ) -> Self {
+        Self {
+            module_id,
+            target_id,
+            module_ref,
+            options,
+        }
+    }
+
+    /// Get the module id.
+    pub fn module_id(&self) -> ModuleId {
+        self.module_id
+    }
+
+    /// Get the target id.
+    pub fn target_id(&self) -> &TargetId {
+        &self.target_id
+    }
+
+    /// Get the pipeline options for this module.
+    pub fn options(&self) -> &PipelineOptions {
+        &self.options
+    }
+
+    /// Read the MIR tree for this module.
+    pub fn with_tree<T>(&self, f: impl FnOnce(&mir::NodeTree) -> T) -> T {
+        // access the mir tree
+        self.with_mir(|mir| {
+            // lock the tree for reading
+            let tree = mir.tree.read();
+
+            f(&tree)
+        })
+    }
+
+    /// Mutate the MIR tree for this module.
+    pub fn with_tree_mut<T>(&self, f: impl FnOnce(&mut mir::NodeTree) -> T) -> T {
+        // access the mir tree
+        self.with_mir(|mir| {
+            // lock the tree for writing
+            let mut tree = mir.tree.write();
+
+            f(&mut tree)
+        })
+    }
+
+    /// Access the module string pool.
+    pub fn with_strings<T>(&self, f: impl FnOnce(&StringPool) -> T) -> T {
+        // access the mir strings
+        self.with_mir(|mir| f(&mir.strings))
+    }
+
+    /// Clone the module string pool.
+    pub fn clone_strings(&self) -> StringPool {
+        // clone the mir strings
+        self.with_mir(|mir| mir.strings.clone())
+    }
+
+    /// Access the profile data for this module.
+    pub fn with_profile<T>(&self, f: impl FnOnce(Option<&mir::ProfileTable>) -> T) -> T {
+        // access the mir profile
+        self.with_mir(|mir| f(mir.profile()))
+    }
+
+    /// Clone the profile data for this module.
+    pub fn clone_profile(&self) -> Option<Arc<mir::ProfileTable>> {
+        // clone the mir profile
+        self.with_mir(|mir| mir.profile.clone())
+    }
+
+    /// Access the module MIR data.
+    pub fn with_mir<T>(&self, f: impl FnOnce(&destack_workspace::ModuleMir) -> T) -> T {
+        // read the module and resolve mir
+        let module_guard = self.module_ref.read();
+        let mir = module_guard.mir(&self.target_id);
+
+        f(mir)
+    }
+}
+
+/// A set of modules optimized together within a package.
+#[derive(Debug, Clone)]
+pub struct PackageWorkset {
+    /// The package id for this workset.
+    package_id: PackageId,
+    /// The target id used for all modules.
+    target_id: TargetId,
+    /// The optimization level for this package.
+    optimization_level: OptimizationLevel,
+    /// The modules included in this workset.
+    modules: Vec<ModuleWorkItem>,
+}
+
+impl PackageWorkset {
+    /// Create a new package workset.
+    pub fn new(
+        package_id: PackageId,
+        target_id: TargetId,
+        optimization_level: OptimizationLevel,
+    ) -> Self {
+        Self {
+            package_id,
+            target_id,
+            optimization_level,
+            modules: Vec::new(),
+        }
+    }
+
+    /// Get the package id.
+    pub fn package_id(&self) -> PackageId {
+        self.package_id
+    }
+
+    /// Get the target id.
+    pub fn target_id(&self) -> &TargetId {
+        &self.target_id
+    }
+
+    /// Get the optimization level.
+    pub fn optimization_level(&self) -> OptimizationLevel {
+        self.optimization_level
+    }
+
+    /// Add a module to the workset.
+    pub fn add_module(&mut self, module: ModuleWorkItem) {
+        self.modules.push(module);
+    }
+
+    /// Return the number of modules in the workset.
+    pub fn module_count(&self) -> usize {
+        self.modules.len()
+    }
+
+    /// Return all modules in the workset.
+    pub fn modules(&self) -> &[ModuleWorkItem] {
+        &self.modules
+    }
+
+    /// Return all modules in the workset mutably.
+    pub fn modules_mut(&mut self) -> &mut [ModuleWorkItem] {
+        &mut self.modules
+    }
+}
+
+/// A set of packages optimized together within a program.
+#[derive(Debug, Clone)]
+pub struct ProgramWorkset {
+    /// The packages included in this workset.
+    packages: Vec<PackageWorkset>,
+}
+
+impl ProgramWorkset {
+    /// Create a new program workset.
+    pub fn new() -> Self {
+        Self {
+            packages: Vec::new(),
+        }
+    }
+
+    /// Add a package workset.
+    pub fn add_package(&mut self, package: PackageWorkset) {
+        self.packages.push(package);
+    }
+
+    /// Return the number of packages in the workset.
+    pub fn package_count(&self) -> usize {
+        self.packages.len()
+    }
+
+    /// Return all package worksets.
+    pub fn packages(&self) -> &[PackageWorkset] {
+        &self.packages
+    }
+
+    /// Return all package worksets mutably.
+    pub fn packages_mut(&mut self) -> &mut [PackageWorkset] {
+        &mut self.packages
+    }
+}
+
+impl Default for ProgramWorkset {
+    fn default() -> Self {
+        Self::new()
+    }
+}
