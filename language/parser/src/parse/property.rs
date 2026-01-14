@@ -72,7 +72,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true)?;
 
         // abstraction
         let abstraction = if self.peek_keyword(Keyword::Abstract).is_ok()
@@ -414,7 +414,7 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe()?;
+        let modifiers = self.eat_binding_modifiers_prefix_maybe(true)?;
 
         // static block: `static { ... }` or `static\n{ ... }`
         // (must check *before* abstraction parsing since `static` is also a modifier)
