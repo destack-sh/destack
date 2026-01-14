@@ -981,7 +981,7 @@ mod tests {
     /// Tests each lib individually to avoid inter-library conflicts
     /// (e.g., `bun` depends on `node.v24` which conflicts with base `node`).
     #[test]
-    #[ignore] // FUGU: bun lib's vendor/expect-type uses complex nested conditional types the parser doesn't support yet
+    #[ignore] // FUGU
     fn test_analyze_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
