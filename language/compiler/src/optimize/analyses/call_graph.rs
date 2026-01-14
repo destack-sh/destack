@@ -1,0 +1,1532 @@
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
+use destack_mir::{self as mir, CallDispatchKind, CallMetadata, Linkage};
+use destack_source::ModuleId;
+
+use crate::optimize::{
+    Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, ModuleWorkItem, PackageAnalyses,
+    PackageAnalysis, PackageWorkset, ProgramAnalyses, ProgramAnalysis, ProgramWorkset,
+};
+
+/// Directed edge in the call graph.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CallEdge {
+    /// The caller function id.
+    pub caller: mir::LocalNodeId<mir::Function>,
+    /// The callee function id.
+    pub callee: mir::LocalNodeId<mir::Function>,
+    /// The instruction id that performs the call.
+    pub callsite: mir::LocalNodeId<mir::Instruction>,
+    /// The dispatch kind for this callsite.
+    pub dispatch: CallDispatchKind,
+}
+
+impl CallEdge {
+    /// Return true when this edge is a direct call.
+    pub fn is_direct(&self) -> bool {
+        matches!(self.dispatch, CallDispatchKind::Direct)
+    }
+}
+
+/// Callsite that does not have a resolved target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct UnknownCallSite {
+    /// The caller function id.
+    pub caller: mir::LocalNodeId<mir::Function>,
+    /// The instruction id that performs the call.
+    pub callsite: mir::LocalNodeId<mir::Instruction>,
+    /// The dispatch kind for this callsite.
+    pub dispatch: CallDispatchKind,
+    /// The declared callee when known.
+    pub callee: Option<mir::LocalNodeId<mir::Function>>,
+}
+
+/// Callsite identifier for cross module graphs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct CallSiteId {
+    /// The module containing the callsite.
+    pub module: ModuleId,
+    /// The instruction id within the module.
+    pub instruction: mir::LocalNodeId<mir::Instruction>,
+}
+
+/// Symbol name used for cross module call graphs.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SymbolName(Arc<str>);
+
+impl SymbolName {
+    /// Create a symbol name from a string.
+    pub fn new(name: &str) -> Self {
+        Self(Arc::from(name))
+    }
+
+    /// Create the sentinel symbol for unknown or external calls.
+    pub fn external() -> Self {
+        Self(Arc::from("<external>"))
+    }
+
+    /// Return the symbol name as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Signature for resolving callsites across modules.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SignatureKey {
+    /// The parameter type signatures.
+    parameters: Vec<SignatureType>,
+    /// The return type signature.
+    result: SignatureType,
+}
+
+impl SignatureKey {
+    /// Build a signature key from a MIR function.
+    fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Self {
+        // capture parameter signatures
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|param| SignatureType::from_type(tree, param.ty))
+            .collect();
+
+        // capture result signature
+        let result = SignatureType::from_type(tree, function.return_type);
+
+        Self { parameters, result }
+    }
+
+    /// Build a signature key from a function pointer type.
+    fn from_function_type(
+        tree: &mir::NodeTree,
+        signature: mir::LocalNodeId<mir::Type>,
+    ) -> Option<Self> {
+        // load the function pointer signature
+        let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
+            return None;
+        };
+
+        // capture parameter signatures
+        let parameters = parameters
+            .iter()
+            .map(|param| SignatureType::from_type(tree, *param))
+            .collect();
+
+        // capture result signature
+        let result = SignatureType::from_type(tree, *result);
+
+        Some(Self { parameters, result })
+    }
+}
+
+/// Structural signature for a MIR type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum SignatureType {
+    Void,
+    Boolean,
+    Int {
+        width: u16,
+        signed: bool,
+    },
+    Float {
+        width: u16,
+    },
+    Reference {
+        kind: mir::ReferenceKind,
+        address_space: mir::AddressSpace,
+        mutability: mir::Mutability,
+        pointee: Box<SignatureType>,
+        is_nullable: bool,
+    },
+    Array {
+        element: Box<SignatureType>,
+        length: u64,
+        copyability: mir::Copyability,
+    },
+    Tuple {
+        elements: Vec<SignatureType>,
+        copyability: mir::Copyability,
+    },
+    Struct {
+        fields: Vec<SignatureField>,
+        copyability: mir::Copyability,
+    },
+    FunctionPointer {
+        parameters: Vec<SignatureType>,
+        result: Box<SignatureType>,
+    },
+}
+
+impl SignatureType {
+    /// Build a signature type from a MIR type.
+    fn from_type(tree: &mir::NodeTree, ty_id: mir::LocalNodeId<mir::Type>) -> Self {
+        // load the MIR type
+        let ty = tree.get(ty_id);
+
+        // map the MIR type to a structural signature
+        match ty {
+            mir::Type::Void => SignatureType::Void,
+            mir::Type::Boolean => SignatureType::Boolean,
+            mir::Type::Int { width, signed } => SignatureType::Int {
+                width: *width,
+                signed: *signed,
+            },
+            mir::Type::Float { width } => SignatureType::Float { width: *width },
+            mir::Type::Reference {
+                kind,
+                address_space,
+                mutability,
+                pointee,
+                is_nullable,
+            } => SignatureType::Reference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                pointee: Box::new(SignatureType::from_type(tree, *pointee)),
+                is_nullable: *is_nullable,
+            },
+            mir::Type::Array {
+                element,
+                length,
+                copyability,
+            } => SignatureType::Array {
+                element: Box::new(SignatureType::from_type(tree, *element)),
+                length: *length,
+                copyability: *copyability,
+            },
+            mir::Type::Tuple {
+                elements,
+                copyability,
+            } => {
+                // convert tuple elements to signature types
+                let elements = elements
+                    .iter()
+                    .map(|element| SignatureType::from_type(tree, *element))
+                    .collect();
+
+                SignatureType::Tuple {
+                    elements,
+                    copyability: *copyability,
+                }
+            }
+            mir::Type::Struct {
+                fields,
+                copyability,
+            } => {
+                // convert struct fields to signature fields
+                let fields = fields
+                    .iter()
+                    .map(|field_id| {
+                        let field = tree.get(*field_id);
+
+                        SignatureField {
+                            offset: field.offset,
+                            ty: SignatureType::from_type(tree, field.ty),
+                        }
+                    })
+                    .collect();
+
+                SignatureType::Struct {
+                    fields,
+                    copyability: *copyability,
+                }
+            }
+            mir::Type::FunctionPointer { parameters, result } => {
+                // convert function pointer types recursively
+                let parameters = parameters
+                    .iter()
+                    .map(|param| SignatureType::from_type(tree, *param))
+                    .collect();
+
+                // capture the result type signature
+                let result = Box::new(SignatureType::from_type(tree, *result));
+
+                SignatureType::FunctionPointer { parameters, result }
+            }
+        }
+    }
+}
+
+/// Field signature for struct types.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct SignatureField {
+    /// Byte offset within the struct.
+    offset: u32,
+    /// Field type signature.
+    ty: SignatureType,
+}
+
+/// Directed edge in a symbol call graph.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolCallEdge {
+    /// The caller symbol.
+    pub caller: SymbolName,
+    /// The callee symbol.
+    pub callee: SymbolName,
+    /// The callsite identifier.
+    pub callsite: CallSiteId,
+    /// The dispatch kind for this callsite.
+    pub dispatch: CallDispatchKind,
+}
+
+/// Callsite that does not have a resolved target symbol.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolUnknownCallSite {
+    /// The caller symbol.
+    pub caller: SymbolName,
+    /// The callsite identifier.
+    pub callsite: CallSiteId,
+    /// The dispatch kind for this callsite.
+    pub dispatch: CallDispatchKind,
+    /// The unresolved symbol name, when known.
+    pub callee: Option<SymbolName>,
+}
+
+/// Cross-module call graph keyed by symbol names.
+#[derive(Debug)]
+pub struct SymbolCallGraph {
+    /// Outgoing edges by caller.
+    outgoing: HashMap<SymbolName, Vec<SymbolCallEdge>>,
+    /// Incoming edges by callee.
+    incoming: HashMap<SymbolName, Vec<SymbolCallEdge>>,
+    /// Unresolved callsites by caller.
+    unknown: HashMap<SymbolName, Vec<SymbolUnknownCallSite>>,
+    /// Definition details for symbols in scope.
+    definitions: HashMap<SymbolName, Vec<SymbolDefinition>>,
+    /// Symbols with multiple definitions in scope.
+    ambiguous: HashSet<SymbolName>,
+    /// Sentinel symbol for external or unknown targets.
+    external_symbol: SymbolName,
+}
+
+/// Definition information for a symbol.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SymbolDefinition {
+    /// Linkage for this definition.
+    linkage: Linkage,
+    /// Signature for this definition.
+    signature: SignatureKey,
+}
+
+impl SymbolCallGraph {
+    /// Get outgoing call edges for a symbol.
+    pub fn outgoing(&self, caller: &SymbolName) -> &[SymbolCallEdge] {
+        const EMPTY: [SymbolCallEdge; 0] = [];
+        self.outgoing
+            .get(caller)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Get incoming call edges for a symbol.
+    pub fn incoming(&self, callee: &SymbolName) -> &[SymbolCallEdge] {
+        const EMPTY: [SymbolCallEdge; 0] = [];
+        self.incoming
+            .get(callee)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Get unresolved callsites for a symbol.
+    pub fn unknown_calls(&self, caller: &SymbolName) -> &[SymbolUnknownCallSite] {
+        const EMPTY: [SymbolUnknownCallSite; 0] = [];
+        self.unknown
+            .get(caller)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Return the sentinel symbol for unknown targets.
+    pub fn external_symbol(&self) -> &SymbolName {
+        &self.external_symbol
+    }
+
+    /// Check whether a symbol is defined in this graph.
+    pub fn is_defined(&self, symbol: &SymbolName) -> bool {
+        self.definitions.contains_key(symbol)
+    }
+
+    /// Check whether a symbol is ambiguous in this graph.
+    pub fn is_ambiguous(&self, symbol: &SymbolName) -> bool {
+        self.ambiguous.contains(symbol)
+    }
+}
+
+/// Module scoped call graph.
+#[derive(Debug)]
+pub struct CallGraph {
+    /// Outgoing edges by caller.
+    outgoing: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
+    /// Incoming edges by callee.
+    incoming: HashMap<mir::LocalNodeId<mir::Function>, Vec<CallEdge>>,
+    /// Unresolved callsites by caller.
+    unknown: HashMap<mir::LocalNodeId<mir::Function>, Vec<UnknownCallSite>>,
+}
+
+impl CallGraph {
+    /// Get outgoing call edges for a function.
+    pub fn outgoing(&self, caller: mir::LocalNodeId<mir::Function>) -> &[CallEdge] {
+        const EMPTY: [CallEdge; 0] = [];
+        self.outgoing
+            .get(&caller)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Get incoming call edges for a function.
+    pub fn incoming(&self, callee: mir::LocalNodeId<mir::Function>) -> &[CallEdge] {
+        const EMPTY: [CallEdge; 0] = [];
+        self.incoming
+            .get(&callee)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Get unresolved callsites for a function.
+    pub fn unknown_calls(&self, caller: mir::LocalNodeId<mir::Function>) -> &[UnknownCallSite] {
+        const EMPTY: [UnknownCallSite; 0] = [];
+        self.unknown
+            .get(&caller)
+            .map(Vec::as_slice)
+            .unwrap_or(&EMPTY)
+    }
+
+    /// Build a call graph for the given module.
+    fn build(tree: &mir::NodeTree) -> Self {
+        let mut graph = Self {
+            outgoing: HashMap::new(),
+            incoming: HashMap::new(),
+            unknown: HashMap::new(),
+        };
+
+        // scan each function for call instructions
+        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+            // skip functions without bodies
+            if function.entry.is_none() {
+                continue;
+            }
+
+            for block_id in &function.blocks {
+                let block = tree.get(*block_id);
+
+                for &instruction_id in &block.instructions {
+                    let instruction = tree.get(instruction_id);
+
+                    let Some(callsite) =
+                        CallSite::from_instruction(function_id, instruction_id, instruction, tree)
+                    else {
+                        continue;
+                    };
+
+                    graph.insert_callsite(callsite);
+                }
+            }
+        }
+
+        graph
+    }
+
+    /// Insert a callsite into the graph.
+    fn insert_callsite(&mut self, callsite: CallSite) {
+        // record resolved edges when a target is known
+        if let Some(callee) = callsite.callee {
+            let edge = CallEdge {
+                caller: callsite.caller,
+                callee,
+                callsite: callsite.instruction,
+                dispatch: callsite.dispatch,
+            };
+
+            self.outgoing.entry(callsite.caller).or_default().push(edge);
+            self.incoming.entry(callee).or_default().push(edge);
+
+            if callsite.is_precise {
+                return;
+            }
+        }
+
+        // record unresolved or partially resolved callsites
+        let unknown = UnknownCallSite {
+            caller: callsite.caller,
+            callsite: callsite.instruction,
+            dispatch: callsite.dispatch,
+            callee: callsite.callee,
+        };
+
+        self.unknown
+            .entry(callsite.caller)
+            .or_default()
+            .push(unknown);
+    }
+}
+
+impl Analysis for CallGraph {
+    const ID: AnalysisId = AnalysisId("callgraph");
+}
+
+impl ModuleAnalysis for CallGraph {
+    fn compute(tree: &mir::NodeTree, _analyses: &ModuleAnalyses<'_>) -> Self {
+        Self::build(tree)
+    }
+}
+
+/// Package scoped call graph keyed by symbol names.
+#[derive(Debug)]
+pub struct PackageCallGraph {
+    /// The underlying symbol call graph.
+    graph: SymbolCallGraph,
+}
+
+impl PackageCallGraph {
+    /// Get outgoing call edges for a symbol.
+    pub fn outgoing(&self, caller: &SymbolName) -> &[SymbolCallEdge] {
+        self.graph.outgoing(caller)
+    }
+
+    /// Get incoming call edges for a symbol.
+    pub fn incoming(&self, callee: &SymbolName) -> &[SymbolCallEdge] {
+        self.graph.incoming(callee)
+    }
+
+    /// Get unresolved callsites for a symbol.
+    pub fn unknown_calls(&self, caller: &SymbolName) -> &[SymbolUnknownCallSite] {
+        self.graph.unknown_calls(caller)
+    }
+
+    /// Return the sentinel symbol for unknown targets.
+    pub fn external_symbol(&self) -> &SymbolName {
+        self.graph.external_symbol()
+    }
+
+    /// Check whether a symbol is defined in this graph.
+    pub fn is_defined(&self, symbol: &SymbolName) -> bool {
+        self.graph.is_defined(symbol)
+    }
+
+    /// Check whether a symbol is ambiguous in this graph.
+    pub fn is_ambiguous(&self, symbol: &SymbolName) -> bool {
+        self.graph.is_ambiguous(symbol)
+    }
+}
+
+impl Analysis for PackageCallGraph {
+    const ID: AnalysisId = AnalysisId("package-callgraph");
+}
+
+impl PackageAnalysis for PackageCallGraph {
+    fn compute(workset: &PackageWorkset, _analyses: &PackageAnalyses<'_>) -> Self {
+        let graph = build_symbol_call_graph(workset.modules());
+
+        Self { graph }
+    }
+}
+
+/// Program scoped call graph keyed by symbol names.
+#[derive(Debug)]
+pub struct ProgramCallGraph {
+    /// The underlying symbol call graph.
+    graph: SymbolCallGraph,
+}
+
+impl ProgramCallGraph {
+    /// Get outgoing call edges for a symbol.
+    pub fn outgoing(&self, caller: &SymbolName) -> &[SymbolCallEdge] {
+        self.graph.outgoing(caller)
+    }
+
+    /// Get incoming call edges for a symbol.
+    pub fn incoming(&self, callee: &SymbolName) -> &[SymbolCallEdge] {
+        self.graph.incoming(callee)
+    }
+
+    /// Get unresolved callsites for a symbol.
+    pub fn unknown_calls(&self, caller: &SymbolName) -> &[SymbolUnknownCallSite] {
+        self.graph.unknown_calls(caller)
+    }
+
+    /// Return the sentinel symbol for unknown targets.
+    pub fn external_symbol(&self) -> &SymbolName {
+        self.graph.external_symbol()
+    }
+
+    /// Check whether a symbol is defined in this graph.
+    pub fn is_defined(&self, symbol: &SymbolName) -> bool {
+        self.graph.is_defined(symbol)
+    }
+
+    /// Check whether a symbol is ambiguous in this graph.
+    pub fn is_ambiguous(&self, symbol: &SymbolName) -> bool {
+        self.graph.is_ambiguous(symbol)
+    }
+}
+
+impl Analysis for ProgramCallGraph {
+    const ID: AnalysisId = AnalysisId("program-callgraph");
+}
+
+impl ProgramAnalysis for ProgramCallGraph {
+    fn compute(workset: &ProgramWorkset, _analyses: &ProgramAnalyses<'_>) -> Self {
+        // collect modules across packages
+        let modules: Vec<ModuleWorkItem> = workset
+            .packages()
+            .iter()
+            .flat_map(|package| package.modules())
+            .cloned()
+            .collect();
+
+        // build the shared call graph
+        let graph = build_symbol_call_graph(&modules);
+
+        Self { graph }
+    }
+}
+
+/// Resolved callsite data for call graph construction.
+struct CallSite {
+    /// The caller function id.
+    caller: mir::LocalNodeId<mir::Function>,
+    /// The instruction id for the callsite.
+    instruction: mir::LocalNodeId<mir::Instruction>,
+    /// Dispatch kind for the callsite.
+    dispatch: CallDispatchKind,
+    /// Resolved callee when known.
+    callee: Option<mir::LocalNodeId<mir::Function>>,
+    /// True when the dispatch is fully resolved.
+    is_precise: bool,
+}
+
+/// Interns symbol names to reduce repeated allocation.
+#[derive(Default)]
+struct SymbolInterner {
+    names: HashMap<String, SymbolName>,
+}
+
+impl SymbolInterner {
+    /// Intern a symbol name.
+    fn intern(&mut self, name: &str) -> SymbolName {
+        // reuse existing symbol entry
+        if let Some(symbol) = self.names.get(name) {
+            return symbol.clone();
+        }
+
+        // insert a new symbol entry
+        let symbol = SymbolName::new(name);
+        self.names.insert(name.to_string(), symbol.clone());
+        symbol
+    }
+}
+
+/// Build a symbol call graph over a set of module work items.
+fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
+    // seed shared symbol state
+    let mut interner = SymbolInterner::default();
+    let mut definitions: HashMap<SymbolName, Vec<SymbolDefinition>> = HashMap::new();
+    let mut export_counts: HashMap<SymbolName, usize> = HashMap::new();
+
+    // collect definition metadata for all modules
+    for module in modules {
+        module.with_mir(|mir| {
+            // lock tree and strings for scanning
+            let tree = mir.tree.read();
+            let strings = &mir.strings;
+
+            // scan for defined functions
+            for (_, function) in tree.iter_nodes::<mir::Function>() {
+                if function.entry.is_none() {
+                    continue;
+                }
+
+                if !function.linkage.is_defined() {
+                    continue;
+                }
+
+                let name = strings.get(function.name);
+                let symbol = interner.intern(name.as_ref());
+                let signature = SignatureKey::from_function(&tree, function);
+
+                definitions
+                    .entry(symbol.clone())
+                    .or_default()
+                    .push(SymbolDefinition {
+                        linkage: function.linkage,
+                        signature,
+                    });
+
+                if function.linkage.is_exported() {
+                    *export_counts.entry(symbol).or_insert(0) += 1;
+                }
+            }
+        });
+    }
+
+    // compute ambiguous symbol set
+    let ambiguous: HashSet<SymbolName> = export_counts
+        .iter()
+        .filter_map(|(symbol, count)| (*count > 1).then_some(symbol.clone()))
+        .collect();
+
+    let mut graph = SymbolCallGraph {
+        outgoing: HashMap::new(),
+        incoming: HashMap::new(),
+        unknown: HashMap::new(),
+        definitions,
+        ambiguous,
+        external_symbol: SymbolName::external(),
+    };
+
+    // collect call edges for each module
+    for module in modules {
+        // capture module id for callsite keys
+        let module_id = module.module_id();
+
+        module.with_mir(|mir| {
+            // lock tree and strings for scanning
+            let tree = mir.tree.read();
+            let strings = &mir.strings;
+
+            // build symbol names for all functions
+            let mut symbols_by_function: HashMap<mir::LocalNodeId<mir::Function>, SymbolName> =
+                HashMap::new();
+
+            for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+                let name = strings.get(function.name);
+                let symbol = interner.intern(name.as_ref());
+                symbols_by_function.insert(function_id, symbol);
+            }
+
+            // walk call instructions for each function with a body
+            for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+                if function.entry.is_none() {
+                    continue;
+                }
+
+                let Some(caller_symbol) = symbols_by_function.get(&function_id).cloned() else {
+                    continue;
+                };
+
+                for block_id in &function.blocks {
+                    let block = tree.get(*block_id);
+
+                    for &instruction_id in &block.instructions {
+                        let instruction = tree.get(instruction_id);
+                        let Some(callsite) = SymbolCallSite::from_instruction(
+                            module_id,
+                            instruction_id,
+                            instruction,
+                            &symbols_by_function,
+                            tree.call_table.call_metadata(instruction_id),
+                            &tree,
+                        ) else {
+                            continue;
+                        };
+
+                        insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
+                    }
+                }
+            }
+        });
+    }
+
+    graph
+}
+
+/// Resolved callsite data for symbol call graphs.
+struct SymbolCallSite {
+    /// The callsite id.
+    callsite: CallSiteId,
+    /// The dispatch kind.
+    dispatch: CallDispatchKind,
+    /// The callee symbol name, when known.
+    callee: Option<SymbolName>,
+    /// The callee linkage, when known.
+    callee_linkage: Option<Linkage>,
+    /// The callsite signature, when known.
+    signature: Option<SignatureKey>,
+    /// True when the dispatch is fully resolved.
+    is_precise: bool,
+}
+
+impl SymbolCallSite {
+    /// Build a symbol callsite from an instruction when it represents a call.
+    fn from_instruction(
+        module_id: ModuleId,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
+        metadata: Option<&CallMetadata>,
+        tree: &mir::NodeTree,
+    ) -> Option<Self> {
+        // capture the callsite identity
+        let callsite = CallSiteId {
+            module: module_id,
+            instruction: instruction_id,
+        };
+
+        // resolve the metadata signature
+        let signature =
+            metadata.and_then(|meta| SignatureKey::from_function_type(tree, meta.signature));
+
+        // map call instructions to resolved targets
+        match instruction {
+            mir::Instruction::Call { function, .. } => {
+                // resolve dispatch and callee from metadata
+                let dispatch = metadata
+                    .map(|meta| meta.dispatch)
+                    .unwrap_or(CallDispatchKind::Direct);
+                let target = metadata
+                    .and_then(|meta| meta.declared_target)
+                    .unwrap_or(*function);
+                let callee = symbols_by_function.get(&target).cloned();
+                let callee_linkage = Some(tree.get(target).linkage);
+                let signature = signature.or_else(|| {
+                    let function = tree.get(target);
+                    Some(SignatureKey::from_function(tree, function))
+                });
+                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+
+                Some(Self {
+                    callsite,
+                    dispatch,
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise,
+                })
+            }
+            mir::Instruction::CallIndirect { .. } => {
+                // resolve dispatch and callee from metadata
+                let dispatch = metadata
+                    .map(|meta| meta.dispatch)
+                    .unwrap_or(CallDispatchKind::Indirect);
+                let callee = metadata
+                    .and_then(|meta| meta.declared_target)
+                    .and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = metadata
+                    .and_then(|meta| meta.declared_target)
+                    .map(|target| tree.get(target).linkage);
+                let signature = signature.or_else(|| {
+                    metadata
+                        .and_then(|meta| meta.declared_target)
+                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
+                });
+                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+
+                Some(Self {
+                    callsite,
+                    dispatch,
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise,
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Insert a symbol callsite into a graph.
+fn insert_symbol_callsite(
+    graph: &mut SymbolCallGraph,
+    callsite: SymbolCallSite,
+    caller_symbol: &SymbolName,
+) {
+    // resolve the callee symbol
+    let Some(callee) = callsite.callee.clone() else {
+        insert_unknown_symbol_call(graph, callsite, caller_symbol, None);
+        return;
+    };
+
+    // direct calls to local or exported definitions are always resolved
+    if matches!(
+        callsite.callee_linkage,
+        Some(Linkage::Local | Linkage::Export)
+    ) {
+        insert_symbol_edge(graph, caller_symbol, &callee, &callsite);
+
+        if !callsite.is_precise {
+            insert_unknown_symbol_call(graph, callsite, caller_symbol, Some(callee));
+        }
+
+        return;
+    }
+
+    // resolve imported symbols against exported definitions
+    if matches!(callsite.callee_linkage, Some(Linkage::Import)) {
+        let resolution = resolve_exported_target(graph, &callee, callsite.signature.as_ref());
+
+        if resolution {
+            insert_symbol_edge(graph, caller_symbol, &callee, &callsite);
+
+            if !callsite.is_precise {
+                insert_unknown_symbol_call(graph, callsite, caller_symbol, Some(callee));
+            }
+        } else {
+            insert_unknown_symbol_call(graph, callsite, caller_symbol, Some(callee));
+        }
+
+        return;
+    }
+
+    // fall back to unresolved when linkage is missing
+    insert_unknown_symbol_call(graph, callsite, caller_symbol, Some(callee));
+}
+
+/// Insert a resolved symbol edge into the graph.
+fn insert_symbol_edge(
+    graph: &mut SymbolCallGraph,
+    caller_symbol: &SymbolName,
+    callee: &SymbolName,
+    callsite: &SymbolCallSite,
+) {
+    // build the resolved edge
+    let edge = SymbolCallEdge {
+        caller: caller_symbol.clone(),
+        callee: callee.clone(),
+        callsite: callsite.callsite,
+        dispatch: callsite.dispatch,
+    };
+
+    // store the edge in adjacency maps
+    graph
+        .outgoing
+        .entry(caller_symbol.clone())
+        .or_default()
+        .push(edge.clone());
+    graph.incoming.entry(callee.clone()).or_default().push(edge);
+}
+
+/// Insert an unresolved callsite into the graph.
+fn insert_unknown_symbol_call(
+    graph: &mut SymbolCallGraph,
+    callsite: SymbolCallSite,
+    caller_symbol: &SymbolName,
+    callee: Option<SymbolName>,
+) {
+    // record the unresolved callsite
+    let unknown = SymbolUnknownCallSite {
+        caller: caller_symbol.clone(),
+        callsite: callsite.callsite,
+        dispatch: callsite.dispatch,
+        callee: callee.clone(),
+    };
+
+    graph
+        .unknown
+        .entry(caller_symbol.clone())
+        .or_default()
+        .push(unknown);
+
+    // attach the callsite to the external sentinel
+    let edge = SymbolCallEdge {
+        caller: caller_symbol.clone(),
+        callee: graph.external_symbol.clone(),
+        callsite: callsite.callsite,
+        dispatch: callsite.dispatch,
+    };
+
+    graph
+        .outgoing
+        .entry(caller_symbol.clone())
+        .or_default()
+        .push(edge.clone());
+    graph
+        .incoming
+        .entry(graph.external_symbol.clone())
+        .or_default()
+        .push(edge);
+}
+
+/// Resolve whether an imported symbol can bind to a unique export.
+fn resolve_exported_target(
+    graph: &SymbolCallGraph,
+    symbol: &SymbolName,
+    signature: Option<&SignatureKey>,
+) -> bool {
+    // reject ambiguous exports
+    if graph.is_ambiguous(symbol) {
+        return false;
+    }
+
+    // fetch known definitions
+    let Some(definitions) = graph.definitions.get(symbol) else {
+        return false;
+    };
+
+    // filter to exported definitions
+    let exported: Vec<&SymbolDefinition> = definitions
+        .iter()
+        .filter(|definition| definition.linkage.is_exported())
+        .collect();
+
+    if exported.is_empty() {
+        return false;
+    }
+
+    // allow a single export without signature evidence
+    let Some(signature) = signature else {
+        return exported.len() == 1;
+    };
+
+    // require a single matching signature
+    exported
+        .iter()
+        .filter(|definition| definition.signature == *signature)
+        .count()
+        == 1
+}
+
+impl CallSite {
+    /// Build a callsite from an instruction when it represents a call.
+    fn from_instruction(
+        caller: mir::LocalNodeId<mir::Function>,
+        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        instruction: &mir::Instruction,
+        tree: &mir::NodeTree,
+    ) -> Option<Self> {
+        match instruction {
+            mir::Instruction::Call { function, .. } => {
+                let metadata = tree.call_table.call_metadata(instruction_id);
+                let dispatch = metadata
+                    .map(|meta| meta.dispatch)
+                    .unwrap_or(CallDispatchKind::Direct);
+                let callee = metadata
+                    .and_then(|meta| meta.declared_target)
+                    .or(Some(*function));
+                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+
+                Some(Self {
+                    caller,
+                    instruction: instruction_id,
+                    dispatch,
+                    callee,
+                    is_precise,
+                })
+            }
+            mir::Instruction::CallIndirect { .. } => {
+                let metadata = tree.call_table.call_metadata(instruction_id);
+                let dispatch = metadata
+                    .map(|meta| meta.dispatch)
+                    .unwrap_or(CallDispatchKind::Indirect);
+                let callee = metadata.and_then(|meta| meta.declared_target);
+                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+
+                Some(Self {
+                    caller,
+                    instruction: instruction_id,
+                    dispatch,
+                    callee,
+                    is_precise,
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use parking_lot::RwLock;
+
+    use destack_source::{
+        FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri,
+    };
+    use destack_workspace::{Loader, Module, ModuleMir, ModuleSource, SourceType, TargetId};
+
+    use crate::optimize::common::tests::TestProgram;
+    use crate::optimize::{
+        ModuleAnalyses, ModuleWorkItem, OptimizationLevel, PackageAnalyses, PackageWorkset,
+        PipelineOptions, ProgramAnalyses, ProgramWorkset,
+    };
+
+    use super::*;
+
+    /// Find the first call instruction in a function.
+    fn first_call_instruction(
+        program: &TestProgram,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> mir::LocalNodeId<mir::Instruction> {
+        let block_id = program.entry_block_id(function_id);
+        let block = program.tree.get(block_id);
+
+        for &instruction_id in &block.instructions {
+            if matches!(
+                program.tree.get(instruction_id),
+                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
+            ) {
+                return instruction_id;
+            }
+        }
+
+        panic!("missing call instruction");
+    }
+
+    /// Build a module work item from MIR text.
+    fn module_work_item(package_id: PackageId, module_index: u32, source: &str) -> ModuleWorkItem {
+        let module_id = ModuleId::new(package_id, module_index);
+        let target_id = TargetId::new(package_id, "test");
+        let uri = Uri::from_string(format!("test://module/{module_index}"));
+        let file_id = FileId::new(module_index);
+
+        let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
+        let pool = destack_base::StringPool::new();
+        pool.copy_from_immutable(&strings);
+
+        let mut module = Module::blank(
+            module_id,
+            file_id,
+            FileVersion::default(),
+            uri,
+            None,
+            package_id,
+            None,
+            SourceType::Module,
+            LanguageType::Destack,
+            Loader::Destack,
+            ModuleSource::User,
+        );
+
+        let mut module_mir = ModuleMir::new(module_id, ModuleVersion::INITIAL, target_id.clone());
+        *module_mir.tree.write() = tree;
+        module_mir.strings = pool;
+        module.code_mut().mirs.push(module_mir);
+
+        let module_ref = Arc::new(RwLock::new(module));
+
+        ModuleWorkItem::new(module_id, target_id, module_ref, PipelineOptions::default())
+    }
+
+    /// Direct calls create edges in the call graph.
+    #[test]
+    fn test_call_graph_direct_call() {
+        let program = TestProgram::new(
+            r#"function @callee() -> i32 {
+block0:
+    v0 = iconst 7i32
+    return v0
+}
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let callee_id = program.function_id_by_name("callee");
+        let test_id = program.function_id_by_name("test");
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        let outgoing = callgraph.outgoing(test_id);
+        let incoming = callgraph.incoming(callee_id);
+
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(incoming.len(), 1);
+        assert!(outgoing[0].is_direct());
+        assert_eq!(outgoing[0].callee, callee_id);
+        assert_eq!(incoming[0].caller, test_id);
+        assert!(callgraph.unknown_calls(test_id).is_empty());
+    }
+
+    /// Indirect calls without metadata remain unresolved.
+    #[test]
+    fn test_call_graph_indirect_unknown() {
+        let program = TestProgram::new(
+            r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call.indirect v0(v1)
+    return v2
+}"#,
+        );
+
+        let test_id = program.function_id_by_name("test");
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        assert!(callgraph.outgoing(test_id).is_empty());
+        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
+        assert_eq!(
+            callgraph.unknown_calls(test_id)[0].dispatch,
+            CallDispatchKind::Indirect
+        );
+    }
+
+    /// Call metadata can resolve call.indirect targets.
+    #[test]
+    fn test_call_graph_metadata_resolves_indirect() {
+        let mut program = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call.indirect v0(v1)
+    return v2
+}"#,
+        );
+
+        let callee_id = program.function_id_by_name("callee");
+        let test_id = program.function_id_by_name("test");
+        let callsite_id = first_call_instruction(&program, test_id);
+        let callee = program.tree.get(callee_id);
+        let signature = program.tree.insert(mir::Type::FunctionPointer {
+            parameters: callee.parameters.iter().map(|param| param.ty).collect(),
+            result: callee.return_type,
+        });
+
+        program
+            .tree
+            .call_table
+            .insert_call_metadata(callsite_id, CallMetadata::direct(callee_id, signature));
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        assert_eq!(callgraph.outgoing(test_id).len(), 1);
+        assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
+        assert!(callgraph.unknown_calls(test_id).is_empty());
+    }
+
+    /// Virtual dispatch keeps a call edge and records an unknown target.
+    #[test]
+    fn test_call_graph_virtual_dispatch_is_partial() {
+        let mut program = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = call @callee(v0)
+    return v1
+}"#,
+        );
+
+        let callee_id = program.function_id_by_name("callee");
+        let test_id = program.function_id_by_name("test");
+        let callsite_id = first_call_instruction(&program, test_id);
+        let signature = program.call_signature_for_callee(callee_id);
+        let declaring_type = program.tree.get(callee_id).parameters[0].ty;
+
+        program.tree.call_table.insert_call_metadata(
+            callsite_id,
+            CallMetadata::virtual_call(
+                mir::Value::new(0),
+                declaring_type,
+                1,
+                signature,
+                Some(callee_id),
+            ),
+        );
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        assert_eq!(callgraph.outgoing(test_id).len(), 1);
+        assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
+        assert_eq!(
+            callgraph.outgoing(test_id)[0].dispatch,
+            CallDispatchKind::Virtual { slot_id: 1 }
+        );
+        assert_eq!(callgraph.unknown_calls(test_id).len(), 1);
+        assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
+    }
+
+    /// Package call graphs resolve imported functions.
+    #[test]
+    fn test_package_call_graph_resolves_import() {
+        let package_id = PackageId::new(1);
+        let target_id = TargetId::new(package_id, "test");
+
+        let module_a = module_work_item(
+            package_id,
+            0,
+            r#"export function @callee() -> i32 {
+block0:
+    v0 = iconst 3i32
+    return v0
+}"#,
+        );
+
+        let module_b = module_work_item(
+            package_id,
+            1,
+            r#"extern function @callee() -> i32
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let mut workset = PackageWorkset::new(package_id, target_id, OptimizationLevel::O2);
+        workset.add_module(module_a);
+        workset.add_module(module_b);
+
+        let analyses = PackageAnalyses::new(&workset);
+        let callgraph = analyses.get::<PackageCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callee);
+        assert!(callgraph.is_defined(&callee));
+        assert!(callgraph.unknown_calls(&caller).is_empty());
+    }
+
+    /// Imported calls with missing exports remain unresolved.
+    #[test]
+    fn test_package_call_graph_import_missing_definition() {
+        let package_id = PackageId::new(7);
+        let target_id = TargetId::new(package_id, "test");
+
+        let module = module_work_item(
+            package_id,
+            0,
+            r#"extern function @callee() -> i32
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let mut workset = PackageWorkset::new(package_id, target_id, OptimizationLevel::O2);
+        workset.add_module(module);
+
+        let analyses = PackageAnalyses::new(&workset);
+        let callgraph = analyses.get::<PackageCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+        let external = callgraph.external_symbol();
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, external.clone());
+        assert_eq!(callgraph.unknown_calls(&caller).len(), 1);
+        assert_eq!(callgraph.unknown_calls(&caller)[0].callee, Some(callee));
+        assert_eq!(callgraph.incoming(external).len(), 1);
+    }
+
+    /// Imports do not resolve against local-only definitions.
+    #[test]
+    fn test_package_call_graph_skips_local_definition() {
+        let package_id = PackageId::new(8);
+        let target_id = TargetId::new(package_id, "test");
+
+        let module_a = module_work_item(
+            package_id,
+            0,
+            r#"function @callee() -> i32 {
+block0:
+    v0 = iconst 1i32
+    return v0
+}"#,
+        );
+
+        let module_b = module_work_item(
+            package_id,
+            1,
+            r#"extern function @callee() -> i32
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let mut workset = PackageWorkset::new(package_id, target_id, OptimizationLevel::O2);
+        workset.add_module(module_a);
+        workset.add_module(module_b);
+
+        let analyses = PackageAnalyses::new(&workset);
+        let callgraph = analyses.get::<PackageCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callgraph.external_symbol().clone());
+        assert_eq!(callgraph.unknown_calls(&caller).len(), 1);
+        assert_eq!(callgraph.unknown_calls(&caller)[0].callee, Some(callee));
+    }
+
+    /// Imports with mismatched signatures remain unresolved.
+    #[test]
+    fn test_package_call_graph_signature_mismatch() {
+        let package_id = PackageId::new(9);
+        let target_id = TargetId::new(package_id, "test");
+
+        let module_a = module_work_item(
+            package_id,
+            0,
+            r#"export function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}"#,
+        );
+
+        let module_b = module_work_item(
+            package_id,
+            1,
+            r#"extern function @callee(i64) -> i64
+function @test(v0: i64) -> i64 {
+block0(v0: i64):
+    v1 = call @callee(v0)
+    return v1
+}"#,
+        );
+
+        let mut workset = PackageWorkset::new(package_id, target_id, OptimizationLevel::O2);
+        workset.add_module(module_a);
+        workset.add_module(module_b);
+
+        let analyses = PackageAnalyses::new(&workset);
+        let callgraph = analyses.get::<PackageCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callgraph.external_symbol().clone());
+        assert_eq!(callgraph.unknown_calls(&caller).len(), 1);
+        assert_eq!(callgraph.unknown_calls(&caller)[0].callee, Some(callee));
+    }
+
+    /// Program call graphs resolve across packages when symbols are unique.
+    #[test]
+    fn test_program_call_graph_resolves_cross_package() {
+        let caller_pkg = PackageId::new(2);
+        let callee_pkg = PackageId::new(3);
+
+        let caller_target = TargetId::new(caller_pkg, "test");
+        let callee_target = TargetId::new(callee_pkg, "test");
+
+        let caller_module = module_work_item(
+            caller_pkg,
+            0,
+            r#"extern function @callee() -> i32
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let callee_module = module_work_item(
+            callee_pkg,
+            0,
+            r#"export function @callee() -> i32 {
+block0:
+    v0 = iconst 9i32
+    return v0
+}"#,
+        );
+
+        let mut caller_workset =
+            PackageWorkset::new(caller_pkg, caller_target, OptimizationLevel::O2);
+        caller_workset.add_module(caller_module);
+
+        let mut callee_workset =
+            PackageWorkset::new(callee_pkg, callee_target, OptimizationLevel::O2);
+        callee_workset.add_module(callee_module);
+
+        let mut program = ProgramWorkset::new();
+        program.add_package(caller_workset);
+        program.add_package(callee_workset);
+
+        let analyses = ProgramAnalyses::new(&program);
+        let callgraph = analyses.get::<ProgramCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callee);
+        assert!(callgraph.is_defined(&callee));
+    }
+
+    /// Ambiguous symbols are left unresolved in the program call graph.
+    #[test]
+    fn test_program_call_graph_ambiguous_symbol_is_unknown() {
+        let caller_pkg = PackageId::new(4);
+        let callee_pkg_a = PackageId::new(5);
+        let callee_pkg_b = PackageId::new(6);
+
+        let caller_target = TargetId::new(caller_pkg, "test");
+        let target_a = TargetId::new(callee_pkg_a, "test");
+        let target_b = TargetId::new(callee_pkg_b, "test");
+
+        let caller_module = module_work_item(
+            caller_pkg,
+            0,
+            r#"extern function @callee() -> i32
+function @test() -> i32 {
+block0:
+    v0 = call @callee()
+    return v0
+}"#,
+        );
+
+        let callee_module_a = module_work_item(
+            callee_pkg_a,
+            0,
+            r#"export function @callee() -> i32 {
+block0:
+    v0 = iconst 1i32
+    return v0
+}"#,
+        );
+
+        let callee_module_b = module_work_item(
+            callee_pkg_b,
+            0,
+            r#"export function @callee() -> i32 {
+block0:
+    v0 = iconst 2i32
+    return v0
+}"#,
+        );
+
+        let mut caller_workset =
+            PackageWorkset::new(caller_pkg, caller_target, OptimizationLevel::O2);
+        caller_workset.add_module(caller_module);
+
+        let mut callee_workset_a =
+            PackageWorkset::new(callee_pkg_a, target_a, OptimizationLevel::O2);
+        callee_workset_a.add_module(callee_module_a);
+
+        let mut callee_workset_b =
+            PackageWorkset::new(callee_pkg_b, target_b, OptimizationLevel::O2);
+        callee_workset_b.add_module(callee_module_b);
+
+        let mut program = ProgramWorkset::new();
+        program.add_package(caller_workset);
+        program.add_package(callee_workset_a);
+        program.add_package(callee_workset_b);
+
+        let analyses = ProgramAnalyses::new(&program);
+        let callgraph = analyses.get::<ProgramCallGraph>();
+
+        let caller = SymbolName::new("test");
+        let callee = SymbolName::new("callee");
+
+        let outgoing = callgraph.outgoing(&caller);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callgraph.external_symbol().clone());
+        assert!(callgraph.is_ambiguous(&callee));
+        assert_eq!(callgraph.unknown_calls(&caller).len(), 1);
+    }
+}

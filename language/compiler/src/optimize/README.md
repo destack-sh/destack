@@ -115,7 +115,9 @@ Package and program pipelines reuse module pipelines and add summary driven pass
 | `available-exprs` | AvailableExpressions | function | ✓ | cfg | Which expressions are available at each point |
 | `alias` | AliasAnalysis | function | ✓ | — | May-alias and must-alias relationships |
 | `memory-ssa` | MemorySSA | function | ✓ | domtree, ownership | Memory versioning for precise load/store analysis |
-| `callgraph` | CallGraph | module | | — | Which functions call which, with call sites |
+| `callgraph` | CallGraph | module | ✓ | — | Which functions call which, with call sites |
+| `package-callgraph` | PackageCallGraph | package | ✓ | — | Cross-module call edges for a package workset |
+| `program-callgraph` | ProgramCallGraph | program | ✓ | — | Cross-package call edges for a program workset |
 | `profile` | ProfileSummary | module | | — | Profile counters, hotness, and value profiles |
 | `branch-prob` | BranchProbability | function | | cfg, profile | Branch probabilities derived from profiles |
 | `block-freq` | BlockFrequency | function | | cfg, branch-prob | Estimated block execution frequencies |

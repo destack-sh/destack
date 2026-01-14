@@ -48,6 +48,8 @@ Compilation units are defined by ltoMode.
 Module is the default compilation unit.
 Thin LTO uses package scope and Full LTO uses program scope.
 Auto enables Thin LTO at O4 and disables LTO at lower levels.
+Lower emits deterministic mangled symbol names into MIR.
+These names are used as the stable identity for cross module call graph stitching.
 
 SIMD follows a Zig-like model.
 Vector lane counts are static parameters and operators are elementwise.

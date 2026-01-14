@@ -16,6 +16,12 @@ Module scope is the default compilation unit for fast builds.
 Thin LTO uses package scope and Full LTO uses program scope.
 Auto selects Thin LTO at O4 and uses module scope at lower levels.
 
+## Symbol Identity
+
+Function names in MIR are the mangled symbol identity.
+The mangling is deterministic and stable within the compilation unit.
+Package and program scope analyses use these names to stitch cross module edges.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              DIR → MIR → NATIVE                             │

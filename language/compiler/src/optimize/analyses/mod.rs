@@ -1,6 +1,7 @@
 mod alias;
 mod available_expressions;
 mod borrow;
+mod call_graph;
 mod constant_propagation;
 mod control_flow_graph;
 mod dataflow;
@@ -18,6 +19,7 @@ mod scalar_evolution;
 pub use alias::*;
 pub use available_expressions::*;
 pub use borrow::*;
+pub use call_graph::*;
 pub use constant_propagation::*;
 pub use control_flow_graph::*;
 pub use dataflow::*;
