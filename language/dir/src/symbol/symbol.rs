@@ -2,7 +2,7 @@ use destack_source::ModuleId;
 
 use crate::{
     DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, NodeType,
-    StaticKey, StringId,
+    StaticKey, StringId, SymbolDecorators,
 };
 
 /// The space of a symbol.
@@ -230,6 +230,8 @@ pub struct Symbol {
     pub target_symbol: Option<GlobalSymbolId>,
     /// Final remote symbol in the chain (end of target-symbol chain).
     pub canonical_symbol: Option<GlobalSymbolId>,
+    /// Decorators applied to the symbol.
+    pub decorators: SymbolDecorators,
 }
 
 impl Symbol {

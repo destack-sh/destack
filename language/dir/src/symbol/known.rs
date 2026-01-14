@@ -71,6 +71,107 @@ impl WellKnownSymbol {
     }
 }
 
+/// Compiler known decorator markers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum WellKnownDecorator {
+    /// The `@extern` decorator marker.
+    Extern,
+    /// The `@intrinsic` decorator marker.
+    Intrinsic,
+    /// The `@deprecated` decorator marker.
+    Deprecated,
+    /// The `@experimental` decorator marker.
+    Experimental,
+    /// The `@allow` decorator marker.
+    Allow,
+    /// The `@warn` decorator marker.
+    Warn,
+    /// The `@deny` decorator marker.
+    Deny,
+    /// The `@forbid` decorator marker.
+    Forbid,
+    /// The `@expect` decorator marker.
+    Expect,
+    /// The `@languageItem` decorator marker.
+    LanguageItem,
+    /// The `@noManaged` decorator marker.
+    NoManaged,
+    /// The `@stackOnly` decorator marker.
+    StackOnly,
+    /// The `@inline` decorator marker.
+    Inline,
+    /// The `@noinline` decorator marker.
+    Noinline,
+    /// The `@unroll` decorator marker.
+    Unroll,
+    /// The `@taint` decorator marker.
+    Taint,
+    /// The `@tag` decorator marker.
+    Tag,
+    /// The `@lifetime` decorator marker.
+    Lifetime,
+    /// The `@addrspace` decorator marker.
+    Addrspace,
+}
+
+impl WellKnownDecorator {
+    /// Return the module path for well known decorators.
+    pub fn module(&self) -> &'static str {
+        "intrinsic/decorator"
+    }
+
+    /// Return the export name for a decorator marker.
+    pub fn export_name(&self) -> &'static str {
+        match self {
+            WellKnownDecorator::Extern => "extern",
+            WellKnownDecorator::Intrinsic => "intrinsic",
+            WellKnownDecorator::Deprecated => "deprecated",
+            WellKnownDecorator::Experimental => "experimental",
+            WellKnownDecorator::Allow => "allow",
+            WellKnownDecorator::Warn => "warn",
+            WellKnownDecorator::Deny => "deny",
+            WellKnownDecorator::Forbid => "forbid",
+            WellKnownDecorator::Expect => "expect",
+            WellKnownDecorator::LanguageItem => "languageItem",
+            WellKnownDecorator::NoManaged => "noManaged",
+            WellKnownDecorator::StackOnly => "stackOnly",
+            WellKnownDecorator::Inline => "inline",
+            WellKnownDecorator::Noinline => "noinline",
+            WellKnownDecorator::Unroll => "unroll",
+            WellKnownDecorator::Taint => "taint",
+            WellKnownDecorator::Tag => "tag",
+            WellKnownDecorator::Lifetime => "lifetime",
+            WellKnownDecorator::Addrspace => "addrspace",
+        }
+    }
+
+    /// Iterate over all well known decorator markers.
+    pub fn all() -> impl Iterator<Item = Self> {
+        const ALL: &[WellKnownDecorator] = &[
+            WellKnownDecorator::Extern,
+            WellKnownDecorator::Intrinsic,
+            WellKnownDecorator::Deprecated,
+            WellKnownDecorator::Experimental,
+            WellKnownDecorator::Allow,
+            WellKnownDecorator::Warn,
+            WellKnownDecorator::Deny,
+            WellKnownDecorator::Forbid,
+            WellKnownDecorator::Expect,
+            WellKnownDecorator::LanguageItem,
+            WellKnownDecorator::NoManaged,
+            WellKnownDecorator::StackOnly,
+            WellKnownDecorator::Inline,
+            WellKnownDecorator::Noinline,
+            WellKnownDecorator::Unroll,
+            WellKnownDecorator::Taint,
+            WellKnownDecorator::Tag,
+            WellKnownDecorator::Lifetime,
+            WellKnownDecorator::Addrspace,
+        ];
+        ALL.iter().copied()
+    }
+}
+
 /// Compiler known Symbol.* keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[allow(clippy::upper_case_acronyms)]
