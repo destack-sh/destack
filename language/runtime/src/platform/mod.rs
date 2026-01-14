@@ -1,5 +1,6 @@
 /// External bindings for platform integration.
 pub mod bindings;
+pub mod host;
 /// Time sources and clocks.
 pub mod clock;
 /// Randomness and entropy sources.
@@ -7,7 +8,8 @@ pub mod random;
 /// External resource table and finalizers.
 pub mod resources;
 
-pub use bindings::Bindings;
+pub use bindings::{BindingPolicy, BindingRegistry, BindingSet, DeterminismPolicy, ReplayMode};
+pub use host::HostContext;
 pub use clock::Clock;
 pub use random::Random;
 pub use resources::Resources;
@@ -16,7 +18,7 @@ pub use resources::Resources;
 #[derive(Debug, Default)]
 pub struct Platform {
     /// Binding registry for external calls.
-    pub bindings: Bindings,
+    pub bindings: BindingRegistry,
     /// Time sources and clock policies.
     pub clock: Clock,
     /// Randomness and entropy providers.

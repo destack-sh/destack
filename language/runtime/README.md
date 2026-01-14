@@ -174,7 +174,8 @@ The interval is a step budget.
 The VM decrements the budget per threaded instruction.
 Native code decrements it at inserted safepoint polls.
 
-**Determinism** follows `determinismMode`, including scheduler determinism and record or replay I/O.
+**Determinism** follows `determinism`, including scheduler determinism and controlled randomness.
+**Replay** follows `replay` and controls record or replay I/O.
 `Record` and `Replay` require all external calls to go through runtime shims; unshimmed FFI/syscalls must be rejected.
 
 External I/O is any operation outside the VM interpreter.
@@ -399,8 +400,10 @@ Deterministic execution requires the runtime to control:
 - Randomness is controlled via seeded PRNG.
 - Scheduling policy and preemption points are controlled.
 
-Determinism follows `determinismMode`:
+Determinism follows `determinism`:
 - `Deterministic` fixes task ordering, preemption decisions, and PRNG seeds.
+
+Replay follows `replay`:
 - `Record` records external I/O for deterministic playback.
 - `Replay` replays external I/O from the runtime log.
 
