@@ -862,6 +862,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_json"
+version = "0.51.6"
+dependencies = [
+ "destack_fir",
+ "destack_source",
+ "serde_json",
+]
+
+[[package]]
 name = "destack_linter"
 version = "0.51.6"
 dependencies = [
