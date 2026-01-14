@@ -29,7 +29,15 @@ use crate::{
 
 use super::tracing::init_tracing;
 
-const TEST_TIMEOUT_SECONDS: u64 = 10; // NOTE #Performance: revert test timeout to 1s
+const DEFAULT_TEST_TIMEOUT_SECONDS: u64 = 10;
+
+/// Get the test timeout from environment variable or use default.
+fn test_timeout_seconds() -> u64 {
+    std::env::var("TEST_TIMEOUT_SECONDS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_TEST_TIMEOUT_SECONDS)
+}
 
 /// Choose a worker count for parallel tests without oversubscribing the host.
 fn test_parallel_workers() -> u16 {
@@ -448,9 +456,9 @@ impl TestProgram {
         self.compile();
     }
 
-    /// Run all queued tasks to completion (with 5s timeout).
+    /// Run all queued tasks to completion (with configurable timeout).
     pub fn compile(&self) {
-        let timeout = Duration::from_secs(TEST_TIMEOUT_SECONDS);
+        let timeout = Duration::from_secs(test_timeout_seconds());
         self.compile_with_timeout(timeout);
     }
 
