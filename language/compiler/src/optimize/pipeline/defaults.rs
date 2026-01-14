@@ -1,11 +1,12 @@
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
-    CorrelatedValueProp, DeadCodeEliminate, DeadStoreEliminate, DropInsert, GlobalValueNumbering,
-    GuardEliminate, IfConvert, InductionVariableSimplify, InstructionCombine, Licm,
-    LoadStoreForward, LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopIdiomRecognize, LoopPeel,
-    LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll, LoopUnswitch, LoopVersioning,
-    Mem2Reg, MemCse, MoveCheck, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim, ValueRangePropagation,
+    CorrelatedValueProp, DeadCodeEliminate, DeadFunctionEliminate, DeadStoreEliminate, DropInsert,
+    FunctionAttrs, GlobalValueNumbering, GuardEliminate, IfConvert, InductionVariableSimplify,
+    Inline, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopBoundsCheckEliminate,
+    LoopDelete, LoopIdiomRecognize, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce,
+    LoopUnroll, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck, Narrow,
+    PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
+    Sroa, StackCheck, TailCallElim, ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -188,6 +189,10 @@ fn o2_pipeline() -> super::module::CompositePipeline {
             2,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
         )
+        // interprocedural inlining and attribute inference
+        .module_pass(Inline)
+        .module_pass(FunctionAttrs)
+        .module_pass(DeadFunctionEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(false))
@@ -219,6 +224,10 @@ fn o3_pipeline() -> super::module::CompositePipeline {
             3,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
         )
+        // interprocedural inlining and attribute inference
+        .module_pass(Inline)
+        .module_pass(FunctionAttrs)
+        .module_pass(DeadFunctionEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(true))
@@ -253,6 +262,10 @@ fn o4_pipeline() -> super::module::CompositePipeline {
             4,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
         )
+        // interprocedural inlining and attribute inference
+        .module_pass(Inline)
+        .module_pass(FunctionAttrs)
+        .module_pass(DeadFunctionEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(true))

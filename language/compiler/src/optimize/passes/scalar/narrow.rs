@@ -521,6 +521,26 @@ block0(v0: u32, v1: u32):
         program.assert_output(input);
     }
 
+    /// Mismatched integer widths are not narrowed.
+    #[test]
+    fn test_narrow_skips_mismatched_widths() {
+        let input = r#"function @test(v0: [u8; 8]) -> void {
+block0(v0: [u8; 8]):
+    v1 = iconst 2u32
+    v2 = iconst 4u64
+    v3 = icmp_ult v1, v2
+    check v3, bounds.unsigned v1, v2, v0, block1, block2
+block1:
+    return
+block2:
+    unreachable
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&Narrow);
+        program.assert_output(input);
+    }
+
     /// Full range signed values are not narrowed.
     #[test]
     fn test_narrow_skips_full_range_signed() {

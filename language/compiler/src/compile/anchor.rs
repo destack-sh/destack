@@ -276,6 +276,46 @@ impl DiagnosticRegistry {
         Self::is_valid_error_code(code) || Self::is_valid_warning_code(code)
     }
 
+    /// Look up a diagnostic definition by code.
+    pub fn definition_for_code(code: &str) -> Option<&'static DiagnosticDefinition> {
+        ImportError::def_for_code(code)
+            .or_else(|| ResolveError::def_for_code(code))
+            .or_else(|| AnalyzeError::def_for_code(code))
+            .or_else(|| ElaborateError::def_for_code(code))
+            .or_else(|| ExecuteError::def_for_code(code))
+            .or_else(|| LowerError::def_for_code(code))
+            .or_else(|| OptimizeError::def_for_code(code))
+            .or_else(|| GenerateError::def_for_code(code))
+            .or_else(|| LinkError::def_for_code(code))
+            .or_else(|| EmitError::def_for_code(code))
+            .or_else(|| ImportWarning::def_for_code(code))
+            .or_else(|| ResolveWarning::def_for_code(code))
+            .or_else(|| AnalyzeWarning::def_for_code(code))
+            .or_else(|| ElaborateWarning::def_for_code(code))
+            .or_else(|| ExecuteWarning::def_for_code(code))
+            .or_else(|| LowerWarning::def_for_code(code))
+            .or_else(|| OptimizeWarning::def_for_code(code))
+            .or_else(|| GenerateWarning::def_for_code(code))
+            .or_else(|| LinkWarning::def_for_code(code))
+            .or_else(|| EmitWarning::def_for_code(code))
+    }
+
+    /// Look up a diagnostic definition by variant name.
+    pub fn definition_for_name(name: &str) -> Option<&'static DiagnosticDefinition> {
+        let matches_name = |definition: &&DiagnosticDefinition| definition.name == name;
+
+        Self::ALL_ERRORS
+            .iter()
+            .flat_map(|defs| defs.iter())
+            .find(matches_name)
+            .or_else(|| {
+                Self::ALL_WARNINGS
+                    .iter()
+                    .flat_map(|defs| defs.iter())
+                    .find(matches_name)
+            })
+    }
+
     /// Get all error codes for a given phase letter.
     pub fn error_codes_for_phase(letter: char) -> &'static [&'static str] {
         match letter {

@@ -4,11 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ControlFlowGraph, LoopAnalysis, OwnershipAnalysis, ScalarEvolution, Scev,
+    ControlFlowGraph, DominatorTree, LoopAnalysis, OwnershipAnalysis, ScalarEvolution, Scev,
 };
 use crate::optimize::common::{
     BlockParamForwarding, build_use_def_maps, build_value_definition_map,
-    instruction_has_side_effects, instruction_is_speculatable,
+    instruction_has_side_effects, instruction_is_speculatable, unsigned_int_width_for_value,
 };
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
@@ -112,6 +112,7 @@ fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
     let analyses = FunctionAnalyses::new(function, tree);
     let loops = analyses.get::<LoopAnalysis>().clone();
     let cfg = analyses.get::<ControlFlowGraph>().clone();
+    let domtree = analyses.get::<DominatorTree>().clone();
     let scev = analyses.get::<ScalarEvolution>().clone();
     let ownership = analyses.get::<OwnershipAnalysis>().clone();
     let forwarding = BlockParamForwarding::build(function, tree, &cfg);
@@ -163,6 +164,18 @@ fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
             continue;
         }
 
+        // require consistent unsigned types for induction and bound
+        let Some(induction_width) = unsigned_int_width_for_value(guard.induction, &ownership, tree)
+        else {
+            continue;
+        };
+        let Some(bound_width) = unsigned_int_width_for_value(guard.bound, &ownership, tree) else {
+            continue;
+        };
+        if induction_width != bound_width {
+            continue;
+        }
+
         // require the guard bound to be loop invariant
         if !value_is_loop_invariant(guard.bound, lp, &use_def, &forwarding) {
             continue;
@@ -173,6 +186,19 @@ fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
         else {
             continue;
         };
+
+        // require the store to be in this loop, not a nested one
+        let Some(inner_loop) = loops.innermost_loop(pattern.store_block) else {
+            continue;
+        };
+        if inner_loop.header != lp.header {
+            continue;
+        }
+
+        // ensure the store executes on every iteration
+        if !domtree.dominates(pattern.store_block, lp.latches[0]) {
+            continue;
+        }
 
         // require a constant fill value
         let Some(value_const) = pattern.value_constant else {
@@ -253,6 +279,8 @@ struct MemsetPattern {
     array: mir::Value,
     /// The constant value written by the store, when available.
     value_constant: Option<mir::Constant>,
+    /// The block containing the store.
+    store_block: mir::LocalNodeId<mir::Block>,
 }
 
 /// Match a loop body against a memset idiom.
@@ -265,6 +293,7 @@ fn match_memset_pattern(
     // scan loop blocks for a single store with a speculatable body
     let mut store_ptr = None;
     let mut store_value = None;
+    let mut store_block = None;
 
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
@@ -284,6 +313,7 @@ fn match_memset_pattern(
                     }
                     store_ptr = Some(*pointer);
                     store_value = Some(*value);
+                    store_block = Some(block_id);
                     continue;
                 }
 
@@ -309,6 +339,7 @@ fn match_memset_pattern(
     Some(MemsetPattern {
         array,
         value_constant: value_const,
+        store_block: store_block?,
     })
 }
 
@@ -489,6 +520,16 @@ fn guard_from_header(
         return None;
     }
 
+    // require the induction variable to be a header parameter
+    let header_params: Vec<_> = header_block
+        .parameters
+        .iter()
+        .map(|param| param.value)
+        .collect();
+    if !header_params.contains(left) {
+        return None;
+    }
+
     Some(GuardInfo {
         induction: *left,
         bound: *right,
@@ -664,6 +705,72 @@ block2:
     v8 = iadd v4, v3
     jump block1(v8)
 block3:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopIdiomRecognize);
+        program.assert_output(input);
+    }
+
+    /// Loops with conditional stores are not lowered.
+    #[test]
+    fn test_loop_idiom_skips_conditional_store() {
+        let input = r#"function @test(v0: [u8; 8], v1: u32, v2: bool) -> void {
+block0(v0: [u8; 8], v1: u32, v2: bool):
+    v3 = iconst 0u32
+    v4 = iconst 1u32
+    jump block1(v3)
+block1(v5: u32):
+    v6 = icmp_ult v5, v1
+    branch v6, block2(v5), block5
+block2(v7: u32):
+    branch v2, block3(v7), block4(v7)
+block3(v8: u32):
+    v9 = element.addr v0, v8
+    v10 = iconst 0u8
+    store v9, v10
+    jump block4(v8)
+block4(v11: u32):
+    v12 = iadd v11, v4
+    jump block1(v12)
+block5:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopIdiomRecognize);
+        program.assert_output(input);
+    }
+
+    /// Loops with nested stores are not lowered.
+    #[test]
+    fn test_loop_idiom_skips_nested_store() {
+        let input = r#"function @test(v0: [u8; 8], v1: u32) -> void {
+block0(v0: [u8; 8], v1: u32):
+    v2 = iconst 0u32
+    v3 = iconst 1u32
+    v4 = iconst 2u32
+    jump block1(v2)
+block1(v5: u32):
+    v6 = icmp_ult v5, v1
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v7)
+block3(v8: u32):
+    v9 = element.addr v0, v5
+    v10 = iconst 0u8
+    store v9, v10
+    v11 = icmp_ult v8, v4
+    branch v11, block4(v8), block5
+block4(v12: u32):
+    v13 = iadd v12, v3
+    jump block3(v13)
+block5:
+    v14 = iadd v5, v3
+    jump block1(v14)
+block6:
     return
 }"#;
 

@@ -21,6 +21,8 @@ pub struct MemoryLocation {
 }
 
 /// Return the stack allocation base for a derived pointer value.
+///
+/// This walks through address computations to find the original stack alloc.
 pub fn stack_alloc_base(
     value: mir::Value,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -30,6 +32,7 @@ pub fn stack_alloc_base(
     let mut current = value;
     let mut visited = HashSet::new();
 
+    // iterate through pointer derivations until a base is found
     loop {
         // stop on cycles
         if !visited.insert(current) {
@@ -790,27 +793,24 @@ pub fn range_relation(off1: i64, size1: u64, off2: i64, size2: u64) -> RangeRela
 mod tests {
     use super::*;
 
+    /// Ranges that overlap are detected as overlapping.
     #[test]
     fn test_ranges_overlap() {
-        // disjoint
         assert!(!ranges_overlap(0, 4, 10, 4));
         assert!(!ranges_overlap(10, 4, 0, 4));
 
-        // adjacent (not overlapping)
         assert!(!ranges_overlap(0, 4, 4, 4));
 
-        // overlapping
         assert!(ranges_overlap(0, 8, 4, 8));
         assert!(ranges_overlap(4, 8, 0, 8));
 
-        // contained
         assert!(ranges_overlap(0, 16, 4, 4));
         assert!(ranges_overlap(4, 4, 0, 16));
 
-        // equal
         assert!(ranges_overlap(0, 8, 0, 8));
     }
 
+    /// Range relationships return the expected classification.
     #[test]
     fn test_range_relation() {
         assert_eq!(range_relation(0, 4, 10, 4), RangeRelation::Disjoint);
@@ -820,6 +820,7 @@ mod tests {
         assert_eq!(range_relation(0, 8, 4, 8), RangeRelation::Overlaps);
     }
 
+    /// Pointer bases report identification status.
     #[test]
     fn test_pointer_base_is_identified() {
         let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
@@ -834,6 +835,7 @@ mod tests {
         assert!(!unknown.is_identified());
     }
 
+    /// Decomposed pointers track constant and variable offsets.
     #[test]
     fn test_decomposed_pointer_const_offset() {
         let mut ptr =
@@ -848,21 +850,19 @@ mod tests {
         assert!(!ptr.is_constant_offset());
     }
 
+    /// Memory location constructors fill the expected fields.
     #[test]
     fn test_memory_location_constructors() {
-        // from_ptr: unknown size, no type
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(0));
         assert_eq!(loc1.ptr, mir::Value::new(0));
         assert!(loc1.size.is_none());
         assert!(loc1.access_type.is_none());
 
-        // with_size: known size, no type
         let loc2 = MemoryLocation::with_size(mir::Value::new(1), 8);
         assert_eq!(loc2.ptr, mir::Value::new(1));
         assert_eq!(loc2.size, Some(8));
         assert!(loc2.access_type.is_none());
 
-        // with_type: no size, has type
         let ty = TypeKey::Int {
             width: 32,
             signed: true,
@@ -872,13 +872,13 @@ mod tests {
         assert!(loc3.size.is_none());
         assert_eq!(loc3.access_type, Some(ty.clone()));
 
-        // new: fully specified
         let loc4 = MemoryLocation::new(mir::Value::new(3), Some(4), Some(ty.clone()));
         assert_eq!(loc4.ptr, mir::Value::new(3));
         assert_eq!(loc4.size, Some(4));
         assert_eq!(loc4.access_type, Some(ty));
     }
 
+    /// Noalias parameters are reported as noalias.
     #[test]
     fn test_pointer_base_is_noalias_param() {
         let noalias_param = PointerBase::Parameter {
@@ -896,6 +896,7 @@ mod tests {
         assert!(!stack.is_noalias_param());
     }
 
+    /// Local allocation bases are detected accurately.
     #[test]
     fn test_pointer_base_is_local_alloc() {
         let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
@@ -918,9 +919,9 @@ mod tests {
         assert!(!unknown.is_local_alloc());
     }
 
+    /// Identified pointer bases report the expected status.
     #[test]
     fn test_pointer_base_all_variants_identified() {
-        // stack, managed, raw, and global are identified
         let stack = PointerBase::StackAlloc(mir::LocalNodeId::new(0));
         let managed = PointerBase::ManagedAlloc(mir::LocalNodeId::new(1));
         let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
@@ -931,7 +932,6 @@ mod tests {
         assert!(raw.is_identified());
         assert!(global.is_identified());
 
-        // param, call result, and unknown are not identified
         let param = PointerBase::Parameter {
             index: 0,
             noalias: false,
@@ -944,6 +944,7 @@ mod tests {
         assert!(!unknown.is_identified());
     }
 
+    /// Field paths are captured by decomposed pointers.
     #[test]
     fn test_decomposed_pointer_field_path() {
         let mut ptr =
@@ -956,17 +957,17 @@ mod tests {
         ptr.add_field(2);
         assert_eq!(ptr.field_path, vec![0, 2]);
 
-        // field access doesn't affect const offset
         assert!(ptr.is_constant_offset());
     }
 
+    /// Multiple variable offsets are tracked.
     #[test]
     fn test_decomposed_pointer_multiple_var_offsets() {
         let mut ptr =
             DecomposedPointer::from_base(PointerBase::ManagedAlloc(mir::LocalNodeId::new(0)));
 
-        ptr.add_var_offset(mir::Value::new(1), 4); // index * 4 bytes
-        ptr.add_var_offset(mir::Value::new(2), 8); // another index * 8 bytes
+        ptr.add_var_offset(mir::Value::new(1), 4);
+        ptr.add_var_offset(mir::Value::new(2), 8);
 
         assert!(!ptr.is_constant_offset());
         assert_eq!(ptr.var_offsets.len(), 2);
@@ -976,6 +977,7 @@ mod tests {
         assert_eq!(ptr.var_offsets[1].scale, 8);
     }
 
+    /// Constant offsets accumulate.
     #[test]
     fn test_decomposed_pointer_const_offset_accumulation() {
         let mut ptr = DecomposedPointer::from_base(PointerBase::Global(mir::LocalNodeId::new(0)));
@@ -986,6 +988,7 @@ mod tests {
         assert_eq!(ptr.const_offset, 24);
     }
 
+    /// Negative offsets are handled consistently.
     #[test]
     fn test_decomposed_pointer_negative_offset() {
         let mut ptr =
@@ -998,6 +1001,7 @@ mod tests {
         assert_eq!(ptr.const_offset, -4);
     }
 
+    /// Equal ranges are detected.
     #[test]
     fn test_ranges_equal() {
         assert!(ranges_equal(0, 4, 0, 4));
@@ -1006,33 +1010,28 @@ mod tests {
         assert!(!ranges_equal(0, 8, 4, 8));
     }
 
+    /// Adjacent ranges are disjoint.
     #[test]
     fn test_range_relation_adjacent() {
-        // adjacent ranges are disjoint, not overlapping
         assert_eq!(range_relation(0, 4, 4, 4), RangeRelation::Disjoint);
         assert_eq!(range_relation(4, 4, 0, 4), RangeRelation::Disjoint);
     }
 
+    /// Partial overlaps are classified correctly.
     #[test]
     fn test_range_relation_partial_overlap() {
-        // partial overlap from left
         assert_eq!(range_relation(0, 8, 4, 8), RangeRelation::Overlaps);
-        // partial overlap from right
         assert_eq!(range_relation(4, 8, 0, 8), RangeRelation::Overlaps);
     }
 
+    /// Zero sized ranges are classified conservatively.
     #[test]
     fn test_range_relation_zero_size() {
-        // two zero-size ranges at same position are disjoint (empty sets don't overlap)
         assert_eq!(range_relation(0, 0, 0, 0), RangeRelation::Disjoint);
 
-        // zero-size range at start of non-zero range: disjoint
-        // (end1=0 <= off2=0, so considered disjoint)
         assert_eq!(range_relation(0, 0, 0, 4), RangeRelation::Disjoint);
         assert_eq!(range_relation(0, 4, 0, 0), RangeRelation::Disjoint);
 
-        // zero-size range inside a non-zero range: contained by it
-        // (position 2 is within [0, 8), so it's considered contained)
         assert_eq!(range_relation(2, 0, 0, 8), RangeRelation::ContainedBy);
 
         // zero-size range after the end: disjoint

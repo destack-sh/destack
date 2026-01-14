@@ -16,8 +16,8 @@ pub struct CallEdge {
     pub caller: mir::LocalNodeId<mir::Function>,
     /// The callee function id.
     pub callee: mir::LocalNodeId<mir::Function>,
-    /// The instruction id that performs the call.
-    pub callsite: mir::LocalNodeId<mir::Instruction>,
+    /// The callsite that performs the call.
+    pub callsite: CallSiteRef,
     /// The dispatch kind for this callsite.
     pub dispatch: CallDispatchKind,
 }
@@ -34,12 +34,21 @@ impl CallEdge {
 pub struct UnknownCallSite {
     /// The caller function id.
     pub caller: mir::LocalNodeId<mir::Function>,
-    /// The instruction id that performs the call.
-    pub callsite: mir::LocalNodeId<mir::Instruction>,
+    /// The callsite that performs the call.
+    pub callsite: CallSiteRef,
     /// The dispatch kind for this callsite.
     pub dispatch: CallDispatchKind,
     /// The declared callee when known.
     pub callee: Option<mir::LocalNodeId<mir::Function>>,
+}
+
+/// Callsite reference for module call graphs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CallSiteRef {
+    /// Callsite is an instruction.
+    Instruction(mir::LocalNodeId<mir::Instruction>),
+    /// Callsite is a terminator in the block.
+    Terminator(mir::LocalNodeId<mir::Block>),
 }
 
 /// Callsite identifier for cross module graphs.
@@ -47,28 +56,37 @@ pub struct UnknownCallSite {
 pub struct CallSiteId {
     /// The module containing the callsite.
     pub module: ModuleId,
-    /// The instruction id within the module.
-    pub instruction: mir::LocalNodeId<mir::Instruction>,
+    /// The block containing the callsite.
+    pub block: mir::LocalNodeId<mir::Block>,
+    /// The instruction id within the block, if any.
+    pub instruction: Option<mir::LocalNodeId<mir::Instruction>>,
 }
 
 /// Symbol name used for cross module call graphs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct SymbolName(Arc<str>);
+pub struct SymbolName {
+    /// The interned symbol text.
+    value: Arc<str>,
+}
 
 impl SymbolName {
     /// Create a symbol name from a string.
     pub fn new(name: &str) -> Self {
-        Self(Arc::from(name))
+        Self {
+            value: Arc::from(name),
+        }
     }
 
     /// Create the sentinel symbol for unknown or external calls.
     pub fn external() -> Self {
-        Self(Arc::from("<external>"))
+        Self {
+            value: Arc::from("<external>"),
+        }
     }
 
     /// Return the symbol name as a string slice.
     pub fn as_str(&self) -> &str {
-        &self.0
+        &self.value
     }
 }
 
@@ -123,37 +141,63 @@ impl SignatureKey {
 /// Structural signature for a MIR type.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum SignatureType {
+    /// Void type signature.
     Void,
+    /// Boolean type signature.
     Boolean,
+    /// Integer type signature.
     Int {
+        /// Bit width for the integer type.
         width: u16,
+        /// Signedness of the integer type.
         signed: bool,
     },
+    /// Floating point type signature.
     Float {
+        /// Bit width for the floating point type.
         width: u16,
     },
+    /// Reference type signature.
     Reference {
+        /// Reference kind for the pointer.
         kind: mir::ReferenceKind,
+        /// Address space for the reference.
         address_space: mir::AddressSpace,
+        /// Mutability for the reference.
         mutability: mir::Mutability,
+        /// Pointee type signature.
         pointee: Box<SignatureType>,
+        /// Nullability for the reference.
         is_nullable: bool,
     },
+    /// Array type signature.
     Array {
+        /// Element type signature.
         element: Box<SignatureType>,
+        /// Array length.
         length: u64,
+        /// Copyability of the array.
         copyability: mir::Copyability,
     },
+    /// Tuple type signature.
     Tuple {
+        /// Element type signatures.
         elements: Vec<SignatureType>,
+        /// Copyability of the tuple.
         copyability: mir::Copyability,
     },
+    /// Struct type signature.
     Struct {
+        /// Field signatures in layout order.
         fields: Vec<SignatureField>,
+        /// Copyability of the struct.
         copyability: mir::Copyability,
     },
+    /// Function pointer type signature.
     FunctionPointer {
+        /// Parameter type signatures.
         parameters: Vec<SignatureType>,
+        /// Result type signature.
         result: Box<SignatureType>,
     },
 }
@@ -421,6 +465,12 @@ impl CallGraph {
 
                     graph.insert_callsite(callsite);
                 }
+
+                if let Some(callsite) =
+                    CallSite::from_terminator(function_id, *block_id, &block.terminator, tree)
+                {
+                    graph.insert_callsite(callsite);
+                }
             }
         }
 
@@ -434,7 +484,7 @@ impl CallGraph {
             let edge = CallEdge {
                 caller: callsite.caller,
                 callee,
-                callsite: callsite.instruction,
+                callsite: callsite.callsite,
                 dispatch: callsite.dispatch,
             };
 
@@ -449,7 +499,7 @@ impl CallGraph {
         // record unresolved or partially resolved callsites
         let unknown = UnknownCallSite {
             caller: callsite.caller,
-            callsite: callsite.instruction,
+            callsite: callsite.callsite,
             dispatch: callsite.dispatch,
             callee: callsite.callee,
         };
@@ -466,8 +516,177 @@ impl Analysis for CallGraph {
 }
 
 impl ModuleAnalysis for CallGraph {
+    /// Compute the module call graph.
     fn compute(tree: &mir::NodeTree, _analyses: &ModuleAnalyses<'_>) -> Self {
         Self::build(tree)
+    }
+}
+
+/// Strongly connected components for a module call graph.
+#[derive(Debug, Default)]
+pub struct CallGraphScc {
+    /// Maps each function to its SCC id.
+    function_scc: HashMap<mir::LocalNodeId<mir::Function>, usize>,
+    /// SCCs that are recursive.
+    recursive_sccs: HashSet<usize>,
+}
+
+impl CallGraphScc {
+    /// Return the SCC id for a function.
+    pub fn scc_id(&self, function_id: mir::LocalNodeId<mir::Function>) -> Option<usize> {
+        self.function_scc.get(&function_id).copied()
+    }
+
+    /// Return true when the SCC is recursive.
+    pub fn is_recursive_scc(&self, scc_id: usize) -> bool {
+        self.recursive_sccs.contains(&scc_id)
+    }
+
+    /// Return true when the function is part of a recursive SCC.
+    pub fn is_recursive_function(&self, function_id: mir::LocalNodeId<mir::Function>) -> bool {
+        let Some(scc_id) = self.scc_id(function_id) else {
+            return false;
+        };
+
+        self.is_recursive_scc(scc_id)
+    }
+}
+
+impl Analysis for CallGraphScc {
+    const ID: AnalysisId = AnalysisId("callgraph-scc");
+}
+
+impl ModuleAnalysis for CallGraphScc {
+    /// Compute the SCCs for the module call graph.
+    fn compute(tree: &mir::NodeTree, analyses: &ModuleAnalyses<'_>) -> Self {
+        let callgraph = analyses.get::<CallGraph>();
+        compute_callgraph_scc(tree, &callgraph)
+    }
+}
+
+/// Compute SCCs for the module call graph.
+fn compute_callgraph_scc(tree: &mir::NodeTree, callgraph: &CallGraph) -> CallGraphScc {
+    // prepare tarjan state
+    let mut index = 0usize;
+    let mut next_scc_id = 0usize;
+    let mut stack = Vec::new();
+    let mut on_stack = HashSet::new();
+    let mut indices = HashMap::new();
+    let mut lowlinks = HashMap::new();
+    let mut scc_map = CallGraphScc::default();
+
+    // collect function ids for traversal
+    let function_ids: Vec<_> = tree
+        .iter_nodes::<mir::Function>()
+        .map(|(id, _)| id)
+        .collect();
+
+    // run tarjan across all functions
+    for function_id in function_ids {
+        if !indices.contains_key(&function_id) {
+            tarjan_visit(
+                function_id,
+                callgraph,
+                &mut index,
+                &mut next_scc_id,
+                &mut stack,
+                &mut on_stack,
+                &mut indices,
+                &mut lowlinks,
+                &mut scc_map,
+            );
+        }
+    }
+
+    scc_map
+}
+
+/// Tarjan recursion for SCC discovery.
+#[allow(clippy::too_many_arguments)]
+fn tarjan_visit(
+    function_id: mir::LocalNodeId<mir::Function>,
+    callgraph: &CallGraph,
+    index: &mut usize,
+    next_scc_id: &mut usize,
+    stack: &mut Vec<mir::LocalNodeId<mir::Function>>,
+    on_stack: &mut HashSet<mir::LocalNodeId<mir::Function>>,
+    indices: &mut HashMap<mir::LocalNodeId<mir::Function>, usize>,
+    lowlinks: &mut HashMap<mir::LocalNodeId<mir::Function>, usize>,
+    scc_map: &mut CallGraphScc,
+) {
+    // initialize tarjan state for this node
+    indices.insert(function_id, *index);
+    lowlinks.insert(function_id, *index);
+    *index += 1;
+    stack.push(function_id);
+    on_stack.insert(function_id);
+
+    // walk direct call edges to discover SCCs
+    for edge in callgraph.outgoing(function_id) {
+        // skip non direct edges for recursion detection
+        if edge.dispatch != mir::CallDispatchKind::Direct {
+            continue;
+        }
+
+        // visit the callee for scc discovery
+        let callee = edge.callee;
+        if !indices.contains_key(&callee) {
+            tarjan_visit(
+                callee,
+                callgraph,
+                index,
+                next_scc_id,
+                stack,
+                on_stack,
+                indices,
+                lowlinks,
+                scc_map,
+            );
+
+            // update the lowlink with the child lowlink
+            let lowlink = lowlinks[&function_id].min(lowlinks[&callee]);
+            lowlinks.insert(function_id, lowlink);
+        } else if on_stack.contains(&callee) {
+            let lowlink = lowlinks[&function_id].min(indices[&callee]);
+            lowlinks.insert(function_id, lowlink);
+        }
+    }
+
+    // finalize SCC if this node is a root
+    if lowlinks[&function_id] == indices[&function_id] {
+        // assign a new scc id
+        let scc_id = *next_scc_id;
+        *next_scc_id += 1;
+        let mut scc_members = Vec::new();
+
+        // pop the scc nodes from the stack
+        loop {
+            let Some(node) = stack.pop() else {
+                break;
+            };
+            on_stack.remove(&node);
+            scc_map.function_scc.insert(node, scc_id);
+            scc_members.push(node);
+            if node == function_id {
+                break;
+            }
+        }
+
+        // mark the scc as recursive when it has a cycle
+        if scc_members.len() > 1 {
+            scc_map.recursive_sccs.insert(scc_id);
+        } else {
+            let node = scc_members[0];
+
+            // detect a self edge to mark recursion
+            let self_edge = callgraph
+                .outgoing(node)
+                .iter()
+                .any(|edge| edge.callee == node && edge.dispatch == mir::CallDispatchKind::Direct);
+            if self_edge {
+                scc_map.recursive_sccs.insert(scc_id);
+            }
+        }
     }
 }
 
@@ -515,6 +734,7 @@ impl Analysis for PackageCallGraph {
 }
 
 impl PackageAnalysis for PackageCallGraph {
+    /// Compute the package call graph from the workset modules.
     fn compute(workset: &PackageWorkset, _analyses: &PackageAnalyses<'_>) -> Self {
         let graph = build_symbol_call_graph(workset.modules());
 
@@ -566,6 +786,7 @@ impl Analysis for ProgramCallGraph {
 }
 
 impl ProgramAnalysis for ProgramCallGraph {
+    /// Compute the program call graph from the workset modules.
     fn compute(workset: &ProgramWorkset, _analyses: &ProgramAnalyses<'_>) -> Self {
         // collect modules across packages
         let modules: Vec<ModuleWorkItem> = workset
@@ -586,8 +807,8 @@ impl ProgramAnalysis for ProgramCallGraph {
 struct CallSite {
     /// The caller function id.
     caller: mir::LocalNodeId<mir::Function>,
-    /// The instruction id for the callsite.
-    instruction: mir::LocalNodeId<mir::Instruction>,
+    /// The callsite reference.
+    callsite: CallSiteRef,
     /// Dispatch kind for the callsite.
     dispatch: CallDispatchKind,
     /// Resolved callee when known.
@@ -599,6 +820,7 @@ struct CallSite {
 /// Interns symbol names to reduce repeated allocation.
 #[derive(Default)]
 struct SymbolInterner {
+    /// Map of interned symbols by string.
     names: HashMap<String, SymbolName>,
 }
 
@@ -712,6 +934,7 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                         let instruction = tree.get(instruction_id);
                         let Some(callsite) = SymbolCallSite::from_instruction(
                             module_id,
+                            *block_id,
                             instruction_id,
                             instruction,
                             &symbols_by_function,
@@ -721,6 +944,16 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                             continue;
                         };
 
+                        insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
+                    }
+
+                    if let Some(callsite) = SymbolCallSite::from_terminator(
+                        module_id,
+                        *block_id,
+                        &block.terminator,
+                        &symbols_by_function,
+                        &tree,
+                    ) {
                         insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
                     }
                 }
@@ -751,6 +984,7 @@ impl SymbolCallSite {
     /// Build a symbol callsite from an instruction when it represents a call.
     fn from_instruction(
         module_id: ModuleId,
+        block_id: mir::LocalNodeId<mir::Block>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
         symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
@@ -760,7 +994,8 @@ impl SymbolCallSite {
         // capture the callsite identity
         let callsite = CallSiteId {
             module: module_id,
-            instruction: instruction_id,
+            block: block_id,
+            instruction: Some(instruction_id),
         };
 
         // resolve the metadata signature
@@ -821,6 +1056,48 @@ impl SymbolCallSite {
                     is_precise,
                 })
             }
+            _ => None,
+        }
+    }
+
+    /// Build a symbol callsite from a terminator when it represents a tail call.
+    fn from_terminator(
+        module_id: ModuleId,
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+        symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
+        tree: &mir::NodeTree,
+    ) -> Option<Self> {
+        // capture the callsite identity
+        let callsite = CallSiteId {
+            module: module_id,
+            block: block_id,
+            instruction: None,
+        };
+
+        match terminator {
+            mir::Terminator::TailCall { function, .. } => {
+                let callee = symbols_by_function.get(function).cloned();
+                let callee_linkage = Some(tree.get(*function).linkage);
+                let signature = Some(SignatureKey::from_function(tree, tree.get(*function)));
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Direct,
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: true,
+                })
+            }
+            mir::Terminator::TailCallIndirect { .. } => Some(Self {
+                callsite,
+                dispatch: CallDispatchKind::Indirect,
+                callee: None,
+                callee_linkage: None,
+                signature: None,
+                is_precise: false,
+            }),
             _ => None,
         }
     }
@@ -998,7 +1275,7 @@ impl CallSite {
 
                 Some(Self {
                     caller,
-                    instruction: instruction_id,
+                    callsite: CallSiteRef::Instruction(instruction_id),
                     dispatch,
                     callee,
                     is_precise,
@@ -1014,12 +1291,38 @@ impl CallSite {
 
                 Some(Self {
                     caller,
-                    instruction: instruction_id,
+                    callsite: CallSiteRef::Instruction(instruction_id),
                     dispatch,
                     callee,
                     is_precise,
                 })
             }
+            _ => None,
+        }
+    }
+
+    /// Build a callsite from a terminator when it represents a tail call.
+    fn from_terminator(
+        caller: mir::LocalNodeId<mir::Function>,
+        block_id: mir::LocalNodeId<mir::Block>,
+        terminator: &mir::Terminator,
+        _tree: &mir::NodeTree,
+    ) -> Option<Self> {
+        match terminator {
+            mir::Terminator::TailCall { function, .. } => Some(Self {
+                caller,
+                callsite: CallSiteRef::Terminator(block_id),
+                dispatch: CallDispatchKind::Direct,
+                callee: Some(*function),
+                is_precise: true,
+            }),
+            mir::Terminator::TailCallIndirect { .. } => Some(Self {
+                caller,
+                callsite: CallSiteRef::Terminator(block_id),
+                dispatch: CallDispatchKind::Indirect,
+                callee: None,
+                is_precise: false,
+            }),
             _ => None,
         }
     }
@@ -1132,6 +1435,45 @@ block0:
         assert!(callgraph.unknown_calls(test_id).is_empty());
     }
 
+    /// Call graph SCCs detect recursive functions.
+    #[test]
+    fn test_call_graph_scc_recursion() {
+        let program = TestProgram::new(
+            r#"function @a() -> void {
+block0:
+    call @b()
+    return
+}
+function @b() -> void {
+block0:
+    call @a()
+    return
+}
+function @c() -> void {
+block0:
+    call @c()
+    return
+}
+function @d() -> void {
+block0:
+    return
+}"#,
+        );
+
+        let a_id = program.function_id_by_name("a");
+        let b_id = program.function_id_by_name("b");
+        let c_id = program.function_id_by_name("c");
+        let d_id = program.function_id_by_name("d");
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let scc = analyses.get::<CallGraphScc>();
+
+        assert!(scc.is_recursive_function(a_id));
+        assert!(scc.is_recursive_function(b_id));
+        assert!(scc.is_recursive_function(c_id));
+        assert!(!scc.is_recursive_function(d_id));
+    }
+
     /// Indirect calls without metadata remain unresolved.
     #[test]
     fn test_call_graph_indirect_unknown() {
@@ -1154,6 +1496,53 @@ block0(v0: fn(i32) -> i32, v1: i32):
             callgraph.unknown_calls(test_id)[0].dispatch,
             CallDispatchKind::Indirect
         );
+    }
+
+    /// Tail calls are tracked as call edges.
+    #[test]
+    fn test_call_graph_tailcall_direct() {
+        let program = TestProgram::new(
+            r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @test(v0: i32) -> i32 {
+block0(v0: i32):
+    tailcall @callee(v0)
+}"#,
+        );
+
+        let callee_id = program.function_id_by_name("callee");
+        let test_id = program.function_id_by_name("test");
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        let outgoing = callgraph.outgoing(test_id);
+        assert_eq!(outgoing.len(), 1);
+        assert_eq!(outgoing[0].callee, callee_id);
+        assert!(matches!(outgoing[0].callsite, CallSiteRef::Terminator(_)));
+    }
+
+    /// Tailcall.indirect remains unresolved without metadata.
+    #[test]
+    fn test_call_graph_tailcall_indirect_unknown() {
+        let program = TestProgram::new(
+            r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    tailcall.indirect v0(v1)
+}"#,
+        );
+
+        let test_id = program.function_id_by_name("test");
+
+        let analyses = ModuleAnalyses::new(&program.tree);
+        let callgraph = analyses.get::<CallGraph>();
+
+        let unknown = callgraph.unknown_calls(test_id);
+        assert_eq!(unknown.len(), 1);
+        assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
+        assert!(matches!(unknown[0].callsite, CallSiteRef::Terminator(_)));
     }
 
     /// Call metadata can resolve call.indirect targets.

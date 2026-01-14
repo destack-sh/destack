@@ -1,6 +1,8 @@
 use destack_base::StringId;
 use destack_mir as mir;
 
+use crate::optimize::analyses::OwnershipAnalysis;
+
 /// Structural type representation for CSE matching.
 ///
 /// Unlike `LocalNodeId<Type>`, this compares by type structure rather than node
@@ -143,6 +145,23 @@ impl TypeKey {
             }
             _ => None,
         }
+    }
+}
+
+/// Return the unsigned integer width for a value when it is known.
+pub fn unsigned_int_width_for_value(
+    value: mir::Value,
+    ownership: &OwnershipAnalysis,
+    tree: &mir::NodeTree,
+) -> Option<u16> {
+    // look up the value type
+    let type_id = ownership.value_type(value)?;
+    let ty = tree.get(type_id);
+
+    // accept unsigned integer types
+    match ty {
+        mir::Type::Int { width, signed } if !*signed => Some(*width),
+        _ => None,
     }
 }
 

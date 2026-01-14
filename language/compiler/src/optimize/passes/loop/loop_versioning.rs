@@ -7,7 +7,10 @@ use crate::optimize::analyses::{
     ControlFlowGraph, LoopAnalysis, OwnershipAnalysis, RangeAnalysis, ScalarEvolution, Scev,
     ValueRange,
 };
-use crate::optimize::common::{build_use_def_maps, clone_loop_blocks, terminator_remap};
+use crate::optimize::common::{
+    BlockParamForwarding, build_use_def_maps, clone_loop_blocks, terminator_remap,
+    unsigned_int_width_for_value,
+};
 use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -133,6 +136,7 @@ fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -
     let scev = analyses.get::<ScalarEvolution>().clone();
     let ownership = analyses.get::<OwnershipAnalysis>().clone();
     let ranges = analyses.get::<RangeAnalysis>().clone();
+    let forwarding = BlockParamForwarding::build(function, tree, &cfg);
 
     // bail out when no loops are present
     if loops.num_loops() == 0 {
@@ -179,20 +183,26 @@ fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -
         };
 
         // require loop invariant bounds
-        if !value_is_loop_invariant(length, lp, &use_def)
-            || !value_is_loop_invariant(guard.bound, lp, &use_def)
+        let resolved_length = forwarding.resolve(length);
+        let resolved_bound = forwarding.resolve(guard.bound);
+
+        if !value_is_loop_invariant(resolved_length, lp, &use_def, &forwarding)
+            || !value_is_loop_invariant(resolved_bound, lp, &use_def, &forwarding)
         {
             continue;
         }
 
         // require consistent unsigned integer types
-        let Some(bound_width) = unsigned_int_width(guard.bound, &ownership, tree) else {
+        let Some(bound_width) = unsigned_int_width_for_value(resolved_bound, &ownership, tree)
+        else {
             continue;
         };
-        let Some(length_width) = unsigned_int_width(length, &ownership, tree) else {
+        let Some(length_width) = unsigned_int_width_for_value(resolved_length, &ownership, tree)
+        else {
             continue;
         };
-        let Some(induction_width) = unsigned_int_width(guard.induction, &ownership, tree) else {
+        let Some(induction_width) = unsigned_int_width_for_value(guard.induction, &ownership, tree)
+        else {
             continue;
         };
         if bound_width != length_width || bound_width != induction_width {
@@ -200,9 +210,15 @@ fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -
         }
 
         // compute the bound used by the preheader guard
-        let Some((guard_instructions, guard_bound)) =
-            preheader_guard_bound(preheader, &guard, bound_width, function, tree, &ranges)
-        else {
+        let Some((guard_instructions, guard_bound)) = preheader_guard_bound(
+            preheader,
+            &guard,
+            resolved_bound,
+            bound_width,
+            function,
+            tree,
+            &ranges,
+        ) else {
             continue;
         };
 
@@ -210,7 +226,7 @@ fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -
         let Some(fast_guard) = insert_preheader_guard(
             preheader,
             guard_bound,
-            length,
+            resolved_length,
             function,
             tree,
             &preheader_args,
@@ -430,7 +446,11 @@ fn value_is_loop_invariant(
     value: mir::Value,
     lp: &crate::optimize::analyses::Loop,
     use_def: &crate::optimize::common::UseDefMaps,
+    forwarding: &BlockParamForwarding,
 ) -> bool {
+    // resolve forwarded block parameters
+    let value = forwarding.resolve(value);
+
     // values without a definition block are treated as invariant
     let Some(def_block) = use_def.def_block.get(&value).copied() else {
         return true;
@@ -438,23 +458,6 @@ fn value_is_loop_invariant(
 
     // definitions outside the loop are invariant
     !lp.blocks.contains(&def_block)
-}
-
-/// Return the unsigned integer width for a value when it is known.
-fn unsigned_int_width(
-    value: mir::Value,
-    ownership: &OwnershipAnalysis,
-    tree: &mir::NodeTree,
-) -> Option<u16> {
-    // fetch the value type
-    let type_id = ownership.value_type(value)?;
-    let ty = tree.get(type_id);
-
-    // accept unsigned integer types
-    match ty {
-        mir::Type::Int { width, signed } if !*signed => Some(*width),
-        _ => None,
-    }
 }
 
 /// Insert a preheader guard for the fast path.
@@ -496,6 +499,7 @@ fn insert_preheader_guard(
 fn preheader_guard_bound(
     preheader: mir::LocalNodeId<mir::Block>,
     guard: &GuardInfo,
+    bound: mir::Value,
     width: u16,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
@@ -503,11 +507,11 @@ fn preheader_guard_bound(
 ) -> Option<(Vec<mir::LocalNodeId<mir::Instruction>>, mir::Value)> {
     // use the existing bound for strict guards
     if guard.is_strict {
-        return Some((Vec::new(), guard.bound));
+        return Some((Vec::new(), bound));
     }
 
     // look up the range for the guard bound
-    let range = ranges.exit(preheader).get(guard.bound)?;
+    let range = ranges.exit(preheader).get(bound)?;
     let ValueRange::Integer {
         max,
         width: range_width,
@@ -549,7 +553,7 @@ fn preheader_guard_bound(
     let add_inst = tree.insert(mir::Instruction::Binary {
         destination: add_value,
         operator: mir::BinaryOperator::Add,
-        left: guard.bound,
+        left: bound,
         right: one_value,
     });
 

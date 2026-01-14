@@ -166,6 +166,11 @@ fn run_pre(
 
     let mut order = 0usize;
     for &block_id in &function.blocks {
+        // skip unreachable blocks when collecting occurrences
+        if !reachable.contains(&block_id) {
+            continue;
+        }
+
         let block = tree.get(block_id);
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
@@ -269,13 +274,9 @@ fn run_pre(
                 continue;
             }
 
-            // insert a new block parameter for the expression
+            // allocate a new parameter for the expression
             let param_value = function.next_value();
             let param = mir::TypedValue::new(param_value, value_type);
-            let mut block = tree.get(phi_block).clone();
-            block.parameters.push(param);
-            tree.replace(phi_block, block);
-
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
                 key: key.clone(),
@@ -293,6 +294,15 @@ fn run_pre(
     // keep phi parameters in deterministic order
     for placements in phi_map.values_mut() {
         placements.sort_by_key(|placement| placement.order);
+    }
+
+    // append the new parameters to each phi block
+    for (&block_id, placements) in &phi_map {
+        let mut block = tree.get(block_id).clone();
+        for placement in placements {
+            block.parameters.push(placement.param);
+        }
+        tree.replace(block_id, block);
     }
 
     // compute substitutions, exit values, and edge blocks
