@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    DynamicKey, Expression, GlobalSymbolId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey,
-    SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable, WellKnownSymbol,
+    DynamicKey, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId, NodeTree, NodeType,
+    PrimitiveType, ScalarLiteral, StaticKey, SymbolKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    WellKnownSymbol,
 };
 use destack_workspace::{ProfileId, WellKnownSymbols};
 
@@ -202,6 +203,23 @@ impl Compiler {
 
         // resolve unique symbol references
         if let Some(symbol) = expression.target_symbol() {
+            // detect unique symbols without forcing a full evaluation
+            let is_unique_symbol_type =
+                |type_id: LocalTypeId, tree: &NodeTree, types: &TypeTable| match types
+                    .get_type(type_id)
+                {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                    } => true,
+                    Type::Unevaluated(expression_id) => matches!(
+                        tree.get(*expression_id),
+                        Expression::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                        }
+                    ),
+                    _ => false,
+                };
+
             // prefer inferred value types
             if let Some(value_type_id) = types.get_value_type_id(symbol)
                 && matches!(
@@ -214,26 +232,47 @@ impl Compiler {
                 return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
             }
 
-            // build a shared check for declared unique symbol types
-            let is_unique_symbol = |symbols: &SymbolTable, types: &TypeTable| {
-                let symbol_entry = symbols.get_symbol(symbol.local_id);
-                let Some(declaration_id) = symbol_entry.primary_declaration else {
-                    return false;
-                };
-                let Some(declared_type_id) = types.get_declared_type_id(declaration_id) else {
-                    return false;
-                };
-                matches!(
-                    types.get_type(declared_type_id),
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+            // resolve declared types for symbols, including declarator fallbacks
+            let declared_type_id_for_symbol =
+                |symbols: &SymbolTable, types: &TypeTable, tree: &NodeTree| {
+                    let symbol_entry = symbols.get_symbol(symbol.local_id);
+                    let primary_declaration = symbol_entry.primary_declaration?;
+                    if let Some(declared_type_id) = types.get_declared_type_id(primary_declaration) {
+                        return Some(declared_type_id);
                     }
-                )
+
+                    // walk up to find declarator types for pattern bound symbols
+                    let mut current_id = primary_declaration.local_id;
+                    while let Some(parent) = tree.get_parent(current_id.id) {
+                        if parent.ty == NodeType::Declarator {
+                            let global_parent =
+                                GlobalNodeIdAny::new(symbols.module_id, parent);
+                            return types.get_declared_type_id(global_parent);
+                        }
+                        current_id = parent;
+                    }
+
+                    None
+                };
+
+            // build a shared check for declared unique symbol types
+            let is_unique_symbol = |symbols: &SymbolTable, types: &TypeTable, tree: &NodeTree| {
+                let symbol_entry = symbols.get_symbol(symbol.local_id);
+                if symbol_entry.primary_declaration.is_none() {
+                    return false;
+                };
+                let Some(declared_type_id) =
+                    declared_type_id_for_symbol(symbols, types, tree)
+                else {
+                    return false;
+                };
+
+                is_unique_symbol_type(declared_type_id, tree, types)
             };
 
             // check declared types in the owning module
             if symbol.module_id == symbols.module_id {
-                if is_unique_symbol(symbols, types) {
+                if is_unique_symbol(symbols, types, tree) {
                     return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
                 }
             } else {
@@ -242,7 +281,8 @@ impl Compiler {
                 let remote_dir = remote_module.dir(profile);
                 let remote_symbols = remote_dir.symbols.read();
                 let remote_types = remote_dir.types.read();
-                if is_unique_symbol(&remote_symbols, &remote_types) {
+                let remote_tree = remote_dir.tree.read();
+                if is_unique_symbol(&remote_symbols, &remote_types, &remote_tree) {
                     return Some(StaticKey::Symbol(SymbolKey::Unique(symbol)));
                 }
             }
