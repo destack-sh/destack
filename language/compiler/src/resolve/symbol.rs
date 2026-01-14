@@ -1,7 +1,7 @@
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, Name, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
+    StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -63,6 +63,46 @@ impl Compiler {
         }
 
         unreachable!("remaining_path is not empty")
+    }
+
+    /// Find the module binding scope for a global augmentation expression.
+    fn module_binding_scope_for_global_expression(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<LocalScopeId> {
+        // track the nearest global declaration in the parent chain
+        let mut node = expression_id.into_any();
+        let mut saw_global = false;
+
+        // walk up the parent chain until the root
+        loop {
+            let parent = tree.get_parent(node.id)?;
+
+            // inspect declaration ancestors
+            if parent.ty == NodeType::Declaration {
+                let declaration_id: LocalNodeId<Declaration> = LocalNodeId::new(parent.id);
+                let declaration = tree.get(declaration_id);
+
+                // remember when we are inside a global declaration
+                if matches!(declaration, Declaration::Global { .. }) {
+                    saw_global = true;
+                }
+
+                // resolve module binding scopes that contain a global declaration
+                if saw_global {
+                    if let Declaration::Namespace {
+                        descriptor, scope, ..
+                    } = declaration
+                        && matches!(descriptor.name, Some(Name::String(_)))
+                    {
+                        return Some(*scope);
+                    }
+                }
+            }
+
+            node = parent;
+        }
     }
 
     /// Find the best matching symbol for a key within a single scope.
@@ -870,6 +910,39 @@ impl Compiler {
                 static_arguments,
                 tree,
             ));
+        }
+
+        // try module binding scope for global augmentations
+        if let Some(module_scope_id) =
+            self.module_binding_scope_for_global_expression(tree, expression_id)
+        {
+            let module_scope = symbols.get_scope_by_id(module_scope_id);
+            let module_mark = LocalScopeMark::end();
+            let module_result = self.resolve_absolute_symbol(
+                module,
+                profile,
+                node,
+                (module_scope_id, module_scope, module_mark),
+                StaticKey::Name(first_segment),
+                space_order,
+                symbols,
+            );
+
+            // return module binding symbols when present
+            if let Ok(local_id) = module_result {
+                return self.resolve_local_path(
+                    module,
+                    profile,
+                    expression_id,
+                    node,
+                    local_id,
+                    path,
+                    static_arguments,
+                    space_order,
+                    symbols,
+                    tree,
+                );
+            }
         }
 
         // try ambient namespace merges when inside a namespace

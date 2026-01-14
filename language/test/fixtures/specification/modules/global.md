@@ -89,3 +89,28 @@ declare global {
 ```ds:main.ds
 import "./globals.d.ds";
 ```
+
+### global declarations in module bindings can use module scope
+
+> Global augmentations declared inside module bindings can reference names from that module binding.
+
+```ds:bindings.d.ds
+export {};
+
+declare module "foo" {
+    type Local = number;
+
+    global {
+        interface GlobalThing {
+            value: Local
+        }
+    }
+}
+```
+
+```ds:main.ds
+import "./bindings.d.ds";
+
+type Alias = GlobalThing;
+const value: Alias = { value: 1 };
+```
