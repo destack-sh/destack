@@ -16,7 +16,6 @@ const RESERVED_IDENTIFIERS: &[&str] = &[
     "yield",
     "await",
     "eval",
-    "arguments",
 ];
 
 impl Compiler {
