@@ -923,12 +923,16 @@ impl Compiler {
                 if let ModuleTarget::Module(target_module_id) = target_module {
                     let target = self.program.modules.get(*target_module_id);
                     let target = target.read();
-                    if !target.is_code()
-                        && (*mode == DependencyMode::Namespace || *mode == DependencyMode::Default)
-                    {
-                        let ty_id =
-                            self.infer_data_module_type(&target, item_id.into_any(), types)?;
-                        types.set_value_type(*target_symbol, ty_id);
+                    // handle data text or binary module imports
+                    if !target.is_code() {
+                        // allow namespace and default imports for data modules
+                        if *mode == DependencyMode::Namespace || *mode == DependencyMode::Default {
+                            let ty_id =
+                                self.infer_data_module_type(&target, item_id.into_any(), types)?;
+
+                            // set the type on the canonical symbol used by the binding
+                            types.set_value_type(*target_symbol, ty_id);
+                        }
                     }
                 }
             }

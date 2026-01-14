@@ -71,6 +71,11 @@ pub fn instruction_is_speculatable(instruction: &Instruction) -> bool {
     match instruction {
         // assumptions must not be speculated across control flow
         Instruction::Assume { .. } => false,
+        // float to integer casts can trap on NaN or out of range inputs
+        Instruction::Cast {
+            operator: mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt,
+            ..
+        } => false,
         // integer division and remainder may trap
         Instruction::Binary {
             operator:
