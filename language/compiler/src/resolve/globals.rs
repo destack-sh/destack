@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use destack_base::StringId;
 use destack_dir::{
-    Argument, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree, Path, StaticKey,
-    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
+    Path, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
 use destack_source::{ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{Module, ModuleDir, ProfileId, Target, TargetDiscovery, TargetId};
@@ -78,6 +78,17 @@ pub(crate) struct GlobalSymbolGroupKey {
     pub key: StaticKey,
     /// The symbol space.
     pub space: SymbolSpace,
+}
+
+/// Track dependency targets while scanning module trees.
+#[derive(Debug, Clone, Copy)]
+struct DependencyTarget {
+    /// The module specifier.
+    target: StringId,
+    /// The node that referenced the module.
+    node: GlobalNodeIdAny,
+    /// The dependency kind (type vs value).
+    kind: DependencyKind,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -493,22 +504,31 @@ impl Compiler {
 
             // enqueue dependency targets for further discovery
             let dependency_targets = self.collect_dependency_targets(module_id, &tree);
-            for (target, node) in dependency_targets {
+            for dependency in dependency_targets {
                 // skip module bindings before resolving file targets
                 if self
-                    .resolve_module_binding_target(module_id, profile_id, target)?
+                    .resolve_module_binding_target(module_id, profile_id, dependency.target)?
                     .is_some()
                 {
                     continue;
                 }
 
                 // resolve specifiers to modules for traversal
-                let remote_module_id = self
-                    .resolve_specifier_to_module(target, Some(module_id))
-                    .map_err(|_| ResolveError::UnresolvedModule {
-                        node: node.into_anchored(Some(profile_id)),
-                        target,
-                    })?;
+                let remote_module_id = match self
+                    .resolve_specifier_to_module(dependency.target, Some(module_id))
+                {
+                    Ok(remote_module_id) => remote_module_id,
+                    Err(_) if module.is_builtin() && dependency.kind == DependencyKind::Type => {
+                        continue;
+                    }
+                    Err(_) => {
+                        return Err(ResolveError::UnresolvedModule {
+                            node: dependency.node.into_anchored(Some(profile_id)),
+                            target: dependency.target,
+                        }
+                        .into());
+                    }
+                };
                 cache.pending.push_back(remote_module_id);
             }
         }
@@ -566,23 +586,31 @@ impl Compiler {
     }
 
     /// Collect module specifiers referenced by imports and reexports.
-    pub(super) fn collect_dependency_targets(
+    fn collect_dependency_targets(
         &self,
         module_id: ModuleId,
         tree: &NodeTree,
-    ) -> Vec<(StringId, GlobalNodeIdAny)> {
+    ) -> Vec<DependencyTarget> {
         // collect import and reexport targets
         let mut targets = Vec::new();
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
             match tree.get(expression_id) {
-                Expression::UnresolvedImport { target, .. }
-                | Expression::UnresolvedReExport { target, .. }
-                | Expression::Import { target, .. }
-                | Expression::ReExport { target, .. } => {
-                    targets.push((*target, expression_id.into_global_any(module_id)));
+                Expression::UnresolvedImport { target, kind, .. }
+                | Expression::UnresolvedReExport { target, kind, .. }
+                | Expression::Import { target, kind, .. }
+                | Expression::ReExport { target, kind, .. } => {
+                    targets.push(DependencyTarget {
+                        target: *target,
+                        node: expression_id.into_global_any(module_id),
+                        kind: *kind,
+                    });
                 }
                 Expression::TypeImport { target, .. } => {
-                    targets.push((*target, expression_id.into_global_any(module_id)));
+                    targets.push(DependencyTarget {
+                        target: *target,
+                        node: expression_id.into_global_any(module_id),
+                        kind: DependencyKind::Type,
+                    });
                 }
                 _ => {}
             }
