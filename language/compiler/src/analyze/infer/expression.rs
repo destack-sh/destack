@@ -665,9 +665,41 @@ impl Compiler {
 
             // array expression: infer element types and build array type
             Expression::ArrayExpression { elements } => {
+                // resolve contextual type for array literals
+                let expected_ty_id = self.expected_value_type(ctx.expected_type, types);
+                let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
+                    matches!(types.get_type(expected_ty_id), Type::Tuple { .. })
+                });
+
                 // infer element types using any contextual type
-                let expected_element_types =
-                    self.expected_element_types(ctx.expected_type, elements.len(), types);
+                let mut expected_element_types =
+                    self.expected_element_types(expected_ty_id, elements.len(), types);
+                let mut expected_array_element_type =
+                    self.expected_array_element_type(expected_ty_id, types);
+
+                // allow well known array references to supply element types
+                if let Some(expected_ty_id) = expected_ty_id
+                    && let Type::Reference {
+                        symbol,
+                        static_arguments,
+                    } = types.get_type(expected_ty_id).clone()
+                    && let Some(Type::Array { element }) = self.normalize_well_known_type_reference(
+                        module,
+                        symbols,
+                        ctx.profile,
+                        expression_id.into_any(),
+                        symbol,
+                        static_arguments.as_deref(),
+                        types,
+                    )
+                {
+                    if expected_array_element_type.is_none() {
+                        expected_array_element_type = element;
+                    }
+                    if expected_element_types.iter().all(|ty| ty.is_none()) {
+                        expected_element_types.fill(element);
+                    }
+                }
 
                 // infer element types and collect their contextualized types
                 let mut element_type_ids = Vec::with_capacity(elements.len());
@@ -705,20 +737,43 @@ impl Compiler {
                     element_type_ids.push(ty_id);
                 }
 
-                // resolve the array element type
-                let element_ty_id = if element_type_ids.is_empty() {
-                    self.expected_array_element_type(ctx.expected_type, types)
-                } else {
-                    let source_type_id = element_type_ids[0];
-                    Some(self.union_type_from_list(
-                        element_type_ids,
-                        source_type_id,
-                        types,
-                    ))
-                };
+                // use tuple types when an expected tuple type exists
+                let ty = if expected_is_tuple {
+                    let mut tuple_elements = Vec::with_capacity(element_type_ids.len());
+                    for (index, element_id) in elements.iter().enumerate() {
+                        let argument = tree.get(*element_id);
+                        let mut element = TypeElement::new(element_type_ids[index]);
+                        match argument {
+                            Argument::Labeled { label, .. } => {
+                                element.label = Some(*label);
+                            }
+                            Argument::Spread { .. } => {
+                                element.is_rest = true;
+                            }
+                            _ => {}
+                        }
+                        tuple_elements.push(element);
+                    }
 
-                let ty = Type::Array {
-                    element: element_ty_id,
+                    Type::Tuple {
+                        elements: tuple_elements,
+                    }
+                } else {
+                    // resolve the array element type
+                    let element_ty_id = if element_type_ids.is_empty() {
+                        expected_array_element_type
+                    } else {
+                        let source_type_id = element_type_ids[0];
+                        Some(self.union_type_from_list(
+                            element_type_ids,
+                            source_type_id,
+                            types,
+                        ))
+                    };
+
+                    Type::Array {
+                        element: element_ty_id,
+                    }
                 };
                 types.insert_type_from(ty, expression_id)
             }
@@ -1647,10 +1702,11 @@ impl Compiler {
                 let (non_nullish_ty_id, has_nullish) =
                     self.strip_nullish_from_union(left_ty_id, types);
                 if has_nullish {
+                    // nullish only must results in never
                     non_nullish_ty_id.unwrap_or_else(|| {
                         types.insert_type_from(
                             Type::TypeLiteral {
-                                value: TypeLiteral::Unknown,
+                                value: TypeLiteral::Never,
                             },
                             expression_id,
                         )
