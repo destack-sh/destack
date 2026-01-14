@@ -27,6 +27,66 @@ if let (left, _) = pair {
 }
 ```
 
+## Object Patterns
+
+### if let object patterns bind named fields
+
+> Object patterns bind named fields in the then branch.
+
+```ds
+type Point = { x: int32, y: int32 };
+declare const point: Point;
+
+if let { x, y } = point {
+    x satisfies int32;
+    y satisfies int32;
+}
+```
+
+### if let object patterns bind aliases to field types
+
+> Object pattern aliases use the field type of the matched value.
+
+```ds
+type Point = { x: int32, y: int32 };
+declare const point: Point;
+
+if let { x: left, y } = point {
+    left satisfies int32;
+    y satisfies int32;
+}
+```
+
+## Tagged Object Patterns
+
+### if let tagged object patterns bind tagged fields
+
+> Tagged object patterns bind field values in the then branch.
+
+```ds
+struct Point { x: int32, y: int32 }
+declare const point: Point;
+
+if let Point { x, y } = point {
+    x satisfies int32;
+    y satisfies int32;
+}
+```
+
+### if let tagged object patterns accept type aliases
+
+> Tagged object patterns allow type aliases as tags.
+
+```ds
+type Point = { x: int32, y: int32 };
+declare const point: Point;
+
+if let Point { x, y } = point {
+    x satisfies int32;
+    y satisfies int32;
+}
+```
+
 ## Binding Patterns
 
 ### if let binding patterns introduce names

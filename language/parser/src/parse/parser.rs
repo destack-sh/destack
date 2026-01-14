@@ -196,6 +196,15 @@ impl ParserOptions {
         }
     }
 
+    /// Set `in_before_block=false`.
+    #[inline]
+    pub(crate) fn not_in_before_block(self) -> Self {
+        Self {
+            in_before_block: false,
+            ..self
+        }
+    }
+
     /// Set `in_ternary_condition=true`.
     #[inline]
     pub(crate) fn in_ternary_condition(self) -> Self {

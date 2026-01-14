@@ -191,10 +191,13 @@ impl Parser {
         let start = self.mark();
 
         // pattern
-        let pattern_id = self
-            .with_options(self.options.not_in_position().in_before_type(), |parser| {
-                parser.eat_pattern()
-            })?;
+        let pattern_id = self.with_options(
+            self.options
+                .not_in_position()
+                .in_before_type()
+                .not_in_before_block(),
+            |parser| parser.eat_pattern(),
+        )?;
 
         // type
         let (ty, ty_span) = if self.peek_colon().is_ok() {
