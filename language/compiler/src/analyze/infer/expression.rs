@@ -2375,7 +2375,8 @@ impl Compiler {
                 )?;
             }
             Pattern::TaggedTuple { ty, fields } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                let ty_id =
+                    self.evaluate_pattern_tag_type(module, *ty, tree, symbols, types, ctx)?;
                 self.infer_pattern_sequence(
                     module,
                     fields,
@@ -2420,7 +2421,8 @@ impl Compiler {
                 }
             }
             Pattern::TaggedObject { ty, fields } => {
-                let ty_id = self.infer_expression(module, *ty, tree, symbols, types, infer, ctx)?;
+                let ty_id =
+                    self.evaluate_pattern_tag_type(module, *ty, tree, symbols, types, ctx)?;
                 for field_id in fields {
                     self.infer_pattern_field(
                         module,
@@ -2638,6 +2640,35 @@ impl Compiler {
 
         // fall back to the binding type for non-object patterns
         Ok(Some(field_ty_id.unwrap_or(binding_ty_id)))
+    }
+
+    /// Resolve a tagged pattern target type from an expression.
+    fn evaluate_pattern_tag_type(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // evaluate the tag expression as a type
+        let ty_id = self.try_evaluate_expression_to_type(
+            module,
+            ctx.profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // unwrap type-as-value wrappers when present
+        let ty_id = match types.get_type(ty_id) {
+            Type::Value { value } => *value,
+            _ => ty_id,
+        };
+
+        Ok(ty_id)
     }
 
     /// Get the target symbol for a reference expression.
