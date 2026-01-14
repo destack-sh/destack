@@ -284,11 +284,41 @@ define_language_symbols! {
 
     /// Well-known decorator markers (in intrinsic/).
     decorator_markers {
-        /// `@intrinsic` marker
-        Intrinsic => (Newtype, "intrinsic/decorator", "intrinsic"),
+        /// `@extern` marker
+        Extern => (Newtype, "intrinsic/decorator", "extern"),
 
         /// `@deprecated` marker
         Deprecated => (Newtype, "intrinsic/decorator", "deprecated"),
+
+        /// `@experimental` marker
+        Experimental => (Newtype, "intrinsic/decorator", "experimental"),
+
+        /// `@allow` marker
+        Allow => (Newtype, "intrinsic/decorator", "allow"),
+
+        /// `@warn` marker
+        Warn => (Newtype, "intrinsic/decorator", "warn"),
+
+        /// `@deny` marker
+        Deny => (Newtype, "intrinsic/decorator", "deny"),
+
+        /// `@forbid` marker
+        Forbid => (Newtype, "intrinsic/decorator", "forbid"),
+
+        /// `@expect` marker
+        Expect => (Newtype, "intrinsic/decorator", "expect"),
+
+        /// `@intrinsic` marker
+        Intrinsic => (Newtype, "intrinsic/decorator", "intrinsic"),
+
+        /// `@languageItem` marker
+        LanguageItem => (Newtype, "intrinsic/decorator", "languageItem"),
+
+        /// `@noManaged` marker
+        NoManaged => (Newtype, "intrinsic/decorator", "noManaged"),
+
+        /// `@stackOnly` marker
+        StackOnly => (Newtype, "intrinsic/decorator", "stackOnly"),
 
         /// `@inline` hint
         Inline => (Newtype, "intrinsic/decorator", "inline"),
@@ -296,11 +326,20 @@ define_language_symbols! {
         /// `@noinline` hint
         Noinline => (Newtype, "intrinsic/decorator", "noinline"),
 
-        /// `@experimental` marker
-        Experimental => (Newtype, "intrinsic/decorator", "experimental"),
-
         /// `@unroll` hint
         Unroll => (Newtype, "intrinsic/decorator", "unroll"),
+
+        /// `@taint` marker
+        Taint => (Newtype, "intrinsic/decorator", "taint"),
+
+        /// `@tag` marker
+        Tag => (Newtype, "intrinsic/decorator", "tag"),
+
+        /// `@lifetime` marker
+        Lifetime => (Newtype, "intrinsic/decorator", "lifetime"),
+
+        /// `@addrspace` marker
+        Addrspace => (Newtype, "intrinsic/decorator", "addrspace"),
     }
 }
 

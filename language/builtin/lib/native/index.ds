@@ -74,3 +74,6 @@ export {
     satAdd,
     satSub,
 } from "./math/index.ds";
+
+// host bindings
+export * from "./host/index.ds";
