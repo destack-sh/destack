@@ -413,27 +413,53 @@ impl ProfilingMode {
     }
 }
 
-/// Determinism mode for runtime scheduling and I/O.
+/// Determinism policy for runtime scheduling and I/O.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum DeterminismMode {
-    /// No determinism guarantees.
-    None,
-    /// Deterministic scheduling with controlled randomness.
+pub enum DeterminismPolicy {
+    /// Best-effort execution without determinism guarantees.
     #[default]
+    BestEffort,
+    /// Deterministic scheduling with controlled randomness.
     Deterministic,
-    /// Deterministic scheduling + record external I/O.
-    Record,
-    /// Deterministic scheduling + replay external I/O.
-    Replay,
 }
 
-impl std::str::FromStr for DeterminismMode {
+impl std::str::FromStr for DeterminismPolicy {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
-            "none" | "off" => Ok(Self::None),
+            "none" | "off" | "best_effort" => Ok(Self::BestEffort),
             "deterministic" | "determinism" => Ok(Self::Deterministic),
+            _ => Err(()),
+        }
+    }
+}
+
+impl DeterminismPolicy {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
+/// Replay policy for external effects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ReplayMode {
+    /// Disable record/replay.
+    #[default]
+    Off,
+    /// Record external effects for replay.
+    Record,
+    /// Replay external effects from the log.
+    Replay,
+}
+
+impl std::str::FromStr for ReplayMode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "none" | "off" => Ok(Self::Off),
             "record" => Ok(Self::Record),
             "replay" => Ok(Self::Replay),
             _ => Err(()),
@@ -441,7 +467,7 @@ impl std::str::FromStr for DeterminismMode {
     }
 }
 
-impl DeterminismMode {
+impl ReplayMode {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
@@ -1245,8 +1271,10 @@ pub struct Target {
     pub speculation_mode: SpeculationMode,
     /// Profiling mode for tiering and optimization.
     pub profiling_mode: ProfilingMode,
-    /// Determinism mode for runtime scheduling and I/O.
-    pub determinism_mode: DeterminismMode,
+    /// Determinism policy for runtime scheduling and I/O.
+    pub determinism: DeterminismPolicy,
+    /// Replay policy for external effects.
+    pub replay: ReplayMode,
     /// Trust policy for runtime execution.
     pub trust_policy: TrustPolicy,
     /// Sandbox policy for runtime isolation.
