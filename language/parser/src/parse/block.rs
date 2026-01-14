@@ -194,7 +194,7 @@ impl Parser {
             Err(err) => {
                 let err = err.for_node_type(NodeType::Expression);
                 let span = err.leaf_span();
-                let start = ParserMark::new(span.start as usize);
+                let start = ParserMark::new(span.start as usize, None, false);
                 self.try_recover(start, TokenType::Newline, Some(err))?;
                 let error_id = self
                     .tree

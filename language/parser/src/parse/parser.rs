@@ -3,7 +3,9 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use crate::{Lexer, is_semantic};
-use destack_ast::{BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, TokenSpan, TokenType};
+use destack_ast::{
+    BlockFormat, Expression, LocalNodeId, NodeTree, NodeType, Token, TokenSpan, TokenType,
+};
 use destack_base::LocalStringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode, Span,
@@ -305,6 +307,10 @@ pub struct Parser {
 
     /// The current position in the tokens.
     pos: usize,
+    /// Pending token from splitting a compound token (e.g., second `<` from `<<`).
+    split_token: Option<TokenSpan>,
+    /// Whether the split token has been consumed (but data kept for eat() to return).
+    split_token_consumed: bool,
     /// Whether the parser is finished.
     is_finished: bool,
     /// The parser options.
@@ -350,6 +356,8 @@ impl Parser {
             tokens,
             side_tokens,
             pos: 0,
+            split_token: None,
+            split_token_consumed: false,
             is_finished: false,
             options: ParserOptions::default(),
             language,
@@ -401,6 +409,7 @@ impl Parser {
     pub(crate) fn reset(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
         self.pos = 0;
+        self.split_token = None;
         self.options = ParserOptions::default();
         self.errors.clear();
     }
@@ -501,17 +510,21 @@ impl Parser {
     /// Gets a mark of the current position.
     #[inline]
     pub fn mark(&self) -> ParserMark {
-        ParserMark::new(self.pos)
+        ParserMark::new(self.pos, self.split_token, self.split_token_consumed)
     }
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn rewind(&mut self, mark: ParserMark) {
         self.pos = mark.pos;
+        self.split_token = mark.split_token;
+        self.split_token_consumed = mark.split_token_consumed;
     }
 
     /// Rewind the position to the given mark and remove any nodes created since.
     pub fn restore(&mut self, mark: ParserMark, idx: u32) {
         self.pos = mark.pos;
+        self.split_token = mark.split_token;
+        self.split_token_consumed = mark.split_token_consumed;
         self.tree.reset_to(idx);
     }
 
@@ -578,6 +591,12 @@ impl Parser {
     /// Peek the next Token or error.
     #[inline]
     pub fn peek(&self) -> ParseResult<&TokenSpan> {
+        // return split token if present and not yet consumed
+        if let Some(ref split) = self.split_token
+            && !self.split_token_consumed
+        {
+            return Ok(split);
+        }
         self.tokens
             .get(self.pos)
             .ok_or(ParseError::unexpected(self.eof_token.span))
@@ -586,33 +605,50 @@ impl Parser {
     /// Peek the next next Token or error.
     #[inline]
     pub fn peek_next(&self) -> ParseResult<&TokenSpan> {
+        // if split_token is active (present and not consumed), peek_next looks at current position
+        let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
+        let offset = if has_active_split { 0 } else { 1 };
         self.tokens
-            .get(self.pos + 1)
+            .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next Token or error.
     #[inline]
     pub fn peek_next_next(&self) -> ParseResult<&TokenSpan> {
+        // if split_token is active, offset by one less
+        let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
+        let offset = if has_active_split { 1 } else { 2 };
         self.tokens
-            .get(self.pos + 2)
+            .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Peek the next next next Token or error.
     #[inline]
     pub fn peek_next_next_next(&self) -> ParseResult<&TokenSpan> {
+        // if split_token is active, offset by one less
+        let has_active_split = self.split_token.is_some() && !self.split_token_consumed;
+        let offset = if has_active_split { 2 } else { 3 };
         self.tokens
-            .get(self.pos + 3)
+            .get(self.pos + offset)
             .ok_or(ParseError::unexpected(self.eof_token.span))
     }
 
     /// Eat the next Token or error.
     #[inline]
     pub fn eat(&mut self) -> ParseResult<&TokenSpan> {
+        // if there's an active split token, consume it and return reference
+        if let Some(ref split) = self.split_token
+            && !self.split_token_consumed
+        {
+            self.split_token_consumed = true;
+            return Ok(split);
+        }
+        // normal case: consume from token stream
         if self.pos < self.tokens.len() {
-            self.bump();
-            let next = &self.tokens[self.pos - 1];
+            let next = &self.tokens[self.pos];
+            self.pos += 1;
             Ok(next)
         } else {
             Err(ParseError::unexpected(self.eof_token.span))
@@ -623,6 +659,13 @@ impl Parser {
     #[inline]
     pub fn bump(&mut self) {
         debug_assert!(!self.is_finished, "parser is already finished");
+
+        // if there's an active split token, mark it as consumed instead of advancing
+        if self.split_token.is_some() && !self.split_token_consumed {
+            self.split_token_consumed = true;
+            return;
+        }
+
         debug_assert!(self.pos < self.tokens.len(), "bump past end of tokens");
         self.pos += 1;
     }
@@ -636,6 +679,47 @@ impl Parser {
             "bump past end of tokens"
         );
         self.pos += distance as usize;
+    }
+
+    /// Split a `<<` (ShiftLeft) token into two `<` tokens.
+    /// Consumes the ShiftLeft and stores a synthetic `<` as the pending split token.
+    /// Used when `<<` needs to become `<` + `<` in generic contexts like `Extends<<T>()...>`.
+    pub fn split_shift_left(&mut self) {
+        let current = &self.tokens[self.pos];
+        debug_assert_eq!(
+            current.token.ty,
+            TokenType::ShiftLeft,
+            "split_shift_left called on non-ShiftLeft token"
+        );
+
+        // span for the second `<` (offset by 1 character)
+        let second_span = Span {
+            file: current.span.file,
+            start: current.span.start + 1,
+            end: current.span.end,
+        };
+
+        // store synthetic `<` token as pending
+        self.split_token = Some(TokenSpan {
+            token: Token {
+                ty: TokenType::LessThan,
+                len: 1,
+                literal: None,
+            },
+            span: second_span,
+        });
+        self.split_token_consumed = false;
+
+        // advance past the ShiftLeft token
+        self.pos += 1;
+    }
+
+    /// Check if there's an active (unconsumed) split token of the given type.
+    #[inline]
+    pub fn has_split_token(&self, token_type: TokenType) -> bool {
+        self.split_token
+            .map(|t| t.token.ty == token_type && !self.split_token_consumed)
+            .unwrap_or(false)
     }
 
     /// Peek a token at a position.
@@ -971,12 +1055,24 @@ impl Parser {
 pub struct ParserMark {
     /// The token position.
     pos: usize,
+    /// The split token at the time of marking (for restoring on rewind).
+    split_token: Option<TokenSpan>,
+    /// Whether the split token was consumed at mark time.
+    split_token_consumed: bool,
 }
 
 impl ParserMark {
     /// Create a new ParserMark.
     #[inline]
-    pub(crate) fn new(pos: usize) -> Self {
-        Self { pos }
+    pub(crate) fn new(
+        pos: usize,
+        split_token: Option<TokenSpan>,
+        split_token_consumed: bool,
+    ) -> Self {
+        Self {
+            pos,
+            split_token,
+            split_token_consumed,
+        }
     }
 }

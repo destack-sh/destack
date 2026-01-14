@@ -430,11 +430,11 @@ impl Parser {
         let target = if self.peek_keyword(Keyword::Is).is_ok() {
             self.bump(); // eat is
             self.eat_newlines_maybe()?;
-            Some(
-                self.with_options(self.options.not_in_position().in_type(), |parser| {
-                    parser.eat_expression()
-                })?,
-            )
+            let mut target_options = self.options.not_in_position().in_type();
+            if self.options.in_type_conditional_right {
+                target_options = target_options.in_type_conditional_right();
+            }
+            Some(self.with_options(target_options, |parser| parser.eat_expression())?)
         } else {
             None
         };
@@ -2212,9 +2212,35 @@ mod tests {
         });
     }
 
+    /// Generic arrow function with complex constraint as property type.
+    #[test]
+    fn test_parse_type_property_generic_arrow_complex_constraint() {
+        let input = r#"type T = {
+  method: <Expected extends IsUnion<Expected> extends true ? "error" : SomeType>(arg: Expected) => true;
+}"#;
+        let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        // type T = { method: <...>(...) => true }
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::ObjectExpression { properties, .. } => {
+                    assert_eq!(properties.len(), 1);
+                    assert_node!(parser.tree, properties[0], Property::Field { value: Some(val_id), .. } => {
+                        assert_node!(parser.tree, *val_id, Expression::Declaration(fn_id) => {
+                            assert_node!(parser.tree, *fn_id, Declaration::Function { signature, .. } => {
+                                assert!(signature.generics.is_some());
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Generic arrow functions in static arguments.
     #[test]
-    #[ignore = "generic arrow functions in static arguments not yet supported"]
     fn test_parse_type_generic_arrow_in_static_arguments() {
         let input = "type T = Extends<<T>() => T extends X ? true : false, <T>() => T extends Y ? true : false>";
         let mut test = TestParser::new_with_options(input, LanguageType::TypeScriptDeclaration);

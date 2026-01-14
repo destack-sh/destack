@@ -750,10 +750,13 @@ impl Parser {
     }
 
     /// Eat static arguments (including the `<` and `>` tokens) if they exist.
+    /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_static_arguments_maybe(
         &mut self,
     ) -> ParseResult<Option<Vec<LocalNodeId<Argument>>>> {
-        if self.peek_token(TokenType::LessThan).is_ok() {
+        if self.peek_token(TokenType::LessThan).is_ok()
+            || self.peek_token(TokenType::ShiftLeft).is_ok()
+        {
             return Ok(Some(self.eat_static_arguments()?));
         }
         Ok(None)
@@ -761,9 +764,21 @@ impl Parser {
 
     /// Eat static arguments (including the `<` and `>` tokens).
     /// Only positional and spread arguments are allowed (no named arguments).
+    /// Also handles `<<` (ShiftLeft) for patterns like `Extends<<T>() => ...>`.
     pub fn eat_static_arguments(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         let start = self.mark();
-        self.eat_token(TokenType::LessThan)?;
+
+        // handle both `<` and `<<` (ShiftLeft) as opening token
+        // `<<` occurs when the first argument is a generic arrow function like `<T>() => ...`
+        if self.peek_token(TokenType::LessThan).is_ok() {
+            self.bump(); // eat `<`
+        } else if self.peek_token(TokenType::ShiftLeft).is_ok() {
+            // split `<<` into `<` (consumed) + `<` (pending as split token)
+            // the pending `<` will be seen by the first argument as its generic opening
+            self.split_shift_left();
+        } else {
+            return Err(ParseError::expected(self.peek()?.span, TokenType::LessThan));
+        }
         self.eat_newlines_maybe()?;
 
         // empty static arguments are not allowed
