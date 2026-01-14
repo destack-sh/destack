@@ -5,8 +5,8 @@ use crate::{ParseError, ParseResult, Parser, ParserMark};
 
 use destack_ast::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, BindingAnchor, DeclarationAbstraction,
-    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfKind,
-    InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
+    DeclarationDescriptor, DeclarationKind, DependencyMode, EnumKind, Expression, IfCondition,
+    IfKind, InfixOperator, Keyword, LocalNodeId, NodeType, PostfixPosition, TokenSpan, TokenType,
     TypeBinaryOperator, TypeKind, TypeUnaryOperator, UnaryOperator,
 };
 use destack_source::LanguageType;
@@ -1584,7 +1584,9 @@ impl Parser {
                             })?;
                         let expression = Expression::If {
                             kind: IfKind::Ternary,
-                            condition: left_expression_id,
+                            condition: IfCondition::Expression {
+                                condition: left_expression_id,
+                            },
                             then_expression: then_expression_id,
                             else_expression: Some(else_expression_id),
                         };
@@ -1824,9 +1826,10 @@ mod tests {
     use destack_ast::{
         Argument, AssignOperator, BinaryOperator, Block, Declaration, DeclarationDescriptor,
         Declarator, DependencyItem, DependencyKind, DependencyMode, EnumField, EnumKind,
-        Expression, FunctionKind, ImportSource, IntType, Key, Mutability, Name, Parameter, Pattern,
-        PatternField, PostfixPosition, Property, ScalarLiteral, TypeBinaryOperator, TypeLiteral,
-        TypePredicateSubject, TypeUnaryOperator, UnaryOperator, VarianceBound,
+        Expression, FunctionKind, IfCondition, ImportSource, IntType, Key, Mutability, Name,
+        Parameter, Pattern, PatternField, PostfixPosition, Property, ScalarLiteral,
+        TypeBinaryOperator, TypeLiteral, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
+        VarianceBound,
     };
     use destack_source::LanguageType;
 
@@ -1943,8 +1946,12 @@ type = type * 2
 
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
             // x extends Foo
-            assert_node!(parser.tree, *condition, Expression::TypeBinary { left, operator, right } => {
+            assert_node!(parser.tree, condition_id, Expression::TypeBinary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "x");
                 assert_eq!(*operator, TypeBinaryOperator::Extends);
                 assert_expression_path!(parser, parser.tree.get(*right), "Foo");
@@ -1968,8 +1975,12 @@ type = type * 2
 
         assert_node!(parser.tree, expression_id, Expression::If { condition, then_expression, else_expression, .. } => {
             assert!(else_expression.is_none());
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
             // T instanceof Foo
-            assert_node!(parser.tree, *condition, Expression::Binary { left, operator, right } => {
+            assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                 assert_eq!(*operator, BinaryOperator::InstanceOf);
                 assert_expression_path!(parser, parser.tree.get(*right), "Foo");
@@ -2353,7 +2364,11 @@ const shapes = (
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
@@ -2366,7 +2381,11 @@ const shapes = (
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            assert_node!(parser.tree, *condition, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
             assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
@@ -2389,7 +2408,11 @@ const shapes = (
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
             // cond
-            assert_expression_path!(parser, parser.tree.get(*condition), "cond");
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_expression_path!(parser, parser.tree.get(condition_id), "cond");
             // a
             assert_expression_path!(parser, parser.tree.get(*then_expression), "a");
             // b
@@ -2404,7 +2427,11 @@ const shapes = (
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
             assert_node!(parser.tree, *then_expression, Expression::TupleExpression { elements, .. } => {
@@ -2423,7 +2450,11 @@ const shapes = (
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
             assert_node!(parser.tree, *then_expression, Expression::ArrayExpression { elements } => {
@@ -2442,7 +2473,11 @@ const shapes = (
         let mut parser = test.prepare();
         let if_id = parser.eat_expression().unwrap();
         assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
-            assert_node!(parser.tree, *condition, Expression::Path { path, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::Path { path, .. } => {
                 assert_path!(parser, *path, "x");
             });
             assert_node!(parser.tree, *then_expression, Expression::ObjectExpression { ty: None, properties, .. } => {

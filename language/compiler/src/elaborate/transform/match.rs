@@ -1,6 +1,6 @@
 use destack_dir::{
     BindingAnchor, Block, DeclarationAbstraction, DeclarationDescriptor, DeclarationKind,
-    Declarator, Expression, IfKind, LocalNodeId, LocalSymbolId, MatchCase, MatchKind,
+    Declarator, Expression, IfCondition, IfKind, LocalNodeId, LocalSymbolId, MatchCase, MatchKind,
     MatchSelector, MatchSource, Mutability, Name, NodeTree, NodeType, Pattern, PatternField,
     ScalarLiteral, StringId, TypeBinaryOperator,
 };
@@ -124,27 +124,47 @@ impl Compiler {
         }
 
         // binding pattern without further nested pattern: introduces binding, always matches
-        if let Pattern::Binding { pattern: None, .. } = &pattern {
+        if let Pattern::Binding {
+            pattern: None,
+            name,
+            symbol,
+            mutability,
+        } = &pattern
+        {
+            // bind the matched value before evaluating the body
+            let bindings = vec![(*name, *symbol, *mutability, value)];
+
             if guard.is_none() {
-                // binding with no guard: return the body wrapped in block
-                // #Incomplete: need to emit the let binding for the variable
-                return Ok(Some(self.wrap_in_block(match_id, body, scope, tree)));
+                // binding patterns without guards always match
+                let body = self.wrap_with_let_bindings(match_id, bindings, body, tree, scope);
+                return Ok(Some(body));
             }
 
-            // binding with guard: guard becomes the condition
+            // evaluate the guard with the binding in scope
+            let guard_expr = guard.unwrap();
+            let guard_condition =
+                self.wrap_with_let_bindings(match_id, bindings.clone(), guard_expr, tree, scope);
+
+            // evaluate the then branch with the binding in scope
+            let then_body = self.wrap_with_let_bindings(match_id, bindings, body, tree, scope);
+
+            // build the else chain from the remaining cases
             let else_expr =
                 self.build_match_chain(match_id, value, cases, index + 1, tree, scope)?;
 
-            let then_block = self.wrap_in_block(match_id, body, scope, tree);
+            // wrap the else branch as needed
             let else_block = self.wrap_else_branch(match_id, else_expr, scope, tree);
 
+            // build the if expression for the guard
             let if_id = tree.reserve_from(NodeType::Expression, match_id.into_any(), scope, None);
             let if_expr: LocalNodeId<Expression> = tree.insert(
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition: guard.unwrap(),
-                    then_expression: then_block,
+                    condition: IfCondition::Expression {
+                        condition: guard_condition,
+                    },
+                    then_expression: then_body,
                     else_expression: else_block,
                 },
             );
@@ -178,7 +198,7 @@ impl Compiler {
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition,
+                    condition: IfCondition::Expression { condition },
                     then_expression: then_block,
                     else_expression: else_block,
                 },
@@ -206,7 +226,7 @@ impl Compiler {
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition,
+                    condition: IfCondition::Expression { condition },
                     then_expression: body_with_bindings,
                     else_expression: else_block,
                 },
@@ -233,7 +253,7 @@ impl Compiler {
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition,
+                    condition: IfCondition::Expression { condition },
                     then_expression: body_with_bindings,
                     else_expression: else_block,
                 },
@@ -258,7 +278,9 @@ impl Compiler {
                     if_id,
                     Expression::If {
                         kind: IfKind::If,
-                        condition: guard_expr,
+                        condition: IfCondition::Expression {
+                            condition: guard_expr,
+                        },
                         then_expression: body_with_bindings,
                         else_expression: else_block,
                     },
@@ -286,7 +308,9 @@ impl Compiler {
                     if_id,
                     Expression::If {
                         kind: IfKind::If,
-                        condition: guard_expr,
+                        condition: IfCondition::Expression {
+                            condition: guard_expr,
+                        },
                         then_expression: body_with_bindings,
                         else_expression: else_block,
                     },
@@ -328,7 +352,7 @@ impl Compiler {
                     if_id,
                     Expression::If {
                         kind: IfKind::If,
-                        condition,
+                        condition: IfCondition::Expression { condition },
                         then_expression: then_block,
                         else_expression: else_block,
                     },
@@ -350,7 +374,9 @@ impl Compiler {
                     if_id,
                     Expression::If {
                         kind: IfKind::If,
-                        condition: guard.unwrap(),
+                        condition: IfCondition::Expression {
+                            condition: guard.unwrap(),
+                        },
                         then_expression: then_block,
                         else_expression: else_block,
                     },
@@ -375,7 +401,7 @@ impl Compiler {
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition,
+                    condition: IfCondition::Expression { condition },
                     then_expression: then_block,
                     else_expression: else_block,
                 },
@@ -399,7 +425,9 @@ impl Compiler {
                     if_id,
                     Expression::If {
                         kind: IfKind::If,
-                        condition: guard_expr,
+                        condition: IfCondition::Expression {
+                            condition: guard_expr,
+                        },
                         then_expression: body_with_bindings,
                         else_expression: else_block,
                     },
@@ -1036,9 +1064,17 @@ function classify(x: number): string {
             module_id,
             r#"
 function classify(x): string {
-    if (n > 0 as number) {
+    if ({
+        const n = x;
+        n > 0 as number
+    }) {
+        const n = x;
         return "positive";
-    } else if (n < 0 as number) {
+    } else if ({
+        const n = x;
+        n < 0 as number
+    }) {
+        const n = x;
         return "negative";
     } else {
         return "zero";

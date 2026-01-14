@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, EnumBackingType,
-    Expression, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType, Resolution,
-    SymbolTable, Type, TypeTable,
+    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType,
+    Resolution, SymbolTable, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -440,7 +440,7 @@ impl Compiler {
                 expression_id,
                 Expression::If {
                     kind: IfKind::Ternary,
-                    condition,
+                    condition: IfCondition::Expression { condition },
                     then_expression: cast_then_id,
                     else_expression: cast_else_id,
                 },

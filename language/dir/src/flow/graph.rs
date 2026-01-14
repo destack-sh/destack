@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 
-use crate::{Expression, LocalNodeId, LocalNodeIdAny};
+use crate::{Expression, LocalNodeId, LocalNodeIdAny, Pattern};
 
 /// Identify a flow graph block.
 #[repr(transparent)]
@@ -46,7 +46,21 @@ pub struct FlowEdge {
     /// Describe the edge kind.
     pub kind: FlowEdgeKind,
     /// Store an optional guard expression for the edge.
-    pub guard: Option<LocalNodeId<Expression>>,
+    pub guard: Option<FlowGuard>,
+}
+
+/// Describe a guard expression for a control flow edge.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FlowGuard {
+    /// A regular guard expression.
+    Expression(LocalNodeId<Expression>),
+    /// A pattern guard based on a value expression.
+    Pattern {
+        /// The value being matched.
+        value: LocalNodeId<Expression>,
+        /// The pattern to match.
+        pattern: LocalNodeId<Pattern>,
+    },
 }
 
 /// Describe the kind of control flow edge between blocks.

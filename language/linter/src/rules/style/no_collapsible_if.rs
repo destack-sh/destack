@@ -51,13 +51,17 @@ impl LintRule for NoCollapsibleIf {
             // match outer if statement without else
             let ast::Expression::If {
                 kind: ast::IfKind::If,
-                condition: outer_condition_id,
+                condition: outer_condition,
                 then_expression: then_expression_id,
                 else_expression: None,
                 ..
             } = expression
             else {
                 continue;
+            };
+            let outer_condition_id = match outer_condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
             };
 
             // get the then block
@@ -73,12 +77,16 @@ impl LintRule for NoCollapsibleIf {
             // get the inner if expression details
             let inner_if = ctx.tree.get(inner_if_id);
             let ast::Expression::If {
-                condition: inner_condition_id,
+                condition: inner_condition,
                 then_expression: inner_then_id,
                 ..
             } = inner_if
             else {
                 continue;
+            };
+            let inner_condition_id = match inner_condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
             };
 
             let severity = ctx.get_effective_severity(meta, node_id);
@@ -88,9 +96,9 @@ impl LintRule for NoCollapsibleIf {
 
             // build the fix: if (a) { if (b) { body } } -> if (a && b) { body }
             let outer_span = ctx.tree.get_span(node_id);
-            let outer_cond_span = ctx.tree.get_span(*outer_condition_id);
+            let outer_cond_span = ctx.tree.get_span(outer_condition_id);
             let outer_cond_text = ctx.get_span_text(outer_cond_span);
-            let inner_cond_span = ctx.tree.get_span(*inner_condition_id);
+            let inner_cond_span = ctx.tree.get_span(inner_condition_id);
             let inner_cond_text = ctx.get_span_text(inner_cond_span);
             let inner_then_span = ctx.tree.get_span(*inner_then_id);
             let inner_then_text = ctx.get_span_text(inner_then_span);

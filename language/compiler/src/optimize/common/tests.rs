@@ -79,12 +79,28 @@ impl TestProgram {
 
     /// Return the entry function id for this program.
     pub(crate) fn entry_function_id(&self) -> mir::LocalNodeId<mir::Function> {
-        // scan for a function that has an entry block
-        self.tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, function)| function.entry.is_some())
-            .expect("missing function")
-            .0
+        // pick the first entry as a fallback
+        let mut fallback = None;
+
+        // scan for entry functions and prefer @test
+        for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
+            // skip non entry functions
+            if function.entry.is_none() {
+                continue;
+            }
+
+            // record the first entry for fallback
+            if fallback.is_none() {
+                fallback = Some(function_id);
+            }
+
+            // prefer the test entry when present
+            if self.strings.get(function.name) == "test" {
+                return function_id;
+            }
+        }
+
+        fallback.expect("missing function")
     }
 
     /// Attach pointer access metadata to an instruction.

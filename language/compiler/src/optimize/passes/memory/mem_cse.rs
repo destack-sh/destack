@@ -788,7 +788,6 @@ block0:
 block0:
     return
 }
-
 function @test() -> i32 {
 block0:
     v0 = stack.alloc i32
@@ -799,7 +798,11 @@ block0:
     v2 = load v0
     return v2
 }"#;
-        let expected = r#"function @test() -> i32 {
+        let expected = r#"function @callee() -> void {
+block0:
+    return
+}
+function @test() -> i32 {
 block0:
     v0 = stack.alloc i32
     v1 = iconst 7i32
@@ -826,7 +829,6 @@ block0:
 block0:
     return
 }
-
 function @test() -> i32 {
 block0:
     v0 = stack.alloc i32

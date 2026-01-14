@@ -4,9 +4,10 @@ use destack_source::ModuleId;
 
 use crate::{
     Argument, BinaryOperator, Block, Declaration, Declarator, DynamicKey, Expression, FlowBlock,
-    FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, ForEachBinding, GlobalSymbolId, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind, MatchSelector, MatchSource,
-    NodeTree, Pattern, PatternField, Property, TemplateLiteral, UnaryOperator,
+    FlowBlockId, FlowEdge, FlowEdgeKind, FlowGraph, FlowGuard, ForEachBinding, GlobalSymbolId,
+    IfCondition, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LoopKind, MatchCase, MatchKind,
+    MatchSelector, MatchSource, NodeTree, Pattern, PatternField, Property, TemplateLiteral,
+    UnaryOperator,
 };
 
 /// Describe what kind of control target we are tracking.
@@ -160,7 +161,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         source_block_id: FlowBlockId,
         target_block_id: FlowBlockId,
         kind: FlowEdgeKind,
-        guard: Option<LocalNodeId<Expression>>,
+        guard: Option<FlowGuard>,
     ) {
         let source_index = source_block_id.0 as usize;
         let target_index = target_block_id.0 as usize;
@@ -237,7 +238,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 else_expression,
                 ..
             } => self.build_if_expression(
-                *condition,
+                condition,
                 *then_expression,
                 *else_expression,
                 current_block_id,
@@ -351,14 +352,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     left_exit_block_id,
                     right_block_id,
                     FlowEdgeKind::True,
-                    Some(left_id),
+                    Some(FlowGuard::Expression(left_id)),
                 );
                 // short circuit to the join when the left guard is false
                 self.connect_blocks(
                     left_exit_block_id,
                     join_block_id,
                     FlowEdgeKind::False,
-                    Some(left_id),
+                    Some(FlowGuard::Expression(left_id)),
                 );
             }
             BinaryOperator::Or => {
@@ -367,14 +368,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     left_exit_block_id,
                     join_block_id,
                     FlowEdgeKind::True,
-                    Some(left_id),
+                    Some(FlowGuard::Expression(left_id)),
                 );
                 // flow to the right side when the left guard is false
                 self.connect_blocks(
                     left_exit_block_id,
                     right_block_id,
                     FlowEdgeKind::False,
-                    Some(left_id),
+                    Some(FlowGuard::Expression(left_id)),
                 );
             }
             _ => {
@@ -483,6 +484,30 @@ impl<'tree> FlowGraphBuilder<'tree> {
     /// Build an if expression and return the join block when it exists.
     fn build_if_expression(
         &mut self,
+        condition: &IfCondition,
+        then_expression_id: LocalNodeId<Expression>,
+        else_expression_id: Option<LocalNodeId<Expression>>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        match condition {
+            IfCondition::Expression { condition } => self.build_if_expression_from_condition(
+                *condition,
+                then_expression_id,
+                else_expression_id,
+                current_block_id,
+            ),
+            IfCondition::Let { declarator, .. } => self.build_if_let_expression(
+                *declarator,
+                then_expression_id,
+                else_expression_id,
+                current_block_id,
+            ),
+        }
+    }
+
+    /// Build an if expression with a regular condition and return the join block when it exists.
+    fn build_if_expression_from_condition(
+        &mut self,
         condition_id: LocalNodeId<Expression>,
         then_expression_id: LocalNodeId<Expression>,
         else_expression_id: Option<LocalNodeId<Expression>>,
@@ -501,6 +526,96 @@ impl<'tree> FlowGraphBuilder<'tree> {
             then_block_id,
             false_target_id,
             current_block_id,
+        );
+
+        // evaluate then branch
+        let then_exit_block_id = self.build_expression(then_expression_id, then_block_id);
+
+        // evaluate else branch
+        let mut else_exit_block_id = None;
+        if let (Some(else_expression_id), Some(else_block_id)) = (else_expression_id, else_block_id)
+        {
+            else_exit_block_id = self.build_expression(else_expression_id, else_block_id);
+        }
+
+        // determine if either branch can fall through
+        let then_reachable = self.block_has_predecessors(then_block_id);
+        let else_reachable = else_block_id
+            .map(|else_block_id| self.block_has_predecessors(else_block_id))
+            .unwrap_or(false);
+        let then_fallthrough = then_reachable && then_exit_block_id.is_some();
+        let else_fallthrough = if has_else_expression {
+            else_reachable && else_exit_block_id.is_some()
+        } else {
+            self.block_has_predecessors(join_block_id)
+        };
+        if !then_fallthrough && !else_fallthrough {
+            return None;
+        }
+
+        // connect branch exits to the join block
+        if then_reachable && let Some(then_exit_block_id) = then_exit_block_id {
+            self.connect_blocks(
+                then_exit_block_id,
+                join_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+        }
+        if else_reachable && let Some(else_exit_block_id) = else_exit_block_id {
+            self.connect_blocks(
+                else_exit_block_id,
+                join_block_id,
+                FlowEdgeKind::Unconditional,
+                None,
+            );
+        }
+
+        Some(join_block_id)
+    }
+
+    /// Build an if let expression and return the join block when it exists.
+    fn build_if_let_expression(
+        &mut self,
+        declarator_id: LocalNodeId<Declarator>,
+        then_expression_id: LocalNodeId<Expression>,
+        else_expression_id: Option<LocalNodeId<Expression>>,
+        current_block_id: FlowBlockId,
+    ) -> Option<FlowBlockId> {
+        let declarator = self.tree.get(declarator_id);
+        let Declarator {
+            pattern,
+            ty: _,
+            value,
+        } = declarator;
+        let value_id = value.as_ref().copied()?;
+
+        // allocate branch blocks
+        let then_block_id = self.create_block();
+        let join_block_id = self.create_block();
+        let has_else_expression = else_expression_id.is_some();
+        let else_block_id = has_else_expression.then_some(self.create_block());
+        let false_target_id = else_block_id.unwrap_or(join_block_id);
+
+        // evaluate the value expression before branching
+        let value_exit_block_id = self.build_expression(value_id, current_block_id)?;
+        self.connect_blocks(
+            value_exit_block_id,
+            then_block_id,
+            FlowEdgeKind::True,
+            Some(FlowGuard::Pattern {
+                value: value_id,
+                pattern: *pattern,
+            }),
+        );
+        self.connect_blocks(
+            value_exit_block_id,
+            false_target_id,
+            FlowEdgeKind::False,
+            Some(FlowGuard::Pattern {
+                value: value_id,
+                pattern: *pattern,
+            }),
         );
 
         // evaluate then branch
@@ -635,13 +750,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                     guard_exit_block_id,
                     true_block_id,
                     FlowEdgeKind::True,
-                    Some(guard_id),
+                    Some(FlowGuard::Expression(guard_id)),
                 );
                 self.connect_blocks(
                     guard_exit_block_id,
                     false_block_id,
                     FlowEdgeKind::False,
-                    Some(guard_id),
+                    Some(FlowGuard::Expression(guard_id)),
                 );
                 true
             }
@@ -746,13 +861,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                         condition_exit_block_id,
                         body_block_id,
                         FlowEdgeKind::True,
-                        Some(condition_id),
+                        Some(FlowGuard::Expression(condition_id)),
                     );
                     self.connect_blocks(
                         condition_exit_block_id,
                         exit_block_id,
                         FlowEdgeKind::False,
-                        Some(condition_id),
+                        Some(FlowGuard::Expression(condition_id)),
                     );
                 } else {
                     self.connect_blocks(
@@ -826,13 +941,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                         condition_exit_block_id,
                         body_block_id,
                         FlowEdgeKind::True,
-                        Some(condition_id),
+                        Some(FlowGuard::Expression(condition_id)),
                     );
                     self.connect_blocks(
                         condition_exit_block_id,
                         exit_block_id,
                         FlowEdgeKind::False,
-                        Some(condition_id),
+                        Some(FlowGuard::Expression(condition_id)),
                     );
                 } else {
                     self.connect_blocks(
@@ -976,13 +1091,13 @@ impl<'tree> FlowGraphBuilder<'tree> {
                 condition_exit_block_id,
                 body_block_id,
                 FlowEdgeKind::True,
-                Some(condition_id),
+                Some(FlowGuard::Expression(condition_id)),
             );
             self.connect_blocks(
                 condition_exit_block_id,
                 exit_block_id,
                 FlowEdgeKind::False,
-                Some(condition_id),
+                Some(FlowGuard::Expression(condition_id)),
             );
         } else {
             self.connect_blocks(
@@ -1398,10 +1513,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
     }
 
     /// Resolve the guard expression for a match case.
-    fn guard_for_match_case(
-        &self,
-        case_id: LocalNodeId<MatchCase>,
-    ) -> Option<LocalNodeId<Expression>> {
+    fn guard_for_match_case(&self, case_id: LocalNodeId<MatchCase>) -> Option<FlowGuard> {
         let match_case = self.tree.get(case_id);
         let selector = match match_case {
             MatchCase::Expression { selector, .. } => selector,
@@ -1409,7 +1521,7 @@ impl<'tree> FlowGraphBuilder<'tree> {
         };
 
         match selector {
-            MatchSelector::Pattern { guard, .. } => *guard,
+            MatchSelector::Pattern { guard, .. } => guard.map(FlowGuard::Expression),
             MatchSelector::Default => None,
         }
     }
@@ -1488,8 +1600,8 @@ impl<'tree> FlowGraphBuilder<'tree> {
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
                 self.build_declarators(declarators, current_block_id)
             }
+            Expression::TypeBinary { left, .. } => self.build_expression(*left, current_block_id),
             Expression::TypeUnary { .. }
-            | Expression::TypeBinary { .. }
             | Expression::TypeConditional { .. }
             | Expression::TypeMapped { .. }
             | Expression::TypeIndex { .. }

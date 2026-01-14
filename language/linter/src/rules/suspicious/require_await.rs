@@ -119,7 +119,16 @@ fn contains_await(
             else_expression,
             ..
         } => {
-            contains_await(ctx, *condition)
+            let condition_has_await = match condition {
+                ast::IfCondition::Expression { condition } => contains_await(ctx, *condition),
+                ast::IfCondition::Let { declarator, .. } => {
+                    let declarator = ctx.tree.get(*declarator);
+                    declarator
+                        .value
+                        .is_some_and(|value| contains_await(ctx, value))
+                }
+            };
+            condition_has_await
                 || contains_await(ctx, *then_expression)
                 || else_expression.is_some_and(|e| contains_await(ctx, e))
         }

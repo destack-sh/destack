@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_dir::{Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
 use {destack_dir as dir, destack_mir as mir};
@@ -207,12 +207,23 @@ impl<'a> FunctionContext<'a> {
                 then_expression,
                 else_expression,
                 ..
-            } => self.lower_conditional_expression(
-                expression_id,
-                *condition,
-                *then_expression,
-                *else_expression,
-            ),
+            } => match condition {
+                IfCondition::Expression { condition } => self.lower_conditional_expression(
+                    expression_id,
+                    *condition,
+                    *then_expression,
+                    *else_expression,
+                ),
+                IfCondition::Let { .. } => {
+                    // if let should be elaborated before lowering
+                    Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "unsupported if-let condition".to_string(),
+                    })
+                }
+            },
 
             Expression::TaggedObjectExpression { ty, properties } => {
                 self.lower_tagged_object_expression(expression_id, *ty, properties)

@@ -5,7 +5,8 @@
 Expression extensions beyond standard TypeScript.
 
 In TypeScript, `if` is a statement and you need a ternary or temporary to get a value.
-In Destack, everything is an expression. The last non-statement expression becomes the value.
+In Destack, everything is an expression.
+The last non-statement expression becomes the value.
 
 ## Subdirectories
 
@@ -17,12 +18,14 @@ In Destack, everything is an expression. The last non-statement expression becom
 | `tuples/` | Tuple literals and types `(a, b)` |
 | `loops/` | Infinite `loop { }` construct |
 | `blocks/` | Block expressions, labeled blocks, `do { }` |
+| `if/` | If expressions and if let |
 | `patterns/` | Pattern syntax for destructuring |
 
 ## Coverage
 
 - **Implicit returns**: Last expression is the return value
 - **If expressions**: `if` as an expression returning a value
+- **If let**: `if let` pattern conditions
 
 ## Example
 

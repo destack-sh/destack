@@ -635,8 +635,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Argument, Expression, FloatType, IfKind, IntType, Name, ScalarLiteral, TemplateLiteral,
-        TypeLiteral,
+        Argument, Expression, FloatType, IfCondition, IfKind, IntType, Name, ScalarLiteral,
+        TemplateLiteral, TypeLiteral,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
@@ -1311,7 +1311,11 @@ mod tests {
         assert_node!(parser.tree, expr, Expression::If { kind, condition, then_expression, else_expression } => {
             assert_eq!(*kind, IfKind::Ternary);
             // condition: a
-            assert_node!(parser.tree, *condition, Expression::Path { .. });
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::Path { .. });
             // consequence: <>{y && <E />}</>
             assert_node!(parser.tree, *then_expression, Expression::TreeExpression { left: None, arguments, elements } => {
                 assert!(arguments.is_none());

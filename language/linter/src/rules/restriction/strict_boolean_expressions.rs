@@ -90,13 +90,15 @@ impl NodeVisitor for StrictBooleanVisitor<'_, '_> {
         // match boolean contexts
         match expression {
             dir::Expression::If { condition, .. } => {
-                check_is_boolean(
-                    self.ctx,
-                    self.meta,
-                    *condition,
-                    "if condition",
-                    &mut self.visited,
-                );
+                if let dir::IfCondition::Expression { condition } = condition {
+                    check_is_boolean(
+                        self.ctx,
+                        self.meta,
+                        *condition,
+                        "if condition",
+                        &mut self.visited,
+                    );
+                }
             }
             dir::Expression::Loop {
                 condition: Some(condition),

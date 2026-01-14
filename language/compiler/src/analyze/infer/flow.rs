@@ -4,10 +4,10 @@ use indexmap::IndexMap;
 
 use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph, FlowTable,
-    GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, ScalarLiteral, StaticKey,
-    SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeLiteral, TypeTable, TypeUnaryOperator,
-    UnaryOperator,
+    BinaryOperator, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard,
+    FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, Pattern,
+    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeLiteral,
+    TypeTable, TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -199,7 +199,7 @@ impl Compiler {
         }
 
         // return unchanged when there is no guard expression
-        let Some(guard_id) = edge.guard else {
+        let Some(guard) = edge.guard else {
             return Ok(environment.clone());
         };
 
@@ -207,7 +207,7 @@ impl Compiler {
             FlowEdgeKind::True => {
                 let (true_environment, _) = self.narrow_environment_for_guard(
                     module,
-                    guard_id,
+                    guard,
                     tree,
                     symbols,
                     types,
@@ -219,7 +219,7 @@ impl Compiler {
             FlowEdgeKind::False => {
                 let (_, false_environment) = self.narrow_environment_for_guard(
                     module,
-                    guard_id,
+                    guard,
                     tree,
                     symbols,
                     types,
@@ -231,7 +231,7 @@ impl Compiler {
             FlowEdgeKind::Case | FlowEdgeKind::Guard => {
                 let (guard_environment, _) = self.narrow_environment_for_guard(
                     module,
-                    guard_id,
+                    guard,
                     tree,
                     symbols,
                     types,
@@ -423,215 +423,238 @@ impl Compiler {
     pub fn narrow_environment_for_guard(
         &self,
         module: &Module,
-        guard_id: LocalNodeId<Expression>,
+        guard: FlowGuard,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         environment: &FlowEnvironment,
         context: &InferContext,
     ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
-        // apply narrowing for recognized guard shapes
-        let guard_id = self.unwrap_parenthesized_expression(guard_id, tree);
+        match guard {
+            FlowGuard::Expression(guard_id) => {
+                // apply narrowing for recognized guard shapes
+                let guard_id = self.unwrap_parenthesized_expression(guard_id, tree);
 
-        match tree.get(guard_id) {
-            Expression::Unary {
-                operator: UnaryOperator::Not,
-                right,
-            } => {
-                let (true_environment, false_environment) = self.narrow_environment_for_guard(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    environment,
-                    context,
-                )?;
-                Ok((false_environment, true_environment))
+                match tree.get(guard_id) {
+                    Expression::Unary {
+                        operator: UnaryOperator::Not,
+                        right,
+                    } => {
+                        let (true_environment, false_environment) = self
+                            .narrow_environment_for_guard(
+                                module,
+                                FlowGuard::Expression(*right),
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )?;
+                        Ok((false_environment, true_environment))
+                    }
+                    Expression::Binary {
+                        left,
+                        operator,
+                        right,
+                    } => match operator {
+                        BinaryOperator::InstanceOf => {
+                            // narrow using class identity guard
+                            if let Some(environments) = self.narrow_environment_for_type_guard(
+                                module,
+                                guard_id,
+                                *left,
+                                *right,
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )? {
+                                return Ok(environments);
+                            }
+                            Ok((environment.clone(), environment.clone()))
+                        }
+                        BinaryOperator::In => {
+                            // narrow using a key in guard
+                            if let Some(environments) = self.narrow_environment_for_in_guard(
+                                module,
+                                guard_id,
+                                *left,
+                                *right,
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )? {
+                                return Ok(environments);
+                            }
+                            Ok((environment.clone(), environment.clone()))
+                        }
+                        BinaryOperator::And => {
+                            // evaluate the left guard first
+                            let (left_true, left_false) = self.narrow_environment_for_guard(
+                                module,
+                                FlowGuard::Expression(*left),
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )?;
+                            // evaluate the right guard using the true environment
+                            let (right_true, right_false) = self.narrow_environment_for_guard(
+                                module,
+                                FlowGuard::Expression(*right),
+                                tree,
+                                symbols,
+                                types,
+                                &left_true,
+                                context,
+                            )?;
+                            // merge false branches from either guard
+                            let false_environment = self.merge_flow_environments(
+                                &left_false,
+                                &right_false,
+                                Some(environment),
+                                types,
+                            );
+                            Ok((right_true, false_environment))
+                        }
+                        BinaryOperator::Or => {
+                            // evaluate the left guard first
+                            let (left_true, left_false) = self.narrow_environment_for_guard(
+                                module,
+                                FlowGuard::Expression(*left),
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )?;
+                            // evaluate the right guard using the false environment
+                            let (right_true, right_false) = self.narrow_environment_for_guard(
+                                module,
+                                FlowGuard::Expression(*right),
+                                tree,
+                                symbols,
+                                types,
+                                &left_false,
+                                context,
+                            )?;
+                            // merge true branches from either guard
+                            let true_environment = self.merge_flow_environments(
+                                &left_true,
+                                &right_true,
+                                Some(environment),
+                                types,
+                            );
+                            Ok((true_environment, right_false))
+                        }
+                        BinaryOperator::Equal
+                        | BinaryOperator::EqualStrict
+                        | BinaryOperator::NotEqual
+                        | BinaryOperator::NotEqualStrict => {
+                            // narrow based on typeof equality
+                            let is_negated = matches!(
+                                operator,
+                                BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
+                            );
+                            if let Some(environments) = self.narrow_environment_for_typeof_guard(
+                                module,
+                                guard_id,
+                                *left,
+                                *right,
+                                is_negated,
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )? {
+                                return Ok(environments);
+                            }
+
+                            // narrow based on nullish equality
+                            let is_strict = matches!(
+                                operator,
+                                BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
+                            );
+                            if let Some(environments) = self.narrow_environment_for_nullish_guard(
+                                module,
+                                guard_id,
+                                *left,
+                                *right,
+                                is_strict,
+                                is_negated,
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )? {
+                                return Ok(environments);
+                            }
+
+                            // narrow based on discriminant equality
+                            if let Some(environments) = self
+                                .narrow_environment_for_discriminant_guard(
+                                    module,
+                                    guard_id,
+                                    *left,
+                                    *right,
+                                    is_negated,
+                                    tree,
+                                    symbols,
+                                    types,
+                                    environment,
+                                    context,
+                                )?
+                            {
+                                return Ok(environments);
+                            }
+
+                            Ok((environment.clone(), environment.clone()))
+                        }
+                        _ => Ok((environment.clone(), environment.clone())),
+                    },
+                    Expression::TypeBinary {
+                        left,
+                        operator,
+                        right,
+                    } => match operator {
+                        TypeBinaryOperator::Is => {
+                            // narrow using an `x is T` guard
+                            if let Some(environments) = self.narrow_environment_for_is_guard(
+                                module,
+                                guard_id,
+                                *left,
+                                *right,
+                                tree,
+                                symbols,
+                                types,
+                                environment,
+                                context,
+                            )? {
+                                return Ok(environments);
+                            }
+                            Ok((environment.clone(), environment.clone()))
+                        }
+                        _ => Ok((environment.clone(), environment.clone())),
+                    },
+                    _ => Ok((environment.clone(), environment.clone())),
+                }
             }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => match operator {
-                BinaryOperator::InstanceOf => {
-                    // narrow using class identity guard
-                    if let Some(environments) = self.narrow_environment_for_type_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-                    Ok((environment.clone(), environment.clone()))
-                }
-                BinaryOperator::In => {
-                    // narrow using a key in guard
-                    if let Some(environments) = self.narrow_environment_for_in_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-                    Ok((environment.clone(), environment.clone()))
-                }
-                BinaryOperator::And => {
-                    // evaluate the left guard first
-                    let (left_true, left_false) = self.narrow_environment_for_guard(
-                        module,
-                        *left,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )?;
-                    // evaluate the right guard using the true environment
-                    let (right_true, right_false) = self.narrow_environment_for_guard(
-                        module, *right, tree, symbols, types, &left_true, context,
-                    )?;
-                    // merge false branches from either guard
-                    let false_environment = self.merge_flow_environments(
-                        &left_false,
-                        &right_false,
-                        Some(environment),
-                        types,
-                    );
-                    Ok((right_true, false_environment))
-                }
-                BinaryOperator::Or => {
-                    // evaluate the left guard first
-                    let (left_true, left_false) = self.narrow_environment_for_guard(
-                        module,
-                        *left,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )?;
-                    // evaluate the right guard using the false environment
-                    let (right_true, right_false) = self.narrow_environment_for_guard(
-                        module,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        &left_false,
-                        context,
-                    )?;
-                    // merge true branches from either guard
-                    let true_environment = self.merge_flow_environments(
-                        &left_true,
-                        &right_true,
-                        Some(environment),
-                        types,
-                    );
-                    Ok((true_environment, right_false))
-                }
-                BinaryOperator::Equal
-                | BinaryOperator::EqualStrict
-                | BinaryOperator::NotEqual
-                | BinaryOperator::NotEqualStrict => {
-                    // narrow based on typeof equality
-                    let is_negated = matches!(
-                        operator,
-                        BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
-                    );
-                    if let Some(environments) = self.narrow_environment_for_typeof_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        is_negated,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-
-                    // narrow based on nullish equality
-                    let is_strict = matches!(
-                        operator,
-                        BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
-                    );
-                    if let Some(environments) = self.narrow_environment_for_nullish_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        is_strict,
-                        is_negated,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-
-                    // narrow based on discriminant equality
-                    if let Some(environments) = self.narrow_environment_for_discriminant_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        is_negated,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-
-                    Ok((environment.clone(), environment.clone()))
-                }
-                _ => Ok((environment.clone(), environment.clone())),
-            },
-            Expression::TypeBinary {
-                left,
-                operator,
-                right,
-            } => match operator {
-                TypeBinaryOperator::Is => {
-                    // narrow using an `x is T` guard
-                    if let Some(environments) = self.narrow_environment_for_is_guard(
-                        module,
-                        guard_id,
-                        *left,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        environment,
-                        context,
-                    )? {
-                        return Ok(environments);
-                    }
-                    Ok((environment.clone(), environment.clone()))
-                }
-                _ => Ok((environment.clone(), environment.clone())),
-            },
-            _ => Ok((environment.clone(), environment.clone())),
+            FlowGuard::Pattern { value, pattern } => self.narrow_environment_for_pattern_guard(
+                module,
+                value,
+                pattern,
+                tree,
+                symbols,
+                types,
+                environment,
+                context,
+            ),
         }
     }
 
@@ -642,6 +665,139 @@ impl Compiler {
         environment: &FlowEnvironment,
     ) -> Option<LocalTypeId> {
         environment.bindings.get(&symbol).copied()
+    }
+
+    /// Split the environment based on a pattern guard.
+    fn narrow_environment_for_pattern_guard(
+        &self,
+        module: &Module,
+        value_id: LocalNodeId<Expression>,
+        pattern_id: LocalNodeId<Pattern>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        environment: &FlowEnvironment,
+        context: &InferContext,
+    ) -> AnalyzeResult<(FlowEnvironment, FlowEnvironment)> {
+        let value_id = self.unwrap_parenthesized_expression(value_id, tree);
+        let symbol =
+            self.reference_symbol_for_expression(module, value_id, context.profile, tree, symbols);
+        let Some(symbol) = symbol else {
+            return Ok((environment.clone(), environment.clone()));
+        };
+
+        let base_type_id = self.symbol_type_for_guard(
+            module,
+            value_id,
+            symbol,
+            tree,
+            symbols,
+            types,
+            environment,
+            context,
+        )?;
+        let Some(target_type_id) = self.pattern_guard_target_type(
+            module,
+            context.profile,
+            pattern_id,
+            tree,
+            symbols,
+            types,
+        )?
+        else {
+            return Ok((environment.clone(), environment.clone()));
+        };
+
+        let (true_type_id, false_type_id) = self.type_guard_types(
+            module,
+            context.profile,
+            symbols,
+            base_type_id,
+            target_type_id,
+            types,
+            &context.options,
+        );
+
+        let mut true_environment = environment.clone();
+        if let Some(type_id) = true_type_id {
+            true_environment.bindings.insert(symbol, type_id);
+        }
+        let mut false_environment = environment.clone();
+        if let Some(type_id) = false_type_id {
+            false_environment.bindings.insert(symbol, type_id);
+        }
+
+        Ok((true_environment, false_environment))
+    }
+
+    /// Resolve the target type used for pattern-based guards.
+    fn pattern_guard_target_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        pattern_id: LocalNodeId<Pattern>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        match tree.get(pattern_id) {
+            Pattern::Expression { value } => {
+                if let Some(literal) = self.scalar_literal_for_expression(tree, *value) {
+                    let literal_type = self.infer_scalar_literal(&literal);
+                    let type_id = types.insert_type_from(
+                        Type::TypeLiteral {
+                            value: literal_type,
+                        },
+                        pattern_id,
+                    );
+                    return Ok(Some(type_id));
+                }
+
+                let target_type = self.try_evaluate_expression_to_type_value(
+                    module, profile, *value, tree, symbols, types,
+                )?;
+                if matches!(target_type, Type::Unevaluated(_)) {
+                    return Ok(None);
+                }
+                let type_id = types.insert_type_from(target_type, *value);
+                Ok(Some(self.unwrap_type_value(type_id, types)))
+            }
+            Pattern::TaggedTuple { ty, .. } | Pattern::TaggedObject { ty, .. } => {
+                let target_type_id =
+                    self.guard_target_type(module, profile, *ty, tree, symbols, types)?;
+                Ok(Some(self.unwrap_type_value(target_type_id, types)))
+            }
+            Pattern::Union { patterns } => {
+                let mut target_types = Vec::new();
+                for pattern_id in patterns {
+                    if let Some(target_type_id) = self.pattern_guard_target_type(
+                        module,
+                        profile,
+                        *pattern_id,
+                        tree,
+                        symbols,
+                        types,
+                    )? {
+                        target_types.push(target_type_id);
+                    }
+                }
+                if target_types.is_empty() {
+                    return Ok(None);
+                }
+                let target_type_id = if target_types.len() == 1 {
+                    target_types[0]
+                } else {
+                    types.insert_type_from(
+                        Type::Union {
+                            elements: target_types,
+                        },
+                        pattern_id,
+                    )
+                };
+                Ok(Some(target_type_id))
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Split the environment based on a nullish equality guard.

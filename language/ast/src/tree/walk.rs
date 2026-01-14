@@ -1,8 +1,9 @@
 use crate::{
     Annotation, Argument, Blank, Block, Comment, Declaration, DeclarationDescriptor, Declarator,
     Decorator, DependencyItem, Doc, EnumField, Expression, ForEachBinding, FunctionSignature,
-    Generics, Heritage, Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree, NodeType,
-    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, WhereClause,
+    Generics, Heritage, IfCondition, Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeTree,
+    NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
+    WhereClause,
 };
 
 /// Walk any node.
@@ -213,8 +214,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             then_expression,
             else_expression,
         } => {
-            let cond_expr = tree.get(*condition);
-            visitor.visit_expression(tree, *condition, cond_expr);
+            match condition {
+                IfCondition::Expression { condition } => {
+                    let cond_expr = tree.get(*condition);
+                    visitor.visit_expression(tree, *condition, cond_expr);
+                }
+                IfCondition::Let { declarator, .. } => {
+                    let declarator_node = tree.get(*declarator);
+                    visitor.visit_declarator(tree, *declarator, declarator_node);
+                }
+            }
             let then_expression_node = tree.get(*then_expression);
             visitor.visit_expression(tree, *then_expression, then_expression_node);
             if let Some(else_expression_id) = else_expression {

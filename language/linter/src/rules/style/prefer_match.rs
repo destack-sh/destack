@@ -58,7 +58,11 @@ impl LintRule for PreferMatch {
             // count branches and check if conditions compare same variable
             let mut branch_count = 1;
             let mut current_else = Some(*else_expr);
-            let base_var = get_comparison_var(ctx, source, *condition);
+            let condition_id = match condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
+            };
+            let base_var = get_comparison_var(ctx, source, condition_id);
 
             if base_var.is_none() {
                 continue;
@@ -77,7 +81,11 @@ impl LintRule for PreferMatch {
                 } = else_expr
                 {
                     // check if this else-if compares the same variable
-                    let else_var = get_comparison_var(ctx, source, *else_cond);
+                    let else_condition_id = match else_cond {
+                        ast::IfCondition::Expression { condition } => *condition,
+                        ast::IfCondition::Let { .. } => break,
+                    };
+                    let else_var = get_comparison_var(ctx, source, else_condition_id);
                     if else_var.as_deref() != Some(base_var.as_str()) {
                         // different variable, not a good match candidate
                         break;

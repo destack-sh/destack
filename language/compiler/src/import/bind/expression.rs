@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
 use destack_dir::{
     DeclarationKind, Declarator, DependencyMode, DependencySource, Expression, ForEachBinding,
-    ForEachKind, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind,
-    MatchKind, MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolKind,
-    SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type, TypeMappedParameterExpression,
-    TypePredicateSubject, TypeTable, YieldCardinality,
+    ForEachKind, IfCondition, IfKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    LoopKind, MatchKind, MatchSource, NodeTree, NodeType, ScopeKind, StaticKey, SymbolBinding,
+    SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType, Type,
+    TypeMappedParameterExpression, TypePredicateSubject, TypeTable, YieldCardinality,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -1349,41 +1349,109 @@ impl Compiler {
                 else_expression,
             } => {
                 let kind = self.bind_if_kind(*kind);
-                let condition = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *condition,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let then_expression = self.bind_expression(
-                    module,
-                    ast,
-                    scope,
-                    *then_expression,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space_order,
-                );
-                let else_expression = else_expression.map(|else_expression| {
-                    self.bind_expression(
-                        module,
-                        ast,
-                        scope,
-                        else_expression,
-                        Some(expression_id),
-                        tree,
-                        symbols,
-                        types,
-                        space_order,
-                    )
-                });
+                let (condition, then_expression, else_expression) = match condition {
+                    ast::IfCondition::Expression { condition } => {
+                        let condition = self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *condition,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        );
+                        let then_expression = self.bind_expression(
+                            module,
+                            ast,
+                            scope,
+                            *then_expression,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        );
+                        let else_expression = else_expression.map(|else_expression| {
+                            self.bind_expression(
+                                module,
+                                ast,
+                                scope,
+                                else_expression,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                                space_order,
+                            )
+                        });
+                        (
+                            IfCondition::Expression { condition },
+                            then_expression,
+                            else_expression,
+                        )
+                    }
+                    ast::IfCondition::Let {
+                        kind: _,
+                        mutability,
+                        declarator,
+                    } => {
+                        let mutability = self.bind_mutability(*mutability);
+                        let outer_scope = scope;
+                        let if_scope_id =
+                            symbols.insert_scope(ScopeKind::Block, Some(outer_scope), None);
+                        let if_scope = (if_scope_id, symbols.get_scope_mark(if_scope_id));
+                        let declarator = self.bind_declarator(
+                            module,
+                            ast,
+                            if_scope,
+                            None,
+                            SymbolBinding::Runtime,
+                            *declarator,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                        );
+                        let if_scope = (if_scope_id, symbols.get_scope_mark(if_scope_id));
+                        let then_expression = self.bind_expression(
+                            module,
+                            ast,
+                            if_scope,
+                            *then_expression,
+                            Some(expression_id),
+                            tree,
+                            symbols,
+                            types,
+                            space_order,
+                        );
+                        let else_expression = else_expression.map(|else_expression| {
+                            let else_scope_id =
+                                symbols.insert_scope(ScopeKind::Block, Some(outer_scope), None);
+                            let else_scope = (else_scope_id, symbols.get_scope_mark(else_scope_id));
+                            self.bind_expression(
+                                module,
+                                ast,
+                                else_scope,
+                                else_expression,
+                                Some(expression_id),
+                                tree,
+                                symbols,
+                                types,
+                                space_order,
+                            )
+                        });
+                        (
+                            IfCondition::Let {
+                                mutability,
+                                declarator,
+                            },
+                            then_expression,
+                            else_expression,
+                        )
+                    }
+                };
                 Expression::If {
                     kind,
                     condition,

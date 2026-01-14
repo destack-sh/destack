@@ -7,7 +7,7 @@ impl Compiler {
     /// Transform a module with target-independent simplifications:
     /// 0. Split multi-declarator lets into individual lets
     /// 1. Unwrap single-expression blocks in SOURCE if/else (enables ternary)
-    /// 2. `if let` → if + explicit binding
+    /// 2. `if let` → match
     /// 3. `match` → decision trees (if-else chains with proper blocks)
     /// 4. Ternary optimization for simple if/else
     /// 5. Implicit returns → explicit `return` statements
@@ -40,8 +40,7 @@ impl Compiler {
         // this must happen BEFORE match transform so match-generated blocks stay
         self.unwrap_single_expression_blocks(&mut tree)?;
 
-        // 2. if-let → if + binding
-        // FUGU: decide/specify/implement if-let expressions (or drop them?)
+        // 2. lower if let expressions into match
         self.transform_if_let(&mut tree, &symbols, &types)?;
 
         // 3. match → decision trees (creates proper blocks)
