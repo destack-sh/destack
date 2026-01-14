@@ -32,7 +32,7 @@ JS or TS targets lower and generate code directly from DIR without MIR.
 | `O1` | Comptime, dev | Verification + local scalar + SSA/memory canonicalization + type cleanup |
 | `O2` | Release | O1 + global scalar, memory, and loop optimizations |
 | `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
-| `O4` | Max | O3 + extra fixed point rounds and full LTO when enabled |
+| `O4` | Max | O3 + extra fixed point rounds and optional LTO |
 
 ---
 
@@ -54,9 +54,12 @@ These scopes are kept distinct to balance fast builds with maximal optimization.
 
 The default pipelines operate at function and module scope.
 Package scope is used for Thin LTO summaries and selective importing.
-Program scope is used for full LTO with whole program inlining and devirtualization.
+Program scope is used for Full LTO with whole program inlining and devirtualization.
 Optimization scope is selected by target ltoMode.
-Auto enables Thin LTO at O4 and disables LTO at lower levels.
+Auto selects Thin LTO at O4 and disables LTO at lower levels.
+The compilation unit is the selected scope when LTO is enabled.
+Module is the default compilation unit.
+Thin LTO uses package scope and Full LTO uses program scope.
 Package and program pipelines operate on worksets that aggregate module MIR.
 Program scope routes each package through the pipeline for its configured optimization level.
 
@@ -269,7 +272,7 @@ Target pipelines evolve with new analyses, but the expected layering is:
 - `O1`: verify, SSA/memory canonicalization, light scalar fixed point, type cleanup
 - `O2`: `O1` + global scalar fixed point islands around memory, loop, and type transforms
 - `O3`: `O2` + more aggressive fixed point islands and loop transforms
-- `O4`: `O3` + extra fixed point rounds, Thin LTO, and optional full LTO
+- `O4`: `O3` + extra fixed point rounds and LTO based on ltoMode
 
 Module passes run first, then function passes run on each function.
 Pipelines may iterate passes until a fixed point when profitable.

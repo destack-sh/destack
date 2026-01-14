@@ -9,6 +9,13 @@ MIR is the low-level IR in the Destack pipeline.
 DIR is high-level, target-independent, and polymorphic; MIR is low-level, target-aware, and monomorphic.
 It knows pointer sizes and calling conventions, but doesn't commit to specific registers or instruction encodings yet.
 
+## Compilation Unit
+
+The compilation unit defines the scope for inter module optimization and shared metadata.
+Module scope is the default compilation unit for fast builds.
+Thin LTO uses package scope and Full LTO uses program scope.
+Auto selects Thin LTO at O4 and uses module scope at lower levels.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              DIR → MIR → NATIVE                             │
