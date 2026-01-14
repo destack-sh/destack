@@ -520,6 +520,19 @@ def fetch_bun_libs(library_directory: Path) -> None:
         destination_path = library_directory / "bun" / f"v{library_version}" / "index.d.ts"
         _write_text(destination_path, content)
 
+        # fetch vendor files (expect-type)
+        vendor_files = [
+            "vendor/expect-type/index.d.ts",
+            "vendor/expect-type/branding.d.ts",
+            "vendor/expect-type/messages.d.ts",
+            "vendor/expect-type/overloads.d.ts",
+            "vendor/expect-type/utils.d.ts",
+        ]
+        for vendor_file in vendor_files:
+            vendor_content = _fetch_remote_text(f"{base_url}/{vendor_file}")
+            vendor_destination = library_directory / "bun" / f"v{library_version}" / vendor_file
+            _write_text(vendor_destination, vendor_content)
+
 def _print_versions(typescript_version: str) -> None:
     """Print the configured library versions."""
     # resolve undici targets for display
