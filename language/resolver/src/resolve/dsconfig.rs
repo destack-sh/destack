@@ -53,15 +53,20 @@ impl Resolver {
         let dsconfig_path = package_config.directory.join("dsconfig.json");
 
         // load and parse the dsconfig
-        let dsconfig =
-            self.load_dsconfig(&dsconfig_path, &mut DsConfigResolveContext::default())?;
+        let dsconfig = self.load_dsconfig(&dsconfig_path)?;
 
         Ok(dsconfig)
     }
 
     /// Load and parse a `dsconfig.json` file recursively, handling extends.
+    #[tracing::instrument(name = "resolver.load_dsconfig", level = "trace", skip(self))]
+    pub fn load_dsconfig(&self, path: &Path) -> Result<DsConfig, ResolveError> {
+        self.load_dsconfig_with_context(path, &mut DsConfigResolveContext::default())
+    }
+
+    /// Load and parse a `dsconfig.json` file recursively, handling extends.
     #[tracing::instrument(name = "resolver.load_dsconfig", level = "trace", skip(self, ctx))]
-    pub(crate) fn load_dsconfig(
+    pub(crate) fn load_dsconfig_with_context(
         &self,
         path: &Path,
         ctx: &mut DsConfigResolveContext,
@@ -97,7 +102,7 @@ impl Resolver {
             let dsconfig_path = dsconfig.path.clone();
             ctx.with_extended_file(dsconfig_path, |ctx| {
                 for extended_dsconfig_path in extended_dsconfig_paths {
-                    let extended = self.load_dsconfig(&extended_dsconfig_path, ctx)?;
+                    let extended = self.load_dsconfig_with_context(&extended_dsconfig_path, ctx)?;
                     dsconfig.extend_from(&extended);
                 }
                 Ok(())

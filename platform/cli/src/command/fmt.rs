@@ -12,8 +12,12 @@ use destack_source::{
 };
 use destack_workspace::{FormatterOptions, Program};
 use serde::Deserialize;
+use serde_json::json;
 
-use crate::common::{DiagnosticArgs, ProgramArgs, print_diagnostics};
+use crate::common::{
+    CommandReport, DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
+    print_diagnostics, print_report,
+};
 use crate::console;
 
 /// File types that the formatter can process.
@@ -42,6 +46,10 @@ pub struct FmtArgs {
     /// The diagnostic options.
     #[command(flatten)]
     pub diagnostics: DiagnosticArgs,
+
+    /// Report output options.
+    #[command(flatten)]
+    pub report: ReportArgs,
 }
 
 /// Find the nearest dsconfig.json by walking up parent directories.
@@ -176,10 +184,14 @@ fn format_json_content(content: &str, formatter: FormatterOptions) -> Result<Str
 }
 
 /// Print diagnostics and return whether there were errors.
-fn check_and_print_errors(program: &Arc<Program>, diagnostic_options: &DiagnosticOptions) -> bool {
+fn check_and_print_errors(
+    program: &Arc<Program>,
+    diagnostic_options: &DiagnosticOptions,
+    suppress_output: bool,
+) -> bool {
     let diagnostics = program.diagnostics.collect().map(diagnostic_options);
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
-    if has_errors {
+    if has_errors && !suppress_output {
         print_diagnostics(program, &diagnostics);
     }
     has_errors
@@ -235,7 +247,13 @@ fn format_file(file: Arc<File>, formatter: FormatterOptions, program: Arc<Progra
 
 /// Format source files.
 pub fn run(args: &FmtArgs) -> i32 {
+    if let Some(code) = ensure_no_watch_or_dev("fmt", &args.program, &args.report) {
+        return code;
+    }
+
     let check = args.check;
+    let mut summary = FmtSummary::new(check);
+    let suppress_output = args.report.is_json();
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let session = args.program.setup();
     let default_formatting = session.formatter;
@@ -250,6 +268,7 @@ pub fn run(args: &FmtArgs) -> i32 {
 
     // case 1: format inline string
     if let Some(ref string) = args.eval {
+        summary.files_total = 1;
         let file_id = FileId::new(0);
         let file = Arc::new(File::from_text(
             file_id,
@@ -262,8 +281,14 @@ pub fn run(args: &FmtArgs) -> i32 {
 
         // format and check for parse errors
         let formatted = format_file(file.clone(), program.formatter, program.clone());
-        if check_and_print_errors(&program, &diagnostic_options) {
-            return 1;
+        if check_and_print_errors(&program, &diagnostic_options, suppress_output) {
+            summary.errors += 1;
+            return finish_fmt(args, summary, 1);
+        }
+
+        if args.report.is_json() {
+            summary.formatted_output = Some(formatted);
+            return finish_fmt(args, summary, 0);
         }
 
         // create a file from the formatted output for colorization
@@ -282,71 +307,86 @@ pub fn run(args: &FmtArgs) -> i32 {
     // case 2: format specific files
     if !args.files.is_empty() {
         let mut did_any_change = false;
-        let mut had_errors = false;
 
         for path in &args.files {
             if path.is_file() {
-                // format single file
+                summary.files_total += 1;
                 let result = format_single_file(
                     &program,
                     path,
                     default_formatting,
                     &diagnostic_options,
+                    suppress_output,
                     check,
                 );
                 match result {
                     FormatResult::Unchanged => {}
-                    FormatResult::Changed => did_any_change = true,
-                    FormatResult::Error => had_errors = true,
+                    FormatResult::Changed => {
+                        did_any_change = true;
+                        summary.files_changed += 1;
+                    }
+                    FormatResult::Error => summary.errors += 1,
                 }
             } else if path.is_dir() {
-                // format all formattable files in directory
                 let paths = collect_formattable_files(path);
                 for file_path in paths {
+                    summary.files_total += 1;
                     let result = format_single_file(
                         &program,
                         &file_path,
                         default_formatting,
                         &diagnostic_options,
+                        suppress_output,
                         check,
                     );
                     match result {
                         FormatResult::Unchanged => {}
-                        FormatResult::Changed => did_any_change = true,
-                        FormatResult::Error => had_errors = true,
+                        FormatResult::Changed => {
+                            did_any_change = true;
+                            summary.files_changed += 1;
+                        }
+                        FormatResult::Error => summary.errors += 1,
                     }
                 }
             } else {
-                console::error(&format!("not found: '{}'", path.display()));
-                had_errors = true;
+                if !suppress_output {
+                    console::error(&format!("not found: '{}'", path.display()));
+                }
+                summary.errors += 1;
             }
         }
 
-        if had_errors {
-            return 1;
+        if summary.errors > 0 {
+            return finish_fmt(args, summary, 1);
         }
         if check && did_any_change {
-            return 1;
+            return finish_fmt(args, summary, 1);
         }
-        return 0;
+        return finish_fmt(args, summary, 0);
     }
 
     // case 3: format all formattable files in current directory
     let base_directory = program.cwd.clone();
     if !base_directory.exists() {
-        console::error(&format!(
-            "directory not found: '{}'",
-            base_directory.display()
-        ));
-        return 1;
+        if !suppress_output {
+            console::error(&format!(
+                "directory not found: '{}'",
+                base_directory.display()
+            ));
+        }
+        summary.errors += 1;
+        return finish_fmt(args, summary, 1);
     }
 
     // find all formattable files in directory
     let paths = collect_formattable_files(&base_directory);
     if paths.is_empty() {
-        console::info("no formattable files found");
-        return 0;
+        if !suppress_output {
+            console::info("no formattable files found");
+        }
+        return finish_fmt(args, summary, 0);
     }
+    summary.files_total = paths.len();
 
     // phase 1: parse all files and collect results, checking for errors
     let mut files: Vec<(PathBuf, String, String)> = Vec::new();
@@ -358,8 +398,11 @@ pub fn run(args: &FmtArgs) -> i32 {
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(e) => {
-                console::error(&format!("error reading '{}': {e}", path.display()));
-                return 1;
+                if !suppress_output {
+                    console::error(&format!("error reading '{}': {e}", path.display()));
+                }
+                summary.errors += 1;
+                return finish_fmt(args, summary, 1);
             }
         };
 
@@ -369,8 +412,11 @@ pub fn run(args: &FmtArgs) -> i32 {
             FileType::Json => match format_json_content(&content, formatting_options) {
                 Ok(f) => f,
                 Err(e) => {
-                    console::error(&format!("error parsing '{}': {e}", path.display()));
-                    return 1;
+                    if !suppress_output {
+                        console::error(&format!("error parsing '{}': {e}", path.display()));
+                    }
+                    summary.errors += 1;
+                    return finish_fmt(args, summary, 1);
                 }
             },
             _ => {
@@ -403,37 +449,91 @@ pub fn run(args: &FmtArgs) -> i32 {
     }
 
     // check for any parse errors across all files (destack only)
-    if check_and_print_errors(&program, &diagnostic_options) {
-        return 1;
+    if check_and_print_errors(&program, &diagnostic_options, suppress_output) {
+        summary.errors += 1;
+        return finish_fmt(args, summary, 1);
     }
 
     // phase 2: now that we know there are no errors, write/check files
     let mut did_any_change = false;
     for (path, original_content, formatted_content) in files {
         if check {
-            // error if the file changed
             if original_content != formatted_content {
-                console::error(&format!("{}", path.display()));
+                if !suppress_output {
+                    console::error(&format!("{}", path.display()));
+                }
                 did_any_change = true;
+                summary.files_changed += 1;
             }
         } else if original_content != formatted_content {
-            // write the changed file, bail on error
             if let Err(e) = std::fs::write(&path, &formatted_content) {
-                console::error(&format!("error writing '{}': {e}", path.display()));
-                return 1;
-            }
-            // print the changed file path
-            else {
-                console::info(&format!("'{}'", path.display()));
+                if !suppress_output {
+                    console::error(&format!("error writing '{}': {e}", path.display()));
+                }
+                summary.errors += 1;
+                return finish_fmt(args, summary, 1);
+            } else {
+                if !suppress_output {
+                    console::info(&format!("'{}'", path.display()));
+                }
+                summary.files_changed += 1;
             }
         }
     }
 
     if check && did_any_change {
-        return 1;
+        return finish_fmt(args, summary, 1);
     }
 
-    0
+    finish_fmt(args, summary, 0)
+}
+
+/// Summary of formatting work for reports.
+struct FmtSummary {
+    /// The number of files inspected.
+    files_total: usize,
+    /// The number of files that would change.
+    files_changed: usize,
+    /// The number of errors encountered.
+    errors: usize,
+    /// Whether this is a check-only run.
+    check: bool,
+    /// Formatted output for eval mode.
+    formatted_output: Option<String>,
+}
+
+impl FmtSummary {
+    /// Create a new formatting summary.
+    fn new(check: bool) -> Self {
+        Self {
+            files_total: 0,
+            files_changed: 0,
+            errors: 0,
+            check,
+            formatted_output: None,
+        }
+    }
+}
+
+/// Finalize formatting with a report payload when requested.
+fn finish_fmt(args: &FmtArgs, summary: FmtSummary, exit_code: i32) -> i32 {
+    if args.report.is_json() {
+        let mut report = if exit_code == 0 {
+            CommandReport::success("fmt", 0)
+        } else {
+            CommandReport::failure("fmt", exit_code)
+        };
+        report.data = Some(json!({
+            "files": summary.files_total,
+            "changed": summary.files_changed,
+            "errors": summary.errors,
+            "check": summary.check,
+            "formatted": summary.formatted_output,
+        }));
+        print_report(&report, args.report.format());
+    }
+
+    exit_code
 }
 
 /// Result of formatting a single file.
@@ -452,6 +552,7 @@ fn format_single_file(
     path: &Path,
     default_formatting: FormatterOptions,
     diagnostic_options: &DiagnosticOptions,
+    suppress_output: bool,
     check: bool,
 ) -> FormatResult {
     // get formatting options from dsconfig
@@ -461,7 +562,9 @@ fn format_single_file(
     let content = match std::fs::read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
-            console::error(&format!("error reading '{}': {e}", path.display()));
+            if !suppress_output {
+                console::error(&format!("error reading '{}': {e}", path.display()));
+            }
             return FormatResult::Error;
         }
     };
@@ -472,7 +575,9 @@ fn format_single_file(
         FileType::Json => match format_json_content(&content, formatting_options) {
             Ok(f) => f,
             Err(e) => {
-                console::error(&format!("error parsing '{}': {e}", path.display()));
+                if !suppress_output {
+                    console::error(&format!("error parsing '{}': {e}", path.display()));
+                }
                 return FormatResult::Error;
             }
         },
@@ -494,7 +599,7 @@ fn format_single_file(
             let result = format_file(file.clone(), formatting_options, program.clone());
 
             // check for parse errors
-            if check_and_print_errors(program, diagnostic_options) {
+            if check_and_print_errors(program, diagnostic_options, suppress_output) {
                 return FormatResult::Error;
             }
 
@@ -512,7 +617,9 @@ fn format_single_file(
     // check or write
     if check {
         if content != formatted {
-            console::error(&format!("{}", path.display()));
+            if !suppress_output {
+                console::error(&format!("{}", path.display()));
+            }
             return FormatResult::Changed;
         }
         return FormatResult::Unchanged;
@@ -520,10 +627,14 @@ fn format_single_file(
 
     if content != formatted {
         if let Err(e) = std::fs::write(path, &formatted) {
-            console::error(&format!("error writing '{}': {e}", path.display()));
+            if !suppress_output {
+                console::error(&format!("error writing '{}': {e}", path.display()));
+            }
             return FormatResult::Error;
         }
-        console::info(&format!("'{}'", path.display()));
+        if !suppress_output {
+            console::info(&format!("'{}'", path.display()));
+        }
         return FormatResult::Changed;
     }
 

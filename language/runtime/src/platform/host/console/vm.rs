@@ -1,11 +1,10 @@
 use destack_vm::{ExternalContext, Value, ValueTag};
 
-use crate::binding;
-use crate::binding_set;
 use crate::platform::bindings::BindingDescriptor;
 use crate::platform::host::HostResult;
+use crate::{binding, binding_set};
 
-use super::core::{emit_console_line, ConsoleStream};
+use super::core::{ConsoleStream, emit_console_line};
 
 binding_set!(
     pub CONSOLE_VM_BINDINGS,

@@ -1,5 +1,3 @@
-//! Output formatting for diagnostics.
-
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -24,6 +22,7 @@ pub enum DiagnosticFormat {
     Github,
 }
 
+/// Line writer hook for formatted output.
 pub type LineWriter = Arc<dyn Fn(&str) + Send + Sync>;
 
 /// Options for output formatting.
@@ -41,33 +40,47 @@ pub struct FormatOptions {
     pub suppress_diagnostics: bool,
 }
 
-/// Diagnostic output for JSON serialization.
-#[derive(Serialize)]
-struct DiagnosticJson {
+/// Diagnostic entry serialized in JSON output.
+#[derive(Debug, Serialize)]
+pub struct DiagnosticJson {
+    /// The diagnostic code.
     code: String,
+    /// The severity label.
     severity: String,
+    /// The diagnostic message.
     message: String,
+    /// The file path or label.
     file: String,
+    /// The 1-based starting line.
     line: u32,
+    /// The 1-based starting column.
     column: u32,
+    /// The 1-based ending line.
     end_line: u32,
+    /// The 1-based ending column.
     end_column: u32,
 }
 
-/// Statistics output for JSON serialization.
-#[derive(Serialize)]
-struct DiagnosticOutputJson {
+/// Diagnostic output payload for JSON output.
+#[derive(Debug, Serialize)]
+pub struct DiagnosticOutputJson {
+    /// The diagnostics list.
     diagnostics: Vec<DiagnosticJson>,
+    /// Summary counts by severity.
     summary: DiagnosticSummaryJson,
+    /// Optional statistics grouped by rule.
     #[serde(skip_serializing_if = "Option::is_none")]
     statistics: Option<Vec<DiagnosticStatistic>>,
 }
 
-/// Summary of diagnostics.
-#[derive(Serialize)]
-struct DiagnosticSummaryJson {
+/// Summary counts for diagnostics.
+#[derive(Debug, Serialize)]
+pub struct DiagnosticSummaryJson {
+    /// Total error count.
     errors: usize,
+    /// Total warning count.
     warnings: usize,
+    /// Total note count.
     notes: usize,
 }
 
@@ -78,9 +91,11 @@ pub fn format_diagnostics(
     options: &FormatOptions,
     module_count: usize,
 ) -> FormatResult {
+    // delegate to the writer aware formatter
     format_diagnostics_with_writer(files, diagnostics, options, module_count, None)
 }
 
+/// Format diagnostics with an optional line writer.
 pub fn format_diagnostics_with_writer(
     files: &FileRegistry,
     diagnostics: &DiagnosticCollection,
@@ -89,22 +104,12 @@ pub fn format_diagnostics_with_writer(
     line_writer: Option<&LineWriter>,
 ) -> FormatResult {
     // filter diagnostics based on quiet mode
-    let filtered: Vec<Diagnostic> = if options.quiet {
-        diagnostics
-            .iter()
-            .into_iter()
-            .filter(|d| d.severity == DiagnosticSeverity::Error)
-            .collect()
-    } else {
-        diagnostics.iter()
-    };
+    let filtered = filter_diagnostics(diagnostics, options.quiet);
 
     // count by severity
-    let counts = count_by_severity(&filtered);
-    let error_count = *counts.get(&DiagnosticSeverity::Error).unwrap_or(&0);
-    let warning_count = *counts.get(&DiagnosticSeverity::Warning).unwrap_or(&0);
-    let note_count = *counts.get(&DiagnosticSeverity::Note).unwrap_or(&0);
+    let (error_count, warning_count, note_count) = count_severity(&filtered);
 
+    // emit output when diagnostics are enabled
     if !options.suppress_diagnostics {
         match options.format {
             DiagnosticFormat::Text => {
@@ -117,7 +122,7 @@ pub fn format_diagnostics_with_writer(
                 );
             }
             DiagnosticFormat::Json => {
-                print_json(
+                let output = build_diagnostic_output(
                     files,
                     &filtered,
                     error_count,
@@ -125,6 +130,7 @@ pub fn format_diagnostics_with_writer(
                     note_count,
                     options,
                 );
+                print_json(&output);
             }
             DiagnosticFormat::Github => {
                 print_github(files, &filtered);
@@ -135,11 +141,46 @@ pub fn format_diagnostics_with_writer(
     // compute exit code
     let max_warnings_exceeded = options.max_warnings.is_some_and(|max| warning_count > max);
 
+    // return the format result
     FormatResult {
         error_count,
         warning_count,
         max_warnings_exceeded,
     }
+}
+
+/// Collect diagnostics into JSON output without printing.
+pub fn collect_diagnostics_json(
+    files: &FileRegistry,
+    diagnostics: &DiagnosticCollection,
+    options: &FormatOptions,
+) -> (DiagnosticOutputJson, FormatResult) {
+    // filter diagnostics based on quiet mode
+    let filtered = filter_diagnostics(diagnostics, options.quiet);
+
+    // count by severity
+    let (error_count, warning_count, note_count) = count_severity(&filtered);
+
+    // build the json payload
+    let output = build_diagnostic_output(
+        files,
+        &filtered,
+        error_count,
+        warning_count,
+        note_count,
+        options,
+    );
+
+    // compute exit code
+    let max_warnings_exceeded = options.max_warnings.is_some_and(|max| warning_count > max);
+    let result = FormatResult {
+        error_count,
+        warning_count,
+        max_warnings_exceeded,
+    };
+
+    // return payload and result
+    (output, result)
 }
 
 /// Result of printing diagnostics.
@@ -156,6 +197,7 @@ pub struct FormatResult {
 impl FormatResult {
     /// Get the exit code based on the output result.
     pub fn exit_code(&self) -> i32 {
+        // prioritize errors and max warning violations
         if self.error_count > 0 || self.max_warnings_exceeded {
             1
         } else if self.warning_count > 0 {
@@ -174,6 +216,7 @@ fn print_text(
     show_statistics: bool,
     line_writer: Option<&LineWriter>,
 ) {
+    // build print options
     let print_options = PrintOptions::new()
         .with_line_width(100)
         .with_module_count(module_count)
@@ -185,34 +228,148 @@ fn print_text(
         print_options
     };
 
-    // create a temporary collection for the print function
+    // build a temporary collection for printing
     let mut collection = DiagnosticCollection::new();
     for d in diagnostics {
         collection.insert(d.clone());
     }
 
+    // render the diagnostics
     print_diagnostics_impl(files, &collection, print_options);
 
+    // emit statistics when requested
     if show_statistics && !diagnostics.is_empty() {
         print_statistics(diagnostics, line_writer);
     }
 }
 
 /// Print diagnostics in JSON format.
-fn print_json(
+fn print_json(output: &DiagnosticOutputJson) {
+    // pretty print the json payload
+    if let Ok(json) = serde_json::to_string_pretty(&output) {
+        println!("{json}");
+    }
+}
+
+/// Print diagnostics in GitHub Actions annotation format.
+fn print_github(files: &FileRegistry, diagnostics: &[Diagnostic]) {
+    // emit github annotations per diagnostic
+    for d in diagnostics {
+        let file = files.get(d.file_id);
+        // get_position returns 0 based line and column
+        let (line, column) = file
+            .get_position(d.primary_span.span.start)
+            .map(|(l, c)| (l + 1, c + 1))
+            .unwrap_or((1, 1));
+        let (end_line, end_column) = file
+            .get_position(d.primary_span.span.end)
+            .map(|(l, c)| (l + 1, c + 1))
+            .unwrap_or((1, 1));
+
+        // resolve the file label
+        let file_path = file
+            .path
+            .as_ref()
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|| file.name.clone());
+
+        // map severity to github annotation level
+        let level = match d.severity {
+            DiagnosticSeverity::Error => "error",
+            DiagnosticSeverity::Warning => "warning",
+            DiagnosticSeverity::Note => "notice",
+        };
+
+        println!(
+            "::{level} file={file_path},line={line},col={column},endLine={end_line},endColumn={end_column},title={code}::{message}",
+            code = d.code,
+            message = d.message
+        );
+    }
+}
+
+/// Diagnostic statistic counts.
+#[derive(Debug, Serialize)]
+pub struct DiagnosticStatistic {
+    /// The code of the diagnostic.
+    code: String,
+    /// The count of the diagnostic.
+    count: usize,
+    /// The severity of the diagnostic.
+    severity: String,
+}
+
+/// Print statistics grouped by rule.
+fn print_statistics(diagnostics: &[Diagnostic], line_writer: Option<&LineWriter>) {
+    // compute summary counts
+    let stats = compute_statistics(diagnostics);
+    if stats.is_empty() {
+        return;
+    }
+
+    // emit the header
+    write_line(line_writer, "");
+    write_line(line_writer, &console::bold("Statistics by rule:"));
+
+    // emit one line per rule
+    for stat in stats {
+        let severity_color = match stat.severity.as_str() {
+            "error" => "31",   // red
+            "warning" => "33", // yellow
+            _ => "34",         // blue
+        };
+        let colored_code = console::color(&stat.code, severity_color);
+        write_line(
+            line_writer,
+            &format!("  {}: {} occurrence(s)", colored_code, stat.count),
+        );
+    }
+}
+
+/// Filter diagnostics based on quiet mode.
+fn filter_diagnostics(diagnostics: &DiagnosticCollection, quiet: bool) -> Vec<Diagnostic> {
+    // return only errors when quiet mode is enabled
+    if quiet {
+        diagnostics
+            .iter()
+            .into_iter()
+            .filter(|d| d.severity == DiagnosticSeverity::Error)
+            .collect()
+    } else {
+        diagnostics.iter()
+    }
+}
+
+/// Count diagnostics by severity.
+fn count_severity(diagnostics: &[Diagnostic]) -> (usize, usize, usize) {
+    // compute aggregated counts
+    let counts = count_by_severity(diagnostics);
+
+    // read each severity bucket
+    let error_count = *counts.get(&DiagnosticSeverity::Error).unwrap_or(&0);
+    let warning_count = *counts.get(&DiagnosticSeverity::Warning).unwrap_or(&0);
+    let note_count = *counts.get(&DiagnosticSeverity::Note).unwrap_or(&0);
+
+    // return the final tuple
+    (error_count, warning_count, note_count)
+}
+
+/// Build the json payload for diagnostics output.
+fn build_diagnostic_output(
     files: &FileRegistry,
     diagnostics: &[Diagnostic],
     error_count: usize,
     warning_count: usize,
     note_count: usize,
     options: &FormatOptions,
-) {
+) -> DiagnosticOutputJson {
+    // map diagnostics into json entries
     let json_diagnostics: Vec<DiagnosticJson> = diagnostics
         .iter()
         .map(|d| {
             let file = files.get(d.file_id);
 
-            // get_position returns 0-based (line, column), convert to 1-based
+            // get_position returns 0 based line and column
             let (line, column) = file
                 .get_position(d.primary_span.span.start)
                 .map(|(l, c)| (l + 1, c + 1))
@@ -222,6 +379,7 @@ fn print_json(
                 .map(|(l, c)| (l + 1, c + 1))
                 .unwrap_or((1, 1));
 
+            // resolve the file label
             DiagnosticJson {
                 code: d.code.clone(),
                 severity: d.severity.family_name().to_string(),
@@ -239,13 +397,15 @@ fn print_json(
         })
         .collect();
 
+    // include statistics when requested
     let statistics = if options.statistics {
         Some(compute_statistics(diagnostics))
     } else {
         None
     };
 
-    let output = DiagnosticOutputJson {
+    // build the output payload
+    DiagnosticOutputJson {
         diagnostics: json_diagnostics,
         summary: DiagnosticSummaryJson {
             errors: error_count,
@@ -253,86 +413,12 @@ fn print_json(
             notes: note_count,
         },
         statistics,
-    };
-
-    if let Ok(json) = serde_json::to_string_pretty(&output) {
-        println!("{json}");
-    }
-}
-
-/// Print diagnostics in GitHub Actions annotation format.
-fn print_github(files: &FileRegistry, diagnostics: &[Diagnostic]) {
-    for d in diagnostics {
-        let file = files.get(d.file_id);
-        // get_position returns 0-based (line, column), convert to 1-based
-        let (line, column) = file
-            .get_position(d.primary_span.span.start)
-            .map(|(l, c)| (l + 1, c + 1))
-            .unwrap_or((1, 1));
-        let (end_line, end_column) = file
-            .get_position(d.primary_span.span.end)
-            .map(|(l, c)| (l + 1, c + 1))
-            .unwrap_or((1, 1));
-
-        let file_path = file
-            .path
-            .as_ref()
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| file.name.clone());
-
-        // GitHub workflow command format
-        // https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions
-        let level = match d.severity {
-            DiagnosticSeverity::Error => "error",
-            DiagnosticSeverity::Warning => "warning",
-            DiagnosticSeverity::Note => "notice",
-        };
-
-        println!(
-            "::{level} file={file_path},line={line},col={column},endLine={end_line},endColumn={end_column},title={code}::{message}",
-            code = d.code,
-            message = d.message
-        );
-    }
-}
-
-/// Diagnostic statistic counts.
-#[derive(Serialize)]
-struct DiagnosticStatistic {
-    /// The code of the diagnostic.
-    code: String,
-    /// The count of the diagnostic.
-    count: usize,
-    /// The severity of the diagnostic.
-    severity: String,
-}
-
-/// Print statistics grouped by rule.
-fn print_statistics(diagnostics: &[Diagnostic], line_writer: Option<&LineWriter>) {
-    let stats = compute_statistics(diagnostics);
-    if stats.is_empty() {
-        return;
-    }
-
-    write_line(line_writer, "");
-    write_line(line_writer, &console::bold("Statistics by rule:"));
-
-    for stat in stats {
-        let severity_color = match stat.severity.as_str() {
-            "error" => "31",   // red
-            "warning" => "33", // yellow
-            _ => "34",         // blue
-        };
-        let colored_code = console::color(&stat.code, severity_color);
-        write_line(
-            line_writer,
-            &format!("  {}: {} occurrence(s)", colored_code, stat.count),
-        );
     }
 }
 
 /// Compute statistics grouped by rule code.
 fn compute_statistics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticStatistic> {
+    // aggregate counts per rule code
     let mut by_code: BTreeMap<String, (usize, DiagnosticSeverity)> = BTreeMap::new();
     for diagnostic in diagnostics {
         let entry = by_code
@@ -341,6 +427,7 @@ fn compute_statistics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticStatistic> {
         entry.0 += 1;
     }
 
+    // map the counts into statistics entries
     let mut stats: Vec<DiagnosticStatistic> = by_code
         .into_iter()
         .map(|(code, (count, severity))| DiagnosticStatistic {
@@ -353,19 +440,25 @@ fn compute_statistics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticStatistic> {
     // sort by count descending
     stats.sort_by(|a, b| b.count.cmp(&a.count));
 
+    // return the ordered statistics
     stats
 }
 
 /// Count diagnostics by severity.
 fn count_by_severity(diagnostics: &[Diagnostic]) -> BTreeMap<DiagnosticSeverity, usize> {
+    // aggregate counts per severity
     let mut counts: BTreeMap<DiagnosticSeverity, usize> = BTreeMap::new();
     for d in diagnostics {
         *counts.entry(d.severity).or_insert(0) += 1;
     }
+
+    // return the counts map
     counts
 }
 
+/// Write a line using the optional writer.
 fn write_line(line_writer: Option<&LineWriter>, line: &str) {
+    // use the writer when provided
     if let Some(writer) = line_writer {
         writer(line);
     } else {

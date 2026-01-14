@@ -924,14 +924,14 @@ impl Compiler {
                     let target = self.program.modules.get(*target_module_id);
                     let target = target.read();
                     // only handle data module namespace and default imports
-                    if !target.is_code() {
-                        if *mode == DependencyMode::Namespace || *mode == DependencyMode::Default {
-                            let ty_id =
-                                self.infer_data_module_type(&target, item_id.into_any(), types)?;
+                    if !target.is_code()
+                        && (*mode == DependencyMode::Namespace || *mode == DependencyMode::Default)
+                    {
+                        let ty_id =
+                            self.infer_data_module_type(&target, item_id.into_any(), types)?;
 
-                            // set the type on the canonical symbol used by the binding
-                            types.set_value_type(*target_symbol, ty_id);
-                        }
+                        // set the type on the canonical symbol used by the binding
+                        types.set_value_type(*target_symbol, ty_id);
                     }
                 }
             }

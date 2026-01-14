@@ -2,7 +2,7 @@ use destack_vm::Error;
 
 use crate::native_binding_set;
 use crate::platform::bindings::{BindingDescriptor, NativeBinding};
-use crate::platform::host::{with_host_call_context, HostStatus, HostStringSlice};
+use crate::platform::host::{HostStatus, HostStringSlice, with_host_call_context};
 
 native_binding_set!(
     pub PROCESS_NATIVE_BINDINGS,

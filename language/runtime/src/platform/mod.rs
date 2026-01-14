@@ -1,16 +1,16 @@
 /// External bindings for platform integration.
 pub mod bindings;
-pub mod host;
 /// Time sources and clocks.
 pub mod clock;
+pub mod host;
 /// Randomness and entropy sources.
 pub mod random;
 /// External resource table and finalizers.
 pub mod resources;
 
 pub use bindings::{BindingPolicy, BindingRegistry, BindingSet, DeterminismPolicy, ReplayMode};
-pub use host::HostContext;
 pub use clock::Clock;
+pub use host::HostContext;
 pub use random::Random;
 pub use resources::Resources;
 

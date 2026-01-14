@@ -1,8 +1,12 @@
 use clap::Args;
 
 use super::check::{self, Format, Progress};
-use crate::common::{DiagnosticArgs, InputArgs, ProgramArgs, print_no_input_help};
+use crate::common::{
+    CommandReport, DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
+    print_report,
+};
 
+/// Arguments for the lint command.
 #[derive(Args, Debug, Clone)]
 pub struct LintArgs {
     /// Input arguments.
@@ -16,6 +20,10 @@ pub struct LintArgs {
     /// The diagnostic options.
     #[command(flatten)]
     pub diagnostics: DiagnosticArgs,
+
+    /// Report output options.
+    #[command(flatten)]
+    pub report: ReportArgs,
 
     /// Automatically fix problems.
     #[arg(long)]
@@ -52,15 +60,21 @@ pub struct LintArgs {
     /// Show progress indicator (auto, on, off, detailed).
     #[arg(long, value_enum, default_value = "auto")]
     pub progress: Progress,
+
+    /// List available lint rules and exit.
+    #[arg(long = "list-rules")]
+    pub list_rules: bool,
 }
 
 /// Lint source files for style and correctness issues.
-/// (This is an alias for `check` which includes linting by default).
+/// This is an alias for `check` with linting enabled.
 pub fn run(args: &LintArgs) -> i32 {
-    // check for no input early to show correct command name
-    if !args.input.has_input() {
-        print_no_input_help("lint");
-        return 1;
+    if let Some(code) = ensure_no_watch_or_dev("lint", &args.program, &args.report) {
+        return code;
+    }
+
+    if args.list_rules {
+        return list_rules(args);
     }
 
     // convert to CheckArgs and delegate
@@ -68,6 +82,7 @@ pub fn run(args: &LintArgs) -> i32 {
         input: args.input.clone(),
         program: args.program.clone(),
         diagnostics: args.diagnostics.clone(),
+        report: args.report.clone(),
         fix: args.fix,
         unsafe_fixes: args.unsafe_fixes,
         diff: args.diff,
@@ -80,5 +95,78 @@ pub fn run(args: &LintArgs) -> i32 {
         progress: args.progress,
     };
 
-    check::run(&check_args)
+    check::run_with_command(&check_args, "lint")
+}
+
+/// Lint rule metadata for list output.
+#[derive(serde::Serialize)]
+struct RuleEntry {
+    /// Fully qualified rule identifier.
+    id: String,
+    /// Diagnostic code for the rule.
+    code: &'static str,
+    /// Display name for the rule.
+    name: &'static str,
+    /// Rule category name.
+    category: &'static str,
+    /// Human-readable description.
+    description: &'static str,
+    /// Whether the rule provides a fix.
+    fixable: bool,
+    /// Whether the rule is enabled by default.
+    recommended: bool,
+    /// Stability label for the rule.
+    stability: &'static str,
+}
+
+/// List lint rules in text or JSON output.
+fn list_rules(args: &LintArgs) -> i32 {
+    let mut entries: Vec<RuleEntry> = destack_linter::all_rules()
+        .into_iter()
+        .map(|rule| {
+            let meta = rule.meta();
+            RuleEntry {
+                id: meta.full_id(),
+                code: meta.code,
+                name: meta.name,
+                category: meta.category.name(),
+                description: meta.description,
+                fixable: meta.is_fixable(),
+                recommended: meta.is_recommended(),
+                stability: if meta.is_stable() {
+                    "stable"
+                } else {
+                    "experimental"
+                },
+            }
+        })
+        .collect();
+
+    entries.sort_by(|a, b| a.id.cmp(&b.id));
+
+    if args.report.is_json() {
+        let mut report = CommandReport::success("lint", 0);
+        report.data = Some(serde_json::json!({ "rules": entries }));
+        print_report(&report, args.report.format());
+        return 0;
+    }
+
+    for entry in entries {
+        let summary = format!("{} ({})", entry.id, entry.code);
+        let details = format!(
+            "{} · {} · {}",
+            entry.category,
+            if entry.fixable { "fixable" } else { "no-fix" },
+            if entry.recommended {
+                "recommended"
+            } else {
+                "optional"
+            },
+        );
+        println!("{summary}");
+        println!("  {details}");
+        println!("  {}", entry.description);
+    }
+
+    0
 }
