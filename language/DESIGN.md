@@ -945,6 +945,8 @@ Key levers:
 Optimization defaults to module scope for fast builds.
 Target ltoMode selects the optimization scope.
 Thin LTO runs at package scope and Full LTO runs at program scope.
+Auto selects Thin LTO at O4 and disables LTO at lower levels.
+Compilation unit refers to the selected optimization scope when LTO is enabled.
 
 ## Module Imports
 

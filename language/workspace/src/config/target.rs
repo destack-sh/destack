@@ -87,13 +87,14 @@ pub enum OptimizeLevel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LtoMode {
     /// Use defaults based on optimization level.
+    /// Auto enables Thin LTO at O4 and disables LTO at lower levels.
     #[default]
     Auto,
     /// Disable link time optimization.
     None,
-    /// Enable thin link time optimization at package scope.
+    /// Enable Thin LTO at package scope.
     Thin,
-    /// Enable full link time optimization at program scope.
+    /// Enable Full LTO at program scope.
     Full,
 }
 

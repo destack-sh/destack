@@ -530,7 +530,9 @@ For manual deallocation without dispose (FFI), use `raw.free` directly.
 
 Optimization defaults to module scope for fast builds.
 Target ltoMode selects the optimization scope.
-Package scope Thin LTO and program scope Full LTO are used for maximal performance when enabled.
+Thin LTO runs at package scope and Full LTO runs at program scope.
+Auto selects Thin LTO at O4 and disables LTO at lower levels.
+Compilation unit refers to the selected optimization scope when LTO is enabled.
 
 **Address spaces:**
 

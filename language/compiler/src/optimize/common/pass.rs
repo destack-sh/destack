@@ -19,7 +19,7 @@ pub enum OptimizationLevel {
     O2,
     /// Hot paths: aggressive thresholds, loop unrolling.
     O3,
-    /// Maximal optimization: extra fixed point rounds and full LTO when enabled.
+    /// Maximal optimization with extra fixed point rounds and optional LTO.
     O4,
 }
 

@@ -42,7 +42,12 @@ The compiler relies on a known-good set of optimizations proven out by Go, Rust,
 - Monomorphization and specialization control per profile
 - Strict borrow mode for `&mut` to enable `noalias` and vectorization
 - Explicit SIMD types and intrinsics with scalar fallback
-- LTO and PGO for whole-program inlining and layout decisions
+- LTO and PGO for package and program scope inlining and layout decisions
+
+Compilation units are defined by ltoMode.
+Module is the default compilation unit.
+Thin LTO uses package scope and Full LTO uses program scope.
+Auto enables Thin LTO at O4 and disables LTO at lower levels.
 
 SIMD follows a Zig-like model.
 Vector lane counts are static parameters and operators are elementwise.

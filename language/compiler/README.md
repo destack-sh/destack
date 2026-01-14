@@ -63,8 +63,11 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 
 The middle-end performs comptime execution, lowers DIR to MIR, and runs verification and optimization.
 This region may be skipped for targets that do not require low level IR.
-Optimization runs at function and module scope by default, with optional package and program scope for LTO builds.
+Optimization runs at function and module scope by default.
+Package scope is used for Thin LTO and program scope is used for Full LTO.
 Optimization scope is selected by target ltoMode.
+Auto selects Thin LTO at O4 and disables LTO at lower levels.
+Compilation unit refers to the selected optimization scope when LTO is enabled.
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
