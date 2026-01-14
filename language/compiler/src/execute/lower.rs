@@ -17,7 +17,7 @@ impl Compiler {
         let module_guard = module.read();
         let dir = module_guard.dir(profile);
         let module_id = module_guard.id;
-        // TODO #Performance: avoid cloning whole node dir tree for comptime
+        // TODO #Performance!: avoid cloning whole node dir tree for comptime
         let dir_tree = dir.tree.read().clone();
         let dir_roots = dir.roots.clone();
         let symbols = dir.symbols.read().clone();
@@ -76,7 +76,7 @@ impl Compiler {
         // initialize MIR builder and type lowerer
         let mut builder = mir::ModuleBuilder::new();
         let mut type_lowerer = {
-            // NOTE #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
+            // TODO #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
             let pointer_bytes = std::mem::size_of::<usize>() as u8;
             self.validate_pointer_bytes(module.id, pointer_bytes)
                 .map_err(|error| ExecuteError::FailedLower {
@@ -130,6 +130,7 @@ impl Compiler {
         let mut function_ctx = FunctionContext::new(
             module.id,
             profile,
+            &self.program,
             &dir_tree,
             &symbols,
             &types,

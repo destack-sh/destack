@@ -25,10 +25,12 @@ impl FunctionContext<'_> {
 
         // check for resolution on the call expression
         // extract target symbol if static resolution (to avoid borrow issues)
-        let static_target = match self.get_resolution(expression_id) {
+        let resolution = self.get_resolution(expression_id);
+        let static_target = match resolution {
             Some(Resolution::Static { candidate, .. }) => Some(candidate.target_symbol),
             _ => None,
         };
+        let resolution_receiver = resolution.and_then(|resolution| resolution.receiver());
 
         // resolve target function and receiver based on resolution or syntax
         let (function_id, receiver_value) = match static_target {
@@ -36,11 +38,12 @@ impl FunctionContext<'_> {
             Some(target_symbol) => {
                 // check if this is a method call (left is Member)
                 let left_expr = self.dir_tree.get(*left);
-                let receiver_value = if let Expression::Member {
-                    left: receiver_id,
-                    static_arguments: member_static_args,
-                    ..
-                } = left_expr
+                let receiver_value = if resolution_receiver.is_some()
+                    && let Expression::Member {
+                        left: receiver_id,
+                        static_arguments: member_static_args,
+                        ..
+                    } = left_expr
                 {
                     if member_static_args.is_some() {
                         return Err(LowerError::UnsupportedConstruct {
@@ -51,8 +54,13 @@ impl FunctionContext<'_> {
                                 .to_string(),
                         })?;
                     }
-                    let (receiver_value, _) = self.lower_value_expression(*receiver_id)?;
-                    Some(receiver_value)
+                    // skip evaluation for namespace receivers, they are compile-time only
+                    if self.receiver_is_namespace_reference(*receiver_id) {
+                        None
+                    } else {
+                        let (receiver_value, _) = self.lower_value_expression(*receiver_id)?;
+                        Some(receiver_value)
+                    }
                 } else {
                     None
                 };

@@ -168,7 +168,8 @@ Lower behavior is configured by target policies (see [Target Configuration](#tar
 | `safepointInterval` | Instruction interval for safepoint polling |
 | `speculationMode` | Guarded speculation mode |
 | `profilingMode` | Runtime profiling |
-| `determinismMode` | Determinism and I/O replay |
+| `determinism` | Deterministic scheduling and randomness |
+| `replay` | External I/O record or replay |
 | `stripLevel` | Symbol table stripping |
 | `unwindFormat` | Unwind info format (DWARF/SEH/None) |
 | `allocator` | Global allocator selection |
@@ -3038,16 +3039,25 @@ Smaller intervals reduce preemption latency but increase overhead.
 
 ### Determinism Policy
 
-Controls scheduling and I/O determinism.
+Controls scheduling and randomness determinism.
 
 | Variant | Behavior |
 |---------|----------|
-| `None` | No determinism guarantees |
+| `BestEffort` | No determinism guarantees |
 | `Deterministic` | Deterministic scheduling + controlled randomness (default) |
-| `Record` | Deterministic scheduling + record external I/O |
-| `Replay` | Deterministic scheduling + replay external I/O |
 
 `Deterministic` fixes scheduler decisions and PRNG seeds.
+
+### Replay Policy
+
+Controls whether external I/O is recorded or replayed.
+
+| Variant | Behavior |
+|---------|----------|
+| `Off` | External I/O is not recorded |
+| `Record` | Record external I/O |
+| `Replay` | Replay external I/O |
+
 `Record` records external I/O at runtime boundaries; unshimmed FFI/syscalls are rejected in this mode.
 `Replay` consumes recorded external I/O and rejects unlogged effects.
 External I/O is any operation outside the VM interpreter.
@@ -3083,7 +3093,7 @@ Write barriers are inserted by Lower at all managed write sites.
 Stack maps are exact at all safepoints for precise tracing.
 The barrier model is Go-style Dijkstra with shade-on-write.
 
-When `determinismMode` is `Deterministic`, `Record`, or `Replay`, GC scheduling must be deterministic.
+When `determinism` is `Deterministic` or `replay` is `Record` or `Replay`, GC scheduling must be deterministic.
 The runtime should use allocation-count thresholds and deterministic mark/sweep scheduling.
 Concurrent or parallel marking is permitted only when the runtime can guarantee deterministic scheduling.
 
