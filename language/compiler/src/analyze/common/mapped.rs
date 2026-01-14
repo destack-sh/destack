@@ -436,9 +436,43 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
     ) -> LocalTypeId {
         // normalize the condition operands
-        let left = self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
+        let left =
+            self.normalize_type_inner(module, profile, left, symbols, types, mode, visited);
         let right =
             self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
+
+        // keep conditional types on static parameters unresolved
+        let is_static_parameter = match types.get_type(left) {
+            Type::Reference { symbol, .. } => {
+                if symbol.module_id == module.id {
+                    symbols.get_symbol(symbol.local_id).is_static_parameter()
+                } else {
+                    let remote_module = self.program.modules.get(symbol.module_id);
+                    let remote_module = remote_module.read();
+                    let remote_symbols = remote_module.dir(profile).symbols.read();
+                    remote_symbols
+                        .get_symbol(symbol.local_id)
+                        .is_static_parameter()
+                }
+            }
+            _ => false,
+        };
+        if is_static_parameter {
+            let normalized_then =
+                self.normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
+            let normalized_else =
+                self.normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
+
+            return types.insert_type_from_any(
+                Type::Conditional {
+                    left,
+                    right,
+                    then_type: normalized_then,
+                    else_type: normalized_else,
+                },
+                source_id,
+            );
+        }
 
         // distribute over unions for conditional typing
         if let Type::Union { elements } = types.get_type(left).clone() {

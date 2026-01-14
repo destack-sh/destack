@@ -28,7 +28,7 @@ x satisfies string[];
 
 ```ds
 const x = [];
-x satisfies [];
+x satisfies unknown[];
 ```
 
 ### mixed array
