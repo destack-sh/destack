@@ -1302,8 +1302,9 @@ This section specifies the built-in reflection capabilities; the standard librar
 
 ### Type Descriptors
 
-Every type `T` has a corresponding runtime value of type `Type<T>`.
-Using a type name in value position evaluates to its descriptor:
+Every nominal type `T` has a corresponding runtime descriptor value of type `Type<T>`.
+For classes and structs, the constructor value doubles as the descriptor, so it is both constructable and reflective.
+Using a type name in value position evaluates to that descriptor value:
 
 ```
 struct Point { x: float32, y: float32 }
@@ -1312,7 +1313,8 @@ const t = Point;              // t: Type<Point>
 const t: Type<Point> = Point; // explicit annotation
 ```
 
-The `typeOf` function returns a descriptor for a value's type (unlike `typeof`, which returns a coarse-grained string like `"object"`):
+The `typeOf` function returns a descriptor for a value's type (unlike the runtime `typeof`, which returns a coarse-grained string like `"object"`).
+The type-level `typeof` operator returns the value type of an expression, including constructor signatures and static members for classes and structs:
 
 ```
 const p = Point { x: 1, y: 2 };
@@ -2726,7 +2728,7 @@ Type-level operators (not overloadable):
 | `is` | Type guard | — |
 | `instanceof` | Class identity check | — |
 | `satisfies` | Type satisfaction | — |
-| `typeof` | Get type | — |
+| `typeof` | Get value type | — |
 | `keyof` | Get keys | — |
 | `extends` | Subtype check | — |
 | `implements` | Interface check | — |
