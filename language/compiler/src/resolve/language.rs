@@ -977,9 +977,6 @@ mod tests {
     }
 
     /// Analyze all builtin libs (without errors).
-    ///
-    /// Tests each lib individually to avoid inter-library conflicts
-    /// (e.g., `bun` depends on `node.v24` which conflicts with base `node`).
     #[test]
     #[ignore] // FUGU
     fn test_analyze_all_builtin_libs() {
