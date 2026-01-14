@@ -4,9 +4,9 @@ use crate::{
 };
 use destack_dir::{
     BinaryOperator, Declaration, Expression, ExtensionKind, FlowEdgeKind, FlowGraphBuilder,
-    GlobalSymbolId, InferTable, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, IfCondition, InferTable, LocalTypeId, NodeTree, Pattern, PrimitiveType,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
@@ -2373,11 +2373,15 @@ fn test_build_flow_graph_short_circuit_guard() {
     let Expression::If { condition, .. } = tree.get(if_expression_id) else {
         panic!("expected if expression");
     };
+    let condition_id = match condition {
+        IfCondition::Expression { condition } => *condition,
+        IfCondition::Let { .. } => panic!("expected expression condition"),
+    };
     let Expression::Binary {
         left,
         operator,
         right,
-    } = tree.get(*condition)
+    } = tree.get(condition_id)
     else {
         panic!("expected binary condition");
     };
@@ -2405,7 +2409,7 @@ fn test_build_flow_graph_short_circuit_guard() {
 
     // build flow data for the condition expression
     // build the flow graph
-    let graph = FlowGraphBuilder::new(module.id, &tree).build(*condition);
+    let graph = FlowGraphBuilder::new(module.id, &tree).build(condition_id);
     let mut infer = InferTable::default();
     let context = InferContext::new(
         profile,

@@ -45,7 +45,11 @@ impl LintRule for NoNestedTernary {
             };
 
             // check if any child is also a ternary
-            let has_nested_ternary = is_ternary(ctx, *condition)
+            let condition_id = match condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
+            };
+            let has_nested_ternary = is_ternary(ctx, condition_id)
                 || is_ternary(ctx, *then_expression)
                 || else_expression.map(|e| is_ternary(ctx, e)).unwrap_or(false);
             if has_nested_ternary {

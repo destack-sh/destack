@@ -1,6 +1,6 @@
 use destack_dir::{
-    Declarator, Expression, GlobalSymbolId, LocalNodeId, MatchCase, MatchKind, MatchSelector,
-    Pattern,
+    Declarator, Expression, GlobalSymbolId, IfCondition, LocalNodeId, LocalNodeIdAny, MatchCase,
+    MatchKind, MatchSelector, Pattern,
 };
 use {destack_dir as dir, destack_mir as mir};
 
@@ -47,7 +47,20 @@ impl FunctionContext<'_> {
                 then_expression,
                 else_expression,
                 ..
-            } => self.lower_if_statement(*condition, *then_expression, *else_expression),
+            } => match condition {
+                IfCondition::Expression { condition } => {
+                    self.lower_if_statement(*condition, *then_expression, *else_expression)
+                }
+                IfCondition::Let { .. } => {
+                    // if let should be elaborated before lowering
+                    Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "unsupported if-let condition".to_string(),
+                    })
+                }
+            },
 
             Expression::Loop {
                 kind,
@@ -121,63 +134,7 @@ impl FunctionContext<'_> {
 
             // lower the binding pattern
             let pattern_id = declarator.pattern;
-            let pattern = self.dir_tree.get(pattern_id);
-            match pattern {
-                Pattern::Wildcard => {
-                    // wildcard bindings evaluate and discard the value
-                }
-                Pattern::Binding {
-                    symbol: symbol_id,
-                    pattern,
-                    ..
-                } => {
-                    // reject nested patterns for now
-                    if pattern.is_some() {
-                        return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id
-                                .into_global_any(self.module_id)
-                                .into_anchored(Some(self.profile)),
-                            message: "unsupported binding pattern".to_string(),
-                        })?;
-                    }
-
-                    // convert the symbol id for lookup
-                    let global_symbol_id = symbol_id.into_global(self.module_id);
-
-                    // reject duplicate bindings (#Incomplete?)
-                    if self.locals_by_symbol.contains_key(&global_symbol_id) {
-                        return Err(LowerError::UnsupportedConstruct {
-                            node: pattern_id
-                                .into_global_any(self.module_id)
-                                .into_anchored(Some(self.profile)),
-                            message: "duplicate local binding".to_string(),
-                        })?;
-                    }
-
-                    // allocate the mir variable
-                    let variable = self.builder.create_variable(value_type);
-
-                    // define the initial value
-                    self.builder.define_variable(variable, value);
-
-                    // record the binding for later references
-                    self.locals_by_symbol.insert(
-                        global_symbol_id,
-                        LocalBinding {
-                            variable,
-                            ty: value_type,
-                        },
-                    );
-                }
-                _ => {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: pattern_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
-                        message: "unsupported let pattern".to_string(),
-                    })?;
-                }
-            }
+            self.bind_pattern_value(pattern_id, value, value_type)?;
         }
 
         Ok(Terminates::No)
@@ -707,6 +664,76 @@ impl FunctionContext<'_> {
         } else {
             mir::BinaryOperator::Equal
         }
+    }
+
+    /// Bind a pattern to a value in the current block.
+    pub(crate) fn bind_pattern_value(
+        &mut self,
+        pattern_id: LocalNodeId<Pattern>,
+        value: mir::Value,
+        value_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // read the pattern
+        let pattern = self.dir_tree.get(pattern_id);
+        match pattern {
+            Pattern::Wildcard => Ok(()),
+            Pattern::Binding {
+                symbol, pattern, ..
+            } => {
+                if pattern.is_some() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: pattern_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "unsupported binding pattern".to_string(),
+                    });
+                }
+                self.define_local_binding(pattern_id.into_any(), *symbol, value, value_type)
+            }
+            _ => Err(LowerError::UnsupportedConstruct {
+                node: pattern_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "unsupported let pattern".to_string(),
+            }),
+        }
+    }
+
+    /// Define a local binding for a symbol.
+    pub(crate) fn define_local_binding(
+        &mut self,
+        node_id: LocalNodeIdAny,
+        symbol_id: dir::LocalSymbolId,
+        value: mir::Value,
+        value_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // convert the symbol id for lookup
+        let global_symbol_id = symbol_id.into_global(self.module_id);
+
+        // NOTE #Incomplete: reject duplicate bindings
+        if self.locals_by_symbol.contains_key(&global_symbol_id) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: node_id.into_anchored(self.module_id, Some(self.profile)),
+                message: "duplicate local binding".to_string(),
+            });
+        }
+
+        // allocate the mir variable
+        let variable = self.builder.create_variable(value_type);
+
+        // define the initial value
+        self.builder.define_variable(variable, value);
+
+        // record the binding for later references
+        self.locals_by_symbol.insert(
+            global_symbol_id,
+            LocalBinding {
+                variable,
+                ty: value_type,
+            },
+        );
+
+        Ok(())
     }
 
     /// Check that a type is boolean, returning an error otherwise.

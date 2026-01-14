@@ -184,7 +184,10 @@ impl Parser {
     }
 
     /// Eat a single declarator with an optional value unless `require_value` is set.
-    fn eat_declarator(&mut self, require_value: bool) -> ParseResult<LocalNodeId<Declarator>> {
+    pub(super) fn eat_declarator(
+        &mut self,
+        require_value: bool,
+    ) -> ParseResult<LocalNodeId<Declarator>> {
         let start = self.mark();
 
         // pattern

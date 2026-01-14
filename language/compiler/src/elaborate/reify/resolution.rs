@@ -1,5 +1,5 @@
 use destack_dir::{
-    Expression, IfKind, LocalNodeId, LocalTypeId, NodeTree, NodeType, Resolution,
+    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, NodeTree, NodeType, Resolution,
     ResolutionCandidate, SymbolTable, Type, TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
@@ -107,7 +107,9 @@ impl Compiler {
                 if_id,
                 Expression::If {
                     kind: IfKind::If,
-                    condition: is_check,
+                    condition: IfCondition::Expression {
+                        condition: is_check,
+                    },
                     then_expression: then_branch,
                     else_expression: Some(else_branch),
                 },

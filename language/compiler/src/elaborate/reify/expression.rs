@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    Expression, IfKind, LocalNodeId, MatchKind, NodeTree, SymbolTable, TypeBinaryOperator,
-    TypeTable,
+    Expression, IfCondition, IfKind, LocalNodeId, MatchKind, NodeTree, SymbolTable,
+    TypeBinaryOperator, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -170,18 +170,20 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                self.reify_implicit_casts_in_ternary(
-                    module_id,
-                    profile,
-                    expression_id,
-                    condition,
-                    then_expression,
-                    else_expression,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
+                if let IfCondition::Expression { condition } = condition {
+                    self.reify_implicit_casts_in_ternary(
+                        module_id,
+                        profile,
+                        expression_id,
+                        condition,
+                        then_expression,
+                        else_expression,
+                        tree,
+                        symbols,
+                        types,
+                        module,
+                    )?;
+                }
             }
 
             Expression::Match { kind, cases, .. } => {

@@ -2,8 +2,8 @@ use std::cmp::Ordering;
 
 use destack_ast::{
     Argument, Asynchrony, BinaryOperator, Declaration, Declarator, DependencyItem, DependencyKind,
-    DependencyMode, Expression, ForEachBinding, ForEachKind, IfKind, ImportSource, Keyword,
-    LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Mutability, NodeTree,
+    DependencyMode, Expression, ForEachBinding, ForEachKind, IfCondition, IfKind, ImportSource,
+    Keyword, LetKind, LocalNodeId, MatchCase, MatchKind, MatchSelector, Mutability, NodeTree,
     OperatorPrecedence, Pattern, PostfixPosition, Property, ScalarLiteral, TypeModifier,
     TypePredicateSubject, TypeUnaryOperator, WhileKind, YieldCardinality,
 };
@@ -223,17 +223,36 @@ pub(crate) fn format_if_else_chain<'ast>(
                 else_expression: else_expression_id,
             } => {
                 // if <condition>
-                write!(
-                    f,
-                    [
-                        Keyword::If,
-                        space(),
-                        token("("),
-                        condition,
-                        token(")"),
-                        space()
-                    ]
-                )?;
+                match condition {
+                    IfCondition::Expression { condition } => {
+                        write!(
+                            f,
+                            [
+                                Keyword::If,
+                                space(),
+                                token("("),
+                                *condition,
+                                token(")"),
+                                space()
+                            ]
+                        )?;
+                    }
+                    IfCondition::Let {
+                        kind,
+                        mutability: _,
+                        declarator,
+                    } => {
+                        write!(f, [Keyword::If, space()])?;
+                        match kind {
+                            LetKind::Let => write!(f, [Keyword::Let])?,
+                            LetKind::Var => write!(f, [Keyword::Var])?,
+                            LetKind::Const => write!(f, [Keyword::Const])?,
+                        }
+                        write!(f, [space()])?;
+                        format_declarator(f, f.context().tree, *declarator)?;
+                        write!(f, [space()])?;
+                    }
+                }
 
                 // then block
                 let then_expression = f.context().tree.get(*then_expression_id);
@@ -481,7 +500,11 @@ fn collect_ternary_chain(
             break;
         };
 
-        branches.push((*condition, *then_expression));
+        let condition_id = match condition {
+            IfCondition::Expression { condition } => *condition,
+            IfCondition::Let { .. } => break,
+        };
+        branches.push((condition_id, *then_expression));
 
         // check if else is another ternary
         let Some(else_id) = else_expression else {

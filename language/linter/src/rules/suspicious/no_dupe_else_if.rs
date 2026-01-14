@@ -51,7 +51,10 @@ impl LintRule for NoDupeElseIf {
             }
 
             // collect all conditions in the chain
-            let mut conditions = vec![*condition];
+            let mut conditions = Vec::new();
+            if let ast::IfCondition::Expression { condition } = condition {
+                conditions.push(*condition);
+            }
             collect_else_if_conditions(ctx, *else_expr, &mut conditions);
 
             // check for duplicates using structural comparison
@@ -122,7 +125,9 @@ fn collect_else_if_conditions(
         ..
     } = expr
     {
-        conditions.push(*condition);
+        if let ast::IfCondition::Expression { condition } = condition {
+            conditions.push(*condition);
+        }
         if let Some(else_expr) = else_expression {
             collect_else_if_conditions(ctx, *else_expr, conditions);
         }

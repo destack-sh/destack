@@ -50,7 +50,11 @@ impl LintRule for NoNegatedCondition {
             };
 
             // check if condition is negated and get the positive version
-            let Some(positive_condition) = get_positive_condition(ctx, *condition) else {
+            let condition_id = match condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
+            };
+            let Some(positive_condition) = get_positive_condition(ctx, condition_id) else {
                 continue;
             };
 

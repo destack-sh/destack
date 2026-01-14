@@ -926,7 +926,7 @@ impl Compiler {
 
     /// Widen two numeric types to a common type.
     /// Used when constant folding fails (e.g., `x + 1` where x is a variable).
-    fn widen_numeric_types(&self, left: &Type, right: &Type) -> Type {
+    pub(super) fn widen_numeric_types(&self, left: &Type, right: &Type) -> Type {
         let left_prim = Self::to_numeric_primitive(left);
         let right_prim = Self::to_numeric_primitive(right);
         match (left_prim, right_prim) {

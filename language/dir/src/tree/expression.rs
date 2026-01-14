@@ -339,7 +339,7 @@ pub enum Expression {
     /// If expression.
     If {
         kind: IfKind,
-        condition: LocalNodeId<Expression>,
+        condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
     },
@@ -657,6 +657,20 @@ pub enum IfKind {
     If,
     /// If ternary expression.
     Ternary,
+}
+
+/// The condition for an if expression.
+#[derive(Debug, Clone, PartialEq)]
+pub enum IfCondition {
+    /// A regular condition expression.
+    Expression { condition: LocalNodeId<Expression> },
+    /// A let binding condition.
+    Let {
+        /// The mutability derived from the binding keyword.
+        mutability: Mutability,
+        /// The declarator for the binding.
+        declarator: LocalNodeId<Declarator>,
+    },
 }
 
 /// The kind of a while expression.

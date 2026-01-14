@@ -61,10 +61,11 @@ function choose(x: boolean, y: int32, z: int32): int32 {
 }
 ```
 
-### Lower if let bindings to explicit checks
+### Lower if let bindings to match expressions
 
-Refutable bindings in if conditions become explicit temporaries and checks.
-(Irrefutable bindings are an Analyze error and are left alone.)
+If let is normalized into a match expression before match lowering.
+Else-if chains are lowered by nesting the else branch into another match.
+Match lowering then emits explicit checks and bindings.
 
 ```ds
 // source
@@ -76,12 +77,15 @@ function unwrap(value: Option<int32>): int32 {
 ```ds
 // after transform
 function unwrap(value: Option<int32>): int32 {
-    {
-        let __m = value;
-        if (__m is Some) { let x = __m.value; x } else { 0 }
+    match (value) {
+        Some(x) => x
+        _ => 0
     }
 }
 ```
+
+Nested if let chains produce nested matches.
+Those nested matches become nested if expressions after match lowering.
 
 ### Lower match expressions into decision trees
 

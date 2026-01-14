@@ -10,6 +10,14 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+/// Describe how a declarator constrains its value type.
+pub(super) enum DeclaratorConstraint {
+    /// Require assignability between value and declared types.
+    Assignable,
+    /// Require satisfies semantics between value and declared types.
+    Satisfies,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer the type of a declaration.
@@ -1131,6 +1139,7 @@ impl Compiler {
         module: &Module,
         declarator_id: LocalNodeId<Declarator>,
         _let_expression_id: LocalNodeId<Expression>,
+        constraint: DeclaratorConstraint,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1184,11 +1193,15 @@ impl Compiler {
 
         // type check: if both declared and inferred, check assignability
         if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {
-            infer.push_constraint(Constraint::Subtype {
-                sub_type: inferred,
-                super_type: declared,
-                variance: None,
-            });
+            // apply inference constraints when required
+            if matches!(constraint, DeclaratorConstraint::Assignable) {
+                infer.push_constraint(Constraint::Subtype {
+                    sub_type: inferred,
+                    super_type: declared,
+                    variance: None,
+                });
+            }
+
             if !self.is_infer_var_type(declared, types)
                 && !self.is_infer_var_type(inferred, types)
                 && self.is_type_assignable(
@@ -1201,11 +1214,19 @@ impl Compiler {
                     &options,
                 ) == Assignability::NotAssignable
             {
-                return Err(AnalyzeError::UnassignableType {
-                    node: declarator_id.into_global(module.id).into(),
-                    expected_ty: declared.into_global(module.id),
-                    actual_ty: inferred.into_global(module.id),
-                });
+                let error = match constraint {
+                    DeclaratorConstraint::Assignable => AnalyzeError::UnassignableType {
+                        node: declarator_id.into_global(module.id).into(),
+                        expected_ty: declared.into_global(module.id),
+                        actual_ty: inferred.into_global(module.id),
+                    },
+                    DeclaratorConstraint::Satisfies => AnalyzeError::UnsatisfiedType {
+                        node: declarator_id.into_global(module.id).into(),
+                        expected_ty: declared.into_global(module.id),
+                        actual_ty: inferred.into_global(module.id),
+                    },
+                };
+                return Err(error);
             }
         }
 

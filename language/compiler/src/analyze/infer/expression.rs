@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
+use super::declaration::DeclaratorConstraint;
+
 use crate::{
     AnalyzeError, AnalyzeResult, Assignability, BreakTargetKind, Compiler, FlowContext,
     InferContext,
 };
 use destack_dir::{
     Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
-    ForEachBinding, FunctionKind, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability,
-    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey, SymbolTable,
-    Type, TypeElement, TypeField, TypeLiteral, TypeTable,
+    ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource,
+    Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey,
+    SymbolTable, Type, TypeElement, TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -149,7 +151,9 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an inferred result when caching is enabled
+        let has_flow = ctx.flow.is_some();
         if !ctx.is_surface_inference
+            && !has_flow
             && let Some(ty_id) =
                 types.get_inferred_type_id(expression_id.into_global_any(module.id))
         {
@@ -312,6 +316,7 @@ impl Compiler {
                         module,
                         *decl_id,
                         expression_id,
+                        DeclaratorConstraint::Assignable,
                         tree,
                         symbols,
                         types,
@@ -336,6 +341,7 @@ impl Compiler {
                         module,
                         *decl_id,
                         expression_id,
+                        DeclaratorConstraint::Assignable,
                         tree,
                         symbols,
                         types,
@@ -663,7 +669,8 @@ impl Compiler {
                 let expected_element_types =
                     self.expected_element_types(ctx.expected_type, elements.len(), types);
 
-                // infer element types
+                // infer element types and collect their contextualized types
+                let mut element_type_ids = Vec::with_capacity(elements.len());
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
@@ -677,22 +684,24 @@ impl Compiler {
                         infer,
                         ctx,
                     )?;
-                }
-
-                // collect element types
-                let mut element_type_ids = Vec::with_capacity(elements.len());
-                for element_id in elements {
                     let element = tree.get(*element_id);
                     let value_id = element.value();
-                    let ty_id = self.infer_expression(
-                        module,
-                        value_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
+                    let ty_id = if let Some(ty_id) =
+                        types.get_inferred_type_id(value_id.into_global_any(module.id))
+                    {
+                        ty_id
+                    } else {
+                        let mut element_ctx = ctx.fork().with_expected_type(expected_element_ty_id);
+                        self.infer_expression(
+                            module,
+                            value_id,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            &mut element_ctx,
+                        )?
+                    };
                     element_type_ids.push(ty_id);
                 }
 
@@ -720,7 +729,8 @@ impl Compiler {
                 let expected_element_types =
                     self.expected_element_types(ctx.expected_type, elements.len(), types);
 
-                // infer element types
+                // infer element types and collect their contextualized types
+                let mut element_tys = Vec::with_capacity(elements.len());
                 for (index, element_id) in elements.iter().enumerate() {
                     let expected_element_ty_id =
                         expected_element_types.get(index).copied().flatten();
@@ -734,26 +744,26 @@ impl Compiler {
                         infer,
                         ctx,
                     )?;
-                }
-
-                // collect element types
-                let element_tys: Vec<TypeElement> = elements
-                    .iter()
-                    .map(|element_id| {
-                        let element = tree.get(*element_id);
-                        let element_id = element.value();
-                        let ty = self.infer_expression(
+                    let element = tree.get(*element_id);
+                    let value_id = element.value();
+                    let ty_id = if let Some(ty_id) =
+                        types.get_inferred_type_id(value_id.into_global_any(module.id))
+                    {
+                        ty_id
+                    } else {
+                        let mut element_ctx = ctx.fork().with_expected_type(expected_element_ty_id);
+                        self.infer_expression(
                             module,
-                            element_id,
+                            value_id,
                             tree,
                             symbols,
                             types,
                             infer,
-                            ctx,
-                        )?;
-                        Ok(TypeElement::new(ty))
-                    })
-                    .collect::<Result<Vec<_>, AnalyzeError>>()?;
+                            &mut element_ctx,
+                        )?
+                    };
+                    element_tys.push(TypeElement::new(ty_id));
+                }
 
                 let ty = Type::Tuple {
                     elements: element_tys,
@@ -942,7 +952,34 @@ impl Compiler {
                 then_expression,
                 else_expression,
             } => {
-                self.infer_expression(module, *condition, tree, symbols, types, infer, ctx)?;
+                // infer the condition
+                match condition {
+                    IfCondition::Expression { condition } => {
+                        self.infer_expression(
+                            module,
+                            *condition,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
+                    IfCondition::Let { declarator, .. } => {
+                        self.infer_declarator(
+                            module,
+                            *declarator,
+                            expression_id,
+                            DeclaratorConstraint::Satisfies,
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                    }
+                }
+
                 // infer the then branch
                 let mut then_ctx = ctx.fork().with_expected_type(ctx.expected_type);
                 let then_ty_id = self.infer_expression(
@@ -956,9 +993,9 @@ impl Compiler {
                 )?;
 
                 // infer the else branch
-                if let Some(else_expr) = else_expression {
+                let else_ty_id = if let Some(else_expr) = else_expression {
                     let mut else_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-                    let _else_ty_id = self.infer_expression(
+                    Some(self.infer_expression(
                         module,
                         *else_expr,
                         tree,
@@ -966,11 +1003,89 @@ impl Compiler {
                         types,
                         infer,
                         &mut else_ctx,
-                    )?;
-                }
+                    )?)
+                } else {
+                    None
+                };
 
-                // #Incomplete: compute union or common type of then/else branches
-                then_ty_id
+                // compute the result type from the branches
+                if let Some(else_ty_id) = else_ty_id {
+                    let mut result_ty_id = None;
+
+                    // prefer the contextual type when both branches satisfy it
+                    if let Some(expected_ty_id) = ctx.expected_type {
+                        let then_assignable = self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            expected_ty_id,
+                            then_ty_id,
+                            types,
+                            &ctx.options,
+                        );
+                        let else_assignable = self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            expected_ty_id,
+                            else_ty_id,
+                            types,
+                            &ctx.options,
+                        );
+                        if then_assignable.is_assignable() && else_assignable.is_assignable() {
+                            result_ty_id = Some(expected_ty_id);
+                        }
+                    }
+
+                    // prefer a common supertype when one branch subsumes the other
+                    if result_ty_id.is_none() {
+                        let then_to_else = self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            else_ty_id,
+                            then_ty_id,
+                            types,
+                            &ctx.options,
+                        );
+                        if then_to_else.is_assignable() {
+                            result_ty_id = Some(else_ty_id);
+                        }
+                    }
+                    if result_ty_id.is_none() {
+                        let else_to_then = self.is_type_assignable(
+                            module,
+                            ctx.profile,
+                            symbols,
+                            then_ty_id,
+                            else_ty_id,
+                            types,
+                            &ctx.options,
+                        );
+                        if else_to_then.is_assignable() {
+                            result_ty_id = Some(then_ty_id);
+                        }
+                    }
+
+                    // widen numeric branches to a shared numeric type
+                    if result_ty_id.is_none() {
+                        let then_ty = types.get_type(then_ty_id).clone();
+                        let else_ty = types.get_type(else_ty_id).clone();
+                        if self.is_numeric_like_type(&then_ty, types)
+                            && self.is_numeric_like_type(&else_ty, types)
+                        {
+                            let widened = self.widen_numeric_types(&then_ty, &else_ty);
+                            result_ty_id = Some(types.insert_type_from(widened, expression_id));
+                        }
+                    }
+
+                    result_ty_id.unwrap_or_else(|| self.union_type(then_ty_id, else_ty_id, types))
+                } else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }
             }
 
             // loop: loop body type or never
@@ -2353,19 +2468,30 @@ impl Compiler {
         match field {
             PatternField::Named {
                 mutability: _,
-                name: _,
+                name,
                 default: _,
                 symbol,
                 pattern,
             } => {
-                if let Some(ty_id) = binding_ty_id {
+                // resolve the field type from the binding type when possible
+                let field_ty_id = self.pattern_field_binding_type(
+                    module,
+                    field_id,
+                    binding_ty_id,
+                    StaticKey::Name(*name),
+                    types,
+                    ctx,
+                )?;
+                if let Some(ty_id) = field_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
+
+                // propagate the field type into nested patterns
                 if let Some(pattern_id) = pattern {
                     self.infer_pattern(
                         module,
                         *pattern_id,
-                        binding_ty_id,
+                        field_ty_id,
                         tree,
                         symbols,
                         types,
@@ -2376,14 +2502,24 @@ impl Compiler {
             }
             PatternField::Alias {
                 mutability: _,
-                name: _,
+                name,
                 alias: _,
                 default,
                 symbol,
             } => {
-                if let Some(ty_id) = binding_ty_id {
+                // resolve the field type from the binding type when possible
+                let field_ty_id = self.pattern_field_binding_type(
+                    module,
+                    field_id,
+                    binding_ty_id,
+                    StaticKey::Name(*name),
+                    types,
+                    ctx,
+                )?;
+                if let Some(ty_id) = field_ty_id {
                     types.set_value_type(symbol.into_global(module.id), ty_id);
                 }
+
                 if let Some(default) = default {
                     self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                 }
@@ -2414,6 +2550,38 @@ impl Compiler {
             }
         }
         Ok(())
+    }
+
+    /// Resolve the binding type for a named pattern field.
+    fn pattern_field_binding_type(
+        &self,
+        module: &Module,
+        field_id: LocalNodeId<PatternField>,
+        binding_ty_id: Option<LocalTypeId>,
+        field_key: StaticKey,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip when there is no binding type to inspect
+        let Some(binding_ty_id) = binding_ty_id else {
+            return Ok(None);
+        };
+
+        // resolve field types when the binding type is an object or reference
+        let receiver_ty = types.get_type(binding_ty_id).clone();
+        let mut visited = Vec::new();
+        let field_ty_id = self.infer_member_of_type(
+            module,
+            ctx.profile,
+            field_id.into_any(),
+            &receiver_ty,
+            &field_key,
+            types,
+            &mut visited,
+        )?;
+
+        // fall back to the binding type for non-object patterns
+        Ok(Some(field_ty_id.unwrap_or(binding_ty_id)))
     }
 
     /// Get the target symbol for a reference expression.

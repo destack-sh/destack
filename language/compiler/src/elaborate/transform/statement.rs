@@ -1,6 +1,6 @@
 use destack_dir::{
-    Block, DeclarationDescriptor, Declarator, Expression, IfKind, LocalNodeId, Mutability,
-    NodeTree, NodeType, Path,
+    Block, DeclarationDescriptor, Declarator, Expression, IfCondition, IfKind, LocalNodeId,
+    Mutability, NodeTree, NodeType, Path,
 };
 use destack_source::ModuleId;
 use smallvec::smallvec;
@@ -192,7 +192,7 @@ impl Compiler {
         original_expr_id: LocalNodeId<Expression>,
         declarator_id: LocalNodeId<Declarator>,
         declarator: &Declarator,
-        condition: LocalNodeId<Expression>,
+        condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
         module_id: ModuleId,
@@ -389,7 +389,7 @@ impl Compiler {
         scope: (destack_dir::LocalScopeId, destack_dir::LocalScopeMark),
         new_expressions: &mut Vec<LocalNodeId<Expression>>,
         original_return_id: LocalNodeId<Expression>,
-        condition: LocalNodeId<Expression>,
+        condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {

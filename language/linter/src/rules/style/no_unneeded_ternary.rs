@@ -43,10 +43,14 @@ impl LintRule for NoUnneededTernary {
                 continue;
             };
 
+            let condition_id = match condition {
+                ast::IfCondition::Expression { condition } => *condition,
+                ast::IfCondition::Let { .. } => continue,
+            };
             let then_expr = ctx.tree.get(*then_expression);
             let else_expr = ctx.tree.get(*else_expression);
             let expression_span = ctx.tree.get_span(node_id);
-            let condition_span = ctx.tree.get_span(*condition);
+            let condition_span = ctx.tree.get_span(condition_id);
             let condition_text = ctx.get_span_text(condition_span);
 
             // check for x ? true : false -> x

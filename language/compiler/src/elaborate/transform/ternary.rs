@@ -1,4 +1,4 @@
-use destack_dir::{Expression, IfKind, LocalNodeId, NodeTree};
+use destack_dir::{Expression, IfCondition, IfKind, LocalNodeId, NodeTree};
 
 use crate::{Compiler, ElaborateResult};
 
@@ -30,6 +30,10 @@ impl Compiler {
             else {
                 continue;
             };
+
+            if matches!(condition, IfCondition::Let { .. }) {
+                continue;
+            }
 
             // check if both branches are simple (non-block, non-if)
             if !self.is_simple_expression(then_expression, tree) {

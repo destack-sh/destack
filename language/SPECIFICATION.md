@@ -2074,7 +2074,7 @@ const x = if flag { do { compute() } } else { 0 };
 ### Conditionals
 
 Control flow with `if` works like TypeScript.
-Unlike TypeScript, `if` is an expression that returns a value:
+Unlike TypeScript, `if` is an expression that returns a value.
 
 ```
 // statement form
@@ -2095,6 +2095,29 @@ const message = if (ready) { "go" } else { "wait" };
 
 // ternary (same as TypeScript)
 const sign = x > 0 ? 1 : x < 0 ? -1 : 0;
+```
+
+If let is shorthand for matching a value with a pattern in an if condition.
+The pattern is matched against the value and selects the then or else branch.
+Bindings introduced by the pattern are scoped to the then branch.
+If there is no else branch, the if let expression yields void.
+If let does not support guards.
+Type annotations on if let bindings are treated as `satisfies` constraints on the matched value.
+
+```ds
+const result = if let Some(value) = maybe {
+    value
+} else {
+    0
+};
+
+if let (x, _) = point {
+    print(x)
+}
+
+if let x: int32 = value {
+    print(x)
+}
 ```
 
 ### Match

@@ -34,7 +34,10 @@ impl LintRule for NoCondAssign {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let condition_id = match ctx.tree.get(node_id) {
-                ast::Expression::If { condition, .. } => *condition,
+                ast::Expression::If { condition, .. } => match condition {
+                    ast::IfCondition::Expression { condition } => *condition,
+                    ast::IfCondition::Let { .. } => continue,
+                },
                 ast::Expression::While { condition, .. } => *condition,
                 // don't check for-loop conditions since `for (;x=y;)` is less common
                 _ => continue,

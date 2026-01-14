@@ -37,7 +37,10 @@ impl LintRule for NoConfusingAssignment {
 
             // check conditions in if/while/for that contain assignments
             let condition_id = match expression {
-                ast::Expression::If { condition, .. } => Some(*condition),
+                ast::Expression::If { condition, .. } => match condition {
+                    ast::IfCondition::Expression { condition } => Some(*condition),
+                    ast::IfCondition::Let { .. } => None,
+                },
                 ast::Expression::While { condition, .. } => Some(*condition),
                 ast::Expression::For {
                     condition: Some(condition),

@@ -52,7 +52,7 @@ This mindest also extends to the features Destack extends TypeScript with:
 
 ## Expressions
 
-In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value out. 
+In TypeScript, `if` is a statement, and you need a ternary or temporary to get a value out.
 Same with `switch` and most other control flow (except ternary ifs).
 In Destack, everything is an expression.
 The last non-statement expression (no trailing `;`) becomes the value of the expression.
@@ -69,6 +69,22 @@ const result = if (condition) {
 
 function add(a: int, b: int): int {
     a + b // implicit return
+}
+```
+
+If let is sugar for matching a value with a pattern in a conditional.
+Bindings from the pattern are scoped to the then branch.
+If let without else yields void.
+
+```
+const result = if let Some(value) = maybe {
+    value
+} else {
+    0
+};
+
+if let (x, y) = point {
+    print(x + y);
 }
 ```
 

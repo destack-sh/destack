@@ -651,8 +651,53 @@ impl Compiler {
 
                 dir::Expression::If { kind, condition, then_expression, else_expression } => {
                     let kind = self.unbind_if_kind(context, *kind);
-                    let condition = self.unbind_expression(module, *condition, tree, symbols, ast_tree, ast_strings, context);
-                    let then_expression = self.unbind_expression(module, *then_expression, tree, symbols, ast_tree, ast_strings, context);
+                    let condition = match condition {
+                        dir::IfCondition::Expression { condition } => {
+                            let condition = self.unbind_expression(
+                                module,
+                                *condition,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            );
+                            ast::IfCondition::Expression { condition }
+                        }
+                        dir::IfCondition::Let {
+                            mutability,
+                            declarator,
+                        } => {
+                            let ast_mutability = self.unbind_mutability(context, *mutability);
+                            let kind = match mutability {
+                                dir::Mutability::Immutable => ast::LetKind::Const,
+                                dir::Mutability::Mutable => ast::LetKind::Let,
+                            };
+                            let declarator = self.unbind_declarator(
+                                module,
+                                *declarator,
+                                tree,
+                                symbols,
+                                ast_tree,
+                                ast_strings,
+                                context,
+                            );
+                            ast::IfCondition::Let {
+                                kind,
+                                mutability: ast_mutability,
+                                declarator,
+                            }
+                        }
+                    };
+                    let then_expression = self.unbind_expression(
+                        module,
+                        *then_expression,
+                        tree,
+                        symbols,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    );
                     let else_expression = else_expression.map(|e| {
                         self.unbind_expression(module, e, tree, symbols, ast_tree, ast_strings, context)
                     });
