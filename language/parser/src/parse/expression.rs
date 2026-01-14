@@ -115,6 +115,11 @@ fn to_infix_operator(
     // regular binary operator
     // (only a subset of binary operators are allowed in static and tree contexts)
     else if let Some(binary_operator) = BinaryOperator::from_token(token_str, token.token.ty)
+        && (!options.in_type
+            || matches!(
+                binary_operator,
+                BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
+            ))
         && (!options.in_static || !NOT_IN_STATIC_BINARY_OPERATORS.contains(&binary_operator))
         && (!options.in_tree_literal || !NOT_IN_TREE_BINARY_OPERATORS.contains(&binary_operator))
         && (!options.in_for_each || !NOT_IN_FOR_EACH_BINARY_OPERATORS.contains(&binary_operator))
@@ -1746,6 +1751,11 @@ impl Parser {
                 .options
                 .not_in_position()
                 .in_left_precedence(right_operator.precedence());
+
+            // type binary operators parse the right side as a type expression
+            if matches!(right_operator, InfixOperator::TypeBinary(_)) {
+                right_options = right_options.in_type();
+            }
             if self.options.in_type_conditional_right
                 || matches!(
                     right_operator,
@@ -3205,6 +3215,126 @@ self
                 );
                 // d
                 assert_expression_path!(parser, parser.tree.get(*right), "d");
+            }
+        );
+    }
+
+    /// Type casts bind to the left side before addition.
+    #[test]
+    fn test_parse_precedence_cast_before_addition() {
+        let mut test = TestParser::new("a as number + b");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a as number + b
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::Add);
+                // a as number
+                assert_node!(
+                    parser.tree,
+                    *left,
+                    Expression::TypeBinary { left, operator, right } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                        // a
+                        assert_expression_path!(parser, parser.tree.get(*left), "a");
+                        // number
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+                    }
+                );
+                // b
+                assert_expression_path!(parser, parser.tree.get(*right), "b");
+            }
+        );
+    }
+
+    /// Type casts bind to the full addition expression on the left.
+    #[test]
+    fn test_parse_precedence_cast_after_addition() {
+        let mut test = TestParser::new("a + b as number");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a + b as number
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::TypeBinary { left, operator, right } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+                // a + b
+                assert_node!(
+                    parser.tree,
+                    *left,
+                    Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        // a
+                        assert_expression_path!(parser, parser.tree.get(*left), "a");
+                        // b
+                        assert_expression_path!(parser, parser.tree.get(*right), "b");
+                    }
+                );
+                // number
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Number));
+            }
+        );
+    }
+
+    /// Type casts bind to the left side before multiplication.
+    #[test]
+    fn test_parse_precedence_cast_before_multiply() {
+        let mut test = TestParser::new("a as boolean * b");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a as boolean * b
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::Binary { left, operator, right, .. } => {
+                assert_eq!(*operator, BinaryOperator::Multiply);
+                // a as boolean
+                assert_node!(
+                    parser.tree,
+                    *left,
+                    Expression::TypeBinary { left, operator, right } => {
+                        assert_eq!(*operator, TypeBinaryOperator::Cast);
+                        // a
+                        assert_expression_path!(parser, parser.tree.get(*left), "a");
+                        // boolean
+                        assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
+                    }
+                );
+                // b
+                assert_expression_path!(parser, parser.tree.get(*right), "b");
+            }
+        );
+    }
+
+    /// Type casts bind to the full multiplication expression on the left.
+    #[test]
+    fn test_parse_precedence_cast_after_multiply() {
+        let mut test = TestParser::new("a * b as boolean");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+        // a * b as boolean
+        assert_node!(
+            parser.tree,
+            expr_id,
+            Expression::TypeBinary { left, operator, right } => {
+                assert_eq!(*operator, TypeBinaryOperator::Cast);
+                // a * b
+                assert_node!(
+                    parser.tree,
+                    *left,
+                    Expression::Binary { left, operator, right, .. } => {
+                        assert_eq!(*operator, BinaryOperator::Multiply);
+                        // a
+                        assert_expression_path!(parser, parser.tree.get(*left), "a");
+                        // b
+                        assert_expression_path!(parser, parser.tree.get(*right), "b");
+                    }
+                );
+                // boolean
+                assert_node!(parser.tree, *right, Expression::TypeLiteral(TypeLiteral::Boolean));
             }
         );
     }
