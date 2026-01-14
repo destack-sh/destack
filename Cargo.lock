@@ -674,6 +674,7 @@ dependencies = [
  "destack_dir",
  "destack_fir",
  "destack_formatter",
+ "destack_json",
  "destack_linter",
  "destack_lsp",
  "destack_parser",
@@ -867,6 +868,7 @@ version = "0.51.6"
 dependencies = [
  "destack_fir",
  "destack_source",
+ "destack_workspace",
  "serde_json",
 ]
 

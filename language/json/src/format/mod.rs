@@ -8,6 +8,7 @@ use destack_fir::format::{
 };
 use destack_fir::print::{PrintOptions, Printer};
 use destack_source::{File, FileType, IndentStyle, LineEnding};
+use destack_workspace::FormatterOptions;
 
 use crate::JsonDocument;
 
@@ -91,6 +92,19 @@ impl FormatOptions for JsonFormatOptions {
 
     fn as_print_options(&self) -> PrintOptions {
         self.as_print_options()
+    }
+}
+
+/// Convert workspace formatter options to JSON format options.
+impl From<FormatterOptions> for JsonFormatOptions {
+    fn from(opts: FormatterOptions) -> Self {
+        Self {
+            line_ending: opts.line_ending,
+            indent_style: opts.indent_style,
+            indent_width: opts.indent_width,
+            line_width: opts.line_width as u8,
+            trailing_comma: opts.trailing_comma.in_collections(),
+        }
     }
 }
 
