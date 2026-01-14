@@ -13,6 +13,7 @@ members = [
 	"language/dir",
 	"language/fir",
 	"language/formatter",
+	"language/json",
 	"language/linter",
 	"language/linter/macros",
 	"language/vm",
@@ -56,6 +57,7 @@ destack_compiler_macros = { path = "language/compiler/macros" }
 destack_dir = { path = "language/dir" }
 destack_fir = { path = "language/fir" }
 destack_formatter = { path = "language/formatter" }
+destack_json = { path = "language/json" }
 destack_linter = { path = "language/linter" }
 destack_linter_macros = { path = "language/linter/macros" }
 destack_vm = { path = "language/vm" }

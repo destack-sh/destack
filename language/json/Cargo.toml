@@ -1,0 +1,25 @@
+[package]
+name = "destack_json"
+description = "JSON/JSONC AST, parser, and formatter for Destack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+# language
+destack_fir = { workspace = true }
+destack_source = { workspace = true }
+
+# general
+serde_json = { workspace = true }
+
+[dev-dependencies]
+
+[lints]
+workspace = true
