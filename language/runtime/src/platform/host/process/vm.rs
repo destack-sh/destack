@@ -1,9 +1,8 @@
 use destack_vm::{ExternalContext, RawPointer, Value};
 
-use crate::binding;
-use crate::binding_set;
 use crate::platform::bindings::BindingDescriptor;
 use crate::platform::host::HostResult;
+use crate::{binding, binding_set};
 
 use super::core::process_args;
 
@@ -23,10 +22,7 @@ binding_set!(
 );
 
 /// Build a process args array value for the VM.
-fn build_process_args(
-    context: &mut ExternalContext<'_>,
-    args: &[String],
-) -> HostResult<Value> {
+fn build_process_args(context: &mut ExternalContext<'_>, args: &[String]) -> HostResult<Value> {
     // collect argument values
     let length = args.len() as u32;
     let mut values = Vec::with_capacity(args.len());

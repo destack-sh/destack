@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
-default-run = "destack_cli"
+default-run = "destack"
 
 [features]
 default = ["dev"]
@@ -17,8 +17,20 @@ path = "src/lib.rs"
 doctest = false
 
 [[bin]]
-name = "destack_cli"
+name = "destack"
 path = "src/main.rs"
+
+[[bin]]
+name = "ds"
+path = "src/bin/ds.rs"
+
+[[bin]]
+name = "dsc"
+path = "src/bin/dsc.rs"
+
+[[bin]]
+name = "dsx"
+path = "src/bin/dsx.rs"
 
 [dependencies]
 # language
@@ -43,6 +55,7 @@ destack_lsp = { workspace = true }
 
 # general
 clap = { version = "4.5.4", features = ["derive"] }
+clap_complete = "4.5.4"
 console = "0.15"
 indicatif = "0.17"
 serde = { workspace = true }

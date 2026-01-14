@@ -11,6 +11,8 @@ use destack_workspace::{
     OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma, TsConfigRegistry,
 };
 
+use crate::common::{ReportArgs, report_error};
+
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
     thread::available_parallelism()
@@ -383,32 +385,57 @@ impl From<FormatterOptionsArgs> for FormatterOptions {
 #[derive(Args, Debug, Clone, Default)]
 pub struct ProgramArgs {
     /// The working directory (default: current directory).
-    #[arg(long = "cwd")]
+    #[arg(long = "cwd", global = true)]
     pub cwd: Option<PathBuf>,
 
     /// Path to dsconfig.json configuration file.
-    #[arg(long = "config", short = 'c')]
+    #[arg(long = "config", short = 'c', global = true)]
     pub config: Option<PathBuf>,
 
+    /// Workspace root directory (defaults to resolved workspace from cwd).
+    #[arg(long = "workspace", global = true)]
+    pub workspace: Option<PathBuf>,
+
     /// The number of worker threads to use (default: number of CPU cores).
-    #[arg(long = "workers", short = 'j', default_value_t = default_workers())]
+    #[arg(
+        long = "workers",
+        short = 'j',
+        default_value_t = default_workers(),
+        global = true
+    )]
     pub workers: u16,
 
     /// Skip loading standard library types (es*, dom, etc.).
-    #[arg(long = "no-libs", visible_alias = "no-lib")]
+    #[arg(long = "no-libs", visible_alias = "no-lib", global = true)]
     pub no_libs: bool,
 
     /// Skip injecting prelude items (Add, Type, deprecated, etc.).
-    #[arg(long = "no-prelude")]
+    #[arg(long = "no-prelude", global = true)]
     pub no_prelude: bool,
 
     /// Don't follow imports automatically.
-    #[arg(long = "no-follow-imports")]
+    #[arg(long = "no-follow-imports", global = true)]
     pub no_follow_imports: bool,
 
     /// Libraries to load (e.g., es2020, dom, node). Overrides automatic detection.
-    #[arg(long = "lib", value_delimiter = ',')]
+    #[arg(long = "lib", value_delimiter = ',', global = true)]
     pub lib: Vec<String>,
+
+    /// Enable watch mode for supported commands.
+    #[arg(long = "watch", global = true)]
+    pub watch: bool,
+
+    /// Enable dev mode for supported commands.
+    #[arg(long = "dev", global = true)]
+    pub dev: bool,
+
+    /// Emit detailed timing information where supported.
+    #[arg(long = "timings", global = true)]
+    pub timings: bool,
+
+    /// Emit profiling information where supported.
+    #[arg(long = "profile", global = true)]
+    pub profile: bool,
 
     /// The formatter options.
     #[command(flatten)]
@@ -426,6 +453,7 @@ impl ProgramArgs {
             .cwd
             .clone()
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let workspace_root = self.workspace.clone().unwrap_or_else(|| cwd.clone());
         let formatter_options: FormatterOptions = self.formatter.clone().into();
         let linter_options: LinterOptions = self.linter.clone().into();
         let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
@@ -448,8 +476,8 @@ impl ProgramArgs {
             ResolveOptions::default(),
         );
         let workspace = resolver
-            .discover_workspace(&cwd)
-            .unwrap_or_else(|_| destack_workspace::Workspace::single_package(cwd.clone()));
+            .discover_workspace(&workspace_root)
+            .unwrap_or_else(|_| destack_workspace::Workspace::single_package(workspace_root));
         let root = workspace.root.clone();
 
         tracing::trace!(?cwd, ?root, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
@@ -459,4 +487,31 @@ impl ProgramArgs {
 
         Arc::new(session)
     }
+}
+
+/// Ensure that unsupported watch or dev flags are not set.
+pub fn ensure_no_watch_or_dev(
+    command: &str,
+    program: &ProgramArgs,
+    report: &ReportArgs,
+) -> Option<i32> {
+    // reject watch mode when not implemented
+    if program.watch {
+        return Some(report_error(
+            command,
+            report,
+            "--watch is not implemented yet",
+        ));
+    }
+
+    // reject dev mode when not implemented
+    if program.dev {
+        return Some(report_error(
+            command,
+            report,
+            "--dev is not implemented yet",
+        ));
+    }
+
+    None
 }

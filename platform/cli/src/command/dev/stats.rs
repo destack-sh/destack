@@ -38,8 +38,6 @@ struct Stats {
     files: usize,
     /// Total lines of code
     lines: usize,
-    /// Total bytes
-    bytes: usize,
     /// Total characters
     chars: usize,
     /// Total tokens (when tokenization is enabled)
@@ -51,7 +49,6 @@ impl Stats {
     fn add(&mut self, other: &Stats) {
         self.files += other.files;
         self.lines += other.lines;
-        self.bytes += other.bytes;
         self.chars += other.chars;
         self.tokens += other.tokens;
     }
@@ -243,7 +240,6 @@ fn walk_directory(
 
             // count stats
             let lines = content.lines().count();
-            let bytes = content.len();
             let chars = content.chars().count();
             let tokens = tokenizer
                 .as_ref()
@@ -253,7 +249,6 @@ fn walk_directory(
             let stats = Stats {
                 files: 1,
                 lines,
-                bytes,
                 chars,
                 tokens,
             };
@@ -435,10 +430,10 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
             padded_dir,
             dim(&format!("{:>8}", "Files")),
             dim(&format!("{:>10}", "Lines")),
-            dim(&format!("{:>10}", "Bytes")),
             dim(&format!("{:>10}", "Chars")),
             dim(&format!("{:>10}", "Tokens")),
-            dim(&format!("{:>5}", "B/L")),
+            dim(&format!("{:>5}", "L/F")),
+            dim(&format!("{:>5}", "C/L")),
             dim(&format!("{:>5}", "T/L"))
         )
     } else {
@@ -447,9 +442,9 @@ fn render_header(dir_width: usize, show_tokens: bool) -> String {
             padded_dir,
             dim(&format!("{:>8}", "Files")),
             dim(&format!("{:>10}", "Lines")),
-            dim(&format!("{:>10}", "Bytes")),
             dim(&format!("{:>10}", "Chars")),
-            dim(&format!("{:>5}", "B/L"))
+            dim(&format!("{:>5}", "L/F")),
+            dim(&format!("{:>5}", "C/L"))
         )
     }
 }
@@ -470,9 +465,9 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
 
     let files = format_number(stats.files);
     let lines = format_number(stats.lines);
-    let bytes = format_number(stats.bytes);
     let chars = format_number(stats.chars);
-    let bl = format_ratio(stats.bytes, stats.lines);
+    let lf = format_ratio(stats.lines, stats.files);
+    let cl = format_ratio(stats.chars, stats.lines);
 
     if show_tokens {
         let tokens = format_number(stats.tokens);
@@ -480,23 +475,23 @@ fn render_totals(stats: &Stats, dir_width: usize, show_tokens: bool) -> String {
         format!(
             "{}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_label,
-            style(&format!("{:>8}", files), &["1", "36"]),
-            style(&format!("{:>10}", lines), &["1", "33"]),
-            style(&format!("{:>10}", bytes), &["1", "32"]),
-            style(&format!("{:>10}", chars), &["1", "32"]),
-            style(&format!("{:>10}", tokens), &["1", "35"]),
-            dim(&format!("{:>5}", bl)),
-            dim(&format!("{:>5}", tl))
+            style(&format!("{files:>8}"), &["1", "36"]),
+            style(&format!("{lines:>10}"), &["1", "33"]),
+            style(&format!("{chars:>10}"), &["1", "32"]),
+            style(&format!("{tokens:>10}"), &["1", "35"]),
+            dim(&format!("{lf:>5}")),
+            dim(&format!("{cl:>5}")),
+            dim(&format!("{tl:>5}"))
         )
     } else {
         format!(
             "{}  {}  {}  {}  {}  {}\n",
             padded_label,
-            style(&format!("{:>8}", files), &["1", "36"]),
-            style(&format!("{:>10}", lines), &["1", "33"]),
-            style(&format!("{:>10}", bytes), &["1", "32"]),
-            style(&format!("{:>10}", chars), &["1", "32"]),
-            dim(&format!("{:>5}", bl))
+            style(&format!("{files:>8}"), &["1", "36"]),
+            style(&format!("{lines:>10}"), &["1", "33"]),
+            style(&format!("{chars:>10}"), &["1", "32"]),
+            dim(&format!("{lf:>5}")),
+            dim(&format!("{cl:>5}"))
         )
     }
 }
@@ -531,11 +526,7 @@ fn render_summary(stats: &Stats, show_tokens: bool) -> String {
         .map(|(name, size)| {
             let ratio = tokens / size;
             if ratio >= 1.0 {
-                format!(
-                    "{} {}",
-                    style(&format!("{:.1}×", ratio), &["35"]),
-                    dim(name)
-                )
+                format!("{} {}", style(&format!("{ratio:.1}×"), &["35"]), dim(name))
             } else {
                 format!(
                     "{} {}",
@@ -561,6 +552,7 @@ fn render_summary(stats: &Stats, show_tokens: bool) -> String {
 /// * `by_type` - Whether to show file type breakdowns
 /// * `show_tokens` - Whether to show token counts
 /// * `dir_width` - Width of the directory column
+#[allow(clippy::too_many_arguments)]
 fn render_node(
     output: &mut String,
     node: &DirNode,
@@ -592,9 +584,9 @@ fn render_node(
     // format numbers
     let files = format_number(node.stats.files);
     let lines = format_number(node.stats.lines);
-    let bytes = format_number(node.stats.bytes);
     let chars = format_number(node.stats.chars);
-    let bl = format_ratio(node.stats.bytes, node.stats.lines);
+    let lf = format_ratio(node.stats.lines, node.stats.files);
+    let cl = format_ratio(node.stats.chars, node.stats.lines);
 
     // render the row - pad numbers BEFORE applying color
     if show_tokens {
@@ -603,23 +595,23 @@ fn render_node(
         output.push_str(&format!(
             "{}  {}  {}  {}  {}  {}  {}  {}\n",
             padded_dir,
-            color(&format!("{:>8}", files), "36"),
-            color(&format!("{:>10}", lines), "33"),
-            color(&format!("{:>10}", bytes), "32"),
-            color(&format!("{:>10}", chars), "32"),
-            color(&format!("{:>10}", tokens), "35"),
-            dim(&format!("{:>5}", bl)),
-            dim(&format!("{:>5}", tl))
+            color(&format!("{files:>8}"), "36"),
+            color(&format!("{lines:>10}"), "33"),
+            color(&format!("{chars:>10}"), "32"),
+            color(&format!("{tokens:>10}"), "35"),
+            dim(&format!("{lf:>5}")),
+            dim(&format!("{cl:>5}")),
+            dim(&format!("{tl:>5}"))
         ));
     } else {
         output.push_str(&format!(
             "{}  {}  {}  {}  {}  {}\n",
             padded_dir,
-            color(&format!("{:>8}", files), "36"),
-            color(&format!("{:>10}", lines), "33"),
-            color(&format!("{:>10}", bytes), "32"),
-            color(&format!("{:>10}", chars), "32"),
-            dim(&format!("{:>5}", bl))
+            color(&format!("{files:>8}"), "36"),
+            color(&format!("{lines:>10}"), "33"),
+            color(&format!("{chars:>10}"), "32"),
+            dim(&format!("{lf:>5}")),
+            dim(&format!("{cl:>5}"))
         ));
     }
 
@@ -683,6 +675,7 @@ fn render_node(
 /// * `max_depth` - Maximum depth to render
 /// * `show_tokens` - Whether to show token counts
 /// * `dir_width` - Width of the directory column
+#[allow(clippy::too_many_arguments)]
 fn render_extension_breakdown(
     output: &mut String,
     node: &DirNode,
@@ -724,9 +717,9 @@ fn render_extension_breakdown(
 
         let files = format_number(stats.files);
         let lines = format_number(stats.lines);
-        let bytes = format_number(stats.bytes);
         let chars = format_number(stats.chars);
-        let bl = format_ratio(stats.bytes, stats.lines);
+        let lf = format_ratio(stats.lines, stats.files);
+        let cl = format_ratio(stats.chars, stats.lines);
 
         if show_tokens {
             let tokens = format_number(stats.tokens);
@@ -734,23 +727,23 @@ fn render_extension_breakdown(
             output.push_str(&format!(
                 "{}  {}  {}  {}  {}  {}  {}  {}\n",
                 padded_ext,
-                dim(&format!("{:>8}", files)),
-                dim(&format!("{:>10}", lines)),
-                dim(&format!("{:>10}", bytes)),
-                dim(&format!("{:>10}", chars)),
-                dim(&format!("{:>10}", tokens)),
-                dim(&format!("{:>5}", bl)),
-                dim(&format!("{:>5}", tl))
+                dim(&format!("{files:>8}")),
+                dim(&format!("{lines:>10}")),
+                dim(&format!("{chars:>10}")),
+                dim(&format!("{tokens:>10}")),
+                dim(&format!("{lf:>5}")),
+                dim(&format!("{cl:>5}")),
+                dim(&format!("{tl:>5}"))
             ));
         } else {
             output.push_str(&format!(
                 "{}  {}  {}  {}  {}  {}\n",
                 padded_ext,
-                dim(&format!("{:>8}", files)),
-                dim(&format!("{:>10}", lines)),
-                dim(&format!("{:>10}", bytes)),
-                dim(&format!("{:>10}", chars)),
-                dim(&format!("{:>5}", bl))
+                dim(&format!("{files:>8}")),
+                dim(&format!("{lines:>10}")),
+                dim(&format!("{chars:>10}")),
+                dim(&format!("{lf:>5}")),
+                dim(&format!("{cl:>5}"))
             ));
         }
     }
@@ -796,10 +789,10 @@ fn format_ratio(numerator: usize, denominator: usize) -> String {
     }
     let ratio = numerator as f64 / denominator as f64;
     if ratio >= 100.0 {
-        format!("{:.0}", ratio)
+        format!("{ratio:.0}")
     } else if ratio >= 10.0 {
-        format!("{:.1}", ratio)
+        format!("{ratio:.1}")
     } else {
-        format!("{:.2}", ratio)
+        format!("{ratio:.2}")
     }
 }

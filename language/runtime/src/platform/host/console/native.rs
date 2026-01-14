@@ -1,8 +1,8 @@
 use crate::native_binding_set;
 use crate::platform::bindings::{BindingDescriptor, NativeBinding};
-use crate::platform::host::{with_host_call_context, HostStatus, HostStringRef};
+use crate::platform::host::{HostStatus, HostStringRef, with_host_call_context};
 
-use super::core::{emit_console_line, ConsoleStream};
+use super::core::{ConsoleStream, emit_console_line};
 
 native_binding_set!(
     pub CONSOLE_NATIVE_BINDINGS,

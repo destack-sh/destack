@@ -8,6 +8,8 @@ use tracing_subscriber::prelude::*;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::{EnvFilter, fmt};
 
+use crate::console;
+
 /// The log level to use.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum LogLevelArg {
@@ -36,12 +38,38 @@ impl From<LogLevelArg> for LevelFilter {
     }
 }
 
+/// Color mode for CLI output.
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum ColorModeArg {
+    /// Enable colors when the output supports it.
+    #[default]
+    Auto,
+    /// Always emit ANSI colors.
+    Always,
+    /// Never emit ANSI colors.
+    Never,
+}
+
+impl From<ColorModeArg> for console::ColorMode {
+    fn from(mode: ColorModeArg) -> Self {
+        match mode {
+            ColorModeArg::Auto => console::ColorMode::Auto,
+            ColorModeArg::Always => console::ColorMode::Always,
+            ColorModeArg::Never => console::ColorMode::Never,
+        }
+    }
+}
+
 /// Arguments for configuring tracing.
 #[derive(Args, Debug, Clone, Default)]
 pub struct TracingArgs {
     /// Set log level (error|warn|info|debug|trace, default: off).
-    #[arg(long = "log", value_enum, global = true)]
+    #[arg(long = "log", value_enum, hide_possible_values = true, global = true)]
     pub log_level: Option<LogLevelArg>,
+
+    /// Color mode (auto|always|never, default: auto).
+    #[arg(long = "color", value_enum, hide_possible_values = true, global = true)]
+    pub color: Option<ColorModeArg>,
 
     /// Quiet mode (minimal output).
     #[arg(short = 'q', long, global = true)]
@@ -53,6 +81,13 @@ pub struct TracingArgs {
 }
 
 impl TracingArgs {
+    /// Apply console settings for color output.
+    pub fn apply_console_settings(&self) {
+        if let Some(mode) = self.color {
+            console::set_color_mode(mode.into());
+        }
+    }
+
     /// Initialize the tracing subscriber with the configured log level.
     pub fn init(&self) {
         let Some(level) = self.log_level else {
@@ -67,7 +102,7 @@ impl TracingArgs {
 
         let fmt_layer = fmt::layer()
             .with_writer(std::io::stderr)
-            .with_ansi(true)
+            .with_ansi(console::color_enabled(console::Stream::Stderr))
             .event_format(CustomFormat::new());
 
         tracing_subscriber::registry()
@@ -86,14 +121,21 @@ impl CustomFormat {
 }
 
 /// Format the level with ANSI color.
-fn format_level(level: tracing::Level) -> &'static str {
-    match level {
-        tracing::Level::ERROR => "\x1b[1;31mERROR\x1b[0m",
-        tracing::Level::WARN => "\x1b[1;33mWARN\x1b[0m ",
-        tracing::Level::INFO => "\x1b[1;32mINFO\x1b[0m ",
-        tracing::Level::DEBUG => "\x1b[1;34mDEBUG\x1b[0m",
-        tracing::Level::TRACE => "\x1b[1;35mTRACE\x1b[0m",
-    }
+fn format_level(level: tracing::Level) -> String {
+    let (label, codes) = match level {
+        tracing::Level::ERROR => ("ERROR", &["1", "31"][..]),
+        tracing::Level::WARN => ("WARN", &["1", "33"][..]),
+        tracing::Level::INFO => ("INFO", &["1", "32"][..]),
+        tracing::Level::DEBUG => ("DEBUG", &["1", "34"][..]),
+        tracing::Level::TRACE => ("TRACE", &["1", "35"][..]),
+    };
+
+    console::style_for_stream(label, codes, console::Stream::Stderr)
+}
+
+/// Render dimmed text for stderr output.
+fn dim_for_stderr(text: &str) -> String {
+    console::style_for_stream(text, &["2"], console::Stream::Stderr)
 }
 
 impl<S, N> FormatEvent<S, N> for CustomFormat
@@ -119,10 +161,8 @@ where
         let hours = secs_of_day / 3600;
         let minutes = (secs_of_day % 3600) / 60;
         let seconds = secs_of_day % 60;
-        write!(
-            writer,
-            "\x1b[2m{hours:02}:{minutes:02}:{seconds:02}.{millis:03}\x1b[0m "
-        )?;
+        let timestamp = format!("{hours:02}:{minutes:02}:{seconds:02}.{millis:03}");
+        write!(writer, "{} ", dim_for_stderr(&timestamp))?;
 
         // level with color
         let level = *event.metadata().level();
@@ -130,7 +170,7 @@ where
 
         // thread id (dim)
         let thread_id = std::thread::current().id().as_u64().get();
-        write!(writer, "\x1b[2mT{thread_id:02}\x1b[0m ")?;
+        write!(writer, "{} ", dim_for_stderr(&format!("T{thread_id:02}")))?;
 
         // message (first string field)
         let mut message_visitor = MessageVisitor::default();
@@ -141,7 +181,7 @@ where
 
         // event fields (excluding message)
         if !message_visitor.fields.is_empty() {
-            write!(writer, " \x1b[2m{}\x1b[0m", message_visitor.fields)?;
+            write!(writer, " {}", dim_for_stderr(&message_visitor.fields))?;
         }
 
         writeln!(writer)
