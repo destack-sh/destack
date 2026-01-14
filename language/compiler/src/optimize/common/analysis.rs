@@ -6,9 +6,10 @@ use std::sync::Arc;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, AvailableExpressions, BorrowAnalysis, ConstantPropagation, ControlFlowGraph,
-    DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, MemorySSA, OwnershipAnalysis,
-    PostDominatorTree, RangeAnalysis, ReachingDefinitions, ScalarEvolution,
+    AliasAnalysis, AvailableExpressions, BorrowAnalysis, CallGraph, ConstantPropagation,
+    ControlFlowGraph, DominatorTree, LifetimeAnalysis, LivenessAnalysis, LoopAnalysis, MemorySSA,
+    OwnershipAnalysis, PackageCallGraph, PostDominatorTree, ProgramCallGraph, RangeAnalysis,
+    ReachingDefinitions, ScalarEvolution,
 };
 
 use crate::optimize::{PackageWorkset, PipelineOptions, ProgramWorkset};
@@ -261,6 +262,7 @@ impl<'a> ModuleAnalyses<'a> {
     /// Register all known module analyses.
     fn register_all(graph: &mut DependencyGraph) {
         register_analysis::<LifetimeAnalysis>(graph);
+        register_analysis::<CallGraph>(graph);
     }
 
     /// Get the node tree.
@@ -342,7 +344,9 @@ impl<'a> PackageAnalyses<'a> {
     }
 
     /// Register all known package analyses.
-    fn register_all(_graph: &mut DependencyGraph) {}
+    fn register_all(graph: &mut DependencyGraph) {
+        register_analysis::<PackageCallGraph>(graph);
+    }
 
     /// Get the workset.
     pub fn workset(&self) -> &PackageWorkset {
@@ -421,7 +425,9 @@ impl<'a> ProgramAnalyses<'a> {
     }
 
     /// Register all known program analyses.
-    fn register_all(_graph: &mut DependencyGraph) {}
+    fn register_all(graph: &mut DependencyGraph) {
+        register_analysis::<ProgramCallGraph>(graph);
+    }
 
     /// Get the workset.
     pub fn workset(&self) -> &ProgramWorkset {
