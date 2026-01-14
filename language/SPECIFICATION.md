@@ -465,6 +465,7 @@ Raw pointers are separate from ownership modifiers:
 - Raw pointers may be null or dangling and allow pointer arithmetic.
 - Converting between borrowed references and raw pointers is always explicit.
 - Raw pointers do not imply ownership or drop behavior.
+- Raw pointers only support equality and inequality comparisons.
 - `&const T` and `*const T` are accepted but redundant and format as `&T` and `*T`.
 
 | Modifier | Meaning | After `foo(x)` | Who cleans up? |

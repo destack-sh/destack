@@ -220,7 +220,12 @@ impl Compiler {
                 self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
             if let Some(instance_id) = instance_id {
                 self.ensure_reference_instance_types_for_type_inner(
-                    module, profile, node_id, instance_id, types, visited,
+                    module,
+                    profile,
+                    node_id,
+                    instance_id,
+                    types,
+                    visited,
                 )?;
             }
             return Ok(());
@@ -1106,6 +1111,20 @@ impl Compiler {
             TypeBinaryOperator::Cast => {
                 // type assertion: `x as T`
                 // check if cast is valid (types overlap: at least one direction is assignable)
+                // allow explicit raw pointer casts
+                let allow_pointer_cast = matches!(
+                    (types.get_type(left_ty_id), types.get_type(right_ty_id)),
+                    (Type::PointerOf { .. }, Type::PointerOf { .. })
+                ) || matches!(
+                    (types.get_type(left_ty_id), types.get_type(right_ty_id)),
+                    (
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Null | TypeLiteral::Undefined,
+                        },
+                        Type::PointerOf { .. }
+                    )
+                );
+
                 let left_to_right = self.is_type_assignable(
                     module,
                     profile,
@@ -1125,7 +1144,8 @@ impl Compiler {
                     options,
                 );
 
-                if left_to_right == Assignability::NotAssignable
+                if !allow_pointer_cast
+                    && left_to_right == Assignability::NotAssignable
                     && right_to_left == Assignability::NotAssignable
                 {
                     // neither direction works: illegal cast

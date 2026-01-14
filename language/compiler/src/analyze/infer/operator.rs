@@ -1419,8 +1419,32 @@ impl Compiler {
             BinaryOperator::Equal
             | BinaryOperator::NotEqual
             | BinaryOperator::EqualStrict
-            | BinaryOperator::NotEqualStrict
-            | BinaryOperator::LessThan
+            | BinaryOperator::NotEqualStrict => {
+                // allow pointer comparisons against pointers or nullish values
+                let is_pointer = matches!(left_ty, Type::PointerOf { .. })
+                    && matches!(
+                        right_ty,
+                        Type::PointerOf { .. }
+                            | Type::TypeLiteral {
+                                value: TypeLiteral::Null | TypeLiteral::Undefined,
+                            }
+                    )
+                    || matches!(right_ty, Type::PointerOf { .. })
+                        && matches!(
+                            left_ty,
+                            Type::PointerOf { .. }
+                                | Type::TypeLiteral {
+                                    value: TypeLiteral::Null | TypeLiteral::Undefined,
+                                }
+                        );
+                if is_pointer {
+                    return true;
+                }
+
+                self.is_primitive_literal_type(left_ty, types)
+                    && self.is_primitive_literal_type(right_ty, types)
+            }
+            BinaryOperator::LessThan
             | BinaryOperator::LessThanOrEqual
             | BinaryOperator::GreaterThan
             | BinaryOperator::GreaterThanOrEqual => {
