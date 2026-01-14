@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
-    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, Generics,
+    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature,
     GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral,
     StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
@@ -64,8 +64,16 @@ impl Compiler {
                 scope: _,
                 expressions,
             } => {
-                // infer generics and walk namespace expressions
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses and walk namespace expressions
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 for expression_id in expressions {
                     self.infer_expression(
@@ -81,24 +89,8 @@ impl Compiler {
             }
 
             // type alias
-            Declaration::Type {
-                static_parameters, ..
-            } => {
-                // infer static parameters when present
-                if let Some(parameters) = static_parameters {
-                    for parameter_id in parameters {
-                        self.infer_parameter(
-                            module,
-                            *parameter_id,
-                            None,
-                            tree,
-                            symbols,
-                            types,
-                            infer,
-                            ctx,
-                        )?;
-                    }
-                }
+            Declaration::Type { .. } => {
+                // static parameter defaults are resolved during static argument evaluation
             }
 
             // struct
@@ -109,8 +101,16 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics for member bodies
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses for member bodies
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -138,8 +138,16 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics for member bodies
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses for member bodies
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 // prepare abstract context
                 let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
@@ -173,8 +181,16 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics for member bodies
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses for member bodies
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 // infer enum field values
                 for field_id in fields {
@@ -214,8 +230,16 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics for member bodies
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses for member bodies
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 // assign this to the nominal target type when available
                 let this_ty_id = if let Some(target) = *target_symbol {
@@ -266,8 +290,16 @@ impl Compiler {
                 members,
                 heritage: _,
             } => {
-                // infer generics for member bodies
-                self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
+                // infer where clauses for member bodies
+                self.infer_where_clauses_maybe(
+                    module,
+                    generics.where_clauses.as_deref(),
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
 
                 // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
@@ -607,32 +639,19 @@ impl Compiler {
         }
     }
 
-    /// Infer generics.
-    pub(super) fn infer_generics(
+    /// Infer where clauses when present.
+    pub(super) fn infer_where_clauses_maybe(
         &self,
         module: &Module,
-        generics: &Generics,
+        clauses: Option<&[LocalNodeId<WhereClause>]>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
-        if let Some(static_parameters) = &generics.static_parameters {
-            for parameter_id in static_parameters {
-                self.infer_parameter(
-                    module,
-                    *parameter_id,
-                    None,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
-            }
-        }
-        if let Some(clauses) = &generics.where_clauses {
+        // infer where clause expressions
+        if let Some(clauses) = clauses {
             for clause_id in clauses {
                 self.infer_where_clause(module, *clause_id, tree, symbols, types, infer, ctx)?;
             }
@@ -656,9 +675,19 @@ impl Compiler {
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // walk generics
-        if let Some(generics) = &signature.generics {
-            self.infer_generics(module, generics, tree, symbols, types, infer, ctx)?;
-        }
+        let where_clauses = signature
+            .generics
+            .as_ref()
+            .and_then(|generics| generics.where_clauses.as_deref());
+        self.infer_where_clauses_maybe(
+            module,
+            where_clauses,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
 
         // collect static parameter placeholders
         let static_parameters =
