@@ -116,10 +116,10 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, Block, Declarator, Expression, IfCondition, LetKind, Mutability, Pattern,
-        ScalarLiteral,
+        PatternField, ScalarLiteral,
     };
 
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path};
+    use crate::{TestParser, assert_expression_path, assert_name, assert_node, assert_path};
 
     #[test]
     fn test_parse_if_basic() {
@@ -569,6 +569,46 @@ else
             });
             assert_node!(parser.tree, *then_expression, Expression::Block(_));
             assert_node!(parser.tree, else_expression.unwrap(), Expression::Block(_));
+        });
+    }
+
+    #[test]
+    fn test_parse_if_let_tagged_object_pattern() {
+        let mut test = TestParser::new("if let Point { x, y } = value { x }");
+        let mut parser = test.prepare();
+
+        let if_id = parser.eat_if().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, .. } => {
+            let declarator_id = match condition {
+                IfCondition::Let {
+                    kind,
+                    mutability,
+                    declarator,
+                } => {
+                    assert_eq!(*kind, LetKind::Let);
+                    assert_eq!(*mutability, Mutability::Mutable);
+                    *declarator
+                }
+                IfCondition::Expression { .. } => panic!("expected if let condition"),
+            };
+            assert_node!(parser.tree, declarator_id, Declarator { pattern, ty, value } => {
+                assert!(ty.is_none());
+                let value_id = value.expect("expected if let value");
+                assert_expression_path!(parser, parser.tree.get(value_id), "value");
+                assert_node!(parser.tree, *pattern, Pattern::TaggedObject { ty, fields } => {
+                    assert_expression_path!(parser, parser.tree.get(*ty), "Point");
+                    assert_eq!(fields.len(), 2);
+                    // x
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
+                        assert_name!(parser, *name, "x");
+                    });
+                    // y
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, pattern: None, .. } => {
+                        assert_name!(parser, *name, "y");
+                    });
+                });
+            });
+            assert_node!(parser.tree, *then_expression, Expression::Block(_));
         });
     }
 }

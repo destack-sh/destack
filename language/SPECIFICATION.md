@@ -2325,6 +2325,9 @@ Matches object/struct properties:
 Point { x: 0, y }    // tagged with literal field
 ```
 
+Tagged object patterns accept any object-like type expression, including type aliases and interfaces.
+The tag must resolve to an object type, or the pattern is a type error.
+
 #### Array/Slice
 
 Matches array elements:
