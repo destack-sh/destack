@@ -170,6 +170,36 @@ In-memory caches live on the `Program` and are keyed by module, profile, and tar
 On-disk caches are keyed by compiler version, dsconfig hash, target config hash, and profile key.
 Cache eviction is policy driven and should not silently mask version mismatches.
 
+## Environment Variables
+
+Environment variables provide host level overrides and operational knobs for compiler tooling.
+Most configuration should live in `dsconfig` or target profiles.
+The compiler supports the following environment variables as part of the intended design.
+
+- `DESTACK_CACHE_DIR`: Override the global cache root for all compiler caches.
+- `DESTACK_CACHE_MODE`: Override `cache.mode` from dsconfig.
+- `DESTACK_CACHE_SCOPE`: Override `cache.scope` from dsconfig.
+- `DESTACK_CACHE_POLICY`: Override `cache.policy` from dsconfig.
+- `DESTACK_CACHE_MAX_MB`: Override `cache.max_size_mb` from dsconfig.
+- `DESTACK_CACHE_VALIDATE`: Override `cache.validate` from dsconfig.
+- `DESTACK_WATCH_MODE`: Override watch strategy selection.
+- `DESTACK_WATCH_POLL_MS`: Override `watch.poll_interval_ms` from dsconfig.
+- `DESTACK_WATCH_DEBOUNCE_MS`: Override `watch.debounce_ms` from dsconfig.
+- `DESTACK_WORKERS`: Override the compiler worker count.
+- `DESTACK_SLOW_TASK_MS`: Emit slow task diagnostics when a task exceeds this threshold.
+- `DESTACK_TARGET`: Override the default target selection.
+- `DESTACK_PROFILE`: Override the default profile selection.
+- `DESTACK_OUT_DIR`: Override target `out_dir` resolution.
+- `DESTACK_OUT_FILE`: Override target `out_file` resolution for single file outputs.
+- `DESTACK_DECLARATION_DIR`: Override target `declaration_dir` resolution.
+- `DESTACK_LOG`: Override compiler logging filters for tracing.
+- `XDG_CACHE_HOME`: Resolve global caches under `$XDG_CACHE_HOME/destack` when `DESTACK_CACHE_DIR` is not set.
+- `HOME`: Resolve global caches under `$HOME/.cache/destack` when `XDG_CACHE_HOME` and `DESTACK_CACHE_DIR` are not set.
+- `LOCAL_APPDATA`: Resolve global caches under `%LOCAL_APPDATA%\destack` when `DESTACK_CACHE_DIR` is not set.
+- `USERPROFILE`: Resolve global caches under `%USERPROFILE%\.cache\destack` when `LOCAL_APPDATA` and `DESTACK_CACHE_DIR` are not set.
+
+Comptime environment snapshots are derived from the process environment and filtered by profile configuration.
+
 ## Builtins
 
 The compiler loads language builtins from `language/builtin/` as needed based on target configuration.
