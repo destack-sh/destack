@@ -61,10 +61,6 @@ struct BenchAllowList {
     error_codes: HashSet<String>,
     /// Explicitly allowed warning codes.
     warning_codes: HashSet<String>,
-    /// Skip optimized execution for this program.
-    skip_execute: bool,
-    /// Skip specific optimization levels during execution.
-    skip_execute_levels: Vec<OptimizationLevel>,
 }
 
 impl BenchAllowList {
@@ -82,18 +78,7 @@ impl BenchAllowList {
             };
 
             // parse allow list directives
-            if directive == "skip-exec" {
-                allow.skip_execute = true;
-            } else if let Some(rest) = directive.strip_prefix("skip-exec-levels=") {
-                for level in rest.split(',') {
-                    let level = level.trim();
-                    if let Some(parsed) = parse_optimization_level(level) {
-                        if !allow.skip_execute_levels.contains(&parsed) {
-                            allow.skip_execute_levels.push(parsed);
-                        }
-                    }
-                }
-            } else if let Some(rest) = directive.strip_prefix("expect-errors=") {
+            if let Some(rest) = directive.strip_prefix("expect-errors=") {
                 for code in rest.split(',') {
                     let code = code.trim();
                     if !code.is_empty() {
@@ -126,23 +111,6 @@ impl BenchAllowList {
     /// Return true when any diagnostics are expected.
     fn has_expectations(&self) -> bool {
         !self.error_codes.is_empty() || !self.warning_codes.is_empty()
-    }
-
-    /// Return true when optimized execution should run.
-    fn should_execute(&self) -> bool {
-        !self.skip_execute
-    }
-
-    /// Return the optimization levels to execute.
-    fn levels_to_execute(&self) -> Vec<OptimizationLevel> {
-        // collect the candidate levels
-        let mut levels = OPTIMIZATION_LEVELS.to_vec();
-
-        // remove skipped levels
-        levels.retain(|level| !self.skip_execute_levels.contains(level));
-        levels.sort_by_key(|level| optimization_level_rank(*level));
-
-        levels
     }
 }
 
@@ -242,6 +210,98 @@ impl Suite for OptimizeValidateSuite {
     }
 }
 
+/// Optimizer bench suite for baseline runs.
+#[derive(Debug)]
+pub struct OptimizeBaselineSuite {
+    /// Shared run options.
+    options: OptimizeRunOptions,
+    /// Discovered test cases.
+    cases: Vec<TestCase>,
+    /// Program lookup by name.
+    programs: HashMap<String, &'static program::Program>,
+}
+
+impl OptimizeBaselineSuite {
+    /// Load the baseline suite with the provided options.
+    pub fn load(options: OptimizeRunOptions) -> Self {
+        // locate fixture root
+        let root = program::fixtures_root();
+
+        // prepare program containers
+        let mut cases = Vec::new();
+        let mut programs = HashMap::new();
+
+        // build program cases
+        for entry in program::all_programs() {
+            let path = root.join(format!("{}.mir", entry.name));
+            let case = TestCase::file(entry.name, path, "destack_test::optimize::baseline");
+            cases.push(case);
+            programs.insert(entry.name.to_string(), entry);
+        }
+
+        Self {
+            options,
+            cases,
+            programs,
+        }
+    }
+}
+
+impl Suite for OptimizeBaselineSuite {
+    fn name(&self) -> &'static str {
+        "optimize_baseline"
+    }
+
+    fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
+        self.cases.clone()
+    }
+
+    fn run(&self, case: &TestCase, _context: &RunContext<'_>) -> TestResult {
+        // resolve the program metadata
+        let program = match self.programs.get(&case.name) {
+            Some(program) => *program,
+            None => {
+                return TestResult::Failed {
+                    message: format!("program '{}' not found", case.name),
+                };
+            }
+        };
+
+        // parse allow list directives
+        let allow_list = BenchAllowList::from_source(program.source);
+        if allow_list.has_expectations() {
+            return TestResult::Skipped {
+                reason: "skipped by allow list directives".to_string(),
+            };
+        }
+
+        // emit trace output when requested
+        if self.options.trace {
+            eprintln!("baseline bench {}", program.name);
+        }
+
+        // run the baseline program
+        let output = match baseline_output_for_program(program, self.options.max_instruction_limit)
+        {
+            Ok(output) => output,
+            Err(message) => return TestResult::Failed { message },
+        };
+
+        // compare against expected output
+        let expected = (program.expected)();
+        if output.value != expected {
+            return TestResult::Failed {
+                message: format!(
+                    "'{}' (baseline): expected {:?}, got {:?}",
+                    program.name, expected, output.value
+                ),
+            };
+        }
+
+        TestResult::Passed
+    }
+}
+
 /// Optimizer bench suite for execute runs.
 #[derive(Debug)]
 pub struct OptimizeExecuteSuite {
@@ -304,7 +364,7 @@ impl Suite for OptimizeExecuteSuite {
 
         // parse allow list directives
         let allow_list = BenchAllowList::from_source(program.source);
-        if allow_list.has_expectations() || !allow_list.should_execute() {
+        if allow_list.has_expectations() {
             return TestResult::Skipped {
                 reason: "skipped by allow list directives".to_string(),
             };
@@ -312,7 +372,10 @@ impl Suite for OptimizeExecuteSuite {
 
         // run the baseline program for comparison
         let baseline_output =
-            baseline_output_for_program(program, self.options.max_instruction_limit);
+            match baseline_output_for_program(program, self.options.max_instruction_limit) {
+                Ok(output) => output,
+                Err(message) => return TestResult::Failed { message },
+            };
 
         // prepare shared configuration
         let package_id = PackageId::from_synthetic_path(&self.root);
@@ -321,7 +384,7 @@ impl Suite for OptimizeExecuteSuite {
 
         // optimize and validate each configured level
         let mut ran_any = false;
-        for level in allow_list.levels_to_execute() {
+        for level in OPTIMIZATION_LEVELS {
             if !self.options.allows_level(level) {
                 continue;
             }
@@ -398,31 +461,6 @@ impl Suite for OptimizeExecuteSuite {
         }
 
         TestResult::Passed
-    }
-}
-
-/// Parse an optimization level from a directive.
-fn parse_optimization_level(value: &str) -> Option<OptimizationLevel> {
-    // match supported optimization levels
-    match value {
-        "O0" => Some(OptimizationLevel::O0),
-        "O1" => Some(OptimizationLevel::O1),
-        "O2" => Some(OptimizationLevel::O2),
-        "O3" => Some(OptimizationLevel::O3),
-        "O4" => Some(OptimizationLevel::O4),
-        _ => None,
-    }
-}
-
-/// Return a stable ordering for optimization levels.
-fn optimization_level_rank(level: OptimizationLevel) -> u8 {
-    // assign a stable ordering
-    match level {
-        OptimizationLevel::O0 => 0,
-        OptimizationLevel::O1 => 1,
-        OptimizationLevel::O2 => 2,
-        OptimizationLevel::O3 => 3,
-        OptimizationLevel::O4 => 4,
     }
 }
 
@@ -533,14 +571,14 @@ fn optimize_source(
 fn baseline_output_for_program(
     program: &program::Program,
     max_instruction_limit: Option<u64>,
-) -> ExecutionOutput {
+) -> Result<ExecutionOutput, String> {
     // parse the source program
     let (tree, strings) = mir::parse::Parser::parse(program.source)
-        .unwrap_or_else(|error| panic!("failed to parse mir: {error}"));
+        .map_err(|error| format!("failed to parse mir: {error}"))?;
 
     // run the baseline program
     run_program_with_tree_result(program, tree, strings, max_instruction_limit)
-        .unwrap_or_else(|error| panic!("bench '{}' baseline failed: {error}", program.name))
+        .map_err(|error| format!("bench '{}' baseline failed: {error}", program.name))
 }
 
 /// Run a program and compare against the baseline output.

@@ -21,8 +21,8 @@ declare_pass! {
     /// 3. Insert `drop` after the last use, or before return for still-live values
     ///
     /// Identifies droppable values from:
-    /// - Function and block parameters with owned/managed reference types
-    /// - Managed allocations (managed.alloc, managed.alloc.array)
+    /// - Function and block parameters with owned reference types
+    /// - Explicit ownership values (owned refs and aggregates containing them)
     /// - Instructions with explicit types (struct, tuple, array, cast)
     /// - Local variable loads (local.get)
     ///
@@ -209,8 +209,8 @@ fn find_droppable_values_with_ownership(
 
     // check function parameters
     for param in &function.parameters {
-        // if value is not copy, it needs dropping
-        if !ownership.value_is_copy(param.value, tree) {
+        // drop only values that require explicit cleanup
+        if value_needs_drop(param.value, ownership, tree) {
             droppable.insert(param.value);
         }
     }
@@ -221,7 +221,7 @@ fn find_droppable_values_with_ownership(
 
         // block parameters
         for param in &block.parameters {
-            if !ownership.value_is_copy(param.value, tree) {
+            if value_needs_drop(param.value, ownership, tree) {
                 droppable.insert(param.value);
             }
         }
@@ -230,17 +230,10 @@ fn find_droppable_values_with_ownership(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
 
-            if let Some(dest) = instruction.destination() {
-                // check if instruction directly produces a droppable value
-                if instruction_produces_droppable(instruction) {
-                    droppable.insert(dest);
-                    continue;
-                }
-
-                // use ownership analysis for type inference
-                if !ownership.value_is_copy(dest, tree) {
-                    droppable.insert(dest);
-                }
+            if let Some(dest) = instruction.destination()
+                && value_needs_drop(dest, ownership, tree)
+            {
+                droppable.insert(dest);
             }
         }
     }
@@ -248,24 +241,35 @@ fn find_droppable_values_with_ownership(
     droppable
 }
 
-/// Check if an instruction directly produces a value that needs dropping.
-///
-/// Some instructions produce droppable values but don't have a direct type field
-/// that we can check. This handles those cases directly.
-fn instruction_produces_droppable(instruction: &Instruction) -> bool {
-    match instruction {
-        // managed allocations produce managed refs which need dropping
-        Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. } => true,
-
-        // raw allocations produce raw refs which don't need automatic dropping
-        // (they need explicit raw.free)
-        Instruction::RawAlloc { .. } => false,
-
-        // stack allocations produce raw refs to stack memory (no drop needed)
-        Instruction::StackAlloc { .. } => false,
-
-        _ => false,
+/// Return true when a value requires explicit drop insertion.
+fn value_needs_drop(value: Value, ownership: &OwnershipAnalysis, tree: &mir::NodeTree) -> bool {
+    // managed allocations are GC owned
+    if ownership.is_managed_allocated(value) {
+        return false;
     }
+
+    // resolve the value type from ownership
+    let Some(type_id) = ownership.value_type(value) else {
+        return false;
+    };
+
+    // drop rules are based on the value type
+    matches!(
+        tree.get(type_id),
+        mir::Type::Reference {
+            kind: mir::ReferenceKind::Owned,
+            ..
+        } | mir::Type::Struct {
+            copyability: mir::Copyability::Linear,
+            ..
+        } | mir::Type::Tuple {
+            copyability: mir::Copyability::Linear,
+            ..
+        } | mir::Type::Array {
+            copyability: mir::Copyability::Linear,
+            ..
+        }
+    )
 }
 
 /// Find the instruction index after which a value dies (last use).
@@ -530,6 +534,24 @@ block0:
     store v0, v1
     v2 = load v0
     return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&DropInsert);
+        program.assert_no_errors();
+        program.assert_unchanged(input);
+    }
+
+    /// Managed allocations are not dropped explicitly.
+    #[test]
+    fn test_verify_managed_alloc_no_drop() {
+        let input = r#"type @Node = { i32 }
+
+function @test() -> i32 {
+block0:
+    v0 = managed.alloc @Node
+    v1 = iconst 1i32
+    return v1
 }"#;
 
         let mut program = TestProgram::new(input);

@@ -1,3 +1,5 @@
 mod runner;
 
-pub use runner::{OptimizeExecuteSuite, OptimizeRunOptions, OptimizeValidateSuite};
+pub use runner::{
+    OptimizeBaselineSuite, OptimizeExecuteSuite, OptimizeRunOptions, OptimizeValidateSuite,
+};

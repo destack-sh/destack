@@ -162,6 +162,8 @@ pub struct OwnershipAnalysis {
     /// Values allocated on the stack (from StackAlloc).
     /// Used to determine whether to emit StackDrop vs RawDrop.
     stack_allocated: HashSet<Value>,
+    /// Values allocated with managed allocation instructions.
+    managed_allocated: HashSet<Value>,
 }
 
 impl OwnershipAnalysis {
@@ -230,6 +232,11 @@ impl OwnershipAnalysis {
     /// instead of RawDrop (explicit deallocation).
     pub fn is_stack_allocated(&self, value: Value) -> bool {
         self.stack_allocated.contains(&value)
+    }
+
+    /// Check if a value was allocated by a managed allocator.
+    pub fn is_managed_allocated(&self, value: Value) -> bool {
+        self.managed_allocated.contains(&value)
     }
 
     /// Apply the effects of an instruction on ownership state.
@@ -418,6 +425,7 @@ impl OwnershipAnalysis {
                 value_types: HashMap::new(),
                 copy_values: HashSet::new(),
                 stack_allocated: HashSet::new(),
+                managed_allocated: HashSet::new(),
             };
         }
 
@@ -425,6 +433,7 @@ impl OwnershipAnalysis {
         let mut value_types = HashMap::new();
         let mut copy_values = HashSet::new();
         let mut stack_allocated = HashSet::new();
+        let mut managed_allocated = HashSet::new();
 
         // function parameters
         for param in &function.parameters {
@@ -447,6 +456,7 @@ impl OwnershipAnalysis {
                     &mut value_types,
                     &mut copy_values,
                     &mut stack_allocated,
+                    &mut managed_allocated,
                 );
             }
         }
@@ -508,6 +518,7 @@ impl OwnershipAnalysis {
             value_types,
             copy_values,
             stack_allocated,
+            managed_allocated,
         }
     }
 }
@@ -535,6 +546,7 @@ fn instruction_collect_types(
     value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
     copy_values: &mut HashSet<Value>,
     stack_allocated: &mut HashSet<Value>,
+    managed_allocated: &mut HashSet<Value>,
 ) {
     match instruction {
         // instructions with explicit result types
@@ -566,9 +578,11 @@ fn instruction_collect_types(
             stack_allocated.insert(*destination);
         }
 
-        // managed allocs produce owned/managed refs (non-copy)
-        // (don't add to value_types or copy_values)
-        Instruction::ManagedAlloc { .. } | Instruction::ManagedAllocArray { .. } => {}
+        // managed allocs produce managed references (non-copy)
+        Instruction::ManagedAlloc { destination, .. }
+        | Instruction::ManagedAllocArray { destination, .. } => {
+            managed_allocated.insert(*destination);
+        }
         Instruction::LocalGet { destination, local } => {
             let local_decl = tree.get(*local);
             value_types.insert(*destination, local_decl.ty);
@@ -634,29 +648,43 @@ fn instruction_collect_types(
             index,
         } => {
             if let Some(&agg_ty) = value_types.get(aggregate) {
-                match tree.get(agg_ty) {
-                    Type::Struct { fields, .. } => {
-                        if let Some(&field_id) = fields.get(*index as usize) {
-                            let field_def = tree.get(field_id);
-                            value_types.insert(*destination, field_def.ty);
+                let base_type = match tree.get(agg_ty) {
+                    Type::Reference { pointee, .. } => Some(*pointee),
+                    _ => Some(agg_ty),
+                };
+
+                if let Some(base_type) = base_type {
+                    match tree.get(base_type) {
+                        Type::Struct { fields, .. } => {
+                            if let Some(&field_id) = fields.get(*index as usize) {
+                                let field_def = tree.get(field_id);
+                                value_types.insert(*destination, field_def.ty);
+                            }
                         }
-                    }
-                    Type::Tuple { elements, .. } => {
-                        if let Some(&elem_ty) = elements.get(*index as usize) {
-                            value_types.insert(*destination, elem_ty);
+                        Type::Tuple { elements, .. } => {
+                            if let Some(&elem_ty) = elements.get(*index as usize) {
+                                value_types.insert(*destination, elem_ty);
+                            }
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         }
         Instruction::ElementGet {
             destination, array, ..
         } => {
-            if let Some(&arr_ty) = value_types.get(array)
-                && let Type::Array { element, .. } = tree.get(arr_ty)
-            {
-                value_types.insert(*destination, *element);
+            if let Some(&arr_ty) = value_types.get(array) {
+                let base_type = match tree.get(arr_ty) {
+                    Type::Reference { pointee, .. } => Some(*pointee),
+                    _ => Some(arr_ty),
+                };
+
+                if let Some(base_type) = base_type
+                    && let Type::Array { element, .. } = tree.get(base_type)
+                {
+                    value_types.insert(*destination, *element);
+                }
             }
         }
 
@@ -671,6 +699,7 @@ fn instruction_collect_types(
             array: aggregate,
             ..
         } => {
+            copy_values.insert(*destination);
             if let Some(&ty) = value_types.get(aggregate) {
                 value_types.insert(*destination, ty);
             }
