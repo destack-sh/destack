@@ -1,4 +1,5 @@
 use destack_mir::parse::Parser;
+use destack_source::FileId;
 
 use crate::diagnostic::RuntimeResult;
 use crate::memory::Value;
@@ -6,7 +7,7 @@ use crate::{ExecutionOutput, Isolate, IsolateOptions};
 
 /// Parse MIR text and create an isolate.
 pub(crate) fn create_isolate(mir_text: &str) -> Isolate {
-    let (tree, strings) = Parser::parse(mir_text).expect("failed to parse MIR");
+    let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
     Isolate::with_options(tree, strings, IsolateOptions::test())
 }
 

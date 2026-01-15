@@ -1480,11 +1480,40 @@ impl<'a> FunctionBuilder<'a> {
         // set entry block to the first created block
         let entry_block = self.blocks[0];
 
+        // capture function parameters for entry block checks
+        let parameters = {
+            let function = self.tree.get(self.function_id);
+            function.parameters.clone()
+        };
+
+        // ensure entry block parameters match function parameters
+        {
+            let block = self.tree.get_mut(entry_block);
+            // populate entry block parameters when missing
+            if block.parameters.is_empty() {
+                block.parameters = parameters.clone();
+            } else if block.parameters != parameters {
+                panic!("entry block parameters must match function parameters");
+            }
+        }
+
         // update function
         let function = self.tree.get_mut(self.function_id);
         function.entry = Some(entry_block);
         function.blocks = self.blocks;
         function.next_value_id = self.next_value_id;
+
+        // verify in debug and test builds
+        #[cfg(any(test, debug_assertions))]
+        {
+            let verifier = crate::verify::Verifier::new_with_options(
+                &self.tree,
+                crate::verify::VerifierOptions::strict(),
+            );
+            if let Err(error) = verifier.verify_function(self.function_id) {
+                panic!("mir verification failed: {error}");
+            }
+        }
 
         self.function_id
     }

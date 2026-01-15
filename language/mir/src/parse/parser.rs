@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
     CheckTarget, Constant, Copyability, Field, Function, Global, GlobalInitializer, Instruction,
@@ -10,6 +11,7 @@ use crate::{
     TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringPool};
+use destack_source::{FileId, Span};
 
 use super::error::{ParseError, ParseResult};
 use super::lexer::Lexer;
@@ -26,6 +28,8 @@ pub struct Parser<'a> {
     tree: NodeTree,
     /// The string pool.
     strings: StringPool,
+    /// The source file id for spans.
+    file_id: FileId,
     /// Map from block names to their ids (for forward references).
     block_map: HashMap<String, LocalNodeId<Block>>,
     /// Map from function names to their ids (for forward references).
@@ -37,14 +41,15 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Create a new parser.
-    pub fn new(source: &'a str) -> Self {
+    /// Create a new parser for a specific file.
+    pub fn new(file_id: FileId, source: &'a str) -> Self {
         let tokens = Lexer::lex(source);
         Self {
             tokens,
             pos: 0,
             tree: NodeTree::new(),
             strings: StringPool::new(),
+            file_id,
             block_map: HashMap::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
@@ -53,8 +58,8 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse MIR text into a NodeTree and string pool.
-    pub fn parse(source: &str) -> ParseResult<(NodeTree, ImmutableStringPool)> {
-        let mut parser = Parser::new(source);
+    pub fn parse(file_id: FileId, source: &str) -> ParseResult<(NodeTree, ImmutableStringPool)> {
+        let mut parser = Parser::new(file_id, source);
         parser.parse_module()?;
         Ok((parser.tree, parser.strings.into_immutable()))
     }
@@ -62,6 +67,18 @@ impl<'a> Parser<'a> {
     /// Get current position for error reporting.
     fn pos(&self) -> usize {
         self.peek().map(|t| t.start).unwrap_or(0)
+    }
+
+    /// Build a span for a source slice.
+    fn span_at(file_id: FileId, start: usize, length: usize) -> Span {
+        let start = u32::try_from(start).unwrap_or(u32::MAX);
+        let length = u32::try_from(length).unwrap_or(0);
+        Span::at(file_id, start, length)
+    }
+
+    /// Build a span for a token.
+    fn span_for_token(file_id: FileId, token: &Token<'_>) -> Span {
+        Self::span_at(file_id, token.start, token.text.len())
     }
 
     /// Peek the current token (skipping trivia).
@@ -210,10 +227,24 @@ impl<'a> Parser<'a> {
                 ));
             }
         }
+
+        // set up the verifier
+        let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+
+        // map verification errors to source positions
+        verifier.verify_module().map_err(|error| {
+            let position = error
+                .anchor()
+                .and_then(|anchor| self.tree.get_span_by_id(anchor.node.id))
+                .map(|span| span.start as usize)
+                .unwrap_or_else(|| self.pos());
+            ParseError::new(error.to_string(), position)
+        })?;
+
         Ok(())
     }
 
-    /// Pre-register all function names to allow forward references.
+    /// Pre register all function names to allow forward references.
     ///
     /// This scans for `function @name` patterns without parsing anything else.
     fn register_all_functions(&mut self) {
@@ -278,9 +309,15 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Type)?;
         self.eat_token(TokenType::At)?;
 
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
-        let name_start = name_token.start;
+        let (name, name_start, name_span) = {
+            let file_id = self.file_id;
+            let name_token = self.eat_token(TokenType::Identifier)?;
+            (
+                name_token.text.to_string(),
+                name_token.start,
+                Self::span_for_token(file_id, name_token),
+            )
+        };
         if self.type_alias_map.contains_key(&name) {
             return Err(ParseError::invalid(
                 &format!("duplicate type alias '@{name}'"),
@@ -294,6 +331,7 @@ impl<'a> Parser<'a> {
         let name_id = self.strings.intern(&name);
         let alias = TypeAlias { name: name_id, ty };
         let id = self.tree.insert(alias);
+        self.tree.set_span(id, name_span);
         self.type_alias_map.insert(name, ty);
         Ok(id)
     }
@@ -305,8 +343,14 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // global name
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
+        let (name, name_span) = {
+            let file_id = self.file_id;
+            let name_token = self.eat_token(TokenType::Identifier)?;
+            (
+                name_token.text.to_string(),
+                Self::span_for_token(file_id, name_token),
+            )
+        };
 
         // type
         self.eat_token(TokenType::Colon)?;
@@ -339,6 +383,7 @@ impl<'a> Parser<'a> {
             initializer,
         };
         let id = self.tree.insert(global);
+        self.tree.set_span(id, name_span);
         self.global_map.insert(name, id);
         Ok(id)
     }
@@ -401,8 +446,14 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // function name
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
+        let (name, name_span) = {
+            let file_id = self.file_id;
+            let name_token = self.eat_token(TokenType::Identifier)?;
+            (
+                name_token.text.to_string(),
+                Self::span_for_token(file_id, name_token),
+            )
+        };
 
         // parameters (with types for imports, typed values for definitions)
         self.eat_token(TokenType::OpenParen)?;
@@ -445,6 +496,7 @@ impl<'a> Parser<'a> {
                 .function_map
                 .get(&name)
                 .unwrap_or_else(|| panic!("function @{name} should be pre-registered"));
+            self.tree.set_span(existing_id, name_span);
             *self.tree.get_mut(existing_id) = function;
             return Ok(existing_id);
         }
@@ -455,6 +507,7 @@ impl<'a> Parser<'a> {
             .function_map
             .get(&name)
             .unwrap_or_else(|| panic!("function @{name} should be pre-registered"));
+        self.tree.set_span(id, name_span);
 
         let function = self.tree.get_mut(id);
         function.name = name_id;
@@ -577,12 +630,19 @@ impl<'a> Parser<'a> {
 
     /// Parse a basic block. Returns (block_id, source_index).
     fn parse_block(&mut self) -> ParseResult<(LocalNodeId<Block>, u32)> {
-        let block_token = self.eat_token(TokenType::BlockRefence)?;
-        let block_name = block_token.text.to_string();
+        let (block_name, block_start, block_span) = {
+            let file_id = self.file_id;
+            let block_token = self.eat_token(TokenType::BlockRefence)?;
+            (
+                block_token.text.to_string(),
+                block_token.start,
+                Self::span_for_token(file_id, block_token),
+            )
+        };
         let source_idx: u32 = block_name
             .strip_prefix("block")
             .and_then(|s| s.parse().ok())
-            .ok_or_else(|| ParseError::invalid("block reference", block_token.start))?;
+            .ok_or_else(|| ParseError::invalid("block reference", block_start))?;
 
         // parameters
         let parameters = if self.eat_token_maybe(TokenType::OpenParen) {
@@ -631,6 +691,7 @@ impl<'a> Parser<'a> {
         };
 
         let id = self.tree.insert(block);
+        self.tree.set_span(id, block_span);
         self.block_map.insert(block_name, id);
         Ok((id, source_idx))
     }
@@ -726,7 +787,7 @@ impl<'a> Parser<'a> {
 
     /// Parse an instruction that produces a value: `vN = opcode ...`
     fn eat_instruction_with_destination(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
-        let destination = self.parse_value()?;
+        let (destination, destination_span) = self.parse_value_with_span()?;
         self.eat_token(TokenType::Equals)?;
 
         // opcode can be an identifier or the `struct` keyword
@@ -998,14 +1059,18 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(self.tree.insert(instruction))
+        let instruction_id = self.tree.insert(instruction);
+        self.tree.set_span(instruction_id, destination_span);
+        Ok(instruction_id)
     }
 
     /// Parse an instruction without a destination: `opcode ...`
     fn eat_instruction_without_destination(&mut self) -> ParseResult<LocalNodeId<Instruction>> {
+        let file_id = self.file_id;
         let opcode = self.eat_token(TokenType::Identifier)?;
-        let opcode_text = opcode.text;
         let opcode_start = opcode.start;
+        let opcode_text = opcode.text;
+        let opcode_span = Self::span_for_token(file_id, opcode);
 
         let instruction = match opcode_text {
             // local operations
@@ -1085,7 +1150,9 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(self.tree.insert(instruction))
+        let instruction_id = self.tree.insert(instruction);
+        self.tree.set_span(instruction_id, opcode_span);
+        Ok(instruction_id)
     }
 
     /// Parse a terminator.
@@ -1679,6 +1746,12 @@ impl<'a> Parser<'a> {
 
     /// Parse a value reference (vN).
     fn parse_value(&mut self) -> ParseResult<Value> {
+        let (value, _) = self.parse_value_with_span()?;
+        Ok(value)
+    }
+
+    /// Parse a value reference and return its span.
+    fn parse_value_with_span(&mut self) -> ParseResult<(Value, Span)> {
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("value", self.pos()))?;
@@ -1686,14 +1759,14 @@ impl<'a> Parser<'a> {
             return Err(ParseError::unexpected("value", token.ty, token.start));
         }
         let text = token.text.to_string();
-        let start = token.start;
+        let span = Self::span_for_token(self.file_id, token);
         self.bump();
 
         let idx: u32 = text
             .strip_prefix('v')
             .and_then(|s| s.parse().ok())
-            .ok_or_else(|| ParseError::invalid("value reference", start))?;
-        Ok(Value::new(idx))
+            .ok_or_else(|| ParseError::invalid("value reference", span.start as usize))?;
+        Ok((Value::new(idx), span))
     }
 
     /// Parse a block reference.
