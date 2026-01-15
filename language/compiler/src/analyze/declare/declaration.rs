@@ -9,7 +9,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
-use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
 use super::super::common::{ObjectShape, ObjectShapeSet};
 
@@ -320,6 +320,8 @@ impl Compiler {
                     symbol,
                     nominal_reference_id,
                     &mut value_shape,
+                    tree,
+                    symbols,
                     types,
                 )?;
 
@@ -427,6 +429,8 @@ impl Compiler {
                     symbol,
                     nominal_reference_id,
                     &mut value_shape,
+                    tree,
+                    symbols,
                     types,
                 )?;
 
@@ -1384,10 +1388,30 @@ impl Compiler {
         symbol: GlobalSymbolId,
         nominal_reference_id: LocalTypeId,
         value_shape: &mut ObjectShape,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // stop once constructors exist
         if !value_shape.construct_signatures.is_empty() {
+            return Ok(());
+        }
+
+        // prefer positional constructors for nominal declarations
+        if let Declaration::Struct { members, .. } | Declaration::Class { members, .. } =
+            tree.get(declaration_id)
+        {
+            let signature_id = self.struct_constructor_signature(
+                module,
+                profile,
+                nominal_reference_id,
+                declaration_id,
+                members,
+                tree,
+                symbols,
+                types,
+            )?;
+            value_shape.construct_signatures.push(signature_id);
             return Ok(());
         }
 
@@ -1421,6 +1445,58 @@ impl Compiler {
         value_shape.construct_signatures.push(signature_id);
 
         Ok(())
+    }
+
+    /// Build a positional constructor signature for nominal fields.
+    fn struct_constructor_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        nominal_reference_id: LocalTypeId,
+        declaration_id: LocalNodeId<Declaration>,
+        members: &[LocalNodeId<Member>],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // collect field types in source order
+        let mut dynamic_parameters = Vec::new();
+        for member_id in members {
+            let member = tree.get(*member_id);
+            let Member::Field {
+                modifiers, value, ..
+            } = member
+            else {
+                continue;
+            };
+
+            // skip static fields
+            if Self::member_is_static(modifiers.as_ref()) {
+                continue;
+            }
+
+            // require declared field types
+            let value_id = value.ok_or_else(|| AnalyzeError::MissingType {
+                node: member_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            })?;
+            let field_ty_id = self.try_evaluate_expression_to_type(
+                module, profile, value_id, tree, symbols, types, true,
+            )?;
+            dynamic_parameters.push(field_ty_id);
+        }
+
+        // build the constructor signature
+        let signature = Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters,
+            return_type: Some(nominal_reference_id),
+        };
+        Ok(types.insert_type_from(signature, declaration_id))
     }
 
     /// Declare exported value types using local information only.

@@ -110,6 +110,72 @@ impl Compiler {
         self.call_signatures_for_type(ty_id, types).first().copied()
     }
 
+    /// Collect all construct signatures for a type.
+    fn construct_signatures_for_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Vec<LocalTypeId> {
+        let mut visited = HashSet::new();
+        self.construct_signatures_for_type_inner(ty_id, types, &mut visited)
+    }
+
+    /// Collect all construct signatures for a type with cycle tracking.
+    fn construct_signatures_for_type_inner(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Vec<LocalTypeId> {
+        if !visited.insert(ty_id) {
+            return Vec::new();
+        }
+
+        // use direct function types as construct signatures
+        if matches!(types.get_type(ty_id), Type::Function { .. }) {
+            return vec![ty_id];
+        }
+
+        // collect construct signatures from object types
+        if let Type::Object {
+            construct_signatures,
+            ..
+        } = types.get_type(ty_id)
+        {
+            let mut collected = Vec::new();
+            for signature_id in construct_signatures {
+                collected.extend(self.construct_signatures_for_type_inner(
+                    *signature_id,
+                    types,
+                    visited,
+                ));
+            }
+            return collected;
+        }
+
+        // collect construct signatures from intersections
+        if let Type::Intersection { elements } = types.get_type(ty_id) {
+            let mut collected = Vec::new();
+            for element_id in elements {
+                collected.extend(self.construct_signatures_for_type_inner(
+                    *element_id,
+                    types,
+                    visited,
+                ));
+            }
+            return collected;
+        }
+
+        // follow nominal references into their instance types
+        if let Type::Reference { symbol, .. } = types.get_type(ty_id)
+            && let Some(instance_id) = types.get_instance_type_id(*symbol)
+        {
+            return self.construct_signatures_for_type_inner(instance_id, types, visited);
+        }
+
+        Vec::new()
+    }
+
     /// Resolve a function signature and apply `this` substitutions when needed.
     fn resolve_call_signature(
         &self,
@@ -280,6 +346,103 @@ impl Compiler {
                 .into_anchored(Some(profile)),
             candidates,
         })
+    }
+
+    /// Infer argument types for a resolved signature and emit subtype constraints.
+    fn infer_invocation_arguments(
+        &self,
+        module: &Module,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        parameter_types: &[LocalTypeId],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Vec<LocalTypeId>> {
+        // infer arguments with contextual parameter types
+        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            let expected_arg_ty_id = parameter_types.get(index).copied();
+            self.infer_argument(
+                module,
+                *argument_id,
+                expected_arg_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            let argument = tree.get(*argument_id);
+            let argument_value_id = argument.value();
+            let argument_ty_id = if let Some(ty_id) =
+                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+            {
+                ty_id
+            } else {
+                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
+            };
+            argument_ty_ids.push(argument_ty_id);
+        }
+
+        // add constraints between arguments and parameters
+        for (argument_ty_id, param_ty_id) in argument_ty_ids.iter().zip(parameter_types.iter()) {
+            infer.push_constraint(Constraint::Subtype {
+                sub_type: *argument_ty_id,
+                super_type: *param_ty_id,
+                variance: None,
+            });
+        }
+
+        Ok(argument_ty_ids)
+    }
+
+    /// Validate argument assignability for a resolved signature.
+    fn check_invocation_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        argument_ty_ids: &[LocalTypeId],
+        parameter_types: &[LocalTypeId],
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<()> {
+        // check argument assignability against parameters
+        for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
+            .iter()
+            .zip(parameter_types.iter())
+            .enumerate()
+        {
+            if !self.is_infer_var_type(*param_ty_id, types)
+                && !self.is_infer_var_type(*argument_ty_id, types)
+                && self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    *param_ty_id,
+                    *argument_ty_id,
+                    types,
+                    options,
+                ) == Assignability::NotAssignable
+            {
+                let argument_node = dynamic_arguments
+                    .get(index)
+                    .map(|id| id.into_global_any(module.id))
+                    .unwrap_or_else(|| expression_id.into_global_any(module.id));
+                return Err(AnalyzeError::UnassignableType {
+                    node: argument_node.into_anchored(Some(profile)),
+                    expected_ty: param_ty_id.into_global(module.id),
+                    actual_ty: argument_ty_id.into_global(module.id),
+                });
+            }
+        }
+
+        Ok(())
     }
 
     /// Check if a resolved signature is applicable to the argument list.
@@ -1121,82 +1284,30 @@ impl Compiler {
             let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
             let resolved_static_arguments = &resolved_signature.static_arguments;
 
-            // analyze arguments with contextual parameter types
-            let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
-            for (index, argument_id) in dynamic_arguments.iter().enumerate() {
-                let expected_arg_ty_id = resolved_dynamic_parameters.get(index).copied();
-                self.infer_argument(
-                    module,
-                    *argument_id,
-                    expected_arg_ty_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?;
-
-                let argument = tree.get(*argument_id);
-                let argument_value_id = argument.value();
-                let argument_ty_id = if let Some(ty_id) =
-                    types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
-                {
-                    ty_id
-                } else {
-                    self.infer_expression(
-                        module,
-                        argument_value_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?
-                };
-                argument_ty_ids.push(argument_ty_id);
-            }
-
-            // add constraints between arguments and parameters
-            for (argument_ty_id, param_ty_id) in argument_ty_ids
-                .iter()
-                .zip(resolved_dynamic_parameters.iter())
-            {
-                infer.push_constraint(Constraint::Subtype {
-                    sub_type: *argument_ty_id,
-                    super_type: *param_ty_id,
-                    variance: None,
-                });
-            }
+            // infer argument types and constraints
+            let argument_ty_ids = self.infer_invocation_arguments(
+                module,
+                dynamic_arguments,
+                resolved_dynamic_parameters,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
 
             // check argument assignability against parameters
-            for (index, (argument_ty_id, param_ty_id)) in argument_ty_ids
-                .iter()
-                .zip(resolved_dynamic_parameters.iter())
-                .enumerate()
-            {
-                if !self.is_infer_var_type(*param_ty_id, types)
-                    && !self.is_infer_var_type(*argument_ty_id, types)
-                    && self.is_type_assignable(
-                        module,
-                        ctx.profile,
-                        symbols,
-                        *param_ty_id,
-                        *argument_ty_id,
-                        types,
-                        &options,
-                    ) == Assignability::NotAssignable
-                {
-                    let argument_node = dynamic_arguments
-                        .get(index)
-                        .map(|id| id.into_global_any(module.id))
-                        .unwrap_or_else(|| expression_id.into_global_any(module.id));
-                    return Err(AnalyzeError::UnassignableType {
-                        node: argument_node.into_anchored(Some(ctx.profile)),
-                        expected_ty: param_ty_id.into_global(module.id),
-                        actual_ty: argument_ty_id.into_global(module.id),
-                    });
-                }
-            }
+            self.check_invocation_assignability(
+                module,
+                ctx.profile,
+                expression_id,
+                dynamic_arguments,
+                &argument_ty_ids,
+                resolved_dynamic_parameters,
+                symbols,
+                types,
+                &options,
+            )?;
 
             // register the instance if the call is to a symbol
             let mut call_instance_id = None;
@@ -1271,6 +1382,7 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         left_id: LocalNodeId<Expression>,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
         dynamic_arguments: &[LocalNodeId<Argument>],
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1278,18 +1390,171 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        let _left_ty_id =
+        let callee_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
+        let options = ctx.options;
 
-        for argument_id in dynamic_arguments {
-            self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
-        }
+        // ensure instance types for constructor references
+        self.ensure_reference_instance_types_for_type(
+            module,
+            ctx.profile,
+            expression_id.into_any(),
+            callee_ty_id,
+            types,
+        )?;
 
-        // NOTE #Incomplete: resolve instance type from constructor
-        let ty = Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
+        // resolve the callee symbol when possible
+        let callee_id = self.unwrap_parenthesized_expression(left_id, tree);
+        let callee_symbol =
+            self.reference_symbol_for_expression(module, callee_id, ctx.profile, tree, symbols);
+
+        // resolve construct signatures for the callee type
+        let construct_signatures = self.construct_signatures_for_type(callee_ty_id, types);
+        let ty_id = if !construct_signatures.is_empty() {
+            // select the matching overload
+            let selection = self.select_call_signature(
+                module,
+                expression_id,
+                callee_symbol,
+                static_arguments,
+                &construct_signatures,
+                dynamic_arguments,
+                None,
+                ctx.profile,
+                &options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?;
+            let (_signature_ty_id, resolved) = if let Some(selection) = selection {
+                selection
+            } else if construct_signatures.len() > 1 {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: callee_ty_id.into_global(module.id),
+                });
+                for argument_id in dynamic_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            } else {
+                let signature_ty_id = construct_signatures[0];
+                let resolved = self.resolve_call_signature(
+                    module,
+                    expression_id,
+                    callee_symbol,
+                    static_arguments,
+                    signature_ty_id,
+                    None,
+                    ctx.profile,
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                match resolved {
+                    Some(resolved) => (signature_ty_id, resolved),
+                    None => {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        return Ok(types.insert_type_from(ty, expression_id));
+                    }
+                }
+            };
+
+            let resolved_signature = resolved;
+            let resolved_return_type = resolved_signature.return_type;
+            let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
+            let resolved_static_arguments = &resolved_signature.static_arguments;
+
+            // infer argument types and constraints
+            let argument_ty_ids = self.infer_invocation_arguments(
+                module,
+                dynamic_arguments,
+                resolved_dynamic_parameters,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            // check argument assignability against parameters
+            self.check_invocation_assignability(
+                module,
+                ctx.profile,
+                expression_id,
+                dynamic_arguments,
+                &argument_ty_ids,
+                resolved_dynamic_parameters,
+                symbols,
+                types,
+                &options,
+            )?;
+
+            // register the instance when static arguments are resolved
+            let mut constructor_instance_id = None;
+            if let Some(callee_symbol) = callee_symbol
+                && !resolved_static_arguments.is_empty()
+            {
+                let instance_id = self.register_instance_for_node(
+                    expression_id.into_global_any(module.id),
+                    callee_symbol,
+                    resolved_static_arguments.clone(),
+                    types,
+                );
+                constructor_instance_id = Some(instance_id);
+            }
+
+            // record constructor resolution when possible
+            if let Some(callee_symbol) = callee_symbol {
+                self.record_static_resolution(
+                    expression_id.into_global_any(module.id),
+                    None,
+                    callee_symbol,
+                    constructor_instance_id,
+                    Some(resolved_signature),
+                    types,
+                );
+            }
+
+            resolved_return_type.unwrap_or_else(|| {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                types.insert_type_from(ty, expression_id)
+            })
+        } else {
+            // infer dynamic arguments
+            for argument_id in dynamic_arguments {
+                self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;
+            }
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            types.insert_type_from(ty, expression_id)
         };
-        Ok(types.insert_type_from(ty, expression_id))
+
+        Ok(ty_id)
     }
 
     /// Resolve a function type for a call, substituting static parameters when provided.
