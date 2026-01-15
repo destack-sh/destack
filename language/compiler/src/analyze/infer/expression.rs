@@ -2805,7 +2805,7 @@ impl Compiler {
     }
 
     /// Get the target symbol for a reference expression.
-    pub(super) fn reference_symbol_for_expression(
+    pub(crate) fn reference_symbol_for_expression(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -2824,7 +2824,7 @@ impl Compiler {
     }
 
     /// Peel nested parenthesized expressions to the underlying expression.
-    pub(super) fn unwrap_parenthesized_expression(
+    pub(crate) fn unwrap_parenthesized_expression(
         &self,
         mut expression_id: LocalNodeId<Expression>,
         tree: &NodeTree,
