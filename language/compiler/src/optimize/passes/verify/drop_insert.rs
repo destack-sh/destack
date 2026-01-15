@@ -546,7 +546,6 @@ block0:
     #[test]
     fn test_verify_managed_alloc_no_drop() {
         let input = r#"type @Node = { i32 }
-
 function @test() -> i32 {
 block0:
     v0 = managed.alloc @Node
@@ -731,9 +730,9 @@ block3:
         program.assert_unchanged(input);
     }
 
-    /// Managed allocation gets drop inserted after last use.
+    /// Managed allocation is not dropped explicitly.
     #[test]
-    fn test_insert_drop_for_managed_alloc() {
+    fn test_managed_alloc_no_drop() {
         let input = r#"function @test() -> i32 {
 block0:
     v0 = managed.alloc i32
@@ -743,20 +742,10 @@ block0:
     return v2
 }"#;
 
-        let expected = r#"function @test() -> i32 {
-block0:
-    v0 = managed.alloc i32
-    v1 = iconst 42i32
-    store v0, v1
-    v2 = load v0
-    raw.drop v0
-    return v2
-}"#;
-
         let mut program = TestProgram::new(input);
         program.run_pass(&DropInsert);
         program.assert_no_errors();
-        program.assert_output(expected);
+        program.assert_unchanged(input);
     }
 
     /// Managed allocation returned is not dropped.
@@ -773,7 +762,6 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&DropInsert);
         program.assert_no_errors();
-        // v0 is returned, so no drop should be inserted
         program.assert_unchanged(input);
     }
 
@@ -815,14 +803,12 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&DropInsert);
         program.assert_no_errors();
-        // raw.alloc doesn't get automatic drop - needs explicit raw.free
         program.assert_unchanged(input);
     }
 
     /// Type with drop function gets call emitted before raw.drop.
     #[test]
     fn test_drop_function_called_before_raw_drop() {
-        // input: function with owned param and a separate drop function
         let input = r#"function @my_drop(v0: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>):
     return
@@ -835,8 +821,6 @@ block0(v0: ref<owned i32>):
 }"#;
 
         let mut program = TestProgram::new(input);
-
-        // find the drop function
         let drop_fn = program
             .tree
             .iter_nodes::<mir::Function>()
@@ -844,7 +828,6 @@ block0(v0: ref<owned i32>):
             .map(|(id, _)| id)
             .expect("drop function not found");
 
-        // register drop function for all owned reference types
         register_drop_function_for(&mut program, drop_fn, |ty| {
             matches!(
                 ty,
@@ -855,11 +838,9 @@ block0(v0: ref<owned i32>):
             )
         });
 
-        // run drop_insert
         program.run_pass(&DropInsert);
         program.assert_no_errors();
 
-        // verify output has call to @my_drop before raw.drop
         let expected = r#"function @my_drop(v0: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>):
     return
