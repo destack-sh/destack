@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 use destack_source::Span;
 
 use crate::{Block, Function, Global, Instruction, Local, LocalNodeId, Type, Value};
 
 /// Identifier for a debug scope.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DebugScopeId(u32);
 
 impl DebugScopeId {
@@ -22,7 +24,7 @@ impl DebugScopeId {
 }
 
 /// Identifier for a debug variable.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DebugVariableId(u32);
 
 impl DebugVariableId {
@@ -38,7 +40,7 @@ impl DebugVariableId {
 }
 
 /// Debug scope kind for lexical regions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DebugScopeKind {
     /// Function scope.
     Function,
@@ -49,7 +51,7 @@ pub enum DebugScopeKind {
 }
 
 /// Debug scope metadata.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DebugScope {
     /// The kind of scope.
     pub kind: DebugScopeKind,
@@ -62,7 +64,7 @@ pub struct DebugScope {
 }
 
 /// Debug variable metadata.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DebugVariable {
     /// Variable name.
     pub name: StringId,
@@ -77,7 +79,7 @@ pub struct DebugVariable {
 }
 
 /// Location for a debug variable.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DebugValueLocation {
     /// The variable is stored in an SSA value.
     Value(Value),
@@ -90,7 +92,7 @@ pub enum DebugValueLocation {
 }
 
 /// Debug location for an instruction or block.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DebugLocation {
     /// The source span for this location.
     pub span: Span,
@@ -101,7 +103,7 @@ pub struct DebugLocation {
 }
 
 /// Table of debug information for MIR nodes.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DebugInfoTable {
     /// Debug scopes indexed by id.
     pub scopes: Vec<DebugScope>,

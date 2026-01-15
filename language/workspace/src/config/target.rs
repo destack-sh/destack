@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 use super::tsconfig::{EsTarget, ModuleTarget};
 
 /// How modules are discovered for a build target.
@@ -1051,7 +1053,7 @@ impl BorrowMode {
 }
 
 /// Runtime environment that actually executes the compiled code (at runtime).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Runtime {
     // JS runtimes (for output=js/ts)
     /// Web browser (Chrome, Firefox, Safari, etc.)
@@ -1149,7 +1151,7 @@ impl Runtime {
 }
 
 /// Operating system / target platform.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Platform {
     // Web
     /// Web browser

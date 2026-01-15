@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
 /// - A single entry point (can have parameters for SSA)
 /// - A single exit point (the terminator)
 /// - No control flow within the block
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     /// SSA parameters passed from predecessor blocks.
     /// Replaces traditional phi nodes with a cleaner model.
@@ -50,7 +51,7 @@ impl Default for Block {
 }
 
 /// Target and arguments for a check edge.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CheckTarget {
     /// The block to transfer control to.
     pub target: LocalNodeId<Block>,
@@ -59,7 +60,7 @@ pub struct CheckTarget {
 }
 
 /// Semantic constraint for a runtime check.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CheckConstraint {
     /// Bounds check on an index into a collection.
     Bounds {
@@ -134,7 +135,7 @@ impl CheckConstraint {
 }
 
 /// Block terminator - how control flow leaves a block.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Terminator {
     /// Return from the function.
     Return {
@@ -324,7 +325,7 @@ impl Terminator {
 }
 
 /// A case in a switch terminator.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SwitchCase {
     /// The integer constant to match against.
     pub value: i64,

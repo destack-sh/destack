@@ -1,8 +1,10 @@
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Argument, LocalNodeId, Node, NodeType, Path, StringId};
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnnotationPosition {
     /// Annotation inside the node (without next node to attach to, like in an empty block.)
     BlockInfix,
@@ -18,7 +20,7 @@ pub enum AnnotationPosition {
     LinePostfixBoundary,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Annotation {
     Blank {
         node: LocalNodeId<Blank>,
@@ -57,7 +59,7 @@ impl Annotation {
 }
 
 /// A Blank is a newline or special whitespace.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Blank {
     /// The number of blank lines.
     pub lines: u32,
@@ -68,7 +70,7 @@ impl Node for Blank {
 }
 
 /// A DocStyle is the style of a documentation comment.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DocStyle {
     /// End of line comment.
     Slash,
@@ -87,7 +89,7 @@ pub enum DocStyle {
 ///  * Documentation comment.
 ///  */
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Doc {
     /// The clean documentation comment string.
     /// Newlines preserved, leading/trailing whitespace stripped.
@@ -101,7 +103,7 @@ impl Node for Doc {
 }
 
 /// A CommentStyle is the style of a comment.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CommentStyle {
     /// End of line comment.
     Slash,
@@ -117,7 +119,7 @@ pub enum CommentStyle {
 /// // comment
 /// /* comment */
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Comment {
     /// The clean comment string.
     pub string: StringId,
@@ -137,7 +139,7 @@ impl Node for Comment {
 /// @foo
 /// @foo(1, 2, 3)
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Decorator {
     /// The decorator name / path.
     pub left: Path,

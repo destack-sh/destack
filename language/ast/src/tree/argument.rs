@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{BindingModifier, Expression, LocalNodeId, Name, Node, NodeType, Pattern, StringId};
 
 /// A Parameter is a parameter to some construct.
@@ -16,7 +18,7 @@ use crate::{BindingModifier, Expression, LocalNodeId, Name, Node, NodeType, Patt
 /// ..T
 /// ...x: int32[]
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Parameter {
     /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
     Named {
@@ -57,7 +59,7 @@ impl Node for Parameter {
 /// <Component name="foo" />           // named in tree literal only
 /// [start: number, end: number]       // labeled in tuple type only
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
     /// Named argument (only valid in tree literals for JSX-like attributes).
     Named {

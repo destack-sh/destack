@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 
 use crate::{Field, Function, Global, LocalNodeId, Type};
 
 /// Layout policy for composite types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LayoutPolicy {
     /// Default layout policy for the target.
     Default,
@@ -18,7 +20,7 @@ pub enum LayoutPolicy {
 }
 
 /// Concrete layout details for a MIR type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLayout {
     /// The total size of the type in bytes.
     pub size: u64,
@@ -33,7 +35,7 @@ pub struct TypeLayout {
 }
 
 /// Lineage metadata for nominal types.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeLineage {
     /// Optional parent type for class inheritance.
     pub parent: Option<LocalNodeId<Type>>,
@@ -50,7 +52,7 @@ pub struct TypeLineage {
 }
 
 /// Identifier for a dispatch table entry.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DispatchTableId(
     /// Raw index into the dispatch table registry.
     u32,
@@ -69,7 +71,7 @@ impl DispatchTableId {
 }
 
 /// Kind of dispatch table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DispatchTableKind {
     /// Class vtable for virtual dispatch.
     Class {
@@ -86,7 +88,7 @@ pub enum DispatchTableKind {
 }
 
 /// Entry in a dispatch table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DispatchSlot {
     /// Slot containing a type descriptor pointer.
     TypeDescriptor,
@@ -117,7 +119,7 @@ pub enum DispatchSlot {
 }
 
 /// Metadata for a dispatch table.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DispatchTable {
     /// The kind of dispatch table.
     pub kind: DispatchTableKind,
@@ -128,7 +130,7 @@ pub struct DispatchTable {
 }
 
 /// Table of dispatch metadata.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DispatchTables {
     /// Registered dispatch tables.
     pub tables: Vec<DispatchTable>,
@@ -154,7 +156,7 @@ impl DispatchTables {
 }
 
 /// Type metadata available for optimization and codegen.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct TypeMetadata {
     /// Layout metadata for the type.
     pub layout: Option<TypeLayout>,
@@ -171,7 +173,7 @@ pub struct TypeMetadata {
 }
 
 /// Table of type metadata entries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TypeTable {
     /// Drop function for each type that implements Drop.
     /// Maps type id → drop function id.

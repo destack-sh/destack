@@ -1,17 +1,18 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{FlowBlockId, GlobalNodeIdAny, GlobalSymbolId, LocalTypeId};
 
 /// Identify a stored flow environment.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FlowEnvironmentId(
     /// Store the environment index.
     pub u32,
 );
 
 /// Describe a flow environment with reachability and symbol narrowings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowEnvironment {
     /// Store narrowed types by symbol.
     pub bindings: IndexMap<GlobalSymbolId, LocalTypeId>,
@@ -20,7 +21,7 @@ pub struct FlowEnvironment {
 }
 
 /// Store flow environments indexed by block or node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowTable {
     /// Store all flow environments.
     pub environments: Vec<FlowEnvironment>,

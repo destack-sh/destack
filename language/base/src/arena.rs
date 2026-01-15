@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 // NOTE #Performance: tune Arena capacity/chunk size (usage side)
 
 /// The default capacity of the arena.
@@ -19,6 +21,72 @@ pub struct Arena<T> {
     chunk_mask: usize,
     /// Remaining capacity in the current chunk (avoids checking len each allocation).
     current_chunk_remaining: usize,
+}
+
+// serde representation for Arena
+#[derive(Serialize, Deserialize)]
+struct ArenaData<T> {
+    chunk_shift: u32,
+    chunks: Vec<Vec<T>>,
+}
+
+// serde view for Arena
+#[derive(Serialize)]
+struct ArenaDataRef<'a, T> {
+    chunk_shift: u32,
+    chunks: &'a [Vec<T>],
+}
+
+impl<T> Serialize for Arena<T>
+where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let data = ArenaDataRef {
+            chunk_shift: self.chunk_shift,
+            chunks: &self.chunks,
+        };
+        data.serialize(serializer)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Arena<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = ArenaData::<T>::deserialize(deserializer)?;
+
+        // rebuild chunk metadata
+        let chunk_size = (1usize)
+            .checked_shl(data.chunk_shift)
+            .ok_or_else(|| serde::de::Error::custom("arena chunk shift overflow"))?;
+        let chunk_mask = chunk_size - 1;
+        let current_chunk_remaining = match data.chunks.last() {
+            Some(last) => {
+                if last.len() > chunk_size {
+                    return Err(serde::de::Error::custom(
+                        "arena chunk length exceeds chunk size",
+                    ));
+                }
+                chunk_size - last.len()
+            }
+            None => 0,
+        };
+
+        Ok(Self {
+            chunks: data.chunks,
+            chunk_shift: data.chunk_shift,
+            chunk_mask,
+            current_chunk_remaining,
+        })
+    }
 }
 
 impl<T> Debug for Arena<T>

@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Function, Instruction, LocalNodeId, Type, Value};
 
 use super::{AllocSize, CallArgumentMetadata, CallBehavior, MemoryEffect, PointerAttributes};
 
 /// Dispatch style for a callsite.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CallDispatchKind {
     /// Direct call to a known function symbol.
     Direct,
@@ -40,7 +42,7 @@ impl CallDispatchKind {
 }
 
 /// Metadata describing a callsite's dispatch semantics.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallMetadata {
     /// Dispatch style for this callsite.
     pub dispatch: CallDispatchKind,
@@ -194,7 +196,7 @@ impl CallMetadata {
 }
 
 /// Table of callsite metadata entries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct CallTable {
     /// Callsite metadata keyed by instruction id.
     pub call_metadata_by_instruction_id: HashMap<LocalNodeId<Instruction>, CallMetadata>,

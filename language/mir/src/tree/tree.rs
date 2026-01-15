@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
 use destack_base::Arena;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     ArgumentSlice, Block, CallTable, DebugInfoTable, Field, Function, Global, Instruction, Local,
@@ -12,7 +13,7 @@ use crate::{
 /// This is the main storage for all MIR nodes in a module. All nodes
 /// (functions, blocks, instructions, locals, types) are stored in arenas
 /// and referenced by `LocalNodeId<T>`.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NodeTree {
     /// The next global node id to allocate.
     pub(crate) next_global_id: u32,

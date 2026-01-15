@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// Compiler known builtin symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbol {
     /// Builtin Array constructor symbol.
@@ -72,7 +74,7 @@ impl WellKnownSymbol {
 }
 
 /// Compiler known decorator markers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum WellKnownDecorator {
     /// The `@extern` decorator marker.
     Extern,
@@ -173,7 +175,7 @@ impl WellKnownDecorator {
 }
 
 /// Compiler known Symbol.* keys.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbolKey {
     /// Symbol key for Symbol.iterator.

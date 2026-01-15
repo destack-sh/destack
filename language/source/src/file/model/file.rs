@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{FileType, Span, Uri, strip_json};
 
 /// The id of a File.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FileId(pub u32);
 
 impl std::fmt::Debug for FileId {
@@ -27,7 +29,7 @@ impl FileId {
 
 /// Version of a file's content (increments on each change).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct FileVersion(pub u64);
 
 impl std::fmt::Debug for FileVersion {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_source::{NodeSourceMap, NodeSpanType, Span};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Annotation, AnnotationPosition, Arena, Argument, Blank, Block, Comment, Declaration,
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// Mutable AST Node tree for a single source unit. NOT THREAD-SAFE.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NodeTree {
     /// The next id to allocate.
     pub(crate) next_global_id: u32,

@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// How a block is defined.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BlockFormat {
     /// Explicit blocks with { ... }
     Explicit,
@@ -18,7 +20,7 @@ pub enum BlockFormat {
 ///     y = 2
 /// }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Block {
     pub format: BlockFormat,
     pub expressions: Vec<LocalNodeId<Expression>>,

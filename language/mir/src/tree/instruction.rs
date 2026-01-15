@@ -3,6 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
@@ -14,7 +15,7 @@ use crate::{
 ///
 /// Used by Call, CallIndirect, and Intrinsic instructions to reference arguments.
 /// This saves 16 bytes per instruction compared to using `Vec<Value>` inline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ArgumentSlice {
     /// Start index in the arguments buffer.
     pub start: u32,
@@ -44,7 +45,7 @@ impl ArgumentSlice {
 
 /// Instructions produce SSA values and perform "operations".
 /// Each instruction produces at most one value via the `destination` field.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Instruction {
     // constants
     /// Load a constant value.
@@ -477,7 +478,7 @@ impl Instruction {
 }
 
 /// Kind of type cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CastOperator {
     /// Bitcast (reinterpret bits, same size).
     Bitcast,

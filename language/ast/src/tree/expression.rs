@@ -1,4 +1,5 @@
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, Asynchrony, BinaryOperator, Block, Declaration,
@@ -11,7 +12,7 @@ use crate::{
 // NOTE #Performance: reduce Expression size to <=64B
 
 /// The source of an import declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImportSource {
     /// Standard import statement.
     ImportStatement,
@@ -21,7 +22,7 @@ pub enum ImportSource {
 
 /// An Expression is a generic container for all constructs.
 /// Unlike most languages, we don't differentiate "statements" and "expressions" up-front.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
     /// Declaration (with a name or anonymous).
     Declaration(LocalNodeId<Declaration>),
@@ -906,7 +907,7 @@ impl Expression {
 }
 
 /// The position of a postfix expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PostfixPosition {
     // Regular postfix (just `x?`)
     Direct,
@@ -915,7 +916,7 @@ pub enum PostfixPosition {
 }
 
 /// A TypeKind determines nominal vs. structural typing.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TypeKind {
     /// Structural typing (like `type T = { a: int32, b: boolean }`).
     Structural,
@@ -924,7 +925,7 @@ pub enum TypeKind {
 }
 
 /// A TypeBound is a type bound for a reference operation.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VarianceBound {
     /// Implements a type (such that X implements Y, i.e. X implements Y).
     Implements,
@@ -946,7 +947,7 @@ impl VarianceBound {
 }
 
 /// The kind of a let/var/const binding.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LetKind {
     /// `let` binding (mutable in Destack, same as `var`)
     Let,
@@ -957,7 +958,7 @@ pub enum LetKind {
 }
 
 /// The style of if expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum IfKind {
     /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
     If,
@@ -966,7 +967,7 @@ pub enum IfKind {
 }
 
 /// The condition for an if expression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum IfCondition {
     /// A regular condition expression.
     Expression { condition: LocalNodeId<Expression> },
@@ -982,7 +983,7 @@ pub enum IfCondition {
 }
 
 /// The kind of a while expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum WhileKind {
     /// Regular while expression (like `while <condition> <body>`)
     While,
@@ -991,7 +992,7 @@ pub enum WhileKind {
 }
 
 /// The kind of a for each expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ForEachKind {
     /// Of expression.
     Of,
@@ -1000,7 +1001,7 @@ pub enum ForEachKind {
 }
 
 /// The binding in a for each expression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ForEachBinding {
     /// Regular pattern binding.
     Pattern { pattern: LocalNodeId<Pattern> },
@@ -1012,7 +1013,7 @@ pub enum ForEachBinding {
 }
 
 /// The cardinality of a yield expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum YieldCardinality {
     /// Single value.
     Scalar,
@@ -1031,7 +1032,7 @@ pub enum YieldCardinality {
 /// T.Item: Copy
 /// T > Y
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum WhereClause {
     /// Where assertion (like `T: int32`).
     Assertion {
@@ -1052,7 +1053,7 @@ impl Node for WhereClause {
 }
 
 /// The style of a match expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum MatchKind {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
@@ -1064,7 +1065,7 @@ pub enum MatchKind {
 ///
 /// For match expressions, this is a pattern with an optional guard.
 /// For switch expressions, this can also be `Default` (the `default:` case).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MatchSelector {
     /// A pattern with an optional guard (e.g., `x if x > 0`).
     Pattern {
@@ -1085,7 +1086,7 @@ pub enum MatchSelector {
 /// }
 /// default: { ... }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MatchCase {
     /// A match case with an expression body.
     Expression {
@@ -1114,7 +1115,7 @@ impl Node for MatchCase {
 /// x: int32 = 1  // binding with type and value
 /// (a, b) = tuple  // destructuring pattern
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,

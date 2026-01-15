@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// A TypeUnaryOperator is a type unary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeUnaryOperator {
     /// Not `!T`.
     Not,
@@ -20,7 +22,7 @@ pub enum TypeUnaryOperator {
 }
 
 /// A TypeBinaryOperator is a type binary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeBinaryOperator {
     /// `as`
     Cast,

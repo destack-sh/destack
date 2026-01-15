@@ -65,6 +65,7 @@ fn dsconfig_with_cache(cache_dir: &str, config_dir: &str) -> DsConfig {
     let mut json = DsConfigJson::default();
     json.cache = DsConfigCacheJson {
         dir: Some(cache_dir.to_string()),
+        ..DsConfigCacheJson::default()
     };
 
     // build normalized options from json

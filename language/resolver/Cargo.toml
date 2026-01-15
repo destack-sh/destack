@@ -33,7 +33,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
-fancy-regex = "0.16.2"
+fancy-regex = "0.17.0"
 
 [lints]
 workspace = true

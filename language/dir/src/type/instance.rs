@@ -1,12 +1,13 @@
 use std::fmt::Display;
 
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, StaticArgument};
 
 /// Unique identifier for Instances.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalInstanceId(pub u32);
 
 impl LocalInstanceId {
@@ -25,7 +26,7 @@ impl LocalInstanceId {
 }
 
 /// Global instance id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalInstanceId {
     /// The module id of the global instance.
     pub module_id: ModuleId,
@@ -85,7 +86,7 @@ impl Display for LocalInstanceId {
 /// - `Container<int32>.map<string>` → `{ symbol: map, arguments: [int32, string] }`
 ///
 /// For `map`, `int32` is inherited from `Container<T>` and `string` is `map`'s own `U`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Instance {
     /// The symbol being instantiated.
     pub symbol_id: GlobalSymbolId,

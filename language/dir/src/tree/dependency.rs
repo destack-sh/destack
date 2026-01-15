@@ -1,9 +1,10 @@
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, ModuleTarget, Node, NodeType};
 
 /// The source of a dependency.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum DependencySource {
     /// Plain import statement (like `import "foo"`).
     ImportStatement,
@@ -20,7 +21,7 @@ pub enum DependencySource {
 }
 
 /// The mode of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum DependencyMode {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
@@ -31,7 +32,7 @@ pub enum DependencyMode {
 }
 
 /// The type of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
@@ -40,7 +41,7 @@ pub enum DependencyKind {
 }
 
 /// A DependencyItem is an item to use in a import clause.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DependencyItem {
     /// Unresolved remote item aliased to a local item from a target.
     UnresolvedRemote {
@@ -102,7 +103,7 @@ impl Node for DependencyItem {
 }
 
 /// A namespace export edge from `export * from` declarations.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceExport {
     /// The target module.
     pub module_id: ModuleTarget,

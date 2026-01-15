@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, Generics, GlobalSymbolId,
     Heritage, LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType,
@@ -5,7 +7,7 @@ use crate::{
 };
 
 /// The kind of declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DeclarationKind {
     /// Declare.
     Declaration,
@@ -14,7 +16,7 @@ pub enum DeclarationKind {
 }
 
 /// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DeclarationAbstraction {
     /// Abstract declaration.
     Abstract,
@@ -23,7 +25,7 @@ pub enum DeclarationAbstraction {
 }
 
 /// The meta data for a declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
     pub kind: DeclarationKind,
@@ -40,7 +42,7 @@ pub struct DeclarationDescriptor {
 }
 
 /// Declaration introduces a type or function into its scope.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
     /// Global augmentation declaration.
     Global {
@@ -211,7 +213,7 @@ impl Declaration {
 }
 
 /// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum EnumKind {
     /// A regular enum.
     #[default]
@@ -221,7 +223,7 @@ pub enum EnumKind {
 }
 
 /// An enum field is a named field of an enum declaration.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: StringId,

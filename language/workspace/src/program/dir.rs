@@ -3,6 +3,7 @@ use destack_dir::{self as dir};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 use parking_lot::RwLock;
+use serde::{Deserialize, Serialize};
 
 use crate::{ImportMeta, Loader, ProfileId};
 
@@ -53,6 +54,53 @@ pub struct ModuleDir {
         RwLock<IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>>,
     /// Exported symbols by key (space, name).
     pub exported_symbols: RwLock<IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>>,
+}
+
+/// Serializable snapshot of ModuleDir data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::type_complexity)]
+pub struct ModuleDirData {
+    /// The profile id this is targeting, if any.
+    pub profile_id: Option<ProfileId>,
+    /// The id of the Module.
+    pub id: ModuleId,
+    /// The version of the Module.
+    pub version: ModuleVersion,
+
+    /// The main DIR node tree of the Module.
+    pub tree: dir::NodeTree,
+    /// The symbol side table of the Module.
+    pub symbols: dir::SymbolTable,
+    /// The type side table of the Module (includes types, instances, resolutions).
+    pub types: dir::TypeTable,
+    /// The top-level expressions of the Module.
+    pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+
+    /// Metadata exposed via import.meta.
+    pub import_meta: Option<ImportMeta>,
+    /// The symbol of the Module namespace.
+    pub namespace_symbol: dir::LocalSymbolId,
+    /// The scope of the Module.
+    pub namespace_scope: dir::LocalScopeId,
+    /// The scope for global augmentations within this module.
+    pub global_augmentation_scope: dir::LocalScopeId,
+    /// The symbol of the Module default.
+    pub default_symbol: dir::LocalSymbolId,
+    /// The symbol of the Module export assignment.
+    pub export_assignment_symbol: dir::LocalSymbolId,
+    /// Export assignment item (`export = ...`) when present.
+    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
+    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
+    pub namespace_exports: Vec<dir::NamespaceExport>,
+    /// Module bindings (e.g., `declare module "foo"`).
+    pub module_bindings: Vec<dir::ModuleBinding>,
+    /// Export tables for module bindings.
+    pub module_binding_exports: IndexMap<dir::LocalNodeIdAny, dir::ModuleBindingExports>,
+    /// Resolved import specifiers to module ids (keyed by (relative_module, specifier, loader)).
+    /// The loader component distinguishes imports with non-default loaders.
+    pub imported_modules: IndexMap<(Option<ModuleId>, StringId, Option<Loader>), dir::ModuleTarget>,
+    /// Exported symbols by key (space, name).
+    pub exported_symbols: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 }
 
 impl ModuleDir {
@@ -219,5 +267,76 @@ impl ModuleDir {
             imported_modules: RwLock::new(base.imported_modules.read().clone()),
             exported_symbols: RwLock::new(base.exported_symbols.read().clone()),
         }
+    }
+
+    /// Create a serializable snapshot of this module dir.
+    pub fn to_data(&self) -> ModuleDirData {
+        // snapshot module dir state
+        ModuleDirData {
+            profile_id: self.profile_id,
+            id: self.id,
+            version: self.version,
+            tree: self.tree.read().clone(),
+            symbols: self.symbols.read().clone(),
+            types: self.types.read().clone(),
+            roots: self.roots.clone(),
+            import_meta: self.import_meta.clone(),
+            namespace_symbol: self.namespace_symbol,
+            namespace_scope: self.namespace_scope,
+            global_augmentation_scope: self.global_augmentation_scope,
+            default_symbol: self.default_symbol,
+            export_assignment_symbol: self.export_assignment_symbol,
+            export_assignment: *self.export_assignment.read(),
+            namespace_exports: self.namespace_exports.read().clone(),
+            module_bindings: self.module_bindings.read().clone(),
+            module_binding_exports: self.module_binding_exports.read().clone(),
+            imported_modules: self.imported_modules.read().clone(),
+            exported_symbols: self.exported_symbols.read().clone(),
+        }
+    }
+
+    /// Rebuild a ModuleDir from serialized data.
+    pub fn from_data(data: ModuleDirData) -> Self {
+        // rebuild module dir from snapshot
+        Self {
+            profile_id: data.profile_id,
+            id: data.id,
+            version: data.version,
+            tree: RwLock::new(data.tree),
+            symbols: RwLock::new(data.symbols),
+            types: RwLock::new(data.types),
+            roots: data.roots,
+            import_meta: data.import_meta,
+            namespace_symbol: data.namespace_symbol,
+            namespace_scope: data.namespace_scope,
+            global_augmentation_scope: data.global_augmentation_scope,
+            default_symbol: data.default_symbol,
+            export_assignment_symbol: data.export_assignment_symbol,
+            export_assignment: RwLock::new(data.export_assignment),
+            namespace_exports: RwLock::new(data.namespace_exports),
+            module_bindings: RwLock::new(data.module_bindings),
+            module_binding_exports: RwLock::new(data.module_binding_exports),
+            imported_modules: RwLock::new(data.imported_modules),
+            exported_symbols: RwLock::new(data.exported_symbols),
+        }
+    }
+}
+
+impl Serialize for ModuleDir {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_data().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ModuleDir {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = ModuleDirData::deserialize(deserializer)?;
+        Ok(ModuleDir::from_data(data))
     }
 }

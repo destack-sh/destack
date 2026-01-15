@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Argument, LocalNodeId, StringId};
 
 /// A ScalarLiteral is literal scalar value.
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub enum ScalarLiteral {
     /// Boolean value.
     Boolean(bool),
@@ -23,7 +25,7 @@ pub enum ScalarLiteral {
 }
 
 /// A TemplateLiteral is literal template value.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TemplateLiteral {
     /// Template string value.
     String { string: StringId },

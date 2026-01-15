@@ -4,9 +4,10 @@ use crate::{
 };
 use destack_source::ModuleId;
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 /// A module binding entry from `declare module "name" { ... }`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModuleBinding {
     /// The module specifier string.
     pub specifier: StringId,
@@ -23,7 +24,7 @@ pub struct ModuleBinding {
 }
 
 /// The target of a resolved module import.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ModuleTarget {
     /// A file or builtin module.
     Module(ModuleId),
@@ -43,7 +44,7 @@ impl ModuleTarget {
 }
 
 /// Export data for a module binding.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModuleBindingExports {
     /// The exported symbols for this binding.
     pub exports: IndexMap<(SymbolSpace, StaticKey), Export>,

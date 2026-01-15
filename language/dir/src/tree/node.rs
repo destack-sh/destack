@@ -2,9 +2,10 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 use destack_source::{ModuleId, ProfileId};
+use serde::{Deserialize, Serialize};
 
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
     Expression,
     Block,
@@ -48,7 +49,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type in a local arena.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -154,9 +155,11 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
+    #[serde(skip)]
     _ty: PhantomData<fn() -> T>,
 }
 
@@ -216,7 +219,8 @@ impl<T: Node> LocalNodeId<T> {
 
 /// Global node id across modules.
 /// NOTE #Architecture: should we make GlobalNodeId/GlobalSymbolId/GlobalTypeId/.. carry ProfileId?
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -259,7 +263,7 @@ impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalNodeIdAny {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -386,7 +390,7 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 /// - Profile-specific DIR (profile_id = Some) - from Resolve/Analyze/Elaborate phases
 ///
 /// This type tracks the provenance so diagnostics can find the correct source location.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.
     pub node_id: GlobalNodeIdAny,
@@ -475,7 +479,7 @@ pub trait Node: Sized {
 }
 
 /// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -486,7 +490,7 @@ pub enum Visibility {
 }
 
 /// A Runtime is the evaluation context of an expression / function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Runtime {
     /// The dynamic runtime (regular runtime).
     Dynamic,
@@ -495,7 +499,7 @@ pub enum Runtime {
 }
 
 /// The asynchrony of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Asynchrony {
     /// Synchronous function.
     Sync,
@@ -504,7 +508,7 @@ pub enum Asynchrony {
 }
 
 /// The reference type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceType {
     /// A value reference (like `^T`).
     Value,
@@ -513,7 +517,7 @@ pub enum ReferenceType {
 }
 
 /// A Mutability is the mutability of a binding (const or mutable).
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mutability {
     /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,

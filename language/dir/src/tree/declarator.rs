@@ -1,10 +1,12 @@
 //! Declarator node for variable declarations.
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern};
 
 /// A Declarator represents a single variable binding in a let/const/var declaration.
 /// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Declarator {
     /// The pattern to bind (can be a simple identifier or destructuring pattern).
     pub pattern: LocalNodeId<Pattern>,

@@ -1,4 +1,5 @@
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, DependencyMode, LocalMergeGroupId, LocalNodeId, LocalScopeId, LocalScopeMark,
@@ -8,7 +9,7 @@ use crate::{
 use std::fmt::Debug;
 
 /// A SymbolTable is a side table for mapping symbols and scopes. NOT THREAD-SAFE.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolTable {
     /// The module id of the symbol table.
     pub module_id: ModuleId,

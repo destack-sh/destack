@@ -93,7 +93,7 @@ const ASCII_SET: AsciiSet =
 
 impl UriExt for destack_lsp_types::Uri {
     fn to_file_path(&self) -> Option<Cow<'_, Path>> {
-        let path_str = self.path().as_estr().decode().into_string_lossy();
+        let path_str = self.path().decode().to_string_lossy();
         if path_str.is_empty() {
             return None;
         }
@@ -106,7 +106,7 @@ impl UriExt for destack_lsp_types::Uri {
         if cfg!(windows) {
             let auth_host = self
                 .authority()
-                .map(|auth| auth.host().as_str())
+                .map(|auth| auth.host())
                 .unwrap_or_default();
 
             if auth_host.is_empty() {

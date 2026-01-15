@@ -1,14 +1,16 @@
+use serde::{Deserialize, Serialize};
+
 use crate::AddressSpace;
 
 /// Set of memory locations that an operation may access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemoryLocationSet(
     /// Bitset describing accessible memory locations.
     u16,
 );
 
 /// Set of address spaces that an operation may access.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AddressSpaceSet {
     /// Address spaces included in the set.
     pub spaces: Vec<AddressSpace>,
@@ -113,7 +115,7 @@ impl Default for MemoryLocationSet {
 }
 
 /// Memory effect summary for a call or operation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct MemoryEffect {
     /// Whether the operation may read memory.
     pub reads: bool,
@@ -229,7 +231,7 @@ impl Default for MemoryEffect {
 }
 
 /// Behavioral effects for calls and functions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CallBehavior {
     /// The call never returns to the caller.
     pub noreturn: bool,

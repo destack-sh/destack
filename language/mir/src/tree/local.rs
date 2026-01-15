@@ -1,9 +1,11 @@
 //! MIR local variables (stack slots).
 
+use serde::{Deserialize, Serialize};
+
 use crate::{LocalNodeId, Mutability, Node, NodeType, Type};
 
 /// Ownership semantics of a local or parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Ownership {
     /// Owned value (this binding owns the data and is responsible for dropping it).
     Owned,
@@ -17,7 +19,7 @@ pub enum Ownership {
 /// - May be mutated
 /// - Have their address taken
 /// - Need to persist across basic blocks
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Local {
     /// The type of the value stored in this slot.
     pub ty: LocalNodeId<Type>,

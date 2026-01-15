@@ -1,4 +1,5 @@
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     DependencyMode, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Node, NodeType,
@@ -6,7 +7,7 @@ use crate::{
 };
 
 /// The space of a symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum SymbolSpace {
     /// The type space.
     Type,
@@ -41,7 +42,7 @@ impl SymbolSpace {
 }
 
 /// The kind of a symbol (scope behavior).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum SymbolKind {
     /// Namespace.
     Namespace,
@@ -52,7 +53,9 @@ pub enum SymbolKind {
 }
 
 /// How a symbol was introduced/bound.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub enum SymbolBinding {
     /// A runtime definition (let, const, var, class, function, etc.)
     #[default]
@@ -62,7 +65,9 @@ pub enum SymbolBinding {
 }
 
 /// Where a symbol originated in the source.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub enum SymbolOrigin {
     /// Declaration in module scope.
     #[default]
@@ -80,7 +85,9 @@ impl SymbolOrigin {
 }
 
 /// The type of a symbol (declaration type).
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub enum SymbolType {
     /// Not a type declaration (variables, labels, namespaces, extensions, imports).
     #[default]
@@ -112,7 +119,7 @@ impl SymbolType {
 }
 
 /// Unique identifier for Symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalSymbolId {
     /// The numeric id.
     pub id: u32,
@@ -152,7 +159,7 @@ impl LocalSymbolId {
 }
 
 /// Unique identifier for a merge group of symbols.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalMergeGroupId(pub u32);
 
 impl LocalMergeGroupId {
@@ -163,7 +170,7 @@ impl LocalMergeGroupId {
 }
 
 /// Global symbol id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalSymbolId {
     /// The module id of the global symbol.
     pub module_id: ModuleId,
@@ -200,7 +207,7 @@ impl From<GlobalSymbolId> for LocalSymbolId {
 }
 
 /// A Symbol is a bindable item or local in a scope (which may also declare a scope).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Symbol {
     /// The kind of the symbol.
     pub kind: SymbolKind,

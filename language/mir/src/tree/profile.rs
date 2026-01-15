@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 
 use crate::{Block, Function, Instruction, LocalNodeId};
 
 /// Source of profile data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProfileSource {
     /// Exact counts from instrumentation.
     Instrumentation,
@@ -16,7 +18,7 @@ pub enum ProfileSource {
 }
 
 /// Confidence level for a profile count.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum ProfileConfidence {
     /// Count is exact.
     #[default]
@@ -28,7 +30,7 @@ pub enum ProfileConfidence {
 }
 
 /// A profiling count with confidence metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct ProfileCount {
     /// Raw execution count.
     pub value: u64,
@@ -49,21 +51,21 @@ impl ProfileCount {
 }
 
 /// Profile data for a function.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionProfile {
     /// Entry count for the function.
     pub entry_count: ProfileCount,
 }
 
 /// Profile data for a basic block.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlockProfile {
     /// Execution count for the block.
     pub execution_count: ProfileCount,
 }
 
 /// Edge kind for control flow profile data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EdgeKind {
     /// Unconditional jump.
     Jump,
@@ -84,7 +86,7 @@ pub enum EdgeKind {
 }
 
 /// Key identifying a control flow edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EdgeKey {
     /// The source block.
     pub source: LocalNodeId<Block>,
@@ -106,14 +108,14 @@ impl EdgeKey {
 }
 
 /// Profile data for a control flow edge.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EdgeProfile {
     /// Execution count for the edge.
     pub count: ProfileCount,
 }
 
 /// Profile data for a callsite.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallSiteProfile {
     /// Total executions at this callsite.
     pub total_count: ProfileCount,
@@ -124,7 +126,7 @@ pub struct CallSiteProfile {
 }
 
 /// Profile data for a call target.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallTargetProfile {
     /// Target identifier.
     pub target: CallTarget,
@@ -133,7 +135,7 @@ pub struct CallTargetProfile {
 }
 
 /// Target identifier for indirect call profiles.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CallTarget {
     /// A known MIR function.
     Function(LocalNodeId<Function>),
@@ -142,7 +144,7 @@ pub enum CallTarget {
 }
 
 /// Profile-guided optimization data for a MIR module.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProfileTable {
     /// The profile data source.
     pub source: ProfileSource,

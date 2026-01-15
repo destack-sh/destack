@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 
 /// Identifier for a memory alias domain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AliasDomainId(u32);
 
 impl AliasDomainId {
@@ -17,7 +19,7 @@ impl AliasDomainId {
 }
 
 /// Identifier for a memory alias scope.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AliasScopeId(u32);
 
 impl AliasScopeId {
@@ -33,14 +35,14 @@ impl AliasScopeId {
 }
 
 /// Alias analysis domain for grouping alias scopes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryAliasDomain {
     /// Optional name for diagnostics or debugging.
     pub name: Option<StringId>,
 }
 
 /// Alias scope for noalias or scoped aliasing metadata.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryAliasScope {
     /// The domain this scope belongs to.
     pub domain: AliasDomainId,
@@ -49,7 +51,7 @@ pub struct MemoryAliasScope {
 }
 
 /// Table of alias scopes and domains.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AliasScopeTable {
     /// Registered alias domains.
     pub domains: Vec<MemoryAliasDomain>,
