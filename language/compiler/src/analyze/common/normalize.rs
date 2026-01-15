@@ -390,7 +390,20 @@ impl Compiler {
                     types.insert_type_from_any(normalized, source_id)
                 }
             }
-            Type::Unevaluated(_) | Type::Import { .. } => type_id,
+            Type::Unevaluated(_) => {
+                // treat unevaluated types as unknown during assignability normalization
+                if matches!(mode, NormalizationMode::Assign) {
+                    types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        },
+                        source_id,
+                    )
+                } else {
+                    type_id
+                }
+            }
+            Type::Import { .. } => type_id,
             Type::Infer { name, constraint } => {
                 // normalize the inference constraint when present
                 let original_constraint = constraint;
