@@ -2738,6 +2738,8 @@ Type-level operators (not overloadable):
 
 The `is` operator uses `T.is` when runtime checks are required.
 The `instanceof` operator is only defined for class identity checks.
+Conditional types allow `infer` bindings inside the `extends` pattern.
+The inferred bindings are scoped to the conditional type and available in the true branch.
 
 ### Other Operators
 

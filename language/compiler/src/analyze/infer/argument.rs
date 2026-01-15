@@ -591,6 +591,7 @@ impl Compiler {
     ) -> AnalyzeResult<Option<LocalTypeId>> {
         // validate type arguments against the declared bound
         if static_parameter.kind == StaticParameterKind::Type {
+            // coerce the argument into a type
             let substitution_ty_id = prepared_substitution.unwrap_or_else(|| {
                 self.convert_static_argument_type(
                     resolved_static_argument,
@@ -609,8 +610,11 @@ impl Compiler {
 
             // substitute the argument into self referential bounds
             let expected_ty_id = {
+                // bind the static parameter to the argument
                 let mut substitutions = HashMap::new();
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
+
+                // apply the substitution to the declared bound
                 let mut cache = HashMap::new();
                 self.substitute_static_parameters(
                     static_parameter.declared_type_id,
@@ -642,6 +646,113 @@ impl Compiler {
                     options,
                 ) == Assignability::NotAssignable
             {
+                // accept static parameter arguments when their constraints satisfy the bound
+                if let Type::Reference { symbol, .. } = types.get_type(substitution_ty_id)
+                    && let Some(constraint_ty_id) = self.static_parameter_constraint_type(
+                        module,
+                        profile,
+                        *symbol,
+                        error_node.local_id,
+                        symbols,
+                        types,
+                    )
+                {
+                    // skip validation when constraints still depend on static parameters
+                    let mut visited = HashSet::new();
+                    if self.type_contains_static_parameters(
+                        module,
+                        profile,
+                        expected_ty_id,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        return Ok(Some(substitution_ty_id));
+                    }
+
+                    // skip validation when constraints still depend on static parameters
+                    visited.clear();
+                    if self.type_contains_static_parameters(
+                        module,
+                        profile,
+                        constraint_ty_id,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        return Ok(Some(substitution_ty_id));
+                    }
+
+                    // accept arguments whose constraint satisfies the expected bound
+                    if self
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            expected_ty_id,
+                            constraint_ty_id,
+                            types,
+                            options,
+                        )
+                        .is_assignable()
+                    {
+                        return Ok(Some(substitution_ty_id));
+                    }
+                }
+
+                // allow type parameters that satisfy the expected bound via their constraints
+                if let Some(constraint_ty_id) = self.materialize_static_argument_constraint_type(
+                    module,
+                    profile,
+                    error_node,
+                    substitution_ty_id,
+                    symbols,
+                    types,
+                ) {
+                    // skip validation when constraints still depend on static parameters
+                    let mut visited = HashSet::new();
+                    if self.type_contains_static_parameters(
+                        module,
+                        profile,
+                        expected_ty_id,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        return Ok(Some(substitution_ty_id));
+                    }
+
+                    // skip validation when constraints still depend on static parameters
+                    visited.clear();
+                    if self.type_contains_static_parameters(
+                        module,
+                        profile,
+                        constraint_ty_id,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        return Ok(Some(substitution_ty_id));
+                    }
+
+                    // accept arguments whose constraint satisfies the expected bound
+                    if self
+                        .is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            expected_ty_id,
+                            constraint_ty_id,
+                            types,
+                            options,
+                        )
+                        .is_assignable()
+                    {
+                        return Ok(Some(substitution_ty_id));
+                    }
+                }
+
+                // report failed bound validation
                 self.error(AnalyzeError::UnassignableType {
                     node: error_node.into_anchored(Some(profile)),
                     expected_ty: expected_ty_id.into_global(module.id),
@@ -652,6 +763,7 @@ impl Compiler {
                 ));
             }
 
+            // accept validated type arguments
             return Ok(Some(substitution_ty_id));
         }
 
@@ -670,6 +782,7 @@ impl Compiler {
                     options,
                 ) == Assignability::NotAssignable
             {
+                // report unassignable value arguments
                 self.error(AnalyzeError::UnassignableType {
                     node: error_node.into_anchored(Some(profile)),
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
@@ -679,6 +792,127 @@ impl Compiler {
         }
 
         Ok(None)
+    }
+
+    /// Resolve a static argument constraint for validation.
+    fn materialize_static_argument_constraint_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        error_node: GlobalNodeIdAny,
+        argument_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // collect referenced static parameters
+        let mut referenced_symbols = HashSet::new();
+        let mut visited = HashSet::new();
+        self.collect_type_reference_symbols(
+            argument_ty_id,
+            types,
+            &mut referenced_symbols,
+            &mut visited,
+        );
+
+        // materialize referenced constraints
+        let mut substitutions = HashMap::new();
+        let mut visiting_symbols = HashSet::new();
+        for symbol in referenced_symbols {
+            let constraint_id = self.materialize_static_parameter_constraint(
+                module,
+                profile,
+                error_node,
+                symbol,
+                symbols,
+                types,
+                &mut visiting_symbols,
+            );
+            if let Some(constraint_id) = constraint_id {
+                substitutions.insert(symbol, constraint_id);
+            }
+        }
+
+        // skip when no substitutions are needed
+        if substitutions.is_empty() {
+            return None;
+        }
+
+        // apply nested constraint substitutions
+        let mut cache = HashMap::new();
+        Some(self.substitute_static_parameters(argument_ty_id, &substitutions, types, &mut cache))
+    }
+
+    /// Materialize a static parameter constraint by substituting nested constraints.
+    fn materialize_static_parameter_constraint(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        error_node: GlobalNodeIdAny,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visiting: &mut HashSet<GlobalSymbolId>,
+    ) -> Option<LocalTypeId> {
+        // avoid recursive constraint expansion
+        if !visiting.insert(symbol) {
+            return None;
+        }
+
+        // resolve the declared constraint type
+        let constraint_id = self.static_parameter_constraint_type(
+            module,
+            profile,
+            symbol,
+            error_node.local_id,
+            symbols,
+            types,
+        );
+        let Some(constraint_id) = constraint_id else {
+            visiting.remove(&symbol);
+            return None;
+        };
+
+        // collect nested static parameters in the constraint
+        let mut referenced_symbols = HashSet::new();
+        let mut visited = HashSet::new();
+        self.collect_type_reference_symbols(
+            constraint_id,
+            types,
+            &mut referenced_symbols,
+            &mut visited,
+        );
+
+        // materialize nested constraints
+        let mut substitutions = HashMap::new();
+        for referenced_symbol in referenced_symbols {
+            if referenced_symbol == symbol {
+                continue;
+            }
+            let nested_constraint = self.materialize_static_parameter_constraint(
+                module,
+                profile,
+                error_node,
+                referenced_symbol,
+                symbols,
+                types,
+                visiting,
+            );
+            if let Some(nested_constraint) = nested_constraint {
+                substitutions.insert(referenced_symbol, nested_constraint);
+            }
+        }
+
+        // stop recursive tracking for this symbol
+        visiting.remove(&symbol);
+
+        // return the raw constraint when nothing is substituted
+        if substitutions.is_empty() {
+            return Some(constraint_id);
+        }
+
+        // apply nested substitutions
+        let mut cache = HashMap::new();
+        Some(self.substitute_static_parameters(constraint_id, &substitutions, types, &mut cache))
     }
 
     /// Resolve static arguments for a type reference.
@@ -1096,6 +1330,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            true,
         )?;
         if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
             return Ok(None);
@@ -1290,6 +1525,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
 
                 let resolved = match resolved {

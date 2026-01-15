@@ -251,6 +251,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        true,
                     )?;
                     let static_arguments = self.unwrap_type_symbol(types, target_ty_id).and_then(
                         |(symbol, static_arguments, _)| {
@@ -450,6 +451,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        true,
                     )?;
                     let _value_type = if let Some(value) = value {
                         self.try_evaluate_expression_to_type(
@@ -459,6 +461,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            true,
                         )?
                     } else {
                         let ty = Type::TypeLiteral {
@@ -486,6 +489,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        true,
                     )?
                 } else {
                     // no value, return unknown type
@@ -770,6 +774,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
             )?)
         } else if let Some(return_type) =
             expected_signature.and_then(|signature| signature.return_type)

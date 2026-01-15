@@ -1,6 +1,6 @@
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, StaticArgument, StaticExpression, SymbolTable,
-    Type, TypeLiteral, TypeTable, WellKnownSymbol,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, StaticArgument, StaticExpression, SymbolKind,
+    SymbolSpace, SymbolTable, Type, TypeLiteral, TypeTable, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -47,6 +47,81 @@ impl Compiler {
                 return current_symbol;
             }
         }
+    }
+
+    /// Resolve merged namespace symbols into the type space when possible.
+    pub(crate) fn merged_type_symbol_id(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+    ) -> GlobalSymbolId {
+        // reuse local symbol table when possible
+        if symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            // stop when the symbol is not a namespace
+            if symbol_entry.kind != SymbolKind::Namespace {
+                return symbol;
+            }
+
+            // stop when the namespace has no merge group
+            let Some(group_id) = symbol_entry.merge_group else {
+                return symbol;
+            };
+
+            // select a merged type or type value symbol when available
+            let candidate =
+                symbols
+                    .merge_group_symbols(group_id)
+                    .iter()
+                    .copied()
+                    .find(|group_symbol| {
+                        let merged_symbol = symbols.get_symbol(*group_symbol);
+                        merged_symbol.kind != SymbolKind::Namespace
+                            && matches!(
+                                merged_symbol.space,
+                                SymbolSpace::Type | SymbolSpace::TypeValue
+                            )
+                    });
+
+            return candidate
+                .map(|candidate| candidate.into_global(module.id))
+                .unwrap_or(symbol);
+        }
+
+        // load the remote symbol table for merged namespaces
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
+        // stop when the symbol is not a namespace
+        if symbol_entry.kind != SymbolKind::Namespace {
+            return symbol;
+        }
+
+        // stop when the namespace has no merge group
+        let Some(group_id) = symbol_entry.merge_group else {
+            return symbol;
+        };
+
+        // select a merged type or type value symbol when available
+        let candidate = remote_symbols
+            .merge_group_symbols(group_id)
+            .iter()
+            .copied()
+            .find(|group_symbol| {
+                let merged_symbol = remote_symbols.get_symbol(*group_symbol);
+                merged_symbol.kind != SymbolKind::Namespace
+                    && matches!(
+                        merged_symbol.space,
+                        SymbolSpace::Type | SymbolSpace::TypeValue
+                    )
+            });
+
+        candidate
+            .map(|candidate| candidate.into_global(remote_module.id))
+            .unwrap_or(symbol)
     }
 
     /// Normalize well-known type references into structural types when possible.

@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::Compiler;
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, Parameter, StaticArgument,
-    StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, SymbolTable, Type,
-    TypeLiteral, TypeTable,
+    Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
+    StaticProperty, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -24,6 +24,39 @@ impl Compiler {
         let symbol_module = self.program.modules.get(symbol.module_id);
         let symbol_module = symbol_module.read();
         symbol_module.language_type.is_declaration()
+    }
+
+    /// Build static parameter placeholders for a function signature.
+    pub(crate) fn static_parameter_placeholders_for_signature(
+        &self,
+        module: &Module,
+        signature: &FunctionSignature,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Vec<LocalTypeId> {
+        // stop when the signature has no generics
+        let Some(generics) = signature.generics.as_ref() else {
+            return Vec::new();
+        };
+
+        // stop when the generics have no static parameters
+        let Some(parameters) = generics.static_parameters.as_ref() else {
+            return Vec::new();
+        };
+
+        // map static parameters to reference placeholders
+        let mut placeholders = Vec::with_capacity(parameters.len());
+        for parameter_id in parameters {
+            let symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+            let ty = Type::Reference {
+                symbol,
+                static_arguments: None,
+            };
+            let type_id = types.insert_type_from(ty, *parameter_id);
+            placeholders.push(type_id);
+        }
+
+        placeholders
     }
 
     /// Collect static parameter symbols for a declaration symbol.

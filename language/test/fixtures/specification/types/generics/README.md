@@ -6,3 +6,4 @@ Tests for static parameter instancing on type references.
 
 - **Type parameters**: static arguments on aliases, structs, interfaces
 - **Type operators**: keyof, indexed access, mapped and conditional types
+- **Conditional infer**: infer bindings inside conditional types

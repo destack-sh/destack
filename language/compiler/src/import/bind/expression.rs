@@ -620,7 +620,7 @@ impl Compiler {
                     parameter_scope_id,
                     symbols.get_scope_mark(parameter_scope_id),
                 );
-                let _ = self.bind_named_local(
+                let (symbol, _) = self.bind_named_local(
                     module,
                     ast,
                     SymbolSpace::Type,
@@ -647,6 +647,7 @@ impl Compiler {
                 });
                 let parameter = TypeMappedParameterExpression {
                     name,
+                    symbol,
                     constraint,
                     key_remap,
                 };
