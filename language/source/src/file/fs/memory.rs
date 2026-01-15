@@ -7,9 +7,8 @@ use parking_lot::RwLock;
 
 use crate::validate_utf8_string;
 
-use super::FileSystem;
-use super::path::PathExt;
-use super::system::FileMetadata;
+use super::{FileMetadata, FileSystem};
+use crate::PathExt;
 
 /// Memory file system implementation. THREAD-SAFE.
 #[derive(Default, Clone)]

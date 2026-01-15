@@ -1,51 +1,13 @@
 use std::collections::{HashSet, VecDeque};
 
 use destack_base::StringId;
-use destack_dir::{Declaration, LocalNodeId, ModuleTarget};
-use destack_source::{ModuleId, ModuleVersion};
-use destack_workspace::{ProfileId, TargetId};
-use indexmap::IndexMap;
+use destack_dir::ModuleTarget;
+use destack_source::ModuleId;
+use destack_workspace::{
+    ModuleBindingReference, ModuleBindingTable, ModuleBindingTableKey, ProfileId, TargetId,
+};
 
 use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
-
-/// Identify a cached module binding table view for a target and profile.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct ModuleBindingCacheKey {
-    /// Target id for the module selection.
-    pub target_id: TargetId,
-    /// Profile id for the compilation.
-    pub profile_id: ProfileId,
-    /// Entry module id when target discovery is implicit.
-    pub entry_module: Option<ModuleId>,
-}
-
-/// Reference a module binding declaration in a module.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct ModuleBindingReference {
-    /// The module id that owns the binding.
-    pub module_id: ModuleId,
-    /// The declaration node for the binding.
-    pub declaration: LocalNodeId<Declaration>,
-}
-
-/// Track module bindings reachable from a root set.
-#[derive(Debug, Clone)]
-pub(crate) struct ModuleBindingCache {
-    /// Versions for modules included in the index.
-    pub module_versions: IndexMap<ModuleId, ModuleVersion>,
-    /// Module bindings by specifier.
-    pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
-}
-
-impl ModuleBindingCache {
-    /// Create an empty table seeded with roots.
-    fn new() -> Self {
-        Self {
-            module_versions: IndexMap::new(),
-            bindings_by_specifier: IndexMap::new(),
-        }
-    }
-}
 
 impl Compiler {
     /// Prepare the module binding table for a module and profile.
@@ -53,10 +15,10 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<ModuleBindingCacheKey> {
+    ) -> ResolveResult<ModuleBindingTableKey> {
         // select the root set for this module
         let (global_key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
-        let mut key = ModuleBindingCacheKey {
+        let mut key = ModuleBindingTableKey {
             target_id: global_key.target_id,
             profile_id: global_key.profile_id,
             entry_module: global_key.entry_module,
@@ -87,12 +49,15 @@ impl Compiler {
 
         // rebuild when module bindings changed since the cache was built
         let mut rebuild_cache = true;
-        if let Some(cache) = self.module_binding_caches.get(&key) {
-            rebuild_cache = self.module_binding_cache_is_stale(&cache);
+        if let Some(cache) = self.program.index.module_binding_tables.get(&key) {
+            rebuild_cache = self.module_binding_table_is_stale(&cache);
         }
         if rebuild_cache {
             let cache = self.build_module_binding_table(&roots)?;
-            self.module_binding_caches.insert(key.clone(), cache);
+            self.program
+                .index
+                .module_binding_tables
+                .insert(key.clone(), cache);
         }
 
         Ok(key)
@@ -106,7 +71,7 @@ impl Compiler {
         specifier: StringId,
     ) -> ResolveResult<Option<ModuleTarget>> {
         let cache_key = self.prepare_module_binding_table(module_id, profile_id)?;
-        let Some(cache) = self.module_binding_caches.get(&cache_key) else {
+        let Some(cache) = self.program.index.module_binding_tables.get(&cache_key) else {
             return Ok(None);
         };
         if cache.bindings_by_specifier.contains_key(&specifier) {
@@ -123,16 +88,16 @@ impl Compiler {
         specifier: StringId,
     ) -> ResolveResult<Option<Vec<ModuleBindingReference>>> {
         let cache_key = self.prepare_module_binding_table(module_id, profile_id)?;
-        let Some(cache) = self.module_binding_caches.get(&cache_key) else {
+        let Some(cache) = self.program.index.module_binding_tables.get(&cache_key) else {
             return Ok(None);
         };
         Ok(cache.bindings_by_specifier.get(&specifier).cloned())
     }
 
     /// Build the module binding table for a root module set.
-    fn build_module_binding_table(&self, roots: &[ModuleId]) -> ResolveResult<ModuleBindingCache> {
+    fn build_module_binding_table(&self, roots: &[ModuleId]) -> ResolveResult<ModuleBindingTable> {
         // initialize the traversal state
-        let mut cache = ModuleBindingCache::new();
+        let mut cache = ModuleBindingTable::new();
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.extend(roots.iter().copied());
@@ -204,7 +169,7 @@ impl Compiler {
     }
 
     /// Whether a module binding cache is missing any bound modules.
-    fn module_binding_cache_is_stale(&self, cache: &ModuleBindingCache) -> bool {
+    fn module_binding_table_is_stale(&self, cache: &ModuleBindingTable) -> bool {
         // check every bound module for version mismatches
         for module in self.program.modules.iter() {
             let module = module.read();

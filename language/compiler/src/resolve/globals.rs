@@ -1,84 +1,15 @@
-use std::collections::VecDeque;
-
 use destack_base::StringId;
 use destack_dir::{
     Argument, DependencyKind, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, NodeTree,
     Path, StaticKey, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
 };
-use destack_source::{ModuleId, ModuleVersion, PackageId};
-use destack_workspace::{Module, ModuleDir, ProfileId, Target, TargetDiscovery, TargetId};
-use indexmap::IndexMap;
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{
+    GlobalSymbolGroupKey, GlobalSymbolTable, GlobalSymbolTableKey, Module, ModuleDir, ProfileId,
+    Target, TargetDiscovery, TargetId,
+};
 
 use crate::{Compiler, ResolveError, ResolveResult, TargetDiscoveryIssue, TaskDependencyError};
-
-/// Identify a cached global symbol table view for a target and profile.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct GlobalSymbolCacheKey {
-    /// Target id for the module selection.
-    pub target_id: TargetId,
-    /// Profile id for the compilation.
-    pub profile_id: ProfileId,
-    /// Entry module id when target discovery is implicit.
-    pub entry_module: Option<ModuleId>,
-}
-
-/// Track global symbols from declare global blocks reachable from a root set.
-#[derive(Debug, Clone)]
-pub(crate) struct GlobalSymbolCache {
-    /// Versions for modules included in the cache.
-    pub module_versions: IndexMap<ModuleId, ModuleVersion>,
-    /// First symbol observed for each global key.
-    pub symbols: IndexMap<StaticKey, GlobalSymbolId>,
-    /// First symbol observed for each global key and space.
-    pub symbols_by_space: IndexMap<GlobalSymbolGroupKey, GlobalSymbolId>,
-    /// All symbols observed for each global key.
-    pub sources: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
-    /// All symbols observed for each global key and space.
-    pub sources_by_space: IndexMap<GlobalSymbolGroupKey, Vec<GlobalSymbolId>>,
-    /// Modules remaining to process (empty once complete).
-    pub pending: VecDeque<ModuleId>,
-}
-
-impl GlobalSymbolCache {
-    /// Create an empty table.
-    fn new() -> Self {
-        Self {
-            module_versions: IndexMap::new(),
-            symbols: IndexMap::new(),
-            symbols_by_space: IndexMap::new(),
-            sources: IndexMap::new(),
-            sources_by_space: IndexMap::new(),
-            pending: VecDeque::new(),
-        }
-    }
-
-    /// Check if the cache is complete (no pending modules).
-    fn is_complete(&self) -> bool {
-        self.pending.is_empty()
-    }
-
-    /// Insert a global symbol and preserve the first binding for the key.
-    fn insert_symbol(&mut self, key: StaticKey, space: SymbolSpace, symbol: GlobalSymbolId) {
-        self.sources.entry(key).or_default().push(symbol);
-        self.symbols.entry(key).or_insert(symbol);
-
-        let group_key = GlobalSymbolGroupKey { key, space };
-        self.sources_by_space
-            .entry(group_key)
-            .or_default()
-            .push(symbol);
-        self.symbols_by_space.entry(group_key).or_insert(symbol);
-    }
-}
-
-/// Key for grouping global symbols by name and space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct GlobalSymbolGroupKey {
-    /// The symbol key.
-    pub key: StaticKey,
-    /// The symbol space.
-    pub space: SymbolSpace,
-}
 
 /// Track dependency targets while scanning module trees.
 #[derive(Debug, Clone, Copy)]
@@ -94,22 +25,27 @@ struct DependencyTarget {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Prepare the global symbol table for a module and profile.
-    pub(super) fn require_global_symbol_cache(
+    pub(super) fn require_global_symbol_table(
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolCacheKey> {
+    ) -> ResolveResult<GlobalSymbolTableKey> {
         let (key, roots) = self.select_global_symbol_table(module_id, profile_id)?;
 
         // build the cache when incomplete
         let needs_build = self
-            .global_symbol_caches
+            .program
+            .index
+            .global_symbol_tables
             .get(&key)
             .map(|c| !c.is_complete())
             .unwrap_or(true);
         if needs_build {
-            let cache = self.build_global_symbol_cache_resumable(&key, &roots, profile_id)?;
-            self.global_symbol_caches.insert(key.clone(), cache);
+            let cache = self.build_global_symbol_table_resumable(&key, &roots, profile_id)?;
+            self.program
+                .index
+                .global_symbol_tables
+                .insert(key.clone(), cache);
         }
 
         Ok(key)
@@ -129,7 +65,7 @@ impl Compiler {
     ) -> ResolveResult<Option<Expression>> {
         // load the cached table for this module
         let key = self.build_global_symbol_table_key(module.id, profile_id)?;
-        let Some(cache) = self.global_symbol_caches.get(&key) else {
+        let Some(cache) = self.program.index.global_symbol_tables.get(&key) else {
             return Ok(None);
         };
 
@@ -267,7 +203,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolCacheKey> {
+    ) -> ResolveResult<GlobalSymbolTableKey> {
         // load module and package metadata
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -284,7 +220,7 @@ impl Compiler {
         } else {
             TargetId::new(package_id, "default")
         };
-        Ok(GlobalSymbolCacheKey {
+        Ok(GlobalSymbolTableKey {
             target_id,
             profile_id,
             entry_module,
@@ -302,7 +238,7 @@ impl Compiler {
         let cache_key = self
             .build_global_symbol_table_key(module_id, profile_id)
             .ok()?;
-        let cache = self.global_symbol_caches.get(&cache_key)?;
+        let cache = self.program.index.global_symbol_tables.get(&cache_key)?;
         cache
             .sources_by_space
             .get(&GlobalSymbolGroupKey { key, space })
@@ -315,7 +251,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
-    ) -> ResolveResult<(GlobalSymbolCacheKey, Vec<ModuleId>)> {
+    ) -> ResolveResult<(GlobalSymbolTableKey, Vec<ModuleId>)> {
         // load module and package metadata
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -328,7 +264,7 @@ impl Compiler {
 
         // fall back to the current module when no targets exist
         if !has_targets {
-            let key = GlobalSymbolCacheKey {
+            let key = GlobalSymbolTableKey {
                 target_id: TargetId::new(package_id, "default"),
                 profile_id,
                 entry_module: Some(module_id),
@@ -346,7 +282,7 @@ impl Compiler {
                 .discover_include_modules(package_id, &package_path, &target)
                 .map_err(|issue| self.map_target_discovery_issue(issue))?,
         };
-        let key = GlobalSymbolCacheKey {
+        let key = GlobalSymbolTableKey {
             target_id,
             profile_id,
             entry_module: None,
@@ -414,12 +350,12 @@ impl Compiler {
 
     /// Build a global symbol cache for freestanding modules.
     /// This collects all global symbols from the given modules in one go.
-    pub(super) fn build_global_symbol_cache_freestanding(
+    pub(super) fn build_global_symbol_table_freestanding(
         &self,
         modules: &[ModuleId],
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolCache> {
-        let mut cache = GlobalSymbolCache::new();
+    ) -> ResolveResult<GlobalSymbolTable> {
+        let mut cache = GlobalSymbolTable::new();
         cache.pending.extend(modules.iter().copied());
 
         // process all lib modules
@@ -453,19 +389,21 @@ impl Compiler {
 
     /// Build the global symbol table for a root module set.
     /// Resumes from partial state if available.
-    fn build_global_symbol_cache_resumable(
+    fn build_global_symbol_table_resumable(
         &self,
-        key: &GlobalSymbolCacheKey,
+        key: &GlobalSymbolTableKey,
         roots: &[ModuleId],
         profile_id: ProfileId,
-    ) -> ResolveResult<GlobalSymbolCache> {
+    ) -> ResolveResult<GlobalSymbolTable> {
         // resume from partial cache or start fresh
         let mut cache = self
-            .global_symbol_caches
+            .program
+            .index
+            .global_symbol_tables
             .remove(key)
             .map(|(_, c)| c)
             .unwrap_or_else(|| {
-                let mut c = GlobalSymbolCache::new();
+                let mut c = GlobalSymbolTable::new();
                 c.pending.extend(roots.iter().copied());
                 c
             });
@@ -481,7 +419,10 @@ impl Compiler {
             if let Err(error) = self.require_import_module_validate(module_id) {
                 // put current module back for retry
                 cache.pending.push_front(module_id);
-                self.global_symbol_caches.insert(key.clone(), cache);
+                self.program
+                    .index
+                    .global_symbol_tables
+                    .insert(key.clone(), cache);
                 return Err(error.into());
             }
 
@@ -542,7 +483,7 @@ impl Compiler {
         module: &Module,
         dir: &ModuleDir,
         symbols: &SymbolTable,
-        cache: &mut GlobalSymbolCache,
+        cache: &mut GlobalSymbolTable,
     ) {
         let scope = symbols.get_scope_by_id(dir.global_augmentation_scope);
         for (key, symbol_id) in &scope.named_symbols {
@@ -557,7 +498,7 @@ impl Compiler {
         &self,
         module: &Module,
         tree: &NodeTree,
-        cache: &mut GlobalSymbolCache,
+        cache: &mut GlobalSymbolTable,
     ) {
         let symbol_id = module.dir_base().namespace_symbol.into_global(module.id);
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
@@ -575,7 +516,7 @@ impl Compiler {
         module: &Module,
         dir: &ModuleDir,
         symbols: &SymbolTable,
-        cache: &mut GlobalSymbolCache,
+        cache: &mut GlobalSymbolTable,
     ) {
         let scope = symbols.get_scope_by_id(dir.namespace_scope);
         for (key, symbol_id) in &scope.named_symbols {
@@ -645,7 +586,7 @@ export {};
         let profile = test.default_profile_id(module_id);
         let cache = test
             .compiler
-            .build_global_symbol_cache_freestanding(&[module_id], profile)
+            .build_global_symbol_table_freestanding(&[module_id], profile)
             .unwrap();
 
         // check that the global symbols were collected
@@ -677,7 +618,7 @@ declare module "buffer" {
         let profile = test.default_profile_id(module_id);
         let cache = test
             .compiler
-            .build_global_symbol_cache_freestanding(&[module_id], profile)
+            .build_global_symbol_table_freestanding(&[module_id], profile)
             .unwrap();
 
         let buffer_key = StaticKey::Name(test.program.strings.intern("Buffer"));

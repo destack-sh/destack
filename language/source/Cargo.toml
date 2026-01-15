@@ -17,9 +17,11 @@ destack_base = { workspace = true }
 
 # general
 cfg-if = { workspace = true }
+crossbeam-channel = { workspace = true }
 dashmap = { workspace = true }
 stacker = { workspace = true }
 indexmap = { workspace = true }
+notify = { workspace = true }
 parking_lot = { workspace = true }
 rustix = { workspace = true }
 serde = { workspace = true }

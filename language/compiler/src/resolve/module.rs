@@ -181,7 +181,7 @@ impl Compiler {
         self.resolve_dependency_items(module_id, profile)?;
 
         // build the global symbol table (after dependency resolution)
-        self.require_global_symbol_cache(module.id, profile)?;
+        self.require_global_symbol_table(module.id, profile)?;
 
         // resolve expressions
         {
