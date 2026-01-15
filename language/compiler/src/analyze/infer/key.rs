@@ -3,7 +3,7 @@ use destack_dir::{
     LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeLiteral, TypeTable,
 };
 
-use crate::analyze::common::evaluate_numeric_literal;
+use crate::analyze::evaluate_numeric_literal;
 
 /// Canonical kind for index signature key matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

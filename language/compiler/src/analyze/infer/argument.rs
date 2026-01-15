@@ -286,10 +286,13 @@ impl Compiler {
         // default expression
         if let Some(default_expression) = static_parameter.default_expression.as_ref() {
             let resolved_argument = self.resolve_default_static_argument(
+                module,
                 profile,
                 static_parameter,
                 default_expression,
                 treat_type_arguments_as_types,
+                tree,
+                symbols,
                 types,
             )?;
 
@@ -417,32 +420,44 @@ impl Compiler {
     /// Resolve a default static argument for a parameter.
     fn resolve_default_static_argument(
         &self,
+        module: &Module,
         profile: ProfileId,
         static_parameter: &StaticParameter,
         default_expression: &GlobalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
-        // prefer value defaults when type arguments stay unconverted
-        if !treat_type_arguments_as_types {
-            let module = self.program.modules.get(default_expression.module_id);
-            let module = module.read();
-            let tree = module.dir(profile).tree.read();
-            if let Some(value) =
-                self.evaluate_static_expression_value(default_expression.local_id, &tree)
-            {
-                return Ok(StaticArgument::Evaluated {
-                    name: static_parameter.name,
-                    value,
-                });
-            }
+        // select the module context for the default expression
+        if default_expression.module_id == module.id {
+            return self.evaluate_static_default_argument(
+                module,
+                profile,
+                static_parameter.kind,
+                static_parameter.name,
+                default_expression.local_id,
+                treat_type_arguments_as_types,
+                tree,
+                symbols,
+                types,
+            );
         }
 
+        // load the remote module context for the default expression
+        let default_module = self.program.modules.get(default_expression.module_id);
+        let default_module = default_module.read();
+        let default_tree = default_module.dir(profile).tree.read();
+        let default_symbols = default_module.dir(profile).symbols.read();
         self.evaluate_static_default_argument(
+            &default_module,
             profile,
             static_parameter.kind,
             static_parameter.name,
-            default_expression,
+            default_expression.local_id,
+            treat_type_arguments_as_types,
+            &default_tree,
+            &default_symbols,
             types,
         )
     }
@@ -1248,44 +1263,57 @@ impl Compiler {
     /// Evaluate a static default expression for a parameter.
     pub(super) fn evaluate_static_default_argument(
         &self,
+        module: &Module,
         profile: ProfileId,
         parameter_kind: StaticParameterKind,
         name: Option<StringId>,
-        default_expression: &GlobalNodeId<Expression>,
+        default_expression: LocalNodeId<Expression>,
+        treat_type_arguments_as_types: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
-        let module = self.program.modules.get(default_expression.module_id);
-        let module = module.read();
-        let tree = module.dir(profile).tree.read();
-        let symbols = module.dir(profile).symbols.read();
+        // prefer value defaults when type arguments stay unconverted
+        if !treat_type_arguments_as_types
+            && let Some(value) = self.evaluate_static_expression_value(default_expression, tree)
+        {
+            return Ok(StaticArgument::Evaluated { name, value });
+        }
 
+        // evaluate default value based on the parameter kind
         let value = match parameter_kind {
             StaticParameterKind::Type => {
-                let ty_id = self.try_evaluate_expression_to_type(
-                    &module,
+                let resolved = self.try_evaluate_expression_to_type_value(
+                    module,
                     profile,
-                    default_expression.local_id,
-                    &tree,
-                    &symbols,
+                    default_expression,
+                    tree,
+                    symbols,
                     types,
                 )?;
 
-                if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
-                    StaticExpression::Unevaluated {
-                        node: default_expression.local_id,
+                let resolved = match resolved {
+                    Type::Unevaluated(_) => {
+                        return Ok(StaticArgument::Evaluated {
+                            name,
+                            value: StaticExpression::Unevaluated {
+                                node: default_expression,
+                            },
+                        });
                     }
-                } else {
-                    StaticExpression::Type { ty: ty_id }
-                }
+                    resolved => resolved,
+                };
+
+                let ty_id = types.insert_type_from(resolved, default_expression);
+                StaticExpression::Type { ty: ty_id }
             }
             StaticParameterKind::Value => {
-                if let Some(value) =
-                    self.evaluate_static_expression_value(default_expression.local_id, &tree)
+                if let Some(value) = self.evaluate_static_expression_value(default_expression, tree)
                 {
                     value
                 } else {
                     StaticExpression::Unevaluated {
-                        node: default_expression.local_id,
+                        node: default_expression,
                     }
                 }
             }

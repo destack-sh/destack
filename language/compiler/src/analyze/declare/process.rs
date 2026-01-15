@@ -75,9 +75,16 @@ impl Compiler {
                 break;
             }
 
-            // repeat when new types were added
-            if types.type_count() != type_count {
-                did_change = true;
+            // repeat when new unevaluated types were added
+            let new_type_count = types.type_count();
+            if new_type_count != type_count {
+                for i in type_count..new_type_count {
+                    let ty_id = LocalTypeId::new(i);
+                    if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+                        did_change = true;
+                        break;
+                    }
+                }
             }
         }
 
