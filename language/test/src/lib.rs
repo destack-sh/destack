@@ -4,6 +4,7 @@ pub mod ecosystem;
 pub mod formatter;
 pub mod harness;
 pub mod mdtest;
+pub mod optimize;
 pub mod query;
 pub mod smoke;
 pub mod specification;

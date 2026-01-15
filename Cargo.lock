@@ -1085,12 +1085,22 @@ dependencies = [
  "destack_parser",
  "destack_runtime",
  "destack_source",
+ "destack_test_mirbench",
  "destack_vm",
  "destack_workspace",
  "pulldown-cmark",
  "rayon",
  "serde",
  "toml 0.8.23",
+]
+
+[[package]]
+name = "destack_test_mirbench"
+version = "0.51.6"
+dependencies = [
+ "clap",
+ "destack_mir",
+ "destack_vm",
 ]
 
 [[package]]
@@ -1106,6 +1116,7 @@ dependencies = [
  "destack_base",
  "destack_mir",
  "destack_source",
+ "destack_test_mirbench",
  "destack_vm_abi",
  "perf-event",
  "pprof",

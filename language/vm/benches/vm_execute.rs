@@ -1,6 +1,5 @@
-mod program;
-
 use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use destack_test_mirbench as program;
 use destack_vm::memory::Value;
 use pprof::criterion::{Output, PProfProfiler};
 use program::Program;

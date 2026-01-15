@@ -65,6 +65,10 @@ impl PackagePipeline for PackagePassPipeline {
     fn name(&self) -> &'static str {
         "PackagePassPipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that runs program passes in sequence.
@@ -125,6 +129,10 @@ impl ProgramPipeline for ProgramPassPipeline {
 
     fn name(&self) -> &'static str {
         "ProgramPassPipeline"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -190,6 +198,10 @@ impl ProgramPipeline for PackageLevelProgramPipeline {
     fn name(&self) -> &'static str {
         "PackageLevelProgramPipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that runs a module pipeline on each module in a package.
@@ -205,7 +217,7 @@ impl<P: Pipeline> ModuleToPackageAdaptor<P> {
     }
 }
 
-impl<P: Pipeline> PackagePipeline for ModuleToPackageAdaptor<P> {
+impl<P: Pipeline + 'static> PackagePipeline for ModuleToPackageAdaptor<P> {
     fn run(&self, workset: &mut PackageWorkset, ctx: &mut PackagePipelineContext) -> bool {
         // track whether any module changes
         let mut any_changed = false;
@@ -227,6 +239,10 @@ impl<P: Pipeline> PackagePipeline for ModuleToPackageAdaptor<P> {
     fn name(&self) -> &'static str {
         "ModuleToPackage"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that runs a package pipeline on each package in a program.
@@ -242,7 +258,7 @@ impl<P: PackagePipeline> PackageToProgramAdaptor<P> {
     }
 }
 
-impl<P: PackagePipeline> ProgramPipeline for PackageToProgramAdaptor<P> {
+impl<P: PackagePipeline + 'static> ProgramPipeline for PackageToProgramAdaptor<P> {
     fn run(&self, workset: &mut ProgramWorkset, ctx: &mut ProgramPipelineContext) -> bool {
         // track whether any package changes
         let mut any_changed = false;
@@ -263,6 +279,10 @@ impl<P: PackagePipeline> ProgramPipeline for PackageToProgramAdaptor<P> {
 
     fn name(&self) -> &'static str {
         "PackageToProgram"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -290,7 +310,7 @@ impl<P: PackagePipeline> RepeatedPackagePipeline<P> {
     }
 }
 
-impl<P: PackagePipeline> PackagePipeline for RepeatedPackagePipeline<P> {
+impl<P: PackagePipeline + 'static> PackagePipeline for RepeatedPackagePipeline<P> {
     fn run(&self, workset: &mut PackageWorkset, ctx: &mut PackagePipelineContext) -> bool {
         // track whether any iteration changed the workset
         let mut any_changed = false;
@@ -314,6 +334,10 @@ impl<P: PackagePipeline> PackagePipeline for RepeatedPackagePipeline<P> {
 
     fn name(&self) -> &'static str {
         "RepeatedPackage"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -341,7 +365,7 @@ impl<P: ProgramPipeline> RepeatedProgramPipeline<P> {
     }
 }
 
-impl<P: ProgramPipeline> ProgramPipeline for RepeatedProgramPipeline<P> {
+impl<P: ProgramPipeline + 'static> ProgramPipeline for RepeatedProgramPipeline<P> {
     fn run(&self, workset: &mut ProgramWorkset, ctx: &mut ProgramPipelineContext) -> bool {
         // track whether any iteration changed the workset
         let mut any_changed = false;
@@ -365,6 +389,10 @@ impl<P: ProgramPipeline> ProgramPipeline for RepeatedProgramPipeline<P> {
 
     fn name(&self) -> &'static str {
         "RepeatedProgram"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -412,6 +440,10 @@ impl PackagePipeline for PackageCompositePipeline {
     fn name(&self) -> &'static str {
         "PackageCompositePipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that runs multiple program pipelines in sequence.
@@ -458,6 +490,10 @@ impl ProgramPipeline for ProgramCompositePipeline {
     fn name(&self) -> &'static str {
         "ProgramCompositePipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 #[cfg(test)]
@@ -494,6 +530,10 @@ mod tests {
         fn name(&self) -> &'static str {
             "CountingPackage"
         }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
     }
 
     /// Program pipeline that increments a counter.
@@ -520,6 +560,10 @@ mod tests {
 
         fn name(&self) -> &'static str {
             "CountingProgram"
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     }
 
@@ -550,6 +594,10 @@ mod tests {
 
         fn name(&self) -> &'static str {
             "ToggleProgram"
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
         }
     }
 

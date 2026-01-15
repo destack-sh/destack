@@ -1,8 +1,7 @@
 use clap::Parser;
 use std::time::Duration;
 
-#[path = "../benches/program/mod.rs"]
-mod program;
+use destack_test_mirbench as program;
 
 /// Command line arguments.
 #[derive(Parser)]

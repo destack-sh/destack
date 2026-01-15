@@ -30,6 +30,7 @@ perf-event = { version = "0.4.8", optional = true }
 [dev-dependencies]
 clap = { version = "4.5", features = ["derive"] }
 criterion = { workspace = true }
+destack_test_mirbench = { workspace = true, features = ["cli", "stats"] }
 pprof = { workspace = true }
 
 [[bench]]
