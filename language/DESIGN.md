@@ -1019,6 +1019,7 @@ These patterns rarely appear in production code:
 - The **comma operator** is mostly seen in minified code or obscure one-liners. Destack uses `()` for tuples instead, which is more explicit and composes better with the type system than TypeScript's `[T, U]` array syntax.
 
 Just as `.tsx` extends `.ts` with JSX syntax (introducing the generic arrow ambiguity), `.ds` extends `.tsx` with Destack features like tuples.
+Index signatures follow TypeScript numeric key coercion rules, including numeric string literals counting as number keys.
 
 ### "TypeScript++"
 

@@ -5,7 +5,10 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::super::common::NormalizationMode;
-use super::{field_key_matches_index_kind, index_key_kind_for_type, index_key_kinds_compatible};
+use super::{
+    field_key_matches_index_kind, index_key_kind_for_type,
+    index_key_kinds_compatible_for_assignability,
+};
 use crate::{AnalyzeOptions, Compiler};
 
 /// Clear assignability recursion state on drop.
@@ -1498,7 +1501,7 @@ impl Compiler {
             for source_signature in source_signatures {
                 let target_kind = index_key_kind_for_type(target_signature.key_type, types);
                 let source_kind = index_key_kind_for_type(source_signature.key_type, types);
-                if !index_key_kinds_compatible(target_kind, source_kind) {
+                if !index_key_kinds_compatible_for_assignability(target_kind, source_kind) {
                     continue;
                 }
                 has_matching_key_kind = true;
@@ -1549,7 +1552,7 @@ impl Compiler {
     ) -> bool {
         let target_kind = index_key_kind_for_type(target_signature.key_type, types);
         let source_kind = index_key_kind_for_type(source_signature.key_type, types);
-        if !index_key_kinds_compatible(target_kind, source_kind) {
+        if !index_key_kinds_compatible_for_assignability(target_kind, source_kind) {
             return false;
         }
 

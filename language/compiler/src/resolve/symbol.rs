@@ -90,14 +90,13 @@ impl Compiler {
                 }
 
                 // resolve module binding scopes that contain a global declaration
-                if saw_global {
-                    if let Declaration::Namespace {
+                if saw_global
+                    && let Declaration::Namespace {
                         descriptor, scope, ..
                     } = declaration
-                        && matches!(descriptor.name, Some(Name::String(_)))
-                    {
-                        return Some(*scope);
-                    }
+                    && matches!(descriptor.name, Some(Name::String(_)))
+                {
+                    return Some(*scope);
                 }
             }
 

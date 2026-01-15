@@ -525,8 +525,7 @@ impl Compiler {
                         return Err(ResolveError::UnresolvedModule {
                             node: dependency.node.into_anchored(Some(profile_id)),
                             target: dependency.target,
-                        }
-                        .into());
+                        });
                     }
                 };
                 cache.pending.push_back(remote_module_id);

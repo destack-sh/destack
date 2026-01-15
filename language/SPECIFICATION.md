@@ -1315,6 +1315,7 @@ const t: Type<Point> = Point; // explicit annotation
 
 The `typeOf` function returns a descriptor for a value's type (unlike the runtime `typeof`, which returns a coarse-grained string like `"object"`).
 The type-level `typeof` operator returns the value type of an expression, including constructor signatures and static members for classes and structs:
+The `typeof` operator is type-only, and type aliases are not values in expression position.
 
 ```
 const p = Point { x: 1, y: 2 };
@@ -2717,6 +2718,8 @@ Index operators for subscript access and assignment (like Python's `__getitem__`
 Array and tuple indexing is bounds checked and returns the element type.
 Out of bounds accesses trigger the configured bounds check failure.
 `noUncheckedIndexedAccess` only affects index signatures and other dynamic indexers.
+String index signatures accept numeric index expressions because numeric keys coerce to strings.
+Number index signatures accept numeric indices and numeric string literals that are canonical JS numeric names.
 
 ### Type Operators
 

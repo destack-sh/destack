@@ -85,14 +85,46 @@ class Counter {
 }
 
 type CounterCtor = typeof Counter;
+type CounterNext = (typeof Counter)["next"];
 
 let ctor: CounterCtor = Counter;
-
 let okNext: int32 = ctor.next(1);
+
+let okFn: CounterNext = Counter.next;
+```
+
+### typeof rejects static method call assignability
+
+> `typeof` static method results must match the expected type.
+
+```ds
+class Counter {
+    static next(value: int32): int32 { return value + 1 }
+}
+
+type CounterCtor = typeof Counter;
+
+let ctor: CounterCtor = Counter;
 let badNext: string = ctor.next(1);
 ```
 
 - contains: type int32 is not assignable to type string
+
+### typeof rejects incompatible static method types
+
+> `typeof` indexed access must preserve the static method signature.
+
+```ds
+class Counter {
+    static next(value: int32): int32 { return value + 1 }
+}
+
+type CounterNext = (typeof Counter)["next"];
+
+let badFn: CounterNext = (value: string) => value;
+```
+
+- contains: type (string): string is not assignable to type CounterNext
 
 ### typeof inherits base constructors
 

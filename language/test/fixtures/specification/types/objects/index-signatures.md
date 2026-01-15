@@ -1,6 +1,8 @@
 # Index Signatures
 
-## string index signature accepts matching fields
+## string index signatures
+
+### string index signature accepts matching fields
 
 > String index signatures allow string and numeric keys with compatible values.
 
@@ -13,7 +15,7 @@ const bag = { a: 1, 2: 3 }
 bag satisfies Bag;
 ```
 
-## string index signature rejects incompatible fields
+### string index signature rejects incompatible fields
 
 > Fields with incompatible value types are rejected.
 
@@ -26,9 +28,9 @@ const bag = { a: 1, b: "two" }
 bag satisfies Bag;
 ```
 
-- contains: not assignable
+- contains: expected Bag
 
-## satisfies preserves literal type for index access
+### satisfies preserves literal type for index access
 
 > `satisfies` does not widen object literals for index access.
 
@@ -41,7 +43,7 @@ const bag = { a: 1 } satisfies Bag
 let value: number = bag["a"]
 ```
 
-## satisfies does not add index signature
+### satisfies does not add index signature
 
 > Missing properties still reject index access after `satisfies`.
 
@@ -51,14 +53,16 @@ interface Bag {
 }
 
 const bag = { a: 1 } satisfies Bag
-let value: number = bag["missing"]
+let value = bag["missing"]
 ```
 
 - contains: indexing non-indexable
 
-## number index signature rejects string fields
+## number index signatures
 
-> Number index signatures do not accept string fields.
+### number index signature allows string fields
+
+> Number index signatures allow string fields.
 
 ```ds
 interface NumberBag {
@@ -69,9 +73,7 @@ const bag = { a: 1 }
 bag satisfies NumberBag;
 ```
 
-- contains: not assignable
-
-## number index signature accepts numeric fields
+### number index signature accepts numeric fields
 
 > Number index signatures accept numeric field keys.
 
@@ -84,7 +86,37 @@ const bag = { 1: "one", 2: "two" }
 bag satisfies NumberBag;
 ```
 
-## noPropertyAccessFromIndexSignature forbids dot access
+### number index signature accepts numeric string index access
+
+> Numeric string literals index number index signatures.
+
+```ds
+interface NumberBag {
+    [key: number]: string
+}
+
+const bag: NumberBag = { 1: "one", 2: "two" }
+let value: string | undefined = bag["1"]
+```
+
+### number index signature rejects non numeric string index access
+
+> Non numeric string literals do not index number index signatures.
+
+```ds
+interface NumberBag {
+    [key: number]: string
+}
+
+const bag: NumberBag = { 1: "one" }
+let value = bag["missing"]
+```
+
+- contains: indexing non-indexable
+
+## property access
+
+### noPropertyAccessFromIndexSignature forbids dot access
 
 ```ds:dsconfig.json
 { "compilerOptions": { "noPropertyAccessFromIndexSignature": true } }
@@ -105,9 +137,9 @@ let value = bag.missing
 
 - contains: only available via index signature
 
-## dot access from index signature is allowed by default
+### dot access from index signature is allowed by default
 
-```ts
+```ts:main.ts
 interface Bag {
     [key: string]: number
 }

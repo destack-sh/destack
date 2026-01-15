@@ -694,12 +694,19 @@ impl Compiler {
 
                 // intersect values across elements
                 for element_id in elements {
+                    // skip descriptor wrappers when resolving member keys
+                    if matches!(types.get_type(element_id), Type::Value { .. }) {
+                        continue;
+                    }
                     let value_type =
                         self.index_access_for_literal_key_inner(element_id, key, types, visited)?;
                     value_types.push(value_type);
                 }
-
-                Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                if value_types.is_empty() {
+                    None
+                } else {
+                    Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                }
             }
             _ => {
                 let mut value_types = Vec::new();
@@ -771,12 +778,20 @@ impl Compiler {
 
                 // intersect values across elements
                 for element_id in elements {
+                    // skip descriptor wrappers when resolving member keys
+                    if matches!(types.get_type(element_id), Type::Value { .. }) {
+                        continue;
+                    }
                     let value_type =
                         self.index_access_for_index_kind_inner(element_id, kind, types, visited)?;
                     value_types.push(value_type);
                 }
 
-                Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                if value_types.is_empty() {
+                    None
+                } else {
+                    Some(self.intersection_type_ids_from_list(value_types, source_id, types))
+                }
             }
             _ => {
                 let mut value_types = Vec::new();
