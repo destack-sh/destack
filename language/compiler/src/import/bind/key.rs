@@ -1,5 +1,5 @@
 use crate::Compiler;
-use crate::analyze::common::evaluate_numeric_literal;
+use crate::analyze::evaluate_numeric_literal;
 use destack_ast as ast;
 use destack_dir::{
     DynamicKey, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpaceOrder,

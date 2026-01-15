@@ -207,7 +207,7 @@ impl Compiler {
             }
 
             // fall back to resolving the argument type
-            let ty_id = self.try_evaluate_expression_to_type(
+            let resolved = self.evaluate_expression_to_type(
                 module,
                 profile,
                 expression_id,
@@ -216,13 +216,14 @@ impl Compiler {
                 types,
             )?;
 
-            // keep unevaluated types so later phases can resolve them
-            if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
+            // keep unevaluated arguments so later phases can resolve them
+            let Some(resolved) = resolved else {
                 evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
                 continue;
-            }
+            };
 
             // treat resolved types as static arguments
+            let ty_id = types.insert_type_from(resolved, expression_id);
             evaluated_arguments.push(StaticArgument::Evaluated {
                 name,
                 value: StaticExpression::Type { ty: ty_id },
