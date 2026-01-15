@@ -990,12 +990,13 @@ impl Compiler {
             // new: instance type
             Expression::New {
                 left,
-                static_arguments: _,
+                static_arguments,
                 dynamic_arguments,
             } => self.infer_new_expression(
                 module,
                 expression_id,
                 *left,
+                static_arguments.as_deref(),
                 dynamic_arguments,
                 tree,
                 symbols,
