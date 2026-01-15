@@ -4,7 +4,7 @@ use destack_base::StringId;
 use destack_dir::ModuleTarget;
 use destack_source::ModuleId;
 use destack_workspace::{
-    ModuleBindingReference, ModuleBindingTable, ModuleBindingTableKey, ProfileId, TargetId,
+    ModuleBindingReference, ModuleBindingTable, ModuleBindingTableKey, ProfileId,
 };
 
 use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};

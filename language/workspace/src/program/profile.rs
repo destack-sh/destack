@@ -2,6 +2,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU32, Ordering};
 
+use serde::{Deserialize, Serialize};
+
 use dashmap::DashMap;
 
 use crate::{DsConfigCompilerOptions, Platform, Runtime};
@@ -267,7 +269,7 @@ fn hash_env_entries(entries: &[(String, String)]) -> u64 {
 
 /// Resolved environment values for a profile.
 /// This contains the actual env values that are exposed to import.meta.env.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfileEnv {
     /// The environment entries exposed to user code.
     pub values: Vec<(String, String)>,

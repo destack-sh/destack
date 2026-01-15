@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Argument, LocalNodeId, StringId};
 
 /// A ScalarLiteral is literal scalar value.
@@ -15,7 +17,7 @@ use crate::{Argument, LocalNodeId, StringId};
 /// /abc/
 /// /abc/g
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ScalarLiteral {
     /// Boolean value.
     Boolean(bool),
@@ -48,7 +50,7 @@ pub enum ScalarLiteral {
 /// sql`${stmt}`
 /// sql.expr`SELECT * FROM users WHERE name = ${name}` AND age > ${group.age()} LIMIT 10`
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TemplateLiteral {
     /// Template string value.
     String { string: StringId },
@@ -78,7 +80,7 @@ pub enum TemplateLiteral {
 /// unique symbol
 /// intrinsic
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeLiteral {
     /// Never type `never`.
     Never,
@@ -119,7 +121,7 @@ pub enum TypeLiteral {
 }
 
 /// A TypeIntrinsic is a compiler-provided intrinsic type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicType {
     /// Uppercase string intrinsic.
     Uppercase,
@@ -154,7 +156,7 @@ impl TryFrom<&str> for IntrinsicType {
 }
 
 /// An IntType represents arbitrary width integer with signedness.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum IntType {
     Pointer { is_signed: bool },
     Arbitrary { width: Option<u16>, is_signed: bool },
@@ -174,7 +176,7 @@ impl IntType {
 }
 
 /// A FloatType represents IEEE-754 float.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FloatType {
     /// Float width. May be omitted in AST for better diagnostics.
     pub width: Option<u16>,

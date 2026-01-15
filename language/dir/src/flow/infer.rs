@@ -1,9 +1,10 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{GlobalNodeIdAny, GlobalSymbolId, InferVarId, LocalTypeId, VarianceBound};
 
 /// Represent a single inference variable with bounds and defaults.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InferVar {
     /// Lower bounds for this variable.
     pub lower_bounds: Vec<LocalTypeId>,
@@ -31,7 +32,7 @@ impl InferVar {
 }
 
 /// Describe where an inference variable was created.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub enum InferOrigin {
     /// Variable introduced by an expression.
     Expression(
@@ -61,7 +62,7 @@ pub enum InferOrigin {
 }
 
 /// Describe the scope of an inference variable.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct InferScope {
     /// Owning symbol for this inference variable.
     pub owner: GlobalSymbolId,
@@ -71,7 +72,7 @@ pub struct InferScope {
 
 /// Group id used to tie constraints for candidate selection.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ConstraintGroupId(
     /// Identify the constraint group.
     pub u32,
@@ -85,7 +86,7 @@ impl ConstraintGroupId {
 }
 
 /// Represent a constraint over types and inference variables.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Constraint {
     /// Require two types to be equal.
     Equal {
@@ -138,7 +139,7 @@ pub enum Constraint {
 }
 
 /// Store inference variables and constraints for a module.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct InferTable {
     /// All inference variables allocated in this module.
     pub vars: Vec<InferVar>,

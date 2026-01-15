@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::FileType;
 
 /// The source language type determines parsing and compatibility behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum LanguageType {
     /// Full Destack language (`.ds`) with all features enabled.
     #[default]

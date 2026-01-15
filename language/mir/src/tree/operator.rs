@@ -1,6 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 /// Binary arithmetic/logic operator.
 ///
 /// These operators have wrapping semantics for integer addition, subtraction, and multiplication.
@@ -12,7 +14,7 @@ use std::str::FromStr;
 /// The `add.overflow` family returns an overflow flag.
 /// The `*.unchecked` family has undefined behavior on overflow or division by zero.
 /// The `add.sat` and `sub.sat` intrinsics clamp to the numeric bounds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum BinaryOperator {
     // integer arithmetic
     /// Integer addition.
@@ -252,7 +254,7 @@ impl FromStr for BinaryOperator {
 }
 
 /// Unary operator.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnaryOperator {
     /// Integer negation.
     Negate,

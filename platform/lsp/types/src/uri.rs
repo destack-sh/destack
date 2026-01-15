@@ -24,9 +24,9 @@ impl<'de> Deserialize<'de> for Uri {
         D: serde::Deserializer<'de>,
     {
         let string = String::deserialize(deserializer)?;
-        fluent_uri::Uri::<String>::parse_from(string)
+        fluent_uri::Uri::parse(string)
             .map(Uri)
-            .map_err(|(_, error)| Error::custom(error.to_string()))
+            .map_err(|(error, _)| Error::custom(error.to_string()))
     }
 }
 

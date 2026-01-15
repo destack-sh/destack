@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use destack_source::Uri;
+use serde::{Deserialize, Serialize};
 
 use crate::{Platform, ProfileEnv, Runtime};
 
 /// Metadata about the current module and build configuration.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportMeta {
     /// The URL of the current module.
     pub url: Uri,

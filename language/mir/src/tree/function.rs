@@ -1,4 +1,5 @@
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     AllocSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
@@ -9,7 +10,7 @@ use crate::{
 ///
 /// This allows marking functions as realtime-safe (no managed allocations)
 /// or embedded-safe (stack only).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum AllocationMode {
     /// No restrictions on allocation.
     #[default]
@@ -37,7 +38,7 @@ impl AllocationMode {
 ///
 /// Coroutines are functions that can suspend and resume execution.
 /// This includes generators, async functions, and async generators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CoroutineKind {
     /// Generator function (`function*`).
     /// Yields values to the caller, who controls resumption via `.next()`.
@@ -83,7 +84,7 @@ impl CoroutineKind {
 /// - Parameters as SSA values
 /// - Local variables as stack slots
 /// - Basic blocks forming a control flow graph
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Function {
     /// The function's name (for linking and debugging).
     pub name: StringId,

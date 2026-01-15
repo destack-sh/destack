@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 
 /// Identifier for a TBAA node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TbaaNodeId(u32);
 
 impl TbaaNodeId {
@@ -17,7 +19,7 @@ impl TbaaNodeId {
 }
 
 /// Identifier for a TBAA tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TbaaTagId(u32);
 
 impl TbaaTagId {
@@ -33,7 +35,7 @@ impl TbaaTagId {
 }
 
 /// TBAA node describing a type in the alias tree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TbaaNode {
     /// Optional name for diagnostics or debugging.
     pub name: Option<StringId>,
@@ -44,7 +46,7 @@ pub struct TbaaNode {
 }
 
 /// TBAA tag describing an access in the alias tree.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TbaaTag {
     /// Base type node for the access.
     pub base: TbaaNodeId,
@@ -59,7 +61,7 @@ pub struct TbaaTag {
 }
 
 /// Table of TBAA nodes and tags.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TbaaTable {
     /// Registered TBAA nodes.
     pub nodes: Vec<TbaaNode>,

@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::PackageId;
 
 /// Unique identifier for a build target within a package.
 ///
 /// A target represents a build output with specific settings for code generation,
 /// optimization, and output paths. Each target is associated with a profile.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TargetId {
     /// The package id.
     pub package_id: PackageId,

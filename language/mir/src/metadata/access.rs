@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{AddressSpace, Global, Local, LocalNodeId, MemoryOrdering, Value};
 
 use super::{AliasScopeId, TbaaTagId};
 
 /// The kind of memory access represented by metadata.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryAccessKind {
     /// Reads memory.
     Read,
@@ -22,7 +24,7 @@ pub enum MemoryAccessKind {
 }
 
 /// Target of a memory access.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum MemoryAccessTarget {
     /// Access through a pointer value.
     Pointer(Value),
@@ -35,7 +37,7 @@ pub enum MemoryAccessTarget {
 }
 
 /// Metadata describing a single memory access in an instruction.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemoryAccessMetadata {
     /// The kind of access performed.
     pub kind: MemoryAccessKind,

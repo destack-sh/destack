@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use super::interval::IntervalTree;
 use crate::Span;
 
 /// The type of node search to perform.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum NodeSearchMode {
     /// Search for the biggest outermost node that matches.
     BiggestOutermost,
@@ -15,7 +17,7 @@ pub enum NodeSearchMode {
 }
 
 /// The type of span for a node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NodeSpanType {
     /// The enclosing span of a node.
     Enclosing,
@@ -37,6 +39,47 @@ pub struct NodeSourceMap {
     interval_tree: Option<IntervalTree>,
 }
 
+// serde representation for NodeSourceMap
+#[derive(Serialize, Deserialize)]
+struct NodeSourceMapData {
+    enclosing_spans: Vec<Span>,
+    side_spans: HashMap<(u32, NodeSpanType), Span>,
+}
+
+// serde view for NodeSourceMap
+#[derive(Serialize)]
+struct NodeSourceMapRef<'a> {
+    enclosing_spans: &'a [Span],
+    side_spans: &'a HashMap<(u32, NodeSpanType), Span>,
+}
+
+impl Serialize for NodeSourceMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let data = NodeSourceMapRef {
+            enclosing_spans: &self.enclosing_spans,
+            side_spans: &self.side_spans,
+        };
+        data.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for NodeSourceMap {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = NodeSourceMapData::deserialize(deserializer)?;
+        Ok(Self {
+            enclosing_spans: data.enclosing_spans,
+            side_spans: data.side_spans,
+            interval_tree: None,
+        })
+    }
+}
+
 impl Default for NodeSourceMap {
     fn default() -> Self {
         Self::new()
@@ -44,7 +87,7 @@ impl Default for NodeSourceMap {
 }
 
 /// Result of finding enclosing spans at a position.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnclosingSpan {
     /// The index of the enclosing span in the map.
     pub idx: u32,

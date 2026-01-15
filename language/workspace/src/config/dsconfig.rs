@@ -392,65 +392,45 @@ pub struct DsConfigCacheOptions {
 }
 
 /// Cache mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CacheMode {
     /// Disable caching.
     Off,
     /// Use in-memory caching only.
+    #[default]
     Memory,
     /// Use on-disk caching.
     Disk,
 }
 
-impl Default for CacheMode {
-    fn default() -> Self {
-        Self::Memory
-    }
-}
-
 /// Cache eviction policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CachePolicy {
     /// Least recently used eviction.
+    #[default]
     Lru,
     /// Time to live eviction.
     Ttl,
 }
 
-impl Default for CachePolicy {
-    fn default() -> Self {
-        Self::Lru
-    }
-}
-
 /// Cache validation policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CacheValidate {
     /// Always validate cache entries strictly.
+    #[default]
     Strict,
     /// Validate only on mismatched metadata or changes.
     Fast,
 }
 
-impl Default for CacheValidate {
-    fn default() -> Self {
-        Self::Strict
-    }
-}
-
 /// Cache scope selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CacheScope {
     /// Cache entries are workspace-local.
+    #[default]
     Workspace,
     /// Cache entries are stored in a global shared cache.
     Global,
-}
-
-impl Default for CacheScope {
-    fn default() -> Self {
-        Self::Workspace
-    }
 }
 
 /// Watch configuration options.

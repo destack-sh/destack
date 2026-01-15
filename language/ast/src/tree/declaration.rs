@@ -1,19 +1,22 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     BindingAnchor, DependencyMode, Expression, FunctionSignature, LocalNodeId, Member, Mutability,
     Name, Node, NodeType, Parameter, TypeKind, WhereClause,
 };
 
 /// The kind of declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum DeclarationKind {
     /// Declare.
     Declaration,
     /// Definition.
+    #[default]
     Definition,
 }
 
 /// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub enum DeclarationAbstraction {
     /// Abstract declaration.
     Abstract,
@@ -23,18 +26,18 @@ pub enum DeclarationAbstraction {
 }
 
 /// The descriptor data for a declaration.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct DeclarationDescriptor {
     /// The kind of declaration.
-    pub kind: DeclarationKind = DeclarationKind::Definition,
+    pub kind: DeclarationKind,
     /// The abstraction level of the declaration.
-    pub abstraction: DeclarationAbstraction = DeclarationAbstraction::Concrete,
+    pub abstraction: DeclarationAbstraction,
     /// The anchor of the declaration.
-    pub anchor: BindingAnchor = BindingAnchor::Instance,
+    pub anchor: BindingAnchor,
     /// The name of the declaration.
-    pub name: Option<Name> = None,
+    pub name: Option<Name>,
     /// The export type of the declaration.
-    pub export: Option<DependencyMode> = None,
+    pub export: Option<DependencyMode>,
 }
 
 impl DeclarationDescriptor {
@@ -65,12 +68,12 @@ impl DeclarationDescriptor {
 }
 
 /// The parameterization and constraints of some type or declaration.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Generics {
     /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
+    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
     /// The where clauses of the declaration.
-    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
+    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
 }
 
 impl Generics {
@@ -105,15 +108,15 @@ impl Generics {
 }
 
 /// The polymorphic relations (inheritance and interface implementation).
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Heritage {
     /// The extends types of the declaration.
     /// Only semantically valid for classes (single inheritance) and interfaces.
     /// Structs cannot use extends—use embedding instead.
-    pub extends_types: Option<Vec<LocalNodeId<Expression>>> = None,
+    pub extends_types: Option<Vec<LocalNodeId<Expression>>>,
     /// The implements types of the declaration.
     /// Valid for structs, classes, and enums.
-    pub implements_types: Option<Vec<LocalNodeId<Expression>>> = None,
+    pub implements_types: Option<Vec<LocalNodeId<Expression>>>,
 }
 
 impl Heritage {
@@ -135,7 +138,7 @@ impl Heritage {
 }
 
 /// Declaration introduces a type or such into a scope.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Declaration {
     /// A Global is a global augmentation declaration.
     ///
@@ -497,7 +500,7 @@ impl Declaration {
 }
 
 /// The kind of an enum declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum EnumKind {
     /// A regular enum.
     #[default]
@@ -513,7 +516,7 @@ pub enum EnumKind {
 /// A
 /// B = 4
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EnumField {
     /// The name of the enum field.
     pub name: Name,

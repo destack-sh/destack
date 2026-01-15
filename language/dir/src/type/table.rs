@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, EnumBackingType, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage,
@@ -11,7 +12,7 @@ use crate::{
 };
 
 /// Select a normalization cache.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NormalizationMode {
     /// Normalize for assignability and constraint solving.
     Assign,
@@ -21,7 +22,7 @@ pub enum NormalizationMode {
 
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
 /// NOTE #Cleanup #Architecture: revisit TypeTable.*_in_progress markers
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeTable {
     /// The module id of the type table.
     pub module_id: ModuleId,

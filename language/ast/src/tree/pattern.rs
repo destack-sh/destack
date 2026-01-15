@@ -1,4 +1,5 @@
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 
@@ -21,7 +22,7 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType};
 /// (var x, ...)
 /// { a: 2 }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Pattern {
     /// Wildcard scalar pattern (`_`).
     Wildcard,
@@ -97,7 +98,7 @@ impl Node for Pattern {
 /// ... // spread
 /// ...rest // spread with name
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum PatternField {
     /// Named field, maybe with a pattern (like `x` or `x: 4`).
     Named {

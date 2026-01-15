@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability, Node, NodeType,
     Visibility,
 };
 
 /// The type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingKind {
     /// Definite binding (like `x: int32`).
     Must,
@@ -13,52 +15,53 @@ pub enum BindingKind {
 }
 
 /// The anchor of a binding (static or instance).
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum BindingAnchor {
     /// Static container (static in relation to the container).
     Static,
     /// Instance container (whatever contains the declaration).
+    #[default]
     Instance,
 }
 
 /// The operator to apply to the binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BindingOperator {
     /// Apply `as const` to the value of the binding.
     AsConst,
 }
 
 /// The accessor kind of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AccessorKind {
     /// Auto-accessor (generates getter/setter).
     Accessor,
 }
 
 /// The evaluation timing of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Timing {
     /// Must be evaluated at compile time.
     Comptime,
 }
 
 /// The modifiers of a field-like item.
-#[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct BindingModifier {
     /// The kind of the binding.
-    pub kind: Option<BindingKind> = None,
+    pub kind: Option<BindingKind>,
     /// The anchor of the binding.
-    pub anchor: Option<BindingAnchor> = None,
+    pub anchor: Option<BindingAnchor>,
     /// The mutability of the binding.
-    pub mutability: Option<Mutability> = None,
+    pub mutability: Option<Mutability>,
     /// The visibility of the binding.
-    pub visibility: Option<Visibility> = None,
+    pub visibility: Option<Visibility>,
     /// The operator to apply to the binding.
-    pub operator: Option<BindingOperator> = None,
+    pub operator: Option<BindingOperator>,
     /// The accessor kind of the binding.
-    pub accessor: Option<AccessorKind> = None,
+    pub accessor: Option<AccessorKind>,
     /// The evaluation timing of the binding.
-    pub timing: Option<Timing> = None,
+    pub timing: Option<Timing>,
 }
 
 impl BindingModifier {
@@ -120,7 +123,7 @@ impl BindingModifier {
 }
 
 /// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionMode {
     /// Getter function.
     Getter,
@@ -168,7 +171,7 @@ impl FunctionMode {
 /// set x(value: int32): void
 /// public abstract foo(): void
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Property {
     /// Named field (like `x: int32`).
     Field {
@@ -221,7 +224,7 @@ impl Node for Property {
 /// // static block (ES2022)
 /// static { console.log("initializing") }
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Member {
     /// Associated type alias (like `type Item = T`).
     Type {

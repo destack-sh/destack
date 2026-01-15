@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Expression, LocalNodeId, StringId};
 
 /// A Name is a regular, string, or numeric identifier.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Name {
     /// A regular identifier (regular `x` or `someThing`).
     Identifier(StringId),
@@ -24,7 +26,7 @@ impl Name {
 }
 
 /// A Key is a name or a dynamic key.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum Key {
     /// Name (like `x` or `someThing`).
     Name(Name),

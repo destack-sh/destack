@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::StringId;
@@ -13,7 +14,7 @@ use crate::StringId;
 /// foobar
 /// foo.bar.baz.qux
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Path {
     pub segments: SmallVec<[StringId; 3]>,
 }

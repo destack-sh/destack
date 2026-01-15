@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Asynchrony, Expression, FunctionMode, Generics, LocalNodeId, Parameter};
 
 /// The cardinality of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionCardinality {
     /// Scalar function.
     Scalar,
@@ -10,7 +12,7 @@ pub enum FunctionCardinality {
 }
 
 /// The abstraction level of a declaration.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionAbstraction {
     /// Abstract declaration.
     Abstract,
@@ -23,7 +25,7 @@ pub enum FunctionAbstraction {
 }
 
 /// A FunctionKind is the style of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FunctionKind {
     /// A normal function.
     Function,
@@ -32,7 +34,7 @@ pub enum FunctionKind {
 }
 
 /// The signature of a function.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
     /// The abstraction level of the function.
     pub abstraction: FunctionAbstraction,

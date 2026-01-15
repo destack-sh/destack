@@ -1,10 +1,12 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     BindingModifier, Expression, GlobalNodeId, GlobalSymbolId, LocalNodeId, LocalSymbolId,
     LocalTypeId, Node, NodeType, Pattern, StaticExpression, StringId,
 };
 
 /// A Parameter is a parameter to some construct.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Parameter {
     /// Named scalar parameter (like `T`, `x: int32` or `Validate: boolean = true`).
     Named {
@@ -55,7 +57,7 @@ impl Parameter {
 /// An Argument is a named, positional, spread, or labeled argument.
 /// Parameter mapping (which parameter an argument maps to) is resolved
 /// as part of call resolution, not stored here.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Argument {
     /// Named argument (like `foo: 42` in tree literals).
     Named {
@@ -96,7 +98,7 @@ impl Node for Argument {
 /// Static argument in some static context.
 /// Static evaluation supports all constructs, this is for the resulting static value.
 /// This is a plain value type, not a tree node so we can pass it around directly.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticArgument {
     /// Unevaluated argument (needs compile-time evaluation).
     Unevaluated { node: LocalNodeId<Argument> },
@@ -124,7 +126,7 @@ impl StaticArgument {
 }
 
 /// Describe how a static parameter is interpreted.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum StaticParameterKind {
     /// Use the parameter as a type argument.
     Type,
@@ -133,7 +135,7 @@ pub enum StaticParameterKind {
 }
 
 /// Metadata for resolving and validating a static parameter.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StaticParameter {
     /// Whether this is a type or value parameter.
     pub kind: StaticParameterKind,

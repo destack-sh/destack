@@ -6,8 +6,10 @@
 use std::fmt;
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 /// Compiler intrinsic operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
     // reflection (comptime-only, resolved to constants)
     /// Get the type of a value (comptime only).
@@ -631,7 +633,7 @@ impl FromStr for Intrinsic {
 }
 
 /// Memory ordering for atomic operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum MemoryOrdering {
     /// No ordering constraints (weakest).
     Relaxed,
@@ -681,7 +683,7 @@ impl FromStr for MemoryOrdering {
 }
 
 /// Describes the type signature pattern of an intrinsic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicSignature {
     /// Unary operation: (T) -> T
     /// Examples: sqrt, abs, sin, cos, floor, ceil, clz, ctz, popcnt
@@ -1018,7 +1020,7 @@ impl Intrinsic {
 ///
 /// Most intrinsics return the same type as their first argument.
 /// Some return fixed types (bool, usize) or derived types (pointee, tuple).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IntrinsicResultType {
     /// No result (void intrinsic).
     Void,

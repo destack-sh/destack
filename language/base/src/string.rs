@@ -1,12 +1,13 @@
 use parking_lot::RwLock;
 use rustc_hash::{FxHashMap, FxHasher};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 
 /// Unique identifier for interned strings in a StringPool.
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct StringId(pub NonZeroU32);
 
 impl std::fmt::Debug for StringId {
@@ -53,6 +54,42 @@ pub struct LocalStringPool {
     index: FxHashMap<u64, Vec<StringId>>,
 }
 
+// serde representation for LocalStringPool
+#[derive(Serialize, Deserialize)]
+struct LocalStringPoolData {
+    buffer: String,
+    spans: Vec<(u32, u32)>,
+}
+
+impl Serialize for LocalStringPool {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let data = LocalStringPoolData {
+            buffer: self.buffer.clone(),
+            spans: self.spans.clone(),
+        };
+        data.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for LocalStringPool {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let data = LocalStringPoolData::deserialize(deserializer)?;
+        let mut pool = Self {
+            buffer: data.buffer,
+            spans: data.spans,
+            index: FxHashMap::default(),
+        };
+        pool.rebuild_index();
+        Ok(pool)
+    }
+}
+
 impl Debug for LocalStringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("LocalStringPool")
@@ -88,6 +125,16 @@ impl LocalStringPool {
         let mut h = FxHasher::default();
         s.hash(&mut h);
         h.finish()
+    }
+
+    fn rebuild_index(&mut self) {
+        self.index.clear();
+        for (idx, _) in self.spans.iter().enumerate() {
+            let id = StringId::from_zero_based_index(idx);
+            let s = self.get(id);
+            let hash = Self::hash_str(s);
+            self.index.entry(hash).or_default().push(id);
+        }
     }
 
     /// Get the string associated with the given StringId.
@@ -182,6 +229,28 @@ impl Debug for StringPool {
 impl Default for StringPool {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Serialize for StringPool {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let state = self.inner.read();
+        state.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for StringPool {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let state = LocalStringPool::deserialize(deserializer)?;
+        Ok(Self {
+            inner: RwLock::new(state),
+        })
     }
 }
 
@@ -327,6 +396,25 @@ impl<'a> std::cmp::PartialEq<&str> for StringRef<'a> {
 #[derive(Clone, Default)]
 pub struct ImmutableStringPool {
     inner: LocalStringPool,
+}
+
+impl Serialize for ImmutableStringPool {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.inner.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ImmutableStringPool {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let inner = LocalStringPool::deserialize(deserializer)?;
+        Ok(Self { inner })
+    }
 }
 
 impl Debug for ImmutableStringPool {

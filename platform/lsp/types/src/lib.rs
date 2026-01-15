@@ -2634,6 +2634,7 @@ pub type Pattern = String;
 
 bitflags! {
 /// The kind of file system events to watch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct WatchKind: u8 {
     /// Interested in create events.
     const Create = 1;

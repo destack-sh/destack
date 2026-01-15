@@ -1,9 +1,10 @@
 use destack_source::FileType;
+use serde::{Deserialize, Serialize};
 
 use crate::ModuleType;
 
 /// How to load/interpret a file's content.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Loader {
     // Code loaders → ModuleType::Code
     /// Destack code (.ds, .d.ds)

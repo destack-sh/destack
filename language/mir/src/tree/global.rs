@@ -1,6 +1,7 @@
 //! MIR global data definitions.
 
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{Constant, LocalNodeId, Mutability, Node, NodeType, Type};
 
@@ -9,7 +10,7 @@ use crate::{Constant, LocalNodeId, Mutability, Node, NodeType, Type};
 /// Controls how a symbol (function or global) is linked:
 /// - Where it's defined (here or elsewhere)
 /// - Who can see it (local to module or exported)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Linkage {
     /// Defined here, not visible outside the module (private).
     /// This is the default.
@@ -43,7 +44,7 @@ impl Linkage {
 /// Globals can be mutable (variable) or immutable (constant).
 /// - Mutable globals: module-level state, like `static mut` in Rust
 /// - Immutable globals: constant data, like string literals or lookup tables
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Global {
     /// Name for linking and debugging.
     pub name: StringId,
@@ -117,7 +118,7 @@ impl Global {
 }
 
 /// Initializer for global data.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GlobalInitializer {
     /// Zero-initialized (all bytes zero).
     Zero,

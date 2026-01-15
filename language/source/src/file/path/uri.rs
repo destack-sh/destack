@@ -4,8 +4,10 @@ use std::fmt::Display;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use serde::{Deserialize, Serialize};
+
 /// A generic URI.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Uri(String);
 
 impl Uri {

@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{LocalNodeId, Type};
 
 /// SSA value (virtual register).
@@ -5,7 +7,7 @@ use crate::{LocalNodeId, Type};
 /// Values are created by instructions and consumed by other instructions.
 /// Each value is defined exactly once (SSA property).
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Value(pub u32);
 
 impl Value {
@@ -22,7 +24,7 @@ impl Value {
 
 /// An SSA value paired with its type.
 /// Used for function/block parameters where type information is needed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypedValue {
     /// The SSA value.
     pub value: Value,
@@ -38,7 +40,7 @@ impl TypedValue {
 }
 
 /// A compile-time constant value in MIR.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Constant {
     /// Boolean constant (true or false).
     Boolean {

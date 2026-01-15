@@ -4,7 +4,7 @@
 /// which symbols exist and how types resolve. Multiple targets can share the same
 /// profile, allowing them to share canonical DIR.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ProfileId(pub u32);
 
 impl std::fmt::Debug for ProfileId {
@@ -33,7 +33,7 @@ impl ProfileId {
 
 /// Version of a profile's compiled state (increments on recomputation).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct ProfileVersion(pub u64);
 
 impl std::fmt::Debug for ProfileVersion {
@@ -62,3 +62,4 @@ impl ProfileVersion {
         Self(self.0 + 1)
     }
 }
+use serde::{Deserialize, Serialize};

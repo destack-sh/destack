@@ -1,10 +1,12 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
+use serde::{Deserialize, Serialize};
+
 use crate::Keyword;
 
 /// The type of a node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
     Expression,
     Block,
@@ -65,7 +67,7 @@ pub const ANNOTATION_NODE_TYPES: [NodeType; 5] = [
 ];
 
 /// Unique identifier for nodes with dynamic type in a local arena.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -138,9 +140,11 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
 #[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
+    #[serde(skip)]
     _ty: PhantomData<fn() -> T>,
 }
 
@@ -186,7 +190,7 @@ pub trait Node: Sized {
 }
 
 /// A Visibility is the visibility of an item.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Visibility {
     /// Public to everything.
     Public,
@@ -197,7 +201,7 @@ pub enum Visibility {
 }
 
 /// A Runtime is the evaluation context of an expression / function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Runtime {
     /// The dynamic runtime (regular runtime).
     Dynamic,
@@ -206,7 +210,7 @@ pub enum Runtime {
 }
 
 /// The asynchrony of a function.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Asynchrony {
     /// Synchronous function.
     Sync,
@@ -215,7 +219,7 @@ pub enum Asynchrony {
 }
 
 /// The reference type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceType {
     /// A value reference (like `^T`).
     Value,
@@ -224,7 +228,7 @@ pub enum ReferenceType {
 }
 
 /// A Mutability is the mutability of a binding (const or mutable).
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mutability {
     /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,

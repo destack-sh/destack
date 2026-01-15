@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Uri, fnv1a_32, fnv1a_64};
 
 /// Unique identifier for Packages.
@@ -7,7 +9,7 @@ use crate::{Uri, fnv1a_32, fnv1a_64};
 /// PackageId is a stable hash based on the package's root path, making it
 /// deterministic across compiler runs on the same machine.
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct PackageId(pub u64);
 
 impl std::fmt::Debug for PackageId {
@@ -58,7 +60,7 @@ impl PackageId {
 ///
 /// ModuleId is hierarchical: it includes the PackageId and a local identifier.
 /// This makes ModuleIds stable across compiler runs (for better cross-package caching).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleId {
     /// The package this module belongs to.
     pub package_id: PackageId,
@@ -139,7 +141,7 @@ impl ModuleId {
 
 /// Version of a module's compiled state (increments on recompilation).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 pub struct ModuleVersion(pub u64);
 
 impl std::fmt::Debug for ModuleVersion {

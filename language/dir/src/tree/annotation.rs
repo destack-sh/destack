@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Argument, Expression, LocalNodeId, Node, NodeType, StringId};
 
 /// The position of an annotation.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AnnotationPosition {
     /// Before the node.
     Prefix,
@@ -14,7 +16,7 @@ pub enum AnnotationPosition {
 /// An annotation attached to a DIR node.
 ///
 /// Annotations include documentation, comments, and decorators (metadata/transformations).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Annotation {
     /// Doc annotation (like `///` or `/**`).
     Doc {

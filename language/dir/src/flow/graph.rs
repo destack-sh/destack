@@ -1,17 +1,18 @@
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, LocalNodeIdAny, Pattern};
 
 /// Identify a flow graph block.
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FlowBlockId(
     /// Store the block index.
     pub u32,
 );
 
 /// Describe a control flow graph for a single expression body.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowGraph {
     /// Identify the entry block for the graph.
     pub entry_block: FlowBlockId,
@@ -24,7 +25,7 @@ pub struct FlowGraph {
 }
 
 /// Represent a single basic block in the control flow graph.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowBlock {
     /// Identify the block.
     pub id: FlowBlockId,
@@ -39,7 +40,7 @@ pub struct FlowBlock {
 }
 
 /// Represent an edge between blocks.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FlowEdge {
     /// Identify the edge target block.
     pub target: FlowBlockId,
@@ -50,7 +51,7 @@ pub struct FlowEdge {
 }
 
 /// Describe a guard expression for a control flow edge.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FlowGuard {
     /// A regular guard expression.
     Expression(LocalNodeId<Expression>),
@@ -64,7 +65,7 @@ pub enum FlowGuard {
 }
 
 /// Describe the kind of control flow edge between blocks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FlowEdgeKind {
     /// Unconditional branch.
     Unconditional,

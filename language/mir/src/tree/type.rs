@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use destack_base::StringId;
 
 use crate::{LocalNodeId, Node, NodeType};
@@ -7,7 +9,7 @@ use crate::{LocalNodeId, Node, NodeType};
 /// Specifies which function parameters a returned reference (or aggregate
 /// containing references) may borrow from. Used by the borrow checker to
 /// track borrows across function calls.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum Lifetime {
     /// Use inference rules based on function signature:
     /// - Single `&T` parameter: return borrows from it
@@ -55,7 +57,7 @@ impl Lifetime {
 }
 
 /// Mutability of a reference or binding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mutability {
     /// Immutable (const).
     Immutable,
@@ -64,7 +66,7 @@ pub enum Mutability {
 }
 
 /// Address space for a reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum AddressSpace {
     /// Target default address space.
     #[default]
@@ -121,7 +123,7 @@ impl AddressSpace {
 }
 
 /// Kind of reference in MIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ReferenceKind {
     /// GC-managed reference.
     Managed,
@@ -144,7 +146,7 @@ impl ReferenceKind {
 ///
 /// Determines whether values of this type can be used multiple times
 /// or if each use consumes the value (linear/move semantics).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum Copyability {
     /// Value can be used multiple times freely (like Copy in Rust).
     /// This is the default for primitives and non-owning references.
@@ -177,7 +179,7 @@ impl Copyability {
 }
 
 /// Concrete type in MIR (post-monomorphization).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
     /// Void / unit type (no value).
     Void,
@@ -390,7 +392,7 @@ impl Type {
 }
 
 /// A field in a struct type.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Field {
     /// Name (optional).
     pub name: Option<StringId>,
@@ -405,7 +407,7 @@ impl Node for Field {
 }
 
 /// A named type alias in MIR text format.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeAlias {
     /// Alias name (without the leading `@`).
     pub name: StringId,

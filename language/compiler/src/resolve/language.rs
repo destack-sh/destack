@@ -3,10 +3,13 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringId;
 use destack_builtin::{LanguageSymbol, builtin_lib};
 use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol};
-use destack_workspace::{AmbientLibSymbolKey, Builtins, ProfileId, SymbolGroup, WellKnownSymbols};
+use destack_workspace::{
+    AmbientLibSymbolKey, Builtins, GlobalSymbolGroupKey, GlobalSymbolTable, ProfileId, SymbolGroup,
+    WellKnownSymbols,
+};
 use indexmap::IndexMap;
 
-use crate::{Compiler, GlobalSymbolTable, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
 
 /// Loaded builtin lib modules collected during resolve.
 #[derive(Debug)]
@@ -158,8 +161,6 @@ impl Compiler {
         global_cache: &GlobalSymbolTable,
         declared_names: &HashSet<StringId>,
     ) -> IndexMap<StringId, SymbolGroup> {
-        use crate::resolve::globals::GlobalSymbolGroupKey;
-
         let mut declared_symbols = IndexMap::new();
 
         for &name_id in declared_names {

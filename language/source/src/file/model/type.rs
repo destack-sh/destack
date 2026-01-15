@@ -1,7 +1,9 @@
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
+
 /// The format of a source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FileType {
     // code
     /// `.ds`

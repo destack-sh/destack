@@ -1,9 +1,10 @@
 use destack_base::StringId;
+use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
 /// The mode of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyMode {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
@@ -14,7 +15,7 @@ pub enum DependencyMode {
 }
 
 /// The type of a dependency item.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencyKind {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
@@ -31,7 +32,7 @@ pub enum DependencyKind {
 /// default
 /// default as bar
 /// ```
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DependencyItem {
     /// The type of the item.
     pub mode: DependencyMode,

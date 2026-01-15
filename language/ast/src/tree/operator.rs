@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::TokenType;
 
 /// The operator group (for precedence).
@@ -22,7 +24,7 @@ use crate::TokenType;
 /// &= ^= |=                           // assignment elementwise
 /// &&= ||=                            // assignment logical
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OperatorPrecedence {
     /// Unary postfix operators.
     /// `x() x[] x{} x? x! x++ x--`
@@ -78,7 +80,7 @@ pub enum OperatorPrecedence {
 }
 
 /// A TypeUnaryOperator is a type unary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeUnaryOperator {
     /// `!T`
     Not = 1811,
@@ -159,7 +161,7 @@ impl TypeUnaryOperator {
 
 /// A UnaryOperator is unary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum UnaryOperator {
     /// `++`
     PostIncrement = 2010,
@@ -251,7 +253,7 @@ impl UnaryOperator {
 }
 
 /// A TypeBinaryOperator is a type binary operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeBinaryOperator {
     /// `as`
     // NOTE: cast binds between elementwise and comparison for TS-style parsing
@@ -302,7 +304,7 @@ impl TypeBinaryOperator {
 
 /// A BinaryOperator is an infix binary operator.
 /// Relative order matches precedence. Also see OperatorPrecedence.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BinaryOperator {
     // multiplication
     /// `*`
@@ -514,7 +516,7 @@ impl BinaryOperator {
 /// x &= 1
 /// x |= 1
 /// ```
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignOperator {
     /// `=`
     Assign = 800,
@@ -717,7 +719,7 @@ impl AssignOperator {
 }
 
 /// An InfixOperator is an umbrella for either a binary or assignment operator.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum InfixOperator {
     /// A binary operator.
     Binary(BinaryOperator),

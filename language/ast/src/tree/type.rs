@@ -1,7 +1,9 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Expression, LocalNodeId, StringId};
 
 /// A mapped type parameter.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeMappedParameter {
     /// The parameter name (like `K`).
     pub name: StringId,
@@ -12,7 +14,7 @@ pub struct TypeMappedParameter {
 }
 
 /// A type modifier for mapped types.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypeModifier {
     /// Add a modifier (like `readonly` or `?`).
     Add,
@@ -23,7 +25,7 @@ pub enum TypeModifier {
 }
 
 /// Mapped type modifiers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TypeMappedModifiers {
     /// The readonly modifier.
     pub readonly: TypeModifier,
@@ -32,7 +34,7 @@ pub struct TypeMappedModifiers {
 }
 
 /// A type predicate subject.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TypePredicateSubject {
     /// Identifier subject (like `x` in `x is T`).
     Identifier(StringId),

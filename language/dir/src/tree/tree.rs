@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_source::ModuleId;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     Annotation, Arena, Argument, Block, Declaration, Declarator, DependencyItem, EnumField,
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// Mutable DIR Node tree across a set of related source units. NOT THREAD-SAFE.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct NodeTree {
     /// The module id of the node tree.
     pub module_id: ModuleId,

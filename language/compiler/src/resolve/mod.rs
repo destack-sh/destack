@@ -14,9 +14,6 @@ mod target;
 mod r#type;
 mod warning;
 
-pub(crate) use destack_workspace::{
-    GlobalSymbolTable, GlobalSymbolTableKey, ModuleBindingTable, ModuleBindingTableKey,
-};
 pub(crate) use discover::TargetDiscoveryIssue;
 pub use error::*;
 pub use operator::*;

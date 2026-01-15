@@ -1,5 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 /// The operator used to perform a cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CastOperator {
     /// Preserve the representation without conversion.
     Identity,
@@ -60,7 +62,7 @@ pub enum CastOperator {
 }
 
 /// The source of a cast expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CastSource {
     /// Casts written explicitly in source.
     Explicit,
@@ -69,7 +71,7 @@ pub enum CastSource {
 }
 
 /// The operator used to perform an ownership cast.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OwnershipCastOperator {
     /// Convert a value into a shared borrow.
     BorrowShared,
@@ -86,7 +88,7 @@ pub enum OwnershipCastOperator {
 }
 
 /// The source of an ownership cast expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OwnershipCastSource {
     /// Ownership casts written explicitly in source.
     Explicit,

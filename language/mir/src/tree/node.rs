@@ -4,9 +4,10 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
 use destack_source::{ModuleId, TargetId};
+use serde::{Deserialize, Serialize};
 
 /// The type of a MIR node.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NodeType {
     /// A function definition.
     Function,
@@ -44,7 +45,7 @@ impl NodeType {
 }
 
 /// Unique identifier for nodes with dynamic type in a local arena.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct LocalNodeIdAny {
     pub id: u32,
     pub ty: NodeType,
@@ -133,9 +134,12 @@ impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
 }
 
 /// Unique identifier for nodes in a local arena, parameterized by node type.
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "")]
 #[repr(transparent)]
 pub struct LocalNodeId<T: Node> {
     pub id: u32,
+    #[serde(skip)]
     _ty: PhantomData<fn() -> T>,
 }
 
@@ -226,7 +230,8 @@ impl<T: Node> LocalNodeId<T> {
 }
 
 /// Global node id across modules.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(bound = "")]
 pub struct GlobalNodeId<T: Node> {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -269,7 +274,7 @@ impl<T: Node> From<GlobalNodeId<T>> for LocalNodeId<T> {
 }
 
 /// Global node id across modules (untyped).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct GlobalNodeIdAny {
     /// The module id of the global node.
     pub module_id: ModuleId,
@@ -354,7 +359,7 @@ impl From<GlobalNodeIdAny> for LocalNodeIdAny {
 ///
 /// MIR is always generated per-target, so every MIR node has an associated target.
 /// This type tracks the provenance so diagnostics can find the correct source location.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AnchoredGlobalNodeId {
     /// The global node id.
     pub node_id: GlobalNodeIdAny,

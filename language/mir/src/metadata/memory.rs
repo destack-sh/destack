@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Instruction, LocalNodeId, MemoryAccessMetadata};
 
 use super::{AliasScopeId, AliasScopeTable, TbaaTable, TbaaTagId};
 
 /// Capture behavior for a pointer argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum CaptureKind {
     /// The argument does not escape the callee.
     NoCapture,
@@ -19,7 +21,7 @@ pub enum CaptureKind {
 }
 
 /// Allocation size information for functions returning newly allocated memory.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AllocSize {
     /// The parameter index containing the element size in bytes.
     pub element_size_index: u32,
@@ -38,7 +40,7 @@ impl AllocSize {
 }
 
 /// Attributes that refine pointer aliasing and memory access behavior.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PointerAttributes {
     /// The pointer is guaranteed to be non null.
     pub nonnull: bool,
@@ -63,7 +65,7 @@ pub struct PointerAttributes {
 }
 
 /// Access mode for a pointer argument.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum ArgumentAccess {
     /// The argument is not accessed.
     None,
@@ -77,7 +79,7 @@ pub enum ArgumentAccess {
 }
 
 /// Attributes describing how a call argument may be accessed.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CallArgumentMetadata {
     /// Pointer specific attributes for this argument.
     pub attributes: PointerAttributes,
@@ -92,7 +94,7 @@ pub struct CallArgumentMetadata {
 }
 
 /// Table of memory metadata entries.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MemoryTable {
     /// Memory access metadata keyed by instruction id.
     pub memory_accesses_by_instruction_id:

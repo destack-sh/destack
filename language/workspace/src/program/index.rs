@@ -52,6 +52,13 @@ pub struct GlobalSymbolTable {
     pub pending: VecDeque<ModuleId>,
 }
 
+impl Default for GlobalSymbolTable {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 impl GlobalSymbolTable {
     /// Create an empty table.
     pub fn new() -> Self {
@@ -120,6 +127,12 @@ pub struct ModuleBindingTable {
     pub module_versions: IndexMap<ModuleId, ModuleVersion>,
     /// Module bindings by specifier.
     pub bindings_by_specifier: IndexMap<StringId, Vec<ModuleBindingReference>>,
+}
+
+impl Default for ModuleBindingTable {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ModuleBindingTable {

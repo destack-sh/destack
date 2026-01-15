@@ -1,12 +1,14 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{Expression, LocalNodeId, Parameter, WhereClause};
 
 /// The polymorphism of some type or declaration.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Generics {
     /// The static parameters of the declaration.
-    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>> = None,
+    pub static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
     /// The where clauses of the declaration.
-    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>> = None,
+    pub where_clauses: Option<Vec<LocalNodeId<WhereClause>>>,
 }
 
 impl Generics {
@@ -21,14 +23,14 @@ impl Generics {
 /// Heritage stores expression node IDs that represent the extends/implements/embedded clauses.
 /// These expressions get resolved during the resolve phase like any other expressions.
 /// During analyze phase, the resolved symbols are extracted into `Lineage` (in TypeTable).
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Heritage {
     /// The extends types of the declaration.
-    pub extends_types: Option<Vec<LocalNodeId<Expression>>> = None,
+    pub extends_types: Option<Vec<LocalNodeId<Expression>>>,
     /// The implements types of the declaration.
-    pub implements_types: Option<Vec<LocalNodeId<Expression>>> = None,
+    pub implements_types: Option<Vec<LocalNodeId<Expression>>>,
     /// The embedded types of the declaration.
-    pub embedded_types: Option<Vec<LocalNodeId<Expression>>> = None,
+    pub embedded_types: Option<Vec<LocalNodeId<Expression>>>,
 }
 
 impl Heritage {
@@ -41,7 +43,7 @@ impl Heritage {
 }
 
 /// A TypeBound is a type bound for a reference operation.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum VarianceBound {
     /// Implements a type (such that X implements Y, i.e. X implements Y).
     Implements,
@@ -52,7 +54,7 @@ pub enum VarianceBound {
 }
 
 /// The subtyping relation.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SubtypingMode {
     /// Contravariant (such that X is a subtype of Y, i.e. X <: Y).
     Contravariant,

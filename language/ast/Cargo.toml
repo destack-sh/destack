@@ -19,7 +19,8 @@ destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 
 # general
-smallvec = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+smallvec = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

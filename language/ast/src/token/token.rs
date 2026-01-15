@@ -1,18 +1,20 @@
 use std::fmt::Display;
 
+use serde::{Deserialize, Serialize};
+
 pub use destack_unicode::UNICODE_VERSION;
 
 /// A parsed Token.
 /// It doesn't contain information about data that has been parsed,
 /// only the type of the token and its size.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Token {
     /// The Token tag.
     pub ty: TokenType,
     /// The length of the token in bytes.
     pub len: u32,
     /// The literal body of the token.
-    pub literal: Option<LiteralType> = None,
+    pub literal: Option<LiteralType>,
 }
 
 impl Display for Token {
@@ -36,7 +38,7 @@ impl Token {
 }
 
 /// Enum representing common lexeme types.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TokenType {
     /// --------------------------------------------------
     /// Structural
@@ -442,7 +444,7 @@ impl Display for TokenType {
 }
 
 /// Literal Token for literal, scalar values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum LiteralType {
     /// Boolean (true or false)
     Boolean { value: bool },
@@ -488,7 +490,7 @@ pub enum LiteralType {
 }
 
 /// Numeric literal base (according to its prefix).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum NumberBase {
     /// Number starting with `0b`.
     Binary = 2,
