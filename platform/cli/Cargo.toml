@@ -11,6 +11,7 @@ default-run = "destack"
 [features]
 default = ["dev"]
 dev = ["tiktoken-rs"]
+schema = ["schemars"]
 
 [lib]
 path = "src/lib.rs"
@@ -31,6 +32,11 @@ path = "src/bin/dsc.rs"
 [[bin]]
 name = "dsx"
 path = "src/bin/dsx.rs"
+
+[[bin]]
+name = "generate-cli-schema"
+path = "src/schema.rs"
+required-features = ["schema"]
 
 [dependencies]
 # language
@@ -63,6 +69,7 @@ serde_json = { workspace = true }
 tokio = { version = "1.47.1" }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+schemars = { workspace = true, optional = true }
 
 # dev-only
 tiktoken-rs = { version = "0.9", optional = true }

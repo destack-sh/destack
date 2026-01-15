@@ -1,13 +1,14 @@
 use std::path::PathBuf;
-use std::process::Command;
 
 use clap::{Args, Subcommand};
-use serde_json::{Value, json};
+use serde_json::json;
 
 use crate::common::{
-    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report, report_error,
+    CommandError, CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
+    ensure_no_watch_or_dev, list_payload, print_list_with, print_report, report_error,
 };
 use crate::console;
+use crate::pipeline::script::{load_tasks, shell_command};
 use crate::pipeline::workspace::{resolve_dsconfig_path, workspace_context};
 
 /// Supported task subcommands.
@@ -44,16 +45,19 @@ pub struct TaskArgs {
     pub command: Option<TaskCommand>,
 }
 
+/// Task entry returned by list output.
+#[derive(serde::Serialize)]
+struct TaskListEntry {
+    /// Task name.
+    name: String,
+    /// Task description.
+    description: Option<String>,
+}
+
 /// Run workspace tasks.
 pub fn run(args: &TaskArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("task", &args.program, &args.report) {
         return code;
-    }
-
-    // guard against unsupported json output
-    if args.report.is_json() && matches!(args.command, Some(TaskCommand::Run { .. })) {
-        console::error("error: --output-format json is not supported with task run");
-        return 1;
     }
 
     // load dsconfig and tasks
@@ -71,7 +75,7 @@ pub fn run(args: &TaskArgs) -> i32 {
         }
     };
 
-    let tasks = match load_tasks(&dsconfig_path) {
+    let tasks = match load_tasks(&context.resolver, &dsconfig_path) {
         Ok(tasks) => tasks,
         Err(message) => {
             return report_error("task", &args.report, &message);
@@ -83,27 +87,32 @@ pub fn run(args: &TaskArgs) -> i32 {
         TaskCommand::List => {
             // emit structured output when requested
             if args.report.is_json() {
+                let entries = tasks
+                    .iter()
+                    .map(|task| TaskListEntry {
+                        name: task.name.clone(),
+                        description: task.description.clone(),
+                    })
+                    .collect();
                 let mut report = CommandReport::success("task", 0);
-                report.data = Some(json!({
-                    "tasks": tasks
-                        .iter()
-                        .map(|task| json!({
-                            "name": task.name,
-                            "description": task.description,
-                        }))
-                        .collect::<Vec<_>>(),
-                }));
+                report.data = Some(list_payload(entries));
                 print_report(&report, args.report.format());
             } else if tasks.is_empty() {
                 console::info("task: no tasks defined");
             } else {
-                for task in &tasks {
-                    if let Some(description) = task.description.as_ref() {
-                        console::info(&format!("{}: {}", task.name, description));
-                    } else {
-                        console::info(&task.name);
-                    }
-                }
+                let list_entries = tasks
+                    .iter()
+                    .map(|task| {
+                        let entry = ListEntry::new(task.name.clone());
+                        if let Some(description) = task.description.as_ref() {
+                            entry.line(description.clone())
+                        } else {
+                            entry
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let printer = ListPrinter::info();
+                print_list_with(&list_entries, ListSpacing::Compact, &printer);
             }
             0
         }
@@ -129,7 +138,17 @@ pub fn run(args: &TaskArgs) -> i32 {
 
             // return command when dry run is enabled
             if dry_run {
-                console::info(&command);
+                if args.report.is_json() {
+                    let mut report = CommandReport::success("task", 0);
+                    report.data = Some(json!({
+                        "task": task.name,
+                        "command": command,
+                        "dry_run": true,
+                    }));
+                    print_report(&report, args.report.format());
+                } else {
+                    console::info(&command);
+                }
                 return 0;
             }
 
@@ -143,9 +162,58 @@ pub fn run(args: &TaskArgs) -> i32 {
             let status = shell.status();
 
             match status {
-                Ok(status) => status.code().unwrap_or(1),
+                Ok(status) => {
+                    let exit_code = status.code().unwrap_or(1);
+                    if args.report.is_json() {
+                        let mut report = if exit_code == 0 {
+                            CommandReport::success("task", exit_code)
+                        } else {
+                            let message = format!("task exited with code {exit_code}");
+                            let mut report = CommandReport::failure("task", exit_code);
+                            report.summary = Some(message.clone());
+                            report.error = Some(CommandError::new("task_exit", "task", message));
+                            report
+                        };
+                        report.data = Some(json!({
+                            "task": task.name,
+                            "command": command,
+                            "cwd": task
+                                .cwd
+                                .as_ref()
+                                .unwrap_or(&dsconfig_dir)
+                                .display()
+                                .to_string(),
+                            "exit_code": exit_code,
+                            "dry_run": false,
+                        }));
+                        print_report(&report, args.report.format());
+                    } else if exit_code != 0 {
+                        console::warn(&format!("process exited with code {exit_code}"));
+                    }
+                    exit_code
+                }
                 Err(error) => {
-                    console::error(&format!("task failed: {error}"));
+                    if args.report.is_json() {
+                        let message = format!("task failed: {error}");
+                        let mut report = CommandReport::failure("task", 1);
+                        report.summary = Some(message.clone());
+                        report.error = Some(CommandError::new("task_failed", "task", message));
+                        report.data = Some(json!({
+                            "task": task.name,
+                            "command": command,
+                            "cwd": task
+                                .cwd
+                                .as_ref()
+                                .unwrap_or(&dsconfig_dir)
+                                .display()
+                                .to_string(),
+                            "exit_code": 1,
+                            "dry_run": false,
+                        }));
+                        print_report(&report, args.report.format());
+                    } else {
+                        console::error(&format!("task failed: {error}"));
+                    }
                     1
                 }
             }
@@ -153,95 +221,4 @@ pub fn run(args: &TaskArgs) -> i32 {
     }
 }
 
-/// Task specification loaded from dsconfig.json.
-struct TaskSpec {
-    /// The task name.
-    name: String,
-    /// The shell command to execute.
-    command: String,
-    /// The task description.
-    description: Option<String>,
-    /// The working directory for the task.
-    cwd: Option<PathBuf>,
-}
-
-/// Load task specifications from a dsconfig.json file.
-fn load_tasks(dsconfig_path: &PathBuf) -> Result<Vec<TaskSpec>, String> {
-    // read the dsconfig file
-    let content = std::fs::read_to_string(dsconfig_path)
-        .map_err(|e| format!("failed to read {}: {e}", dsconfig_path.display()))?;
-
-    // parse the config json
-    let value: Value =
-        serde_json::from_str(&content).map_err(|e| format!("invalid dsconfig: {e}"))?;
-
-    // extract the task map
-    let Some(tasks_value) = value.get("tasks") else {
-        return Ok(Vec::new());
-    };
-    let tasks_object = tasks_value
-        .as_object()
-        .ok_or_else(|| "tasks must be an object".to_string())?;
-
-    // resolve the dsconfig directory
-    let dsconfig_dir = dsconfig_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| dsconfig_path.clone());
-
-    // build task specs from json values
-    let mut tasks = Vec::new();
-    for (name, value) in tasks_object {
-        if let Some(command) = value.as_str() {
-            tasks.push(TaskSpec {
-                name: name.clone(),
-                command: command.to_string(),
-                description: None,
-                cwd: None,
-            });
-            continue;
-        }
-
-        // parse object form of the task
-        let Some(command) = value.get("command").and_then(|v| v.as_str()) else {
-            return Err(format!("task '{name}' is missing a command"));
-        };
-        let description = value
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let cwd = value.get("cwd").and_then(|v| v.as_str()).map(|path| {
-            let path = PathBuf::from(path);
-            if path.is_absolute() {
-                path
-            } else {
-                dsconfig_dir.join(path)
-            }
-        });
-
-        // push the expanded task spec
-        tasks.push(TaskSpec {
-            name: name.clone(),
-            command: command.to_string(),
-            description,
-            cwd,
-        });
-    }
-
-    Ok(tasks)
-}
-
-/// Build a shell command for task execution.
-fn shell_command(command: &str) -> Command {
-    // use cmd on windows
-    if cfg!(windows) {
-        let mut cmd = Command::new("cmd");
-        cmd.arg("/C").arg(command);
-        return cmd;
-    }
-
-    // default to sh on unix
-    let mut cmd = Command::new("sh");
-    cmd.arg("-c").arg(command);
-    cmd
-}
+// task loading helpers live in pipeline::script

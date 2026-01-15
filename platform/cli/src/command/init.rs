@@ -1,10 +1,14 @@
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
 use serde_json::json;
 
-use crate::common::{CommandReport, ReportArgs, print_report, report_error};
+use destack_source::{FileSystem, PhysicalFileSystem};
+
+use crate::common::{
+    CommandError, CommandReport, FileSystemOverride, ReportArgs, print_report, report_error,
+};
 use crate::console;
 
 /// Template type for initialization.
@@ -38,6 +42,10 @@ pub struct InitArgs {
     #[arg(long, short = 'f')]
     pub force: bool,
 
+    /// Test only file system override.
+    #[arg(skip)]
+    pub fs_override: Option<FileSystemOverride>,
+
     /// Report output options.
     #[command(flatten)]
     pub report: ReportArgs,
@@ -60,11 +68,28 @@ pub fn run(args: &InitArgs) -> i32 {
         },
     };
 
+    // select the file system implementation
+    let fs: Arc<dyn FileSystem> = args
+        .fs_override
+        .as_ref()
+        .map(FileSystemOverride::fs)
+        .unwrap_or_else(|| Arc::new(PhysicalFileSystem::new()));
+
     let mut created = Vec::new();
 
     // ensure directory exists
-    if !dir.exists() {
-        if let Err(e) = fs::create_dir_all(&dir) {
+    let dir_exists = match fs.exists(&dir) {
+        Ok(exists) => exists,
+        Err(e) => {
+            return report_error(
+                "init",
+                &args.report,
+                &format!("failed to check directory: {e}"),
+            );
+        }
+    };
+    if !dir_exists {
+        if let Err(e) = fs.create_dir_all(&dir) {
             return report_error(
                 "init",
                 &args.report,
@@ -87,13 +112,23 @@ pub fn run(args: &InitArgs) -> i32 {
 
     // create dsconfig.json
     let dsconfig_path = dir.join("dsconfig.json");
-    if dsconfig_path.exists() && !args.force {
+    let dsconfig_exists = match fs.exists(&dsconfig_path) {
+        Ok(exists) => exists,
+        Err(e) => {
+            return report_error(
+                "init",
+                &args.report,
+                &format!("failed to check dsconfig.json: {e}"),
+            );
+        }
+    };
+    if dsconfig_exists && !args.force {
         if !args.report.is_json() {
             console::warn("dsconfig.json already exists (use --force to overwrite)");
         }
     } else {
         let dsconfig = create_dsconfig(&name, args.template);
-        if let Err(e) = fs::write(&dsconfig_path, dsconfig) {
+        if let Err(e) = fs.write(dsconfig_path.as_path(), dsconfig.as_bytes()) {
             return report_error(
                 "init",
                 &args.report,
@@ -113,6 +148,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
         Template::Lib => {
             if let Err(code) = create_source_file(
+                fs.as_ref(),
                 &dir,
                 "src/index.ds",
                 LIB_TEMPLATE,
@@ -124,6 +160,7 @@ pub fn run(args: &InitArgs) -> i32 {
         }
         Template::App => {
             if let Err(code) = create_source_file(
+                fs.as_ref(),
                 &dir,
                 "src/main.ds",
                 APP_TEMPLATE,
@@ -158,14 +195,17 @@ fn report_code(args: &InitArgs, code: i32) -> i32 {
     }
 
     // emit a failure report for json output
+    let message = "failed to create project files";
     let mut report = CommandReport::failure("init", code);
-    report.summary = Some("failed to create project files".to_string());
+    report.summary = Some(message.to_string());
+    report.error = Some(CommandError::new("init_failed", "init", message));
     print_report(&report, args.report.format());
     code
 }
 
 /// Create a source file from a template.
 fn create_source_file(
+    fs: &dyn FileSystem,
     dir: &Path,
     rel_path: &str,
     content: &str,
@@ -176,16 +216,29 @@ fn create_source_file(
     let file_path = dir.join(rel_path);
 
     // ensure parent directory exists
-    if let Some(parent) = file_path.parent()
-        && !parent.exists()
-        && let Err(e) = fs::create_dir_all(parent)
-    {
-        console::error(&format!("failed to create directory: {e}"));
-        return Err(1);
+    if let Some(parent) = file_path.parent() {
+        let parent_exists = match fs.exists(parent) {
+            Ok(exists) => exists,
+            Err(e) => {
+                console::error(&format!("failed to check directory: {e}"));
+                return Err(1);
+            }
+        };
+        if !parent_exists && let Err(e) = fs.create_dir_all(parent) {
+            console::error(&format!("failed to create directory: {e}"));
+            return Err(1);
+        }
     }
 
     // handle existing files without force
-    if file_path.exists() && !force {
+    let file_exists = match fs.exists(&file_path) {
+        Ok(exists) => exists,
+        Err(e) => {
+            console::error(&format!("failed to check file: {e}"));
+            return Err(1);
+        }
+    };
+    if file_exists && !force {
         if !suppress_output {
             console::warn(&format!(
                 "{rel_path} already exists (use --force to overwrite)",
@@ -193,7 +246,7 @@ fn create_source_file(
         }
     } else {
         // write the template content
-        if let Err(e) = fs::write(&file_path, content) {
+        if let Err(e) = fs.write(&file_path, content.as_bytes()) {
             console::error(&format!("failed to write {rel_path}: {e}"));
             return Err(1);
         }
@@ -208,25 +261,33 @@ fn create_source_file(
 /// Build the dsconfig.json content for a template.
 fn create_dsconfig(_name: &str, template: Template) -> String {
     // select include patterns by template
-    let include = match template {
-        Template::Minimal => r#""include": ["**/*.ds", "**/*.ts"]"#,
-        Template::Lib | Template::App => r#""include": ["src/**/*.ds", "src/**/*.ts"]"#,
+    let (include, root_dir) = match template {
+        Template::Minimal => (vec!["**/*.ds", "**/*.ts"], None),
+        Template::Lib | Template::App => (vec!["src/**/*"], Some("src")),
     };
 
-    format!(
-        r#"{{
-  "$schema": "https://destack.sh/schemas/dsconfig.schema.json",
-  "compilerOptions": {{
-    "target": "esnext",
-    "module": "esnext",
-    "strict": true,
-    "lib": ["esnext"]
-  }},
-  {include},
-  "exclude": ["node_modules", "dist"]
-}}
-"#
-    )
+    // define compiler options for the template
+    let mut compiler_options = json!({
+        "target": "esnext",
+        "module": "esnext",
+        "strict": true,
+        "lib": ["esnext"],
+    });
+    // set rootDir for src-based templates
+    if let Some(root_dir) = root_dir {
+        compiler_options["rootDir"] = json!(root_dir);
+    }
+
+    // build the dsconfig payload
+    let dsconfig = json!({
+        "$schema": "https://destack.sh/schemas/dsconfig.schema.json",
+        "compilerOptions": compiler_options,
+        "include": include,
+        "exclude": ["node_modules", "dist"],
+    });
+
+    // serialize the dsconfig json
+    serde_json::to_string_pretty(&dsconfig).unwrap_or_else(|_| dsconfig.to_string())
 }
 
 const LIB_TEMPLATE: &str = r#"/// Library entry point.

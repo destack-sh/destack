@@ -8,14 +8,14 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_json::{JsonFormatOptions, format_json, parse as parse_json};
 use destack_parser::{Parser, colorize_source};
 use destack_source::{
-    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileType, LanguageType, Uri, glob,
+    DiagnosticOptions, DiagnosticSeverity, File, FileId, FileSystem, FileType, LanguageType, Uri,
 };
 use destack_workspace::{FormatterOptions, Program};
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::common::{
-    CommandReport, DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
+    CommandError, CommandReport, DiagnosticArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
     print_diagnostics, print_report,
 };
 use crate::console;
@@ -53,8 +53,10 @@ pub struct FmtArgs {
 }
 
 /// Find the nearest dsconfig.json by walking up parent directories.
-fn find_dsconfig_json(path: &Path) -> Option<PathBuf> {
-    let mut current = if path.is_file() {
+fn find_dsconfig_json(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
+    let metadata = fs.metadata(path).ok();
+    let is_file = matches!(metadata, Some(meta) if meta.is_file);
+    let mut current = if is_file {
         path.parent().map(|p| p.to_path_buf())
     } else {
         Some(path.to_path_buf())
@@ -62,7 +64,7 @@ fn find_dsconfig_json(path: &Path) -> Option<PathBuf> {
 
     while let Some(dir) = current {
         let dsconfig_path = dir.join("dsconfig.json");
-        if dsconfig_path.exists() {
+        if fs.exists(&dsconfig_path).unwrap_or(false) {
             return Some(dsconfig_path);
         }
         current = dir.parent().map(|p| p.to_path_buf());
@@ -130,8 +132,8 @@ impl From<IndentStyleJson> for destack_source::IndentStyle {
 }
 
 /// Load formatting options from a dsconfig.json file.
-fn load_dsconfig_formatting(dsconfig_path: &Path) -> Option<FormatterOptions> {
-    let content = std::fs::read_to_string(dsconfig_path).ok()?;
+fn load_dsconfig_formatting(fs: &dyn FileSystem, dsconfig_path: &Path) -> Option<FormatterOptions> {
+    let content = fs.read_to_string(dsconfig_path).ok()?;
     let dsconfig: DsConfigJson = serde_json::from_str(&content).ok()?;
     let fmt = &dsconfig.formatter;
 
@@ -153,9 +155,13 @@ fn load_dsconfig_formatting(dsconfig_path: &Path) -> Option<FormatterOptions> {
 }
 
 /// Get formatting options for a file, checking for dsconfig.json.
-fn get_formatting_options(path: &Path, default: FormatterOptions) -> FormatterOptions {
-    if let Some(dsconfig_path) = find_dsconfig_json(path)
-        && let Some(options) = load_dsconfig_formatting(&dsconfig_path)
+fn get_formatting_options(
+    fs: &dyn FileSystem,
+    path: &Path,
+    default: FormatterOptions,
+) -> FormatterOptions {
+    if let Some(dsconfig_path) = find_dsconfig_json(fs, path)
+        && let Some(options) = load_dsconfig_formatting(fs, &dsconfig_path)
     {
         return options;
     }
@@ -163,15 +169,40 @@ fn get_formatting_options(path: &Path, default: FormatterOptions) -> FormatterOp
 }
 
 /// Collect all formattable files in a directory.
-fn collect_formattable_files(directory: &Path) -> Vec<PathBuf> {
-    FORMATTABLE_TYPES
-        .iter()
-        .filter_map(|ty| ty.glob())
-        .flat_map(|pattern| {
-            let full_pattern = format!("{}/{pattern}", directory.display());
-            glob(&full_pattern)
-        })
-        .collect()
+fn collect_formattable_files(fs: &dyn FileSystem, directory: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_formattable_files_in_dir(fs, directory, &mut files);
+    files
+}
+
+fn collect_formattable_files_in_dir(
+    fs: &dyn FileSystem,
+    directory: &Path,
+    files: &mut Vec<PathBuf>,
+) {
+    let Ok(entries) = fs.read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries {
+        let Ok(metadata) = fs.metadata(&entry) else {
+            continue;
+        };
+        if metadata.is_directory {
+            collect_formattable_files_in_dir(fs, &entry, files);
+            continue;
+        }
+        if !metadata.is_file {
+            continue;
+        }
+
+        let Some(file_type) = FileType::from_path(&entry) else {
+            continue;
+        };
+        if FORMATTABLE_TYPES.contains(&file_type) {
+            files.push(entry);
+        }
+    }
 }
 
 /// Format JSON content.
@@ -304,14 +335,18 @@ pub fn run(args: &FmtArgs) -> i32 {
         return 0;
     }
 
+    let fs = program.fs.clone();
+
     // case 2: format specific files
     if !args.files.is_empty() {
         let mut did_any_change = false;
 
         for path in &args.files {
-            if path.is_file() {
+            let metadata = fs.metadata(path).ok();
+            if matches!(metadata, Some(meta) if meta.is_file) {
                 summary.files_total += 1;
                 let result = format_single_file(
+                    fs.as_ref(),
                     &program,
                     path,
                     default_formatting,
@@ -327,11 +362,12 @@ pub fn run(args: &FmtArgs) -> i32 {
                     }
                     FormatResult::Error => summary.errors += 1,
                 }
-            } else if path.is_dir() {
-                let paths = collect_formattable_files(path);
+            } else if matches!(metadata, Some(meta) if meta.is_directory) {
+                let paths = collect_formattable_files(fs.as_ref(), path);
                 for file_path in paths {
                     summary.files_total += 1;
                     let result = format_single_file(
+                        fs.as_ref(),
                         &program,
                         &file_path,
                         default_formatting,
@@ -367,7 +403,7 @@ pub fn run(args: &FmtArgs) -> i32 {
 
     // case 3: format all formattable files in current directory
     let base_directory = program.cwd.clone();
-    if !base_directory.exists() {
+    if !fs.exists(&base_directory).unwrap_or(false) {
         if !suppress_output {
             console::error(&format!(
                 "directory not found: '{}'",
@@ -379,7 +415,7 @@ pub fn run(args: &FmtArgs) -> i32 {
     }
 
     // find all formattable files in directory
-    let paths = collect_formattable_files(&base_directory);
+    let paths = collect_formattable_files(fs.as_ref(), &base_directory);
     if paths.is_empty() {
         if !suppress_output {
             console::info("no formattable files found");
@@ -392,10 +428,10 @@ pub fn run(args: &FmtArgs) -> i32 {
     let mut files: Vec<(PathBuf, String, String)> = Vec::new();
     for path in &paths {
         // get formatting options from dsconfig
-        let formatting_options = get_formatting_options(path, default_formatting);
+        let formatting_options = get_formatting_options(fs.as_ref(), path, default_formatting);
 
         // read file
-        let content = match std::fs::read_to_string(path) {
+        let content = match fs.read_to_string(path) {
             Ok(c) => c,
             Err(e) => {
                 if !suppress_output {
@@ -466,7 +502,7 @@ pub fn run(args: &FmtArgs) -> i32 {
                 summary.files_changed += 1;
             }
         } else if original_content != formatted_content {
-            if let Err(e) = std::fs::write(&path, &formatted_content) {
+            if let Err(e) = fs.write(&path, formatted_content.as_bytes()) {
                 if !suppress_output {
                     console::error(&format!("error writing '{}': {e}", path.display()));
                 }
@@ -523,6 +559,11 @@ fn finish_fmt(args: &FmtArgs, summary: FmtSummary, exit_code: i32) -> i32 {
         } else {
             CommandReport::failure("fmt", exit_code)
         };
+        if summary.errors > 0 {
+            let message = format!("formatting failed with {} error(s)", summary.errors);
+            report.summary = Some(message.clone());
+            report.error = Some(CommandError::new("format_failed", "format", message));
+        }
         report.data = Some(json!({
             "files": summary.files_total,
             "changed": summary.files_changed,
@@ -548,6 +589,7 @@ enum FormatResult {
 
 /// Format a single file, dispatching by file type.
 fn format_single_file(
+    fs: &dyn FileSystem,
     program: &Arc<Program>,
     path: &Path,
     default_formatting: FormatterOptions,
@@ -556,10 +598,10 @@ fn format_single_file(
     check: bool,
 ) -> FormatResult {
     // get formatting options from dsconfig
-    let formatting_options = get_formatting_options(path, default_formatting);
+    let formatting_options = get_formatting_options(fs, path, default_formatting);
 
     // read file
-    let content = match std::fs::read_to_string(path) {
+    let content = match fs.read_to_string(path) {
         Ok(c) => c,
         Err(e) => {
             if !suppress_output {
@@ -626,7 +668,7 @@ fn format_single_file(
     }
 
     if content != formatted {
-        if let Err(e) = std::fs::write(path, &formatted) {
+        if let Err(e) = fs.write(path, formatted.as_bytes()) {
             if !suppress_output {
                 console::error(&format!("error writing '{}': {e}", path.display()));
             }

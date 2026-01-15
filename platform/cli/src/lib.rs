@@ -6,8 +6,10 @@ pub mod common;
 pub mod console;
 pub mod entry;
 pub mod pipeline;
+#[cfg(test)]
+pub mod tests;
 
 pub use command::{
-    bench, build, check, clean, completions, config, doc, doctor, explain, fmt, info, init, lint,
-    lsp, run, targets, task, test, version,
+    bench, build, cache, check, clean, completions, config, doc, doctor, eval, explain, fmt, info,
+    init, lint, lsp, repl, run, targets, task, test, version,
 };

@@ -86,12 +86,17 @@ pub fn resolve_dsconfig_path(
             cwd.join(config)
         };
 
-        if path.is_dir() {
+        let metadata = resolver
+            .fs
+            .metadata(&path)
+            .map_err(|_| format!("config path not found: {}", path.display()))?;
+
+        if metadata.is_directory {
             return find_dsconfig(resolver, &path)
                 .ok_or_else(|| "dsconfig.json not found".to_string());
         }
 
-        if path.is_file() {
+        if metadata.is_file {
             return Ok(path);
         }
 

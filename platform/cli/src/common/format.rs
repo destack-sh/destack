@@ -42,6 +42,7 @@ pub struct FormatOptions {
 
 /// Diagnostic entry serialized in JSON output.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticJson {
     /// The diagnostic code.
     code: String,
@@ -63,6 +64,7 @@ pub struct DiagnosticJson {
 
 /// Diagnostic output payload for JSON output.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticOutputJson {
     /// The diagnostics list.
     diagnostics: Vec<DiagnosticJson>,
@@ -75,6 +77,7 @@ pub struct DiagnosticOutputJson {
 
 /// Summary counts for diagnostics.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticSummaryJson {
     /// Total error count.
     errors: usize,
@@ -290,6 +293,7 @@ fn print_github(files: &FileRegistry, diagnostics: &[Diagnostic]) {
 
 /// Diagnostic statistic counts.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DiagnosticStatistic {
     /// The code of the diagnostic.
     code: String,

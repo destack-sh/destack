@@ -3,6 +3,7 @@ pub mod diagnostic;
 pub mod fix;
 pub mod format;
 pub mod input;
+pub mod list;
 pub mod output;
 pub mod program;
 pub mod progress;
@@ -16,11 +17,16 @@ pub use format::{
     format_diagnostics, format_diagnostics_with_writer,
 };
 pub use input::{InputArgs, InputSource, SingleInputArgs, load_source, load_sources};
+pub use list::{
+    ListEntry, ListGroup, ListPrinter, ListSpacing, grouped_list_payload, list_payload,
+    list_payload_with_count, print_grouped_list, print_grouped_list_with, print_list,
+    print_list_with,
+};
 pub use output::{OutputArg, PlatformArg, RuntimeArg, TargetArgs};
-pub use program::{ProgramArgs, ensure_no_watch_or_dev};
+pub use program::{FileSystemOverride, ProgramArgs, ensure_no_watch_or_dev};
 pub use progress::{ProgressMode, ProgressReporter, is_tty};
 pub use report::{
-    CommandReport, CommandStats, ReportArgs, ReportFormat, print_report, report_error,
-    report_no_input,
+    CommandError, CommandReport, CommandStats, ReportArgs, ReportFormat, print_report,
+    report_error, report_error_with, report_no_input,
 };
 pub use tracing::TracingArgs;

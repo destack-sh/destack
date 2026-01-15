@@ -26,8 +26,11 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `lint` | Lint sources (alias of check with linting). |
 | `format` | Format source files (alias: `fmt`). |
 | `build` | Compile sources for a target (alias: `compile`). |
-| `run` | Compile and run a module (alias: `exec`). |
+| `run` | Compile and run a module or script (alias: `exec`). |
+| `eval` | Evaluate inline code. |
+| `repl` | Start a REPL session (stub). |
 | `clean` | Remove build outputs and caches. |
+| `cache` | Show cache locations and settings. |
 | `info` | Show workspace and target info. |
 | `config` | Show resolved config and targets. |
 | `targets` | List configured build targets. |
@@ -41,6 +44,8 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `doc` | Generate docs (stub). |
 | `lsp` | Run the language server. |
 
+`run` resolves `dsconfig.json` tasks first, then `package.json` scripts when the argument is not a file path.
+
 ## Common flags
 
 | Flag | Purpose |
@@ -50,6 +55,7 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `--cwd <dir>` | Set the working directory. |
 | `--config <path>` | Use a specific dsconfig.json. |
 | `--workspace <dir>` | Set the workspace root. |
+| `--cache-dir <dir>` | Override the cache directory. |
 | `--workers <n>` | Number of worker threads. |
 | `--watch` | Watch mode (not yet implemented). |
 | `--dev` | Dev mode (not yet implemented). |
@@ -57,3 +63,42 @@ The `destack` binary for working with Destack projects, with short aliases:
 | `--profile` | Emit profiling diagnostics when supported. |
 | `--color <auto|always|never>` | Override ANSI color output. |
 | `--log <error|warn|info|debug|trace>` | Enable tracing logs. |
+
+## JSON output
+
+All commands that support JSON output emit a common report envelope:
+
+```json
+{
+  "schema_version": 3,
+  "command": "config",
+  "status": "success",
+  "exit_code": 0,
+  "summary": null,
+  "diagnostics": null,
+  "error": null,
+  "stats": null,
+  "data": {}
+}
+```
+
+List payloads use:
+
+```json
+{ "items": [], "total": 0 }
+```
+
+Grouped list payloads use:
+
+```json
+{ "groups": [], "total_groups": 0, "total_items": 0 }
+```
+
+Generate the CLI report schema with:
+
+```
+just platform/generate-schema
+
+# or
+cargo run -p destack_cli --features schema --bin generate-cli-schema --release > platform/cli/generated/cli-report.schema.json
+```

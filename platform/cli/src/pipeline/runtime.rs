@@ -55,8 +55,8 @@ pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
     }
 }
 
-/// Build a VM isolate from the module MIR.
-pub fn mir_isolate(
+/// Create a VM isolate from the module MIR.
+pub fn create_isolate(
     program: &Program,
     module_id: ModuleId,
     target_id: &TargetId,
@@ -113,4 +113,45 @@ pub fn exit_status_from_value(value: Value) -> i32 {
 
     // default to success for non numeric values
     0
+}
+
+/// Format a VM value for eval output.
+pub fn format_value_for_eval(value: &Value) -> String {
+    // format void values
+    if value.is_void() {
+        return "void".to_string();
+    }
+
+    // format boolean values
+    if let Some(result) = value.as_bool() {
+        return result.to_string();
+    }
+
+    // format signed integers
+    if let Some(result) = value.as_int_with_width() {
+        return result.0.to_string();
+    }
+
+    // format unsigned integers
+    if let Some(result) = value.as_uint_with_width() {
+        return result.0.to_string();
+    }
+
+    // format float64 values
+    if let Some(result) = value.as_float64() {
+        return result.to_string();
+    }
+
+    // format float32 values
+    if let Some(result) = value.as_float32() {
+        return result.to_string();
+    }
+
+    // format char values
+    if let Some(result) = value.as_char() {
+        return result.to_string();
+    }
+
+    // fallback to debug output
+    format!("{value:?}")
 }
