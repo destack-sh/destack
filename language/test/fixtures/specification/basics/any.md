@@ -52,3 +52,25 @@ const anyValue: any = "hello";
 const stringValue: string = anyValue;
 stringValue satisfies string;
 ```
+
+## Any Member Access
+
+### member access yields any
+
+> Accessing a member on `any` produces `any`.
+
+```ds
+const value: any = { nested: { value: 1 } };
+const result = value.nested.value;
+result satisfies any;
+```
+
+### index access yields any
+
+> Indexing into `any` produces `any`.
+
+```ds
+const value: any = { a: 1 };
+const result = value["missing"];
+result satisfies any;
+```

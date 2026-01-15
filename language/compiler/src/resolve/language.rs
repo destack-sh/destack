@@ -978,7 +978,6 @@ mod tests {
 
     /// Analyze all builtin libs (without errors).
     #[test]
-    #[ignore] // FUGU
     fn test_analyze_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
             let test = TestProgram::memory_sequential_with_prelude_and_libs()

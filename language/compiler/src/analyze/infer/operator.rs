@@ -556,6 +556,19 @@ impl Compiler {
             self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
+        // short circuit index access on any
+        if matches!(
+            receiver_ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            }
+        ) {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
+
         // ensure instance types for reference receivers
         self.ensure_reference_instance_types_for_type(
             module,

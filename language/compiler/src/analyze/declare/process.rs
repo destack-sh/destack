@@ -126,6 +126,34 @@ impl Compiler {
             ),
         );
 
+        // declare exported value types for module bindings
+        let binding_exports = dir.module_binding_exports.read();
+        for binding in binding_exports.values() {
+            self.collect(
+                &mut collector,
+                self.declare_exported_value_types(
+                    &module,
+                    profile,
+                    &binding.exports,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                ),
+            );
+        }
+
+        // declare the module namespace value type from exports
+        self.collect(
+            &mut collector,
+            self.declare_module_namespace_value_type(
+                &module,
+                profile,
+                &exported_symbols,
+                &tree,
+                &mut types,
+            ),
+        );
+
         // register visible extensions from imported symbols
         self.collect(
             &mut collector,

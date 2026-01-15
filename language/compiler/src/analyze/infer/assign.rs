@@ -291,7 +291,17 @@ impl Compiler {
             // never accepts nothing
             Type::TypeLiteral {
                 value: TypeLiteral::Never,
-            } => return Assignability::NotAssignable,
+            } => {
+                if matches!(
+                    source,
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Never,
+                    }
+                ) {
+                    return Assignability::Assignable;
+                }
+                return Assignability::NotAssignable;
+            }
 
             // object accepts any non-primitive type
             Type::TypeLiteral {
@@ -1887,41 +1897,76 @@ impl Compiler {
             }
         }
 
-        // source must not require more parameters than target provides
-        if source_params.len() > target_params.len() {
-            return Assignability::NotAssignable;
-        }
-
-        // parameters: contravariant when strict, bivariant otherwise
-        for (target_param, source_param) in target_params.iter().zip(source_params.iter()) {
-            let strict_assignable = self
-                .is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    *source_param,
-                    *target_param,
-                    types,
-                    options,
-                )
-                .is_assignable();
-            let loose_assignable = self
-                .is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    *target_param,
-                    *source_param,
-                    types,
-                    options,
-                )
-                .is_assignable();
-            if options.strict_function_types {
-                if !strict_assignable {
+        // handle variadic top parameters like (...args: unknown[])
+        if let Some(rest_element) = self.variadic_top_parameter_type(target_params, types) {
+            for source_param in source_params {
+                let strict_assignable = self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        rest_element,
+                        *source_param,
+                        types,
+                        options,
+                    )
+                    .is_assignable();
+                let loose_assignable = self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        *source_param,
+                        rest_element,
+                        types,
+                        options,
+                    )
+                    .is_assignable();
+                if options.strict_function_types {
+                    if !strict_assignable {
+                        return Assignability::NotAssignable;
+                    }
+                } else if !strict_assignable && !loose_assignable {
                     return Assignability::NotAssignable;
                 }
-            } else if !strict_assignable && !loose_assignable {
+            }
+        } else {
+            // source must not require more parameters than target provides
+            if source_params.len() > target_params.len() {
                 return Assignability::NotAssignable;
+            }
+
+            // parameters: contravariant when strict, bivariant otherwise
+            for (target_param, source_param) in target_params.iter().zip(source_params.iter()) {
+                let strict_assignable = self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        *source_param,
+                        *target_param,
+                        types,
+                        options,
+                    )
+                    .is_assignable();
+                let loose_assignable = self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        *target_param,
+                        *source_param,
+                        types,
+                        options,
+                    )
+                    .is_assignable();
+                if options.strict_function_types {
+                    if !strict_assignable {
+                        return Assignability::NotAssignable;
+                    }
+                } else if !strict_assignable && !loose_assignable {
+                    return Assignability::NotAssignable;
+                }
             }
         }
 
@@ -1938,6 +1983,33 @@ impl Compiler {
             ),
             (None, _) => Assignability::Assignable,
             (Some(_), None) => Assignability::NotAssignable,
+        }
+    }
+
+    /// Return the element type for variadic top parameters like (...args: unknown[]).
+    fn variadic_top_parameter_type(
+        &self,
+        target_params: &[LocalTypeId],
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        // only treat a single array parameter with any/unknown element as variadic
+        if target_params.len() != 1 {
+            return None;
+        }
+
+        let param_type = types.get_type(target_params[0]);
+        let element = match param_type {
+            Type::Array { element } => *element,
+            Type::ArraySized { element, .. } => Some(*element),
+            _ => None,
+        };
+        let element = element?;
+
+        match types.get_type(element) {
+            Type::TypeLiteral {
+                value: TypeLiteral::Any | TypeLiteral::Unknown,
+            } => Some(element),
+            _ => None,
         }
     }
 

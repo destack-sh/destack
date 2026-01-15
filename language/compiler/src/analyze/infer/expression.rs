@@ -7,11 +7,12 @@ use crate::{
     InferContext,
 };
 use destack_dir::{
-    Argument, BindingKind, Block, Constraint, Declaration, Expression, FlowGraphBuilder,
-    ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource,
-    Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, StaticKey,
-    SymbolTable, Type, TypeElement, TypeField, TypeLiteral, TypeTable,
+    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression,
+    FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin,
+    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind,
+    MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField,
+    PrimitiveType, Property, StaticKey, StringId, SymbolSpace, SymbolTable, Type, TypeElement,
+    TypeField, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -2034,6 +2035,118 @@ impl Compiler {
         }
     }
 
+    /// Find the nearest value symbol for a name in scope.
+    fn find_value_symbol_by_name(
+        &self,
+        module: &Module,
+        property_id: LocalNodeId<Property>,
+        name: StringId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        let key = StaticKey::Name(name);
+        let mut scope = symbols.get_scope(property_id, tree);
+
+        loop {
+            // scan for a value or type value symbol with the requested name
+            let limit = scope.2.0 as usize;
+            for (candidate_key, symbol_id) in scope.1.named_symbols.iter().take(limit).rev() {
+                if *candidate_key != key {
+                    continue;
+                }
+
+                let symbol = symbols.get_symbol(*symbol_id);
+                if matches!(symbol.space, SymbolSpace::Value | SymbolSpace::TypeValue) {
+                    return Some(symbol_id.into_global(module.id));
+                }
+            }
+
+            // fall back to the parent scope
+            let (parent_scope_id, parent_mark) = scope.1.parent?;
+            scope = (
+                parent_scope_id,
+                symbols.get_scope_by_id(parent_scope_id),
+                parent_mark,
+            );
+        }
+    }
+
+    /// Infer the value type for a shorthand object literal field.
+    fn infer_shorthand_property_value(
+        &self,
+        module: &Module,
+        property_id: LocalNodeId<Property>,
+        name: StringId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // resolve the referenced symbol from the current scope
+        let Some(target_symbol) =
+            self.find_value_symbol_by_name(module, property_id, name, tree, symbols)
+        else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(types.insert_type_from_any(ty, property_id.into_any()));
+        };
+
+        // canonicalize imports before picking a type
+        let canonical_symbol =
+            self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
+
+        // reuse a narrowed or declared value type when possible
+        let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
+            narrowed_ty_id
+        } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
+            value_ty_id
+        } else if let Some(declared_ty_id) = self.declared_type_for_direct_binding_symbol(
+            module,
+            ctx.profile,
+            canonical_symbol,
+            tree,
+            symbols,
+            types,
+        )? {
+            types.set_value_type(canonical_symbol, declared_ty_id);
+            declared_ty_id
+        } else if canonical_symbol.module_id != module.id {
+            self.resolve_remote_symbol_value_type(
+                module,
+                ctx.profile,
+                property_id.into_any(),
+                canonical_symbol,
+                types,
+            )?
+        } else {
+            let scope = InferScope {
+                owner: canonical_symbol,
+                function_id: ctx.in_function.map(|f| f.into_global(module.id)),
+            };
+            self.infer_var_type_for_symbol(
+                infer,
+                types,
+                canonical_symbol,
+                property_id.into_any(),
+                InferOrigin::Expression(property_id.into_global_any(module.id)),
+                scope,
+            )
+        };
+
+        // ensure instance types for referenced symbols
+        self.ensure_reference_instance_types_for_type(
+            module,
+            ctx.profile,
+            property_id.into_any(),
+            base_ty_id,
+            types,
+        )?;
+
+        Ok(base_ty_id)
+    }
+
     /// Infer a property and return its TypeField if it has a static key.
     pub(super) fn infer_property(
         &self,
@@ -2068,6 +2181,7 @@ impl Compiler {
 
                 // infer the value type
                 let value_ty_id = if let Some(value) = value {
+                    // infer explicit property values
                     let mut value_ctx = ctx.fork().with_expected_type(expected_field_ty_id);
                     self.infer_expression(
                         module,
@@ -2077,6 +2191,18 @@ impl Compiler {
                         types,
                         infer,
                         &mut value_ctx,
+                    )?
+                } else if let Some(DynamicKey::Name(name)) = key {
+                    // infer shorthand values from the referenced symbol
+                    self.infer_shorthand_property_value(
+                        module,
+                        property_id,
+                        *name,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
                     )?
                 } else {
                     // no value, return unknown type
@@ -2787,7 +2913,7 @@ impl Compiler {
             self.resolve_remote_symbol_value_type(
                 module,
                 ctx.profile,
-                expression_id,
+                expression_id.into_any(),
                 canonical_symbol,
                 types,
             )?

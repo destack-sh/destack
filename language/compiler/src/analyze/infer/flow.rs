@@ -2050,7 +2050,13 @@ impl Compiler {
             }
         } else {
             // resolve remote symbol types through the compiler
-            self.resolve_remote_symbol_value_type(module, context.profile, guard_id, symbol, types)?
+            self.resolve_remote_symbol_value_type(
+                module,
+                context.profile,
+                guard_id.into_any(),
+                symbol,
+                types,
+            )?
         };
 
         Ok(self.normalize_type(

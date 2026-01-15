@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, NormalizationMode, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -35,14 +35,24 @@ impl Compiler {
         // rely on the declared parameter metadata
         if symbol.module_id == module.id {
             let symbol = symbols.get_symbol(symbol.local_id);
-            return symbol.is_static_parameter();
+            if symbol.is_static_parameter() {
+                return true;
+            }
+            return symbol
+                .primary_declaration
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter);
         }
 
         let remote_module = self.program.modules.get(symbol.module_id);
         let remote_module = remote_module.read();
         let remote_symbols = remote_module.dir(profile).symbols.read();
         let symbol = remote_symbols.get_symbol(symbol.local_id);
-        symbol.is_static_parameter()
+        if symbol.is_static_parameter() {
+            return true;
+        }
+        symbol
+            .primary_declaration
+            .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
     }
 
     /// Check whether a type contains a static parameter reference.
@@ -383,7 +393,7 @@ impl Compiler {
     }
 
     /// Check whether a static argument contains a static parameter.
-    fn static_argument_contains_static_parameters(
+    pub(crate) fn static_argument_contains_static_parameters(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -393,7 +403,8 @@ impl Compiler {
         visited: &mut HashSet<LocalTypeId>,
     ) -> bool {
         match argument {
-            StaticArgument::Unevaluated { .. } => false,
+            // treat unresolved arguments as static parameter dependent
+            StaticArgument::Unevaluated { .. } => true,
             StaticArgument::Evaluated { value, .. } => self
                 .static_expression_contains_static_parameters(
                     module, profile, value, symbols, types, visited,
@@ -1002,6 +1013,64 @@ impl Compiler {
                         profile,
                         left_return,
                         right_return,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
+                    )?;
+                    self.merge_infer_substitutions(&mut combined, inferred);
+                }
+                Some(combined)
+            }
+            (
+                Type::Function { .. },
+                Type::Object {
+                    call_signatures,
+                    construct_signatures,
+                    ..
+                },
+            ) => {
+                // match function types against callable object patterns
+                let mut combined = InferSubstitutions::default();
+                for right_signature in call_signatures
+                    .iter()
+                    .chain(construct_signatures.iter())
+                    .copied()
+                {
+                    let inferred = self.infer_conditional_type_substitutions_inner(
+                        module,
+                        profile,
+                        left,
+                        right_signature,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
+                    )?;
+                    self.merge_infer_substitutions(&mut combined, inferred);
+                }
+                Some(combined)
+            }
+            (
+                Type::Object {
+                    call_signatures,
+                    construct_signatures,
+                    ..
+                },
+                Type::Function { .. },
+            ) => {
+                // match callable objects against function patterns
+                let mut combined = InferSubstitutions::default();
+                for left_signature in call_signatures
+                    .iter()
+                    .chain(construct_signatures.iter())
+                    .copied()
+                {
+                    let inferred = self.infer_conditional_type_substitutions_inner(
+                        module,
+                        profile,
+                        left_signature,
+                        right,
                         source_id,
                         symbols,
                         types,
