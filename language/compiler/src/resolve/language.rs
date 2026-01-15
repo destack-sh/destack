@@ -6,8 +6,7 @@ use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, Well
 use destack_workspace::{AmbientLibSymbolKey, Builtins, ProfileId, SymbolGroup, WellKnownSymbols};
 use indexmap::IndexMap;
 
-use crate::resolve::globals::GlobalSymbolCache;
-use crate::{Compiler, ResolveError, ResolveResult, TaskResultCollector};
+use crate::{Compiler, GlobalSymbolTable, ResolveError, ResolveResult, TaskResultCollector};
 
 /// Loaded builtin lib modules collected during resolve.
 #[derive(Debug)]
@@ -100,7 +99,7 @@ impl Compiler {
         }
 
         // build global symbol cache for lib modules
-        let global_cache = self.build_global_symbol_cache_freestanding(&lib_modules, profile_id)?;
+        let global_cache = self.build_global_symbol_table_freestanding(&lib_modules, profile_id)?;
 
         // find declared symbol names from lib definitions
         let declared_names = self.collect_declared_lib_symbol_names(&ordered_libs)?;
@@ -156,7 +155,7 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
         lib_modules: &[destack_source::ModuleId],
-        global_cache: &GlobalSymbolCache,
+        global_cache: &GlobalSymbolTable,
         declared_names: &HashSet<StringId>,
     ) -> IndexMap<StringId, SymbolGroup> {
         use crate::resolve::globals::GlobalSymbolGroupKey;
@@ -255,7 +254,7 @@ impl Compiler {
         &self,
         profile_id: ProfileId,
         ambient_modules: &[destack_source::ModuleId],
-        global_cache: &GlobalSymbolCache,
+        global_cache: &GlobalSymbolTable,
     ) -> IndexMap<StringId, SymbolGroup> {
         let mut ambient_symbols = IndexMap::new();
 
@@ -343,7 +342,7 @@ impl Compiler {
     fn collect_ambient_lib_symbol_sources(
         &self,
         ambient_modules: &[destack_source::ModuleId],
-        global_cache: &GlobalSymbolCache,
+        global_cache: &GlobalSymbolTable,
     ) -> IndexMap<AmbientLibSymbolKey, Vec<GlobalSymbolId>> {
         let mut sources = IndexMap::new();
         let ambient_set: HashSet<_> = ambient_modules.iter().copied().collect();

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::file::walk::{WalkOptions, walk};
+use super::{WalkOptions, walk};
 
 /// Match a glob-style `pattern` against raw `text` bytes.
 /// The matcher works over byte slices so callers can supply UTF-8 or filesystem-encoded data:

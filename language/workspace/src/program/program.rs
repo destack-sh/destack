@@ -14,8 +14,8 @@ use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
     FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleRegistry, ModuleSource,
     Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
-    ProfileId, ProfileKey, ProfileRegistry, SourceType, Target, TargetId, TsConfigOptions,
-    TsConfigRegistry,
+    ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, SourceType, Target, TargetId,
+    TsConfigOptions, TsConfigRegistry,
 };
 
 /// Unique identifier for Programs.
@@ -70,6 +70,8 @@ pub struct Program {
     pub artifacts: Arc<ArtifactRegistry>,
     /// The profiles in this program.
     pub profiles: Arc<ProfileRegistry>,
+    /// Derived tables and indexes for the program.
+    pub index: Arc<ProgramIndex>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
 
@@ -109,6 +111,7 @@ impl Program {
         let tsconfigs = Arc::new(TsConfigRegistry::new());
         let artifacts = Arc::new(ArtifactRegistry::new());
         let profiles = Arc::new(ProfileRegistry::new());
+        let index = Arc::new(ProgramIndex::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
 
@@ -128,6 +131,7 @@ impl Program {
             tsconfigs,
             artifacts,
             profiles,
+            index,
             strings,
             diagnostics,
             builtins: None,
@@ -153,6 +157,7 @@ impl Program {
     ) -> Self {
         let diagnostics = DiagnosticCollector::new();
         let profiles = Arc::new(ProfileRegistry::new());
+        let index = Arc::new(ProgramIndex::new());
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
@@ -170,6 +175,7 @@ impl Program {
             tsconfigs,
             artifacts,
             profiles,
+            index,
             strings,
             diagnostics,
             builtins,

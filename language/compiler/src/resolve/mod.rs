@@ -14,10 +14,11 @@ mod target;
 mod r#type;
 mod warning;
 
+pub(crate) use destack_workspace::{
+    GlobalSymbolTable, GlobalSymbolTableKey, ModuleBindingTable, ModuleBindingTableKey,
+};
 pub(crate) use discover::TargetDiscoveryIssue;
 pub use error::*;
-pub(crate) use globals::{GlobalSymbolCache, GlobalSymbolCacheKey};
 pub use operator::*;
 pub use process::*;
-pub(crate) use target::{ModuleBindingCache, ModuleBindingCacheKey};
 pub use warning::*;
