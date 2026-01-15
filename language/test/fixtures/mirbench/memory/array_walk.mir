@@ -41,6 +41,6 @@ block5:
     jump block4(v20, v13, v18)
 
 // return result
-block6(v20: i64):
-    return v20
+block6(v21: i64):
+    return v21
 }

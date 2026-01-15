@@ -157,7 +157,6 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     // find copy parameters
     let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
-
     for &block_id in &function.blocks {
         // skip entry block parameters
         if function.entry == Some(block_id) {
@@ -174,6 +173,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
 
         for (param_idx, param) in block.parameters.iter().enumerate() {
             let param_value = param.value;
+
             let mut incoming_values: Vec<mir::Value> = Vec::new();
             for (_pred_block, args) in preds {
                 if param_idx < args.len() {
@@ -454,7 +454,6 @@ mod tests {
     /// Block parameter that receives the same value from all predecessors is eliminated.
     #[test]
     fn test_propagate_uniform_incoming_value() {
-        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     branch v0, block1, block2
@@ -466,7 +465,6 @@ block3(v1: i32):
     return v1
 }"#;
 
-        // expected output
         // v1 is always v0, so replace uses of v1 with v0 and remove the parameter
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
@@ -479,7 +477,6 @@ block3:
     return v0
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -488,7 +485,6 @@ block3:
     /// Block parameter with different values from predecessors is NOT eliminated.
     #[test]
     fn test_preserve_varying_incoming_values() {
-        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -501,10 +497,8 @@ block3(v2: i32):
     return v2
 }"#;
 
-        // no changes are expected
         // v2 gets different values from different predecessors, so no change
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_unchanged(input);
@@ -513,7 +507,6 @@ block3(v2: i32):
     /// Single predecessor block parameter is a trivial copy.
     #[test]
     fn test_propagate_single_predecessor() {
-        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
@@ -521,7 +514,6 @@ block1(v1: i32):
     return v1
 }"#;
 
-        // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1
@@ -529,7 +521,6 @@ block1:
     return v0
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -538,7 +529,6 @@ block1:
     /// Chained copies are resolved transitively.
     #[test]
     fn test_propagate_through_chain() {
-        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
@@ -548,7 +538,6 @@ block2(v2: i32):
     return v2
 }"#;
 
-        // expected output
         // v1 = v0, v2 = v1 = v0
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
@@ -559,7 +548,6 @@ block2:
     return v0
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -568,7 +556,6 @@ block2:
     /// Multiple parameters, only some are copies.
     #[test]
     fn test_propagate_partial_copies() {
-        // source program
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     branch v0, block1, block2
@@ -583,7 +570,6 @@ block3(v4: i32, v5: i32):
     return v6
 }"#;
 
-        // expected output
         // v4 is always v0 (copy), but v5 differs between predecessors
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
@@ -599,7 +585,6 @@ block3(v5: i32):
     return v6
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);
@@ -608,7 +593,6 @@ block3(v5: i32):
     /// No copies means no changes.
     #[test]
     fn test_preserve_without_copies() {
-        // source program
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -616,7 +600,6 @@ block0(v0: i32):
     return v2
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_unchanged(input);
@@ -625,20 +608,17 @@ block0(v0: i32):
     /// Selects with identical arms are removed.
     #[test]
     fn test_remove_redundant_select() {
-        // source program
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
     v2 = select v0, v1, v1
     return v2
 }"#;
 
-        // expected output
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
     return v1
 }"#;
 
-        // run the pass and verify output
         let mut program = TestProgram::new(input);
         program.run_pass(&CopyPropagate);
         program.assert_output(expected);

@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap, ValueRange};
+use crate::optimize::analyses::{
+    ConstantPropagation, DominatorTree, RangeAnalysis, RangeMap, ValueRange,
+};
 use crate::optimize::{
     AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, bool_from_range,
     build_value_instruction_map, build_value_use_counts, constraint_truth_value,
@@ -167,20 +169,20 @@ fn run_simplify_cfg(
         // phase 6: fold branches that share the same target
         changed_this_round |= fold_same_target_branches(function, tree);
 
-        // phase 7: tail duplicate small jump targets
-        changed_this_round |=
-            tail_duplicate_blocks(function, tree, profile, &mut profiled_tail_dup_targets);
-
-        // phase 8: block merging
+        // phase 7: block merging
         // merges blocks with single predecessor/successor
         if let Some(entry) = function.entry {
             changed_this_round |= merge_blocks(function, tree, entry);
         }
 
-        // phase 9: eliminate unreachable blocks
+        // phase 8: eliminate unreachable blocks
         if let Some(entry) = function.entry {
             changed_this_round |= eliminate_unreachable_blocks(function, tree, entry);
         }
+
+        // phase 9: tail duplicate small jump targets
+        changed_this_round |=
+            tail_duplicate_blocks(function, tree, profile, &mut profiled_tail_dup_targets);
 
         // stop when no changes are made
         if !changed_this_round {
@@ -2043,6 +2045,12 @@ fn tail_duplicate_blocks(
     profile: Option<&mir::ProfileTable>,
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
+    let domtree = {
+        let analyses = FunctionAnalyses::new(function, tree);
+        analyses.get::<DominatorTree>().clone()
+    };
+    let value_def_blocks = build_value_definition_blocks(function, tree);
+
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
     let mut jump_predecessors: HashMap<mir::LocalNodeId<mir::Block>, Vec<JumpPredecessor>> =
@@ -2086,27 +2094,13 @@ fn tail_duplicate_blocks(
             continue;
         };
 
-        let candidates = select_tail_dup_predecessors(block_id, jump_preds, profile);
-        if candidates.is_empty() {
-            continue;
-        }
-
-        if candidates.len() > MAX_TAIL_DUP_PREDECESSORS {
-            continue;
-        }
-
-        // mark when profile selects a strict subset to avoid cold duplication later
-        if profile.is_some() && candidates.len() < jump_preds.len() {
-            profiled_targets.insert(block_id);
-        }
+        // snapshot the block data
+        let block = tree.get(block_id).clone();
 
         // skip entry blocks
         if function.entry == Some(block_id) {
             continue;
         }
-
-        // snapshot the block data
-        let block = tree.get(block_id).clone();
 
         // skip blocks with no work to duplicate
         if block.instructions.is_empty() {
@@ -2139,9 +2133,41 @@ fn tail_duplicate_blocks(
             continue;
         }
 
+        let candidates = select_tail_dup_predecessors(block_id, jump_preds, profile);
+        if candidates.is_empty() {
+            continue;
+        }
+
+        let mut safe_candidates: Vec<JumpPredecessor> = Vec::new();
+        for pred in candidates {
+            if !block_uses_available_in_predecessor(
+                &block,
+                tree,
+                pred.pred,
+                &value_def_blocks,
+                &domtree,
+            ) {
+                continue;
+            }
+            safe_candidates.push(pred);
+        }
+
+        if safe_candidates.is_empty() {
+            continue;
+        }
+
+        if safe_candidates.len() > MAX_TAIL_DUP_PREDECESSORS {
+            continue;
+        }
+
+        // mark when profile selects a strict subset to avoid cold duplication later
+        if profile.is_some() && safe_candidates.len() < jump_preds.len() {
+            profiled_targets.insert(block_id);
+        }
+
         // ensure all predecessors pass the correct argument counts
         let mut arguments_match = true;
-        for pred in &candidates {
+        for pred in &safe_candidates {
             if pred.arguments.len() != block.parameters.len() {
                 arguments_match = false;
                 break;
@@ -2152,7 +2178,7 @@ fn tail_duplicate_blocks(
         }
 
         // duplicate the block into each jump predecessor
-        for pred in candidates.clone() {
+        for pred in safe_candidates.clone() {
             if pred.pred == block_id {
                 continue;
             }
@@ -2203,6 +2229,148 @@ fn tail_duplicate_blocks(
     }
 
     changed
+}
+
+/// Build a map from SSA values to their defining block.
+fn build_value_definition_blocks(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, mir::LocalNodeId<mir::Block>> {
+    let mut value_defs = HashMap::new();
+
+    // collect definitions from parameters and instructions
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // record block parameters
+        for param in &block.parameters {
+            value_defs.insert(param.value, block_id);
+        }
+
+        // record instruction destinations
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if let Some(destination) = instruction.destination() {
+                value_defs.insert(destination, block_id);
+            }
+        }
+    }
+
+    value_defs
+}
+
+/// Return true when all block uses are available at a predecessor.
+fn block_uses_available_in_predecessor(
+    block: &mir::Block,
+    tree: &mir::NodeTree,
+    predecessor: mir::LocalNodeId<mir::Block>,
+    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    domtree: &DominatorTree,
+) -> bool {
+    let mut param_values: HashSet<mir::Value> = HashSet::new();
+
+    // collect block parameter values
+    for param in &block.parameters {
+        param_values.insert(param.value);
+    }
+
+    // ensure all uses are defined before the predecessor
+    let uses = collect_block_uses(block, tree);
+    for value in uses {
+        // skip values provided by block parameters
+        if param_values.contains(&value) {
+            continue;
+        }
+
+        // require a known definition
+        let Some(def_block) = value_def_blocks.get(&value) else {
+            return false;
+        };
+
+        // require dominance at the predecessor
+        if !domtree.dominates(*def_block, predecessor) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Collect all SSA values used by a block.
+fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::Value> {
+    let mut uses = Vec::new();
+
+    // collect uses from instructions
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id);
+        uses.extend(instruction.uses());
+        if let Some(arguments) = instruction.argument_slice() {
+            uses.extend(tree.get_arguments(arguments).iter().copied());
+        }
+    }
+
+    // collect uses from the terminator
+    match &block.terminator {
+        mir::Terminator::Jump { arguments, .. } => {
+            // record jump arguments
+            uses.extend(arguments.iter().copied());
+        }
+        mir::Terminator::Branch {
+            condition,
+            then_arguments,
+            else_arguments,
+            ..
+        } => {
+            // record branch condition and arguments
+            uses.push(*condition);
+            uses.extend(then_arguments.iter().copied());
+            uses.extend(else_arguments.iter().copied());
+        }
+        mir::Terminator::Check {
+            condition,
+            success,
+            failure,
+            ..
+        } => {
+            // record check condition and arguments
+            uses.push(*condition);
+            uses.extend(success.arguments.iter().copied());
+            uses.extend(failure.arguments.iter().copied());
+        }
+        mir::Terminator::Switch {
+            value,
+            default_arguments,
+            cases,
+            ..
+        } => {
+            // record switch condition and arguments
+            uses.push(*value);
+            uses.extend(default_arguments.iter().copied());
+            for case in cases {
+                uses.extend(case.arguments.iter().copied());
+            }
+        }
+        mir::Terminator::Yield {
+            value,
+            resume_arguments,
+            ..
+        } => {
+            // record yield value and resume arguments
+            uses.push(*value);
+            uses.extend(resume_arguments.iter().copied());
+        }
+        mir::Terminator::Return { value } => {
+            // record return value
+            if let Some(value) = value {
+                uses.push(*value);
+            }
+        }
+        mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallIndirect { .. } => {}
+    }
+
+    uses
 }
 
 /// Select jump predecessors to duplicate using profile guidance when available.
@@ -3922,5 +4090,274 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&SimplifyCfg);
         program.assert_output(expected);
+    }
+
+    fn collect_argument_mismatches(function: &mir::Function, tree: &mir::NodeTree) -> Vec<String> {
+        let mut mismatches = Vec::new();
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            let check_edge = |target: mir::LocalNodeId<mir::Block>,
+                              arguments: &[mir::Value],
+                              mismatches: &mut Vec<String>| {
+                let target_block = tree.get(target);
+                if target_block.parameters.len() != arguments.len() {
+                    mismatches.push(format!(
+                        "block {:?} -> {:?} expected {} args, got {}",
+                        block_id,
+                        target,
+                        target_block.parameters.len(),
+                        arguments.len()
+                    ));
+                }
+            };
+
+            match &block.terminator {
+                mir::Terminator::Jump { target, arguments } => {
+                    check_edge(*target, arguments, &mut mismatches);
+                }
+                mir::Terminator::Branch {
+                    then_target,
+                    then_arguments,
+                    else_target,
+                    else_arguments,
+                    ..
+                } => {
+                    check_edge(*then_target, then_arguments, &mut mismatches);
+                    check_edge(*else_target, else_arguments, &mut mismatches);
+                }
+                mir::Terminator::Check {
+                    success, failure, ..
+                } => {
+                    check_edge(success.target, &success.arguments, &mut mismatches);
+                    check_edge(failure.target, &failure.arguments, &mut mismatches);
+                }
+                mir::Terminator::Switch {
+                    default,
+                    default_arguments,
+                    cases,
+                    ..
+                } => {
+                    check_edge(*default, default_arguments, &mut mismatches);
+                    for case in cases {
+                        check_edge(case.target, &case.arguments, &mut mismatches);
+                    }
+                }
+                mir::Terminator::Yield {
+                    resume,
+                    resume_arguments,
+                    ..
+                } => {
+                    check_edge(*resume, resume_arguments, &mut mismatches);
+                }
+                mir::Terminator::Return { .. }
+                | mir::Terminator::Unreachable
+                | mir::Terminator::TailCall { .. }
+                | mir::Terminator::TailCallIndirect { .. } => {}
+            }
+        }
+
+        mismatches
+    }
+
+    fn collect_undefined_uses(function: &mir::Function, tree: &mir::NodeTree) -> Vec<String> {
+        let mut defined_values: HashSet<mir::Value> = HashSet::new();
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+            for param in &block.parameters {
+                defined_values.insert(param.value);
+            }
+
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                if let Some(destination) = instruction.destination() {
+                    defined_values.insert(destination);
+                }
+            }
+        }
+
+        let mut undefined = Vec::new();
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                let mut uses = instruction.uses();
+                if let Some(arguments) = instruction.argument_slice() {
+                    uses.extend(tree.get_arguments(arguments).iter().copied());
+                }
+
+                for value in uses {
+                    if !defined_values.contains(&value) {
+                        undefined.push(format!(
+                            "block {:?} instruction {:?} uses {:?} without definition: {:?}",
+                            block_id, instruction_id, value, instruction
+                        ));
+                    }
+                }
+            }
+
+            match &block.terminator {
+                mir::Terminator::Jump { arguments, .. } => {
+                    for value in arguments {
+                        if !defined_values.contains(value) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, value, block.terminator
+                            ));
+                        }
+                    }
+                }
+                mir::Terminator::Branch {
+                    condition,
+                    then_arguments,
+                    else_arguments,
+                    ..
+                } => {
+                    let mut uses =
+                        Vec::with_capacity(1 + then_arguments.len() + else_arguments.len());
+                    uses.push(*condition);
+                    uses.extend(then_arguments.iter().copied());
+                    uses.extend(else_arguments.iter().copied());
+                    for value in uses {
+                        if !defined_values.contains(&value) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, value, block.terminator
+                            ));
+                        }
+                    }
+                }
+                mir::Terminator::Check {
+                    condition,
+                    success,
+                    failure,
+                    ..
+                } => {
+                    let mut uses =
+                        Vec::with_capacity(1 + success.arguments.len() + failure.arguments.len());
+                    uses.push(*condition);
+                    uses.extend(success.arguments.iter().copied());
+                    uses.extend(failure.arguments.iter().copied());
+                    for value in uses {
+                        if !defined_values.contains(&value) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, value, block.terminator
+                            ));
+                        }
+                    }
+                }
+                mir::Terminator::Switch {
+                    value,
+                    default_arguments,
+                    cases,
+                    ..
+                } => {
+                    if !defined_values.contains(value) {
+                        undefined.push(format!(
+                            "block {:?} terminator uses {:?} without definition: {:?}",
+                            block_id, value, block.terminator
+                        ));
+                    }
+                    for argument in default_arguments {
+                        if !defined_values.contains(argument) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, argument, block.terminator
+                            ));
+                        }
+                    }
+                    for case in cases {
+                        for argument in &case.arguments {
+                            if !defined_values.contains(argument) {
+                                undefined.push(format!(
+                                    "block {:?} terminator uses {:?} without definition: {:?}",
+                                    block_id, argument, block.terminator
+                                ));
+                            }
+                        }
+                    }
+                }
+                mir::Terminator::Yield {
+                    value,
+                    resume_arguments,
+                    ..
+                } => {
+                    if !defined_values.contains(value) {
+                        undefined.push(format!(
+                            "block {:?} terminator uses {:?} without definition: {:?}",
+                            block_id, value, block.terminator
+                        ));
+                    }
+                    for argument in resume_arguments {
+                        if !defined_values.contains(argument) {
+                            undefined.push(format!(
+                                "block {:?} terminator uses {:?} without definition: {:?}",
+                                block_id, argument, block.terminator
+                            ));
+                        }
+                    }
+                }
+                mir::Terminator::Return { value } => {
+                    if let Some(value) = value
+                        && !defined_values.contains(value)
+                    {
+                        undefined.push(format!(
+                            "block {:?} terminator uses {:?} without definition: {:?}",
+                            block_id, value, block.terminator
+                        ));
+                    }
+                }
+                mir::Terminator::Unreachable
+                | mir::Terminator::TailCall { .. }
+                | mir::Terminator::TailCallIndirect { .. } => {}
+            }
+        }
+
+        undefined
+    }
+
+    /// SimplifyCfg preserves argument counts and definitions.
+    #[test]
+    fn test_simplify_cfg_preserves_argument_counts() {
+        let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
+block0(v0: bool, v1: i32, v2: i32):
+    branch v0, block1(v1), block2(v2)
+block1(v3: i32):
+    v4 = iadd v3, v2
+    jump block3(v4)
+block2(v5: i32):
+    v6 = iadd v5, v1
+    jump block3(v6)
+block3(v7: i32):
+    branch v0, block4(v7), block5(v7)
+block4(v8: i32):
+    return v8
+block5(v9: i32):
+    return v9
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&SimplifyCfg);
+
+        let function_id = program.function_id_by_name("test");
+        let function = program.tree.get(function_id);
+        let mismatches = collect_argument_mismatches(function, &program.tree);
+        let undefined = collect_undefined_uses(function, &program.tree);
+        let output = program.format();
+
+        assert!(
+            mismatches.is_empty(),
+            "argument mismatches:\n{}\n{output}",
+            mismatches.join("\n")
+        );
+        assert!(
+            undefined.is_empty(),
+            "undefined values:\n{}\n{output}",
+            undefined.join("\n")
+        );
     }
 }

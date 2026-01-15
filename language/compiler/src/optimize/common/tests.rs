@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
-use destack_source::{DiffOptions, ModuleId, PackageId, print_diff};
+use destack_source::{DiffOptions, FileId, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
 
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
@@ -38,7 +38,8 @@ pub(crate) struct TestProgram {
 impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
-        let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
+        let (tree, strings) =
+            mir::parse::Parser::parse(FileId::new(0), source).expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
         // copy all strings from parser pool to context pool

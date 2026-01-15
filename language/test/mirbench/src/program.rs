@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use clap::ValueEnum;
 use destack_mir as mir;
 use destack_mir::parse::Parser;
+use destack_source::FileId;
 use destack_vm::diagnostic::RuntimeResult;
 use destack_vm::memory::Value;
 use destack_vm::{CheckPolicy, ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
@@ -1035,7 +1036,7 @@ fn run_coroutine(
 impl Program {
     /// Create an isolate for this program.
     pub fn isolate(&self) -> Isolate {
-        let (tree, strings) = Parser::parse(self.source)
+        let (tree, strings) = Parser::parse(FileId::new(0), self.source)
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks
@@ -1049,7 +1050,7 @@ impl Program {
 
     /// Create an isolate with benchmark options applied.
     pub fn isolate_with_options(&self, bench_options: &BenchOptions) -> Isolate {
-        let (tree, strings) = Parser::parse(self.source)
+        let (tree, strings) = Parser::parse(FileId::new(0), self.source)
             .unwrap_or_else(|e| panic!("failed to parse '{}': {}", self.name, e.message));
 
         // relax runtime limits for benchmarks

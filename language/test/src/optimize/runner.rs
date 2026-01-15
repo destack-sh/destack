@@ -9,7 +9,7 @@ use destack_compiler::{
     RepeatedPipeline, default_pipeline,
 };
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId};
+use destack_source::{FileId, ModuleId, PackageId};
 use destack_vm::diagnostic::RuntimeResult;
 use destack_vm::memory::Value;
 use destack_vm::{ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
@@ -281,8 +281,10 @@ impl Suite for OptimizeBaselineSuite {
         }
 
         // run the baseline program
-        let output = match baseline_output_for_program(program, self.options.max_instruction_limit)
-        {
+        let output = match baseline_output_for_program_default_args(
+            program,
+            self.options.max_instruction_limit,
+        ) {
             Ok(output) => output,
             Err(message) => return TestResult::Failed { message },
         };
@@ -533,7 +535,7 @@ fn optimize_source(
     allow_list: &BenchAllowList,
 ) -> Result<(mir::NodeTree, ImmutableStringPool), String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(source)
+    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), source)
         .map_err(|error| format!("failed to parse mir: {error}"))?;
 
     // build the pipeline context
@@ -573,11 +575,25 @@ fn baseline_output_for_program(
     max_instruction_limit: Option<u64>,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
-    let (tree, strings) = mir::parse::Parser::parse(program.source)
+    let (tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source)
         .map_err(|error| format!("failed to parse mir: {error}"))?;
 
-    // run the baseline program
+    // run the baseline program with quick profile args
     run_program_with_tree_result(program, tree, strings, max_instruction_limit)
+        .map_err(|error| format!("bench '{}' baseline failed: {error}", program.name))
+}
+
+/// Return the baseline output for a bench program using default args.
+fn baseline_output_for_program_default_args(
+    program: &program::Program,
+    max_instruction_limit: Option<u64>,
+) -> Result<ExecutionOutput, String> {
+    // parse the source program
+    let (tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source)
+        .map_err(|error| format!("failed to parse mir: {error}"))?;
+
+    // run the baseline program with default args
+    run_program_with_tree_result_default_args(program, tree, strings, max_instruction_limit)
         .map_err(|error| format!("bench '{}' baseline failed: {error}", program.name))
 }
 
@@ -673,7 +689,7 @@ fn run_matrix_case(
     apply: impl FnOnce(&mut mir::NodeTree, &StringPool, &PipelineContext<'_>),
 ) -> Option<String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(program.source).ok()?;
+    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source).ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -834,7 +850,7 @@ fn diagnose_mismatch(
     max_instruction_limit: Option<u64>,
 ) -> Option<String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(program.source).ok()?;
+    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source).ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -1054,15 +1070,53 @@ fn run_program_with_tree_result(
     // build isolate and arguments
     let mut isolate = Isolate::with_options(tree, strings, options);
     let args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
+
+    // execute using the requested runner
+    run_program_with_isolate(program, &mut isolate, &args)
+}
+
+/// Execute a program using default arguments.
+fn run_program_with_tree_result_default_args(
+    program: &program::Program,
+    tree: mir::NodeTree,
+    strings: ImmutableStringPool,
+    max_instruction_limit: Option<u64>,
+) -> RuntimeResult<ExecutionOutput> {
+    // configure an isolate like the bench harness
+    let mut options = IsolateOptions::unbounded();
+    options.limits.max_stack_depth = 4096;
+    options.limits.max_heap_cells = 5_000_000;
+    options.limits.max_raw_cells = 5_000_000;
+
+    // apply instruction limits when requested
+    if let Some(limit) = max_instruction_limit {
+        options.limits.max_instructions = Some(limit);
+    }
+
+    // build isolate and arguments
+    let mut isolate = Isolate::with_options(tree, strings, options);
+    let args = (program.default_args)(&isolate);
+
+    // execute using the requested runner
+    run_program_with_isolate(program, &mut isolate, &args)
+}
+
+/// Execute a program using an isolate and explicit arguments.
+fn run_program_with_isolate(
+    program: &program::Program,
+    isolate: &mut Isolate,
+    args: &[Value],
+) -> RuntimeResult<ExecutionOutput> {
+    // resolve entry id
     let entry_id = isolate
         .function_id_by_name(program.entry)
         .unwrap_or_else(|_| panic!("function '{}' not found", program.entry));
 
     // execute based on runner configuration
     match program.runner {
-        program::ProgramRunner::Function => isolate.run_function(entry_id, &args),
+        program::ProgramRunner::Function => isolate.run_function(entry_id, args),
         program::ProgramRunner::Coroutine { resume_value } => {
-            run_coroutine(&mut isolate, entry_id, &args, resume_value)
+            run_coroutine(isolate, entry_id, args, resume_value)
         }
     }
 }
