@@ -1,5 +1,7 @@
 use super::member::MemberResolution;
-use super::{index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible};
+use super::{
+    index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
+};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
     OperatorLanguageSymbolExt,
@@ -548,12 +550,13 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // resolve receiver type
         let options = ctx.options;
         let receiver_ty_id =
             self.infer_expression(module, receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
-        // ensure instance types are available for reference receivers
+        // ensure instance types for reference receivers
         self.ensure_reference_instance_types_for_type(
             module,
             ctx.profile,
@@ -562,16 +565,27 @@ impl Compiler {
             types,
         )?;
 
-        let index_ty_id = if let Some(index_id) = index_id {
-            Some(self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?)
+        // resolve index expression and literal string when possible
+        let (index_ty_id, literal_string) = if let Some(index_id) = index_id {
+            let index_ty_id =
+                self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?;
+            let literal_string = match tree.get(index_id) {
+                Expression::ScalarLiteral {
+                    value: ScalarLiteral::String(name_id),
+                } => Some(self.program.strings.get(*name_id)),
+                _ => None,
+            };
+            (Some(index_ty_id), literal_string)
         } else {
-            None
+            (None, None)
         };
 
+        // handle builtin index access
         let builtin_ty_id = self.infer_builtin_index_access(
             &receiver_ty,
             receiver_ty_id,
             index_ty_id,
+            literal_string.as_deref(),
             types,
             options.no_unchecked_indexed_access,
         );
@@ -584,6 +598,7 @@ impl Compiler {
             return Ok(builtin_ty_id);
         }
 
+        // guard non indexable receivers
         if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::Index, types) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
@@ -644,7 +659,7 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        // index access expects one dynamic parameter
+        // resolve index parameter type
         let parameter_ty_id = resolved.signature.dynamic_parameters.first().copied();
         if resolved.signature.dynamic_parameters.len() != 1 {
             self.error(AnalyzeError::NoOverload {
@@ -688,6 +703,7 @@ impl Compiler {
         // finalize resolution and instance registration
         self.record_member_call_resolution(module, expression_id, receiver_ty_id, &resolved, types);
 
+        // resolve return type
         let value_ty_id = resolved.signature.return_type.unwrap_or_else(|| {
             types.insert_type_from(
                 Type::TypeLiteral {
@@ -713,6 +729,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // extract receiver and index expressions
         let Expression::Index {
             left: receiver_id,
             right: index_id,
@@ -721,15 +738,25 @@ impl Compiler {
             unreachable!("index assignment expects an index expression");
         };
 
+        // resolve receiver type
         let options = ctx.options;
         let receiver_ty_id =
             self.infer_expression(module, *receiver_id, tree, symbols, types, infer, ctx)?;
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
-        let index_ty_id = if let Some(index_id) = index_id {
-            Some(self.infer_expression(module, *index_id, tree, symbols, types, infer, ctx)?)
+        // resolve index expression and literal string when possible
+        let (index_ty_id, literal_string) = if let Some(index_id) = index_id {
+            let index_ty_id =
+                self.infer_expression(module, *index_id, tree, symbols, types, infer, ctx)?;
+            let literal_string = match tree.get(*index_id) {
+                Expression::ScalarLiteral {
+                    value: ScalarLiteral::String(name_id),
+                } => Some(self.program.strings.get(*name_id)),
+                _ => None,
+            };
+            (Some(index_ty_id), literal_string)
         } else {
-            None
+            (None, None)
         };
 
         // handle builtin index assignment
@@ -737,6 +764,7 @@ impl Compiler {
             &receiver_ty,
             receiver_ty_id,
             index_ty_id,
+            literal_string.as_deref(),
             types,
             false,
         );
@@ -791,6 +819,7 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
+        // guard non indexable receivers
         if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::IndexSet, types) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
@@ -851,7 +880,7 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        // index set expects two dynamic parameters (key, value)
+        // resolve index set parameter types
         let key_param_ty_id = resolved.signature.dynamic_parameters.first().copied();
         let value_param_ty_id = resolved.signature.dynamic_parameters.get(1).copied();
         if resolved.signature.dynamic_parameters.len() != 2 {
@@ -917,6 +946,7 @@ impl Compiler {
         // finalize resolution and instance registration
         self.record_member_call_resolution(module, expression_id, receiver_ty_id, &resolved, types);
 
+        // return void for index assignment
         let ty = Type::TypeLiteral {
             value: TypeLiteral::Void,
         };
@@ -1119,6 +1149,7 @@ impl Compiler {
         receiver_ty: &Type,
         receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
+        literal_string: Option<&str>,
         types: &mut TypeTable,
         include_undefined: bool,
     ) -> Option<LocalTypeId> {
@@ -1187,9 +1218,25 @@ impl Compiler {
                     }
                 }
 
-                let signature_ty_id =
-                    self.infer_index_signature_access(index_signatures, index_ty_id, types)?;
+                let signature_ty_id = self.infer_index_signature_access(
+                    index_signatures,
+                    index_ty_id,
+                    literal_string,
+                    types,
+                )?;
                 Some(add_unchecked_undefined(signature_ty_id, types))
+            }
+            Type::Reference { symbol, .. } => {
+                let instance_ty_id = types.get_instance_type_id(*symbol)?;
+                let instance_ty = types.get_type(instance_ty_id).clone();
+                self.infer_builtin_index_access(
+                    &instance_ty,
+                    instance_ty_id,
+                    index_ty_id,
+                    literal_string,
+                    types,
+                    include_undefined,
+                )
             }
             _ => None,
         }
@@ -1199,14 +1246,16 @@ impl Compiler {
         &self,
         index_signatures: &[destack_dir::TypeIndexSignature],
         index_ty_id: LocalTypeId,
+        literal_string: Option<&str>,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        let key_kind = index_key_kind_for_index(index_ty_id, types)?;
+        let key_kind =
+            index_key_kind_for_index(index_ty_id, literal_string, types, &self.program.strings)?;
         let mut value_types = Vec::new();
 
         for signature in index_signatures {
             let signature_kind = index_key_kind_for_type(signature.key_type, types);
-            if index_key_kinds_compatible(signature_kind, key_kind) {
+            if index_key_kinds_compatible_for_access(signature_kind, key_kind) {
                 value_types.push(signature.value_type);
             }
         }

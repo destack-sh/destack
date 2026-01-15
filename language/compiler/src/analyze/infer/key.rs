@@ -1,6 +1,9 @@
+use destack_base::StringPool;
 use destack_dir::{
     LocalTypeId, PrimitiveType, ScalarLiteral, StaticKey, Type, TypeLiteral, TypeTable,
 };
+
+use crate::analyze::common::evaluate_numeric_literal;
 
 /// Canonical kind for index signature key matching.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,8 +40,14 @@ pub(super) fn index_key_kind_for_type(key_type: LocalTypeId, types: &TypeTable) 
 /// Get the key kind for an index expression value.
 pub(super) fn index_key_kind_for_index(
     index_type: LocalTypeId,
+    literal_string: Option<&str>,
     types: &TypeTable,
+    strings: &StringPool,
 ) -> Option<IndexKeyKind> {
+    if let Some(name) = literal_string {
+        return Some(index_key_kind_for_string_literal(name));
+    }
+
     match types.get_type(index_type) {
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -53,10 +62,16 @@ pub(super) fn index_key_kind_for_index(
             value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
         } => Some(IndexKeyKind::Symbol),
         Type::TypeLiteral {
-            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
-        } => Some(IndexKeyKind::String),
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name_id)),
+        } => {
+            let name = strings.get(*name_id);
+            Some(index_key_kind_for_string_literal(&name))
+        }
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)),
+        } => Some(IndexKeyKind::Number),
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Float(_)),
         } => Some(IndexKeyKind::Number),
         _ => None,
     }
@@ -72,8 +87,25 @@ pub(super) fn index_key_kind_for_member(member_key: &StaticKey) -> IndexKeyKind 
 }
 
 /// Check if an index signature key kind is compatible with an access key kind.
-pub(super) fn index_key_kinds_compatible(signature: IndexKeyKind, access: IndexKeyKind) -> bool {
-    match (signature, access) {
+pub(super) fn index_key_kinds_compatible_for_access(
+    signature: IndexKeyKind,
+    access: IndexKeyKind,
+) -> bool {
+    matches!(
+        (signature, access),
+        (IndexKeyKind::String, IndexKeyKind::String)
+            | (IndexKeyKind::String, IndexKeyKind::Number)
+            | (IndexKeyKind::Number, IndexKeyKind::Number)
+            | (IndexKeyKind::Symbol, IndexKeyKind::Symbol)
+    )
+}
+
+/// Check if two index signature key kinds are compatible for assignability.
+pub(super) fn index_key_kinds_compatible_for_assignability(
+    target: IndexKeyKind,
+    source: IndexKeyKind,
+) -> bool {
+    match (target, source) {
         (IndexKeyKind::String, IndexKeyKind::String) => true,
         (IndexKeyKind::Number, IndexKeyKind::Number) => true,
         (IndexKeyKind::Symbol, IndexKeyKind::Symbol) => true,
@@ -81,6 +113,21 @@ pub(super) fn index_key_kinds_compatible(signature: IndexKeyKind, access: IndexK
         (IndexKeyKind::String, IndexKeyKind::Number) => true,
         (IndexKeyKind::Number, IndexKeyKind::String) => true,
         _ => false,
+    }
+}
+
+/// Check if a string literal matches a canonical JS numeric literal name.
+fn is_numeric_literal_name(name: &str) -> bool {
+    let canonical = evaluate_numeric_literal(name);
+    canonical == name
+}
+
+/// Convert a string literal into its index key kind.
+fn index_key_kind_for_string_literal(name: &str) -> IndexKeyKind {
+    if is_numeric_literal_name(name) {
+        IndexKeyKind::Number
+    } else {
+        IndexKeyKind::String
     }
 }
 

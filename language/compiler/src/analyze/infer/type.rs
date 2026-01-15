@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use super::{index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible};
+use super::{
+    index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
+};
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
 };
@@ -1713,7 +1715,7 @@ impl Compiler {
 
         for signature in index_signatures {
             let signature_kind = index_key_kind_for_type(signature.key_type, types);
-            if index_key_kinds_compatible(signature_kind, key_kind) {
+            if index_key_kinds_compatible_for_access(signature_kind, key_kind) {
                 value_types.push(signature.value_type);
             }
         }

@@ -1,4 +1,4 @@
-import { extern } from "../../../core/intrinsic/decorator.ds";
+import { extern } from "../../../../core/intrinsic/decorator.ds";
 
 /// Process bindings for native runtime.
 declare namespace process {
