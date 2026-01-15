@@ -32,7 +32,7 @@ block5:
 // branch on condition
 block6(v8: i64, v9: i64):
     v10 = icmp_sgt v9, v8
-    branch v10, block7, block8
+    branch v10, block7, block8(v9)
 
 // merge branch, continue
 block7:

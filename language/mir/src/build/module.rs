@@ -1,5 +1,6 @@
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 
+#[cfg(any(test, debug_assertions))]
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, Copyability, Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability,
