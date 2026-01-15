@@ -98,11 +98,6 @@ impl Compiler {
             return self.call_signatures_for_type_inner(instance_id, types, visited);
         }
 
-        // unwrap value types to their underlying type
-        if let Type::Value { value } = types.get_type(ty_id) {
-            return self.call_signatures_for_type_inner(*value, types, visited);
-        }
-
         Vec::new()
     }
 

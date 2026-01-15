@@ -36,6 +36,21 @@ const bad: Name = 42;
 
 - contains: not assignable
 
+## typeof returns value types for locals
+
+> `typeof` returns the value type of a local binding.
+
+```ds
+const value = 42;
+
+type ValueType = typeof value;
+
+let ok: ValueType = 42;
+let bad: ValueType = "no";
+```
+
+- contains: type string is not assignable to type int32
+
 ## typeof returns constructor types for classes
 
 > `typeof` on a class returns the constructor value type with static members.
@@ -60,6 +75,25 @@ let badVersion: CounterCtor["version"] = "no";
 
 - contains: type string is not assignable to type int32
 
+### typeof includes static methods
+
+> `typeof` exposes static methods on the constructor value type.
+
+```ds
+class Counter {
+    static next(value: int32): int32 { return value + 1 }
+}
+
+type CounterCtor = typeof Counter;
+
+let ctor: CounterCtor = Counter;
+
+let okNext: int32 = ctor.next(1);
+let badNext: string = ctor.next(1);
+```
+
+- contains: type int32 is not assignable to type string
+
 ### typeof inherits base constructors
 
 > Classes without constructors inherit the base constructor signature.
@@ -75,3 +109,22 @@ declare function takesChild(ctor: { new(value: int32): Child }): void;
 
 takesChild(Child);
 ```
+
+## typeof returns constructor types for structs
+
+> `typeof` on a struct returns the constructor value type with static members.
+
+```ds
+struct Point {
+    static tag: string
+    x: int32
+    y: int32
+}
+
+type PointCtor = typeof Point;
+
+let okTag: PointCtor["tag"] = "ok";
+let badTag: PointCtor["tag"] = 1;
+```
+
+- contains: type int32 is not assignable to type string

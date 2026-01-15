@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError};
+use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, LocalNodeId, LocalSymbolId, LocalTypeId, SymbolTable, SymbolType, Type, TypeField,
-    TypeIndexSignature, TypeTable,
+    Declaration, GlobalSymbolId, LocalNodeId, LocalSymbolId, LocalTypeId, StaticKey, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -70,6 +70,14 @@ impl ObjectShape {
             construct_signatures: self.construct_signatures,
             index_signatures: self.index_signatures,
         }
+    }
+
+    /// Check whether the shape has any members.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.fields.is_empty()
+            && self.call_signatures.is_empty()
+            && self.construct_signatures.is_empty()
+            && self.index_signatures.is_empty()
     }
 
     /// Apply a direct field override to the shape.
@@ -171,6 +179,115 @@ impl Compiler {
         let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
         types.set_instance_type(symbol, instance_ty_id);
         instance_ty_id
+    }
+
+    /// Collect value members and extras from a value type.
+    pub(crate) fn collect_value_shape_from_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        shape: &mut ObjectShape,
+        extras: &mut Vec<LocalTypeId>,
+        visited: &mut Vec<LocalTypeId>,
+    ) {
+        // avoid recursion loops in cyclic type graphs
+        if visited.contains(&ty_id) {
+            return;
+        }
+        visited.push(ty_id);
+
+        // collect shape data based on the value type
+        let ty = types.get_type(ty_id);
+        match ty {
+            Type::Object { .. } => {
+                shape.extend_from_object(ty);
+            }
+            Type::Function { .. } => {
+                shape.call_signatures.push(ty_id);
+            }
+            Type::Intersection { elements } => {
+                for element_id in elements {
+                    self.collect_value_shape_from_type(*element_id, types, shape, extras, visited);
+                }
+            }
+            Type::Value { .. } => {}
+            _ => extras.push(ty_id),
+        }
+    }
+
+    /// Merge value shape into a symbol value type.
+    pub(crate) fn merge_value_shape_into_symbol(
+        &self,
+        module: &Module,
+        declaration_id: LocalNodeId<Declaration>,
+        symbol_id: LocalSymbolId,
+        shape: &ObjectShape,
+        types: &mut TypeTable,
+        allow_merge: bool,
+    ) -> LocalTypeId {
+        // seed the merge with any existing value members
+        let symbol = symbol_id.into_global(module.id);
+        let mut merged_shape = ObjectShape::default();
+        let mut extras = Vec::new();
+
+        // reuse existing value members when merges are allowed
+        if allow_merge && let Some(existing_id) = types.get_value_type_id(symbol) {
+            let mut visited = Vec::new();
+            self.collect_value_shape_from_type(
+                existing_id,
+                types,
+                &mut merged_shape,
+                &mut extras,
+                &mut visited,
+            );
+        }
+
+        // merge the new shape into the value shape
+        merged_shape.extend_from_shape(shape);
+
+        // build the merged object type when members exist
+        let object_ty_id = if merged_shape.is_empty() {
+            None
+        } else {
+            Some(types.insert_type_from(merged_shape.into_object_type(), declaration_id))
+        };
+
+        // always include the nominal type descriptor
+        let nominal_reference = Type::Reference {
+            symbol,
+            static_arguments: None,
+        };
+        let nominal_reference_id = types.insert_type_from(nominal_reference, declaration_id);
+        let descriptor_ty_id = types.insert_type_from(
+            Type::Value {
+                value: nominal_reference_id,
+            },
+            declaration_id,
+        );
+
+        // keep only non object extras to avoid duplicate shapes
+        extras.retain(|extra_id| {
+            !matches!(
+                types.get_type(*extra_id),
+                Type::Object { .. } | Type::Function { .. } | Type::Value { .. }
+            )
+        });
+
+        // assemble the final value type
+        let mut elements = Vec::new();
+        if let Some(object_ty_id) = object_ty_id {
+            elements.push(object_ty_id);
+        }
+        elements.push(descriptor_ty_id);
+        elements.extend(extras);
+
+        let value_ty_id = if elements.len() == 1 {
+            elements[0]
+        } else {
+            types.insert_type_from(Type::Intersection { elements }, declaration_id)
+        };
+        types.set_value_type(symbol, value_ty_id);
+        value_ty_id
     }
 
     /// Merge a function declaration into the symbol value type.
@@ -302,32 +419,23 @@ impl Compiler {
         types: &mut TypeTable,
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
+        // skip ambient lib modules
         if self.module_is_ambient_lib(module) {
             return Ok(());
         }
 
+        // resolve the merge key for the symbol
         let symbol_entry = symbols.get_symbol(symbol_id);
         let Some(key) = symbol_entry.key else {
             return Ok(());
         };
 
-        let mut merge_symbols = Vec::new();
-        if let Some(global_symbols) =
-            self.get_global_symbol_group(module.id, profile, key, symbol_entry.space)
-        {
-            merge_symbols.extend(global_symbols);
-        }
-        if !self.module_is_ambient_lib(module)
-            && let Some(ambient_symbols) =
-                self.get_ambient_lib_symbol_sources_for_merge(profile, key, symbol_entry.space)
-        {
-            merge_symbols.extend(ambient_symbols);
-        }
+        // collect merge symbols for this key and space
+        let merge_symbols =
+            self.collect_global_merge_symbols(module, profile, key, symbol_entry.space);
         if merge_symbols.is_empty() {
             return Ok(());
         }
-        let mut seen = HashSet::new();
-        merge_symbols.retain(|symbol| seen.insert(*symbol));
 
         // import and merge each global symbol instance type
         for global_symbol in merge_symbols {
@@ -337,15 +445,7 @@ impl Compiler {
             }
 
             // ensure remote module declare is ready
-            self.require_analyze_module_declare(global_symbol.module_id, profile)
-                .map_err(|error| match error {
-                    TaskDependencyError::NotReady { dependency } => {
-                        AnalyzeError::Yield { dependency }
-                    }
-                    TaskDependencyError::Failed { dependency } => {
-                        AnalyzeError::UnsatisfiedDependency { dependency }
-                    }
-                })?;
+            self.require_analyze_module_declare(global_symbol.module_id, profile)?;
 
             // load remote instance type data
             let remote_module = self.program.modules.get(global_symbol.module_id);
@@ -387,4 +487,129 @@ impl Compiler {
 
         Ok(())
     }
+
+    /// Collect merge symbols for global augmentations.
+    fn collect_global_merge_symbols(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> Vec<GlobalSymbolId> {
+        // start merge symbol collection
+        let mut merge_symbols = Vec::new();
+
+        // include symbols from the global group
+        if let Some(global_symbols) = self.get_global_symbol_group(module.id, profile, key, space) {
+            merge_symbols.extend(global_symbols);
+        }
+
+        // include ambient lib symbols when available
+        if !self.module_is_ambient_lib(module)
+            && let Some(ambient_symbols) =
+                self.get_ambient_lib_symbol_sources_for_merge(profile, key, space)
+        {
+            merge_symbols.extend(ambient_symbols);
+        }
+
+        // remove duplicates in a stable order
+        let mut seen = HashSet::new();
+        merge_symbols.retain(|symbol| seen.insert(*symbol));
+
+        merge_symbols
+    }
+
+    /// Merge global augmentation types into a symbol value type.
+    pub(crate) fn merge_global_value_shape_for_symbol(
+        &self,
+        module: &Module,
+        declaration_id: LocalNodeId<Declaration>,
+        symbol_id: LocalSymbolId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        profile: ProfileId,
+    ) -> AnalyzeResult<()> {
+        // skip ambient lib modules
+        if self.module_is_ambient_lib(module) {
+            return Ok(());
+        }
+
+        // resolve the merge key for the symbol
+        let symbol_entry = symbols.get_symbol(symbol_id);
+        let Some(key) = symbol_entry.key else {
+            return Ok(());
+        };
+
+        // collect merge symbols for this key and space
+        let merge_symbols =
+            self.collect_global_merge_symbols(module, profile, key, symbol_entry.space);
+        if merge_symbols.is_empty() {
+            return Ok(());
+        }
+
+        // import and merge each global symbol value type
+        for global_symbol in merge_symbols {
+            // skip the symbol that owns this declaration
+            if global_symbol.module_id == module.id && global_symbol.local_id == symbol_id {
+                continue;
+            }
+
+            // ensure remote module declare is ready
+            self.require_analyze_module_declare(global_symbol.module_id, profile)?;
+
+            // load remote value type data
+            let remote_module = self.program.modules.get(global_symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_types = remote_module.dir(profile).types.read();
+            let Some(remote_value_id) = remote_types.get_value_type_id(global_symbol) else {
+                continue;
+            };
+
+            // import the remote value type into this module
+            let remote_value_ty = remote_types.get_type(remote_value_id);
+            let local_value_id = self.import_type_from_remote_for_node(
+                declaration_id.into_any(),
+                remote_value_ty,
+                &remote_types,
+                global_symbol,
+                types,
+            );
+
+            // collect the remote value shape
+            let mut remote_shape = ObjectShape::default();
+            let mut extras = Vec::new();
+            let mut visited = Vec::new();
+            self.collect_value_shape_from_type(
+                local_value_id,
+                types,
+                &mut remote_shape,
+                &mut extras,
+                &mut visited,
+            );
+            if remote_shape.is_empty() {
+                continue;
+            }
+
+            // merge the imported shape into this symbol
+            self.merge_value_shape_into_symbol(
+                module,
+                declaration_id,
+                symbol_id,
+                &remote_shape,
+                types,
+                true,
+            );
+        }
+
+        Ok(())
+    }
+}
+
+/// Collected member shapes for instance and value sides.
+#[derive(Debug, Default)]
+pub(crate) struct ObjectShapeSet {
+    /// Instance shape for members.
+    pub(crate) instance: ObjectShape,
+    /// Value shape for static members.
+    pub(crate) value: ObjectShape,
 }

@@ -438,6 +438,18 @@ impl Compiler {
             }
             // unary
             Expression::TypeUnary { operator, right } => {
+                if operator == TypeUnaryOperator::Typeof {
+                    return Ok(Some(self.evaluate_typeof_expression(
+                        module,
+                        profile,
+                        expression_id,
+                        right,
+                        tree,
+                        symbols,
+                        types,
+                    )?));
+                }
+
                 let right_id = self.try_evaluate_expression_to_type(
                     module, profile, right, tree, symbols, types,
                 )?;
@@ -838,6 +850,9 @@ impl Compiler {
                             let Some(key) = key.and_then(|key| {
                                 self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
+                                if module.language_type.is_declaration() {
+                                    continue;
+                                }
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id
                                         .into_global_any(module.id)
@@ -908,6 +923,9 @@ impl Compiler {
                             let Some(key) = key.and_then(|key| {
                                 self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
                             }) else {
+                                if module.language_type.is_declaration() {
+                                    continue;
+                                }
                                 return Err(AnalyzeError::UnsupportedConstruct {
                                     node: property_id
                                         .into_global_any(module.id)
@@ -988,6 +1006,58 @@ impl Compiler {
         };
 
         Ok(Some(ty))
+    }
+
+    /// Evaluate a typeof type expression into a Type.
+    fn evaluate_typeof_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        right_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        _symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Type> {
+        // unwrap parenthesized targets
+        let mut target_id = right_id;
+        loop {
+            let Expression::Parenthesized { expression } = tree.get(target_id) else {
+                break;
+            };
+            target_id = *expression;
+        }
+
+        // resolve the target symbol for a typeof reference
+        let Some(target_symbol) = tree.get(target_id).target_symbol() else {
+            return Ok(Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            });
+        };
+
+        // resolve the value type for the target symbol
+        let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
+            Some(value_ty_id)
+        } else if target_symbol.module_id != module.id {
+            Some(self.resolve_remote_symbol_value_type(
+                module,
+                profile,
+                expression_id,
+                target_symbol,
+                types,
+            )?)
+        } else {
+            None
+        };
+
+        // fall back to unknown when the value type is missing
+        let Some(value_ty_id) = value_ty_id else {
+            return Ok(Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            });
+        };
+
+        Ok(types.get_type(value_ty_id).clone())
     }
 }
 

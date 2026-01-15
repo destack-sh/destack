@@ -1,4 +1,5 @@
 use crate::Compiler;
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, Type, TypeLiteral, TypeTable,
     WellKnownSymbol,
@@ -39,14 +40,8 @@ impl Compiler {
     pub(super) fn well_known_symbol_for_type(
         &self,
         receiver_ty: &Type,
-        types: &TypeTable,
+        _types: &TypeTable,
     ) -> Option<WellKnownSymbol> {
-        // follow type as value wrappers
-        if let Type::Value { value } = receiver_ty {
-            let value_ty = types.get_type(*value);
-            return self.well_known_symbol_for_type(value_ty, types);
-        }
-
         // map structural and literal receiver types
         match receiver_ty {
             Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
@@ -66,16 +61,19 @@ impl Compiler {
         receiver_ty: &Type,
         types: &mut TypeTable,
     ) -> Option<Type> {
+        // type-as-value uses the Type<T> descriptor
+        if let Type::Value { value } = receiver_ty {
+            let symbol = self.get_language_symbol(LanguageSymbol::Type)?;
+            let argument = StaticArgument::value(StaticExpression::Type { ty: *value });
+            return Some(Type::Reference {
+                symbol,
+                static_arguments: Some(vec![argument]),
+            });
+        }
+
         // resolve the well known symbol for this receiver
         let well_known_symbol = self.well_known_symbol_for_type(receiver_ty, types)?;
         let symbol = self.get_well_known_type_symbol(profile, well_known_symbol)?;
-
-        // unwrap type as value wrappers for array element handling
-        let receiver_ty = if let Type::Value { value } = receiver_ty {
-            types.get_type(*value)
-        } else {
-            receiver_ty
-        };
 
         // build static arguments for array like receivers
         let static_arguments = match receiver_ty {

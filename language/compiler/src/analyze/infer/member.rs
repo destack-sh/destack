@@ -1,5 +1,6 @@
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral,
@@ -843,19 +844,42 @@ impl Compiler {
         allow_implicit: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let resolved = match receiver_ty {
-            Type::Value { value } => {
-                let value_ty = types.get_type(*value).clone();
-                self.resolve_member_symbol_for_type(
+            Type::Value { .. } => {
+                let Some(type_symbol) = self.get_language_symbol(LanguageSymbol::Type) else {
+                    return Ok(None);
+                };
+                self.resolve_member_symbol_for_symbol(
                     module,
-                    &value_ty,
+                    type_symbol,
                     member_key,
                     profile,
                     tree,
                     symbols,
                     types,
                     visited,
-                    allow_implicit,
                 )?
+            }
+            Type::Intersection { elements } => {
+                let element_ids = elements.clone();
+                let mut resolved = None;
+                for element_id in element_ids {
+                    let element_ty = types.get_type(element_id).clone();
+                    resolved = self.resolve_member_symbol_for_type(
+                        module,
+                        &element_ty,
+                        member_key,
+                        profile,
+                        tree,
+                        symbols,
+                        types,
+                        visited,
+                        allow_implicit,
+                    )?;
+                    if resolved.is_some() {
+                        break;
+                    }
+                }
+                resolved
             }
             Type::Reference { symbol, .. } => self.resolve_member_symbol_for_symbol(
                 module, *symbol, member_key, profile, tree, symbols, types, visited,
