@@ -1,5 +1,6 @@
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 
+use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, Copyability, Field, Function, Global, GlobalInitializer, LocalNodeId, Mutability,
     NodeTree, ReferenceKind, Type, TypedValue, Value,
@@ -278,11 +279,35 @@ impl ModuleBuilder {
 
     /// Finish building the module.
     pub fn finish_immutable(self) -> (NodeTree, ImmutableStringPool) {
+        // verify in debug and test builds
+        #[cfg(any(test, debug_assertions))]
+        {
+            // set up the verifier
+            let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+
+            // fail fast on invalid mir
+            if let Err(error) = verifier.verify_tree() {
+                panic!("mir verification failed: {error}");
+            }
+        }
+
         (self.tree, self.strings.into_immutable())
     }
 
     /// Finish building the module with a mutable string pool.
     pub fn finish_mutable(self) -> (NodeTree, StringPool) {
+        // verify in debug and test builds
+        #[cfg(any(test, debug_assertions))]
+        {
+            // set up the verifier
+            let verifier = Verifier::new_with_options(&self.tree, VerifierOptions::strict());
+
+            // fail fast on invalid mir
+            if let Err(error) = verifier.verify_tree() {
+                panic!("mir verification failed: {error}");
+            }
+        }
+
         (self.tree, self.strings)
     }
 }

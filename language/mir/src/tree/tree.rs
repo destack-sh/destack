@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 
 use destack_base::Arena;
-use serde::{Deserialize, Serialize};
+use destack_source::Span;
 
 use crate::{
     ArgumentSlice, Block, CallTable, DebugInfoTable, Field, Function, Global, Instruction, Local,
@@ -13,7 +13,7 @@ use crate::{
 /// This is the main storage for all MIR nodes in a module. All nodes
 /// (functions, blocks, instructions, locals, types) are stored in arenas
 /// and referenced by `LocalNodeId<T>`.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct NodeTree {
     /// The next global node id to allocate.
     pub(crate) next_global_id: u32,
@@ -36,6 +36,8 @@ pub struct NodeTree {
     /// Maps MIR node id → source DIR node id (for diagnostics).
     /// None for synthesized nodes that don't correspond to source.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
+    /// Source spans by MIR node id.
+    pub(crate) span_by_node_id: Vec<Option<Span>>,
 
     // externalized instruction arguments
     /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
@@ -97,6 +99,7 @@ impl NodeTree {
             globals: Arena::new(),
 
             source_id_by_node_id: Vec::with_capacity(capacity),
+            span_by_node_id: Vec::with_capacity(capacity),
             instruction_arguments: Vec::new(),
             type_table: TypeTable::new(),
             call_table: CallTable::new(),
@@ -119,6 +122,7 @@ impl NodeTree {
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
         self.source_id_by_node_id.push(None);
+        self.span_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
     }
@@ -136,6 +140,7 @@ impl NodeTree {
         self.local_id_by_node_id.push(local_id);
         self.node_type_by_node_id.push(T::TYPE);
         self.source_id_by_node_id.push(Some(source_dir_id));
+        self.span_by_node_id.push(None);
 
         LocalNodeId::new(global_id)
     }
@@ -179,6 +184,32 @@ impl NodeTree {
     #[inline]
     pub fn set_source(&mut self, id: u32, source_dir_id: u32) {
         self.source_id_by_node_id[id as usize] = Some(source_dir_id);
+    }
+
+    /// Get the span for a node.
+    #[inline]
+    pub fn get_span<T>(&self, id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.span_by_node_id.get(id.id as usize).copied().flatten()
+    }
+
+    /// Get the span for a node by raw id.
+    #[inline]
+    pub fn get_span_by_id(&self, id: u32) -> Option<Span> {
+        self.span_by_node_id.get(id as usize).copied().flatten()
+    }
+
+    /// Set the span for a node.
+    #[inline]
+    pub fn set_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        if let Some(entry) = self.span_by_node_id.get_mut(id.id as usize) {
+            *entry = Some(span);
+        }
     }
 
     /// Iterate over all nodes of a given type.

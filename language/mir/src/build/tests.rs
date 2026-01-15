@@ -51,7 +51,7 @@ fn test_build_function_with_parameters() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @add(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }";
@@ -141,7 +141,7 @@ fn test_build_function_with_branch() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @select(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 block1:
     v1 = iconst 1i32
@@ -284,7 +284,7 @@ fn test_ssa_branch_with_phi() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @phi_test(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 block1:
     v1 = iconst 1i32
@@ -348,7 +348,7 @@ fn test_ssa_trivial_phi_removal() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @trivial_phi(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     v1 = iconst 42i32
     branch v0, block1, block2
 block1:
@@ -410,7 +410,7 @@ fn test_ssa_trivial_phi_unsealed() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @trivial_phi_unsealed(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     v1 = iconst 42i32
     branch v0, block1, block2
 block1:
@@ -452,7 +452,7 @@ fn test_build_arithmetic_operations() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @arithmetic(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     v3 = isub v2, v1
     v4 = imul v3, v0
@@ -491,7 +491,7 @@ fn test_build_comparison_operations() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @compare(v0: i32, v1: i32) -> bool {
-block0:
+block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
     v3 = icmp_slt v0, v1
     v4 = band v2, v3
@@ -684,7 +684,7 @@ fn test_build_managed_alloc_array() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @alloc_array_test(v0: i64) -> ref<managed i32> {
-block0:
+block0(v0: i64):
     v1 = managed.alloc_array i32, v0
     return v1
 }";
@@ -789,7 +789,7 @@ fn test_build_intrinsics() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @intrinsic_test(v0: f64, v1: f64) -> f64 {
-block0:
+block0(v0: f64, v1: f64):
     v2 = intrinsic.sqrt(v0)
     v3 = intrinsic.min(v2, v1)
     v4 = intrinsic.abs(v3)
@@ -858,7 +858,7 @@ fn test_build_struct() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @make_point(v0: i32, v1: f64) -> { i32, f64 } {
-block0:
+block0(v0: i32, v1: f64):
     v2 = struct { i32, f64 } (v0, v1)
     return v2
 }";
@@ -891,7 +891,7 @@ fn test_build_tuple() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @make_pair(v0: i32, v1: bool) -> (i32, bool) {
-block0:
+block0(v0: i32, v1: bool):
     v2 = tuple (i32, bool) (v0, v1)
     return v2
 }";
@@ -961,7 +961,7 @@ fn test_build_field_get_struct() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @get_y(v0: { i32, f64 }) -> f64 {
-block0:
+block0(v0: { i32, f64 }):
     v1 = field.get v0, 1
     return v1
 }";
@@ -993,7 +993,7 @@ fn test_build_field_get_tuple() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @get_first(v0: (i32, bool)) -> i32 {
-block0:
+block0(v0: (i32, bool)):
     v1 = field.get v0, 0
     return v1
 }";
@@ -1026,7 +1026,7 @@ fn test_build_element_get_array() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @get_element(v0: [i32; 3], v1: i64) -> i32 {
-block0:
+block0(v0: [i32; 3], v1: i64):
     v2 = element.get v0, v1
     return v2
 }";
@@ -1113,7 +1113,7 @@ fn test_ssa_passthrough_intermediate_block() {
     // note: block3 has no block parameter since it has only one predecessor
     let expected = "\
 function @passthrough(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     v1 = iconst 1i32
     jump block1(v1)
 block1(v2: i32):
@@ -1192,7 +1192,7 @@ fn test_ssa_multiple_phis_at_merge() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @multi_phi(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 block1:
     v1 = iconst 1i32

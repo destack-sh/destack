@@ -6,10 +6,9 @@ fn test_format_simple_add() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let void_type = module.type_void();
 
     // build function
-    let mut builder = module.function("add", &[i32_type, i32_type], void_type);
+    let mut builder = module.function("add", &[i32_type, i32_type], i32_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
     let left_value = builder.function_parameter(0);
@@ -23,8 +22,8 @@ fn test_format_simple_add() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @add(v0: i32, v1: i32) -> void {
-block0:
+function @add(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }";
@@ -111,7 +110,7 @@ fn test_format_branch() {
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function @select(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 block1:
     v1 = iconst 1i32

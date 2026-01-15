@@ -2,10 +2,11 @@
 
 use crate::parse::Parser;
 use crate::{MirFormatOptions, format_mir};
+use destack_source::FileId;
 
 /// Test parsing and re-formatting produces the same output.
 fn roundtrip(source: &str) {
-    let (tree, strings) = Parser::parse(source).expect("parse failed");
+    let (tree, strings) = Parser::parse(FileId::new(0), source).expect("parse failed");
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     assert_eq!(source.trim(), output.trim(), "roundtrip mismatch");
 }
@@ -13,7 +14,7 @@ fn roundtrip(source: &str) {
 #[test]
 fn test_roundtrip_simple_add() {
     roundtrip(
-        r#"function @add(v0: i32, v1: i32) -> void {
+        r#"function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
