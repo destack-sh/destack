@@ -1198,6 +1198,7 @@ version = "0.51.6"
 dependencies = [
  "clap",
  "destack_mir",
+ "destack_source",
  "destack_vm",
 ]
 
