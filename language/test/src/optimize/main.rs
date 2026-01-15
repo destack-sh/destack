@@ -5,7 +5,9 @@ use clap::Parser;
 use destack_compiler::OptimizationLevel;
 
 use destack_test::harness::{Runner, TestOptions};
-use destack_test::optimize::{OptimizeExecuteSuite, OptimizeRunOptions, OptimizeValidateSuite};
+use destack_test::optimize::{
+    OptimizeBaselineSuite, OptimizeExecuteSuite, OptimizeRunOptions, OptimizeValidateSuite,
+};
 
 /// CLI options for the `optimize` test binary.
 #[derive(Parser, Debug, Clone)]
@@ -14,6 +16,10 @@ struct OptimizeOptions {
     /// Run validation suite over MIR fixtures.
     #[arg(long)]
     validate: bool,
+
+    /// Run baseline suite over MIR bench programs without optimization.
+    #[arg(long)]
+    baseline: bool,
 
     /// Run execution suite over bench programs.
     #[arg(long)]
@@ -49,7 +55,9 @@ fn main() -> ExitCode {
     let options = OptimizeOptions::parse();
 
     // determine which suites to run
-    let run_validate = options.validate || (!options.validate && !options.execute);
+    let run_validate =
+        options.validate || (!options.validate && !options.execute && !options.baseline);
+    let run_baseline = options.baseline;
     let run_execute = options.execute;
 
     // parse the optional level filter
@@ -77,6 +85,13 @@ fn main() -> ExitCode {
     let mut any_failed = false;
     if run_validate {
         let suite = OptimizeValidateSuite::load(run_options.clone());
+        let result = Runner::run_suite(&suite, &options.test);
+        if result != ExitCode::SUCCESS {
+            any_failed = true;
+        }
+    }
+    if run_baseline {
+        let suite = OptimizeBaselineSuite::load(run_options.clone());
         let result = Runner::run_suite(&suite, &options.test);
         if result != ExitCode::SUCCESS {
             any_failed = true;
