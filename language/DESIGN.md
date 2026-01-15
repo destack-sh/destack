@@ -49,6 +49,12 @@ This mindest also extends to the features Destack extends TypeScript with:
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
 
+## Interactive Execution
+
+Destack treats interactive workflows as first class language use cases.
+REPLs and notebooks use the same compiler pipeline and VM as production code.
+Incremental compilation relies on module signatures and profile versions to keep latency low without query systems.
+
 
 ## Expressions
 
