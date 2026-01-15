@@ -38,7 +38,7 @@ const WORKER_DECLARED_SYMBOLS: &[&str] = &[
     "setTimeout",
 ];
 pub const LIB_WORKER: BuiltinLib =
-    BuiltinLib::ambient_lib("worker", &[LIB_WORKER_INDEX_D_DS], &["es5"])
+    BuiltinLib::ambient_lib("worker", &[LIB_WORKER_INDEX_D_DS], &["es2020"])
         .with_declared_symbols(WORKER_DECLARED_SYMBOLS);
 pub const LIB_WORKER_ASYNCITERABLE: BuiltinLib = BuiltinLib::ambient_lib(
     "worker.asynciterable",

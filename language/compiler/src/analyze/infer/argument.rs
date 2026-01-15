@@ -600,6 +600,36 @@ impl Compiler {
                 )
             });
 
+            // skip dependent arguments in declaration modules
+            if module.language_type.is_declaration() {
+                let mut visited = HashSet::new();
+                if self.static_argument_contains_static_parameters(
+                    module,
+                    profile,
+                    resolved_static_argument,
+                    symbols,
+                    types,
+                    &mut visited,
+                ) {
+                    return Ok(Some(substitution_ty_id));
+                }
+            }
+
+            // skip non-concrete arguments in declaration modules
+            if module.language_type.is_declaration()
+                && !self.static_argument_is_concrete_type(resolved_static_argument, types)
+            {
+                return Ok(Some(substitution_ty_id));
+            }
+
+            // skip validation when declaration module types are not materialized yet
+            if module.language_type.is_declaration()
+                && let Type::Reference { symbol, .. } = types.get_type(substitution_ty_id)
+                && types.get_instance_type_id(*symbol).is_none()
+            {
+                return Ok(Some(substitution_ty_id));
+            }
+
             // skip validation when the declared bound is still unevaluated
             if matches!(
                 types.get_type(static_parameter.declared_type_id),
@@ -623,6 +653,15 @@ impl Compiler {
                     &mut cache,
                 )
             };
+
+            // skip unresolved alias bounds in declaration modules
+            if module.language_type.is_declaration()
+                && let Type::Reference { symbol, .. } = types.get_type(expected_ty_id)
+                && symbol.ty() == SymbolType::TypeAlias
+                && types.get_instance_type_id(*symbol).is_none()
+            {
+                return Ok(Some(substitution_ty_id));
+            }
 
             // register an inference constraint for the declared bound
             if let Some(infer) = infer {
@@ -792,6 +831,38 @@ impl Compiler {
         }
 
         Ok(None)
+    }
+
+    /// Check whether a static argument resolves to a concrete type.
+    fn static_argument_is_concrete_type(
+        &self,
+        argument: &StaticArgument,
+        types: &TypeTable,
+    ) -> bool {
+        // only type-backed arguments can be concrete
+        let StaticArgument::Evaluated { value, .. } = argument else {
+            return false;
+        };
+
+        match value {
+            StaticExpression::Type { ty } => match types.get_type(*ty) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                } => false,
+                Type::TypeLiteral { .. } => true,
+                Type::Reference {
+                    static_arguments, ..
+                } => static_arguments
+                    .as_ref()
+                    .is_none_or(|arguments| arguments.is_empty()),
+                _ => false,
+            },
+            StaticExpression::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            } => false,
+            StaticExpression::TypeLiteral { .. } | StaticExpression::ScalarLiteral { .. } => true,
+            _ => false,
+        }
     }
 
     /// Resolve a static argument constraint for validation.

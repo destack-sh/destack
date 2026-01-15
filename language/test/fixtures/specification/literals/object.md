@@ -13,6 +13,17 @@ const x = { a: 1, b: "two" };
 x satisfies { a: 1, b: "two" };
 ```
 
+### object with shorthand properties
+
+> Shorthand fields use the binding type.
+
+```ds
+const name = "Ada";
+const age = 42;
+const person = { name, age };
+person satisfies { name: string, age: number };
+```
+
 ### empty object
 
 > Empty objects have no properties.

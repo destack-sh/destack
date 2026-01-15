@@ -11,6 +11,11 @@ struct Set<T> {
 }
 
 extension<T> for Set<T> implements Iterable<T> {
+    /// Create an empty set.
+    static new(): Set<T> {
+        Set { length: 0, capacity: 0, ctrl: null as *uint8, buckets: null as *T }
+    }
+
     /// Get the number of elements.
     get size(): number {
         this.length as number
@@ -72,7 +77,7 @@ extension<T> for Set<T> implements Iterable<T> {
     /// Intersection of two sets.
     intersection(other: Set<T>): Set<T> {
         // #Incomplete
-        Set.new()
+        Set { length: 0, capacity: 0, ctrl: null as *uint8, buckets: null as *T }
     }
 
     /// Difference (this - other).

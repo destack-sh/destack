@@ -254,7 +254,8 @@ impl UnaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TypeBinaryOperator {
     /// `as`
-    Cast = 1007,
+    // NOTE: cast binds between elementwise and comparison for TS-style parsing
+    Cast = 1355,
     /// `in`
     In = 1006,
     /// `is`

@@ -1256,7 +1256,7 @@ impl Compiler {
             Some(self.resolve_remote_symbol_value_type(
                 module,
                 profile,
-                expression_id,
+                expression_id.into_any(),
                 target_symbol,
                 types,
             )?)

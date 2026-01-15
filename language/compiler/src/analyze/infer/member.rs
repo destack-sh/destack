@@ -63,6 +63,19 @@ impl Compiler {
         let left_ty = types.get_type(left_ty_id).clone();
         let mut member_instance_id = None;
 
+        // short circuit member access on any
+        if matches!(
+            left_ty,
+            Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            }
+        ) {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Any,
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
+
         // ensure instance types are available for reference receivers
         self.ensure_reference_instance_types_for_type(
             module,

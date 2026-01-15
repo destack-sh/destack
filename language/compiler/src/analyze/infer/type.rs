@@ -1748,7 +1748,7 @@ impl Compiler {
         &self,
         _module: &Module,
         profile: ProfileId,
-        expression_id: LocalNodeId<Expression>,
+        node_id: LocalNodeIdAny,
         target_symbol: GlobalSymbolId,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -1766,7 +1766,7 @@ impl Compiler {
         if let Some(remote_ty_id) = remote_types.get_value_type_id(target_symbol) {
             let remote_ty = remote_types.get_type(remote_ty_id);
             let local_ty = self.import_type_from_remote_for_node(
-                expression_id.into_any(),
+                node_id,
                 remote_ty,
                 &remote_types,
                 target_symbol,
@@ -1779,7 +1779,7 @@ impl Compiler {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             };
-            Ok(types.insert_type_from(ty, expression_id))
+            Ok(types.insert_type_from_any(ty, node_id))
         }
     }
 
