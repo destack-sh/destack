@@ -1374,7 +1374,8 @@ mod tests {
         let uri = Uri::from_string(format!("test://module/{module_index}"));
         let file_id = FileId::new(module_index);
 
-        let (tree, strings) = mir::parse::Parser::parse(source).expect("failed to parse MIR");
+        let (tree, strings) =
+            mir::parse::Parser::parse(FileId::new(0), source).expect("failed to parse MIR");
         let pool = destack_base::StringPool::new();
         pool.copy_from_immutable(&strings);
 
