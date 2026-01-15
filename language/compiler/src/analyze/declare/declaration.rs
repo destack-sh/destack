@@ -1,16 +1,17 @@
 use destack_dir::{
-    BindingKind, Block, Constraint, Declaration, Declarator, DynamicKey, Export, Expression,
-    Extension, ExtensionKind, FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage,
-    InferOrigin, InferScope, InferTable, Lineage, LocalNodeId, LocalSymbolId, Member, Mutability,
-    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticKey, SymbolSpace,
-    SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral, TypeTable, walk_block,
-    walk_declaration, walk_expression,
+    Asynchrony, BindingAnchor, BindingKind, BindingModifier, Block, Constraint, Declaration,
+    Declarator, DynamicKey, Export, Expression, Extension, ExtensionKind, FunctionCardinality,
+    FunctionMode, Generics, GlobalNodeIdAny, GlobalSymbolId, Heritage, InferOrigin, InferScope,
+    InferTable, Lineage, LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, Member,
+    Mutability, NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, StaticKey,
+    SymbolSpace, SymbolTable, Type, TypeField, TypeIndexSignature, TypeKind, TypeLiteral,
+    TypeTable, walk_block, walk_declaration, walk_expression,
 };
 use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
-use super::super::common::ObjectShape;
+use super::super::common::{ObjectShape, ObjectShapeSet};
 
 /// Visitor used to declare type-level constructs across a module.
 #[derive(Debug)]
@@ -266,16 +267,34 @@ impl Compiler {
                     types,
                 )?;
 
-                // build instance shape from members
-                let shape =
-                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+                // nominal reference for constructors
+                let symbol = descriptor.symbol.into_global(module.id);
+                let nominal_reference = Type::Reference {
+                    symbol,
+                    static_arguments: None,
+                };
+                let nominal_reference_id =
+                    types.insert_type_from(nominal_reference, declaration_id);
+
+                // build instance and value shapes from members
+                let shapes = self.declare_member_shapes(
+                    module,
+                    profile,
+                    members,
+                    Some(nominal_reference_id),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let instance_shape = shapes.instance;
+                let mut value_shape = shapes.value;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
                     module,
                     declaration_id,
                     descriptor.symbol,
-                    &shape,
+                    &instance_shape,
                     symbols,
                     types,
                     allow_merge,
@@ -293,17 +312,38 @@ impl Compiler {
                     )?;
                 }
 
-                // register the nominal type as the value type
-                let nominal_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
-                    static_arguments: None,
-                };
-                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
-                let value_ty = Type::Value {
-                    value: nominal_ty_id,
-                };
-                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+                // ensure constructors exist for the value shape
+                self.ensure_constructor_signatures(
+                    module,
+                    profile,
+                    declaration_id,
+                    symbol,
+                    nominal_reference_id,
+                    &mut value_shape,
+                    types,
+                )?;
+
+                // register the nominal value type with static members
+                self.merge_value_shape_into_symbol(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &value_shape,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations for the value shape
+                if allow_merge && is_primary {
+                    self.merge_global_value_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
 
                 Ok(())
             }
@@ -334,16 +374,34 @@ impl Compiler {
                     types,
                 )?;
 
-                // build instance shape from members
-                let shape =
-                    self.declare_member_shape(module, profile, members, tree, symbols, types)?;
+                // prepare nominal reference for constructors
+                let symbol = descriptor.symbol.into_global(module.id);
+                let nominal_reference = Type::Reference {
+                    symbol,
+                    static_arguments: None,
+                };
+                let nominal_reference_id =
+                    types.insert_type_from(nominal_reference, declaration_id);
+
+                // build instance and value shapes from members
+                let shapes = self.declare_member_shapes(
+                    module,
+                    profile,
+                    members,
+                    Some(nominal_reference_id),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let instance_shape = shapes.instance;
+                let mut value_shape = shapes.value;
 
                 // merge instance shapes for merged declarations
                 self.merge_instance_shape_into_merge_group(
                     module,
                     declaration_id,
                     descriptor.symbol,
-                    &shape,
+                    &instance_shape,
                     symbols,
                     types,
                     allow_merge,
@@ -361,17 +419,38 @@ impl Compiler {
                     )?;
                 }
 
-                // register the nominal type as the value type
-                let nominal_ty = Type::Reference {
-                    symbol: descriptor.symbol.into_global(module.id),
-                    static_arguments: None,
-                };
-                let nominal_ty_id = types.insert_type_from(nominal_ty, declaration_id);
-                let value_ty = Type::Value {
-                    value: nominal_ty_id,
-                };
-                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(descriptor.symbol.into_global(module.id), value_ty_id);
+                // ensure constructors exist for the value shape
+                self.ensure_constructor_signatures(
+                    module,
+                    profile,
+                    declaration_id,
+                    symbol,
+                    nominal_reference_id,
+                    &mut value_shape,
+                    types,
+                )?;
+
+                // register the nominal value type with static members
+                self.merge_value_shape_into_symbol(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &value_shape,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations for the value shape
+                if allow_merge && is_primary {
+                    self.merge_global_value_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
 
                 Ok(())
             }
@@ -765,6 +844,272 @@ impl Compiler {
         Ok(())
     }
 
+    /// Override a constructor return type with a nominal reference when provided.
+    fn override_constructor_return_type(
+        &self,
+        ty_id: LocalTypeId,
+        constructor_return: Option<LocalTypeId>,
+        source_id: LocalNodeIdAny,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let Some(constructor_return) = constructor_return else {
+            return ty_id;
+        };
+
+        let Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            ..
+        } = types.get_type(ty_id).clone()
+        else {
+            return ty_id;
+        };
+
+        let rebuilt = Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            return_type: Some(constructor_return),
+        };
+        types.insert_type_from_any(rebuilt, source_id)
+    }
+
+    /// Return true when the member modifiers mark it as static.
+    fn member_is_static(modifiers: Option<&BindingModifier>) -> bool {
+        modifiers.is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static))
+    }
+
+    /// Select the target shape for a static or instance member.
+    fn member_target_shape(shapes: &mut ObjectShapeSet, is_static: bool) -> &mut ObjectShape {
+        if is_static {
+            &mut shapes.value
+        } else {
+            &mut shapes.instance
+        }
+    }
+
+    /// Return optionality and readonly flags for a field.
+    fn field_flags(modifiers: Option<&BindingModifier>) -> (bool, bool) {
+        let is_optional =
+            modifiers.is_some_and(|modifiers| matches!(modifiers.kind, Some(BindingKind::Maybe)));
+        let is_readonly = modifiers
+            .is_some_and(|modifiers| matches!(modifiers.mutability, Some(Mutability::Immutable)));
+
+        (is_optional, is_readonly)
+    }
+
+    /// Declare instance and value shapes for a list of members.
+    fn declare_member_shapes(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        members: &[LocalNodeId<Member>],
+        constructor_return: Option<LocalTypeId>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<ObjectShapeSet> {
+        // initialize member shapes
+        let mut shapes = ObjectShapeSet::default();
+
+        // collect member contributions
+        for member_id in members {
+            let member = tree.get(*member_id);
+
+            match member {
+                Member::Type { .. } => {}
+                Member::Field {
+                    modifiers,
+                    key,
+                    value,
+                    ..
+                } => {
+                    // decide whether this field is static
+                    let is_static = Self::member_is_static(modifiers.as_ref());
+
+                    // select the target shape
+                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+
+                    // handle index signatures
+                    if let Some(DynamicKey::NamedExpression { name, key }) = key {
+                        // resolve index signature types
+                        let key_type = self.try_evaluate_expression_to_type(
+                            module, profile, *key, tree, symbols, types,
+                        )?;
+                        let value_type = if let Some(value) = value {
+                            self.try_evaluate_expression_to_type(
+                                module, profile, *value, tree, symbols, types,
+                            )?
+                        } else {
+                            let ty = Type::TypeLiteral {
+                                value: TypeLiteral::Unknown,
+                            };
+                            types.insert_type_from_any(ty, (*member_id).into_any())
+                        };
+
+                        // collect index signature flags
+                        let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
+                            modifiers.mutability == Some(Mutability::Immutable)
+                        });
+
+                        target_shape.index_signatures.push(TypeIndexSignature {
+                            name: *name,
+                            key_type,
+                            value_type,
+                            is_readonly,
+                        });
+                        continue;
+                    }
+
+                    // resolve a static key for the field
+                    let static_key = key.and_then(|key| {
+                        self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                    });
+
+                    // resolve the field type
+                    let value_ty_id = if let Some(value) = value {
+                        let value_ty_id = self.try_evaluate_expression_to_type(
+                            module, profile, *value, tree, symbols, types,
+                        )?;
+                        types.set_declared_type(value.into_global_any(module.id), value_ty_id);
+                        value_ty_id
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type_from_any(ty, (*member_id).into_any())
+                    };
+
+                    // collect field flags
+                    let (is_optional, is_readonly) = Self::field_flags(modifiers.as_ref());
+
+                    // build the field when a static key exists
+                    if let Some(key) = static_key {
+                        target_shape.fields.push(TypeField {
+                            key,
+                            ty: value_ty_id,
+                            is_optional,
+                            is_readonly,
+                        });
+                    }
+                }
+                Member::Method {
+                    modifiers,
+                    key,
+                    signature,
+                    body: _,
+                    ..
+                } => {
+                    // decide whether this method is static
+                    let is_static = Self::member_is_static(modifiers.as_ref());
+
+                    // select the target shape
+                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+
+                    // handle call or construct signatures
+                    if key.is_none()
+                        && matches!(
+                            signature.mode,
+                            Some(FunctionMode::Call)
+                                | Some(FunctionMode::New)
+                                | Some(FunctionMode::Constructor)
+                        )
+                    {
+                        // evaluate the signature type
+                        let ty = self.evaluate_function_signature_to_type(
+                            module,
+                            profile,
+                            signature,
+                            (*member_id).into_any(),
+                            tree,
+                            symbols,
+                            types,
+                        )?;
+                        let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
+
+                        // override constructor returns when needed
+                        let ty_id = if signature.mode == Some(FunctionMode::Constructor) {
+                            self.override_constructor_return_type(
+                                ty_id,
+                                constructor_return,
+                                (*member_id).into_any(),
+                                types,
+                            )
+                        } else {
+                            ty_id
+                        };
+
+                        // record the declared signature for inference
+                        types.set_signature_type_for_node(
+                            (*member_id).into_global_any(module.id),
+                            ty_id,
+                        );
+
+                        // route the signature to the correct shape
+                        match signature.mode {
+                            Some(FunctionMode::Constructor) => {
+                                shapes.value.construct_signatures.push(ty_id);
+                            }
+                            Some(FunctionMode::New) => {
+                                target_shape.construct_signatures.push(ty_id);
+                            }
+                            _ => {
+                                target_shape.call_signatures.push(ty_id);
+                            }
+                        }
+                        continue;
+                    }
+
+                    // resolve the method key
+                    let Some(key) = key.and_then(|key| {
+                        self.static_key_from_dynamic_key(profile, key, tree, symbols, types)
+                    }) else {
+                        continue;
+                    };
+
+                    // build the method type
+                    let ty = self.evaluate_function_signature_to_type(
+                        module,
+                        profile,
+                        signature,
+                        (*member_id).into_any(),
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    let ty_id = types.insert_type_from_any(ty, (*member_id).into_any());
+
+                    // record the declared signature for inference
+                    types.set_signature_type_for_node(
+                        (*member_id).into_global_any(module.id),
+                        ty_id,
+                    );
+
+                    // collect field modifiers
+                    let is_optional = false;
+                    let is_readonly = true;
+
+                    target_shape.fields.push(TypeField {
+                        key,
+                        ty: ty_id,
+                        is_optional,
+                        is_readonly,
+                    });
+                }
+                Member::Embed { .. }
+                | Member::StaticBlock { .. }
+                | Member::ComptimeBlock { .. } => {}
+            }
+        }
+
+        Ok(shapes)
+    }
+
     /// Declare the instance shape for a list of members.
     fn declare_member_shape(
         &self,
@@ -957,6 +1302,122 @@ impl Compiler {
                 Ok(shape)
             }
         }
+    }
+
+    /// Resolve a local value type id for a symbol.
+    fn resolve_value_type_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_id: LocalNodeId<Declaration>,
+        symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // use the local value type when available
+        if symbol.module_id == module.id {
+            return Ok(types.get_value_type_id(symbol));
+        }
+
+        // ensure remote module declare is ready
+        self.require_analyze_module_declare(symbol.module_id, profile)?;
+
+        // import the remote value type into this module
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_types = remote_module.dir(profile).types.read();
+        let Some(remote_value_id) = remote_types.get_value_type_id(symbol) else {
+            return Ok(None);
+        };
+        let remote_value_ty = remote_types.get_type(remote_value_id);
+        let local_value_id = self.import_type_from_remote_for_node(
+            declaration_id.into_any(),
+            remote_value_ty,
+            &remote_types,
+            symbol,
+            types,
+        );
+
+        Ok(Some(local_value_id))
+    }
+
+    /// Collect constructor signatures from a symbol value type.
+    fn collect_constructor_signatures_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_id: LocalNodeId<Declaration>,
+        symbol: GlobalSymbolId,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Vec<LocalTypeId>> {
+        // resolve the local value type for the symbol
+        let local_value_id =
+            self.resolve_value_type_for_symbol(module, profile, declaration_id, symbol, types)?;
+
+        // stop when no value type is available
+        let Some(local_value_id) = local_value_id else {
+            return Ok(Vec::new());
+        };
+
+        // collect construct signatures from the value type
+        let mut shape = ObjectShape::default();
+        let mut extras = Vec::new();
+        let mut visited = Vec::new();
+        self.collect_value_shape_from_type(
+            local_value_id,
+            types,
+            &mut shape,
+            &mut extras,
+            &mut visited,
+        );
+        Ok(shape.construct_signatures)
+    }
+
+    /// Ensure constructors exist for a nominal value shape.
+    fn ensure_constructor_signatures(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        declaration_id: LocalNodeId<Declaration>,
+        symbol: GlobalSymbolId,
+        nominal_reference_id: LocalTypeId,
+        value_shape: &mut ObjectShape,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // stop once constructors exist
+        if !value_shape.construct_signatures.is_empty() {
+            return Ok(());
+        }
+
+        // inherit constructors from the base class when present
+        if let Some(lineage) = types.get_lineage_for_symbol(symbol).cloned()
+            && let Some(base_symbol) = lineage.extends
+        {
+            let inherited = self.collect_constructor_signatures_for_symbol(
+                module,
+                profile,
+                declaration_id,
+                base_symbol,
+                types,
+            )?;
+            if !inherited.is_empty() {
+                value_shape.construct_signatures.extend(inherited);
+                return Ok(());
+            }
+        }
+
+        // fall back to a default constructor
+        let signature = Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters: Vec::new(),
+            this_parameter: None,
+            dynamic_parameters: Vec::new(),
+            return_type: Some(nominal_reference_id),
+        };
+        let signature_id = types.insert_type_from(signature, declaration_id);
+        value_shape.construct_signatures.push(signature_id);
+
+        Ok(())
     }
 
     /// Declare exported value types using local information only.

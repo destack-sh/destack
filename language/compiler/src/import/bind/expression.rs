@@ -384,6 +384,11 @@ impl Compiler {
             }
 
             ast::Expression::TypeUnary { operator, right } => {
+                let space_order = if matches!(operator, ast::TypeUnaryOperator::Typeof) {
+                    SymbolSpaceOrder::ValueOnly
+                } else {
+                    space_order
+                };
                 let right = self.bind_expression(
                     module,
                     ast,

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
-    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature,
-    GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral,
-    StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
+    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, GlobalSymbolId,
+    InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
+    ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type,
+    TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -679,15 +679,7 @@ impl Compiler {
             .generics
             .as_ref()
             .and_then(|generics| generics.where_clauses.as_deref());
-        self.infer_where_clauses_maybe(
-            module,
-            where_clauses,
-            tree,
-            symbols,
-            types,
-            infer,
-            ctx,
-        )?;
+        self.infer_where_clauses_maybe(module, where_clauses, tree, symbols, types, infer, ctx)?;
 
         // collect static parameter placeholders
         let static_parameters =

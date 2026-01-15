@@ -1261,10 +1261,18 @@ impl Compiler {
             }
 
             // value type: unwrap to the underlying type
-            Type::Value { value } => {
-                let value_ty = types.get_type(*value).clone();
+            Type::Value { .. } => {
+                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                    return Ok(None);
+                };
                 self.infer_member_of_type(
-                    module, profile, node_id, &value_ty, member_key, types, visited,
+                    module,
+                    profile,
+                    node_id,
+                    &reference_ty,
+                    member_key,
+                    types,
+                    visited,
                 )
             }
 
@@ -1734,7 +1742,7 @@ impl Compiler {
 
     /// Resolve a remote symbol's value type by ensuring its module is analyzed
     /// and copying the type into the current module's TypeTable.
-    pub(super) fn resolve_remote_symbol_value_type(
+    pub(crate) fn resolve_remote_symbol_value_type(
         &self,
         _module: &Module,
         profile: ProfileId,
