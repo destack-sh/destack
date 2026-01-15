@@ -1128,7 +1128,8 @@ Destack's comptime is designed around the concept of **typed slots**:
 
 #### Code Specialization
 
-Comptime cannot not generate arbitrary code (no `eval`!).
+Comptime cannot generate arbitrary code or perform dynamic evaluation.
+Dynamic evaluation is a runtime feature and is not available during comptime.
 But, we can specialize code statically to cover essentially all relevant use cases via comptime specialization, which is more maintainable and understandable anyway.
 In practice, this isn't its own "feature", but just a nice consequence of other orthogonal features:
 
@@ -1294,6 +1295,27 @@ export struct CacheTable<
     }
 }
 ```
+
+## Interactive Execution
+
+Destack defines an interactive execution profile for REPLs and notebooks.
+
+### REPL Profile
+
+A REPL session evaluates each cell as a synthetic module.
+Each cell module is compiled through the full pipeline and executed in a persistent VM isolate.
+The REPL profile implicitly imports a session prelude that reexports earlier cell exports.
+Top-level bindings are implicitly exported unless configured otherwise.
+The last expression in a cell is captured as the cell result value.
+Top-level await is permitted in the REPL profile.
+
+### Dynamic Evaluation
+
+Dynamic evaluation is a runtime feature and is never available at comptime.
+When allowed by configuration, `eval` and `Function` are available with JS compatible semantics on JS targets.
+On native and VM targets, dynamic evaluation compiles the input into a synthetic module under the dynamic execution policy.
+Dynamic evaluation returns `any` by default and should be narrowed explicitly.
+Dynamic evaluation is gated by a policy in the project configuration and may be disabled entirely in production.
 
 ## Reflection
 

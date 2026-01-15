@@ -57,6 +57,14 @@
       "description": "Linter options.",
       "$ref": "#/$defs/DsConfigLinterJson"
     },
+    "cache": {
+      "description": "Cache options.",
+      "$ref": "#/$defs/DsConfigCacheJson"
+    },
+    "watch": {
+      "description": "Watch options.",
+      "$ref": "#/$defs/DsConfigWatchJson"
+    },
     "targets": {
       "description": "Build targets.",
       "type": [
@@ -176,6 +184,13 @@
           "items": {
             "type": "string"
           }
+        },
+        "incremental": {
+          "description": "Enable incremental compilation for this project.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "strict": {
           "description": "Enable all strict type checking options. Default: true for .ds files.",
@@ -1201,6 +1216,161 @@
         }
       ]
     },
+    "DsConfigCacheJson": {
+      "description": "Cache options (top-level).",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Cache mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CacheModeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dir": {
+          "description": "Cache directory path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "maxSizeMb": {
+          "description": "Maximum cache size in megabytes.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "policy": {
+          "description": "Cache eviction policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CachePolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validate": {
+          "description": "Cache validation policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CacheValidateJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "description": "Cache scope selection.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CacheScopeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CacheModeJson": {
+      "description": "Cache mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Disable caching.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Use in-memory caching only.",
+          "type": "string",
+          "const": "memory"
+        },
+        {
+          "description": "Use on-disk caching.",
+          "type": "string",
+          "const": "disk"
+        }
+      ]
+    },
+    "CachePolicyJson": {
+      "description": "Cache eviction policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Least recently used eviction.",
+          "type": "string",
+          "const": "lru"
+        },
+        {
+          "description": "Time to live eviction.",
+          "type": "string",
+          "const": "ttl"
+        }
+      ]
+    },
+    "CacheValidateJson": {
+      "description": "Cache validation policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always validate cache entries strictly.",
+          "type": "string",
+          "const": "strict"
+        },
+        {
+          "description": "Validate only on mismatched metadata or changes.",
+          "type": "string",
+          "const": "fast"
+        }
+      ]
+    },
+    "CacheScopeJson": {
+      "description": "Cache scope selection for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Cache entries are workspace-local.",
+          "type": "string",
+          "const": "workspace"
+        },
+        {
+          "description": "Cache entries are stored in a global shared cache.",
+          "type": "string",
+          "const": "global"
+        }
+      ]
+    },
+    "DsConfigWatchJson": {
+      "description": "Watch options (top-level).",
+      "type": "object",
+      "properties": {
+        "debounceMs": {
+          "description": "Debounce interval in milliseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "pollIntervalMs": {
+          "description": "Poll interval in milliseconds for polling watchers.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
     "DsConfigTargetJson": {
       "description": "Destack build target configuration.",
       "type": "object",
@@ -1313,6 +1483,30 @@
             }
           ]
         },
+        "linker": {
+          "description": "Explicit linker executable.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "linkArgs": {
+          "description": "Extra linker arguments.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "sysroot": {
+          "description": "Sysroot path for native toolchains.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "declaration": {
           "description": "Emit declaration files (e.g., `.d.ts` alongside `.js` output).",
           "type": "boolean",
@@ -1322,6 +1516,16 @@
           "description": "Emit source maps.",
           "type": "boolean",
           "default": false
+        },
+        "emit": {
+          "description": "Extra artifacts to emit.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/EmitArtifactJson"
+          }
         },
         "outDir": {
           "description": "Output directory for this target (overrides compilerOptions.outDir).",
@@ -1556,28 +1760,6 @@
             }
           ]
         },
-        "trustPolicy": {
-          "description": "Trust policy for runtime execution.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TrustPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sandboxPolicy": {
-          "description": "Sandbox policy for runtime isolation.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/SandboxPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "strip": {
           "description": "Symbol stripping policy.",
           "anyOf": [
@@ -1758,6 +1940,36 @@
           "description": "Prefer dynamic linking.",
           "type": "string",
           "const": "dynamic"
+        }
+      ]
+    },
+    "EmitArtifactJson": {
+      "description": "Extra artifacts to emit for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Lowered MIR.",
+          "type": "string",
+          "const": "mir"
+        },
+        {
+          "description": "Backend IR.",
+          "type": "string",
+          "const": "ir"
+        },
+        {
+          "description": "Assembly output.",
+          "type": "string",
+          "const": "asm"
+        },
+        {
+          "description": "Object file output.",
+          "type": "string",
+          "const": "object"
+        },
+        {
+          "description": "Symbol table output.",
+          "type": "string",
+          "const": "symbols"
         }
       ]
     },

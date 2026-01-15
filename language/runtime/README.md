@@ -155,6 +155,13 @@ When `debugMode = Deopt`, the runtime must reject binaries missing full deopt me
 | Compiled-only slim runtime | compiled only, interpreter not linked | minimal runtime footprint |
 | Comptime-only | not a runtime mode | VM executes during compilation |
 
+## Hot Reload Integration
+
+Hot reload is implemented as a runtime protocol and a library contract.
+The runtime supports module restart and optional state preservation hooks.
+Library code can register reload boundaries and state adapters for safe reloads.
+State preserving reload is opt in and may be restricted by target policy.
+
 # Execution Policy
 
 Execution policy settings are defined in target configuration and must be honored by the runtime for native targets.

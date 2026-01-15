@@ -141,6 +141,35 @@ Tasks are identified by phase letter and sub-code (e.g., `TI001` for Import task
 See `compile/task.rs` for task definitions and `compile/queue.rs` for the task queue.
 The compiler uses versions (file/module/artifact) to track changes and dependencies between phases.
 
+## Incremental Compilation
+
+Incremental compilation reuses phase outputs keyed by file, module, profile, and target versions.
+Edits bump `FileVersion` and propagate to `ModuleVersion`.
+Per-profile module signatures are computed after Analyze and gate downstream invalidation.
+Downstream modules re analyze only when the signatures they import change.
+Task dependencies are recorded through `require_*` calls and resolved by the task queue.
+Comptime results are invalidated when either the module version or profile version changes.
+
+### Module Signatures
+
+Module signatures summarize the externally visible surface of a module for a specific profile.
+Signatures include exported names, exported type shapes, module bindings, and global augmentations.
+Comptime outputs contribute to signatures when they affect exported values or types.
+Signatures are stored as stable hashes and compared to decide downstream work.
+
+### Dynamic Evaluation
+
+Dynamic evaluation compiles input into a synthetic module under a dynamic execution policy.
+The compiler treats dynamic modules like REPL cells for dependency tracking and caching.
+Dynamic evaluation is never available during comptime execution.
+
+## Caching
+
+Caching is layered to keep the straight line pipeline fast while avoiding recomputation.
+In-memory caches live on the `Program` and are keyed by module, profile, and target versions.
+On-disk caches are keyed by compiler version, dsconfig hash, target config hash, and profile key.
+Cache eviction is policy driven and should not silently mask version mismatches.
+
 ## Builtins
 
 The compiler loads language builtins from `language/builtin/` as needed based on target configuration.

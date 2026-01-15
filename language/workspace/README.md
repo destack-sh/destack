@@ -19,7 +19,18 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
     "compilerOptions": {
         "target": "es2024",
         "strict": true,
-        "noImplicitAny": true
+        "noImplicitAny": true,
+        "incremental": true
+    },
+    "cache": {
+        "mode": "disk",
+        "dir": ".destack/cache",
+        "maxSizeMb": 2048,
+        "policy": "lru",
+        "validate": "strict"
+    },
+    "watch": {
+        "debounceMs": 30
     },
     "formatter": {
         "lineWidth": 100,
@@ -36,6 +47,20 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
 ```
 
 Child packages inherit from parent `dsconfig.json` with "most restrictive wins" semantics.
+
+### Incremental Compilation And Caching
+
+The workspace owns the module graph and version tracking used for incremental compilation.
+File edits bump `FileVersion` and are propagated to `ModuleVersion`.
+Profile-specific module signatures are stored on the program and compared during analysis.
+Downstream modules are re analyzed only when imported signatures change.
+Caching policies are part of dsconfig and are folded into cache keys.
+
+### File Watching
+
+File watching is abstracted by `FileWatcher` in `destack_source`.
+The workspace consumes watcher events and updates `FileVersion` and module graph state.
+Daemon and tests can provide different watcher implementations through this trait.
 
 ### Target
 

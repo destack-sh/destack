@@ -288,8 +288,38 @@ impl DsConfig {
         }
 
         // inherit cache options (child overrides if set)
-        if self.options.cache.dir.is_none() {
+        let child_cache_json = &self.content.cache;
+        if child_cache_json.mode.is_none() {
+            self.options.cache.mode = parent.cache.mode;
+        }
+        if child_cache_json.dir.is_none() {
             self.options.cache.dir = parent.cache.dir.clone();
+        }
+        if child_cache_json.max_size_mb.is_none() {
+            self.options.cache.max_size_mb = parent.cache.max_size_mb;
+        }
+        if child_cache_json.policy.is_none() {
+            self.options.cache.policy = parent.cache.policy;
+        }
+        if child_cache_json.validate.is_none() {
+            self.options.cache.validate = parent.cache.validate;
+        }
+        if child_cache_json.scope.is_none() {
+            self.options.cache.scope = parent.cache.scope;
+        }
+
+        // inherit compiler incremental settings (child overrides if explicitly set in JSON)
+        if self.content.compiler_options.incremental.is_none() {
+            self.options.compiler.incremental = parent.compiler.incremental;
+        }
+
+        // inherit watch options (child overrides if set)
+        let child_watch_json = &self.content.watch;
+        if child_watch_json.debounce_ms.is_none() {
+            self.options.watch.debounce_ms = parent.watch.debounce_ms;
+        }
+        if child_watch_json.poll_interval_ms.is_none() {
+            self.options.watch.poll_interval_ms = parent.watch.poll_interval_ms;
         }
 
         // extend targets (add missing targets from parent)
@@ -334,6 +364,8 @@ pub struct DsConfigOptions {
     pub linter: LinterOptions,
     /// Cache options.
     pub cache: DsConfigCacheOptions,
+    /// Watch options.
+    pub watch: DsConfigWatchOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
     /// Named profiles for semantic configuration.
@@ -345,8 +377,98 @@ pub struct DsConfigOptions {
 /// Cache configuration options.
 #[derive(Debug, Clone, Default)]
 pub struct DsConfigCacheOptions {
+    /// Cache mode.
+    pub mode: CacheMode,
     /// Cache directory path.
     pub dir: Option<PathBuf>,
+    /// Maximum cache size in megabytes.
+    pub max_size_mb: Option<u64>,
+    /// Cache eviction policy.
+    pub policy: CachePolicy,
+    /// Cache validation strategy.
+    pub validate: CacheValidate,
+    /// Cache scope selection.
+    pub scope: CacheScope,
+}
+
+/// Cache mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheMode {
+    /// Disable caching.
+    Off,
+    /// Use in-memory caching only.
+    Memory,
+    /// Use on-disk caching.
+    Disk,
+}
+
+impl Default for CacheMode {
+    fn default() -> Self {
+        Self::Memory
+    }
+}
+
+/// Cache eviction policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CachePolicy {
+    /// Least recently used eviction.
+    Lru,
+    /// Time to live eviction.
+    Ttl,
+}
+
+impl Default for CachePolicy {
+    fn default() -> Self {
+        Self::Lru
+    }
+}
+
+/// Cache validation policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheValidate {
+    /// Always validate cache entries strictly.
+    Strict,
+    /// Validate only on mismatched metadata or changes.
+    Fast,
+}
+
+impl Default for CacheValidate {
+    fn default() -> Self {
+        Self::Strict
+    }
+}
+
+/// Cache scope selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CacheScope {
+    /// Cache entries are workspace-local.
+    Workspace,
+    /// Cache entries are stored in a global shared cache.
+    Global,
+}
+
+impl Default for CacheScope {
+    fn default() -> Self {
+        Self::Workspace
+    }
+}
+
+/// Watch configuration options.
+#[derive(Debug, Clone)]
+pub struct DsConfigWatchOptions {
+    /// Debounce interval in milliseconds.
+    pub debounce_ms: u64,
+    /// Poll interval in milliseconds for polling watchers.
+    pub poll_interval_ms: Option<u64>,
+}
+
+impl Default for DsConfigWatchOptions {
+    fn default() -> Self {
+        Self {
+            debounce_ms: 30,
+            poll_interval_ms: None,
+        }
+    }
 }
 
 /// Path alias mapping (resolved from dsconfig paths).
@@ -377,6 +499,8 @@ pub struct DsConfigCompilerOptions {
     pub profile: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Enable incremental compilation for this project.
+    pub incremental: bool,
 
     // TypeScript-compatible checking
     /// Enable all strict type checking options.
@@ -506,6 +630,7 @@ impl Default for DsConfigCompilerOptions {
             types: Vec::new(),
             profile: None,
             comptime_env: None,
+            incremental: true,
 
             // TypeScript-compatible checking
             strict,
@@ -596,6 +721,10 @@ pub struct DsConfigJson {
     /// Cache options.
     #[serde(default)]
     pub cache: DsConfigCacheJson,
+    /// Watch options.
+    #[serde(default)]
+    #[serde(alias = "watchOptions")]
+    pub watch: DsConfigWatchJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
     /// Named profiles for semantic configuration.
@@ -615,6 +744,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
         json.linter.apply(&mut linter);
 
         let cache = DsConfigCacheOptions::from(&json.cache);
+        let watch = DsConfigWatchOptions::from(&json.watch);
 
         Self {
             files: json.files.clone().unwrap_or_default(),
@@ -624,6 +754,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
             formatter,
             linter,
             cache,
+            watch,
             targets: json
                 .targets
                 .as_ref()
@@ -664,14 +795,132 @@ pub enum ExtendsFieldJson {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct DsConfigCacheJson {
+    /// Cache mode.
+    pub mode: Option<CacheModeJson>,
     /// Cache directory path.
     pub dir: Option<String>,
+    /// Maximum cache size in megabytes.
+    pub max_size_mb: Option<u64>,
+    /// Cache eviction policy.
+    pub policy: Option<CachePolicyJson>,
+    /// Cache validation policy.
+    pub validate: Option<CacheValidateJson>,
+    /// Cache scope selection.
+    pub scope: Option<CacheScopeJson>,
 }
 
 impl From<&DsConfigCacheJson> for DsConfigCacheOptions {
     fn from(json: &DsConfigCacheJson) -> Self {
         Self {
+            mode: json.mode.map(CacheMode::from).unwrap_or_default(),
             dir: json.dir.as_ref().map(PathBuf::from),
+            max_size_mb: json.max_size_mb,
+            policy: json.policy.map(CachePolicy::from).unwrap_or_default(),
+            validate: json.validate.map(CacheValidate::from).unwrap_or_default(),
+            scope: json.scope.map(CacheScope::from).unwrap_or_default(),
+        }
+    }
+}
+
+/// Watch options (top-level).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigWatchJson {
+    /// Debounce interval in milliseconds.
+    pub debounce_ms: Option<u64>,
+    /// Poll interval in milliseconds for polling watchers.
+    pub poll_interval_ms: Option<u64>,
+}
+
+impl From<&DsConfigWatchJson> for DsConfigWatchOptions {
+    fn from(json: &DsConfigWatchJson) -> Self {
+        Self {
+            debounce_ms: json.debounce_ms.unwrap_or(30),
+            poll_interval_ms: json.poll_interval_ms,
+        }
+    }
+}
+
+/// Cache mode for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CacheModeJson {
+    /// Disable caching.
+    Off,
+    /// Use in-memory caching only.
+    Memory,
+    /// Use on-disk caching.
+    Disk,
+}
+
+impl From<CacheModeJson> for CacheMode {
+    fn from(value: CacheModeJson) -> Self {
+        match value {
+            CacheModeJson::Off => CacheMode::Off,
+            CacheModeJson::Memory => CacheMode::Memory,
+            CacheModeJson::Disk => CacheMode::Disk,
+        }
+    }
+}
+
+/// Cache eviction policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CachePolicyJson {
+    /// Least recently used eviction.
+    Lru,
+    /// Time to live eviction.
+    Ttl,
+}
+
+impl From<CachePolicyJson> for CachePolicy {
+    fn from(value: CachePolicyJson) -> Self {
+        match value {
+            CachePolicyJson::Lru => CachePolicy::Lru,
+            CachePolicyJson::Ttl => CachePolicy::Ttl,
+        }
+    }
+}
+
+/// Cache validation policy for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CacheValidateJson {
+    /// Always validate cache entries strictly.
+    Strict,
+    /// Validate only on mismatched metadata or changes.
+    Fast,
+}
+
+impl From<CacheValidateJson> for CacheValidate {
+    fn from(value: CacheValidateJson) -> Self {
+        match value {
+            CacheValidateJson::Strict => CacheValidate::Strict,
+            CacheValidateJson::Fast => CacheValidate::Fast,
+        }
+    }
+}
+
+/// Cache scope selection for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum CacheScopeJson {
+    /// Cache entries are workspace-local.
+    Workspace,
+    /// Cache entries are stored in a global shared cache.
+    Global,
+}
+
+impl From<CacheScopeJson> for CacheScope {
+    fn from(value: CacheScopeJson) -> Self {
+        match value {
+            CacheScopeJson::Workspace => CacheScope::Workspace,
+            CacheScopeJson::Global => CacheScope::Global,
         }
     }
 }
@@ -1917,6 +2166,8 @@ pub struct CompilerOptionsJson {
     pub profile: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Enable incremental compilation for this project.
+    pub incremental: Option<bool>,
 
     // TypeScript-compatible checking
     /// Enable all strict type checking options. Default: true for .ds files.
@@ -2053,6 +2304,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             types: json.types.clone().unwrap_or_default(),
             profile: json.profile.clone(),
             comptime_env: json.comptime_env.clone(),
+            incremental: json.incremental.unwrap_or(true),
 
             // TypeScript-compatible checking
             strict,
