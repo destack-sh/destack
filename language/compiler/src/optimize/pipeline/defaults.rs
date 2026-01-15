@@ -1,3 +1,4 @@
+use crate::CompositePipeline;
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
     CorrelatedValueProp, DeadCodeEliminate, DeadFunctionEliminate, DeadStoreEliminate, DropInsert,
@@ -158,7 +159,7 @@ fn cleanup() -> Vec<Box<dyn FunctionPass>> {
 }
 
 /// O0: Verification and correctness only.
-fn o0_pipeline() -> super::module::CompositePipeline {
+fn o0_pipeline() -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
         .function_passes(canonicalize())

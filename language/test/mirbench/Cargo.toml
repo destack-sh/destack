@@ -1,0 +1,26 @@
+[package]
+name = "destack_test_mirbench"
+description = "Destack MIR benchmark program fixtures"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[features]
+default = []
+cli = ["dep:clap"]
+perf-counters = ["destack_vm/perf-counters"]
+stats = ["destack_vm/stats"]
+
+[dependencies]
+destack_mir = { workspace = true }
+destack_vm = { workspace = true }
+clap = { version = "4.5", features = ["derive"], optional = true }
+
+[lints]
+workspace = true

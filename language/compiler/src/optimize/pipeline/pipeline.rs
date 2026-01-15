@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use destack_mir as mir;
 
 use crate::optimize::{
@@ -15,6 +17,9 @@ pub trait Pipeline: Send + Sync {
 
     /// Get the name of this pipeline.
     fn name(&self) -> &'static str;
+
+    /// Return this pipeline as a dynamic value for downcasting.
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// A composable package pipeline element.
@@ -26,6 +31,9 @@ pub trait PackagePipeline: Send + Sync {
 
     /// Get the pipeline name.
     fn name(&self) -> &'static str;
+
+    /// Return this pipeline as a dynamic value for downcasting.
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// A composable program pipeline element.
@@ -37,4 +45,7 @@ pub trait ProgramPipeline: Send + Sync {
 
     /// Get the pipeline name.
     fn name(&self) -> &'static str;
+
+    /// Return this pipeline as a dynamic value for downcasting.
+    fn as_any(&self) -> &dyn Any;
 }

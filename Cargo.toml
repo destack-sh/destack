@@ -5,6 +5,7 @@ members = [
 	"language/base",
 	"language/ast",
 	"language/builtin",
+	"language/test/mirbench",
 	"language/codegen/cranelift",
 	"language/codegen/lib",
 	"language/codegen/js",
@@ -48,6 +49,7 @@ rust-version = "1.88.0"
 # language
 destack_base = { path = "language/base" }
 destack_ast = { path = "language/ast" }
+destack_test_mirbench = { path = "language/test/mirbench" }
 destack_builtin = { path = "language/builtin" }
 destack_codegen_cranelift = { path = "language/codegen/cranelift" }
 destack_codegen_js = { path = "language/codegen/js" }

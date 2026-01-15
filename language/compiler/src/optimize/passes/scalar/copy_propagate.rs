@@ -159,6 +159,11 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
     let mut to_remove: HashSet<mir::LocalNodeId<mir::Instruction>> = HashSet::new();
 
     for &block_id in &function.blocks {
+        // skip entry block parameters
+        if function.entry == Some(block_id) {
+            continue;
+        }
+
         let block = tree.get(block_id);
         let preds = &predecessors[&block_id];
 

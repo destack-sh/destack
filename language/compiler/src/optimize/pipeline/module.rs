@@ -44,6 +44,11 @@ impl FunctionPipeline {
     pub fn is_empty(&self) -> bool {
         self.passes.is_empty()
     }
+
+    /// Return the passes in this pipeline.
+    pub fn passes(&self) -> &[Box<dyn FunctionPass>] {
+        &self.passes
+    }
 }
 
 impl Pipeline for FunctionPipeline {
@@ -83,6 +88,10 @@ impl Pipeline for FunctionPipeline {
     fn name(&self) -> &'static str {
         "FunctionPipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that runs module passes in sequence.
@@ -113,6 +122,11 @@ impl ModulePipeline {
     pub fn add<P: ModulePass + 'static>(&mut self, pass: P) {
         self.passes.push(Box::new(pass));
     }
+
+    /// Return the passes in this pipeline.
+    pub fn passes(&self) -> &[Box<dyn ModulePass>] {
+        &self.passes
+    }
 }
 
 impl Pipeline for ModulePipeline {
@@ -133,6 +147,10 @@ impl Pipeline for ModulePipeline {
     fn name(&self) -> &'static str {
         "ModulePipeline"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Adaptor that wraps a function pipeline to run as a module level pipeline.
@@ -146,6 +164,11 @@ impl FunctionToModuleAdaptor {
     pub fn new(inner: FunctionPipeline) -> Self {
         Self { inner }
     }
+
+    /// Return the wrapped function pipeline.
+    pub fn inner(&self) -> &FunctionPipeline {
+        &self.inner
+    }
 }
 
 impl Pipeline for FunctionToModuleAdaptor {
@@ -156,15 +179,19 @@ impl Pipeline for FunctionToModuleAdaptor {
     fn name(&self) -> &'static str {
         "FunctionToModule"
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Pipeline that repeats an inner pipeline until no changes or max iterations.
-pub struct RepeatedPipeline<P: Pipeline> {
-    inner: P,
+pub struct RepeatedPipeline {
+    inner: Box<dyn Pipeline>,
     max_iterations: usize,
 }
 
-impl<P: Pipeline> fmt::Debug for RepeatedPipeline<P> {
+impl fmt::Debug for RepeatedPipeline {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RepeatedPipeline")
             .field("max_iterations", &self.max_iterations)
@@ -172,17 +199,27 @@ impl<P: Pipeline> fmt::Debug for RepeatedPipeline<P> {
     }
 }
 
-impl<P: Pipeline> RepeatedPipeline<P> {
+impl RepeatedPipeline {
     /// Create a new repeated pipeline.
-    pub fn new(inner: P, max_iterations: usize) -> Self {
+    pub fn new<P: Pipeline + 'static>(inner: P, max_iterations: usize) -> Self {
         Self {
-            inner,
+            inner: Box::new(inner),
             max_iterations,
         }
     }
+
+    /// Return the inner pipeline.
+    pub fn inner(&self) -> &dyn Pipeline {
+        self.inner.as_ref()
+    }
+
+    /// Return the maximum iterations.
+    pub fn max_iterations(&self) -> usize {
+        self.max_iterations
+    }
 }
 
-impl<P: Pipeline> Pipeline for RepeatedPipeline<P> {
+impl Pipeline for RepeatedPipeline {
     fn run(&self, tree: &mut mir::NodeTree, ctx: &mut PipelineContext<'_>) -> bool {
         let mut any_changed = false;
 
@@ -201,6 +238,10 @@ impl<P: Pipeline> Pipeline for RepeatedPipeline<P> {
 
     fn name(&self) -> &'static str {
         "RepeatedPipeline"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -232,6 +273,11 @@ impl CompositePipeline {
             pipelines: Vec::new(),
         }
     }
+
+    /// Return the child pipelines.
+    pub fn pipelines(&self) -> &[Box<dyn Pipeline>] {
+        &self.pipelines
+    }
 }
 
 impl Pipeline for CompositePipeline {
@@ -246,6 +292,10 @@ impl Pipeline for CompositePipeline {
 
     fn name(&self) -> &'static str {
         "CompositePipeline"
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

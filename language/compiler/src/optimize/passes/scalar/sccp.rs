@@ -202,6 +202,8 @@ struct SccpState<'a> {
     executable_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Executable edges with their arguments.
     executable_edges: HashSet<ExecutableEdge>,
+    /// Blocks that use a value as an edge argument.
+    edge_use_blocks: HashMap<mir::Value, HashSet<mir::LocalNodeId<mir::Block>>>,
     /// Worklist of blocks to process.
     block_worklist: VecDeque<mir::LocalNodeId<mir::Block>>,
     /// Blocks already in the worklist.
@@ -223,6 +225,7 @@ impl<'a> SccpState<'a> {
             value_states: HashMap::new(),
             executable_blocks: HashSet::new(),
             executable_edges: HashSet::new(),
+            edge_use_blocks: HashMap::new(),
             block_worklist: VecDeque::new(),
             in_worklist: HashSet::new(),
         }
@@ -475,6 +478,14 @@ impl<'a> SccpState<'a> {
             return;
         }
 
+        // record edge argument uses
+        for &argument in arguments {
+            self.edge_use_blocks
+                .entry(argument)
+                .or_default()
+                .insert(target);
+        }
+
         // mark target executable and enqueue
         self.executable_blocks.insert(target);
         self.enqueue_block(target);
@@ -497,6 +508,15 @@ impl<'a> SccpState<'a> {
         // enqueue blocks that use this value
         if let Some(blocks) = self.use_blocks.get(&value) {
             for &block_id in blocks {
+                self.enqueue_block(block_id);
+            }
+        }
+
+        // enqueue blocks that use this value in edge arguments
+        if let Some(blocks) = self.edge_use_blocks.get(&value) {
+            // snapshot blocks to avoid aliasing the map
+            let blocks: Vec<_> = blocks.iter().copied().collect();
+            for block_id in blocks {
                 self.enqueue_block(block_id);
             }
         }
