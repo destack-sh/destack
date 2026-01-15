@@ -1,6 +1,6 @@
 use destack_base::StringId;
 
-use destack_mir as mir;
+use {destack_dir as dir, destack_mir as mir};
 
 /// Layout policy for struct fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -59,6 +59,32 @@ pub(crate) struct FieldInput {
     pub alignment: u32,
     /// Original source index.
     pub source_index: u32,
+}
+
+/// Convert a static key to a field name.
+///
+/// For name and number keys, returns the string directly.
+/// For symbol keys, generates a synthetic name with `@` prefix to avoid conflicts.
+pub(crate) fn static_key_to_field_name(
+    key: &dir::StaticKey,
+    builder: &mut mir::ModuleBuilder,
+) -> StringId {
+    match key {
+        dir::StaticKey::Name(s) | dir::StaticKey::Number(s) => *s,
+        dir::StaticKey::Symbol(symbol_key) => {
+            let synthetic = match symbol_key {
+                dir::SymbolKey::WellKnown(well_known) => {
+                    format!("@{}", well_known.global_symbol_name())
+                }
+                dir::SymbolKey::Registry(s) => {
+                    let key_str = builder.strings().get(*s);
+                    format!("@Symbol.for:{}", &*key_str)
+                }
+                dir::SymbolKey::Unique(global_id) => format!("@Symbol#{global_id:?}"),
+            };
+            builder.intern(&synthetic)
+        }
+    }
 }
 
 #[allow(dead_code, unused)]
@@ -363,5 +389,52 @@ mod tests {
         // total size: 8 bytes
         assert_eq!(layout.size, 8);
         assert_eq!(layout.alignment, 4);
+    }
+
+    /// Name keys return the string directly.
+    #[test]
+    fn test_static_key_name() {
+        let mut builder = mir::ModuleBuilder::new();
+        let name = builder.intern("foo");
+        let key = dir::StaticKey::Name(name);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, name);
+    }
+
+    /// Number keys return the string directly.
+    #[test]
+    fn test_static_key_number() {
+        let mut builder = mir::ModuleBuilder::new();
+        let num = builder.intern("42");
+        let key = dir::StaticKey::Number(num);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, num);
+    }
+
+    /// Well-known symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_well_known_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::WellKnown(
+            dir::WellKnownSymbolKey::SymbolIterator,
+        ));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.iterator");
+    }
+
+    /// Registry symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_registry_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let registry_key = builder.intern("myKey");
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(registry_key));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.for:myKey");
     }
 }

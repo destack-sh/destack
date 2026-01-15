@@ -106,6 +106,9 @@ impl<'a> ModuleLowerer<'a> {
         // initialize builtin string layout for string literals and types
         self.initialize_string_type()?;
 
+        // predeclare nominal layouts for struct and class instance types
+        self.predeclare_nominal_layouts()?;
+
         // types are lowered lazily via TypeLowerer when first accessed
         Ok(())
     }

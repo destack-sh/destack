@@ -194,6 +194,28 @@ impl TypeLowerer {
             dir::Type::ArraySized { element, count } => {
                 self.lower_array_sized_type(types, *element, *count, module_id, node, builder)?
             }
+            dir::Type::Function {
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                // lower parameter and return types for function pointers
+                let mut parameters = Vec::with_capacity(dynamic_parameters.len());
+                for parameter in dynamic_parameters {
+                    let parameter_type =
+                        self.lower_type(types, *parameter, module_id, node, builder)?;
+                    parameters.push(parameter_type);
+                }
+
+                let result = match return_type {
+                    Some(return_type) => {
+                        self.lower_type(types, *return_type, module_id, node, builder)?
+                    }
+                    None => self.ty_void,
+                };
+
+                builder.type_function_pointer(parameters, result)
+            }
             _ => self
                 .try_lower_type(dir_type, builder)
                 .ok_or(LowerError::UnsupportedType {

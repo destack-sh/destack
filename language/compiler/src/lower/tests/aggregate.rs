@@ -160,7 +160,6 @@ function deepAccess(val: number): number {
 
 /// Lower struct with a simple method call.
 #[test]
-#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
 fn test_struct_method_call() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -197,7 +196,6 @@ function getSum(a: int32, b: int32): int32 {
 
 /// Lower struct method that returns a new instance of the same type.
 #[test]
-#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
 fn test_struct_method_returning_self() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -234,7 +232,6 @@ function bump(n: int32): int32 {
 
 /// Lower struct method with parameters.
 #[test]
-#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
 fn test_struct_method_with_parameters() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(
@@ -270,7 +267,6 @@ function compute(base: int32, delta: int32): int32 {
 
 /// Lower chained method calls.
 #[test]
-#[ignore] // #AnalyzeResolution: struct literals with methods need tagged constructor handling
 fn test_struct_chained_method_calls() {
     let test = TestProgram::memory_sequential();
     let module_id = test.add_module(

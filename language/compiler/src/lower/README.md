@@ -154,6 +154,18 @@ Phases flow left to right: **Types → Declarations → Tables → Emit**.
 
 See [Phases](#phases-1) section for detailed descriptions.
 
+## Implementation Structure
+
+Lower mirrors the phase boundaries in its module layout:
+
+- `module/`: orchestration and phase sequencing
+- `type/`: type lowering and layout (including nominal field layouts)
+- `item/`: declaration lowering (globals, functions, methods)
+- `table/`: dispatch tables (vtables, itabs) and RTTI
+- `emit/`: function body lowering (statements, values, control)
+
+Nominal layouts are computed from declared fields only and are predeclared in the Types phase.
+
 ## Target Policies Summary
 
 Lower behavior is configured by target policies (see [Target Configuration](#target-configuration)):

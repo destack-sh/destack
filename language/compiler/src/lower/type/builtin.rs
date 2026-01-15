@@ -1,5 +1,5 @@
 use destack_dir::{
-    self as dir, Declaration, Member, StaticKey, StringId, SymbolSpaceOrder, SymbolType, TypeKind,
+    self as dir, Declaration, Member, StringId, SymbolSpaceOrder, SymbolType, TypeKind,
     WellKnownSymbol,
 };
 use destack_mir as mir;
@@ -8,7 +8,10 @@ use destack_workspace::ProfileId;
 
 use crate::{Compiler, LowerError, LowerResult, TaskDependencyError};
 
-use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
+use super::{
+    FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type,
+    static_key_to_field_name,
+};
 
 /// Helpers for lowering builtin type layouts.
 pub(crate) struct BuiltinTypeLayouts<'a> {
@@ -191,7 +194,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
 
             // collect layout inputs
             field_inputs.push(FieldInput {
-                name: self.field_name_for_key(key),
+                name: static_key_to_field_name(&key, self.builder),
                 ty: field_mir_type,
                 size,
                 alignment,
@@ -278,26 +281,5 @@ impl<'a> BuiltinTypeLayouts<'a> {
         types
             .get_declared_or_inferred_type_id(value.into_global_any(module_id))
             .unwrap_or(type_id)
-    }
-
-    /// Convert a static key to a field name.
-    fn field_name_for_key(&mut self, key: StaticKey) -> StringId {
-        // map keys to stable field names
-        match key {
-            StaticKey::Name(name) | StaticKey::Number(name) => name,
-            StaticKey::Symbol(symbol_key) => {
-                let synthetic = match symbol_key {
-                    dir::SymbolKey::WellKnown(well_known) => {
-                        format!("@{}", well_known.global_symbol_name())
-                    }
-                    dir::SymbolKey::Registry(name) => {
-                        let key_str = self.builder.strings().get(name);
-                        format!("@Symbol.for:{}", &*key_str)
-                    }
-                    dir::SymbolKey::Unique(global_id) => format!("@Symbol#{global_id:?}"),
-                };
-                self.builder.intern(&synthetic)
-            }
-        }
     }
 }

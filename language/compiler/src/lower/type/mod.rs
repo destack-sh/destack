@@ -2,6 +2,7 @@ mod aggregate;
 mod builtin;
 mod layout;
 mod lower;
+mod nominal;
 mod resolve;
 mod scalar;
 
