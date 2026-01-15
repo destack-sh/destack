@@ -694,6 +694,7 @@ dependencies = [
  "destack_vm",
  "destack_workspace",
  "indicatif",
+ "schemars",
  "serde",
  "serde_json",
  "tiktoken-rs",

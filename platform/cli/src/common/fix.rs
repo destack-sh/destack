@@ -152,7 +152,7 @@ fn apply_fixes(program: &Program, diagnostics: &[LintDiagnostic], include_unsafe
 
         // write the fixed source back to disk
         if let Some(path) = file.path.as_ref()
-            && let Err(e) = std::fs::write(path, &source)
+            && let Err(e) = program.fs.write(path, source.as_bytes())
         {
             console::error(&format!("failed to write {}: {e}", path.display()));
         }

@@ -40,6 +40,15 @@ test:
     cargo test --release --all-targets {{ packages }}
     just test-vscode
 
+# --- schema ---
+
+# generate cli report schema
+generate-schema:
+    cargo run -p destack_cli --features schema --bin generate-cli-schema --release > cli/generated/cli-report.schema.json
+
+# alias for generate-schema
+schema := "generate-schema"
+
 # test vscode grammar
 test-vscode:
     cd vscode && bun run test:grammar

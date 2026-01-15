@@ -10,7 +10,7 @@ use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 
 /// Schema version for command reports.
-pub const REPORT_SCHEMA_VERSION: u32 = 1;
+pub const REPORT_SCHEMA_VERSION: u32 = 3;
 
 /// Output format for command reports.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -63,6 +63,7 @@ impl ReportArgs {
 
 /// Result status for a command report.
 #[derive(Debug, Clone, Copy, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "snake_case")]
 pub enum CommandStatus {
     /// Command completed successfully.
@@ -73,6 +74,7 @@ pub enum CommandStatus {
 
 /// Summary statistics for command execution.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandStats {
     /// Elapsed time in milliseconds.
     pub elapsed_ms: u64,
@@ -105,8 +107,36 @@ impl CommandStats {
     }
 }
 
+/// Structured error payload for command failures.
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+pub struct CommandError {
+    /// Machine-readable error code.
+    pub code: String,
+    /// Error category for tooling.
+    pub kind: String,
+    /// Human-readable error message.
+    pub message: String,
+}
+
+impl CommandError {
+    /// Build a structured command error.
+    pub fn new(
+        code: impl Into<String>,
+        kind: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        Self {
+            code: code.into(),
+            kind: kind.into(),
+            message: message.into(),
+        }
+    }
+}
+
 /// Report output for a command invocation.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct CommandReport {
     /// Report schema version.
     pub schema_version: u32,
@@ -122,10 +152,14 @@ pub struct CommandReport {
     /// Diagnostics payload for tooling.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostics: Option<DiagnosticOutputJson>,
+    /// Structured error payload when diagnostics are not available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<CommandError>,
     /// Compiler stats snapshot for tooling.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stats: Option<CommandStats>,
     /// Command-specific payload.
+    #[cfg_attr(feature = "schema", schemars(schema_with = "schema_any"))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
@@ -141,6 +175,7 @@ impl CommandReport {
             exit_code,
             summary: None,
             diagnostics: None,
+            error: None,
             stats: None,
             data: None,
         }
@@ -156,6 +191,7 @@ impl CommandReport {
             exit_code,
             summary: None,
             diagnostics: None,
+            error: None,
             stats: None,
             data: None,
         }
@@ -185,12 +221,22 @@ pub fn print_report(report: &CommandReport, format: ReportFormat) {
 
 /// Report a command error using text or JSON output.
 pub fn report_error(command: &str, report_args: &ReportArgs, message: &str) -> i32 {
+    report_error_with(
+        command,
+        report_args,
+        CommandError::new("cli_error", "cli", message),
+    )
+}
+
+/// Report a command error with structured error details.
+pub fn report_error_with(command: &str, report_args: &ReportArgs, error: CommandError) -> i32 {
     if report_args.is_json() {
         let mut report = CommandReport::failure(command, 1);
-        report.summary = Some(message.to_string());
+        report.summary = Some(error.message.clone());
+        report.error = Some(error);
         print_report(&report, report_args.format());
     } else {
-        console::error(&format!("error: {message}"));
+        console::error(&format!("error: {}", error.message));
     }
     1
 }
@@ -198,7 +244,11 @@ pub fn report_error(command: &str, report_args: &ReportArgs, message: &str) -> i
 /// Report a missing input error with optional usage help.
 pub fn report_no_input(command: &str, report_args: &ReportArgs) -> i32 {
     if report_args.is_json() {
-        return report_error(command, report_args, "no input provided");
+        return report_error_with(
+            command,
+            report_args,
+            CommandError::new("no_input", "usage", "no input provided"),
+        );
     }
 
     print_no_input_help(command);
@@ -210,4 +260,9 @@ fn duration_to_ms(duration: Duration) -> u64 {
     // guard against overflow on large durations
     let millis = duration.as_millis();
     u64::try_from(millis).unwrap_or(u64::MAX)
+}
+
+#[cfg(feature = "schema")]
+fn schema_any(_gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    true.into()
 }

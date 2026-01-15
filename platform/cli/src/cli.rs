@@ -7,14 +7,14 @@ use crate::console;
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
 use crate::command::{
-    BenchArgs, BuildArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DocArgs, DoctorArgs,
-    ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, RunArgs, TargetsArgs, TaskArgs,
-    TestArgs, VersionArgs,
+    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DocArgs,
+    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, ReplArgs,
+    RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
 /// Base help template for CLI output.
-const HELP_TEMPLATE_BASE: &str = "{before-help}{usage-heading} {usage}";
+const HELP_TEMPLATE_BASE: &str = "{before-help}{usage-heading} {usage}\n";
 
 /// Build the CLI style palette.
 fn destack_styles() -> Styles {
@@ -28,6 +28,7 @@ fn destack_styles() -> Styles {
         .context(AnsiColor::Yellow.on_default())
 }
 
+/// Root CLI arguments for destack.
 #[derive(Parser, Debug)]
 #[command(
     name = "destack",
@@ -44,6 +45,7 @@ pub struct Cli {
     pub command: Command,
 }
 
+/// Top-level CLI command selection.
 #[derive(Parser, Debug)]
 pub enum Command {
     /// Check source files for type errors and lint issues.
@@ -54,9 +56,12 @@ pub enum Command {
     #[command(alias = "compile")]
     Build(BuildArgs),
 
-    /// Compile and run a source file.
+    /// Compile and run a source file or script.
     #[command(alias = "exec")]
     Run(RunArgs),
+
+    /// Evaluate inline code.
+    Eval(EvalArgs),
 
     /// Lint source files (alias for check).
     Lint(LintArgs),
@@ -68,8 +73,11 @@ pub enum Command {
     /// Initialize a new project.
     Init(InitArgs),
 
-    /// Remove build artifacts.
+    /// Remove build outputs and caches.
     Clean(CleanArgs),
+
+    /// Show cache locations and settings.
+    Cache(CacheArgs),
 
     /// Show workspace and target information.
     Info(InfoArgs),
@@ -108,6 +116,9 @@ pub enum Command {
     /// Start the language server (for editor integration).
     Lsp(LspArgs),
 
+    /// Start a REPL session.
+    Repl(ReplArgs),
+
     /// Developer commands (compiler inspection, version management).
     #[cfg(feature = "dev")]
     #[command(subcommand)]
@@ -128,7 +139,6 @@ pub fn build_command(mode: HelpMode) -> clap::Command {
     let mut command = Cli::command();
     let color_enabled = console::color_enabled(console::Stream::Stdout);
     command = command.before_help(build_before_help(color_enabled));
-    command = command.after_help(build_after_help(mode, color_enabled));
     command.help_template(build_help_template(mode, color_enabled))
 }
 
@@ -156,19 +166,6 @@ fn build_before_help(color_enabled: bool) -> StyledStr {
     text
 }
 
-/// Build the shortcuts help block.
-fn build_after_help(mode: HelpMode, color_enabled: bool) -> StyledStr {
-    let mut text = StyledStr::new();
-
-    text.push_str(&build_commands_help(color_enabled));
-
-    if matches!(mode, HelpMode::Full) {
-        text.push_str("\n\n");
-        text.push_str(&build_options_heading(color_enabled));
-    }
-    text
-}
-
 /// Command metadata for grouped help output.
 struct CommandEntry {
     /// Command name to display.
@@ -187,7 +184,19 @@ fn build_commands_help(color_enabled: bool) -> String {
         CommandEntry {
             name: "run",
             example: "./src/main.ds",
-            help: "Compile and run a source file",
+            help: "Compile and run a source file or script",
+            group: 0,
+        },
+        CommandEntry {
+            name: "eval",
+            example: "1 + 2",
+            help: "Evaluate inline code",
+            group: 0,
+        },
+        CommandEntry {
+            name: "repl",
+            example: "",
+            help: "Start a REPL session",
             group: 0,
         },
         CommandEntry {
@@ -241,7 +250,13 @@ fn build_commands_help(color_enabled: bool) -> String {
         CommandEntry {
             name: "clean",
             example: "",
-            help: "Remove build artifacts",
+            help: "Remove build outputs and caches",
+            group: 2,
+        },
+        CommandEntry {
+            name: "cache",
+            example: "",
+            help: "Show cache locations and settings",
             group: 2,
         },
         CommandEntry {
@@ -326,9 +341,9 @@ fn build_commands_help(color_enabled: bool) -> String {
     let mut output = String::new();
     if color_enabled {
         let heading_style = AnsiColor::Green.on_default().bold();
-        output.push_str(&format!("{heading_style}Commands:{heading_style:#}\n"));
+        output.push_str(&format!("\n{heading_style}Commands:{heading_style:#}\n"));
     } else {
-        output.push_str("Commands:\n");
+        output.push_str("\nCommands:\n");
     }
 
     let mut current_group = entries.first().map(|entry| entry.group).unwrap_or(0);
@@ -372,14 +387,16 @@ fn build_commands_help(color_enabled: bool) -> String {
     output
 }
 
-/// Build the dynamic help template with usage aliases.
+/// Build the dynamic help template with optional options output.
 fn build_help_template(mode: HelpMode, color_enabled: bool) -> StyledStr {
     let mut text = StyledStr::new();
     text.push_str(HELP_TEMPLATE_BASE);
-    text.push_str("\n");
     text.push_str(&build_usage_aliases(color_enabled));
-    text.push_str("{after-help}");
+    text.push_str("\n");
+    text.push_str(&build_commands_help(color_enabled));
     if matches!(mode, HelpMode::Full) {
+        text.push_str("\n");
+        text.push_str(&build_options_heading(color_enabled));
         text.push_str("\n{options}\n");
     }
     text

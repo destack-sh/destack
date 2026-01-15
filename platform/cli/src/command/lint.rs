@@ -2,8 +2,8 @@ use clap::Args;
 
 use super::check::{self, Format, Progress};
 use crate::common::{
-    CommandReport, DiagnosticArgs, InputArgs, ProgramArgs, ReportArgs, ensure_no_watch_or_dev,
-    print_report,
+    CommandReport, DiagnosticArgs, InputArgs, ListEntry, ListPrinter, ListSpacing, ProgramArgs,
+    ReportArgs, ensure_no_watch_or_dev, list_payload, print_list_with, print_report,
 };
 
 /// Arguments for the lint command.
@@ -146,27 +146,32 @@ fn list_rules(args: &LintArgs) -> i32 {
 
     if args.report.is_json() {
         let mut report = CommandReport::success("lint", 0);
-        report.data = Some(serde_json::json!({ "rules": entries }));
+        report.data = Some(list_payload(entries));
         print_report(&report, args.report.format());
         return 0;
     }
 
-    for entry in entries {
-        let summary = format!("{} ({})", entry.id, entry.code);
-        let details = format!(
-            "{} · {} · {}",
-            entry.category,
-            if entry.fixable { "fixable" } else { "no-fix" },
-            if entry.recommended {
-                "recommended"
-            } else {
-                "optional"
-            },
-        );
-        println!("{summary}");
-        println!("  {details}");
-        println!("  {}", entry.description);
-    }
+    let list_entries = entries
+        .into_iter()
+        .map(|entry| {
+            let summary = format!("{} ({})", entry.id, entry.code);
+            let details = format!(
+                "{} · {} · {}",
+                entry.category,
+                if entry.fixable { "fixable" } else { "no-fix" },
+                if entry.recommended {
+                    "recommended"
+                } else {
+                    "optional"
+                },
+            );
+            ListEntry::new(summary)
+                .line(details)
+                .line(entry.description.to_string())
+        })
+        .collect::<Vec<_>>();
+    let printer = ListPrinter::plain();
+    print_list_with(&list_entries, ListSpacing::Spaced, &printer);
 
     0
 }

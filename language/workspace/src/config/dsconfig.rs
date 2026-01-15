@@ -14,11 +14,11 @@ use crate::{
 
 use super::target::{
     Allocator, BoundsCheckPolicy, CheckFailurePolicy, DebugInfoLevel, DebugMode, DeterminismPolicy,
-    DivisionCheckPolicy, FloatMathPolicy, LinkMode, LtoMode, NullCheckPolicy, OptimizeLevel,
-    OsrMode, OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform, ProfilingMode,
-    RelocationModel, ReplayMode, Runtime, SafepointMode, SafetyPreset, SandboxPolicy,
-    ShiftCheckPolicy, ShrinkLevel, SpeculationMode, StripLevel, Target, TargetDiscovery,
-    TrustPolicy, UnwindFormat,
+    DivisionCheckPolicy, EmitArtifact, FloatMathPolicy, LinkMode, LtoMode, NullCheckPolicy,
+    OptimizeLevel, OsrMode, OutputFormat, OutputMode, OverflowCheckPolicy, PanicPolicy, Platform,
+    ProfilingMode, RelocationModel, ReplayMode, Runtime, SafepointMode, SafetyPreset,
+    SandboxPolicy, ShiftCheckPolicy, ShrinkLevel, SpeculationMode, StripLevel, Target,
+    TargetDiscovery, TrustPolicy, UnwindFormat,
 };
 use super::tsconfig::{EsTarget, ModuleTarget};
 use super::{ProfileConfig, ProfileConfigJson};
@@ -287,6 +287,11 @@ impl DsConfig {
             }
         }
 
+        // inherit cache options (child overrides if set)
+        if self.options.cache.dir.is_none() {
+            self.options.cache.dir = parent.cache.dir.clone();
+        }
+
         // extend targets (add missing targets from parent)
         for (name, target) in &parent.targets {
             if !self.options.targets.contains_key(name) {
@@ -327,12 +332,21 @@ pub struct DsConfigOptions {
     pub formatter: FormatterOptions,
     /// Linter options.
     pub linter: LinterOptions,
+    /// Cache options.
+    pub cache: DsConfigCacheOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
     /// Named profiles for semantic configuration.
     pub profiles: IndexMap<String, ProfileConfig>,
     /// Default target for workspace.
     pub default_target: Option<String>,
+}
+
+/// Cache configuration options.
+#[derive(Debug, Clone, Default)]
+pub struct DsConfigCacheOptions {
+    /// Cache directory path.
+    pub dir: Option<PathBuf>,
 }
 
 /// Path alias mapping (resolved from dsconfig paths).
@@ -579,6 +593,9 @@ pub struct DsConfigJson {
     /// Linter options.
     #[serde(default)]
     pub linter: DsConfigLinterJson,
+    /// Cache options.
+    #[serde(default)]
+    pub cache: DsConfigCacheJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
     /// Named profiles for semantic configuration.
@@ -597,6 +614,8 @@ impl From<&DsConfigJson> for DsConfigOptions {
         let mut linter = LinterOptions::default();
         json.linter.apply(&mut linter);
 
+        let cache = DsConfigCacheOptions::from(&json.cache);
+
         Self {
             files: json.files.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
@@ -604,6 +623,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
             compiler,
             formatter,
             linter,
+            cache,
             targets: json
                 .targets
                 .as_ref()
@@ -637,6 +657,23 @@ pub enum ExtendsFieldJson {
     Single(String),
     /// Extend multiple dsconfigs.
     Multiple(Vec<String>),
+}
+
+/// Cache options (top-level).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigCacheJson {
+    /// Cache directory path.
+    pub dir: Option<String>,
+}
+
+impl From<&DsConfigCacheJson> for DsConfigCacheOptions {
+    fn from(json: &DsConfigCacheJson) -> Self {
+        Self {
+            dir: json.dir.as_ref().map(PathBuf::from),
+        }
+    }
 }
 
 /// Normalized Destack build target options (from dsconfig.json).
@@ -673,10 +710,18 @@ pub struct DsConfigTargetOptions {
     pub relocation_model: RelocationModel,
     /// Link mode for native targets.
     pub link_mode: LinkMode,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Extra linker arguments for native targets.
+    pub link_args: Vec<String>,
+    /// Sysroot path for native targets.
+    pub sysroot: Option<PathBuf>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
     /// Emit source maps.
     pub source_map: bool,
+    /// Extra artifacts to emit.
+    pub emit: Vec<EmitArtifact>,
 
     // output paths
     /// Output directory for this target (defaults to "dist").
@@ -773,8 +818,12 @@ impl Default for DsConfigTargetOptions {
             cpu_features: Vec::new(),
             relocation_model: RelocationModel::default(),
             link_mode: LinkMode::default(),
+            linker: None,
+            link_args: Vec::new(),
+            sysroot: None,
             declaration: false,
             source_map: false,
+            emit: Vec::new(),
             out_dir: PathBuf::from(super::target::DEFAULT_OUT_DIR),
             out_file: None,
             declaration_dir: None,
@@ -852,8 +901,12 @@ impl DsConfigTargetOptions {
             cpu_features: self.cpu_features.clone(),
             relocation_model: self.relocation_model,
             link_mode: self.link_mode,
+            linker: self.linker.clone(),
+            link_args: self.link_args.clone(),
+            sysroot: self.sysroot.clone(),
             declaration: self.declaration,
             source_map: self.source_map,
+            emit: self.emit.clone(),
             out_dir: self.out_dir.clone(),
             out_file: self.out_file.clone(),
             declaration_dir: self.declaration_dir.clone(),
@@ -942,8 +995,16 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .map(RelocationModel::from)
                 .unwrap_or_default(),
             link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
+            linker: json.linker.clone(),
+            link_args: json.link_args.clone().unwrap_or_default(),
+            sysroot: json.sysroot.as_ref().map(PathBuf::from),
             declaration: json.declaration,
             source_map: json.source_map,
+            emit: json
+                .emit
+                .as_ref()
+                .map(|emit| emit.iter().copied().map(EmitArtifact::from).collect())
+                .unwrap_or_default(),
             out_dir: json
                 .out_dir
                 .as_ref()
@@ -1064,6 +1125,35 @@ impl From<OutputFormatJson> for OutputFormat {
             OutputFormatJson::Ts => OutputFormat::Ts,
             OutputFormatJson::Wasm => OutputFormat::Wasm,
             OutputFormatJson::Native => OutputFormat::Native,
+        }
+    }
+}
+
+/// Extra artifacts to emit for JSON deserialization.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum EmitArtifactJson {
+    /// Lowered MIR.
+    Mir,
+    /// Backend IR.
+    Ir,
+    /// Assembly output.
+    Asm,
+    /// Object file output.
+    Object,
+    /// Symbol table output.
+    Symbols,
+}
+
+impl From<EmitArtifactJson> for EmitArtifact {
+    fn from(value: EmitArtifactJson) -> Self {
+        match value {
+            EmitArtifactJson::Mir => EmitArtifact::Mir,
+            EmitArtifactJson::Ir => EmitArtifact::Ir,
+            EmitArtifactJson::Asm => EmitArtifact::Asm,
+            EmitArtifactJson::Object => EmitArtifact::Object,
+            EmitArtifactJson::Symbols => EmitArtifact::Symbols,
         }
     }
 }
@@ -2066,12 +2156,20 @@ pub struct DsConfigTargetJson {
     pub relocation_model: Option<RelocationModelJson>,
     /// Link mode.
     pub link_mode: Option<LinkModeJson>,
+    /// Explicit linker executable.
+    pub linker: Option<String>,
+    /// Extra linker arguments.
+    pub link_args: Option<Vec<String>>,
+    /// Sysroot path for native toolchains.
+    pub sysroot: Option<String>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
     /// Emit source maps.
     #[serde(default)]
     pub source_map: bool,
+    /// Extra artifacts to emit.
+    pub emit: Option<Vec<EmitArtifactJson>>,
 
     // output paths
     /// Output directory for this target (overrides compilerOptions.outDir).

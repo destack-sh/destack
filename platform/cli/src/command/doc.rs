@@ -1,6 +1,8 @@
 use clap::Args;
 
-use crate::common::{CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report};
+use crate::common::{
+    CommandError, CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report,
+};
 use crate::console;
 
 /// Arguments for the doc command.
@@ -23,8 +25,10 @@ pub fn run(args: &DocArgs) -> i32 {
 
     // emit json placeholder when requested
     if args.report.is_json() {
+        let message = "documentation generator is not implemented yet";
         let mut report = CommandReport::failure("doc", 1);
-        report.summary = Some("documentation generator is not implemented yet".to_string());
+        report.summary = Some(message.to_string());
+        report.error = Some(CommandError::new("not_implemented", "feature", message));
         print_report(&report, args.report.format());
         return 1;
     }

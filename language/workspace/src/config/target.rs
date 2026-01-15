@@ -67,6 +67,43 @@ pub enum OutputMode {
     File,
 }
 
+/// Extra artifacts to emit for debugging or inspection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EmitArtifact {
+    /// Lowered MIR for the module.
+    Mir,
+    /// Backend IR (LLVM/Cranelift).
+    Ir,
+    /// Assembly output.
+    Asm,
+    /// Object file output.
+    Object,
+    /// Symbol table output.
+    Symbols,
+}
+
+impl std::str::FromStr for EmitArtifact {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().replace('-', "_").as_str() {
+            "mir" => Ok(Self::Mir),
+            "ir" | "llvm_ir" | "llvm" | "cranelift_ir" | "clif" => Ok(Self::Ir),
+            "asm" | "assembly" => Ok(Self::Asm),
+            "object" | "obj" => Ok(Self::Object),
+            "symbols" | "sym" | "symtab" => Ok(Self::Symbols),
+            _ => Err(()),
+        }
+    }
+}
+
+impl EmitArtifact {
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+}
+
 /// Optimization level for builds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OptimizeLevel {
@@ -1239,10 +1276,18 @@ pub struct Target {
     pub relocation_model: RelocationModel,
     /// Link mode for native targets.
     pub link_mode: LinkMode,
+    /// Explicit linker executable for native targets.
+    pub linker: Option<String>,
+    /// Extra linker arguments for native targets.
+    pub link_args: Vec<String>,
+    /// Sysroot path for native targets.
+    pub sysroot: Option<PathBuf>,
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     pub declaration: bool,
     /// Emit source maps.
     pub source_map: bool,
+    /// Extra artifacts to emit.
+    pub emit: Vec<EmitArtifact>,
 
     // optimization
     /// Whether this is a debug build.

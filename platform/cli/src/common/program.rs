@@ -20,6 +20,31 @@ pub fn default_workers() -> u16 {
         .get() as u16
 }
 
+/// File system override for CLI testing.
+#[derive(Clone)]
+pub struct FileSystemOverride {
+    /// The file system to use for setup.
+    fs: Arc<dyn FileSystem>,
+}
+
+impl FileSystemOverride {
+    /// Create a new file system override.
+    pub fn new(fs: Arc<dyn FileSystem>) -> Self {
+        Self { fs }
+    }
+
+    /// Clone the underlying file system handle.
+    pub fn fs(&self) -> Arc<dyn FileSystem> {
+        self.fs.clone()
+    }
+}
+
+impl std::fmt::Debug for FileSystemOverride {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileSystemOverride").finish()
+    }
+}
+
 /// The indent style to use.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum IndentStyleArg {
@@ -396,6 +421,14 @@ pub struct ProgramArgs {
     #[arg(long = "workspace", global = true)]
     pub workspace: Option<PathBuf>,
 
+    /// Cache directory override.
+    #[arg(long = "cache-dir", global = true)]
+    pub cache_dir: Option<PathBuf>,
+
+    /// Test only file system override.
+    #[arg(skip)]
+    pub fs_override: Option<FileSystemOverride>,
+
     /// The number of worker threads to use (default: number of CPU cores).
     #[arg(
         long = "workers",
@@ -447,8 +480,19 @@ pub struct ProgramArgs {
 }
 
 impl ProgramArgs {
+    /// Attach a file system override for testing.
+    pub fn with_fs_override(mut self, fs: Arc<dyn FileSystem>) -> Self {
+        self.fs_override = Some(FileSystemOverride::new(fs));
+        self
+    }
+
     /// Create a Session from these arguments.
     pub fn setup(&self) -> Arc<Session> {
+        self.setup_with_fs(self.fs_override.as_ref().map(FileSystemOverride::fs))
+    }
+
+    /// Create a Session using an explicit file system override.
+    pub fn setup_with_fs(&self, fs_override: Option<Arc<dyn FileSystem>>) -> Arc<Session> {
         let cwd = self
             .cwd
             .clone()
@@ -456,7 +500,10 @@ impl ProgramArgs {
         let workspace_root = self.workspace.clone().unwrap_or_else(|| cwd.clone());
         let formatter_options: FormatterOptions = self.formatter.clone().into();
         let linter_options: LinterOptions = self.linter.clone().into();
-        let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+        let fs: Arc<dyn FileSystem> = fs_override.unwrap_or_else(|| {
+            let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
+            fs
+        });
 
         // create session (builtins are always loaded)
         let session = Session::new(cwd.clone())

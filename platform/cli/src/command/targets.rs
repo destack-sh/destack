@@ -1,7 +1,8 @@
 use clap::Args;
 
 use crate::common::{
-    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report, report_error,
+    CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
+    ensure_no_watch_or_dev, list_payload, print_list_with, print_report, report_error,
 };
 use crate::console;
 use crate::pipeline::workspace::{
@@ -74,9 +75,7 @@ pub fn run(args: &TargetsArgs) -> i32 {
     // emit structured output when requested
     if args.report.is_json() {
         let mut report = CommandReport::success("targets", 0);
-        report.data = Some(serde_json::json!({
-            "targets": entries,
-        }));
+        report.data = Some(list_payload(entries));
         print_report(&report, args.report.format());
         return 0;
     }
@@ -87,7 +86,7 @@ pub fn run(args: &TargetsArgs) -> i32 {
         return 0;
     }
 
-    for entry in entries {
+    let list_entries = entries.into_iter().map(|entry| {
         let default_tag = entry
             .default_target
             .as_ref()
@@ -99,11 +98,15 @@ pub fn run(args: &TargetsArgs) -> i32 {
                 }
             })
             .unwrap_or("");
-        console::info(&format!(
+        let title = format!(
             "{}{}  [{} | {} | {}]",
             entry.name, default_tag, entry.output, entry.runtime, entry.platform
-        ));
-    }
+        );
+        ListEntry::new(title)
+    });
+    let list_entries: Vec<ListEntry> = list_entries.collect();
+    let printer = ListPrinter::info();
+    print_list_with(&list_entries, ListSpacing::Compact, &printer);
 
     0
 }

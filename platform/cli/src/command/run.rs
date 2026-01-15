@@ -6,18 +6,20 @@ use destack_workspace::OptimizeLevel;
 use serde_json::json;
 
 use crate::common::{
-    CommandReport, CommandStats, CompilerContext, DiagnosticArgs, DiagnosticFormat, FormatOptions,
-    InputArgs, ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json,
+    CommandError, CommandReport, CommandStats, CompilerContext, DiagnosticArgs, DiagnosticFormat,
+    FormatOptions, InputArgs, ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json,
     ensure_no_watch_or_dev, format_diagnostics, print_report, report_error, report_no_input,
 };
 use crate::console;
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::runtime::{
-    binding_policy_for_target, exit_status_from_value, isolate_options_for_target, mir_isolate,
-    process_args_for_source,
+    binding_policy_for_target, create_isolate, exit_status_from_value, format_value_for_eval,
+    isolate_options_for_target, process_args_for_source,
 };
+use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
 use crate::pipeline::target::{resolve_target_for_module, target_name_from_args};
 
+/// Arguments for the run command.
 #[derive(Args, Debug, Clone)]
 pub struct RunArgs {
     /// Input arguments.
@@ -49,31 +51,91 @@ pub struct RunArgs {
     pub args: Vec<String>,
 }
 
-/// Compile and run a source file.
+/// Mode for running entry execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RunMode {
+    /// Execute a source file or script.
+    Program,
+    /// Evaluate inline code and optionally print the result.
+    Eval { print: bool },
+}
+
+/// Shared run request for run-like commands.
+#[derive(Debug, Clone)]
+pub(crate) struct RunRequest {
+    /// Command name for reporting.
+    pub command_name: &'static str,
+    /// Input arguments.
+    pub input: InputArgs,
+    /// Program options.
+    pub program: ProgramArgs,
+    /// Target configuration.
+    pub target: TargetArgs,
+    /// Diagnostic options.
+    pub diagnostics: DiagnosticArgs,
+    /// Report output options.
+    pub report: ReportArgs,
+    /// Entry function name.
+    pub entry: String,
+    /// Arguments passed to the program.
+    pub args: Vec<String>,
+    /// Execution mode for the run.
+    pub mode: RunMode,
+}
+
+/// Compile and run a source file or script.
 pub fn run(args: &RunArgs) -> i32 {
+    run_with_request(RunRequest {
+        command_name: "run",
+        input: args.input.clone(),
+        program: args.program.clone(),
+        target: args.target.clone(),
+        diagnostics: args.diagnostics.clone(),
+        report: args.report.clone(),
+        entry: args.entry.clone(),
+        args: args.args.clone(),
+        mode: RunMode::Program,
+    })
+}
+
+/// Compile and run a source file or script with shared execution logic.
+pub(crate) fn run_with_request(request: RunRequest) -> i32 {
     // reject unsupported watch or dev flags
-    if let Some(code) = ensure_no_watch_or_dev("run", &args.program, &args.report) {
+    let command_name = request.command_name;
+    if let Some(code) = ensure_no_watch_or_dev(command_name, &request.program, &request.report) {
         return code;
     }
 
     // resolve the target name
-    let target_name = target_name_from_args(&args.target, "native");
+    let target_name = target_name_from_args(&request.target, "native");
 
     // set up the compiler context
-    let context = CompilerContext::for_run(&args.program, &args.diagnostics, target_name.clone());
+    let context =
+        CompilerContext::for_run(&request.program, &request.diagnostics, target_name.clone());
+
+    // check for script execution before compilation
+    if matches!(request.mode, RunMode::Program)
+        && let Some(exit_code) = try_run_script(&request, &context)
+    {
+        return exit_code;
+    }
 
     // load sources and enforce a single entry module
-    let sources = match resolve_sources(&args.input, None, None) {
+    let sources = match resolve_sources(&request.input, None, None) {
         Ok(sources) => sources,
         Err(ResolveSourcesError::NoInput) => {
-            return report_no_input("run", &args.report);
+            return report_no_input(command_name, &request.report);
         }
         Err(ResolveSourcesError::Message(message)) => {
-            return report_error("run", &args.report, &message);
+            return report_error(command_name, &request.report, &message);
         }
     };
     if sources.len() > 1 {
-        return report_error("run", &args.report, "run expects a single entry module");
+        return report_error(
+            command_name,
+            &request.report,
+            "run expects a single entry module",
+        );
     }
 
     // resolve the entry module and source display name
@@ -81,19 +143,22 @@ pub fn run(args: &RunArgs) -> i32 {
     let entry_module = match context.resolve_source(&entry_source) {
         Ok(module_id) => module_id,
         Err(message) => {
-            return report_error("run", &args.report, &message);
+            return report_error(command_name, &request.report, &message);
         }
     };
 
     // ensure the target exists for lowering
-    let resolved =
-        match resolve_target_for_module(&context.program, entry_module, &target_name, &args.target)
-        {
-            Ok(resolved) => resolved,
-            Err(message) => {
-                return report_error("run", &args.report, &message);
-            }
-        };
+    let resolved = match resolve_target_for_module(
+        &context.program,
+        entry_module,
+        &target_name,
+        &request.target,
+    ) {
+        Ok(resolved) => resolved,
+        Err(message) => {
+            return report_error(command_name, &request.report, &message);
+        }
+    };
 
     // enqueue lowering and optional optimization
     context.enqueue_module(entry_module);
@@ -114,7 +179,7 @@ pub fn run(args: &RunArgs) -> i32 {
         .map(&result.diagnostic_options);
 
     // emit diagnostics in the requested format
-    if args.report.is_json() {
+    if request.report.is_json() {
         let format_options = FormatOptions {
             format: DiagnosticFormat::Json,
             ..FormatOptions::default()
@@ -123,10 +188,10 @@ pub fn run(args: &RunArgs) -> i32 {
             collect_diagnostics_json(&result.program.files, &diagnostics, &format_options);
 
         if format_result.exit_code() != 0 {
-            let mut report = CommandReport::failure("run", format_result.exit_code());
+            let mut report = CommandReport::failure(command_name, format_result.exit_code());
             report.diagnostics = Some(output);
             report.stats = Some(CommandStats::from_snapshot(&result.stats));
-            print_report(&report, args.report.format());
+            print_report(&report, request.report.format());
             return format_result.exit_code();
         }
     } else {
@@ -143,7 +208,7 @@ pub fn run(args: &RunArgs) -> i32 {
     }
 
     // build the VM isolate for the lowered MIR
-    let mut isolate = match mir_isolate(
+    let mut isolate = match create_isolate(
         &result.program,
         entry_module,
         &resolved.id,
@@ -151,46 +216,135 @@ pub fn run(args: &RunArgs) -> i32 {
     ) {
         Ok(isolate) => isolate,
         Err(message) => {
-            return report_error("run", &args.report, &message);
+            return report_error(command_name, &request.report, &message);
         }
     };
 
     // install default platform bindings
-    let process_args = process_args_for_source(&entry_source, &args.args);
+    let process_args = process_args_for_source(&entry_source, &request.args);
     let host = destack_runtime::platform::HostContext::new(process_args);
     let mut bindings = BindingRegistry::new();
     bindings.set_policy(binding_policy_for_target(&resolved.target));
     bindings.install_defaults(&mut isolate, &host);
 
     // execute the entry function
-    match isolate.run_function_by_name(&args.entry, &[]) {
+    match isolate.run_function_by_name(&request.entry, &[]) {
         Ok(output) => {
             let exit_code = exit_status_from_value(output.value);
-            if !args.report.is_json() && !is_exit_code_value(&output.value) {
+            if matches!(request.mode, RunMode::Program)
+                && !request.report.is_json()
+                && !is_exit_code_value(&output.value)
+            {
                 console::warn("non-integer return value, defaulting to exit code 0");
             }
-            if args.report.is_json() {
-                let mut report = CommandReport::success("run", exit_code);
+            if let RunMode::Eval { print: true } = request.mode
+                && !request.report.is_json()
+            {
+                console::print(&format_value_for_eval(&output.value));
+            }
+            if request.report.is_json() {
+                let mut report = CommandReport::success(command_name, exit_code);
                 report.stats = Some(CommandStats::from_snapshot(&result.stats));
                 report.data = Some(value_payload(&output.value));
-                print_report(&report, args.report.format());
+                print_report(&report, request.report.format());
             } else if exit_code != 0 {
                 console::warn(&format!("process exited with code {exit_code}"));
             }
             exit_code
         }
         Err(error) => {
-            if args.report.is_json() {
-                let mut report = CommandReport::failure("run", 1);
-                report.summary = Some(format!("runtime error: {error}"));
+            if request.report.is_json() {
+                let message = format!("runtime error: {error}");
+                let mut report = CommandReport::failure(command_name, 1);
+                report.summary = Some(message.clone());
+                report.error = Some(CommandError::new("runtime_error", "runtime", message));
                 report.stats = Some(CommandStats::from_snapshot(&result.stats));
-                print_report(&report, args.report.format());
+                print_report(&report, request.report.format());
             } else {
                 console::error(&format!("runtime error: {error}"));
             }
             1
         }
     }
+}
+
+/// Attempt to run a dsconfig or package.json script when input is not a file.
+fn try_run_script(request: &RunRequest, context: &CompilerContext) -> Option<i32> {
+    let command_name = request.command_name;
+
+    // skip script resolution when explicit input is provided
+    if !request.input.eval.is_empty()
+        || !request.input.module.is_empty()
+        || request.input.stdin
+        || request.input.files.len() != 1
+    {
+        return None;
+    }
+
+    // resolve the candidate path for the file
+    let candidate = &request.input.files[0];
+    let candidate_path = if candidate.is_absolute() {
+        candidate.clone()
+    } else {
+        context.program.cwd.join(candidate)
+    };
+
+    // only treat the argument as a script if the file does not exist
+    if context.program.fs.metadata(&candidate_path).is_ok() {
+        return None;
+    }
+
+    // resolve script command from dsconfig or package.json
+    let script_name = candidate.to_string_lossy().to_string();
+    let script = match resolve_script_command(&request.program, &script_name) {
+        Ok(Some(script)) => script,
+        Ok(None) => {
+            let message = format!("no such file or script: {script_name}");
+            return Some(report_error(command_name, &request.report, &message));
+        }
+        Err(message) => {
+            return Some(report_error(command_name, &request.report, &message));
+        }
+    };
+
+    // build shell command with args appended
+    let mut command = script.command.clone();
+    if !request.args.is_empty() {
+        command.push(' ');
+        command.push_str(&request.args.join(" "));
+    }
+
+    // run via shell
+    let mut shell = shell_command(&command);
+    shell.current_dir(&script.cwd);
+    let status = match shell.status() {
+        Ok(status) => status,
+        Err(error) => {
+            let message = format!("script failed: {error}");
+            return Some(report_error(command_name, &request.report, &message));
+        }
+    };
+    let exit_code = status.code().unwrap_or(1);
+
+    // report structured output when requested
+    if request.report.is_json() {
+        let source = match script.source {
+            ScriptSource::DsConfig => "dsconfig",
+            ScriptSource::PackageJson => "package.json",
+        };
+        let mut report = CommandReport::success(command_name, exit_code);
+        report.data = Some(serde_json::json!({
+            "script": script.name,
+            "command": command,
+            "cwd": script.cwd,
+            "source": source,
+        }));
+        print_report(&report, request.report.format());
+    } else if exit_code != 0 {
+        console::warn(&format!("process exited with code {exit_code}"));
+    }
+
+    Some(exit_code)
 }
 
 /// Return whether a VM value maps directly to a process exit code.

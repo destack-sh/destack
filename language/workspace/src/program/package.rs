@@ -159,6 +159,10 @@ pub struct PackageJson {
     /// <https://nodejs.org/api/packages.html#imports>
     pub imports: Option<Map<String, Value>>,
 
+    /// The "scripts" map for CLI tasks.
+    /// <https://docs.npmjs.com/cli/v11/using-npm/scripts>
+    pub scripts: Option<IndexMap<String, String>>,
+
     /// The "workspaces" field for npm/yarn/pnpm workspaces.
     /// <https://docs.npmjs.com/cli/v11/configuring-npm/package-json#workspaces>
     pub workspaces: Option<WorkspacesField>,

@@ -9,7 +9,10 @@ use destack_compiler::{
     OptimizeWarning, ResolveError, ResolveWarning, TaskPhase,
 };
 
-use crate::common::{CommandReport, ReportArgs, print_report, report_error};
+use crate::common::{
+    CommandReport, ListEntry, ListGroup, ListPrinter, ListSpacing, ReportArgs,
+    grouped_list_payload, print_grouped_list_with, print_report, report_error,
+};
 use crate::console;
 
 /// Arguments for the explain command.
@@ -349,6 +352,7 @@ fn list_diagnostics(args: &ExplainArgs) -> i32 {
     } else {
         Vec::new()
     };
+    let compiler_total = compiler_entries.len();
 
     // gather lint rules when requested
     let lint_entries = if args.kind.includes_lint() {
@@ -356,13 +360,14 @@ fn list_diagnostics(args: &ExplainArgs) -> i32 {
     } else {
         Vec::new()
     };
+    let lint_total = lint_entries.len();
 
     // emit json output for tooling
     if args.report.is_json() {
         let mut report = CommandReport::success("explain", 0);
         report.data = Some(serde_json::json!({
-            "compiler": category_compiler_entries(compiler_entries),
-            "lint": category_lint_entries(lint_entries),
+            "compiler": grouped_list_payload(category_compiler_entries(compiler_entries), compiler_total),
+            "lint": grouped_list_payload(category_lint_entries(lint_entries), lint_total),
         }));
         print_report(&report, args.report.format());
         return 0;
@@ -490,19 +495,22 @@ fn print_compiler_listing(entries: Vec<CompilerListEntry>) {
     }
 
     // render category groupings
+    let mut groups = Vec::new();
     for (category, mut entries) in categories {
         entries.sort_by(|a, b| a.code.cmp(b.code));
-        println!("{}", format_category_heading(&category, color_enabled));
-        for (index, entry) in entries.iter().enumerate() {
-            let code = format_compiler_code(entry.code, entry.severity, color_enabled);
-            let summary = format!("  {code} {} - {}", entry.name, entry.description);
-            println!("{summary}");
-            if index + 1 < entries.len() {
-                println!();
-            }
-        }
-        println!();
+        let heading = format_category_heading(&category, color_enabled);
+        let list_entries = entries
+            .iter()
+            .map(|entry| {
+                let code = format_compiler_code(entry.code, entry.severity, color_enabled);
+                let summary = format!("  {code} {} - {}", entry.name, entry.description);
+                ListEntry::new(summary)
+            })
+            .collect();
+        groups.push(ListGroup::new(heading, list_entries));
     }
+    let printer = ListPrinter::plain();
+    print_grouped_list_with(&groups, ListSpacing::Spaced, &printer);
 }
 
 /// Print lint rules grouped by category.
@@ -520,31 +528,34 @@ fn print_lint_listing(entries: Vec<LintListEntry>) {
     }
 
     // render category groupings
+    let mut groups = Vec::new();
     for (category, mut entries) in categories {
         entries.sort_by(|a, b| a.id.cmp(&b.id));
-        println!("{}", format_category_heading(&category, color_enabled));
-        for (index, entry) in entries.iter().enumerate() {
-            let id = format_rule_id(&entry.id, color_enabled);
-            let code = format_rule_code(entry.code, color_enabled);
-            let summary = format!("  {id} ({code}) - {}", entry.description);
-            let details = format!(
-                "{} · {} · {}",
-                if entry.fixable { "fixable" } else { "no-fix" },
-                if entry.recommended {
-                    "recommended"
-                } else {
-                    "optional"
-                },
-                entry.stability,
-            );
-            println!("{summary}");
-            println!("    {}", format_details_line(&details, color_enabled));
-            if index + 1 < entries.len() {
-                println!();
-            }
-        }
-        println!();
+        let heading = format_category_heading(&category, color_enabled);
+        let list_entries = entries
+            .iter()
+            .map(|entry| {
+                let id = format_rule_id(&entry.id, color_enabled);
+                let code = format_rule_code(entry.code, color_enabled);
+                let summary = format!("  {id} ({code}) - {}", entry.description);
+                let details = format!(
+                    "{} · {} · {}",
+                    if entry.fixable { "fixable" } else { "no-fix" },
+                    if entry.recommended {
+                        "recommended"
+                    } else {
+                        "optional"
+                    },
+                    entry.stability,
+                );
+                let details = format!("  {}", format_details_line(&details, color_enabled));
+                ListEntry::new(summary).line(details)
+            })
+            .collect();
+        groups.push(ListGroup::new(heading, list_entries));
     }
+    let printer = ListPrinter::plain();
+    print_grouped_list_with(&groups, ListSpacing::Spaced, &printer);
 }
 
 /// Find a lint rule entry matching the given identifier.

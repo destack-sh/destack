@@ -4,8 +4,8 @@ use clap::FromArgMatches;
 
 use crate::cli::{Cli, Command, HelpMode, build_command};
 use crate::{
-    bench, build, check, clean, completions, config, console, doc, doctor, explain, fmt, info,
-    init, lint, lsp, run, targets, task, test, version,
+    bench, build, cache, check, clean, completions, config, console, doc, doctor, eval, explain,
+    fmt, info, init, lint, lsp, repl, run, targets, task, test, version,
 };
 
 #[cfg(feature = "dev")]
@@ -56,10 +56,12 @@ pub fn run(default_command: DefaultCommand) -> i32 {
         Command::Check(args) => check::run(&args),
         Command::Build(args) => build::run(&args),
         Command::Run(args) => run::run(&args),
+        Command::Eval(args) => eval::run(&args),
         Command::Lint(args) => lint::run(&args),
         Command::Format(args) => fmt::run(&args),
         Command::Init(args) => init::run(&args),
         Command::Clean(args) => clean::run(&args),
+        Command::Cache(args) => cache::run(&args),
         Command::Info(args) => info::run(&args),
         Command::Config(args) => config::run(&args),
         Command::Targets(args) => targets::run(&args),
@@ -72,6 +74,7 @@ pub fn run(default_command: DefaultCommand) -> i32 {
         Command::Doc(args) => doc::run(&args),
         Command::Task(args) => task::run(&args),
         Command::Lsp(args) => lsp::run(&args),
+        Command::Repl(args) => repl::run(&args),
         #[cfg(feature = "dev")]
         Command::Dev(subcommand) => match subcommand {
             DevCommand::Resolve(args) => dev::resolve::run(&args),
@@ -119,11 +122,13 @@ fn is_known_subcommand(arg: &str) -> bool {
             | "compile"
             | "run"
             | "exec"
+            | "eval"
             | "lint"
             | "format"
             | "fmt"
             | "init"
             | "clean"
+            | "cache"
             | "info"
             | "config"
             | "completions"
@@ -138,6 +143,7 @@ fn is_known_subcommand(arg: &str) -> bool {
             | "doc"
             | "task"
             | "lsp"
+            | "repl"
             | "typecheck"
             | "dev"
             | "--help"

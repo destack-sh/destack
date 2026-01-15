@@ -56,7 +56,7 @@ pub fn run(args: &ConfigArgs) -> i32 {
     };
 
     // parse raw config json
-    let config_json = match read_config_json(&dsconfig_path) {
+    let config_json = match read_config_json(&context.resolver, &dsconfig_path) {
         Ok(value) => value,
         Err(message) => return report_error("config", &args.report, &message),
     };
@@ -113,12 +113,14 @@ fn resolve_config_path(
             cwd.join(path)
         };
 
-        if resolved_path.is_file() {
-            return Ok(resolved_path);
-        }
-        if resolved_path.is_dir() {
-            return find_dsconfig(resolver, &resolved_path)
-                .ok_or_else(|| "dsconfig.json not found".to_string());
+        if let Ok(metadata) = resolver.fs.metadata(&resolved_path) {
+            if metadata.is_file {
+                return Ok(resolved_path);
+            }
+            if metadata.is_directory {
+                return find_dsconfig(resolver, &resolved_path)
+                    .ok_or_else(|| "dsconfig.json not found".to_string());
+            }
         }
         return Err(format!("path not found: {}", resolved_path.display()));
     }
@@ -128,9 +130,11 @@ fn resolve_config_path(
 }
 
 /// Read and parse a dsconfig.json file into JSON.
-fn read_config_json(path: &PathBuf) -> Result<Value, String> {
+fn read_config_json(resolver: &destack_resolver::Resolver, path: &Path) -> Result<Value, String> {
     // read the config file contents
-    let content = std::fs::read_to_string(path)
+    let content = resolver
+        .fs
+        .read_to_string(path)
         .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
     // parse into json value
     serde_json::from_str(&content).map_err(|e| format!("invalid dsconfig: {e}"))
