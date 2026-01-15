@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
@@ -38,6 +40,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            true,
         )?;
         let ty = types.get_type_mut(ty_id);
         *ty = evaluated_ty;
@@ -50,6 +53,7 @@ impl Compiler {
 
     /// Try to evaluate an Expression as a Type.
     /// Returns the evaluated Type value, or a Type::Unevaluated if it fails.
+    /// Set validate_static_argument_bounds to false to defer bound checks.
     pub(crate) fn try_evaluate_expression_to_type_value(
         &self,
         module: &Module,
@@ -58,14 +62,24 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Type> {
         let ty = self
-            .evaluate_expression_to_type(module, profile, expression_id, tree, symbols, types)?
+            .evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+            )?
             .unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
     }
 
     /// Try to evaluate an Expression as a Type id.
+    /// Set validate_static_argument_bounds to false to defer bound checks.
     pub(crate) fn try_evaluate_expression_to_type(
         &self,
         module: &Module,
@@ -74,6 +88,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<LocalTypeId> {
         let ty = self.try_evaluate_expression_to_type_value(
             module,
@@ -82,6 +97,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            validate_static_argument_bounds,
         )?;
         Ok(types.insert_type_from(ty, expression_id))
     }
@@ -145,6 +161,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
             )?)
         } else {
             let ty = Type::TypeLiteral {
@@ -214,6 +231,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
             )?;
 
             // keep unevaluated arguments so later phases can resolve them
@@ -324,7 +342,7 @@ impl Compiler {
         Ok(Some(value))
     }
 
-    /// Evaluate an Expression into a Type.
+    /// Evaluate an Expression into a Type with validation controls.
     fn evaluate_expression_to_type(
         &self,
         module: &Module,
@@ -333,6 +351,7 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Option<Type>> {
         // clone to avoid holding a tree borrow across recursive evaluation
         let expression = tree.get(expression_id).clone();
@@ -347,7 +366,13 @@ impl Compiler {
             Expression::This => Type::This,
             Expression::Parenthesized { expression } => {
                 return self.evaluate_expression_to_type(
-                    module, profile, expression, tree, symbols, types,
+                    module,
+                    profile,
+                    expression,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 );
             }
 
@@ -377,7 +402,13 @@ impl Compiler {
                 right,
             } => {
                 let type_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
@@ -390,8 +421,15 @@ impl Compiler {
             }
             // must
             Expression::Must { left } => {
-                let type_id = self
-                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let type_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
                     right: type_id,
@@ -404,7 +442,13 @@ impl Compiler {
                 right,
             } => {
                 let type_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::ValueOf {
                     mutability,
@@ -419,7 +463,13 @@ impl Compiler {
                 right,
             } => {
                 let type_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::ReferenceOf {
                     mutability,
@@ -430,7 +480,13 @@ impl Compiler {
             // pointer
             Expression::PointerOf { mutability, right } => {
                 let type_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::PointerOf {
                     mutability,
@@ -452,7 +508,13 @@ impl Compiler {
                 }
 
                 let right_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::Unary {
                     operator,
@@ -465,10 +527,23 @@ impl Compiler {
                 operator,
                 right,
             } => {
-                let left_id = self
-                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
                 let right_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::Binary {
                     left: left_id,
@@ -482,16 +557,49 @@ impl Compiler {
                 then_type,
                 else_type,
             } => {
-                let left_id = self
-                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
-                let right_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
+                let right_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
+                let should_validate_branches = !self.type_contains_static_parameters(
+                    module,
+                    profile,
+                    left_id,
+                    symbols,
+                    types,
+                    &mut HashSet::new(),
+                ) && validate_static_argument_bounds;
                 let then_type_id = self.try_evaluate_expression_to_type(
-                    module, profile, then_type, tree, symbols, types,
+                    module,
+                    profile,
+                    then_type,
+                    tree,
+                    symbols,
+                    types,
+                    should_validate_branches,
                 )?;
                 let else_type_id = self.try_evaluate_expression_to_type(
-                    module, profile, else_type, tree, symbols, types,
+                    module,
+                    profile,
+                    else_type,
+                    tree,
+                    symbols,
+                    types,
+                    should_validate_branches,
                 )?;
                 Type::Conditional {
                     left: left_id,
@@ -512,10 +620,20 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    validate_static_argument_bounds,
                 )?;
+                // cache the mapped parameter constraint for later validation
+                let parameter_symbol = parameter.symbol.into_global(module.id);
+                types.set_static_parameter_constraint_type(parameter_symbol, constraint);
                 let key_remap = parameter.key_remap.map(|key_remap| {
                     self.try_evaluate_expression_to_type(
-                        module, profile, key_remap, tree, symbols, types,
+                        module,
+                        profile,
+                        key_remap,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )
                 });
                 let key_remap = match key_remap {
@@ -524,7 +642,13 @@ impl Compiler {
                     None => None,
                 };
                 let value_id = self.try_evaluate_expression_to_type(
-                    module, profile, value, tree, symbols, types,
+                    module,
+                    profile,
+                    value,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 let parameter = TypeMappedParameter {
                     name: parameter.name,
@@ -538,10 +662,23 @@ impl Compiler {
                 }
             }
             Expression::TypeIndex { left, index } => {
-                let left_id = self
-                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
                 let index_id = self.try_evaluate_expression_to_type(
-                    module, profile, index, tree, symbols, types,
+                    module,
+                    profile,
+                    index,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
                 Type::Index {
                     left: left_id,
@@ -553,7 +690,13 @@ impl Compiler {
                     .iter()
                     .map(|span| {
                         self.try_evaluate_expression_to_type(
-                            module, profile, *span, tree, symbols, types,
+                            module,
+                            profile,
+                            *span,
+                            tree,
+                            symbols,
+                            types,
+                            validate_static_argument_bounds,
                         )
                     })
                     .collect::<AnalyzeResult<Vec<_>>>()?;
@@ -584,7 +727,13 @@ impl Compiler {
             Expression::TypeInfer { name, constraint } => {
                 let constraint = constraint.map(|constraint| {
                     self.try_evaluate_expression_to_type(
-                        module, profile, constraint, tree, symbols, types,
+                        module,
+                        profile,
+                        constraint,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )
                 });
                 let constraint = match constraint {
@@ -601,7 +750,13 @@ impl Compiler {
             } => {
                 let target = target.map(|target| {
                     self.try_evaluate_expression_to_type(
-                        module, profile, target, tree, symbols, types,
+                        module,
+                        profile,
+                        target,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )
                 });
                 let target = match target {
@@ -623,10 +778,23 @@ impl Compiler {
                 right,
                 ..
             } => {
-                let left_id = self
-                    .try_evaluate_expression_to_type(module, profile, left, tree, symbols, types)?;
+                let left_id = self.try_evaluate_expression_to_type(
+                    module,
+                    profile,
+                    left,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
+                )?;
                 let right_id = self.try_evaluate_expression_to_type(
-                    module, profile, right, tree, symbols, types,
+                    module,
+                    profile,
+                    right,
+                    tree,
+                    symbols,
+                    types,
+                    validate_static_argument_bounds,
                 )?;
 
                 match operator {
@@ -696,6 +864,9 @@ impl Compiler {
                 static_arguments,
                 ..
             } => {
+                // prefer merged type symbols for namespace-qualified references
+                let target_symbol =
+                    self.merged_type_symbol_id(module, symbols, profile, target_symbol);
                 let static_arguments = self.evaluate_static_arguments(
                     module,
                     profile,
@@ -711,7 +882,7 @@ impl Compiler {
                     expression_id.into_any(),
                     target_symbol,
                     static_arguments.as_deref(),
-                    true,
+                    validate_static_argument_bounds,
                     &options,
                     tree,
                     symbols,
@@ -757,7 +928,13 @@ impl Compiler {
                     let argument = tree.get(element_id);
                     let value_id = argument.value();
                     let value_ty_id = self.try_evaluate_expression_to_type(
-                        module, profile, value_id, tree, symbols, types,
+                        module,
+                        profile,
+                        value_id,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )?;
                     let mut element = TypeElement::new(value_ty_id);
                     match argument {
@@ -787,7 +964,13 @@ impl Compiler {
                         argument.value()
                     };
                     let value_ty_id = self.try_evaluate_expression_to_type(
-                        module, profile, value_id, tree, symbols, types,
+                        module,
+                        profile,
+                        value_id,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )?;
                     element_types.push(TypeElement::new(value_ty_id));
                 }
@@ -824,11 +1007,23 @@ impl Compiler {
                             // index signature
                             if let Some(DynamicKey::NamedExpression { name, key }) = key {
                                 let key_type = self.try_evaluate_expression_to_type(
-                                    module, profile, key, tree, symbols, types,
+                                    module,
+                                    profile,
+                                    key,
+                                    tree,
+                                    symbols,
+                                    types,
+                                    validate_static_argument_bounds,
                                 )?;
                                 let value_type = if let Some(value_id) = value {
                                     self.try_evaluate_expression_to_type(
-                                        module, profile, value_id, tree, symbols, types,
+                                        module,
+                                        profile,
+                                        value_id,
+                                        tree,
+                                        symbols,
+                                        types,
+                                        validate_static_argument_bounds,
                                     )?
                                 } else {
                                     let ty = Type::TypeLiteral {
@@ -863,7 +1058,13 @@ impl Compiler {
 
                             let ty = if let Some(value_id) = value {
                                 self.try_evaluate_expression_to_type(
-                                    module, profile, value_id, tree, symbols, types,
+                                    module,
+                                    profile,
+                                    value_id,
+                                    tree,
+                                    symbols,
+                                    types,
+                                    validate_static_argument_bounds,
                                 )?
                             } else {
                                 let ty = Type::TypeLiteral {
@@ -985,7 +1186,13 @@ impl Compiler {
                 // array with static length
                 if let Some(right) = right {
                     let left_id = self.try_evaluate_expression_to_type(
-                        module, profile, left, tree, symbols, types,
+                        module,
+                        profile,
+                        left,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )?;
                     Type::ArraySized {
                         element: left_id,
@@ -995,7 +1202,13 @@ impl Compiler {
                 // slice
                 else {
                     let left_id = self.try_evaluate_expression_to_type(
-                        module, profile, left, tree, symbols, types,
+                        module,
+                        profile,
+                        left,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
                     )?;
                     Type::Array {
                         element: Some(left_id),

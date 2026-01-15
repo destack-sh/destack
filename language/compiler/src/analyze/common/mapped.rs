@@ -57,17 +57,8 @@ impl Compiler {
 
         // treat unconstrained type parameters as keyof any
         if let Type::Reference { symbol, .. } = types.get_type(normalized_right) {
-            // read the symbol entry from the owning module
-            let is_static_parameter = if symbol.module_id == module.id {
-                symbols.get_symbol(symbol.local_id).is_static_parameter()
-            } else {
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                remote_symbols
-                    .get_symbol(symbol.local_id)
-                    .is_static_parameter()
-            };
+            let is_static_parameter =
+                self.symbol_is_static_parameter(module, profile, *symbol, symbols, types);
             if is_static_parameter
                 && let Some(constraint_id) = self.static_parameter_constraint_type(
                     module, profile, *symbol, source_id, symbols, types,
@@ -445,8 +436,16 @@ impl Compiler {
         let right =
             self.normalize_type_inner(module, profile, right, symbols, types, mode, visited);
 
-        // keep conditional types unresolved for assignability normalization
-        if matches!(mode, NormalizationMode::Assign) {
+        // keep conditional types unresolved when they depend on static parameters
+        let left_contains_static_parameters = self.type_contains_static_parameters(
+            module,
+            profile,
+            left,
+            symbols,
+            types,
+            &mut HashSet::new(),
+        );
+        if left_contains_static_parameters {
             let normalized_then = self
                 .normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
             let normalized_else = self
@@ -458,39 +457,6 @@ impl Compiler {
             if !did_change {
                 return type_id;
             }
-
-            return types.insert_type_from_any(
-                Type::Conditional {
-                    left,
-                    right,
-                    then_type: normalized_then,
-                    else_type: normalized_else,
-                },
-                source_id,
-            );
-        }
-
-        // keep conditional types on static parameters unresolved
-        let is_static_parameter = match types.get_type(left) {
-            Type::Reference { symbol, .. } => {
-                if symbol.module_id == module.id {
-                    symbols.get_symbol(symbol.local_id).is_static_parameter()
-                } else {
-                    let remote_module = self.program.modules.get(symbol.module_id);
-                    let remote_module = remote_module.read();
-                    let remote_symbols = remote_module.dir(profile).symbols.read();
-                    remote_symbols
-                        .get_symbol(symbol.local_id)
-                        .is_static_parameter()
-                }
-            }
-            _ => false,
-        };
-        if is_static_parameter {
-            let normalized_then = self
-                .normalize_type_inner(module, profile, then_type, symbols, types, mode, visited);
-            let normalized_else = self
-                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
 
             return types.insert_type_from_any(
                 Type::Conditional {
@@ -537,6 +503,34 @@ impl Compiler {
                     )
                 }
             };
+        }
+
+        // infer conditional bindings before choosing a branch
+        if self.type_contains_infer(right, types, &mut HashSet::new()) {
+            if let Some(substitutions) = self.infer_conditional_type_substitutions(
+                module, profile, left, right, source_id, symbols, types,
+            ) {
+                let substituted = self.substitute_infer_types(
+                    module,
+                    profile,
+                    then_type,
+                    &substitutions,
+                    symbols,
+                    types,
+                );
+                return self.normalize_type_inner(
+                    module,
+                    profile,
+                    substituted,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
+                );
+            }
+
+            return self
+                .normalize_type_inner(module, profile, else_type, symbols, types, mode, visited);
         }
 
         // choose the active branch based on assignability

@@ -16,6 +16,8 @@ use crate::{
 pub struct TypeMappedParameterExpression {
     /// The parameter name (like `K`).
     pub name: StringId,
+    /// The parameter symbol.
+    pub symbol: LocalSymbolId,
     /// The constraint type (like `keyof T`).
     pub constraint: LocalNodeId<Expression>,
     /// The optional key remap (like `as Foo<K>`).

@@ -379,6 +379,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            true,
                         )?,
                     _ => self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?,
                 };
@@ -390,6 +391,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        true,
                     )?;
 
                 if matches!(types.get_type(right_ty_id), Type::Unevaluated { .. }) {
@@ -438,6 +440,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
 
                 if matches!(types.get_type(target_ty_id), Type::Unevaluated { .. }) {
@@ -1758,6 +1761,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
 
                 // infer the value expression
@@ -1774,6 +1778,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
 
                 // collect expected element types
@@ -1807,6 +1812,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
 
                 // derive an expected object type from the tag
@@ -2660,6 +2666,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            true,
         )?;
 
         // unwrap type-as-value wrappers when present

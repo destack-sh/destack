@@ -36,6 +36,120 @@ const bad: Name = 42;
 
 - contains: not assignable
 
+## conditional types pick true branch
+
+> Conditional types select the matching branch.
+
+```ds
+type Select<T> = T extends string ? string : int32;
+
+let ok: Select<string> = "ok";
+let bad: Select<string> = 1;
+ok satisfies string;
+```
+
+- contains: type int32 is not assignable to type string
+
+## conditional types pick false branch
+
+> Conditional types select the else branch when the match fails.
+
+```ds
+type Select<T> = T extends string ? string : int32;
+
+let ok: Select<int32> = 1;
+let bad: Select<int32> = "no";
+ok satisfies int32;
+```
+
+- contains: type string is not assignable to type int32
+
+## conditional types distribute over unions
+
+> Conditional types distribute over union inputs.
+
+```ds
+type OnlyStrings<T> = T extends string ? T : never;
+
+let ok: OnlyStrings<string | int32> = "ok";
+let bad: OnlyStrings<string | int32> = 1;
+ok satisfies string;
+```
+
+- contains: type int32 is not assignable to type string
+
+## mapped types build object fields
+
+> Mapped types produce fields for each key.
+
+```ds
+type Flags<T> = { [K in keyof T]: boolean };
+
+interface Person {
+    name: string
+    age: number
+}
+
+const ok: Flags<Person> = { name: true, age: false };
+const bad: Flags<Person> = { name: true, age: "no" };
+```
+
+- contains: type string is not assignable to type boolean
+
+## mapped types support optional modifiers
+
+> Optional modifiers allow missing fields.
+
+```ds
+type Optional<T> = { [K in keyof T]?: T[K] };
+
+interface Person {
+    name: string
+    age: number
+}
+
+const ok: Optional<Person> = {};
+const ok2: Optional<Person> = { name: "Ada" };
+const bad: Optional<Person> = { name: "Ada", age: "no" };
+```
+
+- contains: type string is not assignable to type number
+
+## mapped types can remove optional modifiers
+
+> Optional removal forces required fields.
+
+```ds
+type RequiredKeys<T> = { [K in keyof T]-?: T[K] };
+
+interface Person {
+    name?: string
+}
+
+const bad: RequiredKeys<Person> = {};
+```
+
+- contains: not assignable
+
+## mapped types can remap keys
+
+> Key remaps can merge fields into new keys.
+
+```ds
+type Renamed<T> = { [K in keyof T as "value"]: T[K] };
+
+interface Person {
+    name: string
+    age: number
+}
+
+const ok: Renamed<Person> = { value: "Ada" };
+const ok2: Renamed<Person> = { value: 1 };
+const bad: Renamed<Person> = { value: true };
+```
+
+- contains: type true is not assignable to type string | int32
+
 ## typeof returns value types for locals
 
 > `typeof` returns the value type of a local binding.

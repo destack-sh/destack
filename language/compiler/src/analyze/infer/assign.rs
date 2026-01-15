@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use destack_dir::{
     GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, SymbolTable, SymbolType,
     Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
@@ -116,11 +118,11 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> Assignability {
-        // follow cached alias instances for assignability comparisons
-        let target_id = self.unwrap_assignability_alias_type(target_id, types);
-        let source_id = self.unwrap_assignability_alias_type(source_id, types);
+        // follow alias references and static constraints before assignability
+        let target_id = self.prepare_assignability_type(module, profile, target_id, symbols, types);
+        let source_id = self.prepare_assignability_type(module, profile, source_id, symbols, types);
 
-        // recheck equality after alias unwrapping
+        // recheck equality after alias expansion
         if target_id == source_id {
             return Assignability::Assignable;
         }
@@ -133,6 +135,50 @@ impl Compiler {
 
         let target = types.get_type(target_id).clone();
         let source = types.get_type(source_id).clone();
+
+        // normalize conditional types that can be resolved in flow mode
+        if matches!(target, Type::Conditional { .. }) {
+            let normalized_target = self.normalize_type(
+                module,
+                profile,
+                target_id,
+                symbols,
+                types,
+                NormalizationMode::Flow,
+            );
+            if normalized_target != target_id {
+                return self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    normalized_target,
+                    source_id,
+                    types,
+                    options,
+                );
+            }
+        }
+        if matches!(source, Type::Conditional { .. }) {
+            let normalized_source = self.normalize_type(
+                module,
+                profile,
+                source_id,
+                symbols,
+                types,
+                NormalizationMode::Flow,
+            );
+            if normalized_source != source_id {
+                return self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_id,
+                    normalized_source,
+                    types,
+                    options,
+                );
+            }
+        }
 
         // infer targets: treat as wildcard with optional constraints
         if let Type::Infer { constraint, .. } = &target {
@@ -197,12 +243,23 @@ impl Compiler {
         if let Type::Conditional {
             then_type,
             else_type,
+            left,
+            right,
             ..
         } = &source
         {
+            let narrowed_then = self.narrow_conditional_then_for_assignability(
+                module, profile, *left, *right, *then_type, symbols, types,
+            );
             let then_assignable = self
                 .is_type_assignable(
-                    module, profile, symbols, target_id, *then_type, types, options,
+                    module,
+                    profile,
+                    symbols,
+                    target_id,
+                    narrowed_then,
+                    types,
+                    options,
                 )
                 .is_assignable();
             let else_assignable = self
@@ -1386,6 +1443,141 @@ impl Compiler {
         }
 
         current_id
+    }
+
+    /// Normalize a type id for assignability checks.
+    fn prepare_assignability_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // unwrap cached alias instances first
+        let type_id = self.unwrap_assignability_alias_type(type_id, types);
+
+        // expand alias references that carry static arguments
+        let type_id =
+            self.expand_assignability_alias_reference(module, profile, type_id, symbols, types);
+
+        // substitute static parameter references with constraints
+        self.resolve_assignability_static_constraint(module, profile, type_id, symbols, types)
+    }
+
+    /// Resolve static parameter references to their constraints for assignability.
+    fn resolve_assignability_static_constraint(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let Type::Reference { symbol, .. } = types.get_type(type_id) else {
+            return type_id;
+        };
+
+        // only substitute actual static parameters
+        if !self.symbol_is_static_parameter(module, profile, *symbol, symbols, types) {
+            return type_id;
+        }
+
+        // resolve the declared constraint type
+        let constraint_id = self.static_parameter_constraint_type(
+            module,
+            profile,
+            *symbol,
+            types.get_type_source(type_id),
+            symbols,
+            types,
+        );
+        let Some(constraint_id) = constraint_id else {
+            return type_id;
+        };
+
+        // avoid redundant substitutions
+        if constraint_id == type_id {
+            return type_id;
+        }
+
+        constraint_id
+    }
+
+    /// Expand type alias references that include static arguments.
+    fn expand_assignability_alias_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = types.get_type(type_id)
+        else {
+            return type_id;
+        };
+
+        if symbol.ty() != SymbolType::TypeAlias {
+            return type_id;
+        }
+
+        let Some(arguments) = static_arguments.as_ref() else {
+            return type_id;
+        };
+        if arguments.is_empty() {
+            return type_id;
+        }
+
+        self.normalize_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        )
+    }
+
+    /// Narrow the conditional then branch for assignability checks.
+    fn narrow_conditional_then_for_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_id: LocalTypeId,
+        right_id: LocalTypeId,
+        then_type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // prefer the condition right side when the branch mirrors the left
+        if types.get_type(left_id) == types.get_type(then_type_id) {
+            return right_id;
+        }
+
+        // narrow static parameters with intersection constraints
+        let symbol = match types.get_type(left_id) {
+            Type::Reference { symbol, .. } => *symbol,
+            _ => return then_type_id,
+        };
+        if !self.symbol_is_static_parameter(module, profile, symbol, symbols, types) {
+            return then_type_id;
+        }
+
+        let source_id = types.get_type_source(left_id);
+        let narrowed_left = types.insert_type_from_any(
+            Type::Intersection {
+                elements: vec![left_id, right_id],
+            },
+            source_id,
+        );
+        let mut substitutions = HashMap::new();
+        substitutions.insert(symbol, narrowed_left);
+        let mut cache = HashMap::new();
+        self.substitute_static_parameters(then_type_id, &substitutions, types, &mut cache)
     }
 
     /// Check assignability of signature sets (target signatures must be matched).

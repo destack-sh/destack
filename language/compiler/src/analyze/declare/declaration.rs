@@ -213,7 +213,7 @@ impl Compiler {
 
                 // evaluate the type alias value
                 let instance_ty_id = self.try_evaluate_expression_to_type(
-                    module, profile, *value, tree, symbols, types,
+                    module, profile, *value, tree, symbols, types, true,
                 )?;
                 types.set_declared_type(value.into_global_any(module.id), instance_ty_id);
 
@@ -666,6 +666,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                 )?;
                 self.declare_heritage(
                     module,
@@ -773,23 +774,25 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
             )?;
-            let ty = types.get_type(ty_id);
-            let type_symbol = match ty {
-                Type::Reference { symbol, .. } => Some(*symbol),
-                Type::Value { value } => match types.get_type(*value) {
-                    Type::Reference { symbol, .. } => Some(*symbol),
-                    _ => None,
-                },
-                _ => None,
-            };
+            let type_symbol = self.unwrap_type_value_symbol(types, ty_id);
 
+            // prefer evaluated type references when available
             if let Some(type_symbol) = type_symbol {
-                return Ok(Some(type_symbol));
+                return Ok(Some(self.merged_type_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    type_symbol,
+                )));
             }
 
+            // fall back to the syntactic target symbol
             let expression = tree.get(expression_id);
-            Ok(expression.target_symbol())
+            Ok(expression
+                .target_symbol()
+                .map(|symbol| self.merged_type_symbol_id(module, symbols, profile, symbol)))
         };
 
         // resolve extends symbols
@@ -939,11 +942,11 @@ impl Compiler {
                     if let Some(DynamicKey::NamedExpression { name, key }) = key {
                         // resolve index signature types
                         let key_type = self.try_evaluate_expression_to_type(
-                            module, profile, *key, tree, symbols, types,
+                            module, profile, *key, tree, symbols, types, true,
                         )?;
                         let value_type = if let Some(value) = value {
                             self.try_evaluate_expression_to_type(
-                                module, profile, *value, tree, symbols, types,
+                                module, profile, *value, tree, symbols, types, true,
                             )?
                         } else {
                             let ty = Type::TypeLiteral {
@@ -974,7 +977,7 @@ impl Compiler {
                     // resolve the field type
                     let value_ty_id = if let Some(value) = value {
                         let value_ty_id = self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types,
+                            module, profile, *value, tree, symbols, types, true,
                         )?;
                         types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                         value_ty_id
@@ -1156,11 +1159,11 @@ impl Compiler {
                 // handle index signatures
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
                     let key_type = self.try_evaluate_expression_to_type(
-                        module, profile, *key, tree, symbols, types,
+                        module, profile, *key, tree, symbols, types, true,
                     )?;
                     let value_type = if let Some(value) = value {
                         self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types,
+                            module, profile, *value, tree, symbols, types, true,
                         )?
                     } else {
                         let ty = Type::TypeLiteral {
@@ -1190,7 +1193,7 @@ impl Compiler {
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
                     let value_ty_id = self.try_evaluate_expression_to_type(
-                        module, profile, *value, tree, symbols, types,
+                        module, profile, *value, tree, symbols, types, true,
                     )?;
                     types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                     value_ty_id
