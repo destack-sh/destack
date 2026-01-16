@@ -8,7 +8,7 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionAnalyses, FunctionPass,
+    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
     Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
 };
 
@@ -448,7 +448,7 @@ impl FunctionPass for StackCheck {
     ) -> AnalysisPreservation {
         // get function-level analyses
         let cfg = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<ControlFlowGraph>().clone()
         };
 
@@ -808,9 +808,9 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     jump block1(v0)
-block1(v1: ref<raw i32>):
-    v2 = load v1
-    return v2
+block1(v2: ref<raw i32>):
+    v3 = load v2
+    return v3
 }"#;
 
         let mut program = TestProgram::new(input);

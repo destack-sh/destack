@@ -12,7 +12,7 @@ use crate::optimize::common::{
     build_instruction_block_map, build_value_definition_map, location_sets_may_alias,
     memory_locations_compatible, tbaa_tags_may_alias,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Remove redundant memory stores.
@@ -54,7 +54,7 @@ impl FunctionPass for MemCse {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         let _entry = match function.entry {
@@ -64,7 +64,7 @@ impl FunctionPass for MemCse {
 
         // get analyses
         let (alias, memory_ssa, constants) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<AliasAnalysis>().clone(),
                 analyses.get::<MemorySSA>(),

@@ -9,7 +9,7 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     BlockParamForwarding, evaluate_integer_range_comparison, fold_binary,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Eliminate bounds checks that are proven redundant.
@@ -61,7 +61,7 @@ impl FunctionPass for BoundsCheckEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -69,7 +69,7 @@ impl FunctionPass for BoundsCheckEliminate {
         };
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let constants = analyses.get::<ConstantPropagation>();
         let cfg = analyses.get::<ControlFlowGraph>();
         let ranges = analyses.get::<RangeAnalysis>();

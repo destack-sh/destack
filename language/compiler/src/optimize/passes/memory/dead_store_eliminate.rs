@@ -11,7 +11,9 @@ use crate::optimize::common::{
     DecomposedPointer, PointerDecomposer, RangeRelation, build_value_definition_map,
     range_relation, stack_alloc_base,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
+};
 
 declare_pass! {
     /// Dead Store Elimination.
@@ -60,7 +62,7 @@ impl FunctionPass for DeadStoreEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         let _entry = match function.entry {
@@ -70,7 +72,7 @@ impl FunctionPass for DeadStoreEliminate {
 
         // get analyses
         let (aa, memory_ssa, ownership, postdom) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<AliasAnalysis>().clone(),
                 analyses.get::<MemorySSA>(),
@@ -87,6 +89,7 @@ impl FunctionPass for DeadStoreEliminate {
             memory_ssa.as_ref(),
             ownership.as_ref(),
             postdom.as_ref(),
+            ctx.type_context(),
         );
 
         // preserve analyses when unchanged
@@ -114,6 +117,7 @@ fn run_dead_store_eliminate(
     memory_ssa: &MemorySSA,
     ownership: &OwnershipAnalysis,
     postdom: &PostDominatorTree,
+    type_context: TypeContext,
 ) -> bool {
     // collect store candidates
     let store_candidates = collect_store_candidates(function, tree, memory_ssa);
@@ -133,6 +137,7 @@ fn run_dead_store_eliminate(
     let definitions = build_value_definition_map(function, tree);
     let constants = build_integer_constant_map(function, tree);
     let non_escaping_stack_allocs = collect_non_escaping_stack_allocs(function, tree, &definitions);
+    let stack_alloc_reads = collect_stack_alloc_reads(function, memory_ssa, &definitions, tree);
 
     // determine dead stores
     let mut dead_stores = HashSet::new();
@@ -155,7 +160,13 @@ fn run_dead_store_eliminate(
         }
 
         // remove stores to non escaping stack memory
-        if store_is_non_escaping_stack(&store, &definitions, &non_escaping_stack_allocs, tree) {
+        if store_is_non_escaping_stack(
+            &store,
+            &definitions,
+            &non_escaping_stack_allocs,
+            &stack_alloc_reads,
+            tree,
+        ) {
             dead_stores.insert(store.instruction);
             continue;
         }
@@ -172,6 +183,7 @@ fn run_dead_store_eliminate(
             &definitions,
             &constants,
             ownership.value_types(),
+            type_context,
         ) {
             dead_stores.insert(store.instruction);
         }
@@ -339,7 +351,7 @@ fn collect_live_defs(
                     MemoryAccess::Use(_use_access) => {
                         // record the def that feeds this use
                         let clobber = memory_ssa.clobbering_access_for_use(access_id, aa, tree);
-                        live_defs.insert(clobber);
+                        record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     MemoryAccess::Def(def_access) => {
                         // skip defs that do not read memory
@@ -354,7 +366,7 @@ fn collect_live_defs(
                             aa,
                             tree,
                         );
-                        live_defs.insert(clobber);
+                        record_live_clobber(clobber, memory_ssa, &mut live_defs);
                     }
                     _ => {}
                 }
@@ -363,6 +375,42 @@ fn collect_live_defs(
     }
 
     live_defs
+}
+
+/// Record live memory defs reachable from a clobber access.
+fn record_live_clobber(
+    access_id: MemoryAccessId,
+    memory_ssa: &MemorySSA,
+    live_defs: &mut HashSet<MemoryAccessId>,
+) {
+    // seed the traversal state
+    let mut worklist = vec![access_id];
+    let mut visited = HashSet::new();
+
+    // walk the access chain
+    while let Some(current) = worklist.pop() {
+        if !visited.insert(current) {
+            continue;
+        }
+
+        // record defs and expand through phis and uses
+        match memory_ssa.access(current) {
+            MemoryAccess::Def(_) => {
+                live_defs.insert(current);
+            }
+            MemoryAccess::Phi(phi) => {
+                for (_, incoming) in &phi.incoming {
+                    worklist.push(*incoming);
+                }
+            }
+            MemoryAccess::Use(use_access) => {
+                if let Some(defining) = use_access.defining_access {
+                    worklist.push(defining);
+                }
+            }
+            MemoryAccess::LiveOnEntry => {}
+        }
+    }
 }
 
 fn collect_non_escaping_stack_allocs(
@@ -502,6 +550,48 @@ fn collect_non_escaping_stack_allocs(
         .collect()
 }
 
+/// Collect stack allocation bases that are read by any memory access.
+fn collect_stack_alloc_reads(
+    function: &mir::Function,
+    memory_ssa: &MemorySSA,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+) -> HashSet<mir::Value> {
+    // collect stack bases with reads
+    let mut reads = HashSet::new();
+
+    // scan blocks for read accesses
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions for memory uses
+        for &instruction_id in &block.instructions {
+            // read the access list
+            let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+                continue;
+            };
+
+            // track pointer reads that touch stack allocations
+            for &access_id in accesses {
+                let MemoryAccess::Use(use_access) = memory_ssa.access(access_id) else {
+                    continue;
+                };
+                let MemoryAccessLocation::Pointer(location) = &use_access.effect.location else {
+                    continue;
+                };
+
+                // resolve stack base for the pointer
+                if let Some(base) = stack_alloc_base(location.ptr, definitions, tree) {
+                    reads.insert(base);
+                }
+            }
+        }
+    }
+
+    reads
+}
+
 /// Mark stack allocations that may escape through a value.
 fn record_stack_escape(
     value: mir::Value,
@@ -587,6 +677,7 @@ fn store_is_non_escaping_stack(
     store: &StoreCandidate,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     non_escaping_stack_allocs: &HashSet<mir::Value>,
+    stack_alloc_reads: &HashSet<mir::Value>,
     tree: &mir::NodeTree,
 ) -> bool {
     // only pointer locations can be stack allocations
@@ -601,6 +692,11 @@ fn store_is_non_escaping_stack(
     let Some(base) = stack_alloc_base(pointer, definitions, tree) else {
         return false;
     };
+
+    // skip when the stack location is read
+    if stack_alloc_reads.contains(&base) {
+        return false;
+    }
 
     // report whether the base is non escaping
     non_escaping_stack_allocs.contains(&base)
@@ -620,6 +716,7 @@ fn store_is_postdominated_by_clobber(
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     constants: &HashMap<mir::Value, i64>,
     value_types: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+    type_context: TypeContext,
 ) -> bool {
     let mut decomposer = PointerDecomposer::new(
         constants,
@@ -628,6 +725,7 @@ fn store_is_postdominated_by_clobber(
         &function.parameters,
         false,
         Some(value_types),
+        type_context,
     );
 
     // search for clobbering defs that postdominate the store
@@ -694,6 +792,11 @@ fn def_fully_overwrites_store(
 
     let def_decomp = decomposer.decompose(def_loc.ptr);
     let store_decomp = decomposer.decompose(store_loc.ptr);
+
+    // require identified bases for overwrite reasoning
+    if !def_decomp.base.is_identified() || !store_decomp.base.is_identified() {
+        return None;
+    }
 
     if !decomposition_is_constant(&def_decomp) || !decomposition_is_constant(&store_decomp) {
         return None;

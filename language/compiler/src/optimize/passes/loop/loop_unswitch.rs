@@ -8,7 +8,7 @@ use crate::optimize::common::{
     SuccessorArguments, instruction_map, terminator_arguments_for_successor_checked,
     terminator_remap,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Move loop-invariant conditionals outside of loops by duplicating the loop.
@@ -69,7 +69,7 @@ impl FunctionPass for LoopUnswitch {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         if function.entry.is_none() {
@@ -77,7 +77,7 @@ impl FunctionPass for LoopUnswitch {
         }
 
         // run loop unswitching
-        let changed = run_loop_unswitch(function, tree);
+        let changed = run_loop_unswitch(function, tree, ctx);
 
         // select preservation based on unswitch changes
         if changed {
@@ -99,7 +99,11 @@ impl FunctionPass for LoopUnswitch {
 }
 
 /// Core loop unswitching logic. Returns true if changes were made.
-fn run_loop_unswitch(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_loop_unswitch(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // track progress and exclusions
     let mut changed = false;
     let mut unswitched = 0;
@@ -110,7 +114,7 @@ fn run_loop_unswitch(function: &mut mir::Function, tree: &mut mir::NodeTree) -> 
     while unswitched < MAX_UNSWITCHES_PER_FUNCTION {
         // refresh analyses after each transform
         let (loops, domtree, cfg) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),

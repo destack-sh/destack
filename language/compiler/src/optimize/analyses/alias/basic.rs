@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use destack_mir as mir;
 
+use crate::optimize::TypeContext;
 use crate::optimize::common::{
     DecomposedPointer, MemoryLocation, PointerBase, PointerDecomposer, RangeRelation,
     alias_scopes_may_alias, range_relation, tbaa_tags_may_alias,
@@ -28,6 +29,8 @@ pub(crate) struct BasicAA {
     strict_borrow_mode: bool,
     /// Optional value type map for pointer decomposition.
     value_types: Option<HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 impl BasicAA {
@@ -37,6 +40,7 @@ impl BasicAA {
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
         value_types: Option<&HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        type_context: TypeContext,
     ) -> Self {
         let info = FunctionAA::collect(function, tree);
 
@@ -59,6 +63,7 @@ impl BasicAA {
             param_attrs,
             strict_borrow_mode,
             value_types: value_types.cloned(),
+            type_context,
         }
     }
 
@@ -82,6 +87,7 @@ impl BasicAA {
             &self.function.parameters,
             self.strict_borrow_mode,
             self.value_types.as_ref(),
+            self.type_context,
         );
 
         let ptr_a = decomposer.decompose(loc_a.ptr);
@@ -826,6 +832,7 @@ impl BasicAA {
             &self.function.parameters,
             self.strict_borrow_mode,
             self.value_types.as_ref(),
+            self.type_context,
         );
         let decomposed = decomposer.decompose(loc.ptr);
 
@@ -854,6 +861,7 @@ impl BasicAA {
             &self.function.parameters,
             self.strict_borrow_mode,
             self.value_types.as_ref(),
+            self.type_context,
         );
         let decomposed = decomposer.decompose(loc.ptr);
 
@@ -933,6 +941,7 @@ impl BasicAA {
             &self.function.parameters,
             self.strict_borrow_mode,
             self.value_types.as_ref(),
+            self.type_context,
         );
 
         let decomp = decomposer.decompose(value);
@@ -944,6 +953,7 @@ impl BasicAA {
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+    use crate::optimize::TypeContext;
 
     #[test]
     fn test_different_allocations_no_alias() {
@@ -962,7 +972,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1004,7 +1014,7 @@ block0:
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
         let loc = MemoryLocation::from_ptr(pointer_query);
         let mod_ref = aa.get_mod_ref_info(memset_inst, &loc, &program.tree);
 
@@ -1038,7 +1048,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
 
@@ -1086,7 +1096,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
 
@@ -1117,7 +1127,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc = MemoryLocation::with_size(mir::Value::new(0), 8);
 
@@ -1142,7 +1152,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
         let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
@@ -1166,7 +1176,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1191,7 +1201,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1219,7 +1229,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));
         let loc4 = MemoryLocation::from_ptr(mir::Value::new(4));
@@ -1241,7 +1251,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1270,7 +1280,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         }
 
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1291,7 +1301,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         // same pointer, different sizes
         let loc_small = MemoryLocation::with_size(mir::Value::new(0), 4);
@@ -1316,7 +1326,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         // same pointer, one unknown size
         let loc_known = MemoryLocation::with_size(mir::Value::new(0), 4);
@@ -1342,7 +1352,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -1365,7 +1375,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         // v0 and v2 alias (v2 is just a cast of v0)
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
@@ -1395,7 +1405,7 @@ block0(v0: i64):
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));
@@ -1423,7 +1433,7 @@ block0:
 
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
-        let aa = BasicAA::build(function, &program.tree, false, None);
+        let aa = BasicAA::build(function, &program.tree, false, None, TypeContext::default());
 
         // v3 is outer.0.0, v4 is outer.1.0, different top level fields
         let loc3 = MemoryLocation::from_ptr(mir::Value::new(3));

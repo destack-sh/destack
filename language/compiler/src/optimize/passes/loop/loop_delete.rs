@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::common::instruction_has_side_effects;
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Delete loops that are proven to be skipped.
@@ -52,7 +52,7 @@ impl FunctionPass for LoopDelete {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         if function.entry.is_none() {
             return AnalysisPreservation::all();
@@ -60,7 +60,7 @@ impl FunctionPass for LoopDelete {
 
         // get analyses
         let (loops, domtree, constants) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),

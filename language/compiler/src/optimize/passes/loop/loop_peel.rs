@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{clone_loop_blocks, terminator_remap};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Peel a single iteration from loops guarded at the latch.
@@ -62,14 +62,14 @@ impl FunctionPass for LoopPeel {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_peel(function, tree);
+        let changed = run_loop_peel(function, tree, ctx);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -89,9 +89,13 @@ impl FunctionPass for LoopPeel {
 }
 
 /// Run loop peeling on a single function and report whether it changed.
-fn run_loop_peel(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_loop_peel(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // gather analyses
-    let analyses = FunctionAnalyses::new(function, tree);
+    let analyses = ctx.function_analyses(function, tree);
     let loops = analyses.get::<LoopAnalysis>().clone();
     let cfg = analyses.get::<ControlFlowGraph>().clone();
     let domtree = analyses.get::<DominatorTree>().clone();

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_mir as mir;
 
 use crate::optimize::common::{MemoryLocation, TypeKey};
-use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
 use super::basic::BasicAA;
 use super::globals::GlobalsAA;
@@ -43,12 +43,19 @@ impl AliasAnalysis {
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
         value_types: Option<&std::collections::HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        type_context: TypeContext,
     ) -> Self {
         Self {
-            basic: BasicAA::build(function, tree, strict_borrow_mode, value_types),
+            basic: BasicAA::build(
+                function,
+                tree,
+                strict_borrow_mode,
+                value_types,
+                type_context,
+            ),
             tbaa: TypeBasedAA::default(),
             globals: GlobalsAA::build(function, tree),
-            scoped: ScopedNoAliasAA::build(function, tree, strict_borrow_mode),
+            scoped: ScopedNoAliasAA::build(function, tree, strict_borrow_mode, type_context),
             tree: Arc::new(tree.clone()),
         }
     }
@@ -210,6 +217,7 @@ impl FunctionAnalysis for AliasAnalysis {
             tree,
             analyses.options().strict_borrow_mode,
             Some(ownership.value_types()),
+            analyses.type_context(),
         )
     }
 }

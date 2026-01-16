@@ -6,7 +6,7 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantMap, ConstantPropagation};
 use crate::optimize::common::{InstructionRef, build_value_instruction_refs, fold_binary};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Reassociate associative expressions to expose constant folding.
@@ -54,7 +54,7 @@ impl FunctionPass for Reassociate {
     ) -> AnalysisPreservation {
         // collect constant propagation state
         let constants = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<ConstantPropagation>().clone()
         };
 

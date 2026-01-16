@@ -8,7 +8,7 @@ use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
     compute_dominance_frontiers, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Memory to register promotion pass.
@@ -51,7 +51,7 @@ impl FunctionPass for Mem2Reg {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip functions without locals
         if function.locals.is_empty() {
@@ -60,7 +60,7 @@ impl FunctionPass for Mem2Reg {
 
         // get analyses
         let (cfg, domtree) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<ControlFlowGraph>().clone(),
                 analyses.get::<DominatorTree>().clone(),

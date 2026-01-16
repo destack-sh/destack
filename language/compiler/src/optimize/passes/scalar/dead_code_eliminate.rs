@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    AnalysisPreservation, FunctionPass, PipelineContext,
     instruction_has_side_effects,
 };
 
@@ -44,10 +44,10 @@ impl FunctionPass for DeadCodeEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // build alias analysis for local dead store elimination
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let alias = analyses.get::<AliasAnalysis>();
 
         // run dead code elimination

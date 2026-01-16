@@ -8,7 +8,7 @@ use crate::optimize::common::{
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
     constant_from_global, swap_comparison_operator,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Propagate equalities implied by dominating conditions.
@@ -62,7 +62,7 @@ impl FunctionPass for CorrelatedValueProp {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -70,7 +70,7 @@ impl FunctionPass for CorrelatedValueProp {
         }
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let domtree = analyses.get::<DominatorTree>().clone();
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let constants = analyses.get::<ConstantPropagation>().clone();

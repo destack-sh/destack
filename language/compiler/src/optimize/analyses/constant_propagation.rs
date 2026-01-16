@@ -6,7 +6,7 @@ use crate::optimize::common::{
     SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
-use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
 use super::{ControlFlowGraph, Lattice};
 
@@ -79,7 +79,12 @@ pub struct ConstantPropagation {
 
 impl ConstantPropagation {
     /// Build constant propagation for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        cfg: &ControlFlowGraph,
+        type_context: TypeContext,
+    ) -> Self {
         // entry block selection
         let entry = match function.entry {
             Some(entry) => entry,
@@ -150,7 +155,12 @@ impl ConstantPropagation {
                 block_entry.insert(block_id, entry_state.clone());
 
                 // compute exit state
-                let exit_state = transfer_block(block_id, &entry_state, tree);
+                let exit_state = transfer_block(
+                    block_id,
+                    &entry_state,
+                    tree,
+                    type_context.pointer_width_bits,
+                );
                 let exit_changed = block_exit
                     .get(&block_id)
                     .map(|old| old != &exit_state)
@@ -226,7 +236,7 @@ impl FunctionAnalysis for ConstantPropagation {
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
-        Self::build(function, tree, &cfg)
+        Self::build(function, tree, &cfg, analyses.type_context())
     }
 }
 
@@ -346,6 +356,7 @@ fn transfer_block(
     block_id: mir::LocalNodeId<mir::Block>,
     entry_state: &ConstantMap,
     tree: &mir::NodeTree,
+    pointer_width_bits: u16,
 ) -> ConstantMap {
     // clone entry state for updates
     let block = tree.get(block_id);
@@ -358,7 +369,9 @@ fn transfer_block(
             continue;
         };
 
-        if let Some(constant) = constant_for_instruction(instruction, tree, &state) {
+        if let Some(constant) =
+            constant_for_instruction(instruction, tree, &state, pointer_width_bits)
+        {
             state.insert(destination, constant);
         } else {
             state.remove(destination);
@@ -373,6 +386,7 @@ fn constant_for_instruction(
     instruction: &mir::Instruction,
     tree: &mir::NodeTree,
     state: &ConstantMap,
+    pointer_width_bits: u16,
 ) -> Option<mir::Constant> {
     // evaluate known constant producing instructions
     match instruction {
@@ -407,7 +421,13 @@ fn constant_for_instruction(
         } => {
             // fold casts with constant operands
             let arg_constant = state.get(*argument)?;
-            fold_cast(*operator, arg_constant.clone(), *to_type, tree)
+            fold_cast(
+                *operator,
+                arg_constant.clone(),
+                *to_type,
+                pointer_width_bits,
+                tree,
+            )
         }
         _ => None,
     }

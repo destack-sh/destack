@@ -4,6 +4,143 @@ use destack_mir::{
     UnaryOperator,
 };
 
+/// Constant type information for literal values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstantType {
+    /// Boolean constant type.
+    Boolean,
+    /// Integer constant type.
+    Int { width: u8, signed: bool },
+    /// Floating point constant type.
+    Float { width: u8 },
+    /// Character constant type.
+    Char,
+    /// String constant type.
+    String,
+}
+
+/// Check whether a constant type matches a MIR type.
+pub fn constant_matches_type(
+    constant_type: ConstantType,
+    destination_type: LocalNodeId<Type>,
+    pointer_width_bits: u16,
+    tree: &NodeTree,
+) -> bool {
+    match (constant_type, tree.get(destination_type)) {
+        (ConstantType::Boolean, Type::Boolean) => true,
+        (ConstantType::Int { width, signed }, ty) => {
+            let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
+            else {
+                return false;
+            };
+            width == ty_width as u8 && signed == ty_signed
+        }
+        (ConstantType::Float { width }, Type::Float { width: ty_width }) => {
+            width == *ty_width as u8
+        }
+        (ConstantType::Char, Type::Int { width, signed }) => *width == 32 && !*signed,
+        (
+            ConstantType::String,
+            Type::Reference {
+                kind: mir::ReferenceKind::Managed,
+                mutability: mir::Mutability::Immutable,
+                pointee,
+                ..
+            },
+        ) => string_layout_matches(*pointee, tree),
+        _ => false,
+    }
+}
+
+/// Check whether a type matches the builtin string layout.
+fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
+    // match the builtin String layout from lower/README
+    let Type::Struct { fields, .. } = tree.get(pointee) else {
+        return false;
+    };
+
+    // verify the field count first
+    if fields.len() != 6 {
+        return false;
+    }
+
+    // read field types
+    let field_types: Vec<_> = fields.iter().map(|field| tree.get(*field).ty).collect();
+
+    // check the fixed header layout
+    if !matches!(
+        tree.get(field_types[0]),
+        Type::Int {
+            width: 32,
+            signed: false,
+        }
+    ) {
+        return false;
+    }
+    if !matches!(
+        tree.get(field_types[1]),
+        Type::Int {
+            width: 32,
+            signed: false,
+        }
+    ) {
+        return false;
+    }
+    if !matches!(
+        tree.get(field_types[2]),
+        Type::Int {
+            width: 64,
+            signed: false,
+        }
+    ) {
+        return false;
+    }
+    if !matches!(
+        tree.get(field_types[3]),
+        Type::Int {
+            width: 32,
+            signed: false,
+        }
+    ) {
+        return false;
+    }
+    if !matches!(
+        tree.get(field_types[4]),
+        Type::Int {
+            width: 32,
+            signed: false,
+        }
+    ) {
+        return false;
+    }
+
+    // verify the data pointer field
+    data_pointer_matches(field_types[5], tree)
+}
+
+/// Check whether a type is a raw pointer to u8 or u16.
+fn data_pointer_matches(pointer_type: LocalNodeId<Type>, tree: &NodeTree) -> bool {
+    let Type::Reference {
+        kind: mir::ReferenceKind::Raw,
+        pointee,
+        ..
+    } = tree.get(pointer_type)
+    else {
+        return false;
+    };
+
+    matches!(
+        tree.get(*pointee),
+        Type::Int {
+            width: 8,
+            signed: false,
+        } | Type::Int {
+            width: 16,
+            signed: false,
+        }
+    )
+}
+
 /// Check if a constant is zero.
 pub fn constant_is_zero(constant: Option<&Constant>) -> bool {
     matches!(
@@ -84,28 +221,32 @@ pub fn constant_zero_like(template: &Constant) -> Constant {
 }
 
 /// Build a zero constant for a scalar type.
-pub fn constant_zero_for_type(ty: &Type) -> Option<Constant> {
-    match ty {
-        Type::Int { width, signed } => {
-            if *signed {
-                Some(Constant::Int {
-                    value: 0,
-                    width: *width as u8,
-                    is_signed: true,
-                })
-            } else {
-                Some(Constant::UInt {
-                    value: 0,
-                    width: *width as u8,
-                })
-            }
-        }
-        Type::Float { width } => Some(Constant::Float {
-            bits: 0,
-            width: *width as u8,
-        }),
-        Type::Boolean => Some(Constant::Boolean { value: false }),
-        _ => None,
+pub fn constant_zero_for_type(ty: &Type, pointer_width_bits: u16) -> Option<Constant> {
+    // handle integer types
+    let Some((width, signed)) = ty.int_info_with_pointer_width(pointer_width_bits) else {
+        // handle non integer scalar types
+        return match ty {
+            Type::Float { width } => Some(Constant::Float {
+                bits: 0,
+                width: *width as u8,
+            }),
+            Type::Boolean => Some(Constant::Boolean { value: false }),
+            _ => None,
+        };
+    };
+
+    // build integer zero with correct signedness
+    if signed {
+        Some(Constant::Int {
+            value: 0,
+            width: width as u8,
+            is_signed: true,
+        })
+    } else {
+        Some(Constant::UInt {
+            value: 0,
+            width: width as u8,
+        })
     }
 }
 
@@ -163,6 +304,7 @@ pub fn constant_tree_from_global(
     global: LocalNodeId<Global>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
+    pointer_width_bits: u16,
 ) -> Option<ConstantTree> {
     // read global definition
     let global = tree.get(global);
@@ -179,6 +321,7 @@ pub fn constant_tree_from_global(
         global.ty,
         tree,
         max_aggregate_elements,
+        pointer_width_bits,
     ))
 }
 
@@ -436,17 +579,24 @@ fn constant_tree_from_initializer(
     ty: LocalNodeId<Type>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
+    pointer_width_bits: u16,
 ) -> ConstantTree {
     // map initializer kind
     match initializer {
-        mir::GlobalInitializer::Zero => constant_tree_from_zero(ty, tree, max_aggregate_elements),
+        mir::GlobalInitializer::Zero => {
+            constant_tree_from_zero(ty, tree, max_aggregate_elements, pointer_width_bits)
+        }
         mir::GlobalInitializer::Scalar(constant) => constant_tree_from_scalar(constant, ty, tree),
         mir::GlobalInitializer::Bytes(bytes) => {
             constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
         }
-        mir::GlobalInitializer::Aggregate(elements) => {
-            constant_tree_from_aggregate_initializer(elements, ty, tree, max_aggregate_elements)
-        }
+        mir::GlobalInitializer::Aggregate(elements) => constant_tree_from_aggregate_initializer(
+            elements,
+            ty,
+            tree,
+            max_aggregate_elements,
+            pointer_width_bits,
+        ),
     }
 }
 
@@ -472,6 +622,7 @@ fn constant_tree_from_zero(
     ty: LocalNodeId<Type>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
+    pointer_width_bits: u16,
 ) -> ConstantTree {
     // read type
     let ty = tree.get(ty);
@@ -495,6 +646,26 @@ fn constant_tree_from_zero(
                 ConstantTree::Scalar(Constant::UInt { value: 0, width })
             }
         }
+        Type::Isize => {
+            let width = match u8::try_from(pointer_width_bits) {
+                Ok(width) => width,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            ConstantTree::Scalar(Constant::Int {
+                value: 0,
+                width,
+                is_signed: true,
+            })
+        }
+        Type::Usize => {
+            let width = match u8::try_from(pointer_width_bits) {
+                Ok(width) => width,
+                Err(_) => return ConstantTree::Unknown,
+            };
+
+            ConstantTree::Scalar(Constant::UInt { value: 0, width })
+        }
         Type::Float { width } => {
             let width = match u8::try_from(*width) {
                 Ok(width) => width,
@@ -515,14 +686,17 @@ fn constant_tree_from_zero(
                 return ConstantTree::Unknown;
             }
 
-            let element_value = constant_tree_from_zero(*element, tree, max_aggregate_elements);
+            let element_value =
+                constant_tree_from_zero(*element, tree, max_aggregate_elements, pointer_width_bits);
             let elements = (0..length).map(|_| element_value.clone()).collect();
             ConstantTree::Aggregate(elements)
         }
         Type::Tuple { elements, .. } => {
             let elements = elements
                 .iter()
-                .map(|element| constant_tree_from_zero(*element, tree, max_aggregate_elements))
+                .map(|element| {
+                    constant_tree_from_zero(*element, tree, max_aggregate_elements, pointer_width_bits)
+                })
                 .collect();
             ConstantTree::Aggregate(elements)
         }
@@ -530,7 +704,9 @@ fn constant_tree_from_zero(
             let elements = fields
                 .iter()
                 .map(|field| tree.get(*field).ty)
-                .map(|field_ty| constant_tree_from_zero(field_ty, tree, max_aggregate_elements))
+                .map(|field_ty| {
+                    constant_tree_from_zero(field_ty, tree, max_aggregate_elements, pointer_width_bits)
+                })
                 .collect();
             ConstantTree::Aggregate(elements)
         }
@@ -606,6 +782,7 @@ fn constant_tree_from_aggregate_initializer(
     ty: LocalNodeId<Type>,
     tree: &NodeTree,
     max_aggregate_elements: usize,
+    pointer_width_bits: u16,
 ) -> ConstantTree {
     // map aggregate initializer to type shape
     match tree.get(ty) {
@@ -629,6 +806,7 @@ fn constant_tree_from_aggregate_initializer(
                         *element,
                         tree,
                         max_aggregate_elements,
+                        pointer_width_bits,
                     )
                 })
                 .collect();
@@ -651,6 +829,7 @@ fn constant_tree_from_aggregate_initializer(
                         *element_ty,
                         tree,
                         max_aggregate_elements,
+                        pointer_width_bits,
                     )
                 })
                 .collect();
@@ -670,6 +849,7 @@ fn constant_tree_from_aggregate_initializer(
                         tree.get(*field).ty,
                         tree,
                         max_aggregate_elements,
+                        pointer_width_bits,
                     )
                 })
                 .collect();
@@ -888,6 +1068,7 @@ pub fn fold_cast(
     operator: CastOperator,
     value: Constant,
     to_type: LocalNodeId<Type>,
+    pointer_width_bits: u16,
     tree: &NodeTree,
 ) -> Option<Constant> {
     // load target type
@@ -899,9 +1080,10 @@ pub fn fold_cast(
 
         CastOperator::Truncate => {
             // read target integer width
-            let target_width = match target_type {
-                Type::Int { width, .. } => *width as u8,
-                _ => return Some(value),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Some(value),
             };
 
             // truncate integer values
@@ -921,9 +1103,10 @@ pub fn fold_cast(
 
         CastOperator::ZeroExtend => {
             // read target integer width
-            let target_width = match target_type {
-                Type::Int { width, .. } => *width as u8,
-                _ => return Some(value),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Some(value),
             };
 
             // zero extend integer values
@@ -945,9 +1128,10 @@ pub fn fold_cast(
 
         CastOperator::SignExtend => {
             // read target integer width
-            let target_width = match target_type {
-                Type::Int { width, .. } => *width as u8,
-                _ => return Some(value),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Some(value),
             };
 
             // sign extend integer values
@@ -971,9 +1155,10 @@ pub fn fold_cast(
 
         CastOperator::FloatToSignedInt => {
             // read target integer width
-            let target_width = match target_type {
-                Type::Int { width, .. } => *width as u8,
-                _ => 64,
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
             };
 
             // convert float to signed int
@@ -994,9 +1179,10 @@ pub fn fold_cast(
 
         CastOperator::FloatToUnsignedInt => {
             // read target integer width
-            let target_width = match target_type {
-                Type::Int { width, .. } => *width as u8,
-                _ => 64,
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
             };
 
             // convert float to unsigned int

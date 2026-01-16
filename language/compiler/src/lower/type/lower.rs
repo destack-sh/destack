@@ -71,6 +71,11 @@ impl TypeLowerer {
             })
     }
 
+    /// Return the pointer width in bits for this lowering session.
+    pub(crate) fn pointer_width_bits(&self) -> u16 {
+        self.pointer_width_bits
+    }
+
     /// Resolve a field name to its index for a given aggregate type.
     ///
     /// For structs, uses the cached layout. For tuples, parses the numeric field name.

@@ -152,11 +152,17 @@ enum SignatureType {
         /// Signedness of the integer type.
         signed: bool,
     },
+    /// Pointer-sized signed integer type signature.
+    Isize,
+    /// Pointer-sized unsigned integer type signature.
+    Usize,
     /// Floating point type signature.
     Float {
         /// Bit width for the floating point type.
         width: u16,
     },
+    /// Runtime type descriptor handle signature.
+    TypeTag,
     /// Reference type signature.
     Reference {
         /// Reference kind for the pointer.
@@ -216,7 +222,10 @@ impl SignatureType {
                 width: *width,
                 signed: *signed,
             },
+            mir::Type::Isize => SignatureType::Isize,
+            mir::Type::Usize => SignatureType::Usize,
             mir::Type::Float { width } => SignatureType::Float { width: *width },
+            mir::Type::TypeTag => SignatureType::TypeTag,
             mir::Type::Reference {
                 kind,
                 address_space,

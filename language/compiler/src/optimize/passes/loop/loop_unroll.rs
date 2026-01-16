@@ -10,7 +10,7 @@ use crate::optimize::common::{
     BlockParamForwarding, clone_loop_blocks, constant_from_global,
     terminator_arguments_for_successor, terminator_remap,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Unroll loops with a constant trip count.
@@ -87,7 +87,7 @@ impl FunctionPass for LoopUnroll {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -95,7 +95,7 @@ impl FunctionPass for LoopUnroll {
         }
 
         // run loop unrolling
-        let changed = run_loop_unroll(function, tree);
+        let changed = run_loop_unroll(function, tree, ctx);
 
         // invalidate analyses on change
         if changed {
@@ -186,7 +186,11 @@ struct UnrollIteration {
 }
 
 /// Run loop unrolling and return true when changes were made.
-fn run_loop_unroll(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_loop_unroll(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // track loop unrolling progress in this pass
     let mut changed = false;
     let mut unrolled_headers = HashSet::new();
@@ -194,7 +198,7 @@ fn run_loop_unroll(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bo
 
     loop {
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let loops = analyses.get::<LoopAnalysis>().clone();
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let scev = analyses.get::<ScalarEvolution>().clone();

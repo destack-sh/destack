@@ -66,8 +66,8 @@ impl TypeLowerer {
                 dir::IntType::Uint16 => Some(builder.type_int(16, false)),
                 dir::IntType::Uint128 => Some(builder.type_int(128, false)),
                 dir::IntType::Uint256 => Some(builder.type_int(256, false)),
-                dir::IntType::Isize => Some(builder.type_int(self.pointer_width_bits, true)),
-                dir::IntType::Usize => Some(builder.type_int(self.pointer_width_bits, false)),
+                dir::IntType::Isize => Some(builder.type_isize()),
+                dir::IntType::Usize => Some(builder.type_usize()),
                 dir::IntType::Arbitrary { width, is_signed } => {
                     Some(builder.type_int(width, is_signed))
                 }

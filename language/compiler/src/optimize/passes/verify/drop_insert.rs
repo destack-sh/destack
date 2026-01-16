@@ -5,7 +5,7 @@ use destack_mir as mir;
 use mir::{Instruction, Value};
 
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, LivenessAnalysis, OwnershipAnalysis,
+    AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis,
     PipelineContext,
 };
 
@@ -151,11 +151,11 @@ impl FunctionPass for DropInsert {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get analyses
         let (liveness, ownership) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LivenessAnalysis>().clone(),
                 analyses.get::<OwnershipAnalysis>().clone(),

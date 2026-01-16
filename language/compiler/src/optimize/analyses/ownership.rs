@@ -4,7 +4,8 @@ use destack_mir as mir;
 use mir::{Instruction, ReferenceKind, Type, Value};
 
 use super::{ControlFlowGraph, Lattice, forward_dataflow};
-use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use crate::optimize::common::{ConstantType, constant_matches_type};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
 /// Location where a move occurred (for diagnostics).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -164,6 +165,10 @@ pub struct OwnershipAnalysis {
     stack_allocated: HashSet<Value>,
     /// Values allocated with managed allocation instructions.
     managed_allocated: HashSet<Value>,
+    /// Known pointee types for pointer values.
+    pointer_pointee_types: HashMap<Value, mir::LocalNodeId<Type>>,
+    /// Known constant types for literal values.
+    constant_types: HashMap<Value, ConstantType>,
 }
 
 impl OwnershipAnalysis {
@@ -187,12 +192,37 @@ impl OwnershipAnalysis {
         &self.value_types
     }
 
+    /// Return the pointee type for a pointer value when known.
+    pub fn pointee_type(
+        &self,
+        pointer: Value,
+        tree: &mir::NodeTree,
+    ) -> Option<mir::LocalNodeId<Type>> {
+        pointer_pointee_type(
+            pointer,
+            &self.value_types,
+            &self.pointer_pointee_types,
+            tree,
+        )
+    }
+
+    /// Return the constant type for a value when known.
+    pub fn constant_type(&self, value: Value) -> Option<ConstantType> {
+        self.constant_types.get(&value).copied()
+    }
+
     /// Check if a type has copy semantics.
     pub fn is_copy_type(&self, ty_id: mir::LocalNodeId<Type>, tree: &mir::NodeTree) -> bool {
         let ty = tree.get(ty_id);
         match ty {
             // primitives are always copy
-            Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => true,
+            Type::Void
+            | Type::Boolean
+            | Type::Int { .. }
+            | Type::Isize
+            | Type::Usize
+            | Type::Float { .. }
+            | Type::TypeTag => true,
             // function pointers are copy
             Type::FunctionPointer { .. } => true,
             // raw and borrowed references are copy
@@ -417,7 +447,12 @@ impl OwnershipAnalysis {
     }
 
     /// Build the analysis.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        cfg: &ControlFlowGraph,
+        type_context: TypeContext,
+    ) -> Self {
         if function.entry.is_none() {
             return Self {
                 block_entry: HashMap::new(),
@@ -426,11 +461,15 @@ impl OwnershipAnalysis {
                 copy_values: HashSet::new(),
                 stack_allocated: HashSet::new(),
                 managed_allocated: HashSet::new(),
+                pointer_pointee_types: HashMap::new(),
+                constant_types: HashMap::new(),
             };
         }
 
         // collect type information, copy values, and stack allocations
         let mut value_types = HashMap::new();
+        let mut pointer_pointee_types = HashMap::new();
+        let mut constant_types = HashMap::new();
         let mut copy_values = HashSet::new();
         let mut stack_allocated = HashSet::new();
         let mut managed_allocated = HashSet::new();
@@ -454,9 +493,12 @@ impl OwnershipAnalysis {
                     inst,
                     tree,
                     &mut value_types,
+                    &mut pointer_pointee_types,
+                    &mut constant_types,
                     &mut copy_values,
                     &mut stack_allocated,
                     &mut managed_allocated,
+                    type_context.pointer_width_bits,
                 );
             }
         }
@@ -519,6 +561,8 @@ impl OwnershipAnalysis {
             copy_values,
             stack_allocated,
             managed_allocated,
+            pointer_pointee_types,
+            constant_types,
         }
     }
 }
@@ -535,18 +579,22 @@ impl FunctionAnalysis for OwnershipAnalysis {
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
-        Self::build(function, tree, &cfg)
+        Self::build(function, tree, &cfg, analyses.type_context())
     }
 }
 
 /// Collect type information, copy values, and stack allocations from an instruction.
+#[allow(clippy::too_many_arguments)]
 fn instruction_collect_types(
     instruction: &Instruction,
     tree: &mir::NodeTree,
     value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
+    pointer_pointee_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
+    constant_types: &mut HashMap<Value, ConstantType>,
     copy_values: &mut HashSet<Value>,
     stack_allocated: &mut HashSet<Value>,
     managed_allocated: &mut HashSet<Value>,
+    pointer_width_bits: u16,
 ) {
     match instruction {
         // instructions with explicit result types
@@ -569,19 +617,51 @@ fn instruction_collect_types(
             value_types.insert(*destination, *ty);
         }
         // raw allocs produce raw pointers (copy semantics)
-        Instruction::RawAlloc { destination, .. } => {
+        Instruction::RawAlloc {
+            destination,
+            layout,
+        } => {
             copy_values.insert(*destination);
+            pointer_pointee_types.insert(*destination, *layout);
         }
         // stack allocs produce raw pointers (copy semantics) and track allocation kind
-        Instruction::StackAlloc { destination, .. } => {
+        Instruction::StackAlloc {
+            destination,
+            layout,
+        } => {
             copy_values.insert(*destination);
             stack_allocated.insert(*destination);
+            pointer_pointee_types.insert(*destination, *layout);
         }
 
-        // managed allocs produce managed references (non-copy)
-        Instruction::ManagedAlloc { destination, .. }
-        | Instruction::ManagedAllocArray { destination, .. } => {
+        // managed allocs produce managed references (non copy)
+        Instruction::ManagedAlloc {
+            destination,
+            layout,
+        } => {
             managed_allocated.insert(*destination);
+            pointer_pointee_types.insert(*destination, *layout);
+        }
+        Instruction::ManagedAllocArray {
+            destination,
+            element,
+            ..
+        } => {
+            managed_allocated.insert(*destination);
+            pointer_pointee_types.insert(*destination, *element);
+        }
+        Instruction::GlobalAddr {
+            destination,
+            global,
+        } => {
+            copy_values.insert(*destination);
+            pointer_pointee_types.insert(*destination, tree.get(*global).ty);
+        }
+        Instruction::GlobalConst {
+            destination,
+            global,
+        } => {
+            value_types.insert(*destination, tree.get(*global).ty);
         }
         Instruction::LocalGet { destination, local } => {
             let local_decl = tree.get(*local);
@@ -597,22 +677,45 @@ fn instruction_collect_types(
                 value_types.insert(*dest, func.return_type);
             }
         }
+        Instruction::Intrinsic {
+            destination,
+            intrinsic,
+            arguments,
+            ..
+        } => {
+            if let Some(dest) = destination
+                && let Some(result_type) = resolve_intrinsic_result_type(
+                    *intrinsic,
+                    *arguments,
+                    tree,
+                    value_types,
+                    pointer_pointee_types,
+                    constant_types,
+                    pointer_width_bits,
+                )
+            {
+                value_types.insert(*dest, result_type);
+            }
+        }
 
         // for Load, get pointee type from pointer
         Instruction::Load {
             destination,
             pointer,
         } => {
-            if let Some(&ptr_ty) = value_types.get(pointer)
-                && let Type::Reference { pointee, .. } = tree.get(ptr_ty)
+            if let Some(pointee_type) =
+                pointer_pointee_type(*pointer, value_types, pointer_pointee_types, tree)
             {
-                value_types.insert(*destination, *pointee);
+                value_types.insert(*destination, pointee_type);
             }
         }
 
         // constants are always primitives (copy types)
-        Instruction::Const { destination, .. } => {
+        Instruction::Const { destination, value } => {
             copy_values.insert(*destination);
+            if let Some(constant_type) = constant_type_for_value(value) {
+                constant_types.insert(*destination, constant_type);
+            }
         }
 
         // binary/unary produce primitives (always copy)
@@ -692,9 +795,31 @@ fn instruction_collect_types(
         Instruction::FieldAddr {
             destination,
             aggregate,
+            index,
             ..
+        } => {
+            copy_values.insert(*destination);
+            if let Some(&ty) = value_types.get(aggregate) {
+                value_types.insert(*destination, ty);
+            }
+
+            if let Some(pointee_type) =
+                pointer_pointee_type(*aggregate, value_types, pointer_pointee_types, tree)
+            {
+                let field_type = match tree.get(pointee_type) {
+                    Type::Struct { fields, .. } => fields
+                        .get(*index as usize)
+                        .map(|field_id| tree.get(*field_id).ty),
+                    Type::Tuple { elements, .. } => elements.get(*index as usize).copied(),
+                    _ => None,
+                };
+
+                if let Some(field_type) = field_type {
+                    pointer_pointee_types.insert(*destination, field_type);
+                }
+            }
         }
-        | Instruction::ElementAddr {
+        Instruction::ElementAddr {
             destination,
             array: aggregate,
             ..
@@ -702,6 +827,19 @@ fn instruction_collect_types(
             copy_values.insert(*destination);
             if let Some(&ty) = value_types.get(aggregate) {
                 value_types.insert(*destination, ty);
+            }
+
+            if let Some(pointee_type) =
+                pointer_pointee_type(*aggregate, value_types, pointer_pointee_types, tree)
+            {
+                match tree.get(pointee_type) {
+                    Type::Array { element, .. } => {
+                        pointer_pointee_types.insert(*destination, *element);
+                    }
+                    _ => {
+                        pointer_pointee_types.insert(*destination, pointee_type);
+                    }
+                }
             }
         }
 
@@ -724,6 +862,152 @@ fn instruction_collect_types(
         // other instructions: no explicit type to collect
         _ => {}
     }
+}
+
+/// Return the constant type for a literal value.
+fn constant_type_for_value(constant: &mir::Constant) -> Option<ConstantType> {
+    match constant {
+        mir::Constant::Boolean { .. } => Some(ConstantType::Boolean),
+        mir::Constant::Int {
+            width, is_signed, ..
+        } => Some(ConstantType::Int {
+            width: *width,
+            signed: *is_signed,
+        }),
+        mir::Constant::UInt { width, .. } => Some(ConstantType::Int {
+            width: *width,
+            signed: false,
+        }),
+        mir::Constant::Float { width, .. } => Some(ConstantType::Float { width: *width }),
+        mir::Constant::String { .. } => Some(ConstantType::String),
+        mir::Constant::Char { .. } => Some(ConstantType::Char),
+    }
+}
+
+/// Resolve the result type for an intrinsic instruction.
+fn resolve_intrinsic_result_type(
+    intrinsic: mir::Intrinsic,
+    arguments: mir::ArgumentSlice,
+    tree: &mir::NodeTree,
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    pointer_pointee_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    constant_types: &HashMap<Value, ConstantType>,
+    pointer_width_bits: u16,
+) -> Option<mir::LocalNodeId<Type>> {
+    // skip intrinsics without inferable result types
+    let result_type = intrinsic.result_type();
+    if !result_type.is_inferable() {
+        return None;
+    }
+
+    // resolve the argument list
+    let args = tree.get_arguments(arguments);
+
+    match result_type {
+        mir::IntrinsicResultType::Void | mir::IntrinsicResultType::Explicit => None,
+        mir::IntrinsicResultType::SameAsArgument(index) => {
+            let argument = *args.get(index as usize)?;
+            value_type_for_value(argument, value_types, constant_types, pointer_width_bits, tree)
+        }
+        mir::IntrinsicResultType::Pointee(index) => {
+            let argument = *args.get(index as usize)?;
+            pointer_pointee_type(argument, value_types, pointer_pointee_types, tree)
+        }
+        mir::IntrinsicResultType::CheckedArithmetic => {
+            let argument = *args.first()?;
+            let element_type =
+                value_type_for_value(argument, value_types, constant_types, pointer_width_bits, tree)?;
+            let bool_type = find_type_id(value_types, tree, |ty| matches!(ty, Type::Boolean))?;
+            find_tuple_type(value_types, tree, element_type, bool_type)
+        }
+        mir::IntrinsicResultType::Bool => {
+            find_type_id(value_types, tree, |ty| matches!(ty, Type::Boolean))
+        }
+        mir::IntrinsicResultType::I32 => find_type_id(value_types, tree, |ty| {
+            matches!(
+                ty,
+                Type::Int {
+                    width: 32,
+                    signed: true,
+                }
+            )
+        }),
+        mir::IntrinsicResultType::Isize => {
+            find_type_id(value_types, tree, |ty| matches!(ty, Type::Isize))
+        }
+        mir::IntrinsicResultType::Usize => {
+            find_type_id(value_types, tree, |ty| matches!(ty, Type::Usize))
+        }
+        mir::IntrinsicResultType::TypeTag => {
+            find_type_id(value_types, tree, |ty| matches!(ty, Type::TypeTag))
+        }
+    }
+}
+
+/// Resolve a value type from known values or constants.
+fn value_type_for_value(
+    value: Value,
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    constant_types: &HashMap<Value, ConstantType>,
+    pointer_width_bits: u16,
+    tree: &mir::NodeTree,
+) -> Option<mir::LocalNodeId<Type>> {
+    // use direct value types when available
+    if let Some(&type_id) = value_types.get(&value) {
+        return Some(type_id);
+    }
+
+    // map constants to an existing type id
+    let constant_type = constant_types.get(&value)?;
+    value_types
+        .values()
+        .copied()
+        .find(|ty_id| constant_matches_type(*constant_type, *ty_id, pointer_width_bits, tree))
+}
+
+/// Find a type id matching a predicate within known value types.
+fn find_type_id(
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    tree: &mir::NodeTree,
+    predicate: impl Fn(&Type) -> bool,
+) -> Option<mir::LocalNodeId<Type>> {
+    value_types
+        .values()
+        .copied()
+        .find(|ty_id| predicate(tree.get(*ty_id)))
+}
+
+/// Find a tuple type matching the provided element types.
+fn find_tuple_type(
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    tree: &mir::NodeTree,
+    first: mir::LocalNodeId<Type>,
+    second: mir::LocalNodeId<Type>,
+) -> Option<mir::LocalNodeId<Type>> {
+    find_type_id(value_types, tree, |ty| match ty {
+        Type::Tuple { elements, .. } => {
+            elements.len() == 2 && elements[0] == first && elements[1] == second
+        }
+        _ => false,
+    })
+}
+
+/// Return the pointee type for a pointer value when available.
+fn pointer_pointee_type(
+    pointer: Value,
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    pointer_pointee_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    tree: &mir::NodeTree,
+) -> Option<mir::LocalNodeId<Type>> {
+    // read the explicit pointer type when present
+    if let Some(&type_id) = value_types.get(&pointer)
+        && let Type::Reference { pointee, .. } = tree.get(type_id)
+    {
+        return Some(*pointee);
+    }
+
+    // fall back to tracked pointee types
+    pointer_pointee_types.get(&pointer).copied()
 }
 
 /// Check whether a binary operator yields a boolean result.
@@ -767,7 +1051,13 @@ fn value_is_copy(
         Some(&ty_id) => {
             let ty = tree.get(ty_id);
             match ty {
-                Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => true,
+                Type::Void
+                | Type::Boolean
+                | Type::Int { .. }
+                | Type::Isize
+                | Type::Usize
+                | Type::Float { .. }
+                | Type::TypeTag => true,
                 Type::FunctionPointer { .. } => true,
                 Type::Reference {
                     kind: ReferenceKind::Raw | ReferenceKind::Borrowed,

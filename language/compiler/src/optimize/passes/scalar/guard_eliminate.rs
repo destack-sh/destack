@@ -8,7 +8,7 @@ use crate::optimize::common::{
     SuccessorArguments, build_value_instruction_map, constraint_truth_value,
     terminator_arguments_for_successor_checked,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
@@ -58,7 +58,7 @@ impl FunctionPass for GuardEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -66,7 +66,7 @@ impl FunctionPass for GuardEliminate {
         };
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let ranges = analyses.get::<RangeAnalysis>().clone();
 

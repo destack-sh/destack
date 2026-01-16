@@ -5,16 +5,16 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{
     AliasAnalysis, ConstantPropagation, DominatorTree, MemoryAccess, MemoryAccessEffect,
-    MemoryAccessId, MemoryAccessLocation, MemorySSA,
+    MemoryAccessId, MemoryAccessLocation, MemorySSA, OwnershipAnalysis,
 };
 use crate::optimize::common::{
-    address_spaces_may_alias, alias_scopes_may_alias, location_sets_may_alias,
-    memory_locations_compatible, tbaa_tags_may_alias,
+    address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
+    location_sets_may_alias, memory_locations_compatible, tbaa_tags_may_alias, value_is_reference,
 };
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
-    apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
-    instruction_has_side_effects, resolve_substitution_chains,
+    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
+    TypeContext, apply_substitutions_in_function, expression_key_from_instruction,
+    expression_key_substitute, instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -64,7 +64,7 @@ impl FunctionPass for GlobalValueNumbering {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -73,11 +73,12 @@ impl FunctionPass for GlobalValueNumbering {
         };
 
         // get dominator tree children map for analysis
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let domtree = analyses.get::<DominatorTree>();
         let alias = analyses.get::<AliasAnalysis>();
         let memory_ssa = analyses.get::<MemorySSA>();
         let constants = analyses.get::<ConstantPropagation>();
+        let ownership = analyses.get::<OwnershipAnalysis>();
         let dom_children = build_dominator_children(function, domtree.as_ref());
 
         // run GVN
@@ -89,6 +90,8 @@ impl FunctionPass for GlobalValueNumbering {
             &alias,
             memory_ssa.as_ref(),
             constants.as_ref(),
+            ownership.as_ref(),
+            ctx.type_context(),
         );
 
         // preserve analyses when nothing changed
@@ -109,6 +112,7 @@ impl FunctionPass for GlobalValueNumbering {
 }
 
 /// Core GVN logic. Returns true if changes were made.
+#[allow(clippy::too_many_arguments)]
 fn run_gvn(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -117,6 +121,8 @@ fn run_gvn(
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
 ) -> bool {
     // run GVN using dominator tree traversal
     let (substitutions, to_remove) = find_redundant_expressions(
@@ -127,6 +133,8 @@ fn run_gvn(
         alias,
         memory_ssa,
         constants,
+        ownership,
+        type_context,
     );
 
     // nothing to do if no redundancies found
@@ -390,6 +398,7 @@ impl ScopedValueTable {
 /// Find redundant expressions by walking the dominator tree.
 ///
 /// Returns a tuple of (substitutions, instructions_to_remove).
+#[allow(clippy::too_many_arguments)]
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     _function: &mir::Function,
@@ -398,6 +407,8 @@ fn find_redundant_expressions(
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -429,6 +440,8 @@ fn find_redundant_expressions(
                     alias,
                     memory_ssa,
                     constants,
+                    ownership,
+                    type_context,
                     &mut value_table,
                     &mut substitutions,
                     &mut to_remove,
@@ -464,6 +477,8 @@ fn process_block(
     alias: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     constants: &ConstantPropagation,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
     value_table: &mut ScopedValueTable,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -559,14 +574,30 @@ fn process_block(
 
         // apply aggregate forwarding when available
         if let Some((dest, replacement, inst_id)) = aggregate_simplification {
-            substitutions.insert(dest, replacement);
-            to_remove.insert(inst_id);
+            if can_substitute_value(
+                dest,
+                replacement,
+                ownership,
+                type_context.pointer_width_bits,
+                tree,
+            ) {
+                substitutions.insert(dest, replacement);
+                to_remove.insert(inst_id);
+            }
             continue;
         }
 
         // forward local reads
         if let mir::Instruction::LocalGet { destination, local } = instruction {
-            if let Some(existing) = value_table.get_local(*local) {
+            if let Some(existing) = value_table.get_local(*local)
+                && can_substitute_value(
+                    *destination,
+                    existing,
+                    ownership,
+                    type_context.pointer_width_bits,
+                    tree,
+                )
+            {
                 substitutions.insert(*destination, existing);
                 to_remove.insert(instruction_id);
             } else {
@@ -582,6 +613,11 @@ fn process_block(
 
         // forward redundant loads
         if let mir::Instruction::Load { destination, .. } = instruction {
+            // skip reference loads to avoid aliasing unsoundness
+            if value_is_reference(*destination, ownership, tree) {
+                continue;
+            }
+
             // resolve the memory ssa use access
             let Some(use_access_id) = load_use_access_id(memory_ssa, instruction_id) else {
                 continue;
@@ -604,9 +640,19 @@ fn process_block(
 
             // compute the clobbering access for the load
             let clobber = memory_ssa.clobbering_access_for_use(use_access_id, alias, tree);
+            if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+                continue;
+            }
 
             // forward from an existing load when possible
             if let Some(existing) = value_table.get_memory(clobber, &use_access.effect, alias, tree)
+                && can_substitute_value(
+                    *destination,
+                    existing,
+                    ownership,
+                    type_context.pointer_width_bits,
+                    tree,
+                )
             {
                 substitutions.insert(*destination, existing);
                 to_remove.insert(instruction_id);
@@ -646,8 +692,16 @@ fn process_block(
         // check if we've seen this expression in any dominating scope
         if let Some(existing_value) = value_table.get(&key) {
             // found a match: mark for substitution and removal
-            substitutions.insert(destination, existing_value);
-            to_remove.insert(instruction_id);
+            if can_substitute_value(
+                destination,
+                existing_value,
+                ownership,
+                type_context.pointer_width_bits,
+                tree,
+            ) {
+                substitutions.insert(destination, existing_value);
+                to_remove.insert(instruction_id);
+            }
         }
         // otherwise record as a new expression
         else {
@@ -682,6 +736,7 @@ fn constant_index_to_usize(constant: &mir::Constant) -> Option<usize> {
     }
 }
 
+/// Return true when two values can be safely substituted.
 #[cfg(test)]
 mod tests {
     use super::*;

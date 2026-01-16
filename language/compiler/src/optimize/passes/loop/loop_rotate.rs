@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Rotate loops to expose optimization opportunities.
@@ -38,7 +38,7 @@ impl FunctionPass for LoopRotate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -47,7 +47,7 @@ impl FunctionPass for LoopRotate {
 
         // get analyses
         let (loops, cfg, domtree) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<ControlFlowGraph>().clone(),

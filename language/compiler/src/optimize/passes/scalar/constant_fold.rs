@@ -9,7 +9,7 @@ use crate::optimize::common::{
     instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
     resolve_substitution_chains,
 };
 
@@ -47,16 +47,16 @@ impl FunctionPass for ConstantFold {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // get constant propagation analysis
         let constants = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<ConstantPropagation>().clone()
         };
 
         // run constant folding
-        let changed = run_constant_fold(function, tree, &constants);
+        let changed = run_constant_fold(function, tree, &constants, ctx.type_context());
 
         // preserve analyses when nothing changed
         if changed {
@@ -80,6 +80,7 @@ fn run_constant_fold(
     function: &mir::Function,
     tree: &mut mir::NodeTree,
     constants: &ConstantPropagation,
+    type_context: TypeContext,
 ) -> bool {
     // track pass state and pending rewrites
     let mut changed = false;
@@ -213,7 +214,13 @@ fn run_constant_fold(
                     // fold casts with constant operands
                     if let Some(arg_const) = block_constants.get(*argument)
                         && let Some(result) =
-                            fold_cast(*operator, arg_const.clone(), *to_type, tree)
+                        fold_cast(
+                            *operator,
+                            arg_const.clone(),
+                            *to_type,
+                            type_context.pointer_width_bits,
+                            tree,
+                        )
                     {
                         let dest = *destination;
                         let new_instruction = mir::Instruction::Const {

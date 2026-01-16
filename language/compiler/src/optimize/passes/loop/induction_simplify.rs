@@ -9,7 +9,7 @@ use crate::optimize::common::{
     instruction_substitute_uses_in_tree, resolve_substitution_chains,
     terminator_arguments_for_successor, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Simplify redundant induction variables in loop headers.
@@ -59,7 +59,7 @@ impl FunctionPass for InductionVariableSimplify {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -67,7 +67,7 @@ impl FunctionPass for InductionVariableSimplify {
         }
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let loops = analyses.get::<LoopAnalysis>().clone();
         let scev = analyses.get::<ScalarEvolution>().clone();
         let cfg = analyses.get::<ControlFlowGraph>().clone();

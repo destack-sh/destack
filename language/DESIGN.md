@@ -614,7 +614,7 @@ Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
 Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
 Structs are pure data unless RTTI is required by usage.
 On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
-Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
+Native type tags are `TypeTag` handles that point to `TypeDescriptor` values.
 Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
 
 ## Dispatch

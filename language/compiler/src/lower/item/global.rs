@@ -130,6 +130,14 @@ impl ModuleLowerer<'_> {
                         width: *width as u8,
                         is_signed: true,
                     },
+                    (dir::ScalarLiteral::Integer(i), mir::Type::Isize) => {
+                        let width = self.type_lowerer.pointer_width_bits();
+                        mir::Constant::Int {
+                            value: *i,
+                            width: width as u8,
+                            is_signed: true,
+                        }
+                    }
                     (
                         dir::ScalarLiteral::Integer(i),
                         mir::Type::Int {
@@ -140,6 +148,13 @@ impl ModuleLowerer<'_> {
                         value: *i as u64,
                         width: *width as u8,
                     },
+                    (dir::ScalarLiteral::Integer(i), mir::Type::Usize) => {
+                        let width = self.type_lowerer.pointer_width_bits();
+                        mir::Constant::UInt {
+                            value: *i as u64,
+                            width: width as u8,
+                        }
+                    }
                     (dir::ScalarLiteral::Float(f), mir::Type::Float { width }) => {
                         mir::Constant::Float {
                             bits: if *width == 32 {

@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::ConstantPropagation;
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext,
+    AnalysisPreservation, FunctionPass, PipelineContext,
     instruction_substitute_uses_in_tree, terminator_substitute_uses, terminator_uses,
 };
 
@@ -67,7 +67,7 @@ impl FunctionPass for Sroa {
 
         // get constant propagation analysis
         let constants = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<ConstantPropagation>().clone()
         };
 

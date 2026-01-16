@@ -205,12 +205,17 @@ pub(crate) fn size_and_align_of_type(
             let align = bytes.min(8);
             (bytes, align)
         }
+        mir::Type::Isize | mir::Type::Usize => {
+            let bytes = pointer_bytes as u32;
+            let align = bytes.min(8);
+            (bytes, align)
+        }
         mir::Type::Float { width } => {
             let bytes = u32::from(*width).div_ceil(8);
             let align = bytes.min(8);
             (bytes, align)
         }
-        mir::Type::Reference { .. } => {
+        mir::Type::TypeTag | mir::Type::Reference { .. } => {
             let bytes = pointer_bytes as u32;
             (bytes, bytes)
         }

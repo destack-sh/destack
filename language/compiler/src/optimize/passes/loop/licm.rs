@@ -8,7 +8,7 @@ use crate::optimize::analyses::{
     MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
 };
 use crate::optimize::common::{build_instruction_block_map, instruction_is_speculatable};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Move loop invariant computations outside of loops.
@@ -62,7 +62,7 @@ impl FunctionPass for Licm {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -71,7 +71,7 @@ impl FunctionPass for Licm {
 
         // get analyses
         let (loops, domtree, ranges, constants, alias, memory_ssa) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),
