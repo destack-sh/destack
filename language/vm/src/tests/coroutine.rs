@@ -51,7 +51,7 @@ function @yield_ignore(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
     yield v1, block1(v0)
-block1(v2: i32):
+block1(v2: i32, v3: i32):
     return v2
 }"#;
 
@@ -273,11 +273,11 @@ block0(v0: i32):
     jump block1(v0, v1, v2)
 block1(v3: i32, v4: i32, v5: i32):
     v6 = iconst 0i32
-    v7 = icmp_eq v4, v6
+    v7 = icmp_eq v5, v6
     branch v7, block3(v5), block2(v3, v4, v5)
 block2(v8: i32, v9: i32, v10: i32):
     v11 = iadd v8, v9
-    yield v11, block1(v8)
+    yield v11, block1(v8, v9)
 block3(v12: i32):
     return v12
 }"#;
@@ -305,7 +305,7 @@ block3(v12: i32):
         ExecutionOutcome::Completed { output } => output,
         ExecutionOutcome::Yielded { .. } => panic!("expected completion"),
     };
-    assert_eq!(output.value, Value::VOID);
+    assert_eq!(output.value, Value::int32(0));
 }
 
 /// Yield in a nested call resumes back to the caller.
