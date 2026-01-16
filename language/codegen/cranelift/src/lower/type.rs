@@ -30,6 +30,19 @@ pub(crate) fn lower_type(
                 type_id.into_any(),
             )),
         },
+        mir::Type::Isize | mir::Type::Usize => {
+            let ty = match pointer_bytes {
+                4 => cir::types::I32,
+                8 => cir::types::I64,
+                _ => {
+                    return Err(CodegenCraneliftError::unsupported_type(
+                        format!("unsupported pointer size: {pointer_bytes} bytes"),
+                        type_id.into_any(),
+                    ));
+                }
+            };
+            Ok(ty)
+        }
 
         mir::Type::Float { width } => match width {
             32 => Ok(cir::types::F32),
@@ -40,7 +53,9 @@ pub(crate) fn lower_type(
             )),
         },
 
-        mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
+        mir::Type::TypeTag
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. } => {
             // inline pointer_type
             let ty = match pointer_bytes {
                 4 => cir::types::I32,
