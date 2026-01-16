@@ -331,9 +331,7 @@ impl<'a> FunctionLowerer<'a> {
             }
             // element_addr: pointer to element type
             mir::Instruction::ElementAddr {
-                destination,
-                array,
-                ..
+                destination, array, ..
             } => {
                 let Some(array_type_id) = type_map.get(array) else {
                     return;

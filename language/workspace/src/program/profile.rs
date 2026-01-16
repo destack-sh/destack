@@ -153,6 +153,21 @@ impl ProfileRegistry {
         self.profile_by_id.get(&id).map(|entry| entry.clone())
     }
 
+    /// Bump the version for a profile id.
+    ///
+    /// # Panics
+    /// Panics if the profile id is missing.
+    pub fn bump_version(&self, id: ProfileId) -> ProfileVersion {
+        // update the profile version
+        let mut entry = self
+            .profile_by_id
+            .get_mut(&id)
+            .unwrap_or_else(|| panic!("missing profile data for {id:?}"));
+        let next_version = entry.version.next();
+        entry.version = next_version;
+        next_version
+    }
+
     /// Get the number of registered profiles.
     pub fn len(&self) -> usize {
         self.profile_by_id.len()

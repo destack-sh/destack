@@ -112,4 +112,34 @@ impl ModuleGraph {
             .map(|deps| deps.iter().copied().collect())
             .unwrap_or_default()
     }
+
+    /// Remove a module from the graph.
+    pub fn remove_module(&mut self, module_id: ModuleId) {
+        // remove forward dependencies and clean reverse edges
+        if let Some(dependencies) = self.dependencies.shift_remove(&module_id) {
+            for dependency in dependencies {
+                if let Some(entry) = self.dependents.get_mut(&dependency) {
+                    entry.shift_remove(&module_id);
+                    if entry.is_empty() {
+                        self.dependents.shift_remove(&dependency);
+                    }
+                }
+            }
+        }
+
+        // remove reverse dependencies and clean forward edges
+        if let Some(dependents) = self.dependents.shift_remove(&module_id) {
+            for dependent in dependents {
+                if let Some(entry) = self.dependencies.get_mut(&dependent) {
+                    entry.shift_remove(&module_id);
+                    if entry.is_empty() {
+                        self.dependencies.shift_remove(&dependent);
+                    }
+                }
+            }
+        }
+
+        // drop module version tracking
+        self.module_versions.shift_remove(&module_id);
+    }
 }

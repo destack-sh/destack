@@ -273,7 +273,11 @@ impl Compiler {
         }
 
         // resolve the profile id for dependency tracking
-        let profile_id = profile_id.unwrap_or(ProfileId::new(0));
+        let profile_id = profile_id.ok_or(CacheError::MissingDependencyData {
+            module_id,
+            profile_id: ProfileId::new(0),
+            reason: "missing profile id for dependency tracking".to_string(),
+        })?;
 
         // load the module graph for this profile
         let graph_key = ModuleGraphKey::new(profile_id);
@@ -289,17 +293,30 @@ impl Compiler {
         let dependencies = graph.dependencies_for(module_id);
         drop(graph);
 
+        // resolve profile version for dependency signatures
+        let Some(profile) = self.program.profiles.get(profile_id) else {
+            return Err(CacheError::MissingDependencyData {
+                module_id,
+                profile_id,
+                reason: "missing profile data for dependency tracking".to_string(),
+            });
+        };
+        let profile_version = profile.version;
+
         // hash dependency ids and signature hashes
         let mut hasher = FxHasher::default();
         for dependency in dependencies {
             let module = self.program.modules.get(dependency);
-            if module.read().dir_maybe(profile_id).is_none() {
+            let module = module.read();
+            let module_version = module.version;
+            if module.dir_maybe(profile_id).is_none() {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
                     profile_id,
                     reason: format!("missing dir for dependency {dependency:?}"),
                 });
             }
+            drop(module);
 
             let signature_key = ModuleSignatureKey::new(dependency, profile_id);
             let Some(signature) = self.program.index.module_signatures.get(&signature_key) else {
@@ -309,8 +326,23 @@ impl Compiler {
                     reason: format!("missing signature for dependency {dependency:?}"),
                 });
             };
+            let signature = signature.value();
+            if signature.module_version != module_version {
+                return Err(CacheError::MissingDependencyData {
+                    module_id,
+                    profile_id,
+                    reason: format!("stale signature for dependency {dependency:?}"),
+                });
+            }
+            if signature.profile_version != profile_version {
+                return Err(CacheError::MissingDependencyData {
+                    module_id,
+                    profile_id,
+                    reason: format!("stale signature profile for dependency {dependency:?}"),
+                });
+            }
             dependency.hash(&mut hasher);
-            signature.value().hash.hash(&mut hasher);
+            signature.hash.hash(&mut hasher);
         }
 
         Ok(hasher.finish())

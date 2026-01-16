@@ -557,7 +557,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Platform, Runtime};
+    use crate::{OutputFormat, Platform, Runtime};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
