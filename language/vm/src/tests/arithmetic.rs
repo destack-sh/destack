@@ -10,8 +10,7 @@ function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "add",
@@ -28,8 +27,7 @@ function @sub(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = isub v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "sub",
@@ -46,8 +44,7 @@ function @mul(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = imul v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "mul",
@@ -64,8 +61,7 @@ function @div(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = sdiv v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "div",
@@ -82,8 +78,7 @@ function @neg(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = ineg v0
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "neg", &[Value::int32(42)], Value::int32(-42));
 }
 
@@ -95,8 +90,7 @@ function @eq(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "eq",
@@ -119,8 +113,7 @@ function @lt(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_slt v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "lt",
@@ -143,8 +136,7 @@ function @constant() -> i32 {
 block0:
     v0 = iconst 42i32
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "constant", &[], Value::int32(42));
 }
 
@@ -156,8 +148,7 @@ function @const_true() -> bool {
 block0:
     v0 = iconst true
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "const_true", &[], Value::bool(true));
 }
 
@@ -169,8 +160,7 @@ function @const_false() -> bool {
 block0:
     v0 = iconst false
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "const_false", &[], Value::bool(false));
 }
 
@@ -182,8 +172,7 @@ function @and(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
     v2 = band v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "and",
@@ -206,8 +195,7 @@ function @or(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
     v2 = bor v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "or",
@@ -230,8 +218,7 @@ function @not(v0: bool) -> bool {
 block0(v0: bool):
     v1 = bnot v0
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "not", &[Value::bool(true)], Value::bool(false));
     run_mir_expect(mir, "not", &[Value::bool(false)], Value::bool(true));
 }
@@ -244,8 +231,7 @@ function @fadd(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fadd v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fadd",
@@ -262,8 +248,7 @@ function @udiv(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = udiv v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "udiv",
@@ -280,8 +265,7 @@ function @srem(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = srem v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "srem",
@@ -305,8 +289,7 @@ function @urem(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = urem v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "urem",
@@ -324,8 +307,7 @@ block0(v0: i32):
     v1 = iconst 0i32
     v2 = sdiv v0, v1
     return v2
-}
-"#;
+}"#;
     let result = run_mir(mir, "div_zero", &[Value::int32(10)]);
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err().error, Error::DivisionByZero));
@@ -339,8 +321,7 @@ function @ne(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_ne v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "ne",
@@ -363,8 +344,7 @@ function @sgt(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_sgt v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "sgt",
@@ -394,8 +374,7 @@ function @sge(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_sge v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "sge",
@@ -424,8 +403,7 @@ function @sle(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = icmp_sle v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "sle",
@@ -454,8 +432,7 @@ function @ult(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
     v2 = icmp_ult v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "ult",
@@ -478,8 +455,7 @@ function @ugt(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
     v2 = icmp_ugt v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "ugt",
@@ -502,8 +478,7 @@ function @xor(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = bxor v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "xor",
@@ -520,8 +495,7 @@ function @shl(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = ishl v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "shl",
@@ -538,8 +512,7 @@ function @sshr(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = sshr v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "sshr",
@@ -563,8 +536,7 @@ function @ushr(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = ushr v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "ushr",
@@ -581,8 +553,7 @@ function @fsub(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fsub v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fsub",
@@ -599,8 +570,7 @@ function @fmul(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fmul v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fmul",
@@ -617,8 +587,7 @@ function @fdiv(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fdiv v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fdiv",
@@ -635,8 +604,7 @@ function @fneg(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = fneg v0
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "fneg", &[Value::float64(3.5)], Value::float64(-3.5));
     run_mir_expect(mir, "fneg", &[Value::float64(-3.5)], Value::float64(3.5));
 }
@@ -649,8 +617,7 @@ function @fcmp_eq(v0: f64, v1: f64) -> bool {
 block0(v0: f64, v1: f64):
     v2 = fcmp_eq v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fcmp_eq",
@@ -673,8 +640,7 @@ function @fcmp_lt(v0: f64, v1: f64) -> bool {
 block0(v0: f64, v1: f64):
     v2 = fcmp_lt v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "fcmp_lt",
@@ -697,8 +663,7 @@ function @f32_add(v0: f32, v1: f32) -> f32 {
 block0(v0: f32, v1: f32):
     v2 = fadd v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "f32_add",
@@ -715,8 +680,7 @@ function @f32_lt(v0: f32, v1: f32) -> bool {
 block0(v0: f32, v1: f32):
     v2 = fcmp_lt v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "f32_lt",
@@ -733,8 +697,7 @@ function @bnot(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = bnot v0
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "bnot", &[Value::int32(0)], Value::int32(-1));
 }
 
@@ -746,8 +709,7 @@ function @uand(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = band v0, v1
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "uand",

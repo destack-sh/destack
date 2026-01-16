@@ -14,9 +14,9 @@ block1(v3: i64, v4: i64):
 
 // loop body, update memory
 block2:
-    v6 = raw.alloc i64
+    v6 = raw.alloc i64 -> ref<raw i64>
     store v6, v3
-    v7 = load v6
+    v7 = load v6 -> i64
     raw.drop v6
     v8 = iadd v4, v7
     v9 = iconst 1i64

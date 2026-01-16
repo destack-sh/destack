@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     ArgumentSlice, Block, CallMetadata, Function, Instruction, Local, LocalNodeId,
-    MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, NodeTree, NodeType, SwitchCase,
-    Terminator, Type, Value,
+    MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree, NodeType,
+    ReferenceKind, SwitchCase, Terminator, Type, Value,
 };
 
 use super::{VerifyAnchor, VerifyError, VerifyResult};
@@ -422,16 +422,13 @@ impl<'a> Verifier<'a> {
             }
 
             // validate indirect call signatures
-            if let Instruction::CallIndirect { destination, .. } = instruction {
-                let Some(metadata) = self.tree.call_table.call_metadata(instruction_id) else {
-                    return Err(VerifyError::MetadataInvariantViolation {
-                        message: "call indirect missing required call metadata".to_string(),
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
-                };
-
-                let Type::FunctionPointer { parameters, result } =
-                    self.tree.get(metadata.signature)
+            if let Instruction::CallIndirect {
+                destination,
+                signature,
+                ..
+            } = instruction
+            {
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature)
                 else {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "call indirect signature is not a function type".to_string(),
@@ -467,6 +464,9 @@ impl<'a> Verifier<'a> {
 
         // validate instruction shape invariants
         self.verify_instruction_shapes(instruction, instruction_id)?;
+
+        // validate inline types
+        self.verify_instruction_inline_types(instruction, instruction_id)?;
 
         Ok(())
     }
@@ -618,7 +618,37 @@ impl<'a> Verifier<'a> {
                     });
                 }
             }
-            Terminator::TailCallIndirect { .. } => {}
+            Terminator::TailCallIndirect {
+                arguments,
+                signature,
+                ..
+            } => {
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature)
+                else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tailcall.indirect signature is not a function type".to_string(),
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                };
+
+                // reject mismatched argument counts
+                if arguments.len() != parameters.len() {
+                    return Err(VerifyError::CallArgumentCountMismatch {
+                        expected: parameters.len(),
+                        got: arguments.len(),
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                }
+
+                // reject return kind mismatches
+                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
+                let callee_returns_void = matches!(self.tree.get(*result), Type::Void);
+                if caller_returns_void != callee_returns_void {
+                    return Err(VerifyError::TailCallReturnTypeMismatch {
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                }
+            }
         }
 
         Ok(())
@@ -971,6 +1001,162 @@ impl<'a> Verifier<'a> {
         Ok(())
     }
 
+    /// Verify inline result and signature types.
+    fn verify_instruction_inline_types(
+        &self,
+        instruction: &Instruction,
+        instruction_id: LocalNodeId<Instruction>,
+    ) -> VerifyResult<()> {
+        // prepare anchor for error reporting
+        let anchor = VerifyAnchor::node(instruction_id);
+
+        // validate pointer-producing result types
+        match instruction {
+            Instruction::GlobalAddr {
+                global,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                let global_decl = self.tree.get(*global);
+                self.verify_reference_result_type(
+                    *result_type,
+                    Some(global_decl.ty),
+                    Some(ReferenceKind::Raw),
+                    Some(global_decl.mutability),
+                    anchor,
+                )?;
+            }
+            Instruction::ManagedAlloc {
+                layout,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                self.verify_reference_result_type(
+                    *result_type,
+                    Some(*layout),
+                    Some(ReferenceKind::Managed),
+                    None,
+                    anchor,
+                )?;
+            }
+            Instruction::ManagedAllocArray {
+                element,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                self.verify_reference_result_type(
+                    *result_type,
+                    Some(*element),
+                    Some(ReferenceKind::Managed),
+                    None,
+                    anchor,
+                )?;
+            }
+            Instruction::RawAlloc {
+                layout,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                self.verify_reference_result_type(
+                    *result_type,
+                    Some(*layout),
+                    Some(ReferenceKind::Raw),
+                    None,
+                    anchor,
+                )?;
+            }
+            Instruction::StackAlloc {
+                layout,
+                result_type,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                self.verify_reference_result_type(
+                    *result_type,
+                    Some(*layout),
+                    Some(ReferenceKind::Raw),
+                    None,
+                    anchor,
+                )?;
+            }
+            Instruction::FieldAddr { result_type, .. }
+            | Instruction::ElementAddr { result_type, .. } => {
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
+                self.verify_reference_result_type(*result_type, None, None, None, anchor)?;
+            }
+            Instruction::CallIndirect { signature, .. } => {
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+                let ty = self.tree.get(*signature);
+                if !matches!(ty, Type::FunctionPointer { .. }) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "call.indirect signature is not a function type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+
+    /// Verify a reference result type.
+    fn verify_reference_result_type(
+        &self,
+        result_type: LocalNodeId<Type>,
+        expected_pointee: Option<LocalNodeId<Type>>,
+        expected_kind: Option<ReferenceKind>,
+        expected_mutability: Option<Mutability>,
+        anchor: VerifyAnchor,
+    ) -> VerifyResult<()> {
+        let Type::Reference {
+            kind,
+            mutability,
+            pointee,
+            ..
+        } = self.tree.get(result_type)
+        else {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type is not a reference".to_string(),
+                anchor,
+            });
+        };
+
+        if let Some(expected) = expected_pointee
+            && *pointee != expected
+        {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type mismatches pointee".to_string(),
+                anchor,
+            });
+        }
+
+        if let Some(expected) = expected_kind
+            && *kind != expected
+        {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type has wrong reference kind"
+                    .to_string(),
+                anchor,
+            });
+        }
+
+        if let Some(expected) = expected_mutability
+            && *mutability != expected
+        {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "pointer-producing instruction result type has wrong mutability".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Verify metadata tables after function checks.
     fn verify_metadata_tables(&self) -> VerifyResult<()> {
         // validate call metadata entries
@@ -1113,6 +1299,16 @@ impl<'a> Verifier<'a> {
         if !matches!(signature_type, Type::FunctionPointer { .. }) {
             return Err(VerifyError::MetadataInvariantViolation {
                 message: "call metadata signature is not a function type".to_string(),
+                anchor: VerifyAnchor::node(instruction_id),
+            });
+        }
+
+        // ensure indirect call signatures align
+        if let Instruction::CallIndirect { signature, .. } = instruction
+            && *signature != metadata.signature
+        {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "call metadata signature does not match call.indirect".to_string(),
                 anchor: VerifyAnchor::node(instruction_id),
             });
         }

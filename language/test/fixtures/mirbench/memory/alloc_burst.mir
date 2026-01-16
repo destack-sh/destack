@@ -13,16 +13,16 @@ block1(v2: i64):
 
 // loop body, update memory
 block2:
-    v4 = managed.alloc i64
-    v5 = managed.alloc i64
-    v6 = managed.alloc i64
-    v7 = managed.alloc i64
-    v8 = managed.alloc i64
-    v9 = managed.alloc i64
-    v10 = managed.alloc i64
-    v11 = managed.alloc i64
-    v12 = managed.alloc i64
-    v13 = managed.alloc i64
+    v4 = managed.alloc i64 -> ref<managed i64>
+    v5 = managed.alloc i64 -> ref<managed i64>
+    v6 = managed.alloc i64 -> ref<managed i64>
+    v7 = managed.alloc i64 -> ref<managed i64>
+    v8 = managed.alloc i64 -> ref<managed i64>
+    v9 = managed.alloc i64 -> ref<managed i64>
+    v10 = managed.alloc i64 -> ref<managed i64>
+    v11 = managed.alloc i64 -> ref<managed i64>
+    v12 = managed.alloc i64 -> ref<managed i64>
+    v13 = managed.alloc i64 -> ref<managed i64>
     v14 = iconst 1i64
     v15 = iadd v2, v14
     jump block1(v15)

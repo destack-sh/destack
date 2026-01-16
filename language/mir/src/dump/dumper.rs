@@ -367,10 +367,13 @@ impl<'a> Dumper<'a> {
             Instruction::GlobalAddr {
                 destination,
                 global,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = global.addr ");
                 self.write(&self.format_global_id(*global));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::GlobalConst {
@@ -385,10 +388,13 @@ impl<'a> Dumper<'a> {
             Instruction::Load {
                 destination,
                 pointer,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = load ");
                 self.write(&self.format_value(*pointer));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::Store { pointer, value } => {
@@ -428,11 +434,14 @@ impl<'a> Dumper<'a> {
                 destination,
                 aggregate,
                 index,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = field.addr ");
                 self.write(&self.format_value(*aggregate));
                 self.write(&format!(", {index}"));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::FieldSet {
@@ -464,12 +473,15 @@ impl<'a> Dumper<'a> {
                 destination,
                 array,
                 index,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = element.addr ");
                 self.write(&self.format_value(*array));
                 self.write(", ");
                 self.write(&self.format_value(*index));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::ElementSet {
@@ -570,6 +582,7 @@ impl<'a> Dumper<'a> {
                 destination,
                 callee,
                 arguments,
+                signature,
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -586,36 +599,47 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
             Instruction::ManagedAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = managed.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::ManagedAllocArray {
                 destination,
                 element,
                 length,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = managed.alloc_array ");
                 self.write_colored(&self.format_type_id(*element), Color::Magenta);
                 self.write(", ");
                 self.write(&self.format_value(*length));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::RawAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = raw.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::RawFree { pointer } => {
@@ -626,10 +650,13 @@ impl<'a> Dumper<'a> {
             Instruction::StackAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = stack.alloc ");
                 self.write_colored(&self.format_type_id(*layout), Color::Magenta);
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
             }
 
             Instruction::Intrinsic {
@@ -928,7 +955,11 @@ impl<'a> Dumper<'a> {
                 self.write(")");
             }
 
-            Terminator::TailCallIndirect { callee, arguments } => {
+            Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                signature,
+            } => {
                 self.write_colored("tailcall.indirect", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*callee));
@@ -940,6 +971,8 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
         }
         self.write("\n");

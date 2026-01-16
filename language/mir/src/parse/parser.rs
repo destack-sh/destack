@@ -8,13 +8,121 @@ use crate::{
     Ownership, PointerAttributes, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
     TypedValue, UnaryOperator, Value,
 };
-use destack_base::{ImmutableStringPool, StringPool};
+use destack_base::{ImmutableStringPool, StringId, StringPool};
 use destack_source::{FileId, Span};
 
 use super::error::{ParseError, ParseResult};
-use super::infer::IndirectCallInference;
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct FieldKey {
+    name: Option<StringId>,
+    ty: LocalNodeId<Type>,
+    offset: u32,
+}
+
+impl FieldKey {
+    fn from_field(field: &Field) -> Self {
+        Self {
+            name: field.name,
+            ty: field.ty,
+            offset: field.offset,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum TypeKey {
+    Void,
+    Boolean,
+    Int { width: u16, signed: bool },
+    Isize,
+    Usize,
+    Float { width: u16 },
+    TypeTag,
+    Reference {
+        kind: ReferenceKind,
+        address_space: AddressSpace,
+        mutability: Mutability,
+        pointee: LocalNodeId<Type>,
+        is_nullable: bool,
+    },
+    Array {
+        element: LocalNodeId<Type>,
+        length: u64,
+        copyability: Copyability,
+    },
+    Tuple {
+        elements: Vec<LocalNodeId<Type>>,
+        copyability: Copyability,
+    },
+    Struct {
+        fields: Vec<LocalNodeId<Field>>,
+        copyability: Copyability,
+    },
+    FunctionPointer {
+        parameters: Vec<LocalNodeId<Type>>,
+        result: LocalNodeId<Type>,
+    },
+}
+
+impl TypeKey {
+    fn from_type(ty: &Type) -> Self {
+        match ty {
+            Type::Void => TypeKey::Void,
+            Type::Boolean => TypeKey::Boolean,
+            Type::Int { width, signed } => TypeKey::Int {
+                width: *width,
+                signed: *signed,
+            },
+            Type::Isize => TypeKey::Isize,
+            Type::Usize => TypeKey::Usize,
+            Type::Float { width } => TypeKey::Float { width: *width },
+            Type::TypeTag => TypeKey::TypeTag,
+            Type::Reference {
+                kind,
+                address_space,
+                mutability,
+                pointee,
+                is_nullable,
+            } => TypeKey::Reference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                pointee: *pointee,
+                is_nullable: *is_nullable,
+            },
+            Type::Array {
+                element,
+                length,
+                copyability,
+            } => TypeKey::Array {
+                element: *element,
+                length: *length,
+                copyability: *copyability,
+            },
+            Type::Tuple {
+                elements,
+                copyability,
+            } => TypeKey::Tuple {
+                elements: elements.clone(),
+                copyability: *copyability,
+            },
+            Type::Struct {
+                fields,
+                copyability,
+            } => TypeKey::Struct {
+                fields: fields.clone(),
+                copyability: *copyability,
+            },
+            Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {
+                parameters: parameters.clone(),
+                result: *result,
+            },
+        }
+    }
+}
 
 /// Parser for MIR text format.
 #[derive(Debug)]
@@ -37,6 +145,10 @@ pub struct Parser<'a> {
     global_map: HashMap<String, LocalNodeId<Global>>,
     /// Map from type alias names to their ids (for references).
     type_alias_map: HashMap<String, LocalNodeId<Type>>,
+    /// Type interner for canonical type ids.
+    type_intern: HashMap<TypeKey, LocalNodeId<Type>>,
+    /// Field interner for canonical field ids.
+    field_intern: HashMap<FieldKey, LocalNodeId<Field>>,
 }
 
 impl<'a> Parser<'a> {
@@ -53,6 +165,8 @@ impl<'a> Parser<'a> {
             function_map: HashMap::new(),
             global_map: HashMap::new(),
             type_alias_map: HashMap::new(),
+            type_intern: HashMap::new(),
+            field_intern: HashMap::new(),
         }
     }
 
@@ -269,7 +383,7 @@ impl<'a> Parser<'a> {
                         // register placeholder if not already known
                         if !self.function_map.contains_key(&name) {
                             let name_id = self.strings.intern(&name);
-                            let void_ty = self.tree.insert(Type::Void);
+                            let void_ty = self.intern_type(Type::Void);
                             let parameter_attributes = Vec::new();
                             let placeholder = Function {
                                 name: name_id,
@@ -550,8 +664,6 @@ impl<'a> Parser<'a> {
         for block_id in &blocks {
             self.impute_local_references(*block_id, &source_index_to_local);
         }
-        self.impute_indirect_call_metadata(&parameters, &blocks)?;
-
         self.eat_token(TokenType::CloseBrace)?;
 
         // update the function with the parsed body
@@ -770,22 +882,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Infer indirect call metadata from typed values in a function body.
-    fn impute_indirect_call_metadata(
-        &mut self,
-        parameters: &[TypedValue],
-        blocks: &[LocalNodeId<Block>],
-    ) -> ParseResult<()> {
-        // capture a fallback position for diagnostics
-        let fallback_position = self.pos();
-
-        // walk instructions to infer indirect call signatures
-        let mut inference = IndirectCallInference::new(&mut self.tree, parameters, blocks);
-        inference.infer_for_blocks(blocks, fallback_position)?;
-
-        Ok(())
-    }
-
     /// Parse an instruction.
     ///
     /// Instructions come in two forms:
@@ -879,9 +975,12 @@ impl<'a> Parser<'a> {
             // global operations
             "global.addr" => {
                 let global = self.parse_global_reference()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::GlobalAddr {
                     destination,
                     global,
+                    result_type,
                 }
             }
             "global.const" => {
@@ -895,9 +994,12 @@ impl<'a> Parser<'a> {
             // memory operations
             "load" => {
                 let pointer = self.parse_value()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::Load {
                     destination,
                     pointer,
+                    result_type,
                 }
             }
 
@@ -916,10 +1018,13 @@ impl<'a> Parser<'a> {
                 let aggregate = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_int_literal()? as u32;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::FieldAddr {
                     destination,
                     aggregate,
                     index,
+                    result_type,
                 }
             }
             "field.set" => {
@@ -949,10 +1054,13 @@ impl<'a> Parser<'a> {
                 let array = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
                 let index = self.parse_value()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::ElementAddr {
                     destination,
                     array,
                     index,
+                    result_type,
                 }
             }
             "element.set" => {
@@ -1014,43 +1122,58 @@ impl<'a> Parser<'a> {
                 let callee = self.parse_value()?;
                 let args = self.parse_call_arguments()?;
                 let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
                 Instruction::CallIndirect {
                     destination: Some(destination),
                     callee,
                     arguments,
+                    signature,
                 }
             }
 
             // allocation operations
             "managed.alloc" => {
                 let layout = self.parse_type()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::ManagedAlloc {
                     destination,
                     layout,
+                    result_type,
                 }
             }
             "managed.alloc_array" => {
                 let element = self.parse_type()?;
                 self.eat_token(TokenType::Comma)?;
                 let length = self.parse_value()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::ManagedAllocArray {
                     destination,
                     element,
                     length,
+                    result_type,
                 }
             }
             "raw.alloc" => {
                 let layout = self.parse_type()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::RawAlloc {
                     destination,
                     layout,
+                    result_type,
                 }
             }
             "stack.alloc" => {
                 let layout = self.parse_type()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
                 Instruction::StackAlloc {
                     destination,
                     layout,
+                    result_type,
                 }
             }
 
@@ -1132,10 +1255,13 @@ impl<'a> Parser<'a> {
                 let callee = self.parse_value()?;
                 let args = self.parse_call_arguments()?;
                 let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
                 Instruction::CallIndirect {
                     destination: None,
                     callee,
                     arguments,
+                    signature,
                 }
             }
 
@@ -1326,10 +1452,16 @@ impl<'a> Parser<'a> {
 
             TokenType::TailCallIndirect => {
                 self.bump();
-                // tailcall.indirect callee(args...)
+                // tailcall.indirect callee(args...) -> signature
                 let callee = self.parse_value()?;
                 let arguments = self.parse_call_arguments()?;
-                Ok(Terminator::TailCallIndirect { callee, arguments })
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Ok(Terminator::TailCallIndirect {
+                    callee,
+                    arguments,
+                    signature,
+                })
             }
 
             _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),
@@ -1740,7 +1872,7 @@ impl<'a> Parser<'a> {
                     }
                     let ty = self.parse_type()?;
                     let field = Field { name, ty, offset };
-                    fields.push(self.tree.insert(field));
+                    fields.push(self.intern_field(field));
                     offset += 1; // simplified offset, real offset would need size info
                     if !self.eat_token_maybe(TokenType::Comma) {
                         break;
@@ -1757,7 +1889,35 @@ impl<'a> Parser<'a> {
             }
         };
 
-        Ok(self.tree.insert(ty))
+        Ok(self.intern_type(ty))
+    }
+
+    /// Return a canonical field id for the provided field shape.
+    fn intern_field(&mut self, field: Field) -> LocalNodeId<Field> {
+        // reuse an existing field when shape matches
+        let key = FieldKey::from_field(&field);
+        if let Some(existing) = self.field_intern.get(&key) {
+            return *existing;
+        }
+
+        // insert a new field when no match exists
+        let field_id = self.tree.insert(field);
+        self.field_intern.insert(key, field_id);
+        field_id
+    }
+
+    /// Return a canonical type id for the provided type shape.
+    fn intern_type(&mut self, ty: Type) -> LocalNodeId<Type> {
+        // reuse an existing type when shape matches
+        let key = TypeKey::from_type(&ty);
+        if let Some(existing) = self.type_intern.get(&key) {
+            return *existing;
+        }
+
+        // insert a new type when no match exists
+        let type_id = self.tree.insert(ty);
+        self.type_intern.insert(key, type_id);
+        type_id
     }
 
     /// Parse a value reference (vN).

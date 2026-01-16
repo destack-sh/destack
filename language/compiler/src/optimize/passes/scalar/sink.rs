@@ -660,7 +660,7 @@ block3:
     fn test_preserve_load_with_intervening_store() {
         let input = r#"function @test(v0: ref<raw i32>, v1: bool, v2: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: bool, v2: i32):
-    v3 = load v0
+    v3 = load v0 -> i32
     store v0, v2
     branch v1, block1, block2
 block1:
@@ -681,7 +681,7 @@ block2:
     fn test_sink_load_no_intervening_ops() {
         let input = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
 block0(v0: ref<raw i32>, v1: bool):
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 0i32
     branch v1, block1, block2
 block1:
@@ -696,7 +696,7 @@ block2:
 block0(v0: ref<raw i32>, v1: bool):
     branch v1, block1, block2
 block1:
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
 block2:
     v3 = iconst 0i32

@@ -3,8 +3,8 @@ function @stack_scratch(v0: i64) -> i64 {
 
 // entry, init allocations
 block0(v0: i64):
-    v1 = stack.alloc i64
-    v2 = stack.alloc i64
+    v1 = stack.alloc i64 -> ref<raw i64>
+    v2 = stack.alloc i64 -> ref<raw i64>
     v3 = iconst 0i64
     v4 = iconst 1i64
     store v1, v3
@@ -18,8 +18,8 @@ block1(v5: i64, v6: ref<raw i64>, v7: ref<raw i64>):
 
 // loop body, update memory
 block2:
-    v9 = load v6
-    v10 = load v7
+    v9 = load v6 -> i64
+    v10 = load v7 -> i64
     v11 = iadd v9, v10
     store v6, v10
     store v7, v11
@@ -29,7 +29,7 @@ block2:
 
 // return accumulated value
 block3(v14: ref<raw i64>, v15: ref<raw i64>):
-    v16 = load v15
+    v16 = load v15 -> i64
     stack.drop v14
     stack.drop v15
     return v16

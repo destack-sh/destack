@@ -12,10 +12,9 @@ fn test_load_from_pointer() {
     let mir = r#"
 function @read_ptr(v0: ref<raw i32>) -> i32 {
 block0:
-    v1 = load v0
+    v1 = load v0 -> i32
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -35,11 +34,10 @@ fn test_load_double_indirection() {
     let mir = r#"
 function @read_ptr_ptr(v0: ref<raw ref<raw i32>>) -> i32 {
 block0:
-    v1 = load v0
-    v2 = load v1
+    v1 = load v0 -> ref<raw i32>
+    v2 = load v1 -> i32
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -60,10 +58,9 @@ fn test_load_i64() {
     let mir = r#"
 function @read_ptr64(v0: ref<raw i64>) -> i64 {
 block0:
-    v1 = load v0
+    v1 = load v0 -> i64
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -83,10 +80,9 @@ fn test_load_bool() {
     let mir = r#"
 function @read_bool(v0: ref<raw bool>) -> bool {
 block0:
-    v1 = load v0
+    v1 = load v0 -> bool
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -111,8 +107,7 @@ block0:
     v1 = local.get local0
     v2 = iadd v0, v1
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -143,8 +138,7 @@ block0:
     v3 = local.get local1
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -170,10 +164,9 @@ fn test_load_float() {
     let mir = r#"
 function @read_float(v0: ref<raw f32>) -> f32 {
 block0:
-    v1 = load v0
+    v1 = load v0 -> f32
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

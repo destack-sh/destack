@@ -9,8 +9,7 @@ function @trunc(v0: i64) -> i32 {
 block0(v0: i64):
     v1 = trunc v0 -> i32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "trunc",
@@ -27,8 +26,7 @@ function @trunc(v0: i64) -> i32 {
 block0(v0: i64):
     v1 = trunc v0 -> i32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "trunc", &[Value::int64(-1)], Value::int32(-1));
     run_mir_expect(mir, "trunc", &[Value::int64(-42)], Value::int32(-42));
 }
@@ -41,8 +39,7 @@ function @uext(v0: u8) -> u32 {
 block0(v0: u8):
     v1 = uextend v0 -> u32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "uext", &[Value::uint(200, 8)], Value::uint32(200));
 }
 
@@ -54,8 +51,7 @@ function @sext(v0: i8) -> i32 {
 block0(v0: i8):
     v1 = sextend v0 -> i32
     return v1
-}
-"#;
+}"#;
     // positive value
     run_mir_expect(mir, "sext", &[Value::int(100, 8)], Value::int32(100));
     // negative value: -1 as i8 should become -1 as i32
@@ -72,8 +68,7 @@ function @f2i(v0: f64) -> i32 {
 block0(v0: f64):
     v1 = fcvt_to_sint v0 -> i32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "f2i", &[Value::float64(42.9)], Value::int32(42));
     run_mir_expect(mir, "f2i", &[Value::float64(-42.9)], Value::int32(-42));
 }
@@ -86,8 +81,7 @@ function @f2u(v0: f64) -> u32 {
 block0(v0: f64):
     v1 = fcvt_to_uint v0 -> u32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "f2u", &[Value::float64(42.9)], Value::uint32(42));
 }
 
@@ -99,8 +93,7 @@ function @i2f(v0: i32) -> f64 {
 block0(v0: i32):
     v1 = scvt_to_float v0 -> f64
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "i2f", &[Value::int32(42)], Value::float64(42.0));
     run_mir_expect(mir, "i2f", &[Value::int32(-42)], Value::float64(-42.0));
 }
@@ -113,8 +106,7 @@ function @u2f(v0: u32) -> f64 {
 block0(v0: u32):
     v1 = ucvt_to_float v0 -> f64
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "u2f", &[Value::uint32(42)], Value::float64(42.0));
 }
 
@@ -126,8 +118,7 @@ function @fext(v0: f32) -> f64 {
 block0(v0: f32):
     v1 = fwiden v0 -> f64
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "fext", &[Value::float32(3.5)], Value::float64(3.5));
 }
 
@@ -139,8 +130,7 @@ function @ftrunc(v0: f64) -> f32 {
 block0(v0: f64):
     v1 = fnarrow v0 -> f32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "ftrunc", &[Value::float64(3.5)], Value::float32(3.5));
 }
 
@@ -152,7 +142,6 @@ function @i2f32(v0: i32) -> f32 {
 block0(v0: i32):
     v1 = scvt_to_float v0 -> f32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "i2f32", &[Value::int32(42)], Value::float32(42.0));
 }

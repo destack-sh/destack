@@ -18,7 +18,7 @@ block2:
 
 // merge branch, continue
 block3(v5: i64):
-    v6 = managed.alloc_array i64, v5
+    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
     v7 = iconst 0i64
     v8 = iconst 0i64
     jump block4(v7, v8, v6, v5)
@@ -30,7 +30,7 @@ block4(v9: i64, v10: i64, v11: ref<managed i64>, v12: i64):
 
 // loop body, update aggregates
 block5:
-    v14 = element.addr v11, v9
+    v14 = element.addr v11, v9 -> ref<borrowed i64>
     store v14, v9
     v15 = iconst 1i64
     v16 = iadd v9, v15
@@ -53,8 +53,8 @@ block8:
     v28 = iconst 12345i64
     v29 = iadd v27, v28
     v30 = srem v29, v24
-    v31 = element.addr v23, v30
-    v32 = load v31
+    v31 = element.addr v23, v30 -> ref<borrowed i64>
+    v32 = load v31 -> i64
     v33 = bxor v32, v29
     store v31, v33
     v34 = iadd v22, v33

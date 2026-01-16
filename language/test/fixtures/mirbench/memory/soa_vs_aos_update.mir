@@ -18,11 +18,11 @@ block2:
 // update state, merge branch
 block3(v4: i64):
     v5 = imul v0, v4
-    v6 = managed.alloc_array i64, v5
-    v7 = managed.alloc_array i64, v5
+    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
+    v7 = managed.alloc_array i64, v5 -> ref<managed i64>
     v8 = iconst 2i64
     v9 = imul v5, v8
-    v10 = managed.alloc_array i64, v9
+    v10 = managed.alloc_array i64, v9 -> ref<managed i64>
     v11 = iconst 0i64
     jump block4(v11, v5, v6, v7, v10)
 
@@ -37,15 +37,15 @@ block5:
     v19 = iadd v12, v18
     v20 = iconst 2i64
     v21 = imul v19, v20
-    v22 = element.addr v14, v12
+    v22 = element.addr v14, v12 -> ref<borrowed i64>
     store v22, v19
-    v23 = element.addr v15, v12
+    v23 = element.addr v15, v12 -> ref<borrowed i64>
     store v23, v21
     v24 = imul v12, v20
-    v25 = element.addr v16, v24
+    v25 = element.addr v16, v24 -> ref<borrowed i64>
     store v25, v19
     v26 = iadd v24, v18
-    v27 = element.addr v16, v26
+    v27 = element.addr v16, v26 -> ref<borrowed i64>
     store v27, v21
     v28 = iadd v12, v18
     jump block4(v28, v13, v14, v15, v16)
@@ -63,19 +63,19 @@ block7(v35: i64, v36: i64, v37: i64, v38: ref<managed i64>, v39: ref<managed i64
 
 // loop body, update aggregates
 block8:
-    v42 = element.addr v38, v35
-    v43 = load v42
-    v44 = element.addr v39, v35
-    v45 = load v44
+    v42 = element.addr v38, v35 -> ref<borrowed i64>
+    v43 = load v42 -> i64
+    v44 = element.addr v39, v35 -> ref<borrowed i64>
+    v45 = load v44 -> i64
     v46 = iadd v43, v45
     v47 = iconst 2i64
     v48 = imul v35, v47
-    v49 = element.addr v40, v48
-    v50 = load v49
+    v49 = element.addr v40, v48 -> ref<borrowed i64>
+    v50 = load v49 -> i64
     v51 = iconst 1i64
     v52 = iadd v48, v51
-    v53 = element.addr v40, v52
-    v54 = load v53
+    v53 = element.addr v40, v52 -> ref<borrowed i64>
+    v54 = load v53 -> i64
     v55 = iadd v50, v54
     v56 = iadd v46, v55
     v57 = iadd v36, v56

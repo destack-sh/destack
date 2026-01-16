@@ -16,8 +16,7 @@ block1:
 block2:
     v2 = iconst 0i32
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -50,8 +49,7 @@ block0:
 block1:
     v0 = iconst 42i32
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -84,8 +82,7 @@ block2:
     jump block3(v2)
 block3(v3: i32):
     return v3
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -124,8 +121,7 @@ block2:
 block3:
     v3 = iconst 0i32
     return v3
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -165,8 +161,7 @@ block2:
     v3 = iconst 3i32
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

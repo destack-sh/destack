@@ -131,7 +131,7 @@ fn test_roundtrip_managed_alloc() {
     roundtrip(
         r#"function @allocTest() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     return v0
 }"#,
     );
@@ -142,7 +142,7 @@ fn test_roundtrip_managed_alloc_array() {
     roundtrip(
         r#"function @arrayAlloc(v0: i64) -> ref<managed i32> {
 block0(v0: i64):
-    v1 = managed.alloc_array i32, v0
+    v1 = managed.alloc_array i32, v0 -> ref<managed i32>
     return v1
 }"#,
     );
@@ -153,7 +153,7 @@ fn test_roundtrip_raw_alloc_and_free() {
     roundtrip(
         r#"function @rawAlloc() -> void {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     raw.free v0
     return
 }"#,
@@ -165,7 +165,7 @@ fn test_roundtrip_stack_alloc() {
     roundtrip(
         r#"function @stackAlloc() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     return v0
 }"#,
     );
@@ -187,7 +187,7 @@ fn test_roundtrip_nullable_ref() {
     roundtrip(
         r#"function @nullableTest() -> ref?<managed i32> {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     return v0
 }"#,
     );
@@ -369,7 +369,7 @@ fn test_roundtrip_load_store() {
     roundtrip(
         r#"function @loadStoreTest(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     v2 = iconst 42i32
     store v0, v2
     return v1
@@ -475,7 +475,7 @@ fn test_roundtrip_call_indirect() {
     roundtrip(
         r#"function @indirectCallTest(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
     );

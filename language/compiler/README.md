@@ -108,6 +108,8 @@ Security relevant guarantees include:
 
 - parse and resolve must be total and defensive on malformed input
 - MIR must be validated before execution, optimization, or codegen
+- Core MIR requires explicit pointer result types and `call.indirect` signatures
+- Optimizable MIR invariants are required and validated for O2 and higher
 - optimization passes must not assume earlier passes succeeded without verification
 - comptime execution runs in the VM with strict limits and no ambient host access
 - codegen must emit versioned metadata for safepoints, deopt, and stack maps

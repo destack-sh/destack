@@ -40,8 +40,8 @@ block7:
 
 // merge branches, continue
 block8(v11: i64):
-    v12 = managed.alloc_array i64, v8
-    v13 = managed.alloc_array i64, v11
+    v12 = managed.alloc_array i64, v8 -> ref<managed i64>
+    v13 = managed.alloc_array i64, v11 -> ref<managed i64>
     v14 = iconst 0i64
     jump block9(v14, v13, v11, v3)
 
@@ -57,7 +57,7 @@ block10:
     v22 = iadd v21, v18
     v23 = iconst 255i64
     v24 = band v22, v23
-    v25 = element.addr v16, v15
+    v25 = element.addr v16, v15 -> ref<borrowed i64>
     store v25, v24
     v26 = iconst 1i64
     v27 = iadd v15, v26
@@ -109,7 +109,7 @@ block14:
 block15:
     v54 = imul v41, v46
     v55 = srem v54, v47
-    v56 = element.addr v43, v55
+    v56 = element.addr v43, v55 -> ref<borrowed i64>
     v57 = intrinsic.memcmp(v56, v44, v46)
     v58 = sextend v57 -> i64
     v59 = iadd v42, v58
@@ -125,8 +125,8 @@ block16(v61: i64, v62: i64, v63: i64, v64: ref<managed i64>, v65: i64, v66: i64,
 // base case check
 block17:
     v69 = iadd v63, v61
-    v70 = element.addr v64, v69
-    v71 = load v70
+    v70 = element.addr v64, v69 -> ref<borrowed i64>
+    v71 = load v70 -> i64
     v72 = icmp_eq v71, v66
     branch v72, block18, block22
 

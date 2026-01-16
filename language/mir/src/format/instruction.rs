@@ -156,6 +156,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::GlobalAddr {
                 destination,
                 global,
+                result_type,
             } => {
                 write!(
                     f,
@@ -168,7 +169,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space()
                     ]
                 )?;
-                format_global_reference(*global, f)
+                format_global_reference(*global, f)?;
+                write!(f, [space(), token("->"), space(), result_type])
             }
 
             Instruction::GlobalConst {
@@ -192,6 +194,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::Load {
                 destination,
                 pointer,
+                result_type,
             } => {
                 write!(
                     f,
@@ -202,7 +205,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("load"),
                         space(),
-                        pointer
+                        pointer,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -248,6 +255,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 aggregate,
                 index,
+                result_type,
             } => {
                 write!(
                     f,
@@ -261,7 +269,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         aggregate,
                         token(","),
                         space(),
-                        text(&index.to_string())
+                        text(&index.to_string()),
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -318,6 +330,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 array,
                 index,
+                result_type,
             } => {
                 write!(
                     f,
@@ -331,7 +344,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         array,
                         token(","),
                         space(),
-                        index
+                        index,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -446,18 +463,21 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 callee,
                 arguments,
+                signature,
             } => {
                 if let Some(dst) = destination {
                     write!(f, [dst, space(), token("="), space()])?;
                 }
                 write!(f, [token("call.indirect"), space(), callee])?;
                 let args = f.context().tree.get_arguments(*arguments);
-                format_value_list(args, f)
+                format_value_list(args, f)?;
+                write!(f, [space(), token("->"), space(), signature])
             }
 
             Instruction::ManagedAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 write!(
                     f,
@@ -468,7 +488,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("managed.alloc"),
                         space(),
-                        layout
+                        layout,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -477,6 +501,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 element,
                 length,
+                result_type,
             } => {
                 write!(
                     f,
@@ -490,7 +515,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         element,
                         token(","),
                         space(),
-                        length
+                        length,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -498,6 +527,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::RawAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 write!(
                     f,
@@ -508,7 +538,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("raw.alloc"),
                         space(),
-                        layout
+                        layout,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }
@@ -520,6 +554,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
             Instruction::StackAlloc {
                 destination,
                 layout,
+                result_type,
             } => {
                 write!(
                     f,
@@ -530,7 +565,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("stack.alloc"),
                         space(),
-                        layout
+                        layout,
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
                     ]
                 )
             }

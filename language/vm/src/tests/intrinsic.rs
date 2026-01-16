@@ -13,8 +13,7 @@ function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = intrinsic.clz(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x00800000)], Value::uint32(8));
 }
 
@@ -26,8 +25,7 @@ function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = intrinsic.ctz(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x80)], Value::uint32(7));
 }
 
@@ -39,8 +37,7 @@ function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = intrinsic.popcnt(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::uint32(0xFF)], Value::uint32(8));
 }
 
@@ -52,8 +49,7 @@ function @test(v0: u32) -> u32 {
 block0(v0: u32):
     v1 = intrinsic.byte_swap(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -70,8 +66,7 @@ function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = intrinsic.rotate_left(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -88,8 +83,7 @@ function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = intrinsic.rotate_right(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -109,8 +103,7 @@ block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
     v3 = field.get v2, 0
     return v3
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "test_result", &[Value::int32(10), Value::int32(20)]);
     assert_eq!(output.value, Value::int32(30));
 
@@ -121,8 +114,7 @@ block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
     v3 = field.get v2, 1
     return v3
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "test_flag", &[Value::int32(10), Value::int32(20)]);
     assert_eq!(output.value, Value::bool(false));
 }
@@ -136,8 +128,7 @@ block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
     v3 = field.get v2, 1
     return v3
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
     assert_eq!(
         output.value,
@@ -155,8 +146,7 @@ block0(v0: u32, v1: u32):
     v2 = intrinsic.sub.overflow(v0, v1)
     v3 = field.get v2, 1
     return v3
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
     assert_eq!(
         output.value,
@@ -175,8 +165,7 @@ function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.add.sat(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -193,8 +182,7 @@ function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = intrinsic.sub.sat(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -212,8 +200,7 @@ function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.add.unchecked(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -229,8 +216,7 @@ function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.div.unchecked(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -246,8 +232,7 @@ function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.div.unchecked(v0, v1)
     return v2
-}
-"#;
+}"#;
     let result = run_mir(mir, "test", &[Value::int32(100), Value::int32(0)]);
     assert!(result.is_err(), "expected division by zero error");
 }
@@ -261,8 +246,7 @@ function @test(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = intrinsic.sqrt(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::float64(16.0)], Value::float64(4.0));
 }
 
@@ -273,8 +257,7 @@ function @test(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = intrinsic.abs(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::float64(-42.5)], Value::float64(42.5));
 }
 
@@ -285,8 +268,7 @@ function @test(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = intrinsic.floor(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::float64(3.7)], Value::float64(3.0));
 }
 
@@ -297,8 +279,7 @@ function @test(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = intrinsic.ceil(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::float64(3.2)], Value::float64(4.0));
 }
 
@@ -309,8 +290,7 @@ function @test(v0: f64) -> f64 {
 block0(v0: f64):
     v1 = intrinsic.round(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::float64(3.5)], Value::float64(4.0));
 }
 
@@ -321,8 +301,7 @@ function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = intrinsic.min(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -338,8 +317,7 @@ function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = intrinsic.max(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -355,8 +333,7 @@ function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = intrinsic.pow(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -373,8 +350,7 @@ function @test(v0: f64, v1: f64, v2: f64) -> f64 {
 block0(v0: f64, v1: f64, v2: f64):
     v3 = intrinsic.fma(v0, v1, v2)
     return v3
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -398,8 +374,7 @@ block0(v0: f64):
     v2 = intrinsic.cos(v0)
     v3 = fadd v1, v2
     return v3
-}
-"#;
+}"#;
     // sin(0) = 0, cos(0) = 1, so result = 1
     run_mir_expect(mir, "test", &[Value::float64(0.0)], Value::float64(1.0));
 }
@@ -413,8 +388,7 @@ function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = intrinsic.likely(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
 }
 
@@ -425,8 +399,7 @@ function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = intrinsic.unlikely(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
 }
 
@@ -437,8 +410,7 @@ function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = intrinsic.black_box(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
@@ -451,8 +423,7 @@ function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.raw_eq(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -468,8 +439,7 @@ function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.raw_eq(v0, v1)
     return v2
-}
-"#;
+}"#;
     run_mir_expect(
         mir,
         "test",
@@ -488,8 +458,7 @@ function @test(v0: i32) -> i32 {
 block0(v0: i32):
     intrinsic.breakpoint()
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
@@ -500,8 +469,7 @@ function @test(v0: i32) -> i32 {
 block0(v0: i32):
     intrinsic.unreachable()
     return v0
-}
-"#;
+}"#;
     let result = run_mir(mir, "test", &[Value::int32(42)]);
     assert!(result.is_err(), "expected unreachable error");
 }
@@ -513,8 +481,7 @@ function @test(v0: i32) -> i32 {
 block0(v0: i32):
     intrinsic.abort()
     return v0
-}
-"#;
+}"#;
     let result = run_mir(mir, "test", &[Value::int32(42)]);
     assert!(result.is_err(), "expected abort error");
 }
@@ -529,8 +496,7 @@ function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = intrinsic.transmute(v0)
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
 }
 
@@ -550,8 +516,7 @@ function @test() -> u64 {
 block0:
     v0 = call @inner()
     return v0
-}
-"#;
+}"#;
     // should return non-zero since there's a caller
     let output = run_mir_ok(mir, "test", &[]);
     let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
@@ -567,8 +532,7 @@ function @test() -> u64 {
 block0:
     v0 = intrinsic.return_address()
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[], Value::uint64(0));
 }
 
@@ -586,8 +550,7 @@ function @test() -> u64 {
 block0:
     v0 = call @inner()
     return v0
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "test", &[]);
     let (value, width) = output.value.as_uint_with_width().expect("expected UInt");
     assert_eq!(width, 64);
@@ -607,8 +570,7 @@ function @test(v0: (i32, i32, i32, i32)) -> i32 {
 block0(v0: (i32, i32, i32, i32)):
     v1 = intrinsic.reduce.add(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -631,8 +593,7 @@ function @test(v0: (i32, i32, i32, i32)) -> i32 {
 block0(v0: (i32, i32, i32, i32)):
     v1 = intrinsic.reduce.mul(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -655,8 +616,7 @@ function @test(v0: (i32, i32, i32, i32)) -> i32 {
 block0(v0: (i32, i32, i32, i32)):
     v1 = intrinsic.reduce.min(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -679,8 +639,7 @@ function @test(v0: (i32, i32, i32, i32)) -> i32 {
 block0(v0: (i32, i32, i32, i32)):
     v1 = intrinsic.reduce.max(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -703,8 +662,7 @@ function @test(v0: (u32, u32, u32, u32)) -> u32 {
 block0(v0: (u32, u32, u32, u32)):
     v1 = intrinsic.reduce.and(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -727,8 +685,7 @@ function @test(v0: (u32, u32, u32, u32)) -> u32 {
 block0(v0: (u32, u32, u32, u32)):
     v1 = intrinsic.reduce.or(v0)
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(
             interp,
@@ -751,8 +708,7 @@ function @test(v0: (u32, u32, u32, u32)) -> u32 {
 block0(v0: (u32, u32, u32, u32)):
     v1 = intrinsic.reduce.xor(v0)
     return v1
-}
-"#;
+}"#;
     // 1 ^ 2 ^ 3 ^ 4 = 4
     let output = run_mir_with_ok(mir, "test", |interp| {
         let input = create_aggregate(

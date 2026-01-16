@@ -1232,6 +1232,7 @@ fn transform_sibling_tail_call(
             destination,
             callee,
             arguments,
+            signature,
         } => {
             // return value must match call result
             let is_tail_position = match (destination, returned_value) {
@@ -1256,6 +1257,7 @@ fn transform_sibling_tail_call(
             let new_terminator = mir::Terminator::TailCallIndirect {
                 callee: callee_value,
                 arguments: call_args,
+                signature: *signature,
             };
 
             let mut new_block = block.clone();
@@ -1957,12 +1959,12 @@ block2:
         // indirect call in tail position becomes tailcall.indirect
         let input = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
         let expected = r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    tailcall.indirect v0(v1)
+    tailcall.indirect v0(v1) -> fn(i32) -> i32
 }"#;
 
         let mut program = TestProgram::new(input);

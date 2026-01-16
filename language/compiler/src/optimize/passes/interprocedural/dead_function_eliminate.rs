@@ -386,7 +386,7 @@ extern function @dead() -> void"#;
     fn test_dead_function_eliminate_unknown_indirect() {
         let input = r#"export function @root(v0: fn() -> void) -> void {
 block0(v0: fn() -> void):
-    call.indirect v0()
+    call.indirect v0() -> fn() -> void
     return
 }
 function @live() -> void {
@@ -425,7 +425,7 @@ block0:
     fn test_dead_function_eliminate_signature_indirect() {
         let input = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return
 }
 function @keep(v0: i32) -> i32 {
@@ -461,7 +461,7 @@ block0(v0: i64):
         program.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return
 }
 function @keep(v0: i32) -> i32 {
@@ -478,7 +478,7 @@ extern function @drop(i64) -> i64"#;
     fn test_dead_function_eliminate_tailcall_indirect() {
         let input = r#"export function @root(v0: fn() -> void) -> void {
 block0(v0: fn() -> void):
-    tailcall.indirect v0()
+    tailcall.indirect v0() -> fn() -> void
 }
 function @live() -> void {
 block0:

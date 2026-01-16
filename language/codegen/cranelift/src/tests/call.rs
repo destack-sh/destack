@@ -18,8 +18,7 @@ function @caller() -> i32 {
 block0:
     v0 = call @callee()
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // cranelift declares the signature separately with "sigN = ..."
@@ -59,8 +58,7 @@ block0:
     v1 = iconst 20i32
     v2 = call @add(v0, v1)
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -97,8 +95,7 @@ function @caller() -> void {
 block0:
     call @void_fn()
     return
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // void calls don't produce a value, so no "v0 =" prefix
@@ -135,8 +132,7 @@ block0:
     v1 = call @double(v0)
     v2 = call @double(v1)
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -177,8 +173,7 @@ block2:
     v4 = call @factorial(v3)
     v5 = imul v0, v4
     return v5
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // recursive call: function calls itself

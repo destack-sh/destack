@@ -243,8 +243,8 @@ mod tests {
 global @g2: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g1
-    v1 = global.addr @g2
+    v0 = global.addr @g1 -> ref<raw i32>
+    v1 = global.addr @g2 -> ref<raw i32>
     v2 = iconst 1i32
     store v0, v2
     store v1, v2
@@ -268,8 +268,8 @@ block0:
             r#"global @g: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g
-    v1 = global.addr @g
+    v0 = global.addr @g -> ref<raw i32>
+    v1 = global.addr @g -> ref<raw i32>
     return
 }"#,
         );
@@ -290,8 +290,8 @@ block0:
             r#"global @g: i32 = 0i32
 function @test() -> i32 {
 block0:
-    v0 = global.addr @g
-    v1 = load v0
+    v0 = global.addr @g -> ref<raw i32>
+    v1 = load v0 -> i32
     return v1
 }"#,
         );
@@ -312,7 +312,7 @@ block0:
             r#"global @g: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g
+    v0 = global.addr @g -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     return
@@ -336,7 +336,7 @@ block0:
 extern function @external(ref<raw i32>) -> void
 function @test() -> void {
 block0:
-    v0 = global.addr @g
+    v0 = global.addr @g -> ref<raw i32>
     call @external(v0)
     return
 }"#,
@@ -364,7 +364,7 @@ block0:
             r#"global @g: i32 = 0i32
 function @test(v0: ref<raw ref<raw i32>>) -> void {
 block0(v0: ref<raw ref<raw i32>>):
-    v1 = global.addr @g
+    v1 = global.addr @g -> ref<raw i32>
     store v0, v1
     return
 }"#,
@@ -387,7 +387,7 @@ block0(v0: ref<raw ref<raw i32>>):
             r#"global @g: i32 = 0i32
 function @test(v0: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>):
-    v1 = global.addr @g
+    v1 = global.addr @g -> ref<raw i32>
     v2 = iconst 42i32
     store v1, v2
     return
@@ -416,8 +416,8 @@ block0(v0: ref<raw i32>):
 global @g: @Point = { 0i32, 0i32 }
 function @test() -> void {
 block0:
-    v0 = global.addr @g
-    v1 = field.addr v0, 0
+    v0 = global.addr @g -> ref<raw @Point>
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
     return

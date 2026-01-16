@@ -533,7 +533,11 @@ fn collect_non_escaping_stack_allocs(
                     record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
-            mir::Terminator::TailCallIndirect { callee, arguments } => {
+            mir::Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                ..
+            } => {
                 record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
                 for &arg in arguments {
                     record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
@@ -912,21 +916,21 @@ mod tests {
     fn test_remove_overwritten_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     store v0, v1
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
 
@@ -942,13 +946,13 @@ block0:
     fn test_preserve_read_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 2i32
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
 }"#;
 
@@ -964,7 +968,7 @@ block0:
     fn test_remove_store_to_unused_alloc() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     v2 = iconst 0i32
@@ -972,7 +976,7 @@ block0:
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     v2 = iconst 0i32
     return v2
@@ -988,12 +992,12 @@ block0:
     fn test_preserve_volatile_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     store v0, v1
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
 
@@ -1020,7 +1024,7 @@ block0:
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     call @external(v0)
@@ -1038,7 +1042,7 @@ block0:
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     call @external(v0)
@@ -1048,7 +1052,7 @@ block0:
         let expected = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     call @external(v0)
     v2 = iconst 0i32
@@ -1087,24 +1091,24 @@ block0:
     fn test_multiple_overwrites() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     store v0, v1
     v2 = iconst 2i32
     store v0, v2
     v3 = iconst 3i32
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     v2 = iconst 2i32
     v3 = iconst 3i32
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
 }"#;
 
@@ -1136,14 +1140,14 @@ block0:
     fn test_different_locations() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 1i32
     store v0, v2
     v3 = iconst 2i32
     store v1, v3
-    v4 = load v0
-    v5 = load v1
+    v4 = load v0 -> i32
+    v5 = load v1 -> i32
     v6 = iadd v4, v5
     return v6
 }"#;
@@ -1162,7 +1166,7 @@ block0:
         let input = r#"extern function @read_value(ref<raw i32>) -> i32
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     v2 = call @read_value(v0)
@@ -1183,24 +1187,24 @@ block0:
         let input = r#"extern function @side_effect() -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     call @side_effect()
     v1 = iconst 1i32
     store v0, v1
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = r#"extern function @side_effect() -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     call @side_effect()
     v1 = iconst 1i32
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
 
@@ -1216,7 +1220,7 @@ block0:
     fn test_preserve_store_to_returned() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     return v0
@@ -1232,7 +1236,7 @@ block0:
     fn test_preserve_store_returned_aggregate() {
         let input = r#"function @test() -> (ref<raw i32>, i32) {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     v2 = iconst 0i32
@@ -1251,8 +1255,8 @@ block0:
         let input = r#"type @Pair = { i32, i32 }
 function @test(v0: ref<raw @Pair>) -> void {
 block0(v0: ref<raw @Pair>):
-    v1 = field.addr v0, 0
-    v2 = field.addr v0, 1
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v2 = field.addr v0, 1 -> ref<borrowed i32>
     v3 = iconst 1i32
     v4 = iconst 2i32
     store v1, v3
@@ -1270,7 +1274,7 @@ block0(v0: ref<raw @Pair>):
     fn test_preserve_partial_overwrite() {
         let input = r#"function @test() -> ref<raw i64> {
 block0:
-    v0 = stack.alloc i64
+    v0 = stack.alloc i64 -> ref<raw i64>
     v1 = iconst 0i64
     store v0, v1
     v2 = iconst 1i32
@@ -1297,7 +1301,7 @@ block0:
     fn test_remove_dead_memset() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 0i8
     v2 = iconst 4i64
     intrinsic.memset(v0, v1, v2)
@@ -1305,7 +1309,7 @@ block0:
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 0i8
     v2 = iconst 4i64
     return
@@ -1321,11 +1325,11 @@ block0:
     fn test_preserve_memset_with_read() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 0i8
     v2 = iconst 4i64
     intrinsic.memset(v0, v1, v2)
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = input;
@@ -1341,16 +1345,16 @@ block0:
         // input program
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     return
 }"#;
@@ -1367,11 +1371,11 @@ block0:
         // input program
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = input;
@@ -1388,16 +1392,16 @@ block0:
         // input program
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     return
 }"#;
@@ -1414,11 +1418,11 @@ block0:
         // input program
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 4i64
     intrinsic.memmove(v0, v1, v2)
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = input;
@@ -1597,25 +1601,25 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_cross_block_overwritten() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     store v0, v1
     jump block1
 block1:
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     jump block1
 block1:
     v2 = iconst 2i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
 
@@ -1631,17 +1635,17 @@ block1:
     fn test_preserve_cross_block_read_on_path() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 1i32
     store v1, v2
     branch v0, block1, block2
 block1:
-    v3 = load v1
+    v3 = load v1 -> i32
     return v3
 block2:
     v4 = iconst 2i32
     store v1, v4
-    v5 = load v1
+    v5 = load v1 -> i32
     return v5
 }"#;
 
@@ -1658,7 +1662,7 @@ block2:
     fn test_preserve_switch_escape() {
         let input = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = stack.alloc i32
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 42i32
     store v1, v2
     switch v0, block1(v1), 0 => block2

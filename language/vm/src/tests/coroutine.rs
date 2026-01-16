@@ -14,8 +14,7 @@ block0(v0: i32):
 block1(v2: i32, v3: i32):
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -54,8 +53,7 @@ block0(v0: i32):
     yield v1, block1(v0)
 block1(v2: i32):
     return v2
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -98,8 +96,7 @@ block1(v2: i32, v3: i32):
 block2(v5: i32, v6: i32):
     v7 = iadd v5, v6
     return v7
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -150,8 +147,7 @@ block0(v0: i32):
     yield v1, block1
 block1(v2: i32):
     return v2
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -195,8 +191,7 @@ block1(v2: i32):
     v3 = local.get local0
     v4 = iadd v3, v2
     return v4
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -238,8 +233,7 @@ block1(v3: i32, v4: i32, v5: i32):
     v6 = iadd v3, v4
     v7 = iadd v6, v5
     return v7
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -286,8 +280,7 @@ block2(v8: i32, v9: i32, v10: i32):
     yield v11, block1(v8)
 block3(v12: i32):
     return v12
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -334,8 +327,7 @@ block0(v0: i32):
     v1 = call @yield_inner(v0)
     v2 = iadd v1, v0
     return v2
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -375,8 +367,7 @@ block0(v0: i32):
 block1(v2: i32, v3: i32):
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -401,8 +392,7 @@ block0(v0: i32):
 block1(v2: i32, v3: i32):
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -438,8 +428,7 @@ block0:
     yield v0, block1
 block1(v1: i32):
     return v1
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);
@@ -493,8 +482,7 @@ block0:
     yield v0, block1(v2)
 block1(v3: @Pair, v4: i32):
     return v4
-}
-"#;
+}"#;
 
     // create isolate
     let mut isolate = super::create_isolate(mir);

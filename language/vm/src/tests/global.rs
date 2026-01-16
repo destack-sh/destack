@@ -12,8 +12,7 @@ function @read() -> i32 {
 block0:
     v0 = global.const @value
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "read", &[], Value::int32(42));
 }
 
@@ -25,15 +24,14 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter
-    v1 = load v0
+    v0 = global.addr @counter -> ref<raw mut i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
-}
-"#;
+}"#;
     run_mir_expect(mir, "increment", &[], Value::int32(1));
 }
 
@@ -45,12 +43,11 @@ global @CONST: i32 = 42i32 ; const
 
 function @bad_write() -> void {
 block0:
-    v0 = global.addr @CONST
+    v0 = global.addr @CONST -> ref<raw i32>
     v1 = iconst 99i32
     store v0, v1
     return
-}
-"#;
+}"#;
     let result = run_mir(mir, "bad_write", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -65,8 +62,8 @@ global @counter: i32 = 0i32 ; mut
 
 function @inc() -> void {
 block0:
-    v0 = global.addr @counter
-    v1 = load v0
+    v0 = global.addr @counter -> ref<raw mut i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
     store v0, v3
@@ -75,8 +72,8 @@ block0:
 
 function @get() -> i32 {
 block0:
-    v0 = global.addr @counter
-    v1 = load v0
+    v0 = global.addr @counter -> ref<raw mut i32>
+    v1 = load v0 -> i32
     return v1
 }
 
@@ -87,8 +84,7 @@ block0:
     call @inc()
     v0 = call @get()
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "main", &[], Value::int32(3));
 }
 
@@ -100,11 +96,10 @@ global @data: i32 = zeroinit ; mut
 
 function @read() -> i32 {
 block0:
-    v0 = global.addr @data
-    v1 = load v0
+    v0 = global.addr @data -> ref<raw mut i32>
+    v1 = load v0 -> i32
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "read", &[], Value::int32(0));
 }
 
@@ -116,11 +111,10 @@ global @data: f64 = zeroinit ; mut
 
 function @read() -> f64 {
 block0:
-    v0 = global.addr @data
-    v1 = load v0
+    v0 = global.addr @data -> ref<raw mut f64>
+    v1 = load v0 -> f64
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "read", &[], Value::float64(0.0));
 }
 
@@ -132,11 +126,10 @@ global @flag: bool = zeroinit ; mut
 
 function @read() -> bool {
 block0:
-    v0 = global.addr @flag
-    v1 = load v0
+    v0 = global.addr @flag -> ref<raw mut bool>
+    v1 = load v0 -> bool
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "read", &[], Value::bool(false));
 }
 
@@ -151,8 +144,7 @@ block0:
     v0 = global.const @pair
     v1 = field.get v0, 1
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "get_second", &[], Value::int32(20));
 }
 
@@ -168,13 +160,12 @@ function @sum() -> i32 {
 block0:
     v0 = global.const @a
     v1 = global.const @b
-    v2 = global.addr @c
-    v3 = load v2
+    v2 = global.addr @c -> ref<raw mut i32>
+    v3 = load v2 -> i32
     v4 = iadd v0, v1
     v5 = iadd v4, v3
     return v5
-}
-"#;
+}"#;
     run_mir_expect(mir, "sum", &[], Value::int32(60));
 }
 
@@ -186,17 +177,16 @@ global @value: i32 = 0i32 ; mut
 
 function @test() -> i32 {
 block0:
-    v0 = global.addr @value
+    v0 = global.addr @value -> ref<raw mut i32>
     v1 = iconst 10i32
     store v0, v1
     v2 = iconst 20i32
     store v0, v2
     v3 = iconst 30i32
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
-}
-"#;
+}"#;
     run_mir_expect(mir, "test", &[], Value::int32(30));
 }
 
@@ -210,8 +200,7 @@ function @read() -> i32 {
 block0:
     v0 = global.const @neg
     return v0
-}
-"#;
+}"#;
     run_mir_expect(mir, "read", &[], Value::int32(-42));
 }
 
@@ -226,8 +215,7 @@ function @read() -> f64 {
 block0:
     v0 = global.const @pi
     return v0
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "read", &[]);
     let f = output.value.as_float64().expect("expected Float64");
     assert!((f - 3.14159).abs() < 0.0001);
@@ -241,13 +229,12 @@ global @flag: bool = true ; mut
 
 function @toggle() -> bool {
 block0:
-    v0 = global.addr @flag
-    v1 = load v0
+    v0 = global.addr @flag -> ref<raw mut bool>
+    v1 = load v0 -> bool
     v2 = bnot v1
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> bool
     return v3
-}
-"#;
+}"#;
     run_mir_expect(mir, "toggle", &[], Value::bool(false));
 }

@@ -132,6 +132,8 @@ pub enum Instruction {
         destination: Value,
         /// The global variable to get the address of.
         global: LocalNodeId<Global>,
+        /// The result type of the address.
+        result_type: LocalNodeId<Type>,
     },
     /// Load the value of an immutable global constant.
     /// Returns the constant value directly.
@@ -151,6 +153,8 @@ pub enum Instruction {
         destination: Value,
         /// The pointer to load from.
         pointer: Value,
+        /// The loaded value type.
+        result_type: LocalNodeId<Type>,
     },
     /// Store to a pointer (write through pointer).
     ///
@@ -180,6 +184,8 @@ pub enum Instruction {
         aggregate: Value,
         /// The zero-based field index.
         index: u32,
+        /// The result type of the address.
+        result_type: LocalNodeId<Type>,
     },
     /// Insert a value into a struct or tuple field (field.set).
     FieldSet {
@@ -209,6 +215,8 @@ pub enum Instruction {
         array: Value,
         /// The index of the element (runtime value).
         index: Value,
+        /// The result type of the address.
+        result_type: LocalNodeId<Type>,
     },
     /// Insert a value into an array element (element.set).
     ElementSet {
@@ -277,6 +285,8 @@ pub enum Instruction {
         callee: Value,
         /// The arguments to pass (stored in NodeTree's argument buffer).
         arguments: ArgumentSlice,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
     },
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
@@ -287,6 +297,8 @@ pub enum Instruction {
         destination: Value,
         /// The type of the struct to allocate.
         layout: LocalNodeId<Type>,
+        /// The result type of the allocation.
+        result_type: LocalNodeId<Type>,
     },
     /// Allocate a managed array (managed.alloc_array).
     /// Returns a `ref<managed [T]>`.
@@ -297,6 +309,8 @@ pub enum Instruction {
         element: LocalNodeId<Type>,
         /// The number of elements (runtime value).
         length: Value,
+        /// The result type of the allocation.
+        result_type: LocalNodeId<Type>,
     },
 
     // allocation (raw - manual memory management: raw.alloc, raw.free, raw.drop)
@@ -307,6 +321,8 @@ pub enum Instruction {
         destination: Value,
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
+        /// The result type of the allocation.
+        result_type: LocalNodeId<Type>,
     },
     /// Free raw heap memory previously allocated with `raw.alloc` (raw.free).
     /// User-inserted for manual memory management (FFI, etc).
@@ -330,6 +346,8 @@ pub enum Instruction {
         destination: Value,
         /// The type of the value to allocate.
         layout: LocalNodeId<Type>,
+        /// The result type of the allocation.
+        result_type: LocalNodeId<Type>,
     },
     /// Mark a stack value's lifetime as ended (stack.drop).
     /// Compiler-inserted for NLL. No deallocation (frame handles it).

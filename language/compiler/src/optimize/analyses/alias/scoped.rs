@@ -223,7 +223,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>):
-    v1 = stack.alloc i32
+    v1 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 1i32
     store v0, v2
     store v1, v2
@@ -249,8 +249,8 @@ block0(v0: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> void {
 block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
-    v2 = load v0
-    v3 = load v1
+    v2 = load v0 -> i32
+    v3 = load v1 -> i32
     return
 }"#,
         );
@@ -276,7 +276,7 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
     v2 = iconst 1i32
     store v0, v2
-    v3 = load v1
+    v3 = load v1 -> i32
     return
 }"#,
         );
@@ -301,7 +301,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
             r#"type @Point = { i32, i32 }
 function @test(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
-    v2 = field.addr v0, 0
+    v2 = field.addr v0, 0 -> ref<borrowed i32>
     v3 = iconst 1i32
     store v2, v3
     store v1, v3

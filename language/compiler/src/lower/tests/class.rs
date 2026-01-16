@@ -66,9 +66,9 @@ function sumBox(value: int32): int32 {
 function @sumBox(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = struct { value: i32 } (v0)
-    v2 = managed.alloc { value: i32 }
+    v2 = managed.alloc { value: i32 } -> ref<managed { value: i32 }>
     store v2, v1
-    v3 = load v2
+    v3 = load v2 -> { value: i32 }
     v4 = field.get v3, 0
     v5 = iconst 1i32
     v6 = trunc v5 -> i32

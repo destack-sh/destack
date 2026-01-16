@@ -645,7 +645,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -669,7 +669,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -685,7 +685,7 @@ block7:
     v14 = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12
+    v15 = element.addr v0, v12 -> ref<borrowed u8>
     v16 = iconst 1u8
     store v15, v16
     v17 = iadd v12, v4
@@ -712,7 +712,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -736,7 +736,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -752,7 +752,7 @@ block7:
     v14 = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12
+    v15 = element.addr v0, v12 -> ref<borrowed u8>
     v16 = iconst 1u8
     store v15, v16
     v17 = iadd v12, v4
@@ -781,7 +781,7 @@ block2:
 block3:
     return
 block4:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed i32>
     v9 = iconst 1i32
     store v8, v9
     v10 = iadd v5, v4
@@ -812,7 +812,7 @@ block2:
 block3:
     return
 block4:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -841,7 +841,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block4, block5
 block4:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -865,7 +865,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4
@@ -881,7 +881,7 @@ block7:
     v14 = icmp_ult v12, v1
     jump block8
 block8:
-    v15 = element.addr v0, v12
+    v15 = element.addr v0, v12 -> ref<borrowed u8>
     v16 = iconst 1u8
     store v15, v16
     v17 = iadd v12, v4
@@ -908,7 +908,7 @@ block2:
     v7 = icmp_ult v5, v1
     check v7, bounds.unsigned v5, v1, v0, block3, block4
 block3:
-    v8 = element.addr v0, v5
+    v8 = element.addr v0, v5 -> ref<borrowed u8>
     v9 = iconst 1u8
     store v8, v9
     v10 = iadd v5, v4

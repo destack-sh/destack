@@ -44,15 +44,15 @@ block0(
     v4: fn(i64, i64) -> i64
 ):
     v5 = iconst 3i64
-    v6 = managed.alloc_array fn(i64, i64) -> i64, v5
+    v6 = managed.alloc_array fn(i64, i64) -> i64, v5 -> ref<managed fn(i64, i64) -> i64>
     v7 = iconst 0i64
-    v8 = element.addr v6, v7
+    v8 = element.addr v6, v7 -> ref<borrowed fn(i64, i64) -> i64>
     store v8, v2
     v9 = iconst 1i64
-    v10 = element.addr v6, v9
+    v10 = element.addr v6, v9 -> ref<borrowed fn(i64, i64) -> i64>
     store v10, v3
     v11 = iconst 2i64
-    v12 = element.addr v6, v11
+    v12 = element.addr v6, v11 -> ref<borrowed fn(i64, i64) -> i64>
     store v12, v4
     v13 = iconst 0i64
     v14 = iconst 0i64
@@ -71,9 +71,9 @@ block2:
     v22 = iadd v20, v21
     v23 = iconst 3i64
     v24 = srem v22, v23
-    v25 = element.addr v17, v24
-    v26 = load v25
-    v27 = call.indirect v26(v1, v16)
+    v25 = element.addr v17, v24 -> ref<borrowed fn(i64, i64) -> i64>
+    v26 = load v25 -> fn(i64, i64) -> i64
+    v27 = call.indirect v26(v1, v16) -> fn(i64, i64) -> i64
     v28 = iconst 1i64
     v29 = iadd v15, v28
     jump block1(v29, v27, v17)

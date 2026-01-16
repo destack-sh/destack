@@ -529,10 +529,10 @@ block0:
     fn test_verify_stack_alloc_primitive() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
 }"#;
 
@@ -548,7 +548,7 @@ block0:
         let input = r#"type @Node = { i32 }
 function @test() -> i32 {
 block0:
-    v0 = managed.alloc @Node
+    v0 = managed.alloc @Node -> ref<managed @Node>
     v1 = iconst 1i32
     return v1
 }"#;
@@ -644,11 +644,11 @@ block0:
     fn test_verify_load_store_primitives() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     v2 = iconst 10i32
     v3 = iadd v1, v2
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
 }"#;
 
@@ -735,10 +735,10 @@ block3:
     fn test_managed_alloc_no_drop() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
 }"#;
 
@@ -753,7 +753,7 @@ block0:
     fn test_managed_alloc_returned_no_drop() {
         let input = r#"function @test() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     v1 = iconst 42i32
     store v0, v1
     return v0
@@ -770,13 +770,13 @@ block0:
     fn test_insert_drop_for_owned_param() {
         let input = r#"function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     return v1
 }"#;
 
         let expected = r#"function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     raw.drop v0
     return v1
 }"#;
@@ -792,10 +792,10 @@ block0(v0: ref<owned i32>):
     fn test_raw_alloc_no_automatic_drop() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     raw.free v0
     return v2
 }"#;
@@ -816,7 +816,7 @@ block0(v0: ref<raw i32>):
 
 function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     return v1
 }"#;
 
@@ -847,7 +847,7 @@ block0(v0: ref<raw i32>):
 }
 function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     call @my_drop(v0)
     raw.drop v0
     return v1

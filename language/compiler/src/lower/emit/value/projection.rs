@@ -58,7 +58,7 @@ impl FunctionContext<'_> {
             let aggregate_mir_type = self.state.builder.tree().get(aggregate_type).clone();
             match aggregate_mir_type {
                 mir::Type::Reference { pointee, .. } => {
-                    aggregate_value = self.state.builder.load(aggregate_value);
+                    aggregate_value = self.state.builder.load(aggregate_value, pointee);
                     aggregate_type = pointee;
                 }
                 _ => break,

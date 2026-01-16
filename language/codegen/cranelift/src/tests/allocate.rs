@@ -6,10 +6,9 @@ fn test_stack_allocate_i32() {
     let mir = r#"
 function @alloc_i32() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // stack.alloc creates a stack slot and returns its address
@@ -31,10 +30,9 @@ fn test_stack_allocate_i64() {
     let mir = r#"
 function @alloc_i64() -> ref<raw i64> {
 block0:
-    v0 = stack.alloc i64
+    v0 = stack.alloc i64 -> ref<raw i64>
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -55,13 +53,12 @@ fn test_stack_allocate_and_use() {
     let mir = r#"
 function @alloc_store_load() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

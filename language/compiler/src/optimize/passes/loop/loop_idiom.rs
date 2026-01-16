@@ -260,6 +260,7 @@ fn run_loop_idiom(
             destination: function.next_value(),
             array: pattern.array,
             index: tree.get(zero_inst).destination().unwrap(),
+            result_type: pattern.element_addr_type,
         });
         preheader_block.instructions.push(ptr_inst);
 
@@ -296,6 +297,8 @@ fn run_loop_idiom(
 struct MemsetPattern {
     /// The array being filled.
     array: mir::Value,
+    /// The element address result type.
+    element_addr_type: mir::LocalNodeId<mir::Type>,
     /// The constant value written by the store, when available.
     value_constant: Option<mir::Constant>,
     /// The block containing the store.
@@ -347,7 +350,8 @@ fn match_memset_pattern(
 
     // resolve the stored address back to an element.addr
     let store_ptr = store_ptr?;
-    let (array, index) = element_addr_for_pointer(store_ptr, tree, value_definitions)?;
+    let (array, index, element_addr_type) =
+        element_addr_for_pointer(store_ptr, tree, value_definitions)?;
     if index != induction {
         return None;
     }
@@ -357,6 +361,7 @@ fn match_memset_pattern(
     let value_const = constant_for_value(value, tree, value_definitions);
     Some(MemsetPattern {
         array,
+        element_addr_type,
         value_constant: value_const,
         store_block: store_block?,
     })
@@ -383,13 +388,18 @@ fn element_addr_for_pointer(
     pointer: mir::Value,
     tree: &mir::NodeTree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-) -> Option<(mir::Value, mir::Value)> {
+) -> Option<(mir::Value, mir::Value, mir::LocalNodeId<mir::Type>)> {
     // find the instruction that defines the pointer
     let inst_id = *value_definitions.get(&pointer)?;
 
     // require a direct element address computation
     match tree.get(inst_id) {
-        mir::Instruction::ElementAddr { array, index, .. } => Some((*array, *index)),
+        mir::Instruction::ElementAddr {
+            array,
+            index,
+            result_type,
+            ..
+        } => Some((*array, *index, *result_type)),
         _ => None,
     }
 }
@@ -589,7 +599,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block3
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     v8 = iadd v4, v3
@@ -604,14 +614,14 @@ block0(v0: [u8; 8], v1: u32):
     v3 = iconst 1u32
     v9 = iconst 0u8
     v10 = iconst 0u32
-    v11 = element.addr v0, v10
+    v11 = element.addr v0, v10 -> ref<borrowed u8>
     intrinsic.memset(v11, v9, v1)
     jump block3
 block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block3
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     v8 = iadd v4, v3
@@ -637,7 +647,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block4
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     jump block3(v4)
@@ -654,14 +664,14 @@ block0(v0: [u8; 8], v1: u32):
     v3 = iconst 1u32
     v10 = iconst 0u8
     v11 = iconst 0u32
-    v12 = element.addr v0, v11
+    v12 = element.addr v0, v11 -> ref<borrowed u8>
     intrinsic.memset(v12, v10, v1)
     jump block4
 block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block4
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     jump block3(v4)
@@ -689,7 +699,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block3
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     v8 = iadd v4, v3
@@ -715,7 +725,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block3
 block2:
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     v8 = iadd v4, v3
@@ -743,7 +753,7 @@ block1(v5: u32):
 block2(v7: u32):
     branch v2, block3(v7), block4(v7)
 block3(v8: u32):
-    v9 = element.addr v0, v8
+    v9 = element.addr v0, v8 -> ref<borrowed u8>
     v10 = iconst 0u8
     store v9, v10
     jump block4(v8)
@@ -775,7 +785,7 @@ block2:
     v7 = iconst 0u32
     jump block3(v7)
 block3(v8: u32):
-    v9 = element.addr v0, v5
+    v9 = element.addr v0, v5 -> ref<borrowed u8>
     v10 = iconst 0u8
     store v9, v10
     v11 = icmp_ult v8, v4
@@ -807,7 +817,7 @@ block1(v4: u32, v5: [u8; 8]):
     v6 = icmp_ult v4, v1
     branch v6, block2, block3
 block2:
-    v7 = element.addr v5, v4
+    v7 = element.addr v5, v4 -> ref<borrowed u8>
     v8 = iconst 0u8
     store v7, v8
     v9 = element.set v5, v4, v8
@@ -834,7 +844,7 @@ block1(v5: u32):
     v6 = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = element.addr v0, v5
+    v7 = element.addr v0, v5 -> ref<borrowed u8>
     store v7, v1
     v8 = iadd v5, v4
     jump block1(v8)
@@ -860,7 +870,7 @@ block1(v4: u32):
     branch v5, block2, block3
 block2:
     call @touch(v4)
-    v6 = element.addr v0, v4
+    v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7
     v8 = iadd v4, v3
@@ -890,10 +900,10 @@ block1(v5: u32):
     v6 = icmp_ult v5, v2
     branch v6, block2, block3
 block2:
-    v7 = element.addr v0, v5
+    v7 = element.addr v0, v5 -> ref<borrowed u8>
     v8 = iconst 0u8
     store v7, v8
-    v9 = element.addr v1, v5
+    v9 = element.addr v1, v5 -> ref<borrowed u8>
     store v9, v8
     v10 = iadd v5, v4
     jump block1(v10)
