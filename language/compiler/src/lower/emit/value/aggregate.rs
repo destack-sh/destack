@@ -404,6 +404,15 @@ impl FunctionContext<'_> {
                 })?;
                 self.builder.fconst(0.0, width)
             }
+            mir::Type::Isize | mir::Type::Usize | mir::Type::TypeTag => {
+                let pointer_bits = self.type_lowerer.pointer_width_bits();
+                let width = u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "unsupported pointer width for constructor initialization".to_string(),
+                })?;
+                let signed = matches!(mir_type, mir::Type::Isize);
+                self.builder.iconst(0, width, signed)
+            }
             mir::Type::Reference { .. } => {
                 let pointer_bits = self.type_lowerer.pointer_bytes() * 8;
                 let zero = self.builder.iconst(0, pointer_bits, false);
