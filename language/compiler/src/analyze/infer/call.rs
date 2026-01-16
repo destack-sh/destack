@@ -91,6 +91,20 @@ impl Compiler {
             return collected;
         }
 
+        // collect call signatures from intersections
+        if let Type::Intersection { elements } = types.get_type(ty_id) {
+            let mut collected = Vec::new();
+            for element_id in elements {
+                collected.extend(self.call_signatures_for_type_inner(*element_id, types, visited));
+            }
+            return collected;
+        }
+
+        // unwrap value types to their underlying representation
+        if let Type::Value { value } = types.get_type(ty_id) {
+            return self.call_signatures_for_type_inner(*value, types, visited);
+        }
+
         // follow nominal references into their instance types
         if let Type::Reference { symbol, .. } = types.get_type(ty_id)
             && let Some(instance_id) = types.get_instance_type_id(*symbol)
@@ -818,6 +832,18 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // enforce call restrictions from options
+        self.validate_call_expression(
+            module,
+            expression_id,
+            left_id,
+            tree,
+            symbols,
+            &ctx.options,
+            ctx.profile,
+            false,
+        );
+
         let callee_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let options = ctx.options;
@@ -1414,6 +1440,18 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // enforce constructor restrictions from options
+        self.validate_call_expression(
+            module,
+            expression_id,
+            left_id,
+            tree,
+            symbols,
+            &ctx.options,
+            ctx.profile,
+            true,
+        );
+
         let callee_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let options = ctx.options;

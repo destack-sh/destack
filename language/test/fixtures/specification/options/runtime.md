@@ -32,10 +32,8 @@ export const value = 1;
 
 > Eval calls are rejected when noDynamicEvaluation is true.
 
-```ds:main.ds
-declare const Function: (source: string) => unknown;
-
-let value = Function("return 1");
+```ds:main.ds libs=es2020
+let value = Function(["return 1"]);
 ```
 
 ```ds:package.json
@@ -54,11 +52,9 @@ let value = Function("return 1");
 
 > Proxy construction is rejected when noProxy is true.
 
-```ds:main.ds
-declare const Proxy: { new (target: object, handler: object): object };
-
-let handler = {};
-let target = {};
+```ds:main.ds libs=es2020
+declare const handler: ProxyHandler<object>;
+declare const target: object;
 let proxy = new Proxy(target, handler);
 ```
 
@@ -78,13 +74,10 @@ let proxy = new Proxy(target, handler);
 
 > Dynamic shape mutation is rejected when noDynamicShapes is true.
 
-```ds:main.ds
-declare const Object: {
-    defineProperty(target: object, key: string, descriptor: object): void;
-};
-
+```ds:main.ds libs=es2020
+declare const descriptor: PropertyDescriptor;
 let target = { value: 1 };
-Object.defineProperty(target, "x", { value: 1 });
+Object.defineProperty(target, "x", descriptor);
 ```
 
 ```ds:package.json
