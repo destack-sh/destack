@@ -53,9 +53,7 @@ pub(crate) fn lower_type(
             )),
         },
 
-        mir::Type::TypeTag
-        | mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. } => {
+        mir::Type::TypeTag | mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
             // inline pointer_type
             let ty = match pointer_bytes {
                 4 => cir::types::I32,

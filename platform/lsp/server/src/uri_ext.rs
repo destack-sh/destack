@@ -104,10 +104,7 @@ impl UriExt for destack_lsp_types::Uri {
         };
 
         if cfg!(windows) {
-            let auth_host = self
-                .authority()
-                .map(|auth| auth.host())
-                .unwrap_or_default();
+            let auth_host = self.authority().map(|auth| auth.host()).unwrap_or_default();
 
             if auth_host.is_empty() {
                 // very high chance this is a `file:///c:/...` uri

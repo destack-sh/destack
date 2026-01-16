@@ -104,6 +104,8 @@ impl ModuleLowerer<'_> {
 
                 Ok(())
             }
+            // interface declarations are metadata only during lower
+            Declaration::Interface { .. } => Ok(()),
             _ => Err(LowerError::UnsupportedConstruct {
                 node: declaration_id
                     .into_global_any(self.module_id)
@@ -195,23 +197,26 @@ impl ModuleLowerer<'_> {
             &self.compiler.program.strings,
             &self.functions_by_symbol,
             &self.globals_by_symbol,
+            &self.interface_dispatch,
             &self.type_lowerer,
             builder,
         );
 
         // create entry block
-        let entry_block = function_ctx.builder.create_block();
-        function_ctx.builder.switch_to_block(entry_block);
+        let entry_block = function_ctx.state.builder.create_block();
+        function_ctx.state.builder.switch_to_block(entry_block);
 
         // add parameter locals
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
             let symbol_id = parameter.symbol().into_global(self.module_id);
             let ty = parameter_types[index];
-            let variable = function_ctx.builder.create_variable(ty);
-            let value = function_ctx.builder.function_parameter(index);
-            function_ctx.builder.define_variable(variable, value);
+            let variable = function_ctx.state.builder.create_variable(ty);
+            let value = function_ctx.state.builder.function_parameter(index);
+            function_ctx.state.builder.define_variable(variable, value);
             function_ctx
+                .state
+                .bindings
                 .locals_by_symbol
                 .insert(symbol_id, LocalBinding { variable, ty });
         }
@@ -221,7 +226,7 @@ impl ModuleLowerer<'_> {
             let terminated = function_ctx.lower_body(*body_id)?;
             if terminated == Terminates::No {
                 if return_type == self.type_lowerer.ty_void {
-                    function_ctx.builder.return_(None);
+                    function_ctx.state.builder.return_(None);
                 } else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: declaration_id
@@ -232,10 +237,10 @@ impl ModuleLowerer<'_> {
                 }
             }
         } else {
-            function_ctx.builder.return_(None);
+            function_ctx.state.builder.return_(None);
         }
 
-        function_ctx.builder.finish();
+        function_ctx.state.builder.finish();
         Ok(function_id)
     }
 
@@ -344,9 +349,6 @@ impl ModuleLowerer<'_> {
         let member_node = member_id.into_global_any(self.module_id);
         let return_type = self.resolve_method_return_type(member_id, member_node)?;
 
-        // initialize parameter types
-        let mut parameter_types = Vec::new();
-
         // capture this type for constructor initialization
         let constructor_this_type = if is_constructor {
             // require an instance type for constructors
@@ -364,32 +366,8 @@ impl ModuleLowerer<'_> {
             None
         };
 
-        // add this parameter when lowering an instance method
-        if !is_constructor && let Some(this_ty) = this_type {
-            parameter_types.push(this_ty);
-        }
-
-        // lower declared parameter types
-        for parameter_id in &signature.dynamic_parameters {
-            // resolve the parameter type id
-            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
-            let parameter_ty_id = self
-                .types
-                .get_declared_or_inferred_type_id(parameter_node)
-                .ok_or(LowerError::MissingType {
-                    node: parameter_node.into_anchored(Some(self.profile)),
-                })?;
-
-            // lower the parameter type
-            let parameter_ty = self.type_lowerer.lower_type(
-                self.types,
-                parameter_ty_id,
-                self.module_id,
-                parameter_node.into_anchored(Some(self.profile)),
-                &mut self.builder,
-            )?;
-            parameter_types.push(parameter_ty);
-        }
+        // resolve parameter types
+        let parameter_types = self.method_parameter_types(signature, this_type)?;
 
         // build the function
         let builder = self
@@ -415,13 +393,14 @@ impl ModuleLowerer<'_> {
             strings,
             &self.functions_by_symbol,
             &self.globals_by_symbol,
+            &self.interface_dispatch,
             &self.type_lowerer,
             builder,
         );
 
         // create entry block
-        let entry_block = function_ctx.builder.create_block();
-        function_ctx.builder.switch_to_block(entry_block);
+        let entry_block = function_ctx.state.builder.create_block();
+        function_ctx.state.builder.switch_to_block(entry_block);
 
         // initialize constructor state before parameter locals
         if let Some(this_ty) = constructor_this_type {
@@ -431,7 +410,7 @@ impl ModuleLowerer<'_> {
                 .into_anchored(Some(self.profile));
 
             // select the layout type
-            let layout_type = match function_ctx.builder.tree().get(this_ty) {
+            let layout_type = match function_ctx.state.builder.tree().get(this_ty) {
                 mir::Type::Reference { pointee, .. } => *pointee,
                 _ => this_ty,
             };
@@ -440,7 +419,7 @@ impl ModuleLowerer<'_> {
             let layout = self
                 .type_lowerer
                 .layout_for_type_or_error(layout_type, node)?;
-            function_ctx.start_constructor(this_ty, layout.clone(), node)?;
+            function_ctx.initialize_constructor(this_ty, layout.clone(), node)?;
         }
 
         // track parameter index for locals
@@ -450,14 +429,15 @@ impl ModuleLowerer<'_> {
         if let Some(this_ty) = this_type
             && !is_constructor
         {
-            let this_variable = function_ctx.builder.create_variable(this_ty);
-            let this_value = function_ctx.builder.function_parameter(param_index);
+            let this_variable = function_ctx.state.builder.create_variable(this_ty);
+            let this_value = function_ctx.state.builder.function_parameter(param_index);
             function_ctx
+                .state
                 .builder
                 .define_variable(this_variable, this_value);
 
             // set this binding for Expression::This lookup
-            function_ctx.this_binding = Some(LocalBinding {
+            function_ctx.state.bindings.this_binding = Some(LocalBinding {
                 variable: this_variable,
                 ty: this_ty,
             });
@@ -474,10 +454,12 @@ impl ModuleLowerer<'_> {
 
             // bind the parameter local
             let ty = parameter_types[param_index];
-            let variable = function_ctx.builder.create_variable(ty);
-            let value = function_ctx.builder.function_parameter(param_index);
-            function_ctx.builder.define_variable(variable, value);
+            let variable = function_ctx.state.builder.create_variable(ty);
+            let value = function_ctx.state.builder.function_parameter(param_index);
+            function_ctx.state.builder.define_variable(variable, value);
             function_ctx
+                .state
+                .bindings
                 .locals_by_symbol
                 .insert(symbol_id, LocalBinding { variable, ty });
 
@@ -499,7 +481,7 @@ impl ModuleLowerer<'_> {
                 }
                 // return void when allowed
                 else if return_type == self.type_lowerer.ty_void {
-                    function_ctx.builder.return_(None);
+                    function_ctx.state.builder.return_(None);
                 }
                 // error on missing terminator
                 else {
@@ -521,17 +503,17 @@ impl ModuleLowerer<'_> {
         }
         // synthesize void return when body is missing
         else {
-            function_ctx.builder.return_(None);
+            function_ctx.state.builder.return_(None);
         }
 
         // finish the function builder
-        function_ctx.builder.finish();
+        function_ctx.state.builder.finish();
 
         Ok(())
     }
 
     /// Resolve a method return type for lowering.
-    fn resolve_method_return_type(
+    pub(crate) fn resolve_method_return_type(
         &mut self,
         member_id: LocalNodeId<Member>,
         member_node: dir::GlobalNodeIdAny,
@@ -566,5 +548,50 @@ impl ModuleLowerer<'_> {
             member_node.into_anchored(Some(self.profile)),
             &mut self.builder,
         )
+    }
+
+    /// Resolve parameter types for a method signature.
+    pub(crate) fn method_parameter_types(
+        &mut self,
+        signature: &dir::FunctionSignature,
+        this_type: Option<mir::LocalNodeId<mir::Type>>,
+    ) -> LowerResult<Vec<mir::LocalNodeId<mir::Type>>> {
+        // decide whether this method is a constructor
+        let is_constructor = matches!(
+            signature.mode,
+            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+        );
+
+        // initialize parameter types
+        let mut parameter_types = Vec::new();
+
+        // add this parameter when lowering an instance method
+        if !is_constructor && let Some(this_ty) = this_type {
+            parameter_types.push(this_ty);
+        }
+
+        // lower declared parameter types
+        for parameter_id in &signature.dynamic_parameters {
+            // resolve the parameter type id
+            let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
+            let parameter_ty_id = self
+                .types
+                .get_declared_or_inferred_type_id(parameter_node)
+                .ok_or(LowerError::MissingType {
+                    node: parameter_node.into_anchored(Some(self.profile)),
+                })?;
+
+            // lower the parameter type
+            let parameter_ty = self.type_lowerer.lower_type(
+                self.types,
+                parameter_ty_id,
+                self.module_id,
+                parameter_node.into_anchored(Some(self.profile)),
+                &mut self.builder,
+            )?;
+            parameter_types.push(parameter_ty);
+        }
+
+        Ok(parameter_types)
     }
 }

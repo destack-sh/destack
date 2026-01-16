@@ -1,10 +1,18 @@
 use std::collections::HashSet;
 
+use crate::lower::ModuleLowerer;
 use destack_dir as dir;
 
-use crate::lower::ModuleLowerer;
-
 impl ModuleLowerer<'_> {
+    /// Return true when two type ids are structurally equivalent.
+    pub(crate) fn types_are_equivalent(
+        &self,
+        left: dir::LocalTypeId,
+        right: dir::LocalTypeId,
+    ) -> bool {
+        dir::are_types_equal(left, right, self.types)
+    }
+
     /// Find nominal reference type ids for a symbol by walking its value type.
     pub(crate) fn nominal_reference_type_ids_for_symbol(
         &self,

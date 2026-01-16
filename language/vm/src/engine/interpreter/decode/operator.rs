@@ -580,8 +580,7 @@ pub(crate) fn execute_cast(
         mir::CastOperator::Bitcast => argument,
 
         mir::CastOperator::Truncate => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Ok(argument),
             };
@@ -599,8 +598,7 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::ZeroExtend => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Ok(argument),
             };
@@ -617,8 +615,7 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::SignExtend => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Ok(argument),
             };
@@ -641,8 +638,7 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::FloatToSignedInt => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => 64,
             };
@@ -660,8 +656,7 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::FloatToUnsignedInt => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => 64,
             };
@@ -745,8 +740,7 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::PointerToInt => {
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => 64,
             };

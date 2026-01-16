@@ -17,8 +17,8 @@ impl FunctionContext<'_> {
             self.scalar_type_for_expression(operand_id)
                 .ok_or_else(|| LowerError::MissingType {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                 })?;
         let is_float = matches!(scalar_type, ScalarType::Float { .. });
         let is_signed = matches!(scalar_type, ScalarType::SignedInt { .. });
@@ -92,8 +92,8 @@ impl FunctionContext<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                     message: format!("unsupported binary operator '{operator:?}'"),
                 });
             }
@@ -125,8 +125,8 @@ impl FunctionContext<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                     message: format!("unsupported unary operator '{operator:?}'"),
                 });
             }
@@ -151,78 +151,86 @@ impl FunctionContext<'_> {
         let (lhs_value, lhs_type) = self.lower_value_expression(left_id)?;
 
         // verify LHS is boolean
-        if lhs_type != self.type_lowerer.ty_bool {
+        if lhs_type != self.env.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }
 
         // create blocks for short-circuit evaluation
-        let shortcircuit_block = self.builder.create_block();
-        let rhs_block = self.builder.create_block();
-        let merge_block = self.builder.create_block();
+        let shortcircuit_block = self.state.builder.create_block();
+        let rhs_block = self.state.builder.create_block();
+        let merge_block = self.state.builder.create_block();
 
         // create a variable to hold the result (SSA construction will merge)
-        let result_variable = self.builder.create_variable(self.type_lowerer.ty_bool);
+        let result_variable = self
+            .state
+            .builder
+            .create_variable(self.env.type_lowerer.ty_bool);
 
         // branch based on operator semantics
         match operator {
             dir::BinaryOperator::And => {
                 // a && b: if a is true, evaluate b; else short-circuit to false
-                self.builder
+                self.state
+                    .builder
                     .branch(lhs_value, rhs_block, shortcircuit_block);
             }
             dir::BinaryOperator::Or => {
                 // a || b: if a is true, short-circuit to true; else evaluate b
-                self.builder
+                self.state
+                    .builder
                     .branch(lhs_value, shortcircuit_block, rhs_block);
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                     message: format!("unexpected logical operator '{operator:?}'"),
                 });
             }
         }
 
         // short-circuit block: set result to constant and jump to merge
-        self.builder.switch_to_block(shortcircuit_block);
+        self.state.builder.switch_to_block(shortcircuit_block);
         let shortcircuit_value = match operator {
-            dir::BinaryOperator::And => self.builder.bconst(false),
-            dir::BinaryOperator::Or => self.builder.bconst(true),
+            dir::BinaryOperator::And => self.state.builder.bconst(false),
+            dir::BinaryOperator::Or => self.state.builder.bconst(true),
             _ => unreachable!(),
         };
-        self.builder
+        self.state
+            .builder
             .define_variable(result_variable, shortcircuit_value);
-        self.builder.jump(merge_block);
+        self.state.builder.jump(merge_block);
 
         // rhs block: evaluate rhs, set result, jump to merge
-        self.builder.switch_to_block(rhs_block);
+        self.state.builder.switch_to_block(rhs_block);
         let (rhs_value, rhs_type) = self.lower_value_expression(right_id)?;
 
         // verify RHS is boolean
-        if rhs_type != self.type_lowerer.ty_bool {
+        if rhs_type != self.env.type_lowerer.ty_bool {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
                 message: "logical operator requires boolean operands".to_string(),
             });
         }
 
         // set result and jump to merge
-        self.builder.define_variable(result_variable, rhs_value);
-        self.builder.jump(merge_block);
+        self.state
+            .builder
+            .define_variable(result_variable, rhs_value);
+        self.state.builder.jump(merge_block);
 
         // merge block: use the result variable (SSA will create block parameter)
-        self.builder.switch_to_block(merge_block);
-        let result_value = self.builder.use_variable(result_variable);
+        self.state.builder.switch_to_block(merge_block);
+        let result_value = self.state.builder.use_variable(result_variable);
 
-        Ok((result_value, self.type_lowerer.ty_bool))
+        Ok((result_value, self.env.type_lowerer.ty_bool))
     }
 }

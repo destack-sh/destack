@@ -1,3 +1,4 @@
+mod equal;
 mod extension;
 mod instance;
 mod lineage;
@@ -8,6 +9,7 @@ mod subtype;
 mod table;
 mod r#type;
 
+pub use equal::*;
 pub use extension::*;
 pub use instance::*;
 pub use lineage::*;

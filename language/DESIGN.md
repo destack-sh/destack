@@ -715,6 +715,12 @@ Dynamic resolution only applies when every union variant exposes the member.
 Arguments must satisfy all candidate signatures, and the resulting type is the union of per-candidate return types after substitutions.
 Extension methods participate in member resolution, too.
 
+### Dispatch Tables
+
+Dispatch chooses between direct calls, class virtual dispatch, interface dispatch, and union reification.
+The design goal is to keep class overhead minimal while preserving TypeScript structural semantics.
+Layout and slot details live in the specification and the Lower documentation.
+
 ## Ownership
 
 TypeScript does not encode ownership in its type system.

@@ -1,4 +1,4 @@
-use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
+use crate::lower::{BuiltinTypeLayouts, InterfaceDispatchCache, TypeLowerer};
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
 use destack_workspace::{Module, ProfileId, TargetId};
@@ -125,6 +125,7 @@ impl Compiler {
         // create empty maps for function/global lookup (comptime expressions are standalone)
         let functions_by_symbol = std::collections::HashMap::new();
         let globals_by_symbol = std::collections::HashMap::new();
+        let interface_dispatch = InterfaceDispatchCache::new();
 
         // create function context
         let mut function_ctx = FunctionContext::new(
@@ -137,13 +138,14 @@ impl Compiler {
             &self.program.strings,
             &functions_by_symbol,
             &globals_by_symbol,
+            &interface_dispatch,
             &type_lowerer,
             function_builder,
         );
 
         // create entry block
-        let entry_block = function_ctx.builder.create_block();
-        function_ctx.builder.switch_to_block(entry_block);
+        let entry_block = function_ctx.state.builder.create_block();
+        function_ctx.state.builder.switch_to_block(entry_block);
 
         // lower the expression
         let (value, _) = function_ctx
@@ -155,8 +157,8 @@ impl Compiler {
             })?;
 
         // return and finish
-        function_ctx.builder.return_(Some(value));
-        let function_id = function_ctx.builder.finish();
+        function_ctx.state.builder.return_(Some(value));
+        let function_id = function_ctx.state.builder.finish();
 
         let (tree, strings) = builder.finish_mutable();
         Ok((tree, strings, function_id))
