@@ -81,7 +81,12 @@ impl<'a> ModuleLowerer<'a> {
         builder.strings().copy_from_immutable(&strings);
 
         // create the type lowerer
-        let type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
+        let type_lowerer = TypeLowerer::new(
+            &mut builder,
+            pointer_bytes,
+            compiler.program.modules.clone(),
+            compiler.program.packages.clone(),
+        );
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
 

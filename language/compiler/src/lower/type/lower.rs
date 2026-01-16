@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use destack_ast::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
+use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::StructLayout;
@@ -11,6 +13,10 @@ use crate::{LowerError, LowerResult};
 /// Lowers DIR types into MIR types with a shared cache.
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
+    /// Access to module metadata for qualified names.
+    pub(super) modules: Arc<ModuleRegistry>,
+    /// Access to package metadata for qualified names.
+    pub(super) packages: Arc<PackageRegistry>,
     /// Cached MIR types by DIR type id.
     pub(crate) type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Cached struct layouts by MIR type id (for field index lookup).
@@ -43,10 +49,17 @@ pub(crate) struct TypeLowerer {
 
 impl TypeLowerer {
     /// Create a new type lowerer with cached common types.
-    pub(crate) fn new(builder: &mut mir::ModuleBuilder, pointer_bytes: u8) -> Self {
+    pub(crate) fn new(
+        builder: &mut mir::ModuleBuilder,
+        pointer_bytes: u8,
+        modules: Arc<ModuleRegistry>,
+        packages: Arc<PackageRegistry>,
+    ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
 
         Self {
+            modules,
+            packages,
             type_cache: HashMap::new(),
             layout_cache: HashMap::new(),
             pointer_width_bits,
