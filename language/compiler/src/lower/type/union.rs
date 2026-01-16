@@ -1,0 +1,761 @@
+use std::collections::{HashMap, HashSet};
+
+use destack_base::{StringId, StringPool};
+use destack_dir::AnchoredGlobalNodeId;
+use destack_source::ModuleId;
+use {destack_dir as dir, destack_mir as mir};
+
+use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
+use crate::{LowerError, LowerResult};
+
+const UNION_TAG_FIELD_NAME: &str = "@tag";
+const UNION_PAYLOAD_FIELD_NAME: &str = "@payload";
+
+/// Layout metadata for a lowered union type.
+#[derive(Debug, Clone)]
+pub(crate) struct UnionLayout {
+    /// The tag field type.
+    pub(crate) tag_type: mir::LocalNodeId<mir::Type>,
+    /// The payload field type.
+    pub(crate) payload_type: mir::LocalNodeId<mir::Type>,
+    /// The union element type ids in tag order.
+    pub(crate) element_types: Vec<dir::LocalTypeId>,
+    /// The tag field index in layout order.
+    pub(crate) tag_field_index: u32,
+    /// The payload field index in layout order.
+    pub(crate) payload_field_index: u32,
+    /// Discriminant field metadata when present.
+    pub(crate) discriminant: Option<UnionDiscriminant>,
+}
+
+/// Discriminant metadata for a tagged union.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct UnionDiscriminant {
+    /// The primary discriminant key used for tag ordering.
+    pub(crate) primary_key: dir::StaticKey,
+    /// Discriminant fields indexed by static key.
+    pub(crate) fields: Vec<UnionDiscriminantField>,
+}
+
+/// Discriminant values for a field in tag order.
+#[derive(Debug, Clone)]
+pub(crate) struct UnionDiscriminantField {
+    /// The field key shared by all union variants.
+    pub(crate) key: dir::StaticKey,
+    /// Literal values ordered by tag value.
+    pub(crate) values: Vec<DiscriminantLiteral>,
+    /// Tag mapping for literal values.
+    pub(crate) tag_by_value: HashMap<DiscriminantKey, u32>,
+}
+
+/// A discriminant literal value tied to its declared type.
+#[derive(Debug, Clone)]
+pub(crate) struct DiscriminantLiteral {
+    /// The literal value.
+    pub(crate) value: DiscriminantValue,
+    /// The declared type id for this literal.
+    pub(crate) type_id: dir::LocalTypeId,
+    /// The canonical key for tag ordering and lookup.
+    pub(crate) key: DiscriminantKey,
+}
+
+/// Canonical discriminant value for ordering and lookup.
+#[derive(Debug, Clone)]
+pub(crate) enum DiscriminantValue {
+    /// Null literal value.
+    Null,
+    /// Undefined literal value.
+    Undefined,
+    /// Boolean literal value.
+    Boolean(bool),
+    /// Number literal value.
+    Number { value: f64 },
+    /// Bigint literal value.
+    Bigint(i64),
+    /// String literal value.
+    String(StringId),
+    /// Unique symbol literal value.
+    UniqueSymbol,
+}
+
+/// Canonical discriminant key used for ordering and lookup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum DiscriminantKey {
+    /// Null literal key.
+    Null,
+    /// Undefined literal key.
+    Undefined,
+    /// Boolean literal key.
+    Boolean(bool),
+    /// Number literal key, stored as canonical f64 bits.
+    Number(u64),
+    /// Bigint literal key.
+    Bigint(i64),
+    /// String literal key.
+    String(StringId),
+    /// Unique symbol literal key.
+    UniqueSymbol,
+}
+
+impl TypeLowerer {
+    /// Return cached union layout metadata.
+    pub(crate) fn union_layout(&self, type_id: dir::LocalTypeId) -> Option<&UnionLayout> {
+        self.union_cache.get(&type_id)
+    }
+
+    /// Lower a DIR union type into a tagged boxed layout.
+    pub(crate) fn lower_union_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        elements: &[dir::LocalTypeId],
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // collect union elements with deduplication
+        let mut collected = Vec::new();
+        let mut visited = HashSet::new();
+        for element_id in elements {
+            self.collect_union_element(*element_id, types, &mut visited, &mut collected);
+        }
+
+        // reject empty unions
+        if collected.is_empty() {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "union has no elements".to_string(),
+            });
+        }
+
+        // resolve discriminant metadata and tag ordering
+        let (ordered_elements, discriminant) =
+            self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
+
+        // lower union element types for copyability
+        let mut copyability = mir::Copyability::Trivial;
+        for element_id in &ordered_elements {
+            let element_type = self.lower_type(types, *element_id, module_id, node, builder)?;
+            let element = builder.tree().get(element_type);
+            copyability = copyability.combine(element.copyability());
+        }
+
+        // define tag and payload field types
+        let tag_name = builder.intern(UNION_TAG_FIELD_NAME);
+        let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
+        let tag_width = Self::tag_width_for_discriminant_count(ordered_elements.len(), node)?;
+        let tag_type = self.union_tag_type(tag_width, builder);
+        let payload_type = builder.type_managed_reference(self.ty_void);
+
+        // compute field sizes and alignments
+        let pointer_bytes = self.pointer_bytes();
+        let (tag_size, tag_alignment) =
+            size_and_align_of_type(builder.tree().get(tag_type), builder.tree(), pointer_bytes);
+        let (payload_size, payload_alignment) = size_and_align_of_type(
+            builder.tree().get(payload_type),
+            builder.tree(),
+            pointer_bytes,
+        );
+
+        // assemble field inputs
+        let fields = vec![
+            FieldInput {
+                name: tag_name,
+                ty: tag_type,
+                size: tag_size,
+                alignment: tag_alignment,
+                source_index: Some(0),
+            },
+            FieldInput {
+                name: payload_name,
+                ty: payload_type,
+                size: payload_size,
+                alignment: payload_alignment,
+                source_index: Some(1),
+            },
+        ];
+
+        // compute layout and create the mir struct type
+        let layout = compute_struct_layout(fields, LayoutPolicy::Source);
+        let mir_type = self.create_struct_type_with_copyability(&layout, copyability, builder);
+
+        // cache layout and type lowering
+        self.layout_cache.insert(mir_type, layout.clone());
+        self.type_cache.insert(type_id, mir_type);
+
+        // attach a deterministic debug name for tooling/tests
+        let name = builder.intern(&format!("@union:{module_id}:{}", type_id.0));
+        let metadata = builder
+            .tree_mut()
+            .type_table
+            .type_metadata_by_id
+            .entry(mir_type)
+            .or_default();
+        metadata.name = Some(name);
+
+        // resolve tag and payload field indices
+        let tag_field_index =
+            layout
+                .field_index(tag_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "missing union tag field".to_string(),
+                })?;
+        let payload_field_index =
+            layout
+                .field_index(payload_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "missing union payload field".to_string(),
+                })?;
+
+        // cache union layout metadata
+        self.union_cache.insert(
+            type_id,
+            UnionLayout {
+                tag_type,
+                payload_type,
+                element_types: ordered_elements,
+                tag_field_index,
+                payload_field_index,
+                discriminant,
+            },
+        );
+
+        // return the union type
+        Ok(mir_type)
+    }
+
+    /// Resolve the tag type for a union layout.
+    fn union_tag_type(
+        &mut self,
+        tag_width: u16,
+        builder: &mut mir::ModuleBuilder,
+    ) -> mir::LocalNodeId<mir::Type> {
+        // select the smallest unsigned integer width
+        match tag_width {
+            8 => builder.type_int(8, false),
+            16 => builder.type_int(16, false),
+            32 => self.ty_u32,
+            64 => builder.type_int(64, false),
+            _ => builder.type_int(tag_width, false),
+        }
+    }
+
+    /// Collect union elements with deduplication.
+    fn collect_union_element(
+        &self,
+        type_id: dir::LocalTypeId,
+        types: &dir::TypeTable,
+        visited: &mut HashSet<dir::LocalTypeId>,
+        collected: &mut Vec<dir::LocalTypeId>,
+    ) {
+        // stop on already visited types
+        if !visited.insert(type_id) {
+            return;
+        }
+
+        // expand nested unions or record distinct types
+        match types.get_type(type_id) {
+            dir::Type::Union { elements } => {
+                for element_id in elements {
+                    self.collect_union_element(*element_id, types, visited, collected);
+                }
+            }
+            _ => {
+                let is_duplicate = collected
+                    .iter()
+                    .any(|existing| dir::are_types_equal(*existing, type_id, types));
+                if !is_duplicate {
+                    collected.push(type_id);
+                }
+            }
+        }
+    }
+
+    /// Order union elements by discriminant tags when available.
+    fn order_union_elements_by_discriminant(
+        &self,
+        types: &dir::TypeTable,
+        elements: &[dir::LocalTypeId],
+        node: AnchoredGlobalNodeId,
+        strings: &StringPool,
+    ) -> LowerResult<(Vec<dir::LocalTypeId>, Option<UnionDiscriminant>)> {
+        // collect discriminant literal fields for each element
+        let mut element_fields = Vec::with_capacity(elements.len());
+        for element_id in elements {
+            let fields = self.discriminant_fields_for_type(types, *element_id, node)?;
+            let Some(fields) = fields else {
+                return Ok((elements.to_vec(), None));
+            };
+            element_fields.push(fields);
+        }
+
+        // intersect field keys across all elements
+        let Some((first_map, rest_maps)) = element_fields.split_first() else {
+            return Ok((elements.to_vec(), None));
+        };
+        let mut common_keys: Vec<dir::StaticKey> = first_map.keys().copied().collect();
+        for map in rest_maps {
+            common_keys.retain(|key| map.contains_key(key));
+        }
+
+        if common_keys.is_empty() {
+            return Ok((elements.to_vec(), None));
+        }
+
+        // sort keys to pick a stable primary discriminant
+        common_keys.sort_by(|left, right| Self::compare_static_keys(*left, *right, strings));
+
+        // collect discriminant values per key
+        let mut fields = Vec::with_capacity(common_keys.len());
+        for key in &common_keys {
+            let mut values = Vec::with_capacity(elements.len());
+            let mut seen_values = HashSet::new();
+
+            for map in &element_fields {
+                let literal = map
+                    .get(key)
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node,
+                        message: "missing discriminant literal value".to_string(),
+                    })?;
+                if !seen_values.insert(literal.key) {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node,
+                        message: "duplicate discriminant value in union".to_string(),
+                    });
+                }
+                values.push(literal.clone());
+            }
+
+            fields.push(UnionDiscriminantField {
+                key: *key,
+                values,
+                tag_by_value: HashMap::new(),
+            });
+        }
+
+        // build tag order from the primary discriminant
+        let primary_key = fields
+            .first()
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "missing union discriminant field".to_string(),
+            })?
+            .key;
+        let primary_values = fields
+            .iter()
+            .find(|field| field.key == primary_key)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "missing primary discriminant field".to_string(),
+            })?
+            .values
+            .clone();
+        let mut order: Vec<usize> = (0..elements.len()).collect();
+        order.sort_by(|left, right| {
+            DiscriminantKey::compare(
+                primary_values[*left].key,
+                primary_values[*right].key,
+                strings,
+            )
+        });
+
+        // reorder elements and discriminant values
+        let ordered_elements = order.iter().map(|index| elements[*index]).collect();
+        for field in &mut fields {
+            let ordered_values = order
+                .iter()
+                .map(|index| field.values[*index].clone())
+                .collect::<Vec<_>>();
+            field.values = ordered_values;
+
+            let mut tag_by_value = HashMap::new();
+            for (tag, literal) in field.values.iter().enumerate() {
+                if tag_by_value.insert(literal.key, tag as u32).is_some() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node,
+                        message: "duplicate discriminant value in union".to_string(),
+                    });
+                }
+            }
+            field.tag_by_value = tag_by_value;
+        }
+
+        // return the ordered elements and discriminant metadata
+        Ok((
+            ordered_elements,
+            Some(UnionDiscriminant {
+                primary_key,
+                fields,
+            }),
+        ))
+    }
+
+    /// Collect discriminant literal fields for an object-like type.
+    fn discriminant_fields_for_type(
+        &self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<HashMap<dir::StaticKey, DiscriminantLiteral>>> {
+        // track visited types to avoid recursion
+        let mut visited = HashSet::new();
+        self.discriminant_fields_for_type_inner(types, type_id, node, &mut visited)
+    }
+
+    /// Collect discriminant fields with recursion and alias expansion.
+    fn discriminant_fields_for_type_inner(
+        &self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        node: AnchoredGlobalNodeId,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> LowerResult<Option<HashMap<dir::StaticKey, DiscriminantLiteral>>> {
+        // stop recursion on cycles
+        if !visited.insert(type_id) {
+            return Ok(Some(HashMap::new()));
+        }
+
+        // unwrap alias references before inspecting shape
+        let dir_type = types.get_type(type_id);
+        match dir_type {
+            dir::Type::Reference { symbol, .. } => {
+                if symbol.ty() == dir::SymbolType::TypeAlias
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.discriminant_fields_for_type_inner(types, target, node, visited);
+                }
+
+                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                    return self.discriminant_fields_for_type_inner(
+                        types,
+                        instance_id,
+                        node,
+                        visited,
+                    );
+                }
+
+                Ok(None)
+            }
+            dir::Type::Object { fields, .. } => {
+                let mut map = HashMap::new();
+                for field in fields {
+                    if field.is_optional {
+                        continue;
+                    }
+
+                    let literal = self.discriminant_literal_for_type(types, field.ty, node)?;
+                    let Some(literal) = literal else {
+                        continue;
+                    };
+                    map.insert(field.key, literal);
+                }
+
+                Ok(Some(map))
+            }
+            dir::Type::Intersection { elements } => {
+                let mut maps = Vec::with_capacity(elements.len());
+                for element_id in elements {
+                    let Some(map) =
+                        self.discriminant_fields_for_type_inner(types, *element_id, node, visited)?
+                    else {
+                        return Ok(None);
+                    };
+                    maps.push(map);
+                }
+
+                let Some((first, rest)) = maps.split_first() else {
+                    return Ok(Some(HashMap::new()));
+                };
+                let mut merged = first.clone();
+                for map in rest {
+                    merged.retain(|key, literal| {
+                        map.get(key).is_some_and(|other| other.key == literal.key)
+                    });
+                }
+
+                Ok(Some(merged))
+            }
+            dir::Type::Value { value } => {
+                self.discriminant_fields_for_type_inner(types, *value, node, visited)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Resolve a discriminant literal for a type when possible.
+    fn discriminant_literal_for_type(
+        &self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<DiscriminantLiteral>> {
+        // track visited types to avoid recursion
+        let mut visited = HashSet::new();
+        self.discriminant_literal_for_type_inner(types, type_id, node, &mut visited)
+    }
+
+    /// Resolve a discriminant literal with recursion tracking.
+    fn discriminant_literal_for_type_inner(
+        &self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        node: AnchoredGlobalNodeId,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> LowerResult<Option<DiscriminantLiteral>> {
+        // stop recursion on cycles
+        if !visited.insert(type_id) {
+            return Ok(None);
+        }
+
+        // unwrap alias references
+        let dir_type = types.get_type(type_id);
+        match dir_type {
+            dir::Type::Reference { symbol, .. } => {
+                if symbol.ty() == dir::SymbolType::TypeAlias
+                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+                {
+                    return self.discriminant_literal_for_type_inner(types, target, node, visited);
+                }
+
+                Ok(None)
+            }
+            dir::Type::TypeLiteral { value } => {
+                let literal = match value {
+                    dir::TypeLiteral::Null => DiscriminantValue::Null,
+                    dir::TypeLiteral::Undefined => DiscriminantValue::Undefined,
+                    dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
+                        dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
+                        dir::ScalarLiteral::Integer(value) => {
+                            let (bits, number) =
+                                DiscriminantKey::canonical_number_bits(*value as f64, node)?;
+                            return Ok(Some(DiscriminantLiteral {
+                                value: DiscriminantValue::Number { value: number },
+                                type_id,
+                                key: DiscriminantKey::Number(bits),
+                            }));
+                        }
+                        dir::ScalarLiteral::Float(value) => {
+                            let (bits, number) =
+                                DiscriminantKey::canonical_number_bits(*value, node)?;
+                            return Ok(Some(DiscriminantLiteral {
+                                value: DiscriminantValue::Number { value: number },
+                                type_id,
+                                key: DiscriminantKey::Number(bits),
+                            }));
+                        }
+                        dir::ScalarLiteral::Bigint(value) => DiscriminantValue::Bigint(*value),
+                        dir::ScalarLiteral::String(value) => DiscriminantValue::String(*value),
+                        dir::ScalarLiteral::Character(_)
+                        | dir::ScalarLiteral::RegexString { .. } => {
+                            return Ok(None);
+                        }
+                    },
+                    dir::TypeLiteral::Primitive(dir::PrimitiveType::UniqueSymbol) => {
+                        DiscriminantValue::UniqueSymbol
+                    }
+                    _ => return Ok(None),
+                };
+
+                let key = DiscriminantKey::from_value(&literal, node)?;
+                Ok(Some(DiscriminantLiteral {
+                    value: literal,
+                    type_id,
+                    key,
+                }))
+            }
+            dir::Type::Value { value } => {
+                self.discriminant_literal_for_type_inner(types, *value, node, visited)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Compute the minimal unsigned tag width for a tag count.
+    fn tag_width_for_discriminant_count(
+        count: usize,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<u16> {
+        if count <= u8::MAX as usize {
+            return Ok(8);
+        }
+        if count <= u16::MAX as usize {
+            return Ok(16);
+        }
+        if count <= u32::MAX as usize {
+            return Ok(32);
+        }
+        if count <= u64::MAX as usize {
+            return Ok(64);
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            node,
+            message: "union tag count exceeds supported width".to_string(),
+        })
+    }
+
+    /// Compare static keys for deterministic discriminant field selection.
+    fn compare_static_keys(
+        left: dir::StaticKey,
+        right: dir::StaticKey,
+        strings: &StringPool,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (dir::StaticKey::Name(left), dir::StaticKey::Name(right)) => {
+                strings.get(left).cmp(&strings.get(right))
+            }
+            (dir::StaticKey::Number(left), dir::StaticKey::Number(right)) => {
+                strings.get(left).cmp(&strings.get(right))
+            }
+            (dir::StaticKey::Name(left), dir::StaticKey::Number(right)) => {
+                let ordering = strings.get(left).cmp(&strings.get(right));
+                if ordering == Ordering::Equal {
+                    Ordering::Less
+                } else {
+                    ordering
+                }
+            }
+            (dir::StaticKey::Number(left), dir::StaticKey::Name(right)) => {
+                let ordering = strings.get(left).cmp(&strings.get(right));
+                if ordering == Ordering::Equal {
+                    Ordering::Greater
+                } else {
+                    ordering
+                }
+            }
+            (dir::StaticKey::Symbol(left), dir::StaticKey::Symbol(right)) => {
+                Self::compare_symbol_keys(left, right, strings)
+            }
+            (dir::StaticKey::Symbol(_), _) => Ordering::Greater,
+            (_, dir::StaticKey::Symbol(_)) => Ordering::Less,
+        }
+    }
+
+    /// Compare symbol keys for deterministic ordering.
+    fn compare_symbol_keys(
+        left: dir::SymbolKey,
+        right: dir::SymbolKey,
+        strings: &StringPool,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (dir::SymbolKey::WellKnown(left), dir::SymbolKey::WellKnown(right)) => left.cmp(&right),
+            (dir::SymbolKey::Registry(left), dir::SymbolKey::Registry(right)) => {
+                strings.get(left).cmp(&strings.get(right))
+            }
+            (dir::SymbolKey::Unique(left), dir::SymbolKey::Unique(right)) => left.cmp(&right),
+            (dir::SymbolKey::WellKnown(_), _) => Ordering::Less,
+            (dir::SymbolKey::Registry(_), dir::SymbolKey::WellKnown(_)) => Ordering::Greater,
+            (dir::SymbolKey::Registry(_), dir::SymbolKey::Unique(_)) => Ordering::Less,
+            (dir::SymbolKey::Unique(_), _) => Ordering::Greater,
+        }
+    }
+}
+
+impl DiscriminantKey {
+    /// Compare two discriminant keys using canonical ordering rules.
+    fn compare(
+        left: DiscriminantKey,
+        right: DiscriminantKey,
+        strings: &StringPool,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        let left_rank = left.rank();
+        let right_rank = right.rank();
+        if left_rank != right_rank {
+            return left_rank.cmp(&right_rank);
+        }
+
+        match (left, right) {
+            (DiscriminantKey::Boolean(left), DiscriminantKey::Boolean(right)) => left.cmp(&right),
+            (DiscriminantKey::Number(left), DiscriminantKey::Number(right)) => {
+                let left = f64::from_bits(left);
+                let right = f64::from_bits(right);
+                left.partial_cmp(&right).unwrap_or(Ordering::Equal)
+            }
+            (DiscriminantKey::Bigint(left), DiscriminantKey::Bigint(right)) => left.cmp(&right),
+            (DiscriminantKey::String(left), DiscriminantKey::String(right)) => {
+                strings.get(left).cmp(&strings.get(right))
+            }
+            (DiscriminantKey::UniqueSymbol, DiscriminantKey::UniqueSymbol) => Ordering::Equal,
+            _ => Ordering::Equal,
+        }
+    }
+
+    /// Build a canonical key for a discriminant value.
+    fn from_value(value: &DiscriminantValue, node: AnchoredGlobalNodeId) -> LowerResult<Self> {
+        match value {
+            DiscriminantValue::Null => Ok(DiscriminantKey::Null),
+            DiscriminantValue::Undefined => Ok(DiscriminantKey::Undefined),
+            DiscriminantValue::Boolean(value) => Ok(DiscriminantKey::Boolean(*value)),
+            DiscriminantValue::Number { value } => {
+                let (bits, _) = Self::canonical_number_bits(*value, node)?;
+                Ok(DiscriminantKey::Number(bits))
+            }
+            DiscriminantValue::Bigint(value) => Ok(DiscriminantKey::Bigint(*value)),
+            DiscriminantValue::String(value) => Ok(DiscriminantKey::String(*value)),
+            DiscriminantValue::UniqueSymbol => Ok(DiscriminantKey::UniqueSymbol),
+        }
+    }
+
+    /// Build a canonical key from a scalar literal expression.
+    pub(crate) fn from_scalar_literal(
+        literal: &dir::ScalarLiteral,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<Option<Self>> {
+        let key = match literal {
+            dir::ScalarLiteral::Boolean(value) => DiscriminantKey::Boolean(*value),
+            dir::ScalarLiteral::Integer(value) => {
+                let (bits, _) = Self::canonical_number_bits(*value as f64, node)?;
+                DiscriminantKey::Number(bits)
+            }
+            dir::ScalarLiteral::Float(value) => {
+                let (bits, _) = Self::canonical_number_bits(*value, node)?;
+                DiscriminantKey::Number(bits)
+            }
+            dir::ScalarLiteral::Bigint(value) => DiscriminantKey::Bigint(*value),
+            dir::ScalarLiteral::String(value) => DiscriminantKey::String(*value),
+            dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => {
+                return Ok(None);
+            }
+        };
+
+        Ok(Some(key))
+    }
+
+    /// Compute the canonical rank for discriminant ordering.
+    fn rank(self) -> u8 {
+        match self {
+            DiscriminantKey::Null => 0,
+            DiscriminantKey::Undefined => 1,
+            DiscriminantKey::Boolean(false) => 2,
+            DiscriminantKey::Boolean(true) => 3,
+            DiscriminantKey::Number(_) => 4,
+            DiscriminantKey::Bigint(_) => 5,
+            DiscriminantKey::String(_) => 6,
+            DiscriminantKey::UniqueSymbol => 7,
+        }
+    }
+
+    /// Normalize a number for discriminant ordering and lookup.
+    fn canonical_number_bits(value: f64, node: AnchoredGlobalNodeId) -> LowerResult<(u64, f64)> {
+        if value.is_nan() {
+            return Err(LowerError::UnsupportedConstruct {
+                node,
+                message: "NaN is not a valid discriminant literal".to_string(),
+            });
+        }
+
+        let value = if value == 0.0 { 0.0 } else { value };
+        Ok((value.to_bits(), value))
+    }
+}

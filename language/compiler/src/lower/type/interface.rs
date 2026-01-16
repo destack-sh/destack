@@ -1,0 +1,133 @@
+use destack_dir::AnchoredGlobalNodeId;
+use destack_source::ModuleId;
+use {destack_dir as dir, destack_mir as mir};
+
+use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
+use crate::{LowerError, LowerResult};
+
+/// Layout metadata for interface reference types.
+#[derive(Debug, Clone)]
+pub(crate) struct InterfaceRefLayout {
+    /// Field index for the object pointer.
+    pub(crate) object_field_index: u32,
+    /// Field index for the itab handle.
+    pub(crate) itab_field_index: u32,
+    /// The MIR type of the object pointer field.
+    pub(crate) object_type: mir::LocalNodeId<mir::Type>,
+    /// The MIR type of the itab handle field.
+    pub(crate) itab_type: mir::LocalNodeId<mir::Type>,
+}
+
+impl TypeLowerer {
+    /// Return cached interface reference layout metadata.
+    pub(crate) fn interface_ref_layout(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> Option<&InterfaceRefLayout> {
+        self.interface_ref_cache.get(&type_id)
+    }
+
+    /// Lower an interface reference type into a fat pointer struct.
+    pub(crate) fn lower_interface_reference_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // return cached types when available
+        if let Some(mir_type) = self.type_cache.get(&type_id) {
+            return Ok(*mir_type);
+        }
+
+        // load the dir type for validation
+        let dir::Type::Reference { symbol, .. } = types.get_type(type_id) else {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "expected interface reference type".to_string(),
+            });
+        };
+
+        // require an interface symbol
+        if symbol.ty() != dir::SymbolType::Interface {
+            return Err(LowerError::UnsupportedType {
+                node,
+                ty: type_id.into_global(module_id),
+                message: "expected interface reference type".to_string(),
+            });
+        }
+
+        // define object and itab field names and types
+        let object_name = builder.intern("@object");
+        let itab_name = builder.intern("@itab");
+        let object_type = builder.type_managed_reference(self.ty_void);
+        let itab_type = self.ty_usize;
+
+        // compute field sizes and alignments
+        let pointer_bytes = self.pointer_bytes();
+        let (object_size, object_alignment) = size_and_align_of_type(
+            builder.tree().get(object_type),
+            builder.tree(),
+            pointer_bytes,
+        );
+        let (itab_size, itab_alignment) =
+            size_and_align_of_type(builder.tree().get(itab_type), builder.tree(), pointer_bytes);
+
+        // assemble field inputs
+        let fields = vec![
+            FieldInput {
+                name: object_name,
+                ty: object_type,
+                size: object_size,
+                alignment: object_alignment,
+                source_index: Some(0),
+            },
+            FieldInput {
+                name: itab_name,
+                ty: itab_type,
+                size: itab_size,
+                alignment: itab_alignment,
+                source_index: Some(1),
+            },
+        ];
+
+        // compute layout and create the mir struct type
+        let layout = compute_struct_layout(fields, LayoutPolicy::Source);
+        let mir_type = self.create_struct_type(&layout, builder);
+        self.layout_cache.insert(mir_type, layout.clone());
+
+        // resolve field indices for interface metadata
+        let object_field_index =
+            layout
+                .field_index(object_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "missing interface object field".to_string(),
+                })?;
+        let itab_field_index =
+            layout
+                .field_index(itab_name)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "missing interface itab field".to_string(),
+                })?;
+
+        // cache interface reference metadata
+        self.interface_ref_cache.insert(
+            type_id,
+            InterfaceRefLayout {
+                object_field_index,
+                itab_field_index,
+                object_type,
+                itab_type,
+            },
+        );
+
+        // cache the mir type and return
+        self.type_cache.insert(type_id, mir_type);
+
+        Ok(mir_type)
+    }
+}

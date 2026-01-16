@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_ast::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
@@ -25,12 +25,20 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_i32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR i64 type.
     pub(crate) ty_i64: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR u32 type.
+    pub(crate) ty_u32: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR usize type.
+    pub(crate) ty_usize: mir::LocalNodeId<mir::Type>,
     /// Cached MIR f32 type.
     pub(crate) ty_f32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR f64 type.
     pub(crate) ty_f64: mir::LocalNodeId<mir::Type>,
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
+    /// Cached union layout metadata by DIR type id.
+    pub(crate) union_cache: HashMap<dir::LocalTypeId, super::UnionLayout>,
+    /// Cached interface reference layouts by DIR type id.
+    pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, super::InterfaceRefLayout>,
 }
 
 impl TypeLowerer {
@@ -46,9 +54,13 @@ impl TypeLowerer {
             ty_bool: builder.type_bool(),
             ty_i32: builder.type_i32(),
             ty_i64: builder.type_i64(),
+            ty_u32: builder.type_u32(),
+            ty_usize: builder.type_usize(),
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
             ty_string: None,
+            union_cache: HashMap::new(),
+            interface_ref_cache: HashMap::new(),
         }
     }
 
@@ -152,8 +164,6 @@ impl TypeLowerer {
         layout: &StructLayout,
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
-        let mut mir_fields = Vec::with_capacity(layout.fields.len());
-
         // compute copyability from field types
         let mut copyability = mir::Copyability::Trivial;
         for field in &layout.fields {
@@ -161,11 +171,26 @@ impl TypeLowerer {
             copyability = copyability.combine(field_type.copyability());
         }
 
+        // build the struct type with computed copyability
+        self.create_struct_type_with_copyability(layout, copyability, builder)
+    }
+
+    /// Create a MIR struct type with explicit copyability.
+    pub(crate) fn create_struct_type_with_copyability(
+        &mut self,
+        layout: &StructLayout,
+        copyability: mir::Copyability,
+        builder: &mut mir::ModuleBuilder,
+    ) -> mir::LocalNodeId<mir::Type> {
+        let mut mir_fields = Vec::with_capacity(layout.fields.len());
+
+        // populate field nodes with computed offsets
         for field in &layout.fields {
             let mir_field = builder.field(Some(field.name), field.ty, field.offset);
             mir_fields.push(mir_field);
         }
 
+        // return the struct type
         builder.type_struct(mir_fields, copyability)
     }
 
@@ -185,6 +210,12 @@ impl TypeLowerer {
         let dir_type = types.get_type(type_id);
         let mir_type = match dir_type {
             dir::Type::Reference { symbol, .. } => {
+                if symbol.ty() == dir::SymbolType::Interface {
+                    let mir_type = self
+                        .lower_interface_reference_type(types, type_id, module_id, node, builder)?;
+                    return Ok(mir_type);
+                }
+
                 // follow the reference to its instance type
                 let instance_type_id = types.get_instance_type_id(*symbol).ok_or_else(|| {
                     LowerError::UnsupportedType {
@@ -240,19 +271,16 @@ impl TypeLowerer {
             }
             dir::Type::Object {
                 fields,
-                call_signatures,
-                construct_signatures,
+                call_signatures: _,
+                construct_signatures: _,
                 index_signatures,
             } => {
-                // skip types with call/construct/index signatures for now
-                if !call_signatures.is_empty()
-                    || !construct_signatures.is_empty()
-                    || !index_signatures.is_empty()
-                {
+                if !index_signatures.is_empty() {
                     return Err(LowerError::UnsupportedType {
                         node,
                         ty: type_id.into_global(module_id),
-                        message: "object types with call, construct, or index signatures are not yet supported".to_string(),
+                        message: "index signatures are not supported for native lowering"
+                            .to_string(),
                     });
                 }
 
@@ -286,6 +314,16 @@ impl TypeLowerer {
 
                 builder.type_function_pointer(parameters, result)
             }
+            dir::Type::Union { elements } => {
+                return self.lower_union_type(types, type_id, elements, module_id, node, builder);
+            }
+            dir::Type::Intersection { elements } => {
+                let primary =
+                    self.select_intersection_primary_type(types, elements, module_id, node)?;
+                let mir_type = self.lower_type(types, primary, module_id, node, builder)?;
+                self.type_cache.insert(type_id, mir_type);
+                return Ok(mir_type);
+            }
             _ => self
                 .try_lower_type(dir_type, builder)
                 .ok_or(LowerError::UnsupportedType {
@@ -296,5 +334,105 @@ impl TypeLowerer {
         };
         self.type_cache.insert(type_id, mir_type);
         Ok(mir_type)
+    }
+
+    /// Select the primary type for an intersection layout.
+    fn select_intersection_primary_type(
+        &self,
+        types: &dir::TypeTable,
+        elements: &[dir::LocalTypeId],
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<dir::LocalTypeId> {
+        // collect intersection elements with flattening
+        let mut collected = Vec::new();
+        let mut visited = HashSet::new();
+        for element_id in elements {
+            self.collect_intersection_element(*element_id, types, &mut visited, &mut collected);
+        }
+
+        // track candidate primary types
+        let mut primary_nominal = None;
+        let mut primary_object = None;
+
+        // scan for nominal and object candidates
+        for element_id in collected {
+            let dir_type = types.get_type(element_id);
+            match dir_type {
+                dir::Type::Reference { symbol, .. } => {
+                    if matches!(
+                        symbol.ty(),
+                        dir::SymbolType::Struct
+                            | dir::SymbolType::Class
+                            | dir::SymbolType::Enum
+                            | dir::SymbolType::Newtype
+                    ) {
+                        if let Some(existing) = primary_nominal {
+                            if !dir::are_types_equal(existing, element_id, types) {
+                                return Err(LowerError::UnsupportedType {
+                                    node,
+                                    ty: element_id.into_global(module_id),
+                                    message: "intersection has multiple nominal primaries"
+                                        .to_string(),
+                                });
+                            }
+                        } else {
+                            primary_nominal = Some(element_id);
+                        }
+                    }
+                }
+                dir::Type::Object { .. } => {
+                    if primary_object.is_none() {
+                        primary_object = Some(element_id);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // prefer nominal primary types
+        if let Some(primary) = primary_nominal {
+            return Ok(primary);
+        }
+
+        // fall back to object types
+        if let Some(primary) = primary_object {
+            return Ok(primary);
+        }
+
+        // report missing primary layouts
+        Err(LowerError::UnsupportedType {
+            node,
+            ty: elements
+                .first()
+                .copied()
+                .unwrap_or_else(|| dir::LocalTypeId::new(0))
+                .into_global(module_id),
+            message: "intersection missing primary layout type".to_string(),
+        })
+    }
+
+    /// Collect intersection elements with flattening.
+    fn collect_intersection_element(
+        &self,
+        type_id: dir::LocalTypeId,
+        types: &dir::TypeTable,
+        visited: &mut HashSet<dir::LocalTypeId>,
+        collected: &mut Vec<dir::LocalTypeId>,
+    ) {
+        // skip already visited types
+        if !visited.insert(type_id) {
+            return;
+        }
+
+        // flatten nested intersections
+        match types.get_type(type_id) {
+            dir::Type::Intersection { elements } => {
+                for element_id in elements {
+                    self.collect_intersection_element(*element_id, types, visited, collected);
+                }
+            }
+            _ => collected.push(type_id),
+        }
     }
 }

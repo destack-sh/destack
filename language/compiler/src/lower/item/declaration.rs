@@ -198,6 +198,10 @@ impl ModuleLowerer<'_> {
             &self.functions_by_symbol,
             &self.globals_by_symbol,
             &self.interface_dispatch,
+            &self.interface_itab_ids,
+            &self.virtual_method_slots_by_symbol,
+            self.dispatch_call_name,
+            self.dispatch_construct_name,
             &self.type_lowerer,
             builder,
         );
@@ -337,8 +341,9 @@ impl ModuleLowerer<'_> {
             let type_name = self.compiler.program.strings.get(name.string()).to_string();
             format!("{type_name}.constructor")
         } else {
-            // resolve the static method key
-            let method_name = self.member_name_or_error(key.as_ref(), member_id)?;
+            // resolve the static method key or dispatch name
+            let method_name =
+                self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
             self.compiler.program.strings.get(method_name).to_string()
         };
 
@@ -394,6 +399,10 @@ impl ModuleLowerer<'_> {
             &self.functions_by_symbol,
             &self.globals_by_symbol,
             &self.interface_dispatch,
+            &self.interface_itab_ids,
+            &self.virtual_method_slots_by_symbol,
+            self.dispatch_call_name,
+            self.dispatch_construct_name,
             &self.type_lowerer,
             builder,
         );

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::lower::{BuiltinTypeLayouts, InterfaceDispatchCache, TypeLowerer};
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
@@ -75,6 +77,8 @@ impl Compiler {
 
         // initialize MIR builder and type lowerer
         let mut builder = mir::ModuleBuilder::new();
+        let dispatch_call_name = builder.intern("@call");
+        let dispatch_construct_name = builder.intern("@new");
         let mut type_lowerer = {
             // TODO #Broken: comptime uses host pointer width (until execute is target-aware? should it?)
             let pointer_bytes = std::mem::size_of::<usize>() as u8;
@@ -123,9 +127,11 @@ impl Compiler {
         let function_builder = builder.function("comptime", &[], return_type);
 
         // create empty maps for function/global lookup (comptime expressions are standalone)
-        let functions_by_symbol = std::collections::HashMap::new();
-        let globals_by_symbol = std::collections::HashMap::new();
+        let functions_by_symbol = HashMap::new();
+        let globals_by_symbol = HashMap::new();
         let interface_dispatch = InterfaceDispatchCache::new();
+        let interface_itab_ids = HashMap::new();
+        let virtual_method_slots_by_symbol = HashMap::new();
 
         // create function context
         let mut function_ctx = FunctionContext::new(
@@ -139,6 +145,10 @@ impl Compiler {
             &functions_by_symbol,
             &globals_by_symbol,
             &interface_dispatch,
+            &interface_itab_ids,
+            &virtual_method_slots_by_symbol,
+            dispatch_call_name,
+            dispatch_construct_name,
             &type_lowerer,
             function_builder,
         );

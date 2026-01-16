@@ -87,12 +87,13 @@ impl FunctionContext<'_> {
         let struct_type = self.mir_type_for_expression(expression_id)?;
 
         // get the cached layout for this struct type
-        let layout = self.env.type_lowerer.layout_for_type_or_error(
-            struct_type,
-            expression_id
-                .into_global_any(self.env.module_id)
-                .into_anchored(Some(self.env.profile)),
-        )?;
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let layout = self
+            .env
+            .type_lowerer
+            .layout_for_type_or_error(struct_type, node)?;
 
         // initialize field values array (one slot per field in layout order)
         let field_count = layout.fields.len();
@@ -156,6 +157,13 @@ impl FunctionContext<'_> {
                         message: "method properties in object literals not supported".to_string(),
                     });
                 }
+            }
+        }
+
+        // fill synthetic fields with zero values
+        for (index, field) in layout.fields.iter().enumerate() {
+            if field.source_index.is_none() && field_values[index].is_none() {
+                field_values[index] = Some(self.zero_value_for_type(field.ty, node)?);
             }
         }
 
@@ -270,7 +278,11 @@ impl FunctionContext<'_> {
         )?;
 
         // match arguments to fields in source order
-        let field_count = layout.fields.len();
+        let field_count = layout
+            .fields
+            .iter()
+            .filter(|field| field.source_index.is_some())
+            .count();
         if dynamic_arguments.len() != field_count {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
@@ -281,7 +293,7 @@ impl FunctionContext<'_> {
         }
 
         // initialize field values array in layout order
-        let mut field_values: Vec<Option<mir::Value>> = vec![None; field_count];
+        let mut field_values: Vec<Option<mir::Value>> = vec![None; layout.fields.len()];
         for (source_index, argument_id) in dynamic_arguments.iter().enumerate() {
             let argument = self.env.dir_tree.get(*argument_id);
             let dir::Argument::Positional { value, .. } = argument else {
@@ -318,6 +330,16 @@ impl FunctionContext<'_> {
             }
 
             field_values[layout_index] = Some(value);
+        }
+
+        // fill synthetic fields with zero values
+        for (index, field) in layout.fields.iter().enumerate() {
+            if field.source_index.is_none() && field_values[index].is_none() {
+                let node = expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile));
+                field_values[index] = Some(self.zero_value_for_type(field.ty, node)?);
+            }
         }
 
         // check all fields are initialized

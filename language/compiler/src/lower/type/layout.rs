@@ -42,7 +42,7 @@ pub(crate) struct FieldLayout {
     /// Alignment requirement in bytes.
     pub alignment: u32,
     /// Original source index (for mapping back to source order).
-    pub source_index: u32,
+    pub source_index: Option<u32>,
 }
 
 /// Input field for layout computation (before offsets are assigned).
@@ -58,7 +58,7 @@ pub(crate) struct FieldInput {
     /// Alignment requirement in bytes.
     pub alignment: u32,
     /// Original source index.
-    pub source_index: u32,
+    pub source_index: Option<u32>,
 }
 
 /// Convert a static key to a field name.
@@ -110,7 +110,7 @@ impl StructLayout {
     pub(crate) fn field_index_by_source(&self, source_index: u32) -> Option<u32> {
         self.fields
             .iter()
-            .position(|f| f.source_index == source_index)
+            .position(|f| f.source_index == Some(source_index))
             .map(|i| i as u32)
     }
 
@@ -120,9 +120,7 @@ impl StructLayout {
     }
 }
 
-/// Compute struct layout from a list of field inputs.
-///
-/// This implements the layout policy:
+/// Compute struct layout from a list of field inputs:
 /// - Optimized: sort by alignment (desc), size (desc), source order as tiebreaker
 /// - Source/C: preserve declaration order
 pub(crate) fn compute_struct_layout(
@@ -138,15 +136,17 @@ pub(crate) fn compute_struct_layout(
         LayoutPolicy::Optimized => {
             // sort by alignment desc, then size desc, then source order asc
             fields.sort_by(|a, b| {
+                let a_source = (a.source_index.is_none(), a.source_index.unwrap_or_default());
+                let b_source = (b.source_index.is_none(), b.source_index.unwrap_or_default());
                 b.alignment
                     .cmp(&a.alignment)
                     .then_with(|| b.size.cmp(&a.size))
-                    .then_with(|| a.source_index.cmp(&b.source_index))
+                    .then_with(|| a_source.cmp(&b_source))
             });
         }
         LayoutPolicy::Source | LayoutPolicy::C => {
             // keep source order
-            fields.sort_by_key(|f| f.source_index);
+            fields.sort_by_key(|f| (f.source_index.is_none(), f.source_index.unwrap_or_default()));
         }
     }
 
@@ -178,6 +178,62 @@ pub(crate) fn compute_struct_layout(
         fields: layout_fields,
         size: total_size,
         alignment: struct_alignment,
+    }
+}
+
+/// Compute struct layout with a fixed prefix field at offset zero.
+pub(crate) fn compute_struct_layout_with_prefix(
+    prefix: FieldInput,
+    fields: Vec<FieldInput>,
+    policy: LayoutPolicy,
+) -> StructLayout {
+    if fields.is_empty() {
+        let size = align_up(prefix.size, prefix.alignment);
+        return StructLayout {
+            fields: vec![FieldLayout {
+                name: prefix.name,
+                ty: prefix.ty,
+                offset: 0,
+                size: prefix.size,
+                alignment: prefix.alignment,
+                source_index: prefix.source_index,
+            }],
+            size,
+            alignment: prefix.alignment,
+        };
+    }
+
+    let rest_layout = compute_struct_layout(fields, policy);
+    let base_offset = align_up(prefix.size, rest_layout.alignment);
+    let alignment = prefix.alignment.max(rest_layout.alignment);
+
+    let mut merged_fields = Vec::with_capacity(rest_layout.fields.len() + 1);
+    merged_fields.push(FieldLayout {
+        name: prefix.name,
+        ty: prefix.ty,
+        offset: 0,
+        size: prefix.size,
+        alignment: prefix.alignment,
+        source_index: prefix.source_index,
+    });
+
+    for field in rest_layout.fields {
+        merged_fields.push(FieldLayout {
+            name: field.name,
+            ty: field.ty,
+            offset: base_offset + field.offset,
+            size: field.size,
+            alignment: field.alignment,
+            source_index: field.source_index,
+        });
+    }
+
+    let size = align_up(base_offset + rest_layout.size, alignment);
+
+    StructLayout {
+        fields: merged_fields,
+        size,
+        alignment,
     }
 }
 
@@ -318,21 +374,21 @@ mod tests {
                 ty: dummy_ty,
                 size: 1,
                 alignment: 1,
-                source_index: 0,
+                source_index: Some(0),
             },
             FieldInput {
                 name: b,
                 ty: dummy_ty,
                 size: 4,
                 alignment: 4,
-                source_index: 1,
+                source_index: Some(1),
             },
             FieldInput {
                 name: c,
                 ty: dummy_ty,
                 size: 2,
                 alignment: 2,
-                source_index: 2,
+                source_index: Some(2),
             },
         ];
 
@@ -370,14 +426,14 @@ mod tests {
                 ty: dummy_ty,
                 size: 1,
                 alignment: 1,
-                source_index: 0,
+                source_index: Some(0),
             },
             FieldInput {
                 name: b,
                 ty: dummy_ty,
                 size: 4,
                 alignment: 4,
-                source_index: 1,
+                source_index: Some(1),
             },
         ];
 

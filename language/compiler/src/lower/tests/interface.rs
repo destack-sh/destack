@@ -1,4 +1,4 @@
-use destack_mir::CallDispatchKind;
+use destack_mir::{self as mir, CallDispatchKind};
 
 use crate::TestProgram;
 
@@ -45,6 +45,61 @@ struct Circle implements Drawable {
             .interface_method_target_name(itab, tree, strings, "draw")
             .expect("missing draw interface method");
         assert_eq!(target_name, "draw");
+    });
+}
+
+/// Lower interface reference layouts into fat pointer structs.
+#[test]
+fn test_lower_interface_reference_layout() {
+    // set up the test program
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Drawable {
+    color: int32;
+    draw(): int32;
+}
+
+struct Circle implements Drawable {
+    color: int32;
+    radius: int32;
+
+    draw(): int32 { return this.color; }
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.with_mir_tree(module_id, "native", |tree, strings| {
+        // find the interface reference struct type
+        let interface_type = test
+            .find_struct_type_by_field_names(tree, strings, &["@object", "@itab"])
+            .expect("missing interface reference type");
+
+        // resolve the object and itab field types
+        let object_type = test
+            .struct_field_type_by_name(tree, strings, interface_type, "@object")
+            .expect("missing interface object field");
+        let itab_type = test
+            .struct_field_type_by_name(tree, strings, interface_type, "@itab")
+            .expect("missing interface itab field");
+
+        // assert the object pointer field type
+        let object_type = tree.get(object_type);
+        let mir::Type::Reference { kind, pointee, .. } = object_type else {
+            panic!("expected managed reference for interface object field");
+        };
+        assert!(matches!(kind, mir::ReferenceKind::Managed));
+        assert!(matches!(tree.get(*pointee), mir::Type::Void));
+
+        // assert the itab field type
+        let itab_type = tree.get(itab_type);
+        assert!(matches!(itab_type, mir::Type::Usize));
     });
 }
 

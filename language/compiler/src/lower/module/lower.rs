@@ -45,6 +45,18 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) type_lowerer: TypeLowerer,
     /// Cache interface dispatch slots for call lowering.
     pub(crate) interface_dispatch: InterfaceDispatchCache,
+    /// Synthetic name for call signatures in dispatch tables.
+    pub(crate) dispatch_call_name: destack_base::StringId,
+    /// Synthetic name for construct signatures in dispatch tables.
+    pub(crate) dispatch_construct_name: destack_base::StringId,
+    /// Virtual dispatch slot ids keyed by method symbol.
+    pub(crate) virtual_method_slots_by_symbol: HashMap<GlobalSymbolId, u32>,
+    /// Ordered list of class symbols that require vtables.
+    pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
+    /// Ordered interface itab pairs for deterministic table ids.
+    pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
+    /// Precomputed itab ids keyed by concrete and interface symbols.
+    pub(crate) interface_itab_ids: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -70,6 +82,8 @@ impl<'a> ModuleLowerer<'a> {
 
         // create the type lowerer
         let type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
+        let dispatch_call_name = builder.intern("@call");
+        let dispatch_construct_name = builder.intern("@new");
 
         Self {
             compiler,
@@ -86,6 +100,12 @@ impl<'a> ModuleLowerer<'a> {
             globals_by_symbol: HashMap::new(),
             type_lowerer,
             interface_dispatch: InterfaceDispatchCache::new(),
+            dispatch_call_name,
+            dispatch_construct_name,
+            virtual_method_slots_by_symbol: HashMap::new(),
+            vtable_class_symbols: Vec::new(),
+            interface_itab_pairs: Vec::new(),
+            interface_itab_ids: HashMap::new(),
         }
     }
 
@@ -120,6 +140,9 @@ impl<'a> ModuleLowerer<'a> {
         // predeclare nominal layouts for struct and class instance types
         self.predeclare_nominal_layouts()?;
 
+        // predeclare interface reference types for interface values
+        self.predeclare_interface_reference_types()?;
+
         // types are lowered lazily via TypeLowerer when first accessed
         Ok(())
     }
@@ -128,6 +151,8 @@ impl<'a> ModuleLowerer<'a> {
     ///
     /// Processes all root expressions to lower globals and function bodies.
     fn lower_items(&mut self) -> LowerResult<()> {
+        self.predeclare_virtual_dispatch()?;
+        self.predeclare_itab_ids()?;
         self.predeclare_interface_methods()?;
         self.predeclare_interface_dispatch()?;
         self.predeclare_external_calls()?;

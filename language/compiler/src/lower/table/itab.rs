@@ -10,46 +10,28 @@ use crate::lower::ModuleLowerer;
 use crate::lower::table::interface::InterfaceSlot;
 
 impl ModuleLowerer<'_> {
-    /// Lower itabs for interface dispatch.
-    pub(crate) fn lower_itabs(&mut self) -> LowerResult<()> {
-        // collect concrete to interface pairs
-        let mut pairs = Vec::new();
-
-        // scan type lineages for concrete symbols
-        for (symbol, lineage) in self.types.iter_lineages() {
-            // skip non nominal types
-            if !matches!(
-                symbol.ty(),
-                dir::SymbolType::Class | dir::SymbolType::Struct
-            ) {
-                continue;
-            }
-
-            // collect interfaces in declaration order
-            let mut ordered_interfaces = Vec::new();
-            let mut seen_interfaces = HashSet::new();
-
-            // expand interface lineage
-            for interface_symbol in &lineage.implements {
-                self.collect_interface_lineage(
-                    *interface_symbol,
-                    &mut ordered_interfaces,
-                    &mut seen_interfaces,
-                );
-            }
-
-            // record concrete interface pairs
-            for interface_symbol in ordered_interfaces {
-                pairs.push((symbol, interface_symbol));
-            }
-        }
-
-        // sort for deterministic output
+    /// Predeclare interface itab ids for interface upcasts.
+    pub(crate) fn predeclare_itab_ids(&mut self) -> LowerResult<()> {
+        let mut pairs = self.collect_interface_pairs();
         pairs.sort_by_key(|(concrete, interface)| (concrete.local_id.id, interface.local_id.id));
         pairs.dedup();
 
+        self.interface_itab_pairs = pairs.clone();
+        self.interface_itab_ids.clear();
+
+        let base_offset = self.vtable_class_symbols.len() as u32;
+        for (index, pair) in pairs.iter().enumerate() {
+            let id = mir::DispatchTableId::new(base_offset + index as u32);
+            self.interface_itab_ids.insert(*pair, id);
+        }
+
+        Ok(())
+    }
+
+    /// Lower itabs for interface dispatch.
+    pub(crate) fn lower_itabs(&mut self) -> LowerResult<()> {
         // generate itabs for each pair
-        for (concrete, interface) in pairs {
+        for (concrete, interface) in self.interface_itab_pairs.clone() {
             self.lower_itab_for_pair(concrete, interface)?;
         }
 
@@ -268,16 +250,12 @@ impl ModuleLowerer<'_> {
                         continue;
                     }
 
-                    // skip constructor style signatures
-                    if matches!(
-                        signature.mode,
-                        Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
-                    ) {
-                        continue;
-                    }
-
                     // match the method name
-                    let name = self.member_name_or_error(key.as_ref(), *member_id)?;
+                    let name = self.member_dispatch_name_or_error(
+                        key.as_ref(),
+                        signature.mode,
+                        *member_id,
+                    )?;
                     if name != method_name {
                         continue;
                     }
@@ -326,5 +304,41 @@ impl ModuleLowerer<'_> {
 
         // append the interface after base types
         order.push(interface);
+    }
+
+    /// Collect concrete to interface pairs for itab generation.
+    fn collect_interface_pairs(&self) -> Vec<(GlobalSymbolId, GlobalSymbolId)> {
+        let mut pairs = Vec::new();
+
+        // scan type lineages for concrete symbols
+        for (symbol, lineage) in self.types.iter_lineages() {
+            // skip non nominal types
+            if !matches!(
+                symbol.ty(),
+                dir::SymbolType::Class | dir::SymbolType::Struct
+            ) {
+                continue;
+            }
+
+            // collect interfaces in declaration order
+            let mut ordered_interfaces = Vec::new();
+            let mut seen_interfaces = HashSet::new();
+
+            // expand interface lineage
+            for interface_symbol in &lineage.implements {
+                self.collect_interface_lineage(
+                    *interface_symbol,
+                    &mut ordered_interfaces,
+                    &mut seen_interfaces,
+                );
+            }
+
+            // record concrete interface pairs
+            for interface_symbol in ordered_interfaces {
+                pairs.push((symbol, interface_symbol));
+            }
+        }
+
+        pairs
     }
 }

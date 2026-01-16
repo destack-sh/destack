@@ -29,15 +29,8 @@ impl ModuleLowerer<'_> {
 
         // record metadata entries for each layout
         for (ty, layout) in layouts {
-            // map field offsets back to source order
-            let mut field_offsets = vec![0u32; layout.fields.len()];
-            for field in &layout.fields {
-                let index = field.source_index as usize;
-                if index >= field_offsets.len() {
-                    continue;
-                }
-                field_offsets[index] = field.offset;
-            }
+            // collect field offsets in layout order
+            let field_offsets = layout.fields.iter().map(|field| field.offset).collect();
 
             // build the mir layout metadata
             let type_layout = mir::TypeLayout {

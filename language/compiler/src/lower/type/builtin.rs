@@ -198,7 +198,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
                 ty: field_mir_type,
                 size,
                 alignment,
-                source_index: source_index as u32,
+                source_index: Some(source_index as u32),
             });
         }
 

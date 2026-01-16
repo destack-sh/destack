@@ -36,6 +36,15 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_dispatch: &'a InterfaceDispatchCache,
+    /// Resolve interface itab ids for interface upcasts.
+    pub(crate) interface_itab_ids:
+        &'a HashMap<(GlobalSymbolId, GlobalSymbolId), destack_mir::DispatchTableId>,
+    /// Resolve virtual dispatch slot ids for method calls.
+    pub(crate) virtual_method_slots_by_symbol: &'a HashMap<GlobalSymbolId, u32>,
+    /// Synthetic name for call signatures in dispatch tables.
+    pub(crate) dispatch_call_name: destack_base::StringId,
+    /// Synthetic name for construct signatures in dispatch tables.
+    pub(crate) dispatch_construct_name: destack_base::StringId,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: &'a TypeLowerer,
 }
@@ -97,6 +106,10 @@ impl<'a> FunctionContext<'a> {
         functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
         globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
         interface_dispatch: &'a InterfaceDispatchCache,
+        interface_itab_ids: &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+        virtual_method_slots_by_symbol: &'a HashMap<GlobalSymbolId, u32>,
+        dispatch_call_name: destack_base::StringId,
+        dispatch_construct_name: destack_base::StringId,
         type_lowerer: &'a TypeLowerer,
         builder: mir::FunctionBuilder<'a>,
     ) -> Self {
@@ -112,6 +125,10 @@ impl<'a> FunctionContext<'a> {
                 functions_by_symbol,
                 globals_by_symbol,
                 interface_dispatch,
+                interface_itab_ids,
+                virtual_method_slots_by_symbol,
+                dispatch_call_name,
+                dispatch_construct_name,
                 type_lowerer,
             },
             state: FunctionState {
@@ -360,6 +377,34 @@ impl<'a> FunctionContext<'a> {
         operator: dir::CastOperator,
         value_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        match operator {
+            dir::CastOperator::InstanceUpcast => {
+                return self.lower_instance_upcast(expression_id, value_id);
+            }
+            dir::CastOperator::InstanceDowncast => {
+                return self.lower_instance_downcast(expression_id, value_id);
+            }
+            dir::CastOperator::UnionUpcast => {
+                return self.lower_union_upcast(expression_id, value_id);
+            }
+            dir::CastOperator::UnionDowncast => {
+                return self.lower_union_downcast(expression_id, value_id);
+            }
+            dir::CastOperator::ObjectUpcast
+            | dir::CastOperator::ObjectDowncast
+            | dir::CastOperator::AnyUpcast
+            | dir::CastOperator::AnyDowncast
+            | dir::CastOperator::UnknownUpcast
+            | dir::CastOperator::UnknownDowncast
+            | dir::CastOperator::NullableUpcast
+            | dir::CastOperator::NullableDowncast => {
+                let (value, _) = self.lower_value_expression(value_id)?;
+                let target_type = self.mir_type_for_expression(expression_id)?;
+                return Ok((value, target_type));
+            }
+            _ => {}
+        }
+
         // lower the cast input first
         let (value, _) = self.lower_value_expression(value_id)?;
 
@@ -390,6 +435,13 @@ impl<'a> FunctionContext<'a> {
         // short-circuit logical operators need special control flow
         if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
             return self.lower_logical_operator(expression_id, operator, left, right);
+        }
+
+        // handle union discriminant comparisons
+        if let Some(value) =
+            self.lower_union_discriminant_comparison(expression_id, left, operator, right)?
+        {
+            return Ok((value, self.env.type_lowerer.ty_bool));
         }
 
         // lower operands
