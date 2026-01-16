@@ -9,8 +9,7 @@ use crate::optimize::common::{
     instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
-    resolve_substitution_chains,
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, resolve_substitution_chains,
 };
 
 declare_pass! {
@@ -213,8 +212,7 @@ fn run_constant_fold(
                 } => {
                     // fold casts with constant operands
                     if let Some(arg_const) = block_constants.get(*argument)
-                        && let Some(result) =
-                        fold_cast(
+                        && let Some(result) = fold_cast(
                             *operator,
                             arg_const.clone(),
                             *to_type,

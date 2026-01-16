@@ -1197,9 +1197,7 @@ pub fn terminator_remap(
             remap_args(arguments);
         }
         mir::Terminator::TailCallIndirect {
-            callee,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             remap_value(callee);
             remap_args(arguments);

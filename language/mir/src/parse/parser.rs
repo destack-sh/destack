@@ -36,10 +36,15 @@ impl FieldKey {
 enum TypeKey {
     Void,
     Boolean,
-    Int { width: u16, signed: bool },
+    Int {
+        width: u16,
+        signed: bool,
+    },
     Isize,
     Usize,
-    Float { width: u16 },
+    Float {
+        width: u16,
+    },
     TypeTag,
     Reference {
         kind: ReferenceKind,

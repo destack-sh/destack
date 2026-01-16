@@ -829,7 +829,7 @@ fn range_for_cast(
         mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt => {
             // require an integer target type
             let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
-        
+
             let to_width = u8::try_from(to_width).ok()?;
             integer_range_from_float(argument, to_width, to_signed, operator)
         }

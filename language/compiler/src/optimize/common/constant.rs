@@ -695,7 +695,12 @@ fn constant_tree_from_zero(
             let elements = elements
                 .iter()
                 .map(|element| {
-                    constant_tree_from_zero(*element, tree, max_aggregate_elements, pointer_width_bits)
+                    constant_tree_from_zero(
+                        *element,
+                        tree,
+                        max_aggregate_elements,
+                        pointer_width_bits,
+                    )
                 })
                 .collect();
             ConstantTree::Aggregate(elements)
@@ -705,7 +710,12 @@ fn constant_tree_from_zero(
                 .iter()
                 .map(|field| tree.get(*field).ty)
                 .map(|field_ty| {
-                    constant_tree_from_zero(field_ty, tree, max_aggregate_elements, pointer_width_bits)
+                    constant_tree_from_zero(
+                        field_ty,
+                        tree,
+                        max_aggregate_elements,
+                        pointer_width_bits,
+                    )
                 })
                 .collect();
             ConstantTree::Aggregate(elements)
@@ -1080,8 +1090,7 @@ pub fn fold_cast(
 
         CastOperator::Truncate => {
             // read target integer width
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Some(value),
             };
@@ -1103,8 +1112,7 @@ pub fn fold_cast(
 
         CastOperator::ZeroExtend => {
             // read target integer width
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Some(value),
             };
@@ -1128,8 +1136,7 @@ pub fn fold_cast(
 
         CastOperator::SignExtend => {
             // read target integer width
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => return Some(value),
             };
@@ -1155,8 +1162,7 @@ pub fn fold_cast(
 
         CastOperator::FloatToSignedInt => {
             // read target integer width
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => 64,
             };
@@ -1179,8 +1185,7 @@ pub fn fold_cast(
 
         CastOperator::FloatToUnsignedInt => {
             // read target integer width
-            let target_width =
-                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+            let target_width = match target_type.int_info_with_pointer_width(pointer_width_bits) {
                 Some((width, _)) => width as u8,
                 None => 64,
             };

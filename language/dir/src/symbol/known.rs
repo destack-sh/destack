@@ -118,6 +118,24 @@ pub enum WellKnownDecorator {
     Noinline,
     /// The `@unroll` decorator marker.
     Unroll,
+    /// The `@hot` decorator marker.
+    Hot,
+    /// The `@cold` decorator marker.
+    Cold,
+    /// The `@likely` decorator marker.
+    Likely,
+    /// The `@unlikely` decorator marker.
+    Unlikely,
+    /// The `@mustUse` decorator marker.
+    MustUse,
+    /// The `@pure` decorator marker.
+    Pure,
+    /// The `@tailcall` decorator marker.
+    Tailcall,
+    /// The `@unsafe` decorator marker.
+    Unsafe,
+    /// The `@transmute` decorator marker.
+    Transmute,
     /// The `@taint` decorator marker.
     Taint,
     /// The `@tag` decorator marker.
@@ -152,6 +170,15 @@ impl WellKnownDecorator {
             WellKnownDecorator::Inline => "inline",
             WellKnownDecorator::Noinline => "noinline",
             WellKnownDecorator::Unroll => "unroll",
+            WellKnownDecorator::Hot => "hot",
+            WellKnownDecorator::Cold => "cold",
+            WellKnownDecorator::Likely => "likely",
+            WellKnownDecorator::Unlikely => "unlikely",
+            WellKnownDecorator::MustUse => "mustUse",
+            WellKnownDecorator::Pure => "pure",
+            WellKnownDecorator::Tailcall => "tailcall",
+            WellKnownDecorator::Unsafe => "unsafe",
+            WellKnownDecorator::Transmute => "transmute",
             WellKnownDecorator::Taint => "taint",
             WellKnownDecorator::Tag => "tag",
             WellKnownDecorator::Lifetime => "lifetime",
@@ -177,6 +204,15 @@ impl WellKnownDecorator {
             WellKnownDecorator::Inline,
             WellKnownDecorator::Noinline,
             WellKnownDecorator::Unroll,
+            WellKnownDecorator::Hot,
+            WellKnownDecorator::Cold,
+            WellKnownDecorator::Likely,
+            WellKnownDecorator::Unlikely,
+            WellKnownDecorator::MustUse,
+            WellKnownDecorator::Pure,
+            WellKnownDecorator::Tailcall,
+            WellKnownDecorator::Unsafe,
+            WellKnownDecorator::Transmute,
             WellKnownDecorator::Taint,
             WellKnownDecorator::Tag,
             WellKnownDecorator::Lifetime,

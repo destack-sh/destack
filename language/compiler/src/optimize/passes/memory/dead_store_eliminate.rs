@@ -11,9 +11,7 @@ use crate::optimize::common::{
     DecomposedPointer, PointerDecomposer, RangeRelation, build_value_definition_map,
     range_relation, stack_alloc_base,
 };
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
-};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_pass! {
     /// Dead Store Elimination.
@@ -534,9 +532,7 @@ fn collect_non_escaping_stack_allocs(
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
                 for &arg in arguments {

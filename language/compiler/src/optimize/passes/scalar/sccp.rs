@@ -560,11 +560,7 @@ impl<'a> SccpState<'a> {
             mir::Instruction::Const { value, .. } => LatticeValue::Constant(value.clone()),
             mir::Instruction::GlobalConst { global, .. } => {
                 // read global constant
-                lattice_from_global(
-                    *global,
-                    self.tree,
-                    self.type_context.pointer_width_bits,
-                )
+                lattice_from_global(*global, self.tree, self.type_context.pointer_width_bits)
                     .unwrap_or(LatticeValue::Overdefined)
             }
             mir::Instruction::Binary {
@@ -620,17 +616,15 @@ impl<'a> SccpState<'a> {
 
                 // fold based on operand state
                 match argument_state {
-                    LatticeValue::Constant(value) => {
-                        fold_cast(
-                            *operator,
-                            value,
-                            *to_type,
-                            self.type_context.pointer_width_bits,
-                            self.tree,
-                        )
-                            .map(LatticeValue::Constant)
-                            .unwrap_or(LatticeValue::Overdefined)
-                    }
+                    LatticeValue::Constant(value) => fold_cast(
+                        *operator,
+                        value,
+                        *to_type,
+                        self.type_context.pointer_width_bits,
+                        self.tree,
+                    )
+                    .map(LatticeValue::Constant)
+                    .unwrap_or(LatticeValue::Overdefined),
                     LatticeValue::Overdefined => LatticeValue::Overdefined,
                     LatticeValue::Aggregate(_) => LatticeValue::Overdefined,
                     LatticeValue::Unknown => LatticeValue::Unknown,
@@ -879,12 +873,8 @@ fn lattice_from_global(
     pointer_width_bits: u16,
 ) -> Option<LatticeValue> {
     // read constant tree
-    let constant_tree = constant_tree_from_global(
-        global_id,
-        tree,
-        MAX_AGGREGATE_ELEMENTS,
-        pointer_width_bits,
-    )?;
+    let constant_tree =
+        constant_tree_from_global(global_id, tree, MAX_AGGREGATE_ELEMENTS, pointer_width_bits)?;
 
     // map to lattice value
     Some(lattice_from_constant_tree(&constant_tree))

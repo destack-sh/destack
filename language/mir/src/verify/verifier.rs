@@ -428,8 +428,7 @@ impl<'a> Verifier<'a> {
                 ..
             } = instruction
             {
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature)
-                else {
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "call indirect signature is not a function type".to_string(),
                         anchor: VerifyAnchor::node(instruction_id),
@@ -623,8 +622,7 @@ impl<'a> Verifier<'a> {
                 signature,
                 ..
             } => {
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature)
-                else {
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "tailcall.indirect signature is not a function type".to_string(),
                         anchor: VerifyAnchor::node(block_id),
@@ -1149,7 +1147,8 @@ impl<'a> Verifier<'a> {
             && *mutability != expected
         {
             return Err(VerifyError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type has wrong mutability".to_string(),
+                message: "pointer-producing instruction result type has wrong mutability"
+                    .to_string(),
                 anchor,
             });
         }

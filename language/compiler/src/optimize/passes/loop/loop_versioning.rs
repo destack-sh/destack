@@ -202,8 +202,7 @@ fn run_loop_versioning(
             &ownership,
             ctx.type_context().pointer_width_bits,
             tree,
-        )
-        else {
+        ) else {
             continue;
         };
         let Some(length_width) = unsigned_int_width_for_value(
@@ -211,8 +210,7 @@ fn run_loop_versioning(
             &ownership,
             ctx.type_context().pointer_width_bits,
             tree,
-        )
-        else {
+        ) else {
             continue;
         };
         let Some(induction_width) = unsigned_int_width_for_value(
@@ -220,8 +218,7 @@ fn run_loop_versioning(
             &ownership,
             ctx.type_context().pointer_width_bits,
             tree,
-        )
-        else {
+        ) else {
             continue;
         };
         if bound_width != length_width || bound_width != induction_width {

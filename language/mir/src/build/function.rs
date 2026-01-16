@@ -605,9 +605,7 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(arguments, from, to);
             }
             Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(arguments, from, to);

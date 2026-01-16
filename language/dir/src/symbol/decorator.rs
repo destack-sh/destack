@@ -91,6 +91,24 @@ pub struct SymbolDecorators {
     pub is_noinline: bool,
     /// The loop unroll hint.
     pub unroll: Option<UnrollHint>,
+    /// The hot-path hint.
+    pub is_hot: bool,
+    /// The cold-path hint.
+    pub is_cold: bool,
+    /// The likely-branch hint.
+    pub is_likely: bool,
+    /// The unlikely-branch hint.
+    pub is_unlikely: bool,
+    /// The must-use marker.
+    pub is_must_use: bool,
+    /// The pure marker.
+    pub is_pure: bool,
+    /// The tailcall hint.
+    pub is_tailcall: bool,
+    /// The unsafe marker.
+    pub is_unsafe: bool,
+    /// The transmute marker.
+    pub is_transmute: bool,
     /// The taint markers.
     pub taints: Vec<TaintMarker>,
     /// The tag markers.

@@ -329,6 +329,33 @@ define_language_symbols! {
         /// `@unroll` hint
         Unroll => (Newtype, "intrinsic/decorator", "unroll"),
 
+        /// `@hot` hint
+        Hot => (Newtype, "intrinsic/decorator", "hot"),
+
+        /// `@cold` hint
+        Cold => (Newtype, "intrinsic/decorator", "cold"),
+
+        /// `@likely` hint
+        Likely => (Newtype, "intrinsic/decorator", "likely"),
+
+        /// `@unlikely` hint
+        Unlikely => (Newtype, "intrinsic/decorator", "unlikely"),
+
+        /// `@mustUse` marker
+        MustUse => (Newtype, "intrinsic/decorator", "mustUse"),
+
+        /// `@pure` marker
+        Pure => (Newtype, "intrinsic/decorator", "pure"),
+
+        /// `@tailcall` hint
+        Tailcall => (Newtype, "intrinsic/decorator", "tailcall"),
+
+        /// `@unsafe` marker
+        Unsafe => (Newtype, "intrinsic/decorator", "unsafe"),
+
+        /// `@transmute` marker
+        Transmute => (Newtype, "intrinsic/decorator", "transmute"),
+
         /// `@taint` marker
         Taint => (Newtype, "intrinsic/decorator", "taint"),
 

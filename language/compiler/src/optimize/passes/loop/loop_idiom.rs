@@ -174,8 +174,7 @@ fn run_loop_idiom(
             &ownership,
             ctx.type_context().pointer_width_bits,
             tree,
-        )
-        else {
+        ) else {
             continue;
         };
         let Some(bound_width) = unsigned_int_width_for_value(

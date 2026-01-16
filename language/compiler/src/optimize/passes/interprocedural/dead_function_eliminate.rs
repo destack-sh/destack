@@ -106,10 +106,7 @@ impl SignatureKey {
             .map(|param| TypeKey::from_type(*param, tree))
             .collect();
         let result = TypeKey::from_type(*result, tree);
-        Some(Self {
-            parameters,
-            result,
-        })
+        Some(Self { parameters, result })
     }
 }
 
