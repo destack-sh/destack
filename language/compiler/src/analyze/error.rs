@@ -278,6 +278,10 @@ pub enum AnalyzeError {
     #[error(code = "EA305", message = "missing return")]
     MissingReturn { node: AnchoredGlobalNodeId },
 
+    /// Unreachable code.
+    #[error(code = "EA312", message = "unreachable code")]
+    UnreachableCode { node: AnchoredGlobalNodeId },
+
     /// Use of uninitialized variable in a read position.
     #[error(code = "EA306", message = "uninitialized variable")]
     UninitializedVariable { node: AnchoredGlobalNodeId },

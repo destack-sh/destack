@@ -501,7 +501,7 @@ Raw pointers are separate from ownership modifiers:
 | `T` | Type default (value or managed reference) | `x` still valid | Type default |
 | `&T` | Borrow (read) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
-| `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
+| `^T` | Ownership transfer | `x` **invalid** | New owner (raw allocation) |
 
 Managed reference types are collected by the GC.
 Value types only drop when owned or used with `using`.
@@ -510,7 +510,8 @@ Value types only drop when owned or used with `using`.
 `noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
 Managed defaults include classes, interfaces, structural object types, arrays, functions, and string-like literals.
 Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both type annotations and inferred values.
-`noManaged` forbids managed defaults entirely, even when explicit ownership operators are present.
+`noManaged` forbids GC-managed defaults and allocations.
+Explicit ownership operators remain valid and use raw allocation.
 
 **Use after move:**
 

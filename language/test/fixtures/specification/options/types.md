@@ -22,6 +22,28 @@ let value: any = 1;
 
 - contains: any type is disabled
 
+### noAny reports inferred any in catch variables
+
+> Inferred any types are rejected when noAny is true.
+
+```ds:main.ds
+try {
+    throw 1;
+} catch (err) {
+    err;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": true, "useUnknownInCatchVariables": false } }
+```
+
+- contains: any type is disabled
+
 ## noUnknown
 
 ### noUnknown reports unknown usage when true
@@ -42,6 +64,28 @@ let value: unknown = 1;
 
 - contains: unknown type is disabled
 
+### noUnknown reports inferred unknown types
+
+> Inferred unknown types are rejected when noUnknown is true.
+
+```ds:main.ds
+try {
+    throw 1;
+} catch (err) {
+    err;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUnknown": true, "useUnknownInCatchVariables": true } }
+```
+
+- contains: unknown type is disabled
+
 ## noImprecisePrimitives
 
 ### noImprecisePrimitives reports number usage when true
@@ -50,6 +94,24 @@ let value: unknown = 1;
 
 ```ds:main.ds
 let value: number = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImprecisePrimitives": true } }
+```
+
+- contains: imprecise primitive type is disabled
+
+### noImprecisePrimitives reports inferred number usage
+
+> Inferred number types are rejected when noImprecisePrimitives is true.
+
+```ds:main.ds libs=es5
+let value = Number(1);
 ```
 
 ```ds:package.json

@@ -137,6 +137,84 @@ impl Compiler {
         }
     }
 
+    /// Validate restriction options on inferred types.
+    pub(crate) fn validate_restriction_checks(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        types: &TypeTable,
+    ) {
+        // read restriction options
+        let options = self.analyze_context_options_for_module(module.id);
+        let check_any = options.no_any;
+        let check_unknown = options.no_unknown;
+        let check_imprecise = options.no_imprecise_primitives;
+
+        // skip when checks are disabled
+        if !check_any && !check_unknown && !check_imprecise {
+            return;
+        }
+
+        // skip non user modules
+        if !matches!(module.source, ModuleSource::User) {
+            return;
+        }
+
+        // track reported sources to avoid duplicates
+        let mut reported_any = HashSet::new();
+        let mut reported_unknown = HashSet::new();
+        let mut reported_imprecise = HashSet::new();
+
+        // scan every type entry in the table
+        for index in 0..types.type_count() {
+            let type_id = LocalTypeId::new(index);
+            let ty = types.get_type(type_id);
+
+            // skip error and unevaluated types
+            if matches!(
+                ty,
+                Type::Error | Type::InferVar { .. } | Type::Unevaluated(_)
+            ) {
+                continue;
+            }
+
+            // capture the source for diagnostics
+            let source_id = types.get_type_source(type_id);
+            // reject inferred any usage
+            if check_any
+                && !reported_any.contains(&source_id)
+                && self.type_contains_any(module, type_id, types)
+            {
+                self.error(AnalyzeError::AnyTypeDisabled {
+                    node: source_id.into_anchored(module.id, Some(profile)),
+                });
+                reported_any.insert(source_id);
+            }
+
+            // reject inferred unknown usage
+            if check_unknown
+                && !reported_unknown.contains(&source_id)
+                && self.type_contains_unknown(module, type_id, types)
+            {
+                self.error(AnalyzeError::UnknownTypeDisabled {
+                    node: source_id.into_anchored(module.id, Some(profile)),
+                });
+                reported_unknown.insert(source_id);
+            }
+
+            // reject inferred imprecise primitives
+            if check_imprecise
+                && !reported_imprecise.contains(&source_id)
+                && self.type_contains_imprecise_primitive(module, type_id, types)
+            {
+                self.error(AnalyzeError::ImprecisePrimitiveDisabled {
+                    node: source_id.into_anchored(module.id, Some(profile)),
+                });
+                reported_imprecise.insert(source_id);
+            }
+        }
+    }
+
     /// Emit missing return diagnostics for a function body.
     fn validate_no_implicit_returns_for_body(
         &self,

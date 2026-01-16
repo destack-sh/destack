@@ -130,6 +130,48 @@ function unused_label(): int32 {
 { "compilerOptions": { "allowUnusedLabels": true } }
 ```
 
+## allowUnreachableCode
+
+### allowUnreachableCode reports unreachable code when false
+
+> Unreachable statements are reported when allowUnreachableCode is false.
+
+```ds:main.ds
+function unreachable(): int32 {
+    return 1;
+    return 2;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowUnreachableCode": false } }
+```
+
+- contains: unreachable code
+
+### allowUnreachableCode allows unreachable code when true
+
+> Unreachable statements are allowed when allowUnreachableCode is true.
+
+```ds:main.ds
+function unreachable(): int32 {
+    return 1;
+    return 2;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowUnreachableCode": true } }
+```
+
 ## noFallthroughCasesInSwitch
 
 ### noFallthroughCasesInSwitch reports fallthrough when true
@@ -178,4 +220,48 @@ function fallthrough(value: int32) {
 
 ```ds:dsconfig.json
 { "compilerOptions": { "noFallthroughCasesInSwitch": false } }
+```
+
+## noRedeclaredLocals
+
+### noRedeclaredLocals reports duplicate bindings when true
+
+> Duplicate local bindings are rejected when noRedeclaredLocals is true.
+
+```ds:main.ds
+function redeclared(): int32 {
+    let value = 1;
+    let value = 2;
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRedeclaredLocals": true } }
+```
+
+- contains: duplicate identifier
+
+### noRedeclaredLocals allows duplicate bindings when false
+
+> Duplicate local bindings are allowed when noRedeclaredLocals is false.
+
+```ds:main.ds
+function redeclared(): int32 {
+    let value = 1;
+    let value = 2;
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRedeclaredLocals": false } }
 ```

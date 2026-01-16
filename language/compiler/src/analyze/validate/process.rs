@@ -67,6 +67,7 @@ impl Compiler {
 
         // validate option dependent checks
         self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
+        self.validate_restriction_checks(&module, profile, &types);
 
         // update module signature after validation
         self.update_module_signature(module_id, profile)?;

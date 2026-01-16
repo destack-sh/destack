@@ -114,6 +114,26 @@ let value = new Box();
 
 - contains: managed memory is disabled
 
+### noManaged allows explicit ownership annotations
+
+> Explicit ownership operators are allowed when noManaged is true.
+
+```ds:main.ds
+class Box {
+    value: number = 0;
+}
+
+let value2: ^Box = ^new Box();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noManaged": true } }
+```
+
 ## noRuntime
 
 ### noRuntime reports async functions when true
