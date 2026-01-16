@@ -212,15 +212,15 @@ impl Compiler {
                 }
 
                 // evaluate the type alias value
-                let instance_ty_id = self.try_evaluate_expression_to_type(
+                let declared_ty_id = self.try_evaluate_expression_to_type(
                     module, profile, *value, tree, symbols, types, true,
                 )?;
-                types.set_declared_type(value.into_global_any(module.id), instance_ty_id);
+                types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
 
                 // register the instance type for this symbol
                 let symbol = descriptor.symbol.into_global(module.id);
                 let instance_ty_id = match *kind {
-                    TypeKind::Structural => instance_ty_id,
+                    TypeKind::Structural => declared_ty_id,
                     TypeKind::Nominal => {
                         let ty = Type::Reference {
                             symbol,
@@ -232,11 +232,37 @@ impl Compiler {
                 types.set_instance_type(symbol, instance_ty_id);
 
                 // register the value type for this symbol
-                let value_ty = Type::Value {
-                    value: instance_ty_id,
-                };
-                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(symbol, value_ty_id);
+                if *kind == TypeKind::Nominal {
+                    let static_parameters = self.static_parameter_placeholders_for_declaration(
+                        module,
+                        static_parameters.as_deref(),
+                        tree,
+                        types,
+                    );
+                    let constructor_id = self.newtype_constructor_signature(
+                        declaration_id,
+                        declared_ty_id,
+                        instance_ty_id,
+                        static_parameters,
+                        types,
+                    );
+                    let mut shape = ObjectShape::default();
+                    shape.call_signatures.push(constructor_id);
+                    self.merge_value_shape_into_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        &shape,
+                        types,
+                        false,
+                    );
+                } else {
+                    let value_ty = Type::Value {
+                        value: instance_ty_id,
+                    };
+                    let value_ty_id = types.insert_type_from(value_ty, declaration_id);
+                    types.set_value_type(symbol, value_ty_id);
+                }
 
                 Ok(())
             }
@@ -910,6 +936,34 @@ impl Compiler {
         (is_optional, is_readonly)
     }
 
+    /// Build static parameter placeholders for a type declaration.
+    fn static_parameter_placeholders_for_declaration(
+        &self,
+        module: &Module,
+        static_parameters: Option<&[LocalNodeId<Parameter>]>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Vec<LocalTypeId> {
+        // stop when no static parameters exist
+        let Some(parameters) = static_parameters else {
+            return Vec::new();
+        };
+
+        // map parameters to reference placeholders
+        let mut placeholders = Vec::with_capacity(parameters.len());
+        for parameter_id in parameters {
+            let symbol = tree.get(*parameter_id).symbol().into_global(module.id);
+            let ty = Type::Reference {
+                symbol,
+                static_arguments: None,
+            };
+            let type_id = types.insert_type_from(ty, *parameter_id);
+            placeholders.push(type_id);
+        }
+
+        placeholders
+    }
+
     /// Declare instance and value shapes for a list of members.
     fn declare_member_shapes(
         &self,
@@ -1115,6 +1169,37 @@ impl Compiler {
         }
 
         Ok(shapes)
+    }
+
+    /// Build a constructor signature for a nominal type alias.
+    fn newtype_constructor_signature(
+        &self,
+        declaration_id: LocalNodeId<Declaration>,
+        declared_ty_id: LocalTypeId,
+        nominal_reference_id: LocalTypeId,
+        static_parameters: Vec<LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // derive positional parameters from tuple aliases
+        let mut dynamic_parameters = Vec::new();
+        if let Type::Tuple { elements } = types.get_type(declared_ty_id) {
+            for element in elements {
+                dynamic_parameters.push(element.ty);
+            }
+        } else {
+            dynamic_parameters.push(declared_ty_id);
+        }
+
+        // build the constructor signature
+        let signature = Type::Function {
+            asynchrony: Asynchrony::Sync,
+            cardinality: FunctionCardinality::Scalar,
+            static_parameters,
+            this_parameter: None,
+            dynamic_parameters,
+            return_type: Some(nominal_reference_id),
+        };
+        types.insert_type_from(signature, declaration_id)
     }
 
     /// Declare the instance shape for a list of members.

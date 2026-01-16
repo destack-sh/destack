@@ -468,6 +468,7 @@ impl Dump for ImportSource {
         let name = match self {
             ImportSource::ImportStatement => "ImportStatement",
             ImportSource::ImportEquals => "ImportEquals",
+            ImportSource::ImportCall => "ImportCall",
         };
 
         dumper.write_str(name, Some(Color::White));

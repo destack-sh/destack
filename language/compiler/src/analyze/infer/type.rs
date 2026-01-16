@@ -15,7 +15,7 @@ use destack_dir::{
     TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
     TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// A TypeGuardTarget describes the target for a typeof or runtime type guard.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1146,6 +1146,29 @@ impl Compiler {
                     types,
                     options,
                 );
+
+                // reject unsafe type assertions when configured
+                if options.no_unsafe_type_assertions
+                    && matches!(module.source, ModuleSource::User)
+                {
+                    let left_ty = types.get_type(left_ty_id);
+                    let is_any_or_unknown = matches!(
+                        left_ty,
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Any | TypeLiteral::Unknown,
+                        }
+                    );
+                    let is_unsafe_cast =
+                        is_any_or_unknown || left_to_right == Assignability::NotAssignable;
+
+                    if is_unsafe_cast {
+                        self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+                }
 
                 if !allow_pointer_cast
                     && left_to_right == Assignability::NotAssignable

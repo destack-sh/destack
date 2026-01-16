@@ -4,11 +4,11 @@ use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
     FunctionSignature, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability,
-    NodeTree, Property, StaticArgument, StaticExpression, SymbolTable, Type, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
-    UnaryOperator,
+    NodeTree, PrimitiveType, Property, StaticArgument, StaticExpression, SymbolTable, Type,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -353,6 +353,9 @@ impl Compiler {
         types: &mut TypeTable,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Option<Type>> {
+        let options = self.analyze_context_options_for_module(module.id);
+        let is_user_module = matches!(module.source, ModuleSource::User);
+
         // clone to avoid holding a tree borrow across recursive evaluation
         let expression = tree.get(expression_id).clone();
 
@@ -361,6 +364,38 @@ impl Compiler {
                 value: TypeLiteral::ScalarLiteral(value.clone()),
             },
             Expression::TypeLiteral { value } => {
+                // reject forbidden type literals in user code
+                if is_user_module {
+                    // disallow explicit any
+                    if options.no_any && matches!(value, TypeLiteral::Any) {
+                        return Err(AnalyzeError::AnyTypeDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+
+                    // disallow explicit unknown
+                    if options.no_unknown && matches!(value, TypeLiteral::Unknown) {
+                        return Err(AnalyzeError::UnknownTypeDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+
+                    // disallow imprecise primitives
+                    if options.no_imprecise_primitives
+                        && matches!(value, TypeLiteral::Primitive(PrimitiveType::Number))
+                    {
+                        return Err(AnalyzeError::ImprecisePrimitiveDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+                }
+
                 // map builtin iterator return to configured strictness
                 if let TypeLiteral::Intrinsic(IntrinsicType::BuiltinIteratorReturn) = value {
                     let profile = self.program.profile(profile);

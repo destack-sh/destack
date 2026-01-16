@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Declaration, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Name, NodeTree, NodeType, Path, Scope, ScopeKind, StaticKey,
-    StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    StringId, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable, SymbolType,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1252,6 +1252,11 @@ impl Compiler {
             let symbols = module.dir(profile_id).symbols.read();
             let symbol = symbols.get_symbol(current.local_id);
 
+            // stop alias resolution for nominal newtypes
+            if symbol.ty == SymbolType::Newtype {
+                return Ok(current);
+            }
+
             // if symbol already has canonical_symbol computed, use it (optimization)
             if let Some(canonical_symbol) = symbol.canonical_symbol {
                 return Ok(canonical_symbol);
@@ -1279,6 +1284,9 @@ impl Compiler {
         let module = module.read();
         let symbols = module.dir(profile).symbols.read();
         let symbol = symbols.get_symbol(symbol_id.local_id);
+        if symbol.ty == SymbolType::Newtype {
+            return Ok(symbol_id);
+        }
         let Some(target_symbol) = symbol.target_symbol else {
             // no target, this symbol is its own final
             return Ok(symbol_id);

@@ -188,6 +188,57 @@ pub enum AnalyzeError {
     #[error(code = "EA311", message = "exceptions are disabled")]
     ExceptionsDisabled { node: AnchoredGlobalNodeId },
 
+    // -------------------------------------------------------------------------
+    // 8xx: Restriction options
+    // -------------------------------------------------------------------------
+    /// The `any` type is disabled.
+    #[error(code = "EA804", message = "any type is disabled")]
+    AnyTypeDisabled { node: AnchoredGlobalNodeId },
+
+    /// The `unknown` type is disabled.
+    #[error(code = "EA805", message = "unknown type is disabled")]
+    UnknownTypeDisabled { node: AnchoredGlobalNodeId },
+
+    /// Imprecise primitive types are disabled.
+    #[error(code = "EA806", message = "imprecise primitive type is disabled")]
+    ImprecisePrimitiveDisabled { node: AnchoredGlobalNodeId },
+
+    /// Unsafe type assertions are disabled.
+    #[error(code = "EA807", message = "unsafe type assertions are disabled")]
+    UnsafeTypeAssertionDisabled { node: AnchoredGlobalNodeId },
+
+    /// Dynamic imports are disabled.
+    #[error(code = "EA808", message = "dynamic imports are disabled")]
+    DynamicImportDisabled { node: AnchoredGlobalNodeId },
+
+    /// Dynamic evaluation is disabled.
+    #[error(code = "EA809", message = "dynamic evaluation is disabled")]
+    DynamicEvaluationDisabled { node: AnchoredGlobalNodeId },
+
+    /// Proxy usage is disabled.
+    #[error(code = "EA810", message = "proxy usage is disabled")]
+    ProxyDisabled { node: AnchoredGlobalNodeId },
+
+    /// Dynamic shape mutation is disabled.
+    #[error(code = "EA811", message = "dynamic shape mutation is disabled")]
+    DynamicShapesDisabled { node: AnchoredGlobalNodeId },
+
+    /// Computed property access is disabled.
+    #[error(code = "EA812", message = "computed property access is disabled")]
+    ComputedPropertyAccessDisabled { node: AnchoredGlobalNodeId },
+
+    /// Referential equality is disabled.
+    #[error(code = "EA813", message = "referential equality is disabled")]
+    ReferentialEqualityDisabled { node: AnchoredGlobalNodeId },
+
+    /// globalThis access is disabled.
+    #[error(code = "EA814", message = "globalThis access is disabled")]
+    GlobalThisDisabled { node: AnchoredGlobalNodeId },
+
+    /// Implicit dynamic dispatch is disabled.
+    #[error(code = "EA815", message = "implicit dynamic dispatch is disabled")]
+    ImplicitDynamicDispatchDisabled { node: AnchoredGlobalNodeId },
+
     /// Invalid continue.
     #[error(code = "EA301", message = "invalid continue to '{label}'")]
     InvalidContinue {

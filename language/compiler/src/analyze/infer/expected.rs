@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::{AnalyzeOptions, AnalyzeResult, Compiler};
 use destack_dir::{
     Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeTree,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticKey, SymbolTable, Type, TypeLiteral,
-    TypeTable,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticKey, SymbolTable, SymbolType, Type,
+    TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -78,12 +78,39 @@ impl Compiler {
                 }
             };
 
+        // unwrap local nominal aliases to their declared types for tagged literals
+        let mut declared_type_id = None;
+        if symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            if symbol_entry.ty == SymbolType::Newtype
+                && let Some(primary_declaration) = symbol_entry.primary_declaration
+                && let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>()
+            {
+                let declaration_id: LocalNodeId<Declaration> = declaration_id.into();
+                if let Declaration::Type {
+                    kind: TypeKind::Nominal,
+                    value,
+                    ..
+                } = tree.get(declaration_id)
+                {
+                    let value_id = value.into_global_any(module.id);
+                    if let Some(value_ty_id) = types.get_declared_type_id(value_id) {
+                        if matches!(types.get_type(value_ty_id), Type::Unevaluated(_)) {
+                            self.evaluate_type(module, profile, value_ty_id, tree, symbols, types)?;
+                        }
+                        declared_type_id = Some(value_ty_id);
+                    }
+                }
+            }
+        }
+
         // resolve the instance type for the reference
         let instance_ty_id =
             self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)?;
         let Some(instance_ty_id) = instance_ty_id else {
             return Ok(None);
         };
+        let instance_ty_id = declared_type_id.unwrap_or(instance_ty_id);
 
         // return the instance type when no static arguments exist
         let Some(static_arguments) = static_arguments else {

@@ -18,6 +18,8 @@ pub enum ImportSource {
     ImportStatement,
     /// Import-equals declaration (`import x = require("mod")`).
     ImportEquals,
+    /// Dynamic import call (`import("mod")`).
+    ImportCall,
 }
 
 /// An Expression is a generic container for all constructs.

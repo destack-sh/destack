@@ -9,6 +9,37 @@ use destack_base::StringId;
 
 #[allow(clippy::type_complexity)]
 impl Parser {
+    /// Eat a dynamic import call expression (`import("foo")`).
+    pub fn eat_import_call_expression(
+        &mut self,
+        start: ParserMark,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        // keyword
+        self.eat_keyword(Keyword::Import)?;
+
+        // target
+        self.eat_token(TokenType::OpenParenthesis)?;
+        let (target, target_span) = self.eat_string_literal_with_span()?;
+        self.eat_token(TokenType::CloseParenthesis)?;
+
+        // import
+        let import_id = self.tree.insert(
+            Expression::Import {
+                source: ImportSource::ImportCall,
+                kind: DependencyKind::Value,
+                target,
+                items: vec![],
+                arguments: None,
+            },
+            self.get_span_from(start),
+        );
+
+        // set main span to the import target string
+        self.tree.set_main_span(import_id, target_span);
+
+        Ok(import_id)
+    }
+
     /// Eat an import declaration (including the `import` keyword and an optional body).
     ///
     /// Import equals syntax (`import A = B.C` or `import a = require("a")`) is lowered

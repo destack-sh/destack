@@ -30,6 +30,8 @@ impl Compiler {
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         self.require_analyze_module_declare(module_id, profile)?;
+
+        // analyze data modules specially
         if !self.is_code_module(module_id) {
             return self.analyze_data_module_infer(module_id, profile);
         }

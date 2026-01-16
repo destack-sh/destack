@@ -8,11 +8,11 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    BinaryOperator, Constraint, Expression, InferTable, LocalInstanceId, LocalNodeId, LocalTypeId,
-    NodeTree, ScalarLiteral, StaticKey, SymbolTable, Type, TypeField, TypeLiteral, TypeTable,
-    UnaryOperator,
+    BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,
+    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeField,
+    TypeLiteral, TypeTable, UnaryOperator,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -175,6 +175,40 @@ impl Compiler {
         let left_ty = types.get_type(left_ty_id).clone();
         let right_ty = types.get_type(right_ty_id).clone();
         let options = ctx.options;
+
+        // track referential equality violations to avoid follow-up overload errors
+        let mut referential_equality_violation = false;
+
+        // reject referential equality when configured
+        if options.no_referential_equality
+            && matches!(module.source, ModuleSource::User)
+            && matches!(
+                operator,
+                BinaryOperator::Equal
+                    | BinaryOperator::NotEqual
+                    | BinaryOperator::EqualStrict
+                    | BinaryOperator::NotEqualStrict
+            )
+        {
+            let left_is_object = self.type_is_object_like(left_ty_id, types);
+            let right_is_object = self.type_is_object_like(right_ty_id, types);
+            if left_is_object || right_is_object {
+                referential_equality_violation = true;
+                self.error(AnalyzeError::ReferentialEqualityDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
+
+        // short-circuit when referential equality is forbidden
+        if referential_equality_violation {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            };
+            return Ok(types.insert_type_from(ty, expression_id));
+        }
 
         // guard strict equality against struct types
         if matches!(
@@ -593,6 +627,27 @@ impl Compiler {
             (None, None)
         };
 
+        // reject computed property access when configured
+        if options.no_computed_property_access
+            && matches!(module.source, ModuleSource::User)
+            && let Some(index_id) = index_id
+        {
+            let static_key = self.static_key_from_dynamic_key(
+                ctx.profile,
+                DynamicKey::Expression(index_id),
+                tree,
+                symbols,
+                types,
+            );
+            if static_key.is_none() {
+                self.error(AnalyzeError::ComputedPropertyAccessDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
+
         // handle builtin index access
         let builtin_ty_id = self.infer_builtin_index_access(
             &receiver_ty,
@@ -771,6 +826,27 @@ impl Compiler {
         } else {
             (None, None)
         };
+
+        // reject computed property access when configured
+        if options.no_computed_property_access
+            && matches!(module.source, ModuleSource::User)
+            && let Some(index_id) = *index_id
+        {
+            let static_key = self.static_key_from_dynamic_key(
+                ctx.profile,
+                DynamicKey::Expression(index_id),
+                tree,
+                symbols,
+                types,
+            );
+            if static_key.is_none() {
+                self.error(AnalyzeError::ComputedPropertyAccessDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
 
         // handle builtin index assignment
         let builtin_value_ty_id = self.infer_builtin_index_access(

@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, LocalNodeId, NodeTree, SymbolTable};
+use destack_dir::{Declaration, LocalNodeId, NodeTree, SymbolTable, TypeKind};
 
 use destack_workspace::{Module, ModuleDir};
 
@@ -40,13 +40,21 @@ impl Compiler {
             }
 
             Declaration::Type {
-                descriptor, value, ..
+                descriptor,
+                kind,
+                value,
+                ..
             } => {
                 let symbol_id = descriptor.symbol;
                 let symbol = symbols.get_symbol(symbol_id);
 
                 // bail if symbol already has a target_symbol
                 if symbol.target_symbol.is_some() {
+                    return Ok(());
+                }
+
+                // only structural aliases should inherit target symbols
+                if *kind != TypeKind::Structural {
                     return Ok(());
                 }
 

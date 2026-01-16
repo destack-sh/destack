@@ -965,6 +965,12 @@ impl Parser {
             {
                 self.eat_type_import_expression()?
             }
+            // import call
+            else if keyword == Some(Keyword::Import)
+                && next_token_type == TokenType::OpenParenthesis
+            {
+                self.eat_import_call_expression(start)?
+            }
             // import
             else if keyword == Some(Keyword::Import)
                 && [
@@ -2244,6 +2250,21 @@ type = type * 2
                     });
                 });
             });
+        });
+    }
+
+    /// Parse `import("foo")`.
+    #[test]
+    fn test_parse_import_call_expression() {
+        let mut test = TestParser::new("import(\"foo\")");
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expression_id, Expression::Import { source, kind, target, items, arguments: None, .. } => {
+            assert_eq!(*source, ImportSource::ImportCall);
+            assert_eq!(*kind, DependencyKind::Value);
+            assert_string!(parser, *target, "foo");
+            assert!(items.is_empty());
         });
     }
 
