@@ -6,6 +6,7 @@ pub(crate) const ES2021_DECLARED_SYMBOLS: &[&str] = &[
     "Date",
     "Error",
     "EvalError",
+    "eval",
     "Function",
     "JSON",
     "Math",
