@@ -530,15 +530,11 @@ impl Program {
         compiler_options: &DsConfigCompilerOptions,
     ) -> DsConfigCompilerOptions {
         let mut options = compiler_options.clone();
+        let is_native_output = target.output.is_wasm() || target.output.is_native();
 
-        // enforce native-only restrictions
-        if target.output.is_wasm() || target.output.is_native() {
-            options.no_dynamic_evaluation = true;
-            options.no_dynamic_import = true;
-            options.no_proxy = true;
-            options.no_dynamic_shapes = true;
-            options.no_exceptions = true;
-            options.no_global_this = true;
+        // require strict mode for native or wasm output
+        if is_native_output {
+            options.apply_native_restrictions();
         }
 
         options
@@ -583,5 +579,50 @@ mod tests {
                 "node".to_string()
             ]
         );
+    }
+
+    #[test]
+    fn test_native_target_forces_strict_mode() {
+        // set non-strict options to false to verify enforcement
+        let mut compiler_options = DsConfigCompilerOptions::default();
+        compiler_options.strict = false;
+        compiler_options.always_strict = false;
+        compiler_options.no_implicit_any = false;
+        compiler_options.no_implicit_this = false;
+        compiler_options.strict_null_checks = false;
+        compiler_options.strict_function_types = false;
+        compiler_options.strict_bind_call_apply = false;
+        compiler_options.strict_builtin_iterator_return = false;
+        compiler_options.strict_property_initialization = false;
+        compiler_options.use_unknown_in_catch_variables = false;
+
+        // enforce strict mode for native output
+        let target = Target {
+            output: OutputFormat::Native,
+            ..Target::default()
+        };
+        let options = Program::compiler_options_for_target(&target, &compiler_options);
+
+        // verify strict options are set
+        assert!(options.strict);
+        assert!(options.always_strict);
+        assert!(options.no_implicit_any);
+        assert!(options.no_implicit_this);
+        assert!(options.strict_null_checks);
+        assert!(options.strict_function_types);
+        assert!(options.strict_bind_call_apply);
+        assert!(options.strict_builtin_iterator_return);
+        assert!(options.strict_property_initialization);
+        assert!(options.use_unknown_in_catch_variables);
+        assert!(options.no_implicit_returns);
+        assert!(options.no_implicit_override);
+        assert!(options.exact_optional_property_types);
+        assert!(options.no_unchecked_indexed_access);
+        assert!(options.no_property_access_from_index_signature);
+        assert!(options.no_unused_locals);
+        assert!(options.no_unused_parameters);
+        assert!(options.no_fallthrough_cases_in_switch);
+        assert!(!options.allow_unreachable_code);
+        assert!(!options.allow_unused_labels);
     }
 }

@@ -351,6 +351,27 @@ impl Compiler {
             _ => {}
         }
 
+        // allow nullish assignments when strict null checks are disabled
+        if !options.strict_null_checks
+            && matches!(
+                source,
+                Type::TypeLiteral {
+                    value: TypeLiteral::Null | TypeLiteral::Undefined,
+                }
+            )
+        {
+            if matches!(
+                target,
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                }
+            ) {
+                return Assignability::NotAssignable;
+            }
+
+            return Assignability::Assignable;
+        }
+
         // structural comparison
         match (target, source) {
             // type literals: must match exactly (with some exceptions)
@@ -4095,9 +4116,9 @@ let x: number = getNumber();
         let module_id = test.add_module(
             "test.ds",
             r#"
-class Animal { name: string }
-class Dog extends Animal { breed: string }
-class Labrador extends Dog { color: string }
+class Animal { name: string = "" }
+class Dog extends Animal { breed: string = "" }
+class Labrador extends Dog { color: string = "" }
 "#,
         );
         test.analyze_module(module_id);

@@ -54,7 +54,7 @@ if (typeof value == "function") {
 
 ```ds
 class User {
-    name: string
+    name: string = ""
 }
 
 const value: User | string = "hello";
@@ -88,7 +88,7 @@ function narrow(value: WithName | WithId): void {
 
 ```ds
 class Admin {
-    name: string
+    name: string = ""
 }
 
 const value: Admin | string = "root";

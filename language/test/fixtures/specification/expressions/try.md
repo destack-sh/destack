@@ -78,6 +78,52 @@ const value = try {
 value satisfies int | string;
 ```
 
+### useUnknownInCatchVariables true uses unknown
+
+> Catch variables default to unknown when enabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "useUnknownInCatchVariables": true } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+const value = try {
+    1
+} catch e {
+    e satisfies string;
+    0
+};
+value satisfies int;
+```
+
+- contains: expected string
+
+### useUnknownInCatchVariables false uses any
+
+> Catch variables default to any when disabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "useUnknownInCatchVariables": false } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+const value = try {
+    1
+} catch e {
+    e satisfies string;
+    0
+};
+value satisfies int;
+```
+
 ### _try catch handles explicit Try propagation
 
 > ? propagates into catch.
@@ -142,3 +188,25 @@ const value = try {
 };
 value satisfies int | string;
 ```
+
+## noExceptions
+
+### noExceptions forbids throw
+
+> Throw expressions are rejected when exceptions are disabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noExceptions": true } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+function fail(): never {
+    throw "error";
+}
+```
+
+- contains: exceptions are disabled

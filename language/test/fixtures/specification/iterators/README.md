@@ -11,3 +11,7 @@ Iteration protocols and constructs.
 - **Iterables**: `Symbol.iterator`, `Iterable<T>`
 - **Iterators**: `Iterator<T>`, `IteratorResult<T>`
 - **Spread**: `...iterable` in arrays and function calls
+
+## Fixtures
+
+- `strict-return.md`

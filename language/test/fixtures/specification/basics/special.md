@@ -13,6 +13,20 @@ const x: null = null;
 x satisfies null;
 ```
 
+### strictNullChecks rejects null assignments
+
+> Null is not assignable to non-nullable types when strict null checks are enabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "strictNullChecks": true } }
+```
+
+```ds
+const value: string = null;
+```
+
+- contains: not assignable
+
 ## Undefined
 
 ### undefined literal
@@ -22,6 +36,22 @@ x satisfies null;
 ```ds
 const x: undefined = undefined;
 x satisfies undefined;
+```
+
+### strictNullChecks allows null assignments when disabled
+
+> Null becomes assignable to other types when strict null checks are disabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "strictNullChecks": false } }
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds
+const value: string = null;
 ```
 
 ## Void

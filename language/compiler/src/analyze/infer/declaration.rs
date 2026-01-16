@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
@@ -8,7 +9,7 @@ use destack_dir::{
     ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type,
     TypeLiteral, TypeTable, WhereClause,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Describe how a declarator constrains its value type.
 pub(super) enum DeclaratorConstraint {
@@ -361,7 +362,7 @@ impl Compiler {
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
-                        && self.has_implicit_return(*body, tree)
+                        && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: body_ty_id,
@@ -594,7 +595,7 @@ impl Compiler {
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
-                        && self.has_implicit_return(*body, tree)
+                        && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: body_ty_id,
@@ -678,6 +679,9 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // capture options for diagnostics
+        let options = ctx.options;
+
         // walk generics
         let where_clauses = signature
             .generics
@@ -700,8 +704,22 @@ impl Compiler {
 
         // this parameter
         let this_parameter = if let Some(this_parameter_id) = signature.this_parameter {
+            // resolve any declared type for the this parameter
             let declared_ty_id =
                 types.get_declared_type_id(this_parameter_id.into_global_any(module.id));
+
+            // report implicit this when no declared type exists
+            if options.no_implicit_this
+                && declared_ty_id.is_none()
+                && !matches!(module.source, ModuleSource::Builtin(_))
+            {
+                self.error(AnalyzeError::ImplicitThis {
+                    node: this_parameter_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+
             let param_symbol = tree.get(this_parameter_id).symbol().into_global(module.id);
             let param_ty_id = declared_ty_id.unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
@@ -732,12 +750,33 @@ impl Compiler {
         // dynamic parameters
         let mut dynamic_param_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+            // resolve declared, contextual, and default metadata
             let declared_ty_id =
                 types.get_declared_type_id(parameter_id.into_global_any(module.id));
             let expected_param_ty_id = expected_signature
                 .as_ref()
                 .and_then(|signature| signature.dynamic_parameters.get(index).copied());
+            let has_default = match tree.get(*parameter_id) {
+                Parameter::Named { default, .. } => default.is_some(),
+                Parameter::Pattern { default, .. } => default.is_some(),
+                Parameter::Variadic { .. } => false,
+            };
 
+            // report implicit any when no type info is available
+            if options.no_implicit_any
+                && declared_ty_id.is_none()
+                && expected_param_ty_id.is_none()
+                && !has_default
+                && !matches!(module.source, ModuleSource::Builtin(_))
+            {
+                self.error(AnalyzeError::ImplicitAny {
+                    node: parameter_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+
+            // select the parameter type or fall back to inference
             let param_symbol = tree.get(*parameter_id).symbol().into_global(module.id);
             let param_ty_id = declared_ty_id.or(expected_param_ty_id).unwrap_or_else(|| {
                 self.infer_var_type_for_symbol(
@@ -1175,6 +1214,7 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
+        // capture options and the declarator node
         let options = ctx.options;
         let declarator = tree.get(declarator_id);
         let Declarator {
@@ -1187,6 +1227,19 @@ impl Compiler {
         // declared type is now on the declarator node, not the let expression
         let declared_ty_id =
             types.get_declared_type_id(declarator_id.into_global(module.id).into());
+
+        // report implicit any when no annotation or initializer exists
+        if options.no_implicit_any
+            && declared_ty_id.is_none()
+            && value.is_none()
+            && !matches!(module.source, ModuleSource::Builtin(_))
+        {
+            self.error(AnalyzeError::ImplicitAny {
+                node: declarator_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
 
         // evaluate and prepare declared types before inference
         if let Some(declared_ty_id) = declared_ty_id {

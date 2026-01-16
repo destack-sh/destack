@@ -166,7 +166,10 @@ fn split_test_options(
 /// Check if a language tag is a supported source code language.
 fn is_code_language(language: &str) -> bool {
     let lower = language.to_lowercase();
-    lower == "ts" || lower == "typescript" || lower == "ds" || lower == "destack"
+    matches!(
+        lower.as_str(),
+        "ts" | "tsx" | "typescript" | "js" | "jsx" | "javascript" | "ds" | "destack"
+    )
 }
 
 /// Check if a language tag is a data/text file type that can be imported.

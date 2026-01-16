@@ -8,11 +8,12 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, Extension, ExtensionKind, GlobalSymbolId, IntType,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, StaticProperty, StringId, SymbolTable, SymbolType,
-    Type, TypeBinaryOperator, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter,
-    TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
+    Asynchrony, BinaryOperator, Declaration, Expression, Extension, ExtensionKind,
+    FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
+    Mutability, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator,
+    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1373,7 +1374,36 @@ impl Compiler {
                 Ok(None)
             }
 
-            Type::Function { .. } | Type::TypeLiteral { .. } => {
+            Type::Function { .. } => {
+                let options = self.analyze_context_options_for_module(module.id);
+
+                // prefer strict bind/call/apply inference when enabled
+                if options.strict_bind_call_apply
+                    && let Some(synthetic) = self.strict_bind_call_apply_member_type(
+                        node_id,
+                        receiver_ty,
+                        member_key,
+                        types,
+                    )
+                {
+                    return Ok(Some(synthetic));
+                }
+
+                let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
+                    return Ok(None);
+                };
+                self.infer_member_of_type(
+                    module,
+                    profile,
+                    node_id,
+                    &reference_ty,
+                    member_key,
+                    types,
+                    visited,
+                )
+            }
+
+            Type::TypeLiteral { .. } => {
                 let Some(reference_ty) = self.well_known_type(profile, receiver_ty, types) else {
                     return Ok(None);
                 };
@@ -1430,6 +1460,116 @@ impl Compiler {
 
         let source_type_id = matching[0];
         Some(self.union_type_from_list(matching, source_type_id, types))
+    }
+
+    /// Build strict bind/call/apply member types for function receivers.
+    fn strict_bind_call_apply_member_type(
+        &self,
+        node_id: LocalNodeIdAny,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        let Type::Function {
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+            ..
+        } = receiver_ty
+        else {
+            return None;
+        };
+
+        let member_name = member_key.name()?;
+
+        // only override call/apply/bind with strict signatures
+        let member_name = self.program.strings.get(member_name);
+        let member_name = member_name.as_ref();
+        if member_name != "call" && member_name != "apply" && member_name != "bind" {
+            return None;
+        }
+
+        // resolve the implicit this argument type
+        let this_arg = if let Some(this_parameter) = this_parameter {
+            *this_parameter
+        } else {
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            types.insert_type_from_any(ty, node_id)
+        };
+
+        // build shared function metadata
+        let asynchrony = Asynchrony::Sync;
+        let cardinality = FunctionCardinality::Scalar;
+
+        // build the strict member signature
+        let member_ty = match member_name {
+            "call" => {
+                // call(thisArg, ...args) -> return_type
+                let mut params = Vec::with_capacity(dynamic_parameters.len() + 1);
+                params.push(this_arg);
+                params.extend_from_slice(dynamic_parameters);
+
+                Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters: static_parameters.clone(),
+                    this_parameter: None,
+                    dynamic_parameters: params,
+                    return_type: *return_type,
+                }
+            }
+            "apply" => {
+                // apply(thisArg, argsTuple) -> return_type
+                let tuple_elements = dynamic_parameters
+                    .iter()
+                    .map(|ty| TypeElement::new(*ty))
+                    .collect();
+                let tuple_ty = Type::Tuple {
+                    elements: tuple_elements,
+                };
+                let tuple_ty_id = types.insert_type_from_any(tuple_ty, node_id);
+
+                Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters: static_parameters.clone(),
+                    this_parameter: None,
+                    dynamic_parameters: vec![this_arg, tuple_ty_id],
+                    return_type: *return_type,
+                }
+            }
+            "bind" => {
+                // bind(thisArg, ...args) -> bound function
+                let mut params = Vec::with_capacity(dynamic_parameters.len() + 1);
+                params.push(this_arg);
+                params.extend_from_slice(dynamic_parameters);
+
+                let bound_function = Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters: static_parameters.clone(),
+                    this_parameter: None,
+                    dynamic_parameters: dynamic_parameters.clone(),
+                    return_type: *return_type,
+                };
+                let bound_function_id = types.insert_type_from_any(bound_function, node_id);
+
+                Type::Function {
+                    asynchrony,
+                    cardinality,
+                    static_parameters: static_parameters.clone(),
+                    this_parameter: None,
+                    dynamic_parameters: params,
+                    return_type: Some(bound_function_id),
+                }
+            }
+            _ => return None,
+        };
+
+        Some(types.insert_type_from_any(member_ty, node_id))
     }
 
     /// Infer the index signature value type for a member key.

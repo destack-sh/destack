@@ -25,12 +25,17 @@ impl Compiler {
             return Ok(());
         }
 
-        // ensure builtins are resolved before declaring symbols
-        self.require_resolve_builtins(profile)?;
-
         // load module state and dir tables
         let module = self.program.modules.get(module_id);
         let module = module.read();
+
+        // skip analysis when module language is disabled
+        if !self.module_language_allowed(module_id) {
+            return Ok(());
+        }
+
+        // ensure builtins are resolved before declaring symbols
+        self.require_resolve_builtins(profile)?;
         let dir = module.dir(profile);
         let tree = dir.tree.read();
         let mut symbols = dir.symbols.write();

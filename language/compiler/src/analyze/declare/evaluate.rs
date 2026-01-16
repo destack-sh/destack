@@ -3,9 +3,9 @@ use std::collections::HashSet;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
-    FunctionSignature, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, Property,
-    StaticArgument, StaticExpression, SymbolTable, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    FunctionSignature, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability,
+    NodeTree, Property, StaticArgument, StaticExpression, SymbolTable, Type, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
     UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
@@ -360,9 +360,22 @@ impl Compiler {
             Expression::ScalarLiteral { value } => Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(value.clone()),
             },
-            Expression::TypeLiteral { value } => Type::TypeLiteral {
-                value: value.clone(),
-            },
+            Expression::TypeLiteral { value } => {
+                // map builtin iterator return to configured strictness
+                if let TypeLiteral::Intrinsic(IntrinsicType::BuiltinIteratorReturn) = value {
+                    let profile = self.program.profile(profile);
+                    let mapped = if profile.key.flags.strict_builtin_iterator_return {
+                        TypeLiteral::Undefined
+                    } else {
+                        TypeLiteral::Any
+                    };
+                    Type::TypeLiteral { value: mapped }
+                } else {
+                    Type::TypeLiteral {
+                        value: value.clone(),
+                    }
+                }
+            }
             Expression::This => Type::This,
             Expression::Parenthesized { expression } => {
                 return self.evaluate_expression_to_type(

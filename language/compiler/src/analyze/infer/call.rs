@@ -1362,6 +1362,30 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             })
         } else {
+            // suppress secondary diagnostics when member lookup already failed
+            let has_missing_member = matches!(
+                call_member_resolution,
+                Some(MemberResolution::None | MemberResolution::Unresolved)
+            );
+
+            // report non-callable callee types unless they are dynamic placeholders
+            let is_dynamic_callee = has_missing_member
+                || matches!(
+                    types.get_type(callee_ty_id),
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Any
+                    } | Type::InferVar { .. }
+                        | Type::Infer { .. }
+                        | Type::Error
+                );
+            if !is_dynamic_callee {
+                self.error(AnalyzeError::NonCallable {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+
             // infer dynamic arguments
             for argument_id in dynamic_arguments {
                 self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;

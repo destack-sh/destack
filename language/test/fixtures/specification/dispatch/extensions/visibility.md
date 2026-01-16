@@ -36,7 +36,13 @@ point.length() satisfies number;
 > Inherent extensions work on classes too.
 
 ```ds
-class User { name: string }
+class User {
+    name: string;
+
+    constructor(name: string) {
+        this.name = name;
+    }
+}
 
 extension for User {
     greet(): string { return "" }

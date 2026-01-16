@@ -355,10 +355,10 @@ impl Compiler {
             return (package_id, Some(directory.to_path_buf()));
         }
 
-        // load dsconfig.json when present for synthetic packages
+        // load dsconfig.json for synthetic packages when present
         let dsconfig = resolver
             .find_dsconfig(directory)
-            .and_then(|dsconfig_path| resolver.load_dsconfig(&dsconfig_path).ok());
+            .and_then(|path| resolver.load_dsconfig(&path).ok());
 
         // create and insert synthetic package
         let package = Package {

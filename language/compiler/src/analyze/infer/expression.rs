@@ -14,7 +14,7 @@ use destack_dir::{
     PrimitiveType, Property, StaticKey, StringId, SymbolSpace, SymbolTable, Type, TypeElement,
     TypeField, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Object literal field metadata for excess property checks.
 #[derive(Debug, Clone)]
@@ -625,16 +625,34 @@ impl Compiler {
                     && let Some(ty_id) = types.get_value_type_id(this_symbol)
                 {
                     ty_id
-                } else if module.source_type.is_module() {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Undefined,
-                    };
-                    types.insert_type_from(ty, expression_id)
                 } else {
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from(ty, expression_id)
+                    // report implicit this in functions and scripts
+                    if ctx.options.no_implicit_this
+                        && !matches!(module.source, ModuleSource::Builtin(_))
+                    {
+                        let is_script = module.source_type.is_script();
+                        let in_function = ctx.in_function.is_some();
+                        if is_script || in_function {
+                            self.error(AnalyzeError::ImplicitThis {
+                                node: expression_id
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(ctx.profile)),
+                            });
+                        }
+                    }
+
+                    // default to undefined in modules, unknown in scripts
+                    if module.source_type.is_module() {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Undefined,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    } else {
+                        let ty = Type::TypeLiteral {
+                            value: TypeLiteral::Unknown,
+                        };
+                        types.insert_type_from(ty, expression_id)
+                    }
                 }
             }
 
@@ -1433,19 +1451,18 @@ impl Compiler {
                     if let Some(catch_pat) = catch_pattern {
                         // infer the catch error type from try branches
                         let catch_error_type_id = if try_error_types.is_empty() {
+                            let value = if ctx.options.use_unknown_in_catch_variables {
+                                TypeLiteral::Unknown
+                            } else {
+                                TypeLiteral::Any
+                            };
                             types.insert_type_from_any(
-                                Type::TypeLiteral {
-                                    value: TypeLiteral::Unknown,
-                                },
+                                Type::TypeLiteral { value },
                                 expression_id.into_any(),
                             )
                         } else {
                             let source_type_id = try_error_types[0];
-                            self.union_type_from_list(
-                                try_error_types,
-                                source_type_id,
-                                types,
-                            )
+                            self.union_type_from_list(try_error_types, source_type_id, types)
                         };
 
                         // bind the catch pattern to the error type
@@ -1617,6 +1634,15 @@ impl Compiler {
 
             // throw: never (control flow)
             Expression::Throw { value } => {
+                // enforce no-exceptions mode
+                if ctx.options.no_exceptions {
+                    self.error(AnalyzeError::ExceptionsDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
 
                 let ty = Type::TypeLiteral {
@@ -2297,7 +2323,7 @@ impl Compiler {
 
                     // constrain implicit return types against the declared return type
                     if let Some(return_ty_id) = return_type
-                        && self.has_implicit_return(*body, tree)
+                        && has_implicit_return(*body, tree)
                     {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: body_ty_id,
@@ -2841,36 +2867,6 @@ impl Compiler {
         expression_id
     }
 
-    /// Check whether an expression participates in implicit return typing.
-    pub(super) fn has_implicit_return(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> bool {
-        match tree.get(expression_id) {
-            Expression::Statement { .. }
-            | Expression::Return { .. }
-            | Expression::Break { .. }
-            | Expression::Continue { .. } => false,
-            Expression::Block { block } => {
-                let block = tree.get(*block);
-
-                let Some(last_expression_id) = block.expressions.last() else {
-                    return false;
-                };
-
-                !matches!(
-                    tree.get(*last_expression_id),
-                    Expression::Statement { .. }
-                        | Expression::Return { .. }
-                        | Expression::Break { .. }
-                        | Expression::Continue { .. }
-                )
-            }
-            _ => true,
-        }
-    }
-
     /// Infer a reference expression (local, module, or global).
     pub(super) fn infer_reference_expression(
         &self,
@@ -3167,5 +3163,34 @@ impl Compiler {
         }
 
         excess_fields
+    }
+}
+
+/// Check whether an expression participates in implicit return typing.
+pub(crate) fn has_implicit_return(expression_id: LocalNodeId<Expression>, tree: &NodeTree) -> bool {
+    // treat statement-like expressions as non-returning values
+    match tree.get(expression_id) {
+        Expression::Statement { .. }
+        | Expression::Return { .. }
+        | Expression::Break { .. }
+        | Expression::Continue { .. } => false,
+        Expression::Block { block } => {
+            // read the block expression list
+            let block = tree.get(*block);
+
+            let Some(last_expression_id) = block.expressions.last() else {
+                return false;
+            };
+
+            // ignore statement-like trailing expressions
+            !matches!(
+                tree.get(*last_expression_id),
+                Expression::Statement { .. }
+                    | Expression::Return { .. }
+                    | Expression::Break { .. }
+                    | Expression::Continue { .. }
+            )
+        }
+        _ => true,
     }
 }

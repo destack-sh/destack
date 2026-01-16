@@ -1,4 +1,4 @@
-use crate::{DiagnosticAnchor, TaskError, TaskWarning};
+use crate::{AnalyzeError, AnalyzeWarning, Compiler, DiagnosticAnchor, TaskError, TaskWarning};
 use destack_source::{Diagnostic, DiagnosticSeverity, LabeledSpan, Span};
 
 use destack_workspace::Program;
@@ -87,5 +87,93 @@ impl CompileDiagnostic {
             secondary_spans: None,
             suggestions: None,
         }
+    }
+}
+
+impl Compiler {
+    /// Check whether an error should be emitted.
+    pub(super) fn should_emit_error(&self, error: &TaskError) -> bool {
+        match error {
+            TaskError::Analyze(error) => self.should_emit_analyze_error(error),
+            _ => true,
+        }
+    }
+
+    /// Check whether a warning should be emitted.
+    pub(super) fn should_emit_warning(&self, warning: &TaskWarning) -> bool {
+        match warning {
+            TaskWarning::Analyze(warning) => self.should_emit_analyze_warning(warning),
+            _ => true,
+        }
+    }
+
+    /// Check whether an analyze error should be emitted.
+    fn should_emit_analyze_error(&self, error: &AnalyzeError) -> bool {
+        // always emit language gating errors
+        if matches!(
+            error,
+            AnalyzeError::TypeScriptDisabled { .. } | AnalyzeError::JavaScriptDisabled { .. }
+        ) {
+            return true;
+        }
+
+        // allow diagnostics without a module anchor
+        let Some(module_id) = error.anchor().module_id() else {
+            return true;
+        };
+
+        // load module options for suppression checks
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let options = self.module_check_options_for_module(module_id);
+
+        // skip lib checks for declaration modules
+        if module.language_type.is_declaration() && options.skip_lib_check {
+            return false;
+        }
+
+        // skip checks for unchecked compatibility modules
+        if module.language_type.is_typescript()
+            && !module.language_type.is_declaration()
+            && !options.check_ts
+        {
+            return false;
+        }
+        if module.language_type.is_javascript() && !options.check_js {
+            return false;
+        }
+
+        true
+    }
+
+    /// Check whether an analyze warning should be emitted.
+    fn should_emit_analyze_warning(&self, warning: &AnalyzeWarning) -> bool {
+        // allow diagnostics without a module anchor
+        let Some(module_id) = warning.anchor().module_id() else {
+            return true;
+        };
+
+        // load module options for suppression checks
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let options = self.module_check_options_for_module(module_id);
+
+        // skip lib checks for declaration modules
+        if module.language_type.is_declaration() && options.skip_lib_check {
+            return false;
+        }
+
+        // skip checks for unchecked compatibility modules
+        if module.language_type.is_typescript()
+            && !module.language_type.is_declaration()
+            && !options.check_ts
+        {
+            return false;
+        }
+        if module.language_type.is_javascript() && !options.check_js {
+            return false;
+        }
+
+        true
     }
 }

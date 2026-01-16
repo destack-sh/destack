@@ -6,7 +6,8 @@ use std::time::Duration;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
-use destack_source::{MemoryFileSystem, PrintOptions};
+use destack_source::{File, FileType, MemoryFileSystem, PrintOptions, Uri};
+use destack_workspace::{DsConfig, TargetId};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -160,6 +161,11 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         }
     };
 
+    // apply dsconfig.json for compiler options and targets
+    if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path) {
+        return TestResult::Failed { message: error };
+    }
+
     // run analysis
     let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
     compiler.options.load_libs = load_libs;
@@ -198,6 +204,67 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         }
         other => other,
     }
+}
+
+fn apply_dsconfig_for_spec(
+    program: &destack_workspace::Program,
+    module_id: destack_source::ModuleId,
+    main_path: &Path,
+) -> Result<(), String> {
+    // locate dsconfig.json in the test root
+    let root = main_path.parent().unwrap_or_else(|| Path::new("/"));
+    let dsconfig_path = root.join("dsconfig.json");
+
+    // skip when no dsconfig.json exists
+    let has_dsconfig = program
+        .fs
+        .exists(&dsconfig_path)
+        .map_err(|e| format!("failed to stat dsconfig.json: {e}"))?;
+    if !has_dsconfig {
+        return Ok(());
+    }
+
+    // read and parse dsconfig.json
+    let content = program
+        .fs
+        .read_to_string(&dsconfig_path)
+        .map_err(|e| format!("failed to read dsconfig.json: {e}"))?;
+    let name = dsconfig_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let uri = Uri::from_path(&dsconfig_path);
+    let file_id = program.files.next_id();
+    let file = File::from_text_as_jsonc(
+        file_id,
+        name,
+        uri,
+        Some(dsconfig_path),
+        FileType::Json,
+        content,
+    )
+    .map_err(|e| format!("failed to parse dsconfig.json: {e}"))?;
+    let file = Arc::new(file);
+    let dsconfig = DsConfig::parse(&file).map_err(|e| e.to_string())?;
+
+    // attach dsconfig and targets to the module package
+    let package_id = {
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let package = program.packages.get(package_id);
+    let mut package = package.write();
+    package.dsconfig = Some(dsconfig.clone());
+    package.targets.clear();
+    for (name, options) in dsconfig.options.targets.iter() {
+        let target = options.to_target(name);
+        let target_id = TargetId::new(package_id, name);
+        package.targets.insert(target_id, target);
+    }
+
+    Ok(())
 }
 
 /// Compare expected errors against actual errors.
