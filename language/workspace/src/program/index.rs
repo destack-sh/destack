@@ -6,7 +6,9 @@ use destack_dir::{Declaration, GlobalSymbolId, LocalNodeId, StaticKey, SymbolSpa
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 
-use crate::{ProfileId, TargetId};
+use crate::{
+    ModuleGraph, ModuleGraphKey, ModuleSignature, ModuleSignatureKey, ProfileId, TargetId,
+};
 
 /// Derived indexes and tables for a Program.
 #[derive(Debug, Default)]
@@ -15,6 +17,10 @@ pub struct ProgramIndex {
     pub global_symbol_tables: DashMap<GlobalSymbolTableKey, GlobalSymbolTable>,
     /// Module binding tables indexed by target and profile.
     pub module_binding_tables: DashMap<ModuleBindingTableKey, ModuleBindingTable>,
+    /// Module graphs indexed by profile.
+    pub module_graphs: DashMap<ModuleGraphKey, ModuleGraph>,
+    /// Module signatures indexed by module and profile.
+    pub module_signatures: DashMap<ModuleSignatureKey, ModuleSignature>,
 }
 
 impl ProgramIndex {

@@ -172,6 +172,8 @@ Config hashes are derived from canonical dsconfig JSON with tooling-only section
 Target hashes include the resolved target config and target id.
 Cache format mismatches are treated as cache misses and must not fail compilation.
 Cache eviction is policy driven and should not silently mask version mismatches.
+The compiler, daemon, and LSP share a single canonical cache format for all reusable artifacts.
+Consumer-specific metadata lives in sidecar files keyed by the same cache key.
 
 ## Environment Variables
 

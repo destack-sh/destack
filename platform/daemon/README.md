@@ -36,6 +36,7 @@ It replays affected cells after edits using the same incremental compilation pip
 
 The cache service exposes in memory and on disk caches keyed by configuration and compiler version.
 Cache policy is configured in dsconfig and enforced by the daemon.
+The daemon uses the canonical cache format and writes sidecar metadata for service-specific needs.
 
 ### LSP Bridge
 

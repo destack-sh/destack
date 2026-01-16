@@ -5,6 +5,7 @@
 #![allow(clippy::result_large_err)]
 
 mod analyze;
+mod cache;
 mod compile;
 mod elaborate;
 mod emit;
@@ -19,6 +20,7 @@ mod resolve;
 mod unbind;
 
 pub use analyze::*;
+pub use cache::*;
 pub use compile::*;
 pub use elaborate::*;
 pub use emit::*;

@@ -299,6 +299,19 @@ impl Program {
         module_id
     }
 
+    /// Increment a module version and return the updated value.
+    pub fn bump_module_version(&self, module_id: ModuleId) -> ModuleVersion {
+        // load module for update
+        let module = self.modules.get(module_id);
+        let mut module = module.write();
+
+        // bump module version
+        let next = module.version.next();
+        module.version = next;
+
+        next
+    }
+
     /// Access tsconfig options for a module via closure.
     pub fn with_tsconfig_options<T>(
         &self,

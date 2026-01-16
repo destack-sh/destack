@@ -9,7 +9,9 @@ use destack_dir::{
 };
 
 use destack_source::ModuleId;
-use destack_workspace::{ImportMeta, Module, ModuleContent, ModuleDir, ProfileId};
+use destack_workspace::{
+    ImportMeta, Module, ModuleContent, ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId,
+};
 use indexmap::IndexMap;
 
 #[allow(clippy::too_many_arguments)]
@@ -1446,6 +1448,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         self.require_resolve_module_direct(module_id, profile)?;
         if !self.is_code_module(module_id) {
+            self.update_module_graph(module_id, profile);
             return Ok(());
         }
 
@@ -1496,6 +1499,40 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
+        self.update_module_graph(module_id, profile);
         Ok(())
+    }
+
+    /// Update the module graph for a resolved module.
+    fn update_module_graph(&self, module_id: ModuleId, profile_id: ProfileId) {
+        // load module data for dependency discovery
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let Some(dir) = module.dir_maybe(profile_id) else {
+            return;
+        };
+
+        // collect module dependencies from imports and namespace exports
+        let mut dependencies = Vec::new();
+        for target in dir.imported_modules.read().values() {
+            if let destack_dir::ModuleTarget::Module(target_id) = target {
+                dependencies.push(*target_id);
+            }
+        }
+        for export in dir.namespace_exports.read().iter() {
+            if let destack_dir::ModuleTarget::Module(target_id) = export.module_id {
+                dependencies.push(target_id);
+            }
+        }
+
+        // update the graph for this profile
+        let key = ModuleGraphKey::new(profile_id);
+        let mut entry = self
+            .program
+            .index
+            .module_graphs
+            .entry(key)
+            .or_insert_with(|| ModuleGraph::new(profile_id));
+        entry.update_module(module_id, module.version, dependencies);
     }
 }
