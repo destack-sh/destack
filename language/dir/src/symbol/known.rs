@@ -10,6 +10,8 @@ pub enum WellKnownSymbol {
     Object,
     /// Builtin Function constructor symbol.
     Function,
+    /// Builtin eval function symbol.
+    Eval,
     /// Builtin String constructor symbol.
     String,
     /// Builtin Number constructor symbol.
@@ -18,6 +20,10 @@ pub enum WellKnownSymbol {
     Boolean,
     /// Builtin BigInt constructor symbol.
     BigInt,
+    /// Builtin Proxy constructor symbol.
+    Proxy,
+    /// Builtin Reflect namespace symbol.
+    Reflect,
     /// Builtin Promise constructor symbol.
     Promise,
     /// Builtin Iterable type symbol.
@@ -39,10 +45,13 @@ impl WellKnownSymbol {
             WellKnownSymbol::Array => "Array",
             WellKnownSymbol::Object => "Object",
             WellKnownSymbol::Function => "Function",
+            WellKnownSymbol::Eval => "eval",
             WellKnownSymbol::String => "String",
             WellKnownSymbol::Number => "Number",
             WellKnownSymbol::Boolean => "Boolean",
             WellKnownSymbol::BigInt => "BigInt",
+            WellKnownSymbol::Proxy => "Proxy",
+            WellKnownSymbol::Reflect => "Reflect",
             WellKnownSymbol::Promise => "Promise",
             WellKnownSymbol::Iterable => "Iterable",
             WellKnownSymbol::Iterator => "Iterator",
@@ -58,10 +67,13 @@ impl WellKnownSymbol {
             WellKnownSymbol::Array,
             WellKnownSymbol::Object,
             WellKnownSymbol::Function,
+            WellKnownSymbol::Eval,
             WellKnownSymbol::String,
             WellKnownSymbol::Number,
             WellKnownSymbol::Boolean,
             WellKnownSymbol::BigInt,
+            WellKnownSymbol::Proxy,
+            WellKnownSymbol::Reflect,
             WellKnownSymbol::Promise,
             WellKnownSymbol::Iterable,
             WellKnownSymbol::Iterator,
