@@ -1,6 +1,7 @@
-// expect-errors=EO100
 
 function @string_builder_scan(v0: i64, v1: i64, v2: i64, v3: i64) -> i64 {
+    local0: ref<managed i64> ; owned, mut
+    local1: ref<managed i64> ; owned, mut
 
 // entry, init state
 block0(v0: i64, v1: i64, v2: i64, v3: i64):
@@ -42,92 +43,85 @@ block7:
 block8(v11: i64):
     v12 = managed.alloc_array i64, v8 -> ref<managed i64>
     v13 = managed.alloc_array i64, v11 -> ref<managed i64>
+    local.set local0, v12
+    local.set local1, v13
     v14 = iconst 0i64
-    jump block9(v14, v13, v11, v3)
+    jump block9(v14, v11, v3)
 
 // branch on condition
-block9(v15: i64, v16: ref<managed i64>, v17: i64, v18: i64):
-    v19 = icmp_sge v15, v17
-    branch v19, block11(v12, v16, v8, v17, v18), block10
+block9(v15: i64, v16: i64, v17: i64):
+    v18 = icmp_sge v15, v16
+    branch v18, block11(v8, v16, v17), block10
 
 // branch on condition
 block10:
-    v20 = iconst 3i64
-    v21 = imul v15, v20
-    v22 = iadd v21, v18
-    v23 = iconst 255i64
-    v24 = band v22, v23
-    v25 = element.addr v16, v15 -> ref<borrowed i64>
-    store v25, v24
+    v19 = iconst 3i64
+    v20 = imul v15, v19
+    v21 = iadd v20, v17
+    v22 = iconst 255i64
+    v23 = band v21, v22
+    v24 = local.get local1
+    v25 = element.addr v24, v15 -> ref<borrowed i64>
+    store v25, v23
     v26 = iconst 1i64
     v27 = iadd v15, v26
-    jump block9(v27, v16, v17, v18)
-block11(
-    v28: ref<managed i64>,
-    v29: ref<managed i64>,
-    v30: i64,
-    v31: i64,
-    v32: i64
-):
-    v33 = iconst 0i64
-    intrinsic.memset(v28, v33, v30)
-    v34 = iconst 1i64
-    v35 = isub v30, v31
-    v36 = iadd v35, v34
-    v37 = iconst 31i64
-    v38 = band v32, v37
+    jump block9(v27, v16, v17)
+block11(v28: i64, v29: i64, v30: i64):
+    v31 = iconst 0i64
+    v32 = local.get local0
+    intrinsic.memset(v32, v31, v28)
+    v33 = iconst 1i64
+    v34 = isub v28, v29
+    v35 = iadd v34, v33
+    v36 = iconst 31i64
+    v37 = band v30, v36
+    v38 = iconst 0i64
     v39 = iconst 0i64
-    v40 = iconst 0i64
-    jump block12(v39, v40, v28, v29, v30, v31, v36, v38)
-block12(
-    v41: i64,
-    v42: i64,
-    v43: ref<managed i64>,
-    v44: ref<managed i64>,
-    v45: i64,
-    v46: i64,
-    v47: i64,
-    v48: i64
-):
-    v49 = icmp_sge v41, v0
-    branch v49, block20(v42), block13
+    jump block12(v38, v39, v28, v29, v35, v37)
+block12(v40: i64, v41: i64, v42: i64, v43: i64, v44: i64, v45: i64):
+    v46 = icmp_sge v40, v0
+    branch v46, block20(v41), block13
 
 // base case check
 block13:
-    v50 = iconst 7i64
-    v51 = band v41, v50
-    v52 = iconst 0i64
-    v53 = icmp_eq v51, v52
-    branch v53, block14, block15
+    v47 = iconst 7i64
+    v48 = band v40, v47
+    v49 = iconst 0i64
+    v50 = icmp_eq v48, v49
+    branch v50, block14, block15
 
 // merge branch, continue
 block14:
-    intrinsic.memset(v43, v52, v45)
+    v51 = local.get local0
+    intrinsic.memset(v51, v49, v42)
     jump block15
 
 // update state, merge branch
 block15:
-    v54 = imul v41, v46
-    v55 = srem v54, v47
-    v56 = element.addr v43, v55 -> ref<borrowed i64>
-    v57 = intrinsic.memcmp(v56, v44, v46)
+    v52 = imul v40, v43
+    v53 = srem v52, v44
+    v54 = local.get local0
+    v55 = element.addr v54, v53 -> ref<borrowed i64>
+    v56 = local.get local1
+    v57 = intrinsic.memcmp(v55, v56, v43)
     v58 = sextend v57 -> i64
-    v59 = iadd v42, v58
-    intrinsic.memcpy(v56, v44, v46)
+    v59 = iadd v41, v58
+    intrinsic.memcpy(v55, v56, v43)
     v60 = iconst 0i64
-    jump block16(v60, v59, v55, v43, v46, v48, v41)
+    jump block16(v60, v59, v53, v43, v45, v40)
 
 // loop condition, check limit
-block16(v61: i64, v62: i64, v63: i64, v64: ref<managed i64>, v65: i64, v66: i64, v67: i64):
-    v68 = icmp_sge v61, v65
-    branch v68, block19(v62, v67), block17
+block16(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64):
+    v67 = icmp_sge v61, v64
+    branch v67, block19(v62, v66), block17
 
 // base case check
 block17:
-    v69 = iadd v63, v61
-    v70 = element.addr v64, v69 -> ref<borrowed i64>
+    v68 = iadd v63, v61
+    v69 = local.get local0
+    v70 = element.addr v69, v68 -> ref<borrowed i64>
     v71 = load v70 -> i64
-    v72 = icmp_eq v71, v66
+    v72 = icmp_eq v71, v65
     branch v72, block18, block22
 
 // update state, merge branch
@@ -144,13 +138,13 @@ block22:
 block21(v75: i64):
     v76 = iconst 1i64
     v77 = iadd v61, v76
-    jump block16(v77, v75, v63, v64, v65, v66, v67)
+    jump block16(v77, v75, v63, v64, v65, v66)
 
 // loop body, update accumulators
 block19(v78: i64, v79: i64):
     v80 = iconst 1i64
     v81 = iadd v79, v80
-    jump block12(v81, v78, v43, v44, v45, v46, v47, v48)
+    jump block12(v81, v78, v42, v43, v44, v45)
 
 // return result
 block20(v82: i64):

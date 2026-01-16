@@ -1,5 +1,3 @@
-// expect-errors=EO100
-
 type @Triple = { i64, i64, i64 }
 
 function @aggregate_update(v0: i64) -> i64 {

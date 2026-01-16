@@ -1,4 +1,3 @@
-// expect-errors=EO100
 
 function @nested_array_sum(v0: i64, v1: i64) -> i64 {
 
@@ -36,107 +35,74 @@ block5:
 block6(v9: i64, v10: i64):
     v11 = managed.alloc_array ref<managed i64>, v9 -> ref<managed ref<managed i64>>
     v12 = iconst 0i64
-    jump block7(v12, v11, v9, v10)
+    jump block7(v12, v9, v10)
 
 // loop condition, check limit
-block7(v13: i64, v14: ref<managed ref<managed i64>>, v15: i64, v16: i64):
-    v17 = icmp_sge v13, v15
-    branch v17, block12(v14, v15, v16), block8
+block7(v13: i64, v14: i64, v15: i64):
+    v16 = icmp_sge v13, v14
+    branch v16, block12(v14, v15), block8
 
 // branch on condition
 block8:
-    v18 = managed.alloc_array i64, v16 -> ref<managed i64>
-    v19 = iconst 0i64
-    jump block9(v19, v13, v18, v16, v14, v15)
-block9(
-    v20: i64,
-    v21: i64,
-    v22: ref<managed i64>,
-    v23: i64,
-    v24: ref<managed ref<managed i64>>,
-    v25: i64
-):
-    v26 = icmp_sge v20, v23
-    branch v26, block10(v21, v22, v24, v25, v23), block11
+    v17 = managed.alloc_array i64, v15 -> ref<managed i64>
+    v18 = iconst 0i64
+    jump block9(v18, v13, v15, v14)
+block9(v19: i64, v20: i64, v21: i64, v22: i64):
+    v23 = icmp_sge v19, v21
+    branch v23, block10(v20, v22, v21), block11
 
 // loop body, update aggregates
 block11:
-    v27 = iconst 31i64
-    v28 = imul v21, v27
-    v29 = iconst 7i64
-    v30 = imul v20, v29
-    v31 = iadd v28, v30
-    v32 = element.addr v22, v20 -> ref<borrowed i64>
-    store v32, v31
-    v33 = iconst 1i64
-    v34 = iadd v20, v33
-    jump block9(v34, v21, v22, v23, v24, v25)
-block10(
-    v35: i64,
-    v36: ref<managed i64>,
-    v37: ref<managed ref<managed i64>>,
-    v38: i64,
-    v39: i64
-):
-    v40 = element.addr v37, v35 -> ref<borrowed ref<managed i64>>
-    store v40, v36
-    v41 = iconst 1i64
-    v42 = iadd v35, v41
-    jump block7(v42, v37, v38, v39)
+    v24 = iconst 31i64
+    v25 = imul v20, v24
+    v26 = iconst 7i64
+    v27 = imul v19, v26
+    v28 = iadd v25, v27
+    v29 = element.addr v17, v19 -> ref<borrowed i64>
+    store v29, v28
+    v30 = iconst 1i64
+    v31 = iadd v19, v30
+    jump block9(v31, v20, v21, v22)
+block10(v32: i64, v33: i64, v34: i64):
+    v35 = element.addr v11, v32 -> ref<borrowed ref<managed i64>>
+    store v35, v17
+    v36 = iconst 1i64
+    v37 = iadd v32, v36
+    jump block7(v37, v33, v34)
 
 // branch on condition
-block12(v43: ref<managed ref<managed i64>>, v44: i64, v45: i64):
-    v46 = iconst 0i64
-    v47 = iconst 0i64
-    jump block13(v46, v47, v43, v44, v45)
-block13(
-    v48: i64,
-    v49: i64,
-    v50: ref<managed ref<managed i64>>,
-    v51: i64,
-    v52: i64
-):
-    v53 = icmp_sge v48, v51
-    branch v53, block16(v49), block14
+block12(v38: i64, v39: i64):
+    v40 = iconst 0i64
+    v41 = iconst 0i64
+    jump block13(v40, v41, v38, v39)
+block13(v42: i64, v43: i64, v44: i64, v45: i64):
+    v46 = icmp_sge v42, v44
+    branch v46, block16(v43), block14
 
 // branch on condition
 block14:
-    v54 = element.addr v50, v48 -> ref<borrowed ref<managed i64>>
-    v55 = load v54 -> ref<managed i64>
-    v56 = iconst 0i64
-    jump block15(v56, v49, v55, v48, v50, v51, v52)
-block15(
-    v57: i64,
-    v58: i64,
-    v59: ref<managed i64>,
-    v60: i64,
-    v61: ref<managed ref<managed i64>>,
-    v62: i64,
-    v63: i64
-):
-    v64 = icmp_sge v57, v63
-    branch v64, block17(v58, v60, v61, v62, v63), block18
+    v47 = element.addr v11, v42 -> ref<borrowed ref<managed i64>>
+    v48 = load v47 -> ref<managed i64>
+    v49 = iconst 0i64
+    jump block15(v49, v43, v48, v42, v44, v45)
+block15(v50: i64, v51: i64, v52: ref<managed i64>, v53: i64, v54: i64, v55: i64):
+    v56 = icmp_sge v50, v55
+    branch v56, block17(v51, v53, v54, v55), block18
 
 // loop body, update aggregates
 block18:
-    v65 = element.addr v59, v57 -> ref<borrowed i64>
-    v66 = load v65 -> i64
-    v67 = iadd v58, v66
-    v68 = iconst 1i64
-    v69 = iadd v57, v68
-    jump block15(v69, v67, v59, v60, v61, v62, v63)
-block17(
-    v70: i64,
-    v71: i64,
-    v72: ref<managed ref<managed i64>>,
-    v73: i64,
-    v74: i64
-):
-    v75 = iconst 1i64
-    v76 = iadd v71, v75
-    jump block13(v76, v70, v72, v73, v74)
+    v57 = element.addr v52, v50 -> ref<borrowed i64>
+    v58 = load v57 -> i64
+    v59 = iadd v51, v58
+    v60 = iconst 1i64
+    v61 = iadd v50, v60
+    jump block15(v61, v59, v52, v53, v54, v55)
+block17(v62: i64, v63: i64, v64: i64, v65: i64):
+    v66 = iconst 1i64
+    v67 = iadd v63, v66
+    jump block13(v67, v62, v64, v65)
 
 // return result
-block16(v77: i64):
-    return v77
+block16(v68: i64):
+    return v68
 }
