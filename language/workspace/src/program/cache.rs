@@ -14,7 +14,7 @@ use destack_source::{CACHE_FORMAT_VERSION, CACHE_MAGIC, CacheHeader, CacheKind};
 use crate::{ModuleAstData, ModuleDirData, ModuleMirData};
 
 // limit cache entry size to avoid excessive memory usage
-const CACHE_ENTRY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
+pub const CACHE_ENTRY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Cache entry for serialized module AST data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +30,12 @@ impl ModuleAstCacheEntry {
     pub fn new(mut header: CacheHeader, payload: ModuleAstData) -> Result<Self, CacheError> {
         header.payload_hash = payload_hash_from_payload(&payload)?;
         Ok(Self { header, payload })
+    }
+
+    /// Create a new AST cache entry without computing a payload hash.
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleAstData) -> Self {
+        header.payload_hash = 0;
+        Self { header, payload }
     }
 
     /// Validate the cache header for this entry.
@@ -55,6 +61,12 @@ impl ModuleDirCacheEntry {
         Ok(Self { header, payload })
     }
 
+    /// Create a new DIR cache entry without computing a payload hash.
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleDirData) -> Self {
+        header.payload_hash = 0;
+        Self { header, payload }
+    }
+
     /// Validate the cache header for this entry.
     pub fn validate(&self) -> Result<(), CacheError> {
         validate_header(&self.header, CacheKind::Dir)
@@ -76,6 +88,12 @@ impl ModuleMirCacheEntry {
     pub fn new(mut header: CacheHeader, payload: ModuleMirData) -> Result<Self, CacheError> {
         header.payload_hash = payload_hash_from_payload(&payload)?;
         Ok(Self { header, payload })
+    }
+
+    /// Create a new MIR cache entry without computing a payload hash.
+    pub fn new_unchecked(mut header: CacheHeader, payload: ModuleMirData) -> Self {
+        header.payload_hash = 0;
+        Self { header, payload }
     }
 
     /// Validate the cache header for this entry.

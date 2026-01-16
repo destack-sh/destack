@@ -1,4 +1,5 @@
 mod anchor;
+mod cache;
 mod compiler;
 mod diagnostic;
 mod directive;
@@ -12,6 +13,7 @@ mod task;
 mod warning;
 
 pub use anchor::*;
+pub use cache::*;
 pub use compiler::*;
 pub use diagnostic::*;
 pub use error::*;

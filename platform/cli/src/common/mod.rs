@@ -26,7 +26,7 @@ pub use output::{OutputArg, PlatformArg, RuntimeArg, TargetArgs};
 pub use program::{FileSystemOverride, ProgramArgs, ensure_no_watch_or_dev};
 pub use progress::{ProgressMode, ProgressReporter, is_tty};
 pub use report::{
-    CommandError, CommandReport, CommandStats, ReportArgs, ReportFormat, print_report,
-    report_error, report_error_with, report_no_input,
+    CommandError, CommandReport, CommandStats, ReportArgs, ReportFormat, StatsSummary,
+    print_report, print_stats_summary, report_error, report_error_with, report_no_input,
 };
 pub use tracing::TracingArgs;

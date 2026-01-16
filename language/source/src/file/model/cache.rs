@@ -16,10 +16,6 @@ pub enum CacheKind {
     Dir,
     /// MIR cache payload.
     Mir,
-    /// Analysis cache payload.
-    Analysis,
-    /// Codegen cache payload.
-    Codegen,
 }
 
 /// Common cache header for on disk compiler artifacts.

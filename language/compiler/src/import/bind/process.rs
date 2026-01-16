@@ -10,6 +10,23 @@ impl Compiler {
             return Ok(());
         }
 
+        // resolve cache handle
+        let cache_handle = self.cache_handle_for_module(module_id, None, None);
+
+        // try to load base DIR from cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_dir()
+        {
+            let dir = ModuleDir::from_data(entry.payload);
+            let module = self.program.modules.get(module_id);
+            let mut module = module.write();
+            let code = module.code_mut();
+            code.dir_base = Some(dir);
+            code.dirs.clear();
+            tracing::trace!(?module_id, "import.module.bind.cache");
+            return Ok(());
+        }
+
         let module = self.program.modules.get(module_id);
 
         // initialize DIR
@@ -50,6 +67,15 @@ impl Compiler {
         {
             let module = module.read();
             self.mark_global_augmentation_symbols(&module);
+        }
+
+        // write base DIR to cache
+        if let Some(cache) = cache_handle.as_ref() {
+            let module = module.read();
+            let payload = module.dir_base().to_data();
+            if let Err(error) = cache.write_dir(payload) {
+                tracing::debug!(?module_id, ?error, "import.module.bind.cache.write");
+            }
         }
 
         Ok(())

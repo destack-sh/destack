@@ -9,9 +9,9 @@ use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
 
 use crate::{
-    CompileDiagnostic, CompilerEvent, CompilerEventHandler, CompilerStats, DiagnosticAnchor, Task,
-    TaskDependency, TaskDependencyError, TaskError, TaskQueue, TaskResultCollector, TaskStatus,
-    TaskWarning,
+    CacheRegistry, CompileDiagnostic, CompilerEvent, CompilerEventHandler, CompilerStats,
+    DiagnosticAnchor, Task, TaskDependency, TaskDependencyError, TaskError, TaskQueue,
+    TaskResultCollector, TaskStatus, TaskWarning,
 };
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
@@ -164,6 +164,8 @@ pub struct Compiler {
     pub(super) queue: TaskQueue,
     /// Compilation statistics.
     pub stats: Arc<CompilerStats>,
+    /// Cache registry for compiler artifacts.
+    pub cache: CacheRegistry,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
@@ -198,6 +200,7 @@ impl Compiler {
             queue: TaskQueue::new(),
             import_locks: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
+            cache: CacheRegistry::new(),
         }
     }
 

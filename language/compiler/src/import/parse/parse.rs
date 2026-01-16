@@ -20,7 +20,6 @@ impl Compiler {
                 ModuleContent::Unloaded => true,
                 _ => false, // Data, Text, Binary already loaded
             };
-
             if !needs_load {
                 return Ok(());
             }
@@ -96,6 +95,20 @@ impl Compiler {
             self.program.files.get(file_id)
         };
 
+        // resolve cache handle
+        let cache_handle = self.cache_handle_for_module(module_id, None, None);
+
+        // try to load AST from cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_ast()
+        {
+            let ast = ModuleAst::from_data(entry.payload);
+            let mut module = module.write();
+            module.code_mut().ast = Some(ast);
+            tracing::trace!(?module_id, "import.module.parse.code.cache");
+            return Ok(());
+        }
+
         // parse
         let language_type = LanguageType::from(file.ty);
         let mut parser = Parser::lex_file(file.clone(), language_type);
@@ -121,6 +134,16 @@ impl Compiler {
             parser.side_tokens,
         ));
         drop(module);
+
+        // write AST to cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Some(ast) = self.program.modules.get(module_id).read().ast_maybe()
+        {
+            let payload = ast.to_data();
+            if let Err(error) = cache.write_ast(payload) {
+                tracing::debug!(?module_id, ?error, "import.module.parse.cache.write");
+            }
+        }
 
         tracing::trace!(?module_id, "import.module.parse.code");
         Ok(())
