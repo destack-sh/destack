@@ -6,8 +6,8 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, DiagnosticEmitter, FunctionPass, MoveLocation,
-    OwnershipAnalysis, OwnershipMap, PipelineContext,
+    AnalysisPreservation, DiagnosticEmitter, FunctionPass, MoveLocation, OwnershipAnalysis,
+    OwnershipMap, PipelineContext,
 };
 
 declare_pass! {
@@ -242,9 +242,7 @@ impl<'a> MoveCheckContext<'a> {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 self.check_use(state, *callee, None, block_id, context);
                 for &arg in arguments {

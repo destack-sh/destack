@@ -5,8 +5,7 @@ use destack_mir as mir;
 use mir::{Instruction, Value};
 
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis,
-    PipelineContext,
+    AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, PipelineContext,
 };
 
 declare_pass! {

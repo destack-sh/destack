@@ -318,9 +318,7 @@ impl Terminator {
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
             Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 let mut uses = smallvec![*callee];
                 uses.extend(arguments.iter().copied());

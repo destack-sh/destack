@@ -141,6 +141,82 @@ export newtype noinline = ();
 /// ```
 export newtype unroll = (int,) | ();
 
+/// Hint that a function is on a hot path.
+///
+/// The compiler may prioritize inlining and layout for hot functions.
+///
+/// ```
+/// @hot
+/// function parse() { }
+/// ```
+export newtype hot = ();
+
+/// Hint that a function is on a cold path.
+///
+/// The compiler may deprioritize inlining for cold functions.
+///
+/// ```
+/// @cold
+/// function logError() { }
+/// ```
+export newtype cold = ();
+
+/// Hint that a branch is likely to be taken.
+///
+/// ```
+/// @likely
+/// function handleHotPath() { }
+/// ```
+export newtype likely = ();
+
+/// Hint that a branch is unlikely to be taken.
+///
+/// ```
+/// @unlikely
+/// function handleColdPath() { }
+/// ```
+export newtype unlikely = ();
+
+/// Warn when a return value is ignored.
+///
+/// ```
+/// @mustUse
+/// function read(): FileHandle { }
+/// ```
+export newtype mustUse = ();
+
+/// Mark a function as free of observable side effects.
+///
+/// ```
+/// @pure
+/// function add(a: int, b: int): int { a + b }
+/// ```
+export newtype pure = ();
+
+/// Hint that a function should be tail-call optimized.
+///
+/// ```
+/// @tailcall
+/// function loop(n: int): int { loop(n - 1) }
+/// ```
+export newtype tailcall = ();
+
+/// Mark a declaration as unsafe.
+///
+/// ```
+/// @unsafe
+/// function readPtr(ptr: *u8): u8 { ... }
+/// ```
+export newtype unsafe = ();
+
+/// Mark a declaration as transmute-like.
+///
+/// ```
+/// @transmute
+/// function bits<T, U>(value: T): U { ... }
+/// ```
+export newtype transmute = ();
+
 /// Taint a value or expression.
 ///
 /// Taints are used to track usage of certain values, fields, expressions, or other constructs.

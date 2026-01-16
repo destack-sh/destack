@@ -12,9 +12,7 @@ use crate::optimize::common::{
     can_substitute_value, location_sets_may_alias, memory_locations_compatible,
     resolve_substitution_chains, tbaa_tags_may_alias,
 };
-use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
-};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_pass! {
     /// Forward stored values to subsequent loads.

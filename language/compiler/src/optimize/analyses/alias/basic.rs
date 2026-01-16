@@ -952,8 +952,8 @@ impl BasicAA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimize::common::tests::TestProgram;
     use crate::optimize::TypeContext;
+    use crate::optimize::common::tests::TestProgram;
 
     #[test]
     fn test_different_allocations_no_alias() {

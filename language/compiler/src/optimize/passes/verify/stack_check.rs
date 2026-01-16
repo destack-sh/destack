@@ -8,8 +8,8 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionPass,
-    Lattice, LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
+    AnalysisPreservation, ControlFlowGraph, DiagnosticEmitter, FunctionPass, Lattice,
+    LifetimeAnalysis, PipelineContext, ResolvedLifetime, forward_dataflow,
 };
 
 declare_pass! {

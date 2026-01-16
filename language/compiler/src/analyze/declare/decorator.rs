@@ -115,6 +115,42 @@ impl Compiler {
             WellKnownDecorator::Unroll,
         );
         decorators.insert(
+            self.language_symbol(LanguageSymbol::Hot),
+            WellKnownDecorator::Hot,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Cold),
+            WellKnownDecorator::Cold,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Likely),
+            WellKnownDecorator::Likely,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Unlikely),
+            WellKnownDecorator::Unlikely,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::MustUse),
+            WellKnownDecorator::MustUse,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Pure),
+            WellKnownDecorator::Pure,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Tailcall),
+            WellKnownDecorator::Tailcall,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Unsafe),
+            WellKnownDecorator::Unsafe,
+        );
+        decorators.insert(
+            self.language_symbol(LanguageSymbol::Transmute),
+            WellKnownDecorator::Transmute,
+        );
+        decorators.insert(
             self.language_symbol(LanguageSymbol::NoManaged),
             WellKnownDecorator::NoManaged,
         );
@@ -470,6 +506,159 @@ impl Compiler {
 
                 let hint = UnrollHint { factor };
                 self.merge_unroll_hint(module, profile, annotation_id, hint, decorators);
+            }
+            WellKnownDecorator::Hot => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "hot decorator does not accept arguments",
+                    );
+                    return;
+                }
+                if decorators.is_cold {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "hot and cold decorators cannot be combined",
+                    );
+                    return;
+                }
+
+                decorators.is_hot = true;
+            }
+            WellKnownDecorator::Cold => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "cold decorator does not accept arguments",
+                    );
+                    return;
+                }
+                if decorators.is_hot {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "hot and cold decorators cannot be combined",
+                    );
+                    return;
+                }
+
+                decorators.is_cold = true;
+            }
+            WellKnownDecorator::Likely => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "likely decorator does not accept arguments",
+                    );
+                    return;
+                }
+                if decorators.is_unlikely {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "likely and unlikely decorators cannot be combined",
+                    );
+                    return;
+                }
+
+                decorators.is_likely = true;
+            }
+            WellKnownDecorator::Unlikely => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "unlikely decorator does not accept arguments",
+                    );
+                    return;
+                }
+                if decorators.is_likely {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "likely and unlikely decorators cannot be combined",
+                    );
+                    return;
+                }
+
+                decorators.is_unlikely = true;
+            }
+            WellKnownDecorator::MustUse => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "mustUse decorator does not accept arguments",
+                    );
+                    return;
+                }
+
+                decorators.is_must_use = true;
+            }
+            WellKnownDecorator::Pure => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "pure decorator does not accept arguments",
+                    );
+                    return;
+                }
+
+                decorators.is_pure = true;
+            }
+            WellKnownDecorator::Tailcall => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "tailcall decorator does not accept arguments",
+                    );
+                    return;
+                }
+
+                decorators.is_tailcall = true;
+            }
+            WellKnownDecorator::Unsafe => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "unsafe decorator does not accept arguments",
+                    );
+                    return;
+                }
+
+                decorators.is_unsafe = true;
+            }
+            WellKnownDecorator::Transmute => {
+                if !values.is_empty() {
+                    self.report_invalid_well_known_decorator(
+                        module,
+                        profile,
+                        annotation_id,
+                        "transmute decorator does not accept arguments",
+                    );
+                    return;
+                }
+
+                decorators.is_transmute = true;
             }
             WellKnownDecorator::Taint => {
                 let Some(label) = self.decorator_string_argument(

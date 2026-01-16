@@ -3160,11 +3160,6 @@ function oldAPI() { }
 function kernel(data: @addrspace("shared") &Point) { }
 ```
 
-Built-in compiler directives also use newtype decorators:
-- `@noManaged` enforces no-managed semantics for the annotated function signature and body.
-- `@stackOnly` enforces stack-only semantics for the annotated function signature and body.
-`@stackOnly` currently enforces the same managed restrictions as `@noManaged` until explicit heap allocation constructs exist.
-
 ### Comments
 
 Standard JavaScript/TypeScript comments:

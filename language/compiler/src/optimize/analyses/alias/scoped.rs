@@ -167,8 +167,8 @@ impl ScopedNoAliasAA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::optimize::common::tests::TestProgram;
     use crate::optimize::TypeContext;
+    use crate::optimize::common::tests::TestProgram;
 
     #[test]
     fn test_non_strict_mode_may_alias() {

@@ -678,7 +678,14 @@ impl FunctionAnalysis for MemorySSA {
         let domtree = analyses.get::<DominatorTree>();
         let ownership = analyses.get::<OwnershipAnalysis>();
 
-        Self::build(function, tree, &cfg, &domtree, &ownership, analyses.type_context())
+        Self::build(
+            function,
+            tree,
+            &cfg,
+            &domtree,
+            &ownership,
+            analyses.type_context(),
+        )
     }
 }
 

@@ -8,10 +8,10 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
-    constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
-    constant_is_one, constant_is_zero, constant_zero_like, instruction_substitute_uses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
+    constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
+    constant_is_zero, constant_zero_like, instruction_substitute_uses, resolve_substitution_chains,
+    terminator_substitute_uses,
 };
 
 declare_pass! {

@@ -12,9 +12,9 @@ use crate::optimize::common::{
     location_sets_may_alias, memory_locations_compatible, tbaa_tags_may_alias,
 };
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
-    TypeContext, apply_substitutions_in_function, expression_key_from_instruction,
-    expression_key_substitute, instruction_has_side_effects, resolve_substitution_chains,
+    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext, TypeContext,
+    apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
+    instruction_has_side_effects, resolve_substitution_chains,
 };
 
 declare_pass! {

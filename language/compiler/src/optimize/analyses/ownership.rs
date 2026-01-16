@@ -629,9 +629,7 @@ impl OwnershipAnalysis {
                 }
             }
             mir::Terminator::TailCallIndirect {
-                callee,
-                arguments,
-                ..
+                callee, arguments, ..
             } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved(*callee, at.clone());
@@ -1773,9 +1771,7 @@ fn process_terminator(
             }
         }
         mir::Terminator::TailCallIndirect {
-            callee,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             state.mark_moved_if_not_copy(*callee, at.clone(), tree, value_types, copy_values);
             for &arg in arguments {

@@ -4,16 +4,17 @@ use std::sync::Arc;
 use super::declaration::DeclaratorConstraint;
 
 use crate::{
-    AnalyzeError, AnalyzeResult, Assignability, BreakTargetKind, Compiler, FlowContext,
-    InferContext,
+    AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind, Compiler,
+    FlowContext, InferContext,
 };
 use destack_dir::{
     Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration,
     DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionKind,
     GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
-    Pattern, PatternField, PrimitiveType, Property, StaticKey, StringId, SymbolSpace, SymbolTable,
-    SymbolType, Type, TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
+    Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey, StringId,
+    SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -227,6 +228,14 @@ impl Compiler {
             // statement: analyze the statement
             Expression::Statement { statement } => {
                 self.infer_expression(module, *statement, tree, symbols, types, infer, ctx)?;
+                self.warn_ignored_return_value(
+                    module,
+                    ctx.profile,
+                    *statement,
+                    tree,
+                    symbols,
+                    types,
+                );
 
                 let ty = Type::TypeLiteral {
                     value: TypeLiteral::Void,
@@ -3464,6 +3473,93 @@ impl Compiler {
         }
 
         excess_fields
+    }
+
+    fn warn_ignored_return_value(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        statement_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) {
+        // only warn for call like statements
+        let statement = tree.get(statement_id);
+        if !matches!(statement, Expression::Call { .. } | Expression::New { .. }) {
+            return;
+        }
+
+        // look up the resolution for the statement
+        let node_id = statement_id.into_global_any(module.id);
+        let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+            return;
+        };
+        let resolution = types.get_resolution(resolution_id);
+
+        // check for mustUse targets
+        let mut should_warn = false;
+        for symbol_id in self.resolution_target_symbols(resolution) {
+            let Some(decorators) = self.symbol_decorators_for(module, profile, symbols, symbol_id)
+            else {
+                continue;
+            };
+            if decorators.is_must_use {
+                should_warn = true;
+                break;
+            }
+        }
+        if !should_warn {
+            return;
+        }
+
+        // emit ignored return value warning
+        self.warning(AnalyzeWarning::IgnoredReturnValue {
+            node: node_id.into_anchored(Some(profile)),
+        });
+    }
+
+    fn resolution_target_symbols(&self, resolution: &Resolution) -> Vec<GlobalSymbolId> {
+        // collect target symbols for static or dynamic resolutions
+        match resolution {
+            Resolution::Static { candidate, .. } => vec![candidate.target_symbol],
+            Resolution::Dynamic { candidates, .. } => candidates
+                .iter()
+                .map(|candidate| candidate.target_symbol)
+                .collect(),
+            Resolution::Unresolved { .. } | Resolution::Builtin { .. } => Vec::new(),
+        }
+    }
+
+    fn symbol_decorators_for(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<SymbolDecorators> {
+        // read local symbol decorators
+        if symbol_id.module_id == module.id {
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            return Some(symbol.decorators.clone());
+        }
+
+        // ensure the target module is resolved
+        if self
+            .require_resolve_module_direct(symbol_id.module_id, profile)
+            .is_err()
+        {
+            return None;
+        }
+
+        // read decorators from the target module dir
+        let other_module = self.program.modules.get(symbol_id.module_id);
+        let other_module = other_module.read();
+        let dir = other_module.dir(profile);
+        let other_symbols = dir.symbols.read();
+        let symbol = other_symbols.get_symbol(symbol_id.local_id);
+
+        Some(symbol.decorators.clone())
     }
 }
 
