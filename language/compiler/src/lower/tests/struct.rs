@@ -88,7 +88,7 @@ function sumPoint(a: int32, b: int32): int32 {
         "native",
         r#"
 function @sumPoint(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = struct { x: i32, y: i32 } (v0, v1)
     v3 = field.get v2, 0
     v4 = field.get v2, 1

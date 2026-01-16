@@ -19,34 +19,34 @@ impl FunctionContext<'_> {
         // first try scalar types
         if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
             return match scalar_type {
-                ScalarType::Bool => Ok(self.type_lowerer.ty_bool),
-                ScalarType::SignedInt { width: 32 } => Ok(self.type_lowerer.ty_i32),
-                ScalarType::SignedInt { width: 64 } => Ok(self.type_lowerer.ty_i64),
-                ScalarType::Float { width: 32 } => Ok(self.type_lowerer.ty_f32),
-                ScalarType::Float { width: 64 } => Ok(self.type_lowerer.ty_f64),
+                ScalarType::Bool => Ok(self.env.type_lowerer.ty_bool),
+                ScalarType::SignedInt { width: 32 } => Ok(self.env.type_lowerer.ty_i32),
+                ScalarType::SignedInt { width: 64 } => Ok(self.env.type_lowerer.ty_i64),
+                ScalarType::Float { width: 32 } => Ok(self.env.type_lowerer.ty_f32),
+                ScalarType::Float { width: 64 } => Ok(self.env.type_lowerer.ty_f64),
                 _ => Err(LowerError::MissingType {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                 }),
             };
         }
 
         // for non-scalar types, check the type cache
         let node = expression_id
-            .into_global_any(self.module_id)
-            .into_anchored(Some(self.profile));
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
         let type_id = self
             .dir_type_for_expression(expression_id)
             .ok_or(LowerError::MissingType { node })?;
 
         // direct cache lookup first
-        if let Some(&mir_type) = self.type_lowerer.type_cache.get(&type_id) {
+        if let Some(&mir_type) = self.env.type_lowerer.type_cache.get(&type_id) {
             return Ok(mir_type);
         }
 
         // handle primitive string directly
-        let dir_type = self.types.get_type(type_id);
+        let dir_type = self.env.types.get_type(type_id);
         if matches!(
             dir_type,
             dir::Type::TypeLiteral {
@@ -54,6 +54,7 @@ impl FunctionContext<'_> {
             }
         ) {
             return self
+                .env
                 .type_lowerer
                 .string_type()
                 .ok_or(LowerError::MissingType { node });
@@ -65,8 +66,8 @@ impl FunctionContext<'_> {
                 return Err(LowerError::MissingType { node });
             }
 
-            if let Some(instance_type_id) = self.types.get_instance_type_id(*symbol)
-                && let Some(&mir_type) = self.type_lowerer.type_cache.get(&instance_type_id)
+            if let Some(instance_type_id) = self.env.types.get_instance_type_id(*symbol)
+                && let Some(&mir_type) = self.env.type_lowerer.type_cache.get(&instance_type_id)
             {
                 return Ok(mir_type);
             }
@@ -81,8 +82,8 @@ impl FunctionContext<'_> {
         expression_id: LocalNodeId<Expression>,
     ) -> Option<ScalarType> {
         let type_id = self.dir_type_for_expression(expression_id)?;
-        let dir_type = self.types.get_type(type_id);
-        self.type_lowerer.scalar_type_for_dir_type(dir_type)
+        let dir_type = self.env.types.get_type(type_id);
+        self.env.type_lowerer.scalar_type_for_dir_type(dir_type)
     }
 
     /// Resolve the DIR type id for a typed expression.
@@ -90,18 +91,19 @@ impl FunctionContext<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
-        let expression = self.dir_tree.get(expression_id);
+        let expression = self.env.dir_tree.get(expression_id);
         let type_id = match expression {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => self
+                .env
                 .types
-                .get_declared_or_inferred_type_id(expression_id.into_global_any(self.module_id))
-                .or_else(|| self.types.get_value_type_id(*target_symbol))
+                .get_declared_or_inferred_type_id(expression_id.into_global_any(self.env.module_id))
+                .or_else(|| self.env.types.get_value_type_id(*target_symbol))
                 .or_else(|| self.local_symbol_type_id(*target_symbol)),
             _ => {
-                let node_id = expression_id.into_global_any(self.module_id);
-                self.types.get_declared_or_inferred_type_id(node_id)
+                let node_id = expression_id.into_global_any(self.env.module_id);
+                self.env.types.get_declared_or_inferred_type_id(node_id)
             }
         }?;
         Some(type_id)
@@ -109,13 +111,14 @@ impl FunctionContext<'_> {
 
     /// Resolve a local symbol to its declared or inferred type.
     fn local_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<dir::LocalTypeId> {
-        if symbol_id.module_id != self.module_id {
+        if symbol_id.module_id != self.env.module_id {
             return None;
         }
 
-        let symbol = self.symbols.get_symbol(symbol_id.local_id);
+        let symbol = self.env.symbols.get_symbol(symbol_id.local_id);
         let primary_declaration = symbol.primary_declaration?;
-        self.types
+        self.env
+            .types
             .get_declared_or_inferred_type_id(primary_declaration)
     }
 
@@ -125,14 +128,17 @@ impl FunctionContext<'_> {
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
     ) -> LowerResult<LocalBinding> {
-        let binding = self.locals_by_symbol.get(&target_symbol).ok_or_else(|| {
-            LowerError::UnsupportedConstruct {
+        let binding = self
+            .state
+            .bindings
+            .locals_by_symbol
+            .get(&target_symbol)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
                 message: "missing local reference target symbol".to_string(),
-            }
-        })?;
+            })?;
 
         Ok(*binding)
     }
@@ -144,8 +150,8 @@ impl FunctionContext<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<&Resolution> {
-        let node_id = expression_id.into_global_any(self.module_id);
-        let resolution_id = self.types.get_resolution_for_node(node_id)?;
-        Some(self.types.get_resolution(resolution_id))
+        let node_id = expression_id.into_global_any(self.env.module_id);
+        let resolution_id = self.env.types.get_resolution_for_node(node_id)?;
+        Some(self.env.types.get_resolution(resolution_id))
     }
 }

@@ -217,7 +217,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect declaration ids that belong to a symbol in this module.
-    fn declaration_ids_for_symbol(
+    pub(crate) fn declaration_ids_for_symbol(
         &self,
         symbol: GlobalSymbolId,
     ) -> Vec<LocalNodeId<destack_dir::Declaration>> {
@@ -254,7 +254,10 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return true if a member is marked static.
-    fn member_is_static(&self, modifiers: Option<&destack_dir::BindingModifier>) -> bool {
+    pub(crate) fn member_is_static(
+        &self,
+        modifiers: Option<&destack_dir::BindingModifier>,
+    ) -> bool {
         modifiers
             .is_some_and(|modifiers| modifiers.anchor == Some(destack_dir::BindingAnchor::Static))
     }

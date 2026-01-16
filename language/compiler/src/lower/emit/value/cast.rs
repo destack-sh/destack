@@ -32,8 +32,8 @@ impl FunctionContext<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
                         message: "unsupported int widen cast".to_string(),
                     })?;
                 }
@@ -48,8 +48,8 @@ impl FunctionContext<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
                         message: "unsupported int to float cast".to_string(),
                     })?;
                 }
@@ -60,8 +60,8 @@ impl FunctionContext<'_> {
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
-                            .into_global_any(self.module_id)
-                            .into_anchored(Some(self.profile)),
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
                         message: "unsupported float to int cast".to_string(),
                     })?;
                 }
@@ -72,8 +72,8 @@ impl FunctionContext<'_> {
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
                     message: format!("unsupported cast operator '{operator:?}'"),
                 })?;
             }

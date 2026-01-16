@@ -78,7 +78,8 @@ impl TypeLowerer {
 
     /// Resolve a field name to its index for a given aggregate type.
     ///
-    /// For structs, uses the cached layout. For tuples, parses the numeric field name.
+    /// For structs, use the cached layout.
+    /// For tuples, parse the numeric field name.
     pub(crate) fn field_index_for_type(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
@@ -132,6 +133,14 @@ impl TypeLowerer {
     /// Cache a struct layout for a MIR type.
     pub(crate) fn set_layout(&mut self, ty: mir::LocalNodeId<mir::Type>, layout: StructLayout) {
         self.layout_cache.insert(ty, layout);
+    }
+
+    /// Return a snapshot of cached struct layouts.
+    pub(crate) fn layout_entries(&self) -> Vec<(mir::LocalNodeId<mir::Type>, StructLayout)> {
+        self.layout_cache
+            .iter()
+            .map(|(ty, layout)| (*ty, layout.clone()))
+            .collect()
     }
 
     /// Create a MIR struct type from a computed layout.

@@ -209,12 +209,13 @@ correct tag checks and field accesses.
 
 ### Dispatch Layout (VTables/ITabs)
 
-Dispatch layout is modeled separately from data layout:
-- **VTable**: class/nominal method table for virtual dispatch
-- **ITab**: interface table for structural/nominal interface dispatch
+Dispatch layout is modeled separately from data layout.
+- **VTable**: class method table for virtual dispatch.
+- **ITab**: interface table for structural or nominal interface dispatch.
 
-A type layout can reference zero or more dispatch layouts, but dispatch layouts
-never alter the data placement (they are attached metadata).
+A type layout can reference zero or more dispatch layouts, but dispatch layouts never alter the data placement.
+VTables are only emitted for classes that still require virtual dispatch after devirtualization.
+Interface dispatch always uses itabs, even when the concrete type is a class.
 
 ### Layout Query Flow
 
@@ -717,22 +718,23 @@ Generate dispatch tables and runtime type information.
 
 ### Operations
 
-**VTable generation:** For each polymorphic class, emit a constant vtable:
+**VTable generation:** For each polymorphic class with virtual dispatch, emit a constant vtable:
 ```ds
 struct VTable {
-    typeTag: TypeTag    // slot 0, for instanceof and T.is
-    destructor: fn()                 // slot 1, drop glue
-    methods: [fn; N]                 // virtual methods in slot order
+    typeTag: TypeTag;    // slot 0, for instanceof and T.is
+    drop: fn();                      // slot 1, drop glue
+    methods: [fn; N];                 // virtual methods in slot order
 }
 ```
 
 **ITab generation:** For each (Type, Interface) pair where the type implements the interface:
 ```ds
 struct ITab {
-    typeTag: TypeTag    // for T.is on interface refs
-    methods: [fn; M]                 // interface methods in declaration order
+    typeTag: TypeTag;    // for T.is on interface refs
+    slots: [InterfaceSlot];          // fields and methods in interface declaration order
 }
 ```
+InterfaceSlot corresponds to MIR `DispatchSlot::FieldOffset` and `DispatchSlot::InterfaceMethod` entries.
 
 **TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `unknown`):
 ```ds
@@ -1788,15 +1790,16 @@ Union dispatch generates type checking code when a value could be multiple types
 
 ### VTable Layout
 
-Types with virtual methods have a vtable.
-The vtable is an array of function pointers, one per virtual method.
+Classes with virtual methods have a vtable.
+VTables are only emitted when virtual dispatch remains after devirtualization.
+The vtable is an array of slots with a fixed prefix and method targets.
 
 **VTable structure (conceptual):**
 ```ds
 struct VTable {
-    typeTag: TypeTag    // for instanceof, T.is, and typeOf
-    destructor: () => void       // cleanup function
-    methods: ((...args: unknown[]) => unknown)[] // virtual method pointers
+    typeTag: TypeTag;    // for instanceof, T.is, and typeOf
+    drop: () => void;             // drop glue
+    methods: ((...args: unknown[]) => unknown)[]; // virtual method pointers
 }
 ```
 
@@ -1804,18 +1807,18 @@ struct VTable {
 <pre>
 Node vtable:
   slot 0: typeTag = @Node_TypeTag
-  slot 1: destructor = Node_drop
+  slot 1: drop = Node_drop
   slot 2: update = Node.update
 
 Sprite vtable (inherits Node):
   slot 0: typeTag = @Sprite_TypeTag
-  slot 1: destructor = Sprite_drop
+  slot 1: drop = Sprite_drop
   slot 2: update = Sprite.update      // overrides Node::update
 </pre>
 
 **Slot assignment (inheritance-preserving):**
 - Slot 0: always `typeTag` (for `instanceof`, `T.is`, `typeOf`)
-- Slot 1: always `destructor` (drop glue)
+- Slot 1: always `drop` (drop glue)
 - Slots 2+: virtual methods in declaration order
 - Child classes inherit all parent slots at the same indices
 - Overriding methods reuse the parent's slot index
@@ -1862,21 +1865,23 @@ block0(v0: ref<@Sprite>, delta: f32):
 
 Interfaces use itabs, and interface values carry a fat pointer:
 ```ds
-type InterfaceRef<I> = { objectPtr: &Object, itabPtr: &InterfaceItab<I> }
+type InterfaceRef<I> = { objectPtr: &Object; itabPtr: &InterfaceItab<I>; };
 ```
 
-Each (Type, Interface) pair has its own itab mapping interface methods to concrete implementations.
+Each (Type, Interface) pair has its own itab mapping interface fields and methods to concrete layouts.
+Itabs are generated for both struct and class implementations.
+Static members never appear in vtables or itabs.
 
 #### Structural Interfaces
 
 Structural interfaces require **fat pointers** because the itab layout varies per (Type, Interface) pair:
 
 ```ds
-interface Drawable { draw(): void }
-interface Resizable { resize(w: int, h: int): void }
+interface Drawable { color: uint32; draw(): void; }
+interface Resizable { resize(w: int, h: int): void; }
 
-struct Circle { radius: float }
-struct Rectangle { width: float, height: float }
+struct Circle { color: uint32; radius: float; }
+struct Rectangle { color: uint32; width: float; height: float; }
 ```
 
 When a `Circle` is used as `Drawable`, we create a fat pointer:
@@ -1884,13 +1889,14 @@ When a `Circle` is used as `Drawable`, we create a fat pointer:
 ```ds
 // fat pointer representation
 struct InterfaceRef<I> {
-    objectPtr: &unknown       // actual object (type erased)
-    itabPtr: &InterfaceItab<I>  // interface itab
+    objectPtr: &unknown;       // actual object (type erased)
+    itabPtr: &InterfaceItab<I>;  // interface itab
 }
 ```
 
 **Fat pointer size:** Interface references are exactly `2 * sizeof(usize)` (16 bytes on 64-bit).
-The layout is `(objectPtr, itabPtr)` with no padding. This matches Go's interface representation.
+The layout is `(objectPtr, itabPtr)` with no padding.
+This matches Go's interface representation.
 
 Each (Type, Interface) pair generates its own itab:
 
@@ -1898,20 +1904,27 @@ Each (Type, Interface) pair generates its own itab:
 // circle as Drawable
 const Circle_Drawable_itab: InterfaceItab<Drawable> = {
     typeTag: @Circle_TypeTag,
-    draw: @Circle.draw
-}
+    color: 0,
+    draw: @Circle.draw,
+};
 
 // rectangle as Drawable
 const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
     typeTag: @Rectangle_TypeTag,
-    draw: @Rectangle.draw
-}
+    color: 0,
+    draw: @Rectangle.draw,
+};
 ```
 
 **Interface call lowering:**
 
-Each (Type, Interface) pair gets its own itab with slots assigned in interface method declaration order.
-Slot 0 is always `typeTag`, then methods follow.
+Each (Type, Interface) pair gets its own itab with slots assigned in interface declaration order.
+Slot 0 is always `typeTag`, then fields and methods follow in the interface member order.
+Interface inheritance flattens base interfaces in extends list order before local members.
+Members inherited with the same name and signature reuse the first slot.
+Fields reuse slots only when their declared types match.
+Conflicting member signatures are errors during analysis.
+Field entries store byte offsets, and method entries store function pointers.
 The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
 
 ```ds
@@ -1932,6 +1945,9 @@ block0(v0: ref<raw @Drawable>):
     return
 }
 ```
+
+Interface property access uses the same itab slots.
+Lowering loads the field offset from the itab and applies it to the object pointer.
 
 #### Nominal Interfaces
 
@@ -1974,7 +1990,7 @@ extension for Circle implements Hashable {
 
 For each (Type, Interface) pair where the type implements the interface:
 
-1. Create a static itab with method pointers in interface declaration order
+1. Create a static itab with field offsets and method pointers in interface declaration order
 2. Store the itab as a global constant
 3. When creating an interface reference, pair the object with the appropriate itab
 4. For `unknown` or dynamic casts, build and cache the itab at runtime on first use
@@ -1983,8 +1999,8 @@ For each (Type, Interface) pair where the type implements the interface:
 **Itab layout:**
 ```ds
 struct InterfaceItab<I> {
-    typeTag: TypeTag  // for T.is on interface refs
-    methods: [FunctionPointer] // one per interface method, in declaration order
+    typeTag: TypeTag;  // for T.is on interface refs
+    slots: [InterfaceSlot]; // field offsets and method pointers in declaration order
 }
 ```
 

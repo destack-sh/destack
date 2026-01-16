@@ -7,11 +7,13 @@ use std::thread;
 use std::time::Duration;
 
 use destack_ast::NodeParentIndex;
+use destack_base::ImmutableStringPool;
 use destack_dir::{
     Declaration, Declarator, DumperOptions, DynamicKey, Expression, GlobalSymbolId, LocalNodeId,
     NodeTree, Pattern, StringId, Symbol, SymbolTable, TypeTable,
 };
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
+use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType,
@@ -833,6 +835,29 @@ impl TestProgram {
         let tree = mir.tree.read();
         let strings = mir.strings.clone().into_immutable();
         format_mir(&tree, &strings, MirFormatOptions::default())
+    }
+
+    /// Run a callback with the MIR tree and strings for a lowered target.
+    pub fn with_mir_tree<T>(
+        &self,
+        module_id: ModuleId,
+        target: &str,
+        f: impl FnOnce(&mir::NodeTree, &ImmutableStringPool) -> T,
+    ) -> T {
+        // load the module for the target
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+
+        // build the target id
+        let target_id = TargetId::new(module.package_id, target);
+
+        // load the mir module state
+        let mir = module.mir(&target_id);
+        let tree = mir.tree.read();
+        let strings = mir.strings.clone().into_immutable();
+
+        // run the callback while the tree is held
+        f(&tree, &strings)
     }
 
     /// Create a fresh MIR interpreter for the module and target.

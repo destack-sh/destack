@@ -4,6 +4,8 @@ mod bitwise;
 mod class;
 mod comparison;
 mod control;
+mod interface;
 mod logical;
 mod string;
 mod r#struct;
+mod tests;

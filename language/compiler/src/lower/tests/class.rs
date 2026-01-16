@@ -64,7 +64,7 @@ function sumBox(value: int32): int32 {
         "native",
         r#"
 function @sumBox(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     v1 = struct { value: i32 } (v0)
     v2 = managed.alloc { value: i32 }
     store v2, v1
@@ -194,4 +194,57 @@ function computeClass(base: int32, delta: int32): int32 {
         &[Value::int32(10), Value::int32(5)],
         Value::int32(15),
     );
+}
+
+/// Lower class vtable metadata with override reuse.
+#[test]
+fn test_class_vtable_metadata() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+class Animal {
+    name: int32;
+    speak(): int32 { return 1; }
+}
+
+class Dog extends Animal {
+    breed: int32;
+    speak(): int32 { return 2; }
+}
+
+function useDog(d: Dog): int32 {
+    return d.speak();
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.with_mir_tree(module_id, "native", |tree, strings| {
+        // collect the class vtables
+        let vtables = test.class_dispatch_tables(tree);
+        assert_eq!(vtables.len(), 2);
+
+        // resolve the vtables by unique field names
+        let animal_table = test
+            .find_class_vtable_by_field_name(tree, strings, &vtables, "name")
+            .expect("missing animal vtable");
+        let dog_table = test
+            .find_class_vtable_by_field_name(tree, strings, &vtables, "breed")
+            .expect("missing dog vtable");
+
+        // assert the fixed vtable prefix
+        test.assert_vtable_prefix(animal_table);
+
+        // count the virtual method slots
+        let animal_methods = test.count_vtable_methods(animal_table);
+        let dog_methods = test.count_vtable_methods(dog_table);
+
+        // assert the override reuse
+        assert_eq!(animal_methods, 1);
+        assert_eq!(dog_methods, 1);
+    });
 }

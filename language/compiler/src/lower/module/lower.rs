@@ -9,6 +9,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::LowerResult;
 
 use crate::lower::item::GlobalBinding;
+use crate::lower::table::interface::InterfaceDispatchCache;
 use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
@@ -42,6 +43,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
+    /// Cache interface dispatch slots for call lowering.
+    pub(crate) interface_dispatch: InterfaceDispatchCache,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -82,6 +85,7 @@ impl<'a> ModuleLowerer<'a> {
             functions_by_symbol: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             type_lowerer,
+            interface_dispatch: InterfaceDispatchCache::new(),
         }
     }
 
@@ -124,6 +128,8 @@ impl<'a> ModuleLowerer<'a> {
     ///
     /// Processes all root expressions to lower globals and function bodies.
     fn lower_items(&mut self) -> LowerResult<()> {
+        self.predeclare_interface_methods()?;
+        self.predeclare_interface_dispatch()?;
         self.predeclare_external_calls()?;
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;

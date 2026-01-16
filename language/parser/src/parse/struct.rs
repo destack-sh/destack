@@ -57,7 +57,10 @@ impl Parser {
         } else if is_class {
             None
         } else {
-            return Err(ParseError::expected(self.peek()?.span, TokenType::Identifier));
+            return Err(ParseError::expected(
+                self.peek()?.span,
+                TokenType::Identifier,
+            ));
         };
 
         // optional static parameters: < ... >

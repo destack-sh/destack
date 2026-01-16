@@ -1991,6 +1991,28 @@ For method calls on unions, the call must be valid for every candidate signature
 
 Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
 
+##### Dispatch Tables
+
+Classes use vtables for virtual method dispatch.
+VTables are emitted only when virtual dispatch remains after devirtualization.
+VTable slot 0 stores the type tag when RTTI is enabled.
+VTable slot 1 stores the drop glue function.
+Virtual methods follow in declaration order, and overrides reuse the same slot.
+Interface dispatch is separate and uses itabs instead of class vtables.
+Itabs are generated for both struct and class implementations.
+Each itab is specific to a (Type, Interface) pair.
+Interface references are fat pointers carrying an object pointer and an itab pointer.
+Itab slot 0 stores the type tag when RTTI is enabled.
+Itab slots follow interface member declaration order, including fields and methods.
+Interface inheritance flattens base interfaces in extends list order before local members.
+Members inherited with the same name and signature reuse the first slot.
+Fields reuse slots only when their declared types match.
+Conflicting member signatures are errors during analysis.
+Each interface field contributes a field offset slot.
+Each interface method contributes a method target slot.
+Static members are not part of vtables or itabs.
+Static methods and properties lower to direct symbols.
+
 #### Methods
 
 Methods are functions declared inside types (structs, classes, enums, interfaces, extensions).
