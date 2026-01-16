@@ -16,6 +16,7 @@ Pattern matching with exhaustiveness checking.
 - **No continues**: `continue` is not allowed inside match arms
 - **Nested loops**: loops inside match arms can still break
 - **Pattern typing**: case patterns must be compatible with the matched value
+- **Newtypes**: patterns must use the newtype tag
 
 ## Example
 

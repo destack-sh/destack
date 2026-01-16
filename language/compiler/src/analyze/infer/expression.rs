@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
@@ -7,12 +8,12 @@ use crate::{
     InferContext,
 };
 use destack_dir::{
-    Argument, BindingKind, Block, Constraint, Declaration, DynamicKey, Expression,
-    FlowGraphBuilder, ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin,
-    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, MatchCase, MatchKind,
-    MatchSelector, MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField,
-    PrimitiveType, Property, StaticKey, StringId, SymbolSpace, SymbolTable, Type, TypeElement,
-    TypeField, TypeLiteral, TypeTable,
+    Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration,
+    DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionKind,
+    GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
+    Pattern, PatternField, PrimitiveType, Property, StaticKey, StringId, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -250,7 +251,7 @@ impl Compiler {
             // import / exports
             Expression::Import {
                 kind: _,
-                source: _,
+                source,
                 target: _,
                 target_module: _,
                 items,
@@ -258,12 +259,27 @@ impl Compiler {
             }
             | Expression::UnresolvedImport {
                 kind: _,
-                source: _,
+                source,
                 target: _,
                 items,
                 arguments,
                 ..
             } => {
+                // reject dynamic imports when configured
+                if ctx.options.no_dynamic_import
+                    && matches!(module.source, ModuleSource::User)
+                    && matches!(
+                        source,
+                        DependencySource::ImportCall | DependencySource::RequireCall
+                    )
+                {
+                    self.error(AnalyzeError::DynamicImportDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 for item_id in items {
                     self.infer_dependency_item(module, *item_id, tree, symbols, types, infer, ctx)?;
                 }
@@ -428,11 +444,24 @@ impl Compiler {
             }
 
             Expression::Cast {
-                operator: _,
-                source: _,
+                operator,
+                source,
                 value,
                 target_type,
             } => {
+                // reject unsafe explicit casts when configured
+                if ctx.options.no_unsafe_type_assertions
+                    && matches!(source, CastSource::Explicit)
+                    && self.is_unsafe_type_assertion(*operator)
+                    && matches!(module.source, ModuleSource::User)
+                {
+                    self.error(AnalyzeError::UnsafeTypeAssertionDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
                 let mut target_ty_id = self.try_evaluate_expression_to_type(
                     module,
@@ -556,6 +585,14 @@ impl Compiler {
 
             // delete operation: void
             Expression::Delete { value } => {
+                // reject delete in dynamic shape restricted mode
+                if ctx.options.no_dynamic_shapes && matches!(module.source, ModuleSource::User) {
+                    self.error(AnalyzeError::DynamicShapesDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
                 let _value_ty_id =
                     self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
 
@@ -2536,6 +2573,24 @@ impl Compiler {
             Pattern::TaggedTuple { ty, fields } => {
                 let ty_id =
                     self.evaluate_pattern_tag_type(module, *ty, tree, symbols, types, ctx)?;
+                // handle scalar tagged patterns like `UserId(value)`
+                if fields.len() == 1 {
+                    let field = tree.get(fields[0]);
+                    if let PatternField::Positional { pattern } = field {
+                        self.infer_pattern(
+                            module,
+                            *pattern,
+                            Some(ty_id),
+                            tree,
+                            symbols,
+                            types,
+                            infer,
+                            ctx,
+                        )?;
+                        return Ok(());
+                    }
+                }
+
                 self.infer_pattern_sequence(
                     module,
                     fields,
@@ -2828,7 +2883,100 @@ impl Compiler {
             _ => ty_id,
         };
 
-        Ok(ty_id)
+        // return non-reference tag types directly
+        let Type::Reference {
+            symbol,
+            static_arguments,
+        } = types.get_type(ty_id).clone()
+        else {
+            return Ok(ty_id);
+        };
+
+        // skip remote symbols
+        if symbol.module_id != module.id {
+            return Ok(ty_id);
+        }
+
+        // skip non-newtype symbols
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        if symbol_entry.ty != SymbolType::Newtype {
+            return Ok(ty_id);
+        }
+
+        // load the local nominal declaration for the tag
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(ty_id);
+        };
+        if primary_declaration.module_id != module.id {
+            return Ok(ty_id);
+        }
+        let Ok(declaration_id) = primary_declaration.try_into_typed::<Declaration>() else {
+            return Ok(ty_id);
+        };
+        let declaration_id: LocalNodeId<Declaration> = declaration_id.into();
+        let Declaration::Type {
+            kind: TypeKind::Nominal,
+            value,
+            ..
+        } = tree.get(declaration_id)
+        else {
+            return Ok(ty_id);
+        };
+
+        // resolve the declared type for the nominal alias
+        let value_id = value.into_global_any(module.id);
+        let Some(declared_ty_id) = types.get_declared_type_id(value_id) else {
+            return Ok(ty_id);
+        };
+
+        // evaluate unevaluated declared types
+        if matches!(types.get_type(declared_ty_id), Type::Unevaluated(_)) {
+            self.evaluate_type(module, ctx.profile, declared_ty_id, tree, symbols, types)?;
+        }
+
+        let mut declared_ty_id = declared_ty_id;
+
+        // apply static arguments when provided
+        if let Some(static_arguments) = static_arguments {
+            let source_id = types.get_type_source(ty_id);
+            let resolved_arguments = self.resolve_type_reference_static_arguments(
+                module,
+                ctx.profile,
+                source_id,
+                symbol,
+                Some(static_arguments.as_slice()),
+                true,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+            )?;
+            if let Some(resolved_arguments) = resolved_arguments
+                && !resolved_arguments.is_empty()
+            {
+                let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                    module,
+                    ctx.profile,
+                    symbol,
+                    source_id,
+                    &resolved_arguments,
+                    tree,
+                    symbols,
+                    types,
+                );
+                if !substitutions.is_empty() {
+                    let mut cache = HashMap::new();
+                    declared_ty_id = self.substitute_static_parameters(
+                        declared_ty_id,
+                        &substitutions,
+                        types,
+                        &mut cache,
+                    );
+                }
+            }
+        }
+
+        Ok(declared_ty_id)
     }
 
     /// Get the target symbol for a reference expression.
@@ -2867,6 +3015,40 @@ impl Compiler {
         expression_id
     }
 
+    /// Return true when a cast operator is an unsafe type assertion.
+    fn is_unsafe_type_assertion(&self, operator: CastOperator) -> bool {
+        matches!(
+            operator,
+            CastOperator::AnyDowncast
+                | CastOperator::UnknownDowncast
+                | CastOperator::ObjectDowncast
+                | CastOperator::InstanceDowncast
+                | CastOperator::UnionDowncast
+                | CastOperator::NullableDowncast
+                | CastOperator::PointerCast
+                | CastOperator::PointerToInt
+                | CastOperator::IntToPointer
+        )
+    }
+
+    /// Resolve a global symbol name across module boundaries.
+    pub(super) fn symbol_name_for_global(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> Option<StringId> {
+        if symbol.module_id == module.id {
+            return symbols.get_symbol(symbol.local_id).name();
+        }
+
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        remote_symbols.get_symbol(symbol.local_id).name()
+    }
+
     /// Infer a reference expression (local, module, or global).
     pub(super) fn infer_reference_expression(
         &self,
@@ -2883,6 +3065,20 @@ impl Compiler {
         // resolve the canonical symbol for imported references
         let canonical_symbol =
             self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
+
+        // reject globalThis references when configured
+        if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {
+            let global_this_name = self.program.strings.intern("globalThis");
+            if self.symbol_name_for_global(module, ctx.profile, canonical_symbol, symbols)
+                == Some(global_this_name)
+            {
+                self.error(AnalyzeError::GlobalThisDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
 
         // pick the base type for the symbol
         // prefer flow narrowed types when available

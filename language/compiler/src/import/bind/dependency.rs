@@ -17,6 +17,7 @@ impl Compiler {
         match source {
             ast::ImportSource::ImportStatement => DependencySource::ImportStatement,
             ast::ImportSource::ImportEquals => DependencySource::ImportEquals,
+            ast::ImportSource::ImportCall => DependencySource::ImportCall,
         }
     }
 

@@ -6,7 +6,7 @@ use destack_dir::{
     LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral,
     TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::{HashMap, HashSet};
 
 /// Describe the resolution outcome for a member lookup.
@@ -108,6 +108,18 @@ impl Compiler {
             symbols,
             types,
         )?;
+        
+        // reject implicit dynamic dispatch when configured
+        if ctx.options.no_implicit_dynamic_dispatch
+            && matches!(module.source, ModuleSource::User)
+            && matches!(member_resolution, MemberResolution::Dynamic { .. })
+        {
+            self.error(AnalyzeError::ImplicitDynamicDispatchDisabled {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,

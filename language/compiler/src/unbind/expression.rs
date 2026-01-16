@@ -958,6 +958,7 @@ impl Compiler {
     fn unbind_import_source(&self, source: dir::DependencySource) -> ast::ImportSource {
         match source {
             dir::DependencySource::ImportEquals => ast::ImportSource::ImportEquals,
+            dir::DependencySource::ImportCall => ast::ImportSource::ImportCall,
             _ => ast::ImportSource::ImportStatement,
         }
     }

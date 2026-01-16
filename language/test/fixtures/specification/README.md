@@ -36,6 +36,12 @@ Extensions beyond standard TypeScript, organized by `LanguageFeature`:
 | `dispatch/` | Dispatch | Extensions, function/operator overloading |
 | `ownership/` | Ownership | References (`&T`), values (`^T`), mutability |
 
+### Configuration
+
+| Directory | Description |
+|-----------|-------------|
+| `options/` | Compiler options and enforcement |
+
 ### Development
 
 | Directory | Description |

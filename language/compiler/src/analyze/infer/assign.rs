@@ -376,7 +376,7 @@ impl Compiler {
         match (target, source) {
             // type literals: must match exactly (with some exceptions)
             (Type::TypeLiteral { value: target_lit }, Type::TypeLiteral { value: source_lit }) => {
-                self.is_type_literal_assignable(&target_lit, &source_lit)
+                self.is_type_literal_assignable(&target_lit, &source_lit, options)
             }
             (
                 Type::TypeLiteral {
@@ -1005,6 +1005,7 @@ impl Compiler {
         &self,
         target: &TypeLiteral,
         source: &TypeLiteral,
+        options: &AnalyzeOptions,
     ) -> Assignability {
         // exact match
         if target == source {
@@ -1032,7 +1033,8 @@ impl Compiler {
                 TypeLiteral::Primitive(source_primitive),
             ) => {
                 if target_primitive == source_primitive
-                    || self.is_primitive_numeric_assignable(target_primitive, source_primitive)
+                    || (!options.no_implicit_conversions
+                        && self.is_primitive_numeric_assignable(target_primitive, source_primitive))
                 {
                     Assignability::Assignable
                 } else {
@@ -1042,7 +1044,7 @@ impl Compiler {
 
             // scalar literal to primitive: check if literal is of that primitive type
             (TypeLiteral::Primitive(primitive_type), TypeLiteral::ScalarLiteral(literal)) => {
-                if self.is_scalar_literal_assignable(literal, primitive_type) {
+                if self.is_scalar_literal_assignable(literal, primitive_type, options) {
                     Assignability::Assignable
                 } else {
                     Assignability::NotAssignable
@@ -1055,7 +1057,12 @@ impl Compiler {
     }
 
     /// Check if a scalar literal value matches a primitive type.
-    fn is_scalar_literal_assignable(&self, literal: &ScalarLiteral, ty: &PrimitiveType) -> bool {
+    fn is_scalar_literal_assignable(
+        &self,
+        literal: &ScalarLiteral,
+        ty: &PrimitiveType,
+        options: &AnalyzeOptions,
+    ) -> bool {
         match (literal, ty) {
             // boolean
             (ScalarLiteral::Boolean(_), PrimitiveType::Boolean) => true,
@@ -1073,7 +1080,9 @@ impl Compiler {
             // float literal to specific float type: always allowed (may lose precision)
             (ScalarLiteral::Float(_), PrimitiveType::Float(_)) => true,
             // integer literal to float type: always allowed (implicit conversion)
-            (ScalarLiteral::Integer(_), PrimitiveType::Float(_)) => true,
+            (ScalarLiteral::Integer(_), PrimitiveType::Float(_)) => {
+                !options.no_implicit_conversions
+            }
             // bigint
             (ScalarLiteral::Bigint(_), PrimitiveType::Bigint) => true,
             // character

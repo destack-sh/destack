@@ -303,7 +303,11 @@ const p = Point(1.0, 2.0);                 // tuple: Name(elements...)
 const c = Config { debug: true };          // struct: Name { fields... }
 ```
 
-Pattern matching also works with newtype constructors:
+Pattern matching also works with newtype constructors.
+Patterns must use the newtype name as the tag.
+The inner pattern matches the underlying representation.
+Object newtypes use tagged object patterns (for example, `Config { debug }`).
+Untagged object patterns do not match newtypes.
 
 ```
 match (id) {

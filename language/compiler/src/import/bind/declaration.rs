@@ -377,13 +377,18 @@ impl Compiler {
                 } else {
                     SymbolKind::Local
                 };
+                let symbol_type = if *kind == ast::TypeKind::Nominal {
+                    SymbolType::Newtype
+                } else {
+                    SymbolType::TypeAlias
+                };
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
                     module,
                     ast,
                     scope,
                     descriptor,
                     symbol_kind,
-                    SymbolType::TypeAlias,
+                    symbol_type,
                     symbols,
                 );
                 let kind = self.bind_type_kind(*kind);

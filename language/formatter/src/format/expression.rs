@@ -2033,6 +2033,22 @@ pub(crate) fn format_expression<'ast>(
             let organize = f.context().options.organize_imports.is_enabled();
             let sort_order = f.context().options.import_sort_order;
 
+            // import call
+            if *source == ImportSource::ImportCall {
+                write!(
+                    f,
+                    [
+                        Keyword::Import,
+                        token("("),
+                        token("\""),
+                        target,
+                        token("\""),
+                        token(")")
+                    ]
+                )?;
+                return Ok(());
+            }
+
             // keyword
             write!(f, [Keyword::Import, space()])?;
             if *source == ImportSource::ImportEquals {

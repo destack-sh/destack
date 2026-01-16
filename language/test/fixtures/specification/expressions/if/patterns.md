@@ -87,6 +87,49 @@ if let Point { x, y } = point {
 }
 ```
 
+## Newtype Patterns
+
+### if let newtype patterns bind inner values
+
+> Newtype patterns bind the underlying value in the then branch.
+
+```ds
+newtype UserId = int64;
+declare const id: UserId;
+
+if let UserId(value) = id {
+    value satisfies int64;
+}
+```
+
+### if let newtype object patterns require tags
+
+> Object newtypes require tagged patterns.
+
+```ds
+newtype Config = { debug: boolean };
+declare const config: Config;
+
+if let Config { debug } = config {
+    debug satisfies boolean;
+}
+```
+
+### if let newtype object patterns reject untagged objects
+
+> Untagged object patterns do not match object newtypes.
+
+```ds
+newtype Config = { debug: boolean };
+declare const config: Config;
+
+if let { debug } = config {
+    debug satisfies boolean;
+}
+```
+
+- contains: expected boolean
+
 ## Binding Patterns
 
 ### if let binding patterns introduce names

@@ -52,6 +52,44 @@ pub struct AnalyzeOptions {
     pub no_fallthrough_cases_in_switch: bool,
     /// Forbid `throw` and `try`/`catch` (use Result types instead).
     pub no_exceptions: bool,
+    /// Forbid use of `any` type.
+    pub no_any: bool,
+    /// Forbid use of `unknown` type.
+    pub no_unknown: bool,
+    /// Require precise primitive types (int32 vs number, etc.).
+    pub no_imprecise_primitives: bool,
+    /// Require explicit widening/narrowing conversions.
+    pub no_implicit_conversions: bool,
+    /// Forbid unsafe type assertions (`as T`).
+    pub no_unsafe_type_assertions: bool,
+    /// Require explicit `self.` for member access in methods.
+    pub no_implicit_self: bool,
+    /// Forbid `arguments` object (use rest parameters instead).
+    pub no_arguments: bool,
+    /// Require `^T` or `&T` in type positions (no implicit managed types).
+    pub no_implicit_managed_type: bool,
+    /// Require explicit copy/borrow at call sites (no implicit managed values).
+    pub no_implicit_managed_value: bool,
+    /// Forbid managed memory features entirely (no unowned `T` at all, pure value types only).
+    pub no_managed: bool,
+    /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).
+    pub no_runtime: bool,
+    /// Forbid referential equality.
+    pub no_referential_equality: bool,
+    /// Forbid `eval()` and `Function` constructor.
+    pub no_dynamic_evaluation: bool,
+    /// Forbid `globalThis` access.
+    pub no_global_this: bool,
+    /// Forbid dynamic `import()` and `require()` expressions.
+    pub no_dynamic_import: bool,
+    /// Forbid defineProperty, prototype mutation, delete, and declaration expressions.
+    pub no_dynamic_shapes: bool,
+    /// Forbid computed property access `obj[expr]` where expr isn't constant.
+    pub no_computed_property_access: bool,
+    /// Forbid `Proxy`.
+    pub no_proxy: bool,
+    /// Require overloads to be statically resolvable (no implicit runtime dispatch).
+    pub no_implicit_dynamic_dispatch: bool,
 }
 
 /// Language compatibility options for a module.
@@ -115,6 +153,25 @@ impl From<&DsConfigCompilerOptions> for AnalyzeOptions {
             no_implicit_override: options.no_implicit_override,
             no_fallthrough_cases_in_switch: options.no_fallthrough_cases_in_switch,
             no_exceptions: options.no_exceptions,
+            no_any: options.no_any,
+            no_unknown: options.no_unknown,
+            no_imprecise_primitives: options.no_imprecise_primitives,
+            no_implicit_conversions: options.no_implicit_conversions,
+            no_unsafe_type_assertions: options.no_unsafe_type_assertions,
+            no_implicit_self: options.no_implicit_self,
+            no_arguments: options.no_arguments,
+            no_implicit_managed_type: options.no_implicit_managed_type,
+            no_implicit_managed_value: options.no_implicit_managed_value,
+            no_managed: options.no_managed,
+            no_runtime: options.no_runtime,
+            no_referential_equality: options.no_referential_equality,
+            no_dynamic_evaluation: options.no_dynamic_evaluation,
+            no_global_this: options.no_global_this,
+            no_dynamic_import: options.no_dynamic_import,
+            no_dynamic_shapes: options.no_dynamic_shapes,
+            no_computed_property_access: options.no_computed_property_access,
+            no_proxy: options.no_proxy,
+            no_implicit_dynamic_dispatch: options.no_implicit_dynamic_dispatch,
         }
     }
 }
@@ -145,6 +202,25 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
             no_implicit_override: options.no_implicit_override,
             no_fallthrough_cases_in_switch: options.no_fallthrough_cases_in_switch,
             no_exceptions: false,
+            no_any: false,
+            no_unknown: false,
+            no_imprecise_primitives: false,
+            no_implicit_conversions: false,
+            no_unsafe_type_assertions: false,
+            no_implicit_self: false,
+            no_arguments: false,
+            no_implicit_managed_type: false,
+            no_implicit_managed_value: false,
+            no_managed: false,
+            no_runtime: false,
+            no_referential_equality: false,
+            no_dynamic_evaluation: false,
+            no_global_this: false,
+            no_dynamic_import: false,
+            no_dynamic_shapes: false,
+            no_computed_property_access: false,
+            no_proxy: false,
+            no_implicit_dynamic_dispatch: false,
         }
     }
 }
