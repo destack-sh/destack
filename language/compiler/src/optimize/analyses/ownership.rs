@@ -178,7 +178,6 @@ impl ReferenceInfo {
             is_nullable: *is_nullable,
         })
     }
-
 }
 
 /// Lookup table for builtin MIR types.
