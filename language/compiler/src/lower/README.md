@@ -2210,7 +2210,7 @@ Cleanup uses `stack.drop` for dispose; deallocation happens automatically when t
 ```mir
 type @SomeType = struct { i64 }
 
-v0 = stack.alloc @SomeType -> ref<raw @SomeType>
+v0 = stack.alloc @SomeType -> ref<raw addrspace(stack) @SomeType>
 ; ... use v0 ...
 stack.drop v0    ; drop glue: dispose only, frame handles memory
 ```

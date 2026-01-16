@@ -253,8 +253,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 42i32
     store v0, v2
     v3 = load v1 -> i32
@@ -281,8 +281,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 42i32
     store v0, v2
     return
@@ -314,9 +314,9 @@ block0:
 global @g2: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g1 -> ref<raw i32>
-    v1 = global.addr @g2 -> ref<raw i32>
-    v2 = stack.alloc i32 -> ref<raw i32>
+    v0 = global.addr @g1 -> ref<raw addrspace(global) i32>
+    v1 = global.addr @g2 -> ref<raw addrspace(global) i32>
+    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     return
 }"#,
         );
@@ -338,8 +338,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc f64 -> ref<raw f64>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc f64 -> ref<raw addrspace(stack) f64>
     return
 }"#,
         );
@@ -403,8 +403,8 @@ block0(v0: ref<raw i32>):
             r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     call @external(v0, v1)
     return
 }"#,

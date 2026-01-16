@@ -164,7 +164,7 @@ fn run_induction_simplify(
         // scan header parameters
         for (param_index, param) in header_parameters.iter().enumerate() {
             // derive a structural type key for comparisons
-            let param_type = TypeKey::from_type(tree.get(param.ty), tree);
+            let param_type = TypeKey::from_type(param.ty, tree);
 
             // resolve the parameter signature
             let signature = param_signature(lp.header, param_index, tree, cfg, &forwarding);
@@ -1031,12 +1031,11 @@ block2(v8: i32):
         let mut canonical_signatures = Vec::new();
         canonical_signatures.push(CanonicalSignature {
             signature: signature_left.unwrap(),
-            ty: TypeKey::from_type(program.tree.get(param_left.ty), &program.tree),
+            ty: TypeKey::from_type(param_left.ty, &program.tree),
             value: param_left.value,
         });
         let canonical_value = signature_right.and_then(|signature| {
-            let param_right_ty =
-                TypeKey::from_type(program.tree.get(param_right.ty), &program.tree);
+            let param_right_ty = TypeKey::from_type(param_right.ty, &program.tree);
             canonical_signatures.iter().find_map(|entry| {
                 if entry.ty == param_right_ty && entry.signature == signature {
                     Some(entry.value)

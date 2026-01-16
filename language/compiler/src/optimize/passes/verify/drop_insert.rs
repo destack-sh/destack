@@ -199,7 +199,7 @@ enum DropInsertionPoint {
 /// Find all values in the function that need Drop calls using ownership analysis.
 ///
 /// Uses OwnershipAnalysis for accurate value type tracking, which handles cases like
-/// Load results and field.set/element.set where the type needs to be inferred.
+/// field.set/element.set where the type needs to be inferred.
 fn find_droppable_values_with_ownership(
     function: &mir::Function,
     tree: &mir::NodeTree,
@@ -529,7 +529,7 @@ block0:
     fn test_verify_stack_alloc_primitive() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
     v2 = load v0 -> i32

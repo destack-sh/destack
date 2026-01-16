@@ -1780,8 +1780,7 @@ impl<'a> MemoryAccessCollector<'a> {
         }
 
         // build and cache the new key
-        let ty = self.tree.get(ty_id);
-        let key = TypeKey::from_type(ty, self.tree);
+        let key = TypeKey::from_type(ty_id, self.tree);
         self.type_keys.insert(ty_id, key.clone());
         key
     }
@@ -2252,8 +2251,8 @@ block3:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v0, v2
     v3 = iconst 2i32
@@ -2632,8 +2631,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let mut program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v0, v2
     v3 = iconst 2i32
@@ -2720,8 +2719,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
     v3 = load v0 -> i32
@@ -2774,8 +2773,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 4i64
     v3 = intrinsic.memcmp(v0, v1, v2)
     return v3
@@ -2807,7 +2806,7 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = intrinsic.volatile.load(v0)
     intrinsic.volatile.store(v0, v1)
     return v1
@@ -3147,7 +3146,7 @@ block0:
     v0 = iconst 0i32
     return v0
 block1:
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v1, v2
     return v2

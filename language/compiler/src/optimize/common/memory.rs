@@ -679,8 +679,7 @@ impl<'a> PointerDecomposer<'a> {
             _ => return None,
         };
 
-        let element_ty = self.tree.get(element_id);
-        let key = TypeKey::from_type(element_ty, self.tree);
+        let key = TypeKey::from_type(element_id, self.tree);
         key.byte_size(self.type_context.pointer_width_bits)
     }
 }

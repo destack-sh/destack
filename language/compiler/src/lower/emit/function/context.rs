@@ -328,7 +328,7 @@ impl<'a> FunctionContext<'a> {
                     mir::ReferenceKind::Raw,
                     global_binding.ty,
                     global_binding.mutability,
-                    mir::AddressSpace::Generic,
+                    mir::AddressSpace::Global,
                     false,
                 );
                 let addr = self

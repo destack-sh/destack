@@ -703,7 +703,7 @@ block0(v0: i32):
         // source program
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 1i32
     v2 = iconst 2i32
     store v0, v1
@@ -714,7 +714,7 @@ block0:
         // expected output
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 2i32
     store v0, v2
     return
@@ -732,7 +732,7 @@ block0:
         // source program
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 1i32
     store v0, v1
     v2 = load v0 -> i32
