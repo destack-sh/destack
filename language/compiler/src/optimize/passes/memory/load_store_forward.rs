@@ -8,10 +8,9 @@ use crate::optimize::analyses::{
     MemoryAccessLocation, MemorySSA, OwnershipAnalysis,
 };
 use crate::optimize::common::{
-    address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
-    instruction_substitute_uses, location_sets_may_alias, memory_locations_compatible,
-    resolve_substitution_chains, tbaa_tags_may_alias, terminator_substitute_uses,
-    value_is_reference,
+    address_spaces_may_alias, alias_scopes_may_alias, apply_substitutions_in_function,
+    can_substitute_value, location_sets_may_alias, memory_locations_compatible,
+    resolve_substitution_chains, tbaa_tags_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
@@ -148,8 +147,15 @@ fn run_load_store_forward(
     type_context: TypeContext,
 ) -> bool {
     // run forwarding using dominator tree traversal
-    let (substitutions, to_remove) =
-        find_forwardable_loads(entry, tree, aa, memory_ssa, dom_children, ownership, type_context);
+    let (substitutions, to_remove) = find_forwardable_loads(
+        entry,
+        tree,
+        aa,
+        memory_ssa,
+        dom_children,
+        ownership,
+        type_context,
+    );
 
     // nothing to do if no forwarding found
     if substitutions.is_empty() {
@@ -160,7 +166,7 @@ fn run_load_store_forward(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // apply substitutions and remove forwarded loads
-    apply_substitutions(function, tree, &substitutions, &to_remove);
+    apply_substitutions_in_function(function, tree, &substitutions, Some(&to_remove));
 
     true
 }
@@ -443,11 +449,6 @@ fn process_block(
             }
 
             mir::Instruction::Load { destination, .. } => {
-                // skip reference loads to avoid aliasing unsoundness
-                if value_is_reference(*destination, ownership, tree) {
-                    continue;
-                }
-
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
                     continue;
@@ -619,54 +620,6 @@ fn is_memory_barrier(intrinsic: mir::Intrinsic) -> bool {
             | mir::Intrinsic::AtomicFetchMax
             | mir::Intrinsic::AtomicFence
     )
-}
-
-/// Apply value substitutions and remove forwarded loads.
-fn apply_substitutions(
-    function: &mir::Function,
-    tree: &mut mir::NodeTree,
-    substitutions: &HashMap<mir::Value, mir::Value>,
-    to_remove: &HashSet<mir::LocalNodeId<mir::Instruction>>,
-) {
-    // scan blocks for substitutions
-    for &block_id in &function.blocks {
-        // clone the block for mutation
-        let mut new_block = tree.get(block_id).clone();
-        let mut modified = false;
-
-        // substitute in instructions
-        for &instruction_id in &new_block.instructions {
-            if to_remove.contains(&instruction_id) {
-                continue;
-            }
-
-            let inst = tree.get(instruction_id);
-            let new_inst = instruction_substitute_uses(inst, substitutions);
-            if &new_inst != inst {
-                tree.replace(instruction_id, new_inst);
-                modified = true;
-            }
-        }
-
-        // substitute in terminator
-        let new_term = terminator_substitute_uses(&new_block.terminator, substitutions);
-        if new_term != new_block.terminator {
-            new_block.terminator = new_term;
-            modified = true;
-        }
-
-        // remove forwarded loads
-        let orig_len = new_block.instructions.len();
-        new_block.instructions.retain(|id| !to_remove.contains(id));
-        if new_block.instructions.len() != orig_len {
-            modified = true;
-        }
-
-        // apply block updates when changes were made
-        if modified {
-            tree.replace(block_id, new_block);
-        }
-    }
 }
 
 #[cfg(test)]

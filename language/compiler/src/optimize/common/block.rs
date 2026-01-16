@@ -621,11 +621,19 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     block_resolve_jump_target(*else_target, else_arguments, &threadable);
 
                 let (new_then, new_then_args) = match then_resolved {
-                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    ResolvedTarget::Jump { target, arguments }
+                        if arguments_match_block(target, &arguments, tree) =>
+                    {
+                        (target, arguments)
+                    }
                     _ => (*then_target, then_arguments.clone()),
                 };
                 let (new_else, new_else_args) = match else_resolved {
-                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    ResolvedTarget::Jump { target, arguments }
+                        if arguments_match_block(target, &arguments, tree) =>
+                    {
+                        (target, arguments)
+                    }
                     _ => (*else_target, else_arguments.clone()),
                 };
 
@@ -657,11 +665,19 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
                     block_resolve_jump_target(failure.target, &failure.arguments, &threadable);
 
                 let (new_success, new_success_args) = match success_resolved {
-                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    ResolvedTarget::Jump { target, arguments }
+                        if arguments_match_block(target, &arguments, tree) =>
+                    {
+                        (target, arguments)
+                    }
                     _ => (success.target, success.arguments.clone()),
                 };
                 let (new_failure, new_failure_args) = match failure_resolved {
-                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    ResolvedTarget::Jump { target, arguments }
+                        if arguments_match_block(target, &arguments, tree) =>
+                    {
+                        (target, arguments)
+                    }
                     _ => (failure.target, failure.arguments.clone()),
                 };
 
@@ -698,7 +714,11 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
 
                 // choose the resolved default target
                 let (new_default, new_default_args) = match default_resolved {
-                    ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                    ResolvedTarget::Jump { target, arguments }
+                        if arguments_match_block(target, &arguments, tree) =>
+                    {
+                        (target, arguments)
+                    }
                     _ => (*default, default_arguments.clone()),
                 };
 
@@ -714,7 +734,11 @@ pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree)
 
                     // choose the resolved case target
                     let (target, arguments) = match resolved {
-                        ResolvedTarget::Jump { target, arguments } => (target, arguments),
+                        ResolvedTarget::Jump { target, arguments }
+                            if arguments_match_block(target, &arguments, tree) =>
+                        {
+                            (target, arguments)
+                        }
                         _ => (case.target, case.arguments.clone()),
                     };
 
@@ -830,6 +854,17 @@ fn block_resolve_jump_target(
             },
         }
     }
+}
+
+/// Return true when the argument list matches the target block parameters.
+fn arguments_match_block(
+    target: mir::LocalNodeId<mir::Block>,
+    arguments: &[mir::Value],
+    tree: &mir::NodeTree,
+) -> bool {
+    // require argument counts to match parameters
+    let target_block = tree.get(target);
+    target_block.parameters.len() == arguments.len()
 }
 
 /// Return true if a jump forwards all block parameters unchanged.

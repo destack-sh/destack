@@ -4,6 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::CallGraph;
+use crate::optimize::common::TypeKey;
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
 declare_pass! {
@@ -72,21 +73,23 @@ impl ModulePass for DeadFunctionEliminate {
 /// Function signature key for indirect call matching.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct SignatureKey {
-    /// Parameter type ids for the signature.
-    parameters: Vec<mir::LocalNodeId<mir::Type>>,
-    /// Return type id for the signature.
-    result: mir::LocalNodeId<mir::Type>,
+    /// Parameter type keys for the signature.
+    parameters: Vec<TypeKey>,
+    /// Return type key for the signature.
+    result: TypeKey,
 }
 
 impl SignatureKey {
     /// Build a signature key from a function definition.
-    fn from_function(function: &mir::Function) -> Self {
-        // collect parameter type ids
-        let parameters = function.parameters.iter().map(|param| param.ty).collect();
-        Self {
-            parameters,
-            result: function.return_type,
-        }
+    fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Self {
+        // collect parameter type keys
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|param| TypeKey::from_type(tree.get(param.ty), tree))
+            .collect();
+        let result = TypeKey::from_type(tree.get(function.return_type), tree);
+        Self { parameters, result }
     }
 
     /// Build a signature key from a function pointer type.
@@ -98,9 +101,14 @@ impl SignatureKey {
         let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
             return None;
         };
+        let parameters = parameters
+            .iter()
+            .map(|param| TypeKey::from_type(tree.get(*param), tree))
+            .collect();
+        let result = TypeKey::from_type(tree.get(*result), tree);
         Some(Self {
-            parameters: parameters.clone(),
-            result: *result,
+            parameters,
+            result,
         })
     }
 }
@@ -221,7 +229,7 @@ fn build_signature_index(
     // populate the signature index
     for function_id in functions {
         let function = tree.get(*function_id);
-        let signature = SignatureKey::from_function(function);
+        let signature = SignatureKey::from_function(tree, function);
         index.entry(signature).or_default().push(*function_id);
     }
 
@@ -312,14 +320,14 @@ fn call_constraint_from_metadata(
             return Some(CallConstraint::Signature(signature));
         }
         if let Some(target) = metadata.declared_target {
-            let signature = SignatureKey::from_function(tree.get(target));
+            let signature = SignatureKey::from_function(tree, tree.get(target));
             return Some(CallConstraint::Signature(signature));
         }
     }
 
     // fall back to the direct target signature when available
     if let Some(target) = fallback_target {
-        let signature = SignatureKey::from_function(tree.get(target));
+        let signature = SignatureKey::from_function(tree, tree.get(target));
         return Some(CallConstraint::Signature(signature));
     }
 

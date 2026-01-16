@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::parse::IndirectCallInference;
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
@@ -13,6 +12,7 @@ use destack_base::{ImmutableStringPool, StringPool};
 use destack_source::{FileId, Span};
 
 use super::error::{ParseError, ParseResult};
+use super::infer::IndirectCallInference;
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
 
@@ -550,7 +550,7 @@ impl<'a> Parser<'a> {
         for block_id in &blocks {
             self.impute_local_references(*block_id, &source_index_to_local);
         }
-        self.impute_indirect_call_metadata(id)?;
+        self.impute_indirect_call_metadata(&parameters, &blocks)?;
 
         self.eat_token(TokenType::CloseBrace)?;
 
@@ -773,19 +773,15 @@ impl<'a> Parser<'a> {
     /// Infer indirect call metadata from typed values in a function body.
     fn impute_indirect_call_metadata(
         &mut self,
-        function_id: LocalNodeId<Function>,
+        parameters: &[TypedValue],
+        blocks: &[LocalNodeId<Block>],
     ) -> ParseResult<()> {
-        // seed type tracking from function signature
-        let function = self.tree.get(function_id);
-        let parameters = function.parameters.clone();
-        let blocks = function.blocks.clone();
-
         // capture a fallback position for diagnostics
         let fallback_position = self.pos();
 
         // walk instructions to infer indirect call signatures
-        let mut inference = IndirectCallInference::new(&mut self.tree, &parameters, &blocks);
-        inference.infer_for_blocks(&blocks, fallback_position)?;
+        let mut inference = IndirectCallInference::new(&mut self.tree, parameters, blocks);
+        inference.infer_for_blocks(blocks, fallback_position)?;
 
         Ok(())
     }

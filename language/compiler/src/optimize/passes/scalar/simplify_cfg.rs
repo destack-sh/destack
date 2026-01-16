@@ -7,12 +7,11 @@ use crate::optimize::analyses::{
     ConstantPropagation, DominatorTree, LoopAnalysis, RangeAnalysis, RangeMap, ValueRange,
 };
 use crate::optimize::{
-    AnalysisPreservation, FunctionPass, PipelineContext, bool_from_range,
-    build_use_def_maps, build_value_instruction_map, build_value_use_counts,
+    AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_dominated_blocks,
+    bool_from_range, build_use_def_maps, build_value_instruction_map, build_value_use_counts,
     constraint_truth_value, evaluate_integer_range_comparison, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
-    is_comparison_operator, substitute_values, swap_comparison_operator, terminator_remap,
-    terminator_substitute_uses,
+    instruction_is_speculatable, instruction_map, is_comparison_operator, substitute_values,
+    swap_comparison_operator, terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block metadata for canonicalization.
@@ -33,7 +32,7 @@ const TAIL_DUP_HOT_EDGE_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
 const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
 /// Maximum rounds of CFG simplification before re-analysis.
-const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 3;
+const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
 declare_pass! {
     /// Simplify the control flow graph.
@@ -154,23 +153,15 @@ fn run_simplify_cfg(
             )
         };
 
-        // track changes in this iteration
-        let mut changed_this_round = false;
-
         // phase 1: branch folding
         // converts `branch always_true, A, B` -> `jump A`
-        changed_this_round |= fold_branches(function, tree, &constants, &ranges, &loop_blocks);
+        let mut changed_this_round =
+            fold_branches(function, tree, &constants, &ranges, &loop_blocks);
 
         // phase 2: path sensitive jump threading
         // threads edges using edge specific range facts
-        changed_this_round |= thread_edge_conditions(
-            function,
-            tree,
-            &constants,
-            &ranges,
-            &domtree,
-            &loop_blocks,
-        );
+        changed_this_round |=
+            thread_edge_conditions(function, tree, &constants, &ranges, &domtree, &loop_blocks);
 
         // phase 3: jump threading
         // threads jumps through empty blocks
@@ -185,40 +176,67 @@ fn run_simplify_cfg(
         // phase 6: fold branches that share the same target
         changed_this_round |= fold_same_target_branches(function, tree);
 
+        // restart after early control flow rewrites
+        if changed_this_round {
+            changed = true;
+
+            iteration += 1;
+            if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
+                break;
+            }
+
+            continue;
+        }
+
         // phase 7: block merging
         // merges blocks with single predecessor/successor
-        if let Some(entry) = function.entry {
-            changed_this_round |= merge_blocks(function, tree, entry, &domtree);
+        if let Some(entry) = function.entry
+            && merge_blocks(function, tree, entry, &domtree)
+        {
+            changed = true;
+
+            iteration += 1;
+            if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
+                break;
+            }
+
+            continue;
         }
 
         // phase 8: eliminate unreachable blocks
-        if let Some(entry) = function.entry {
-            changed_this_round |= eliminate_unreachable_blocks(function, tree, entry);
+        if let Some(entry) = function.entry
+            && eliminate_unreachable_blocks(function, tree, entry)
+        {
+            changed = true;
+
+            iteration += 1;
+            if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
+                break;
+            }
+
+            continue;
         }
 
         // phase 9: tail duplicate small jump targets
-        changed_this_round |=
-            tail_duplicate_blocks(
-                function,
-                tree,
-                profile,
-                &domtree,
-                &mut profiled_tail_dup_targets,
-            );
+        if tail_duplicate_blocks(
+            function,
+            tree,
+            profile,
+            &domtree,
+            &mut profiled_tail_dup_targets,
+        ) {
+            changed = true;
+
+            iteration += 1;
+            if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
+                break;
+            }
+
+            continue;
+        }
 
         // stop when no changes are made
-        if !changed_this_round {
-            break;
-        }
-
-        // record that we changed in this iteration
-        changed = true;
-
-        // stop when the iteration cap is reached
-        iteration += 1;
-        if iteration >= MAX_SIMPLIFY_CFG_ITERATIONS {
-            break;
-        }
+        break;
     }
 
     // split critical edges after simplification converges
@@ -2159,7 +2177,8 @@ fn tail_duplicate_blocks(
     profiled_targets: &mut HashSet<mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // build definition metadata
-    let value_def_blocks = build_use_def_maps(function, tree).def_block;
+    let use_def = build_use_def_maps(function, tree);
+    let value_def_blocks = &use_def.def_block;
 
     // collect predecessor counts and jump predecessors
     let mut predecessor_counts: HashMap<mir::LocalNodeId<mir::Block>, usize> = HashMap::new();
@@ -2222,6 +2241,11 @@ fn tail_duplicate_blocks(
             continue;
         }
 
+        // skip blocks whose parameters are used outside the block
+        if block_parameters_used_outside_block(&block, &use_def.use_blocks, block_id) {
+            continue;
+        }
+
         // require speculatable instructions
         let mut all_speculatable = true;
         for instruction_id in &block.instructions {
@@ -2255,7 +2279,7 @@ fn tail_duplicate_blocks(
                 &block,
                 tree,
                 pred.pred,
-                &value_def_blocks,
+                value_def_blocks,
                 domtree,
             ) {
                 continue;
@@ -2899,7 +2923,7 @@ fn merge_blocks(
             }
 
             // extract target block info
-            let (param_to_arg, target_instructions, target_terminator) = {
+            let param_to_arg = {
                 let target_block = tree.get(target);
 
                 // require argument counts to match parameters
@@ -2926,8 +2950,16 @@ fn merge_blocks(
                     .zip(arguments.iter())
                     .map(|(param, arg)| (param.value, *arg))
                     .collect();
+                param_to_arg
+            };
+
+            // propagate parameter substitutions into dominated blocks
+            apply_substitutions_in_dominated_blocks(function, tree, domtree, target, &param_to_arg);
+
+            // refresh the target block after substitution
+            let (target_instructions, target_terminator) = {
+                let target_block = tree.get(target);
                 (
-                    param_to_arg,
                     target_block.instructions.clone(),
                     target_block.terminator.clone(),
                 )
@@ -2939,14 +2971,12 @@ fn merge_blocks(
             // copy and substitute instructions from target
             for instruction_id in target_instructions {
                 let instruction = tree.get(instruction_id).clone();
-                let new_instruction =
-                    instruction_substitute_uses_in_tree(&instruction, &param_to_arg, tree);
-                let new_id = tree.insert(new_instruction);
+                let new_id = tree.insert(instruction);
                 new_block.instructions.push(new_id);
             }
 
             // substitute and take target's terminator
-            new_block.terminator = terminator_substitute_uses(&target_terminator, &param_to_arg);
+            new_block.terminator = target_terminator;
 
             tree.replace(block_id, new_block);
 
@@ -2969,6 +2999,26 @@ fn merge_blocks(
     }
 
     changed
+}
+
+/// Return true when block parameters are used outside the block.
+fn block_parameters_used_outside_block(
+    block: &mir::Block,
+    use_blocks: &HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+    block_id: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    // detect parameter uses outside of the defining block
+    for param in &block.parameters {
+        let Some(uses) = use_blocks.get(&param.value) else {
+            continue;
+        };
+
+        if uses.iter().any(|use_block| *use_block != block_id) {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Eliminate blocks not reachable from the entry block.
