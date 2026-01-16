@@ -8,7 +8,6 @@ use destack_workspace::{Module, ModuleSource, ProfileId};
 
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 
-#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check whether a type expression implicitly relies on managed defaults.
     pub(crate) fn type_is_implicit_managed(
@@ -316,7 +315,9 @@ impl Compiler {
         // string like literals imply managed defaults
         matches!(
             literal,
-            ScalarLiteral::String(_) | ScalarLiteral::RegexString { .. }
+            ScalarLiteral::String(_)
+                | ScalarLiteral::Character(_)
+                | ScalarLiteral::RegexString { .. }
         )
     }
 }

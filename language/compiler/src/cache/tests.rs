@@ -2,91 +2,78 @@ use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_source::{
-    DiagnosticSeverity, File, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId,
-    ProfileVersion,
+    DiagnosticSeverity, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion,
 };
 use destack_workspace::{
-    CacheMode, CachePolicy, CacheScope, CacheValidate, ModuleAst, ModuleGraphKey, ModuleMir,
-    ModuleSignatureKey, TargetId,
+    CacheMode, CachePolicy, CacheScope, CacheValidate, FileUpdate, ModuleAst, ModuleGraphKey,
+    ModuleMir, ModuleSignatureKey, TargetId,
 };
 
 use crate::{
     AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, TestFileSystem, TestProgram,
 };
 
-fn compile_analyze_modules(test: &TestProgram, modules: &[destack_source::ModuleId]) {
-    // reset diagnostics for a clean assertion pass
-    let _ = test.program.diagnostics.drain();
+impl TestProgram {
+    /// Compile and analyze the provided modules.
+    fn compile_analyze_modules(&self, modules: &[ModuleId]) {
+        // reset diagnostics for a clean assertion pass
+        let _ = self.program.diagnostics.drain();
 
-    // build a fresh compiler so tasks rerun
-    let options = test.compiler.options.clone();
-    let compiler = Compiler::new(test.session.clone(), test.program.clone(), options);
+        // build a fresh compiler so tasks rerun
+        let options = self.compiler.options.clone();
+        let compiler = Compiler::new(self.session.clone(), self.program.clone(), options);
 
-    // enqueue analyze tasks for the requested modules
-    for module_id in modules {
-        let profile = test.default_profile_id(*module_id);
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-            module: *module_id,
-            profile,
-        });
+        // enqueue analyze tasks for the requested modules
+        for module_id in modules {
+            let profile = self.default_profile_id(*module_id);
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
+                module: *module_id,
+                profile,
+            });
+        }
+
+        // run compilation and check diagnostics
+        compiler.compile();
+        self.check_no_diagnostic(DiagnosticSeverity::Note);
     }
 
-    // run compilation and check diagnostics
-    compiler.compile();
-    test.check_no_diagnostic(DiagnosticSeverity::Note);
-}
+    /// Replace module source and invalidate program state.
+    fn replace_module_source(&self, module_id: ModuleId, content: &str) {
+        // capture the module path for filesystem updates
+        let module_path = {
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            if !module.is_code() {
+                panic!("expected a code module for source replacement");
+            }
+            module
+                .path
+                .clone()
+                .unwrap_or_else(|| panic!("module path missing for {module_id:?}"))
+        };
 
-fn replace_module_source(test: &TestProgram, module_id: destack_source::ModuleId, content: &str) {
-    // capture the module path for filesystem updates
-    let module_path = {
-        let module = test.program.modules.get(module_id);
-        let module = module.read();
-        if !module.is_code() {
-            panic!("expected a code module for source replacement");
+        // update the memory filesystem content
+        match &self.fs {
+            TestFileSystem::Memory { fs } => {
+                fs.add_file(&module_path, content.as_bytes())
+                    .unwrap_or_else(|error| panic!("failed to write module file: {error}"));
+            }
+            TestFileSystem::Physical { .. } => {
+                panic!("incremental tests require memory filesystem");
+            }
         }
-        module
-            .path
-            .clone()
-            .unwrap_or_else(|| panic!("module path missing for {module_id:?}"))
-    };
 
-    // update the memory filesystem content
-    match &test.fs {
-        TestFileSystem::Memory { fs } => {
-            fs.add_file(&module_path, content.as_bytes())
-                .unwrap_or_else(|error| panic!("failed to write module file: {error}"));
-        }
-        TestFileSystem::Physical { .. } => {
-            panic!("incremental tests require memory filesystem");
-        }
+        // invalidate the module via program api
+        let file_id = self.program.modules.get(module_id).read().file_id;
+        self.program
+            .invalidate_file(
+                file_id,
+                FileUpdate::Text {
+                    content: content.to_string(),
+                },
+            )
+            .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
     }
-
-    // replace the file registry entry with an updated version
-    let file = test.file(module_id);
-    let next_version = file.version.next();
-    let mut updated_file = File::from_text(
-        file.id,
-        file.name.clone(),
-        file.uri.clone(),
-        file.path.clone(),
-        file.ty,
-        content.to_string(),
-    );
-    updated_file.version = next_version;
-    test.program.files.replace(updated_file);
-
-    // clear module caches so import and analyze rerun
-    let module = test.program.modules.get(module_id);
-    let mut module = module.write();
-    module.version = module.version.next();
-    module.source_version = next_version;
-
-    let code = module.code_mut();
-    code.ast = None;
-    code.dir_base = None;
-    code.dirs.clear();
-    code.comptimes.clear();
-    code.mirs.clear();
 }
 
 /// Signature changes invalidate dependent modules.
@@ -109,7 +96,7 @@ value;
     );
 
     // seed signatures and module graph
-    compile_analyze_modules(&test, &[module_a_id, module_b_id]);
+    test.compile_analyze_modules(&[module_a_id, module_b_id]);
 
     let profile = test.default_profile_id(module_a_id);
     let signature_key = ModuleSignatureKey::new(module_a_id, profile);
@@ -138,14 +125,13 @@ value;
     drop(b_signature_before);
 
     // update module a without changing its export surface
-    replace_module_source(
-        &test,
+    test.replace_module_source(
         module_a_id,
         r#"
 export const value: number = 2;
 "#,
     );
-    compile_analyze_modules(&test, &[module_a_id]);
+    test.compile_analyze_modules(&[module_a_id]);
 
     let stable_signature = test
         .program
@@ -186,14 +172,13 @@ export const value: number = 2;
     );
 
     // update module a with an export change
-    replace_module_source(
-        &test,
+    test.replace_module_source(
         module_a_id,
         r#"
 export const value: string = "value";
 "#,
     );
-    compile_analyze_modules(&test, &[module_a_id]);
+    test.compile_analyze_modules(&[module_a_id]);
 
     let changed_signature = test
         .program
@@ -258,7 +243,7 @@ value;
     );
 
     // seed module graph
-    compile_analyze_modules(&test, &[module_a_id, module_b_id, module_c_id]);
+    test.compile_analyze_modules(&[module_a_id, module_b_id, module_c_id]);
 
     let profile = test.default_profile_id(module_a_id);
     let graph_key = ModuleGraphKey::new(profile);
@@ -269,10 +254,8 @@ value;
         .get(&graph_key)
         .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
     let deps_before: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
-    let dependents_b_before: HashSet<_> =
-        graph.dependents_for(module_b_id).into_iter().collect();
-    let dependents_c_before: HashSet<_> =
-        graph.dependents_for(module_c_id).into_iter().collect();
+    let dependents_b_before: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
+    let dependents_c_before: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
     drop(graph);
 
     // assertion block
@@ -294,8 +277,7 @@ value;
     );
 
     // update module a to import module c instead
-    replace_module_source(
-        &test,
+    test.replace_module_source(
         module_a_id,
         r#"
 import { value } from "./c.ts";
@@ -303,7 +285,7 @@ import { value } from "./c.ts";
 value;
 "#,
     );
-    compile_analyze_modules(&test, &[module_a_id, module_c_id]);
+    test.compile_analyze_modules(&[module_a_id, module_c_id]);
 
     let graph = test
         .program
@@ -312,10 +294,8 @@ value;
         .get(&graph_key)
         .unwrap_or_else(|| panic!("missing module graph for {profile:?}"));
     let deps_after: HashSet<_> = graph.dependencies_for(module_a_id).into_iter().collect();
-    let dependents_b_after: HashSet<_> =
-        graph.dependents_for(module_b_id).into_iter().collect();
-    let dependents_c_after: HashSet<_> =
-        graph.dependents_for(module_c_id).into_iter().collect();
+    let dependents_b_after: HashSet<_> = graph.dependents_for(module_b_id).into_iter().collect();
+    let dependents_c_after: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
     drop(graph);
 
     // assertion block
@@ -363,7 +343,7 @@ value;
     );
 
     // seed signatures and module graph
-    compile_analyze_modules(&test, &[module_b_id, module_a_id, module_c_id]);
+    test.compile_analyze_modules(&[module_b_id, module_a_id, module_c_id]);
 
     let profile = test.default_profile_id(module_a_id);
     let a_signature_before = test
@@ -383,14 +363,13 @@ value;
     drop(a_signature_before);
 
     // update module b with export change
-    replace_module_source(
-        &test,
+    test.replace_module_source(
         module_b_id,
         r#"
 export const value: string = "value";
 "#,
     );
-    compile_analyze_modules(&test, &[module_b_id]);
+    test.compile_analyze_modules(&[module_b_id]);
 
     let a_has_dir_after_b = test
         .program
@@ -430,7 +409,7 @@ export const value: string = "value";
     );
 
     // recompute module a signature to propagate invalidation
-    compile_analyze_modules(&test, &[module_a_id]);
+    test.compile_analyze_modules(&[module_a_id]);
 
     let a_signature_after_a = test
         .program
@@ -478,7 +457,7 @@ value;
     );
 
     // seed module graph and signatures
-    compile_analyze_modules(&test, &[module_a_id, module_b_id]);
+    test.compile_analyze_modules(&[module_a_id, module_b_id]);
 
     // seed a mir entry to validate invalidation behavior
     let package_id = test.program.modules.get(module_b_id).read().package_id;
@@ -507,14 +486,13 @@ value;
     assert!(b_has_mir_before, "expected mir to be seeded before edits");
 
     // update module a with an export change
-    replace_module_source(
-        &test,
+    test.replace_module_source(
         module_a_id,
         r#"
 export const value: string = "value";
 "#,
     );
-    compile_analyze_modules(&test, &[module_a_id]);
+    test.compile_analyze_modules(&[module_a_id]);
 
     let b_has_mir_after = test
         .program

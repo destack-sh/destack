@@ -88,6 +88,11 @@ impl FileRegistry {
             .clone()
     }
 
+    /// Get a file by id, returning None if it is not found.
+    pub fn get_maybe(&self, id: FileId) -> Option<Arc<File>> {
+        self.files_by_id.get(&id).map(|entry| entry.clone())
+    }
+
     /// Get a file id by its URI.
     pub fn get_id_by_uri(&self, uri: &Uri) -> Option<FileId> {
         self.files_by_uri.get(uri).map(|r| *r.value())
