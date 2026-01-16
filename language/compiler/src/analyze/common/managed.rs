@@ -22,7 +22,9 @@ impl Compiler {
         self.type_is_implicit_managed_inner(module, profile, ty, types, &mut visited)
     }
 
-    /// Check whether a type expression touches managed defaults.
+    /// Check whether a type expression relies on managed defaults.
+    ///
+    /// Explicit ownership wrappers (`^T`, `&T`, `*T`) are treated as non managed.
     pub(crate) fn type_contains_managed(
         &self,
         module: &Module,
@@ -189,12 +191,10 @@ impl Compiler {
         types: &TypeTable,
         visited: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
-        // treat explicit ownership wrappers as managed when they contain managed values
+        // treat explicit ownership wrappers as non managed
         match ty {
-            Type::ValueOf { right, .. }
-            | Type::ReferenceOf { right, .. }
-            | Type::PointerOf { right, .. }
-            | Type::Mutable { right, .. }
+            Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
+            Type::Mutable { right, .. }
             | Type::Unary { right, .. }
             | Type::Value { value: right } => {
                 // follow the wrapped type

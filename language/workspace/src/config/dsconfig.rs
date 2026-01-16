@@ -535,7 +535,7 @@ pub struct DsConfigCompilerOptions {
     pub no_redeclared_locals: bool,
     /// Require explicit ownership for managed types and values.
     pub no_implicit_managed: bool,
-    /// Forbid managed memory features entirely (no unowned `T` at all, pure value types only).
+    /// Forbid GC-managed defaults and allocations (explicit ownership still allowed).
     pub no_managed: bool,
     /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...)
     pub no_runtime: bool,

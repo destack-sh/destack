@@ -7,6 +7,7 @@ mod managed;
 mod mapped;
 mod normalize;
 mod shape;
+mod strict;
 mod r#type;
 
 pub(crate) use destack_dir::NormalizationMode;

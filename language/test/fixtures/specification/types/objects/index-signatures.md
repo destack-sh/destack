@@ -114,6 +114,52 @@ let value = bag["missing"]
 
 - contains: indexing non-indexable
 
+## noUncheckedIndexedAccess
+
+### noUncheckedIndexedAccess adds undefined to index access
+
+> Index signature access includes undefined when noUncheckedIndexedAccess is true.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 }
+let value: int32 = bag["a"]
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": true } }
+```
+
+- contains: not assignable
+
+### noUncheckedIndexedAccess leaves index access unchanged when false
+
+> Index signature access keeps the value type when noUncheckedIndexedAccess is false.
+
+```ds:main.ds
+interface Bag {
+    [key: string]: int32
+}
+
+const bag: Bag = { a: 1 }
+let value: int32 = bag["a"]
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUncheckedIndexedAccess": false } }
+```
+
 ## property access
 
 ### noPropertyAccessFromIndexSignature forbids dot access

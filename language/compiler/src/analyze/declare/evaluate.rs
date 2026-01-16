@@ -1331,29 +1331,18 @@ impl Compiler {
             _ => return Ok(None),
         };
 
-        // enforce managed type restrictions in user code
-        if is_user_module {
-            // reject any managed types when managed memory is disabled
-            if options.no_managed && self.type_contains_managed(module, profile, &ty, types) {
-                return Err(AnalyzeError::ManagedMemoryDisabled {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                });
-            }
-
-            // reject implicit managed types in type expressions
-            if enforce_implicit_managed
-                && options.no_implicit_managed
-                && !self.expression_has_explicit_ownership(tree, expression_id)
-                && self.type_is_implicit_managed(module, profile, &ty, types)
-            {
-                return Err(AnalyzeError::ImplicitManagedTypeDisabled {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(profile)),
-                });
-            }
+        // enforce implicit managed restrictions for type expressions
+        if is_user_module
+            && enforce_implicit_managed
+            && options.no_implicit_managed
+            && !self.expression_has_explicit_ownership(tree, expression_id)
+            && self.type_is_implicit_managed(module, profile, &ty, types)
+        {
+            return Err(AnalyzeError::ImplicitManagedTypeDisabled {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+            });
         }
 
         Ok(Some(ty))

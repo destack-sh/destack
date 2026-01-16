@@ -14,10 +14,6 @@ pub enum AnalyzeWarning {
     #[warning(code = "WA100", message = "non-exhaustive match")]
     NonExhaustiveMatch { node: AnchoredGlobalNodeId },
 
-    /// Unreachable code.
-    #[warning(code = "WA101", message = "unreachable code")]
-    UnreachableCode { node: AnchoredGlobalNodeId },
-
     /// Always-true / always-false conditions.
     #[warning(code = "WA102", message = "constant value condition")]
     ConstantValueCondition { node: AnchoredGlobalNodeId },

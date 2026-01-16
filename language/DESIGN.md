@@ -933,7 +933,7 @@ Configure strictness in `dsconfig.json`:
 {
   "compilerOptions": {
     "noImplicitManaged": true,       // require ^T or &T on types and values
-    "noManaged": true,               // forbid GC entirely
+    "noManaged": true,               // forbid GC-managed defaults and allocations
     "borrowMode": "strict",          // enforce &mut exclusivity rules
     "noRuntime": true                // forbid runtime features
   }

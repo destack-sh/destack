@@ -1251,10 +1251,19 @@ impl<'tree> FlowGraphBuilder<'tree> {
         finally_expression_id: Option<LocalNodeId<Expression>>,
         current_block_id: FlowBlockId,
     ) -> Option<FlowBlockId> {
-        // allocate blocks for catch and finally
+        // allocate blocks for try, catch, and finally
+        let try_block_id = self.create_block();
         let catch_block_id = catch_expression_id.map(|_| self.create_block());
         let finally_block_id = finally_expression_id.map(|_| self.create_block());
         let join_block_id = self.create_block();
+
+        // connect the current block into the try body
+        self.connect_blocks(
+            current_block_id,
+            try_block_id,
+            FlowEdgeKind::Unconditional,
+            None,
+        );
 
         // enable finally tracking while building the try body
         if let Some(finally_block_id) = finally_block_id {
@@ -1265,14 +1274,14 @@ impl<'tree> FlowGraphBuilder<'tree> {
         }
 
         // evaluate the try body
-        let try_exit_block_id = self.build_expression(try_expression_id, current_block_id);
+        let try_exit_block_id = self.build_expression(try_expression_id, try_block_id);
 
         // evaluate the catch body
         let mut catch_exit_block_id = None;
         if let (Some(catch_block_id), Some(catch_expression_id)) =
             (catch_block_id, catch_expression_id)
         {
-            // allow exceptions to flow into catch
+            // connect the catch block when present
             self.connect_blocks(
                 current_block_id,
                 catch_block_id,

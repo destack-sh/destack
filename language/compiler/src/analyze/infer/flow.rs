@@ -14,7 +14,7 @@ use destack_workspace::{Module, ProfileId};
 use super::super::common::NormalizationMode;
 use super::r#type::TypeGuardTarget;
 
-use crate::{AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -140,16 +140,16 @@ impl Compiler {
             }
         }
 
-        // emit unreachable warnings when enabled
+        // emit unreachable diagnostics when enabled
         if !context.options.allow_unreachable_code {
-            self.warn_unreachable_blocks(module, context.profile, graph, &flow);
+            self.report_unreachable_blocks(module, context.profile, graph, &flow);
         }
 
         Ok(flow)
     }
 
-    /// Emit warnings for unreachable blocks when diagnostics are enabled.
-    fn warn_unreachable_blocks(
+    /// Emit diagnostics for unreachable blocks when enabled.
+    fn report_unreachable_blocks(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -176,7 +176,7 @@ impl Compiler {
                 continue;
             }
 
-            self.warning(AnalyzeWarning::UnreachableCode {
+            self.error(AnalyzeError::UnreachableCode {
                 node: node_id.into_global(module.id).into_anchored(Some(profile)),
             });
         }
