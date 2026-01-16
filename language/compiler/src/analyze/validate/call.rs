@@ -4,6 +4,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ModuleSource, ProfileId, SymbolGroup};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Validate call expressions against runtime restriction options.
     pub(crate) fn validate_call_expression(

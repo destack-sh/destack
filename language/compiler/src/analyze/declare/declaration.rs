@@ -219,6 +219,7 @@ impl Compiler {
 
                 // register the instance type for this symbol
                 let symbol = descriptor.symbol.into_global(module.id);
+                types.set_alias_target_type_id(symbol, declared_ty_id);
                 let instance_ty_id = match *kind {
                     TypeKind::Structural => declared_ty_id,
                     TypeKind::Nominal => {

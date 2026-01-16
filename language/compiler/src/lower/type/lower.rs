@@ -193,6 +193,32 @@ impl TypeLowerer {
                         message: "type reference has no instance type".to_string(),
                     }
                 })?;
+
+                // unwrap nominal aliases that point at themselves
+                if instance_type_id == type_id {
+                    // check if the type is an invalid / self-referential alias
+                    if !matches!(
+                        symbol.ty(),
+                        dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
+                    ) {
+                        return Err(LowerError::UnsupportedType {
+                            node,
+                            ty: type_id.into_global(module_id),
+                            message: "non-alias type is self-referential".to_string(),
+                        });
+                    }
+                    let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) else {
+                        return Err(LowerError::UnsupportedType {
+                            node,
+                            ty: type_id.into_global(module_id),
+                            message: "type alias has no target type".to_string(),
+                        });
+                    };
+
+                    // lower the alias target type for layout
+                    return self.lower_type(types, alias_target_id, module_id, node, builder);
+                }
+
                 // recursively lower the instance type
                 let instance_type =
                     self.lower_type(types, instance_type_id, module_id, node, builder)?;
