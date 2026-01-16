@@ -5,7 +5,8 @@ use destack_builtin::builtin_lib;
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, ExportKind, Expression,
     GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalScopeId, LocalSymbolId, ModuleBinding,
-    ModuleBindingExports, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    ModuleBindingExports, ModuleTarget, NodeTree, StaticKey, SymbolSpace, SymbolSpaceOrder,
+    SymbolTable,
 };
 
 use destack_source::ModuleId;
@@ -1448,7 +1449,7 @@ impl Compiler {
     ) -> ResolveResult<()> {
         self.require_resolve_module_direct(module_id, profile)?;
         if !self.is_code_module(module_id) {
-            self.update_module_graph(module_id, profile);
+            self.update_module_graph(module_id, profile)?;
             return Ok(());
         }
 
@@ -1499,29 +1500,49 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
-        self.update_module_graph(module_id, profile);
+        self.update_module_graph(module_id, profile)?;
         Ok(())
     }
 
     /// Update the module graph for a resolved module.
-    fn update_module_graph(&self, module_id: ModuleId, profile_id: ProfileId) {
+    fn update_module_graph(&self, module_id: ModuleId, profile_id: ProfileId) -> ResolveResult<()> {
         // load module data for dependency discovery
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let Some(dir) = module.dir_maybe(profile_id) else {
-            return;
+            return Ok(());
         };
 
-        // collect module dependencies from imports and namespace exports
-        let mut dependencies = Vec::new();
+        // collect module dependency targets from imports and namespace exports
+        let module_version = module.version;
+        let mut targets = Vec::new();
         for target in dir.imported_modules.read().values() {
-            if let destack_dir::ModuleTarget::Module(target_id) = target {
-                dependencies.push(*target_id);
-            }
+            targets.push(*target);
         }
         for export in dir.namespace_exports.read().iter() {
-            if let destack_dir::ModuleTarget::Module(target_id) = export.module_id {
-                dependencies.push(target_id);
+            targets.push(export.module_id);
+        }
+
+        // drop module guard before resolving binding dependencies
+        drop(module);
+
+        // resolve module binding targets into module ids
+        let mut dependencies = Vec::new();
+        for target in targets {
+            match target {
+                ModuleTarget::Module(target_id) => {
+                    dependencies.push(target_id);
+                }
+                ModuleTarget::Binding(specifier) => {
+                    let bindings =
+                        self.module_bindings_for_specifier(module_id, profile_id, specifier)?;
+                    let Some(bindings) = bindings else {
+                        continue;
+                    };
+                    for binding in bindings {
+                        dependencies.push(binding.module_id);
+                    }
+                }
             }
         }
 
@@ -1533,6 +1554,125 @@ impl Compiler {
             .module_graphs
             .entry(key)
             .or_insert_with(|| ModuleGraph::new(profile_id));
-        entry.update_module(module_id, module.version, dependencies);
+        entry.update_module(module_id, module_version, dependencies);
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TestProgram;
+    use destack_workspace::ModuleGraphKey;
+
+    /// Build module graph edges for import dependencies.
+    #[test]
+    fn test_module_graph_import_dependency() {
+        let test = TestProgram::memory_sequential();
+        let dep_source = r#"
+export const value = 1;
+"#;
+        let main_source = r#"
+import { value } from "./dep.ts";
+
+value;
+"#;
+
+        let dep_module_id = test.add_module("dep.ts", dep_source);
+        let main_module_id = test.add_module("main.ts", main_source);
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(main_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(main_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&dep_module_id),
+            "expected module graph to include dep.ts"
+        );
+    }
+
+    /// Build module graph edges for namespace exports.
+    #[test]
+    fn test_module_graph_namespace_export_dependency() {
+        let test = TestProgram::memory_sequential();
+        let dep_source = r#"
+export const value = 1;
+"#;
+        let export_source = r#"
+export * from "./dep.ts";
+"#;
+
+        let dep_module_id = test.add_module("dep.ts", dep_source);
+        let export_module_id = test.add_module("reexport.ts", export_source);
+
+        test.resolve_module(export_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(export_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(export_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&dep_module_id),
+            "expected module graph to include dep.ts"
+        );
+    }
+
+    /// Build module graph edges for module binding imports.
+    #[test]
+    fn test_module_graph_binding_dependency() {
+        let test = TestProgram::memory_sequential();
+        let decl_source = r#"
+declare module "foo" {
+    export const value: number;
+}
+"#;
+        let main_source = r#"
+import { value } from "foo";
+
+value;
+"#;
+
+        let decl_module_id = test.add_module("decl.d.ts", decl_source);
+        let main_module_id = test.add_module("main.ts", main_source);
+
+        test.import_module(decl_module_id);
+        test.compile_check_clean();
+
+        test.resolve_module(main_module_id);
+        test.compile_check_clean();
+
+        let profile = test.default_profile_id(main_module_id);
+        let key = ModuleGraphKey::new(profile);
+        let graph = test
+            .program
+            .index
+            .module_graphs
+            .get(&key)
+            .unwrap_or_else(|| panic!("missing module graph for profile {profile:?}"));
+        let dependencies = graph.dependencies_for(main_module_id);
+
+        // assert dependency edges
+        assert!(
+            dependencies.contains(&decl_module_id),
+            "expected module graph to include module binding module"
+        );
     }
 }
