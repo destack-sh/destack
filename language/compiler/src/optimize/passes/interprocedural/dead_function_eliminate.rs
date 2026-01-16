@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::CallGraph;
-use crate::optimize::common::TypeKey;
+use crate::optimize::common::SignatureKey;
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
 declare_pass! {
@@ -70,46 +70,6 @@ impl ModulePass for DeadFunctionEliminate {
     }
 }
 
-/// Function signature key for indirect call matching.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct SignatureKey {
-    /// Parameter type keys for the signature.
-    parameters: Vec<TypeKey>,
-    /// Return type key for the signature.
-    result: TypeKey,
-}
-
-impl SignatureKey {
-    /// Build a signature key from a function definition.
-    fn from_function(tree: &mir::NodeTree, function: &mir::Function) -> Self {
-        // collect parameter type keys
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|param| TypeKey::from_type(param.ty, tree))
-            .collect();
-        let result = TypeKey::from_type(function.return_type, tree);
-        Self { parameters, result }
-    }
-
-    /// Build a signature key from a function pointer type.
-    fn from_signature_type(
-        tree: &mir::NodeTree,
-        signature: mir::LocalNodeId<mir::Type>,
-    ) -> Option<Self> {
-        // resolve the function pointer type signature
-        let mir::Type::FunctionPointer { parameters, result } = tree.get(signature) else {
-            return None;
-        };
-        let parameters = parameters
-            .iter()
-            .map(|param| TypeKey::from_type(*param, tree))
-            .collect();
-        let result = TypeKey::from_type(*result, tree);
-        Some(Self { parameters, result })
-    }
-}
-
 /// Constraint describing a potential indirect call target set.
 #[derive(Debug, Clone)]
 enum CallConstraint {
@@ -130,6 +90,7 @@ fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
         .iter_nodes::<mir::Function>()
         .filter_map(|(id, function)| function.entry.is_some().then_some(id))
         .collect();
+
     // return early when there are no definitions
     if defined_functions.is_empty() {
         return false;
@@ -209,7 +170,7 @@ fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
         if function.linkage.is_exported() {
             continue;
         }
-        strip_function_body(function);
+        strip_function_body(function_id, tree);
         changed = true;
     }
 
@@ -223,6 +184,7 @@ fn build_signature_index(
 ) -> HashMap<SignatureKey, Vec<mir::LocalNodeId<mir::Function>>> {
     // insert each function under its signature key
     let mut index: HashMap<SignatureKey, Vec<mir::LocalNodeId<mir::Function>>> = HashMap::new();
+
     // populate the signature index
     for function_id in functions {
         let function = tree.get(*function_id);
@@ -241,8 +203,10 @@ fn unknown_call_constraints(
     // scan the function blocks for indirect calls
     let function = tree.get(function_id);
     let mut constraints = Vec::new();
+
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
+
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(constraint) =
@@ -251,6 +215,7 @@ fn unknown_call_constraints(
                 constraints.push(constraint);
             }
         }
+
         if let Some(constraint) = call_constraint_from_terminator(tree, &block.terminator) {
             constraints.push(constraint);
         }
@@ -316,6 +281,7 @@ fn call_constraint_from_metadata(
         if let Some(signature) = SignatureKey::from_signature_type(tree, metadata.signature) {
             return Some(CallConstraint::Signature(signature));
         }
+
         if let Some(target) = metadata.declared_target {
             let signature = SignatureKey::from_function(tree, tree.get(target));
             return Some(CallConstraint::Signature(signature));
@@ -332,18 +298,92 @@ fn call_constraint_from_metadata(
 }
 
 /// Strip the body of a function, leaving an import declaration.
-fn strip_function_body(function: &mut mir::Function) {
+fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut mir::NodeTree) {
+    // collect blocks and instructions before stripping the body
+    let block_ids = tree.get(function_id).blocks.clone();
+    let mut instruction_ids = Vec::new();
+
+    for block_id in &block_ids {
+        let block = tree.get(*block_id);
+        instruction_ids.extend(block.instructions.iter().copied());
+    }
+
+    // read the function scope before clearing debug metadata
+    let function_scope = tree.debug_info.function_scopes.get(&function_id).copied();
+
     // convert the definition into an import declaration
+    let function = tree.get_mut(function_id);
     function.linkage = mir::Linkage::Import;
     function.locals.clear();
     function.blocks.clear();
     function.entry = None;
+
+    // remove per block debug scopes
+    for block_id in block_ids {
+        tree.debug_info.block_scopes.remove(&block_id);
+    }
+
+    // remove instruction metadata tied to stripped blocks
+    for instruction_id in instruction_ids {
+        tree.call_table.remove_call_metadata(instruction_id);
+        tree.memory_table
+            .memory_accesses_by_instruction_id
+            .remove(&instruction_id);
+        tree.debug_info
+            .instruction_locations
+            .remove(&instruction_id);
+    }
+
+    // clear debug variable locations tied to the stripped function
+    if let Some(function_scope) = function_scope {
+        // rewrite debug locations for variables in the function scope
+        for (index, variable) in tree.debug_info.variables.iter().enumerate() {
+            // skip variables outside the function scope
+            if !scope_in_function(variable.scope, function_scope, &tree.debug_info) {
+                continue;
+            }
+
+            // update variable locations to undefined
+            let var_id = mir::DebugVariableId::new(index as u32);
+            if tree.debug_info.variable_locations.contains_key(&var_id) {
+                tree.debug_info
+                    .variable_locations
+                    .insert(var_id, mir::DebugValueLocation::Undefined);
+            }
+        }
+    }
+
+    // remove the function scope entry
+    tree.debug_info.function_scopes.remove(&function_id);
+}
+
+/// Return true when a debug scope belongs to a function scope.
+fn scope_in_function(
+    scope: mir::DebugScopeId,
+    function_scope: mir::DebugScopeId,
+    debug_info: &mir::DebugInfoTable,
+) -> bool {
+    // walk the scope chain to find the function scope
+    let mut current = Some(scope);
+
+    while let Some(scope_id) = current {
+        // stop once the function scope is found
+        if scope_id == function_scope {
+            return true;
+        }
+
+        // step to the parent scope
+        current = debug_info.scope(scope_id).parent;
+    }
+
+    false
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+    use destack_source::{FileId, Span};
 
     /// Unreferenced local functions are removed.
     #[test]
@@ -489,5 +529,97 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_module_pass(&DeadFunctionEliminate);
         program.assert_output(input);
+    }
+
+    /// Debug metadata for stripped functions is cleared.
+    #[test]
+    fn test_dead_function_eliminate_clears_debug_metadata() {
+        let input = r#"export function @root() -> void {
+block0:
+    call @live()
+    return
+}
+function @live() -> void {
+block0:
+    return
+}
+function @dead(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 1i32
+    return v0
+}"#;
+
+        let expected = r#"export function @root() -> void {
+block0:
+    call @live()
+    return
+}
+function @live() -> void {
+block0:
+    return
+}
+extern function @dead(i32) -> i32"#;
+
+        let mut program = TestProgram::new(input);
+        let dead_id = program.function_id_by_name("dead");
+        let dead_block = program.entry_block_id(dead_id);
+        let dead_instruction = program
+            .instructions_in_block(dead_block)
+            .first()
+            .copied()
+            .expect("missing instruction");
+        let file_id = FileId::new(0);
+        let span = Span::empty(file_id);
+        let function_scope =
+            program
+                .tree
+                .debug_info
+                .create_scope(mir::DebugScopeKind::Function, None, span, None);
+        program
+            .tree
+            .debug_info
+            .function_scopes
+            .insert(dead_id, function_scope);
+        let variable_id = program.tree.debug_info.create_variable(
+            program.tree.get(dead_id).name,
+            program.tree.get(dead_id).parameters[0].ty,
+            function_scope,
+            true,
+            false,
+        );
+        program.tree.debug_info.variable_locations.insert(
+            variable_id,
+            mir::DebugValueLocation::Value(program.tree.get(dead_id).parameters[0].value),
+        );
+        program.tree.debug_info.instruction_locations.insert(
+            dead_instruction,
+            mir::DebugLocation {
+                span,
+                scope: function_scope,
+                inlined_at: None,
+            },
+        );
+
+        program.run_module_pass(&DeadFunctionEliminate);
+        program.assert_output(expected);
+
+        assert!(
+            !program
+                .tree
+                .debug_info
+                .function_scopes
+                .contains_key(&dead_id)
+        );
+        assert_eq!(
+            program.tree.debug_info.variable_locations.get(&variable_id),
+            Some(&mir::DebugValueLocation::Undefined)
+        );
+        assert!(
+            !program
+                .tree
+                .debug_info
+                .instruction_locations
+                .contains_key(&dead_instruction)
+        );
     }
 }

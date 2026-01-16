@@ -11,6 +11,7 @@ mod r#loop;
 mod memory;
 mod metrics;
 mod pass;
+mod signature;
 mod r#type;
 
 pub use analysis::*;
@@ -26,6 +27,7 @@ pub use r#loop::*;
 pub use memory::*;
 pub use metrics::*;
 pub use pass::*;
+pub use signature::*;
 pub use r#type::*;
 
 #[cfg(test)]

@@ -1,0 +1,527 @@
+use std::collections::{HashMap, HashSet};
+
+use destack_compiler_macros::declare_pass;
+use destack_mir as mir;
+
+use crate::optimize::common::{
+    SignatureKey, build_value_definition_map, constant_for_value, constant_matches_type,
+    constant_type_of, instruction_substitute_uses_in_tree, terminator_substitute_uses,
+};
+use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
+
+declare_pass! {
+    /// Propagate constants across direct callsites.
+    ///
+    /// This pass substitutes parameters in a callee when all direct callsites
+    /// pass the same constant, then leaves dead argument removal to later passes.
+    ///
+    /// ```mir
+    /// function @callee(v0: i32, v1: i32) -> i32 {
+    /// block0(v0: i32, v1: i32):
+    ///     v2 = iadd v0, v1
+    ///     return v2
+    /// }
+    /// function @root() -> i32 {
+    /// block0:
+    ///     v0 = iconst 40i32
+    ///     v1 = iconst 2i32
+    ///     v2 = call @callee(v0, v1)
+    ///     return v2
+    /// }
+    /// ```
+    /// becomes:
+    /// ```mir
+    /// function @callee(v0: i32, v1: i32) -> i32 {
+    /// block0(v0: i32, v1: i32):
+    ///     v3 = iconst 40i32
+    ///     v4 = iconst 2i32
+    ///     v2 = iadd v3, v4
+    ///     return v2
+    /// }
+    /// function @root() -> i32 {
+    /// block0:
+    ///     v0 = iconst 40i32
+    ///     v1 = iconst 2i32
+    ///     v2 = call @callee(v0, v1)
+    ///     return v2
+    /// }
+    /// ```
+    #[pass(id = "ip-constant-prop")]
+    pub InterproceduralConstantPropagation,
+    "Propagate constants across callsites"
+}
+
+impl ModulePass for InterproceduralConstantPropagation {
+    /// Run interprocedural constant propagation for the module.
+    fn run(&self, tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> AnalysisPreservation {
+        let pointer_width_bits = ctx.options.type_context().pointer_width_bits;
+        let changed = run_interprocedural_constant_prop(tree, pointer_width_bits);
+
+        // report analysis preservation based on whether changes occurred
+        if changed {
+            ctx.strings.intern("ip-constant-prop");
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
+
+    /// Return the pass display name.
+    fn name(&self) -> &'static str {
+        "InterproceduralConstantPropagation"
+    }
+
+    /// Return the pass identifier.
+    fn id(&self) -> &'static str {
+        "ip-constant-prop"
+    }
+}
+
+/// Direct call arguments tracked by callee.
+#[derive(Debug, Clone)]
+struct DirectCallArgs {
+    /// The caller function id.
+    caller: mir::LocalNodeId<mir::Function>,
+    /// The arguments passed at the callsite.
+    arguments: Vec<mir::Value>,
+}
+
+/// Collected callsite data for interprocedural constant propagation.
+#[derive(Debug, Default)]
+struct CallData {
+    /// Direct call arguments keyed by callee.
+    direct_calls: HashMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallArgs>>,
+    /// Signatures that may be targeted by indirect calls.
+    indirect_signatures: HashSet<SignatureKey>,
+}
+
+/// Run interprocedural constant propagation over the module.
+fn run_interprocedural_constant_prop(tree: &mut mir::NodeTree, pointer_width_bits: u16) -> bool {
+    // collect callsites up front
+    let call_data = collect_call_data(tree);
+
+    // cache value definitions by caller for fast constant lookups
+    let definitions_by_function = build_definition_cache(tree);
+
+    // track whether anything changed
+    let mut changed = false;
+
+    // scan candidate callees
+    let function_ids: Vec<_> = tree
+        .iter_nodes::<mir::Function>()
+        .filter_map(|(id, function)| function.entry.is_some().then_some((id, function.linkage)))
+        .collect();
+
+    for (function_id, linkage) in function_ids {
+        // skip imported and exported functions
+        if linkage.is_exported() || linkage.is_import() {
+            continue;
+        }
+
+        let function = tree.get(function_id);
+        let signature = SignatureKey::from_function(tree, function);
+
+        // skip functions reachable through indirect calls
+        if call_data.indirect_signatures.contains(&signature) {
+            continue;
+        }
+
+        // require at least one direct callsite
+        let Some(callsites) = call_data.direct_calls.get(&function_id) else {
+            continue;
+        };
+
+        // compute constant arguments for each parameter
+        let constants = constant_parameters(
+            function,
+            callsites,
+            &definitions_by_function,
+            tree,
+            pointer_width_bits,
+        );
+        if constants.iter().all(|entry| entry.is_none()) {
+            continue;
+        }
+
+        // insert constants and rewrite uses inside the callee
+        if apply_constant_parameters(function_id, &constants, tree) {
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+/// Collect direct callsites and indirect signatures for the module.
+fn collect_call_data(tree: &mir::NodeTree) -> CallData {
+    // prepare the callsite data container
+    let mut data = CallData::default();
+
+    // scan each function body for callsites
+    for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
+        if function.entry.is_none() {
+            continue;
+        }
+
+        for &block_id in &function.blocks {
+            let block = tree.get(block_id);
+
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+
+                if let mir::Instruction::Call {
+                    function,
+                    arguments,
+                    ..
+                } = instruction
+                {
+                    let arguments = tree.get_arguments(*arguments).to_vec();
+                    data.direct_calls
+                        .entry(*function)
+                        .or_default()
+                        .push(DirectCallArgs {
+                            caller: caller_id,
+                            arguments,
+                        });
+                }
+
+                if let mir::Instruction::CallIndirect { signature, .. } = instruction
+                    && let Some(signature) = SignatureKey::from_signature_type(tree, *signature)
+                {
+                    data.indirect_signatures.insert(signature);
+                }
+            }
+
+            match &block.terminator {
+                mir::Terminator::TailCall {
+                    function,
+                    arguments,
+                } => {
+                    data.direct_calls
+                        .entry(*function)
+                        .or_default()
+                        .push(DirectCallArgs {
+                            caller: caller_id,
+                            arguments: arguments.clone(),
+                        });
+                }
+                mir::Terminator::TailCallIndirect { signature, .. } => {
+                    if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
+                        data.indirect_signatures.insert(signature);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    data
+}
+
+/// Build definition maps for each function with a body.
+fn build_definition_cache(
+    tree: &mir::NodeTree,
+) -> HashMap<mir::LocalNodeId<mir::Function>, HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>>
+{
+    // prepare the cache container
+    let mut cache = HashMap::new();
+
+    // build definition maps per function
+    for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+        if function.entry.is_none() {
+            continue;
+        }
+
+        cache.insert(function_id, build_value_definition_map(function, tree));
+    }
+
+    cache
+}
+
+/// Compute constant parameters for a callee when all direct callsites agree.
+fn constant_parameters(
+    function: &mir::Function,
+    callsites: &[DirectCallArgs],
+    definitions_by_function: &HashMap<
+        mir::LocalNodeId<mir::Function>,
+        HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    >,
+    tree: &mir::NodeTree,
+    pointer_width_bits: u16,
+) -> Vec<Option<mir::Constant>> {
+    // allocate constant slots for each parameter
+    let mut constants = vec![None; function.parameters.len()];
+
+    // evaluate each parameter position independently
+    for (index, param) in function.parameters.iter().enumerate() {
+        let mut candidate: Option<mir::Constant> = None;
+
+        for callsite in callsites {
+            // ensure the callsite has the argument position
+            let Some(argument) = callsite.arguments.get(index) else {
+                candidate = None;
+                break;
+            };
+
+            // resolve constant from the caller's definitions
+            let Some(definitions) = definitions_by_function.get(&callsite.caller) else {
+                candidate = None;
+                break;
+            };
+            let Some(constant) = constant_for_value(*argument, definitions, tree) else {
+                candidate = None;
+                break;
+            };
+
+            // validate the constant matches the parameter type
+            let constant_type = constant_type_of(&constant);
+            if !constant_matches_type(constant_type, param.ty, pointer_width_bits, tree) {
+                candidate = None;
+                break;
+            }
+
+            // unify constants across callsites
+            match &candidate {
+                None => candidate = Some(constant),
+                Some(existing) if *existing == constant => {}
+                Some(_) => {
+                    candidate = None;
+                    break;
+                }
+            }
+        }
+
+        constants[index] = candidate;
+    }
+
+    constants
+}
+
+/// Apply constant parameters inside a callee.
+fn apply_constant_parameters(
+    function_id: mir::LocalNodeId<mir::Function>,
+    constants: &[Option<mir::Constant>],
+    tree: &mut mir::NodeTree,
+) -> bool {
+    // prepare the substitution map and new instructions
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut new_instructions = Vec::new();
+
+    // allocate new constants at the entry block
+    let mut function = tree.get(function_id).clone();
+    function.recompute_next_value_id(tree);
+
+    let entry_id = function.entry.expect("defined function has entry block");
+    let parameters = function.parameters.clone();
+
+    for (param, constant) in parameters.iter().zip(constants.iter()) {
+        let Some(constant) = constant else {
+            continue;
+        };
+
+        let destination = function.next_value();
+        substitutions.insert(param.value, destination);
+        new_instructions.push((destination, constant.clone()));
+    }
+
+    // write back the updated value counter
+    if !new_instructions.is_empty() {
+        *tree.get_mut(function_id) = function.clone();
+    }
+
+    // insert constant instructions before the entry block body
+    if !new_instructions.is_empty() {
+        let mut new_instruction_ids = Vec::new();
+
+        for (destination, constant) in &new_instructions {
+            let instruction_id = tree.insert(mir::Instruction::Const {
+                destination: *destination,
+                value: constant.clone(),
+            });
+            new_instruction_ids.push(instruction_id);
+        }
+
+        let entry = tree.get_mut(entry_id);
+        entry
+            .instructions
+            .splice(0..0, new_instruction_ids.iter().copied());
+    }
+
+    // stop if no substitutions were created
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    // substitute uses across all blocks
+    let function = tree.get(function_id).clone();
+    for block_id in function.blocks {
+        let instruction_ids = tree.get(block_id).instructions.clone();
+
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id).clone();
+            let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+            if instruction != updated {
+                *tree.get_mut(instruction_id) = updated;
+            }
+        }
+
+        let block = tree.get_mut(block_id);
+        let updated = terminator_substitute_uses(&block.terminator, &substitutions);
+        if block.terminator != updated {
+            block.terminator = updated;
+        }
+    }
+
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimize::common::tests::TestProgram;
+
+    /// Constant call arguments are propagated into the callee.
+    #[test]
+    fn test_ip_constant_prop_inserts_constants() {
+        let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = iadd v0, v1
+    return v2
+}
+function @root() -> i32 {
+block0:
+    v0 = iconst 40i32
+    v1 = iconst 2i32
+    v2 = call @callee(v0, v1)
+    return v2
+}"#;
+
+        let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v3 = iconst 40i32
+    v4 = iconst 2i32
+    v2 = iadd v3, v4
+    return v2
+}
+function @root() -> i32 {
+block0:
+    v0 = iconst 40i32
+    v1 = iconst 2i32
+    v2 = call @callee(v0, v1)
+    return v2
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&InterproceduralConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Differing constants across callsites do not propagate.
+    #[test]
+    fn test_ip_constant_prop_skips_mismatched_constants() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    return v1
+}
+function @root() -> i32 {
+block0:
+    v0 = iconst 1i32
+    v1 = call @callee(v0)
+    return v1
+}
+function @other() -> i32 {
+block0:
+    v0 = iconst 2i32
+    v1 = call @callee(v0)
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&InterproceduralConstantPropagation);
+        program.assert_output(input);
+    }
+
+    /// Indirect call signatures prevent propagation.
+    #[test]
+    fn test_ip_constant_prop_skips_indirect_signature() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    return v1
+}
+function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
+block0(v0: fn(i32) -> i32, v1: i32):
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v3 = iconst 4i32
+    v4 = call @callee(v3)
+    return v4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&InterproceduralConstantPropagation);
+        program.assert_output(input);
+    }
+
+    /// Globals constants can be propagated across calls.
+    #[test]
+    fn test_ip_constant_prop_propagates_global_const() {
+        let input = r#"global @value: i32 = 7i32 ; const
+function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @root() -> i32 {
+block0:
+    v0 = global.const @value
+    v1 = call @callee(v0)
+    return v1
+}"#;
+
+        let expected = r#"global @value: i32 = 7i32 ; const
+function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 7i32
+    return v1
+}
+function @root() -> i32 {
+block0:
+    v0 = global.const @value
+    v1 = call @callee(v0)
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&InterproceduralConstantPropagation);
+        program.assert_output(expected);
+    }
+
+    /// Tailcalls participate in constant propagation.
+    #[test]
+    fn test_ip_constant_prop_propagates_tailcall() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    return v0
+}
+function @root() -> i32 {
+block0:
+    v0 = iconst 9i32
+    tailcall @callee(v0)
+}"#;
+
+        let expected = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iconst 9i32
+    return v1
+}
+function @root() -> i32 {
+block0:
+    v0 = iconst 9i32
+    tailcall @callee(v0)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_module_pass(&InterproceduralConstantPropagation);
+        program.assert_output(expected);
+    }
+}

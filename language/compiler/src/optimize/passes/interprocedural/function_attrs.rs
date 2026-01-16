@@ -842,6 +842,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let function_id = program.function_id_by_name("pure");
         let function = program.tree.get(function_id);
 
@@ -861,6 +862,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let function_id = program.function_id_by_name("alloc");
         let function = program.tree.get(function_id);
         let behavior = function.call_behavior.clone().expect("missing behavior");
@@ -893,6 +895,7 @@ block0:
             .insert_call_metadata(call_inst, mir::CallMetadata::direct(callee_id, signature));
 
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let metadata = program
             .tree
             .call_table
@@ -917,6 +920,7 @@ block0(v0: i32):
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let caller_id = program.function_id_by_name("caller");
         let caller = program.tree.get(caller_id);
         let behavior = caller.call_behavior.clone().expect("missing behavior");
@@ -938,6 +942,7 @@ block0:
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let caller_id = program.function_id_by_name("caller");
         let caller = program.tree.get(caller_id);
         let behavior = caller.call_behavior.clone().expect("missing behavior");
@@ -956,6 +961,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
 
         let mut program = TestProgram::new(input);
         program.run_module_pass(&FunctionAttrs);
+        program.assert_output(input);
         let function_id = program.function_id_by_name("callee");
         let function = program.tree.get(function_id);
         let effects = function.memory_effects.as_ref().expect("missing effects");

@@ -213,14 +213,14 @@ Cross-function optimizations that require module-level analysis.
 |----|------|-------|-------|------|----------|-------------|
 | `inline` | Inline | module | O2 | ✓ | callgraph, loops | Inline function calls based on cost/benefit heuristics |
 | `dead-function-eliminate` | DeadFunctionEliminate | module | O2 | ✓ | callgraph | Remove functions that are never called |
-| `dead-arg-eliminate` | DeadArgEliminate | module | O2 | | callgraph | Remove unused function arguments |
-| `ip-constant-prop` | InterproceduralConstantProp | module | O2 | | callgraph | Propagate constant arguments across call sites |
+| `dead-arg-eliminate` | DeadArgEliminate | module | O2 | ✓ | — | Remove unused function arguments |
+| `ip-constant-prop` | InterproceduralConstantPropagation | module | O2 | ✓ | — | Propagate constant arguments across call sites |
 | `argument-promote` | ArgumentPromotion | module | O3 | | callgraph, alias | Pass struct fields as separate arguments |
-| `global-dce` | GlobalDeadCodeEliminate | module | O2 | | callgraph | Remove unused globals and their initializers |
+| `global-dead-code-eliminate` | GlobalDeadCodeEliminate | module | O2 | ✓ | — | Remove unused globals and their initializers |
 | `merge-functions` | MergeFunctions | module | O3 | | — | Merge identical function bodies |
 | `partial-inline` | PartialInline | module | O3 | | callgraph, loops | Inline only the hot path of a function |
 | `constant-merge` | ConstantMerge | module | O2 | | — | Deduplicate identical constants across module |
-| `global-opt` | GlobalOpt | module | O2 | | callgraph | Internalize globals, propagate constants, convert never-written to immutable |
+| `global-opt` | GlobalOpt | module | O2 | ✓ | — | Convert never-written globals to immutable and fold constant loads |
 | `function-attrs` | FunctionAttrs | module | O2 | ✓ | callgraph | Infer memory effects and call behavior for functions and callsites |
 | `hot-cold-split` | HotColdSplit | module | O3 | | callgraph, loops | Split functions into hot and cold regions for better code layout |
 | `pgo-inline` | ProfileGuidedInline | module | O2 | | callgraph, profile | Inline based on callsite hotness and value profiles |
