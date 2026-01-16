@@ -144,7 +144,7 @@ impl Lattice for OwnershipMap {
     }
 }
 
-/// Compact reference metadata for inferred pointer values.
+/// Compact reference metadata for pointer values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct ReferenceInfo {
     /// Reference kind for the pointer.
@@ -179,15 +179,6 @@ impl ReferenceInfo {
         })
     }
 
-    /// Derive reference info for a field or element address.
-    fn derived_addr(self) -> Self {
-        let kind = match self.kind {
-            ReferenceKind::Raw => ReferenceKind::Raw,
-            _ => ReferenceKind::Borrowed,
-        };
-
-        Self { kind, ..self }
-    }
 }
 
 /// Lookup table for builtin MIR types.
@@ -209,8 +200,6 @@ struct TypeLookup {
     floats: HashMap<u16, mir::LocalNodeId<Type>>,
     /// Tuple types keyed by their two element types.
     tuple2: HashMap<(mir::LocalNodeId<Type>, mir::LocalNodeId<Type>), mir::LocalNodeId<Type>>,
-    /// Reference types keyed by their attributes and pointee.
-    references: HashMap<(ReferenceInfo, mir::LocalNodeId<Type>), mir::LocalNodeId<Type>>,
 }
 
 impl TypeLookup {
@@ -225,7 +214,6 @@ impl TypeLookup {
             ints: HashMap::new(),
             floats: HashMap::new(),
             tuple2: HashMap::new(),
-            references: HashMap::new(),
         };
 
         for (type_id, ty) in tree.iter_nodes::<Type>() {
@@ -264,11 +252,7 @@ impl TypeLookup {
                             .or_insert(type_id);
                     }
                 }
-                Type::Reference { pointee, .. } => {
-                    if let Some(info) = ReferenceInfo::from_type(ty) {
-                        lookup.references.entry((info, *pointee)).or_insert(type_id);
-                    }
-                }
+                Type::Reference { .. } => {}
                 _ => {}
             }
         }
@@ -326,14 +310,6 @@ impl TypeLookup {
     }
 
     /// Return a reference type id for the provided reference info.
-    fn reference(
-        &self,
-        info: ReferenceInfo,
-        pointee: mir::LocalNodeId<Type>,
-    ) -> Option<mir::LocalNodeId<Type>> {
-        self.references.get(&(info, pointee)).copied()
-    }
-
     /// Resolve a constant type into a MIR type id.
     fn type_for_constant(
         &self,
@@ -857,63 +833,6 @@ fn register_value_type(
     }
 }
 
-/// Record a pointer typed value derived from instruction semantics.
-#[allow(clippy::too_many_arguments)]
-fn register_reference_value(
-    destination: Value,
-    info: ReferenceInfo,
-    pointee: mir::LocalNodeId<Type>,
-    tree: &mir::NodeTree,
-    value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    reference_infos: &mut HashMap<Value, ReferenceInfo>,
-    type_lookup: &TypeLookup,
-) {
-    // record pointer provenance for derived references
-    reference_infos.entry(destination).or_insert(info);
-    pointer_pointee_types.entry(destination).or_insert(pointee);
-
-    // try to attach a concrete reference type id when one exists
-    let mut lookup_info = info;
-    let mut reference_type = type_lookup.reference(lookup_info, pointee);
-
-    // fall back to generic address space when needed
-    if reference_type.is_none() && !lookup_info.address_space.is_generic() {
-        lookup_info.address_space = AddressSpace::Generic;
-        reference_type = type_lookup.reference(lookup_info, pointee);
-    }
-
-    // register the resolved reference type when found
-    if let Some(type_id) = reference_type {
-        register_value_type(
-            destination,
-            type_id,
-            tree,
-            value_types,
-            pointer_pointee_types,
-            reference_infos,
-        );
-    }
-}
-
-/// Resolve reference info for a value when it is known.
-fn reference_info_for_value(
-    value: Value,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    reference_infos: &HashMap<Value, ReferenceInfo>,
-    tree: &mir::NodeTree,
-) -> Option<ReferenceInfo> {
-    // prefer explicit reference tracking
-    if let Some(info) = reference_infos.get(&value) {
-        return Some(*info);
-    }
-
-    // fall back to type information when present
-    value_types
-        .get(&value)
-        .and_then(|type_id| ReferenceInfo::from_type(tree.get(*type_id)))
-}
-
 /// Collect type information, copy values, and stack allocations from an instruction.
 #[allow(clippy::too_many_arguments)]
 fn instruction_collect_types(
@@ -966,122 +885,81 @@ fn instruction_collect_types(
         // raw allocs produce raw pointers (copy semantics)
         Instruction::RawAlloc {
             destination,
-            layout,
+            result_type,
             ..
         } => {
             copy_values.insert(*destination);
-            let info = ReferenceInfo {
-                kind: ReferenceKind::Raw,
-                address_space: AddressSpace::Heap,
-                mutability: Mutability::Immutable,
-                is_nullable: false,
-            };
-            register_reference_value(
+            register_value_type(
                 *destination,
-                info,
-                *layout,
+                *result_type,
                 tree,
                 value_types,
                 pointer_pointee_types,
                 reference_infos,
-                type_lookup,
             );
         }
         // stack allocs produce raw pointers (copy semantics) and track allocation kind
         Instruction::StackAlloc {
             destination,
-            layout,
+            result_type,
             ..
         } => {
             copy_values.insert(*destination);
             stack_allocated.insert(*destination);
-            let info = ReferenceInfo {
-                kind: ReferenceKind::Raw,
-                address_space: AddressSpace::Stack,
-                mutability: Mutability::Immutable,
-                is_nullable: false,
-            };
-            register_reference_value(
+            register_value_type(
                 *destination,
-                info,
-                *layout,
+                *result_type,
                 tree,
                 value_types,
                 pointer_pointee_types,
                 reference_infos,
-                type_lookup,
             );
         }
 
         // managed allocs produce managed references (non copy)
         Instruction::ManagedAlloc {
             destination,
-            layout,
+            result_type,
             ..
         } => {
             managed_allocated.insert(*destination);
-            let info = ReferenceInfo {
-                kind: ReferenceKind::Managed,
-                address_space: AddressSpace::Generic,
-                mutability: Mutability::Immutable,
-                is_nullable: false,
-            };
-            register_reference_value(
+            register_value_type(
                 *destination,
-                info,
-                *layout,
+                *result_type,
                 tree,
                 value_types,
                 pointer_pointee_types,
                 reference_infos,
-                type_lookup,
             );
         }
         Instruction::ManagedAllocArray {
             destination,
-            element,
+            result_type,
             ..
         } => {
             managed_allocated.insert(*destination);
-            let info = ReferenceInfo {
-                kind: ReferenceKind::Managed,
-                address_space: AddressSpace::Generic,
-                mutability: Mutability::Immutable,
-                is_nullable: false,
-            };
-            register_reference_value(
+            register_value_type(
                 *destination,
-                info,
-                *element,
+                *result_type,
                 tree,
                 value_types,
                 pointer_pointee_types,
                 reference_infos,
-                type_lookup,
             );
         }
         Instruction::GlobalAddr {
             destination,
-            global,
+            result_type,
             ..
         } => {
             copy_values.insert(*destination);
-            let global_decl = tree.get(*global);
-            let info = ReferenceInfo {
-                kind: ReferenceKind::Raw,
-                address_space: AddressSpace::Global,
-                mutability: global_decl.mutability,
-                is_nullable: false,
-            };
-            register_reference_value(
+            register_value_type(
                 *destination,
-                info,
-                global_decl.ty,
+                *result_type,
                 tree,
                 value_types,
                 pointer_pointee_types,
                 reference_infos,
-                type_lookup,
             );
         }
         Instruction::GlobalConst {
@@ -1365,73 +1243,33 @@ fn instruction_collect_types(
         // address instructions keep reference type
         Instruction::FieldAddr {
             destination,
-            aggregate,
-            index,
+            result_type,
             ..
         } => {
             copy_values.insert(*destination);
-            if let Some(pointee_type) =
-                pointer_pointee_type(*aggregate, value_types, pointer_pointee_types, tree)
-            {
-                let field_type = match tree.get(pointee_type) {
-                    Type::Struct { fields, .. } => fields
-                        .get(*index as usize)
-                        .map(|field_id| tree.get(*field_id).ty),
-                    Type::Tuple { elements, .. } => elements.get(*index as usize).copied(),
-                    _ => None,
-                };
-
-                if let Some(field_type) = field_type {
-                    pointer_pointee_types.insert(*destination, field_type);
-                    if let Some(base_info) =
-                        reference_info_for_value(*aggregate, value_types, reference_infos, tree)
-                    {
-                        let info = base_info.derived_addr();
-                        register_reference_value(
-                            *destination,
-                            info,
-                            field_type,
-                            tree,
-                            value_types,
-                            pointer_pointee_types,
-                            reference_infos,
-                            type_lookup,
-                        );
-                    }
-                }
-            }
+            register_value_type(
+                *destination,
+                *result_type,
+                tree,
+                value_types,
+                pointer_pointee_types,
+                reference_infos,
+            );
         }
         Instruction::ElementAddr {
             destination,
-            array: aggregate,
+            result_type,
             ..
         } => {
             copy_values.insert(*destination);
-            if let Some(pointee_type) =
-                pointer_pointee_type(*aggregate, value_types, pointer_pointee_types, tree)
-            {
-                let element_type = match tree.get(pointee_type) {
-                    Type::Array { element, .. } => *element,
-                    _ => pointee_type,
-                };
-
-                pointer_pointee_types.insert(*destination, element_type);
-                if let Some(base_info) =
-                    reference_info_for_value(*aggregate, value_types, reference_infos, tree)
-                {
-                    let info = base_info.derived_addr();
-                    register_reference_value(
-                        *destination,
-                        info,
-                        element_type,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                        type_lookup,
-                    );
-                }
-            }
+            register_value_type(
+                *destination,
+                *result_type,
+                tree,
+                value_types,
+                pointer_pointee_types,
+                reference_infos,
+            );
         }
 
         // field.set/element.set result has same type as aggregate
@@ -1476,7 +1314,7 @@ fn build_value_type_keys(
 
     // register keys for values with explicit types
     for (value, type_id) in value_types {
-        let type_key = TypeKey::from_type(tree.get(*type_id), tree);
+        let type_key = TypeKey::from_type(*type_id, tree);
         keys.insert(*value, type_key);
     }
 
@@ -1488,7 +1326,7 @@ fn build_value_type_keys(
 
         // prefer explicit type ids when they exist
         if let Some(type_id) = type_lookup.type_for_constant(*constant_type, tree) {
-            let type_key = TypeKey::from_type(tree.get(type_id), tree);
+            let type_key = TypeKey::from_type(type_id, tree);
             keys.insert(*value, type_key);
             continue;
         }
@@ -1509,7 +1347,7 @@ fn build_value_type_keys(
         let Some(pointee) = pointer_pointee_types.get(value) else {
             continue;
         };
-        let pointee_key = TypeKey::from_type(tree.get(*pointee), tree);
+        let pointee_key = TypeKey::from_type(*pointee, tree);
         let reference_key = TypeKey::Reference {
             kind: info.kind,
             address_space: info.address_space,

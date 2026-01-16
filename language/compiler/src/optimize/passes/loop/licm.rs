@@ -1038,8 +1038,8 @@ block2:
     fn test_hoist_invariant_load() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw i32>
-    v2 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v3 = iconst 1i32
     store v1, v3
     jump block1
@@ -1053,8 +1053,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw i32>
-    v2 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v3 = iconst 1i32
     store v1, v3
     v4 = iconst 2i32
@@ -1078,7 +1078,7 @@ block2:
     fn test_skip_hoist_clobbered_load() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v1, v2
     jump block1
@@ -1092,7 +1092,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v1, v2
     v4 = iconst 2i32
@@ -1116,7 +1116,7 @@ block2:
     fn test_skip_hoist_conditional_load() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw i32>
+    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v3 = iconst 1i32
     store v2, v3
     jump block1
@@ -1178,7 +1178,7 @@ block2:
     fn test_skip_hoist_load_with_call() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v1, v2
     jump block1

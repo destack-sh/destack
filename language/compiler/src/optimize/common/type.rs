@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use destack_base::StringId;
 use destack_mir as mir;
 
@@ -58,12 +60,32 @@ pub enum TypeKey {
         parameters: Vec<TypeKey>,
         result: Box<TypeKey>,
     },
+    /// Recursive reference to a previously visited type id.
+    Recursive {
+        id: mir::LocalNodeId<mir::Type>,
+    },
 }
 
 impl TypeKey {
-    /// Build a type key from a MIR type, recursively resolving nested types.
-    pub fn from_type(ty: &mir::Type, tree: &mir::NodeTree) -> Self {
-        match ty {
+    /// Build a type key from a MIR type id, resolving nested types.
+    pub fn from_type(type_id: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> Self {
+        let mut visiting = Vec::new();
+        Self::from_type_inner(type_id, tree, &mut visiting)
+    }
+
+    fn from_type_inner(
+        type_id: mir::LocalNodeId<mir::Type>,
+        tree: &mir::NodeTree,
+        visiting: &mut Vec<mir::LocalNodeId<mir::Type>>,
+    ) -> Self {
+        if visiting.contains(&type_id) {
+            return TypeKey::Recursive { id: type_id };
+        }
+
+        visiting.push(type_id);
+
+        let ty = tree.get(type_id);
+        let key = match ty {
             mir::Type::Void => TypeKey::Void,
             mir::Type::Boolean => TypeKey::Boolean,
             mir::Type::Int { width, signed } => TypeKey::Int {
@@ -81,29 +103,23 @@ impl TypeKey {
                 mutability,
                 pointee,
                 is_nullable,
-            } => {
-                let pointee_ty = tree.get(*pointee);
-                TypeKey::Reference {
-                    kind: *kind,
-                    address_space: *address_space,
-                    mutability: *mutability,
-                    pointee: Box::new(TypeKey::from_type(pointee_ty, tree)),
-                    is_nullable: *is_nullable,
-                }
-            }
+            } => TypeKey::Reference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                pointee: Box::new(Self::from_type_inner(*pointee, tree, visiting)),
+                is_nullable: *is_nullable,
+            },
 
             mir::Type::Array {
                 element,
                 length,
                 copyability,
-            } => {
-                let element_ty = tree.get(*element);
-                TypeKey::Array {
-                    element: Box::new(TypeKey::from_type(element_ty, tree)),
-                    length: *length,
-                    copyability: *copyability,
-                }
-            }
+            } => TypeKey::Array {
+                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                length: *length,
+                copyability: *copyability,
+            },
 
             mir::Type::Tuple {
                 elements,
@@ -111,7 +127,7 @@ impl TypeKey {
             } => {
                 let elements = elements
                     .iter()
-                    .map(|e| TypeKey::from_type(tree.get(*e), tree))
+                    .map(|element| Self::from_type_inner(*element, tree, visiting))
                     .collect();
                 TypeKey::Tuple {
                     elements,
@@ -125,9 +141,9 @@ impl TypeKey {
             } => {
                 let fields = fields
                     .iter()
-                    .map(|f| {
-                        let field = tree.get(*f);
-                        let field_ty = TypeKey::from_type(tree.get(field.ty), tree);
+                    .map(|field_id| {
+                        let field = tree.get(*field_id);
+                        let field_ty = Self::from_type_inner(field.ty, tree, visiting);
                         (field.name, field_ty)
                     })
                     .collect();
@@ -140,15 +156,17 @@ impl TypeKey {
             mir::Type::FunctionPointer { parameters, result } => {
                 let parameters = parameters
                     .iter()
-                    .map(|p| TypeKey::from_type(tree.get(*p), tree))
+                    .map(|param| Self::from_type_inner(*param, tree, visiting))
                     .collect();
-                let result_ty = tree.get(*result);
                 TypeKey::FunctionPointer {
                     parameters,
-                    result: Box::new(TypeKey::from_type(result_ty, tree)),
+                    result: Box::new(Self::from_type_inner(*result, tree, visiting)),
                 }
             }
-        }
+        };
+
+        visiting.pop();
+        key
     }
 
     /// Check if this is a scalar type (no heap allocation needed to construct).
@@ -255,14 +273,24 @@ pub fn types_are_equal(
     }
 
     // compare underlying type structures
-    let ty_a = tree.get(a);
-    let ty_b = tree.get(b);
-    types_are_equal_inner(ty_a, ty_b, tree)
+    let mut visiting = HashSet::new();
+    types_are_equal_inner(a, b, tree, &mut visiting)
 }
 
 /// Check if two MIR type structures are equal.
-fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> bool {
-    match (a, b) {
+fn types_are_equal_inner(
+    a: mir::LocalNodeId<mir::Type>,
+    b: mir::LocalNodeId<mir::Type>,
+    tree: &mir::NodeTree,
+    visiting: &mut HashSet<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)>,
+) -> bool {
+    if !visiting.insert((a, b)) {
+        return true;
+    }
+
+    let ty_a = tree.get(a);
+    let ty_b = tree.get(b);
+    let result = match (ty_a, ty_b) {
         // simple scalar types: direct comparison
         (mir::Type::Void, mir::Type::Void) => true,
         (mir::Type::Boolean, mir::Type::Boolean) => true,
@@ -297,7 +325,13 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 pointee: p2,
                 is_nullable: n2,
             },
-        ) => k1 == k2 && a1 == a2 && m1 == m2 && n1 == n2 && types_are_equal(*p1, *p2, tree),
+        ) => {
+            k1 == k2
+                && a1 == a2
+                && m1 == m2
+                && n1 == n2
+                && types_are_equal_inner(*p1, *p2, tree, visiting)
+        }
 
         // arrays: compare element type and length
         (
@@ -311,7 +345,7 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 length: l2,
                 copyability: c2,
             },
-        ) => c1 == c2 && l1 == l2 && types_are_equal(*e1, *e2, tree),
+        ) => c1 == c2 && l1 == l2 && types_are_equal_inner(*e1, *e2, tree, visiting),
 
         // tuples: compare element types
         (
@@ -329,7 +363,7 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 && e1
                     .iter()
                     .zip(e2.iter())
-                    .all(|(a, b)| types_are_equal(*a, *b, tree))
+                    .all(|(a, b)| types_are_equal_inner(*a, *b, tree, visiting))
         }
 
         // structs: compare field types
@@ -348,7 +382,8 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 && f1.iter().zip(f2.iter()).all(|(a, b)| {
                     let field_a = tree.get(*a);
                     let field_b = tree.get(*b);
-                    field_a.name == field_b.name && types_are_equal(field_a.ty, field_b.ty, tree)
+                    field_a.name == field_b.name
+                        && types_are_equal_inner(field_a.ty, field_b.ty, tree, visiting)
                 })
         }
 
@@ -367,13 +402,16 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 && p1
                     .iter()
                     .zip(p2.iter())
-                    .all(|(a, b)| types_are_equal(*a, *b, tree))
-                && types_are_equal(*r1, *r2, tree)
+                    .all(|(a, b)| types_are_equal_inner(*a, *b, tree, visiting))
+                && types_are_equal_inner(*r1, *r2, tree, visiting)
         }
 
         // different type variants are never equal
         _ => false,
-    }
+    };
+
+    visiting.remove(&(a, b));
+    result
 }
 
 #[cfg(test)]
@@ -383,35 +421,40 @@ mod tests {
     /// Scalar types produce scalar keys.
     #[test]
     fn test_type_key_scalar_types() {
-        let tree = mir::NodeTree::new();
+        let mut tree = mir::NodeTree::new();
+        let void_id = tree.insert(mir::Type::Void);
+        let boolean_id = tree.insert(mir::Type::Boolean);
+        let int32_id = tree.insert(mir::Type::INT32);
+        let isize_id = tree.insert(mir::Type::Isize);
+        let usize_id = tree.insert(mir::Type::Usize);
+        let uint64_id = tree.insert(mir::Type::UINT64);
+        let float64_id = tree.insert(mir::Type::FLOAT64);
+        let type_tag_id = tree.insert(mir::Type::TypeTag);
 
-        assert_eq!(TypeKey::from_type(&mir::Type::Void, &tree), TypeKey::Void);
+        assert_eq!(TypeKey::from_type(void_id, &tree), TypeKey::Void);
+        assert_eq!(TypeKey::from_type(boolean_id, &tree), TypeKey::Boolean);
         assert_eq!(
-            TypeKey::from_type(&mir::Type::Boolean, &tree),
-            TypeKey::Boolean
-        );
-        assert_eq!(
-            TypeKey::from_type(&mir::Type::INT32, &tree),
+            TypeKey::from_type(int32_id, &tree),
             TypeKey::Int {
                 width: 32,
                 signed: true
             }
         );
-        assert_eq!(TypeKey::from_type(&mir::Type::Isize, &tree), TypeKey::Isize);
-        assert_eq!(TypeKey::from_type(&mir::Type::Usize, &tree), TypeKey::Usize);
+        assert_eq!(TypeKey::from_type(isize_id, &tree), TypeKey::Isize);
+        assert_eq!(TypeKey::from_type(usize_id, &tree), TypeKey::Usize);
         assert_eq!(
-            TypeKey::from_type(&mir::Type::UINT64, &tree),
+            TypeKey::from_type(uint64_id, &tree),
             TypeKey::Int {
                 width: 64,
                 signed: false
             }
         );
         assert_eq!(
-            TypeKey::from_type(&mir::Type::FLOAT64, &tree),
+            TypeKey::from_type(float64_id, &tree),
             TypeKey::Float { width: 64 }
         );
         assert_eq!(
-            TypeKey::from_type(&mir::Type::TypeTag, &tree),
+            TypeKey::from_type(type_tag_id, &tree),
             TypeKey::TypeTag
         );
     }
@@ -419,15 +462,22 @@ mod tests {
     /// Scalar types are identified as scalar.
     #[test]
     fn test_type_key_is_scalar() {
-        let tree = mir::NodeTree::new();
+        let mut tree = mir::NodeTree::new();
+        let void_id = tree.insert(mir::Type::Void);
+        let boolean_id = tree.insert(mir::Type::Boolean);
+        let int32_id = tree.insert(mir::Type::INT32);
+        let isize_id = tree.insert(mir::Type::Isize);
+        let usize_id = tree.insert(mir::Type::Usize);
+        let float64_id = tree.insert(mir::Type::FLOAT64);
+        let type_tag_id = tree.insert(mir::Type::TypeTag);
 
-        assert!(TypeKey::from_type(&mir::Type::Void, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::Boolean, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::INT32, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::Isize, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::Usize, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::FLOAT64, &tree).is_scalar());
-        assert!(TypeKey::from_type(&mir::Type::TypeTag, &tree).is_scalar());
+        assert!(TypeKey::from_type(void_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(boolean_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(int32_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(isize_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(usize_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(float64_id, &tree).is_scalar());
+        assert!(TypeKey::from_type(type_tag_id, &tree).is_scalar());
     }
 
     /// Complex types produce complex keys.
@@ -437,12 +487,12 @@ mod tests {
 
         // array type
         let i32_id = tree.insert(mir::Type::INT32);
-        let array_ty = mir::Type::Array {
+        let array_id = tree.insert(mir::Type::Array {
             element: i32_id,
             length: 10,
             copyability: mir::Copyability::Trivial,
-        };
-        let key = TypeKey::from_type(&array_ty, &tree);
+        });
+        let key = TypeKey::from_type(array_id, &tree);
         assert_eq!(
             key,
             TypeKey::Array {
@@ -467,19 +517,19 @@ mod tests {
         let i32_id_2 = tree.insert(mir::Type::INT32);
         assert_ne!(i32_id_1, i32_id_2);
 
-        let array_1 = mir::Type::Array {
+        let array_id_1 = tree.insert(mir::Type::Array {
             element: i32_id_1,
             length: 5,
             copyability: mir::Copyability::Trivial,
-        };
-        let array_2 = mir::Type::Array {
+        });
+        let array_id_2 = tree.insert(mir::Type::Array {
             element: i32_id_2,
             length: 5,
             copyability: mir::Copyability::Trivial,
-        };
+        });
 
-        let key_1 = TypeKey::from_type(&array_1, &tree);
-        let key_2 = TypeKey::from_type(&array_2, &tree);
+        let key_1 = TypeKey::from_type(array_id_1, &tree);
+        let key_2 = TypeKey::from_type(array_id_2, &tree);
         assert_eq!(key_1, key_2);
     }
 
@@ -489,19 +539,19 @@ mod tests {
         let mut tree = mir::NodeTree::new();
 
         let i32_id = tree.insert(mir::Type::INT32);
-        let array_trivial = mir::Type::Array {
+        let array_trivial_id = tree.insert(mir::Type::Array {
             element: i32_id,
             length: 4,
             copyability: mir::Copyability::Trivial,
-        };
-        let array_linear = mir::Type::Array {
+        });
+        let array_linear_id = tree.insert(mir::Type::Array {
             element: i32_id,
             length: 4,
             copyability: mir::Copyability::Linear,
-        };
+        });
 
-        let key_trivial = TypeKey::from_type(&array_trivial, &tree);
-        let key_linear = TypeKey::from_type(&array_linear, &tree);
+        let key_trivial = TypeKey::from_type(array_trivial_id, &tree);
+        let key_linear = TypeKey::from_type(array_linear_id, &tree);
 
         assert_ne!(key_trivial, key_linear);
     }

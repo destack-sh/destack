@@ -793,7 +793,7 @@ mod tests {
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw @Point>
+    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
@@ -803,8 +803,8 @@ block0:
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v5 = stack.alloc i32 -> ref<raw i32>
-    v4 = stack.alloc i32 -> ref<raw i32>
+    v5 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 42i32
     store v4, v2
     v3 = load v4 -> i32
@@ -823,7 +823,7 @@ block0:
     fn test_split_tuple() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc (i32, i64) -> ref<raw (i32, i64)>
+    v0 = stack.alloc (i32, i64) -> ref<raw addrspace(stack) (i32, i64)>
     v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
@@ -832,8 +832,8 @@ block0:
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v5 = stack.alloc i64 -> ref<raw i64>
-    v4 = stack.alloc i32 -> ref<raw i32>
+    v5 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
+    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 42i32
     store v4, v2
     v3 = load v4 -> i32
@@ -852,7 +852,7 @@ block0:
     fn test_split_small_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 4] -> ref<raw [i32; 4]>
+    v0 = stack.alloc [i32; 4] -> ref<raw addrspace(stack) [i32; 4]>
     v1 = iconst 0i64
     v2 = element.addr v0, v1 -> ref<borrowed i32>
     v3 = iconst 42i32
@@ -862,10 +862,10 @@ block0:
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32 -> ref<raw i32>
-    v7 = stack.alloc i32 -> ref<raw i32>
-    v6 = stack.alloc i32 -> ref<raw i32>
-    v5 = stack.alloc i32 -> ref<raw i32>
+    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v6 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v5 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 0i64
     v3 = iconst 42i32
     store v5, v3
@@ -885,7 +885,7 @@ block0:
     fn test_preserve_large_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 100] -> ref<raw [i32; 100]>
+    v0 = stack.alloc [i32; 100] -> ref<raw addrspace(stack) [i32; 100]>
     v1 = iconst 0i64
     v2 = element.addr v0, v1 -> ref<borrowed i32>
     v3 = iconst 42i32
@@ -909,7 +909,7 @@ block0:
 extern function @external(ref<raw @Point>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Point -> ref<raw @Point>
+    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     call @external(v0)
     return
 }"#;
@@ -927,7 +927,7 @@ block0:
     fn test_preserve_dynamic_index() {
         let input = r#"function @test(v0: i64) -> i32 {
 block0(v0: i64):
-    v1 = stack.alloc [i32; 4] -> ref<raw [i32; 4]>
+    v1 = stack.alloc [i32; 4] -> ref<raw addrspace(stack) [i32; 4]>
     v2 = element.addr v1, v0 -> ref<borrowed i32>
     v3 = iconst 42i32
     store v2, v3
@@ -949,7 +949,7 @@ block0(v0: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw @Point>
+    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 10i32
     store v1, v2
@@ -964,8 +964,8 @@ block0:
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v9 = stack.alloc i32 -> ref<raw i32>
-    v8 = stack.alloc i32 -> ref<raw i32>
+    v9 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 10i32
     store v8, v2
     v4 = iconst 20i32
@@ -991,7 +991,7 @@ block0:
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v0 = stack.alloc @Outer -> ref<raw @Outer>
+    v0 = stack.alloc @Outer -> ref<raw addrspace(stack) @Outer>
     v1 = field.addr v0, 1 -> ref<borrowed i64>
     v2 = iconst 42i64
     store v1, v2
@@ -1002,8 +1002,8 @@ block0:
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v5 = stack.alloc i64 -> ref<raw i64>
-    v4 = stack.alloc @Inner -> ref<raw @Inner>
+    v5 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
+    v4 = stack.alloc @Inner -> ref<raw addrspace(stack) @Inner>
     v2 = iconst 42i64
     store v5, v2
     v3 = load v5 -> i64
@@ -1022,7 +1022,7 @@ block0:
     fn test_no_aggregates() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
     v2 = load v0 -> i32
@@ -1043,7 +1043,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: ref<raw ref<raw @Point>>) -> void {
 block0(v0: ref<raw ref<raw @Point>>):
-    v1 = stack.alloc @Point -> ref<raw @Point>
+    v1 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     store v0, v1
     return
 }"#;
@@ -1062,7 +1062,7 @@ block0(v0: ref<raw ref<raw @Point>>):
         let input = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Wrapper -> ref<raw @Wrapper>
+    v0 = stack.alloc @Wrapper -> ref<raw addrspace(stack) @Wrapper>
     v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
@@ -1072,7 +1072,7 @@ block0:
         let expected = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v4 = stack.alloc i32 -> ref<raw i32>
+    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 42i32
     store v4, v2
     v3 = load v4 -> i32
@@ -1092,7 +1092,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: bool) -> void {
 block0(v0: bool):
-    v1 = stack.alloc @Point -> ref<raw @Point>
+    v1 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     branch v0, block1(v1), block2
 block1(v2: ref<raw @Point>):
     return
@@ -1113,7 +1113,7 @@ block0(v0: bool):
     v1 = iconst 0i64
     branch v0, block1(v1), block1(v1)
 block1(v2: i64):
-    v3 = stack.alloc [i32; 2] -> ref<raw [i32; 2]>
+    v3 = stack.alloc [i32; 2] -> ref<raw addrspace(stack) [i32; 2]>
     v4 = element.addr v3, v2 -> ref<borrowed i32>
     v5 = iconst 42i32
     store v4, v5
@@ -1122,8 +1122,8 @@ block1(v2: i64):
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v8 = stack.alloc i32 -> ref<raw i32>
-    v7 = stack.alloc i32 -> ref<raw i32>
+    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 0i64
     branch v0, block1(v1), block1(v1)
 block1(v2: i64):
@@ -1144,7 +1144,7 @@ block1(v2: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw @Point>
+    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
     v1 = iconst 1i32
     v2 = iconst 2i32
     v3 = struct @Point (v1, v2)
@@ -1156,8 +1156,8 @@ block0:
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v7 = stack.alloc i32 -> ref<raw i32>
-    v6 = stack.alloc i32 -> ref<raw i32>
+    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v6 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 1i32
     v2 = iconst 2i32
     v3 = struct @Point (v1, v2)
@@ -1182,7 +1182,7 @@ block0:
     fn test_rewrite_base_pointer_array_load_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 2] -> ref<raw [i32; 2]>
+    v0 = stack.alloc [i32; 2] -> ref<raw addrspace(stack) [i32; 2]>
     v1 = iconst 10i32
     v2 = iconst 20i32
     v3 = array [i32; 2] (v1, v2)
@@ -1194,8 +1194,8 @@ block0:
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32 -> ref<raw i32>
-    v7 = stack.alloc i32 -> ref<raw i32>
+    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 10i32
     v2 = iconst 20i32
     v3 = array [i32; 2] (v1, v2)

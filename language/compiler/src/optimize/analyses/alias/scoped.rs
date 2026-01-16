@@ -223,7 +223,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>):
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v0, v2
     store v1, v2

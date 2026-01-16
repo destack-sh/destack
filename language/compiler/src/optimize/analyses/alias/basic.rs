@@ -985,8 +985,8 @@ block0:
         let mut program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 0i8
     v3 = iconst 4i64
     intrinsic.memset(v1, v2, v3)
@@ -1165,7 +1165,7 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = managed.alloc i32 -> ref<managed i32>
     v2 = iconst 1i32
     store v0, v2
@@ -1190,8 +1190,8 @@ block0:
             r#"global @g: i32 = 0i32
 function @test() -> void {
 block0:
-    v0 = global.addr @g -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = global.addr @g -> ref<raw addrspace(global) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = iconst 1i32
     store v0, v2
     store v1, v2
@@ -1215,7 +1215,7 @@ block0:
             r#"type @Arr = [i32; 10]
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Arr -> ref<raw @Arr>
+    v0 = stack.alloc @Arr -> ref<raw addrspace(stack) @Arr>
     v1 = iconst 0i64
     v2 = iconst 1i64
     v3 = element.addr v0, v1 -> ref<borrowed i32>
@@ -1294,7 +1294,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i64 -> ref<raw i64>
+    v0 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
     return
 }"#,
         );
@@ -1319,7 +1319,7 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i64 -> ref<raw i64>
+    v0 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
     return
 }"#,
         );
@@ -1366,8 +1366,8 @@ block0:
         let program = TestProgram::new(
             r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
-    v1 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v2 = bitcast v0 -> ref<raw i8>
     return
 }"#,
@@ -1396,7 +1396,7 @@ block0:
             r#"type @Arr = [i32; 10]
 function @test(v0: i64) -> void {
 block0(v0: i64):
-    v1 = stack.alloc @Arr -> ref<raw @Arr>
+    v1 = stack.alloc @Arr -> ref<raw addrspace(stack) @Arr>
     v2 = element.addr v1, v0 -> ref<borrowed i32>
     v3 = element.addr v1, v0 -> ref<borrowed i32>
     return
@@ -1422,7 +1422,7 @@ block0(v0: i64):
 type @Outer = { @Inner, @Inner }
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Outer -> ref<raw @Outer>
+    v0 = stack.alloc @Outer -> ref<raw addrspace(stack) @Outer>
     v1 = field.addr v0, 0 -> ref<borrowed @Inner>
     v2 = field.addr v0, 1 -> ref<borrowed @Inner>
     v3 = field.addr v1, 0 -> ref<borrowed i32>

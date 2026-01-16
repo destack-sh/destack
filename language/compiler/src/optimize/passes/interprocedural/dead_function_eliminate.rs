@@ -86,9 +86,9 @@ impl SignatureKey {
         let parameters = function
             .parameters
             .iter()
-            .map(|param| TypeKey::from_type(tree.get(param.ty), tree))
+            .map(|param| TypeKey::from_type(param.ty, tree))
             .collect();
-        let result = TypeKey::from_type(tree.get(function.return_type), tree);
+        let result = TypeKey::from_type(function.return_type, tree);
         Self { parameters, result }
     }
 
@@ -103,9 +103,9 @@ impl SignatureKey {
         };
         let parameters = parameters
             .iter()
-            .map(|param| TypeKey::from_type(tree.get(*param), tree))
+            .map(|param| TypeKey::from_type(*param, tree))
             .collect();
-        let result = TypeKey::from_type(tree.get(*result), tree);
+        let result = TypeKey::from_type(*result, tree);
         Some(Self {
             parameters,
             result,

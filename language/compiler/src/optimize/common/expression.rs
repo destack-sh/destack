@@ -378,7 +378,7 @@ impl<'a> ValueEquivalence<'a> {
             return existing.clone();
         }
 
-        let key = TypeKey::from_type(self.tree.get(ty), self.tree);
+        let key = TypeKey::from_type(ty, self.tree);
         self.type_keys.insert(ty, key.clone());
         key
     }
@@ -449,8 +449,7 @@ pub fn expression_key_from_instruction(
             to_type,
             ..
         } => {
-            let ty = tree.get(*to_type);
-            let type_key = TypeKey::from_type(ty, tree);
+            let type_key = TypeKey::from_type(*to_type, tree);
             Some(ExpressionKey::Cast {
                 operator: *operator,
                 argument: *argument,
