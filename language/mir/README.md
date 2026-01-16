@@ -173,6 +173,8 @@ Instructions with multiple memory accesses, such as `memcpy`, record multiple ac
 Function effects and pointer attributes live on `Function`.
 Callsite and per access metadata live in the call and memory tables.
 Backends and optimizers query the metadata directly.
+`call.indirect` instructions must have call metadata with a function pointer signature in the call table.
+The MIR parser infers this metadata from the callee's type when parsing text.
 
 ### Metadata Structures
 

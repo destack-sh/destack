@@ -420,6 +420,43 @@ impl<'a> Verifier<'a> {
                     });
                 }
             }
+
+            // validate indirect call signatures
+            if let Instruction::CallIndirect { destination, .. } = instruction {
+                let Some(metadata) = self.tree.call_table.call_metadata(instruction_id) else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "call indirect missing required call metadata".to_string(),
+                        anchor: VerifyAnchor::node(instruction_id),
+                    });
+                };
+
+                let Type::FunctionPointer { parameters, result } =
+                    self.tree.get(metadata.signature)
+                else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "call indirect signature is not a function type".to_string(),
+                        anchor: VerifyAnchor::node(instruction_id),
+                    });
+                };
+
+                // reject mismatched argument counts
+                if arguments.len() != parameters.len() {
+                    return Err(VerifyError::CallArgumentCountMismatch {
+                        expected: parameters.len(),
+                        got: arguments.len(),
+                        anchor: VerifyAnchor::node(instruction_id),
+                    });
+                }
+
+                let returns_void = matches!(self.tree.get(*result), Type::Void);
+
+                // reject return values from void callees
+                if returns_void && destination.is_some() {
+                    return Err(VerifyError::CallReturnValueNotAllowedForVoid {
+                        anchor: VerifyAnchor::node(instruction_id),
+                    });
+                }
+            }
         }
 
         // validate instruction node references

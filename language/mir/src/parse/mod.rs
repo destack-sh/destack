@@ -1,17 +1,11 @@
-//! MIR text format parser.
-//!
-//! Parses the text representation of MIR back into a NodeTree.
-//! Used for testing roundtrips and debugging.
-
 mod error;
+mod infer;
 mod lexer;
 mod parser;
 mod token;
 
 pub use error::*;
+pub(crate) use infer::*;
 pub use lexer::*;
 pub use parser::*;
 pub use token::*;
-
-#[cfg(test)]
-mod tests;

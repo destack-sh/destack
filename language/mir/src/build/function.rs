@@ -1251,26 +1251,42 @@ impl<'a> FunctionBuilder<'a> {
             .insert_call_metadata(instruction_id, metadata);
     }
 
-    /// Call through a function pointer.
-    pub fn call_indirect(&mut self, callee: Value, args: Vec<Value>) -> Value {
+    /// Call through a function pointer with an explicit signature type.
+    pub fn call_indirect(
+        &mut self,
+        callee: Value,
+        signature: LocalNodeId<Type>,
+        args: Vec<Value>,
+    ) -> Value {
         let destination = self.allocate_value();
         let arguments = self.tree.add_arguments(&args);
-        self.insert_instruction(Instruction::CallIndirect {
+        let instruction_id = self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
             arguments,
         });
+        self.tree
+            .call_table
+            .insert_call_metadata(instruction_id, CallMetadata::indirect(signature));
         destination
     }
 
     /// Call through a function pointer with no return value.
-    pub fn call_indirect_void(&mut self, callee: Value, args: Vec<Value>) {
+    pub fn call_indirect_void(
+        &mut self,
+        callee: Value,
+        signature: LocalNodeId<Type>,
+        args: Vec<Value>,
+    ) {
         let arguments = self.tree.add_arguments(&args);
-        self.insert_instruction(Instruction::CallIndirect {
+        let instruction_id = self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
             arguments,
         });
+        self.tree
+            .call_table
+            .insert_call_metadata(instruction_id, CallMetadata::indirect(signature));
     }
 
     // instruction builders: casts
