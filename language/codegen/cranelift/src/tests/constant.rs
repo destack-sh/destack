@@ -8,7 +8,7 @@ global @hello: ref<raw i8> = "hello" ; const
 
 function @get_hello() -> i64 {
 block0:
-    v0 = global.addr @hello -> ref<raw ref<raw>
+    v0 = global.addr @hello -> ref<raw addrspace(global) ref<raw i8>>
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -28,7 +28,7 @@ global @empty: ref<raw i8> = "" ; const
 
 function @get_empty() -> i64 {
 block0:
-    v0 = global.addr @empty -> ref<raw ref<raw>
+    v0 = global.addr @empty -> ref<raw addrspace(global) ref<raw i8>>
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -67,7 +67,7 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter -> ref<raw i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
@@ -94,7 +94,7 @@ global @data: i64 = zeroinit ; mut
 
 function @get_data() -> i64 {
 block0:
-    v0 = global.addr @data -> ref<raw i64>
+    v0 = global.addr @data -> ref<raw addrspace(global) i64>
     v1 = load v0 -> i64
     return v1
 }"#;

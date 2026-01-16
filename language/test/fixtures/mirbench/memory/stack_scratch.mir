@@ -3,8 +3,8 @@ function @stack_scratch(v0: i64) -> i64 {
 
 // entry, init allocations
 block0(v0: i64):
-    v1 = stack.alloc i64 -> ref<raw i64>
-    v2 = stack.alloc i64 -> ref<raw i64>
+    v1 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
+    v2 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
     v3 = iconst 0i64
     v4 = iconst 1i64
     store v1, v3
