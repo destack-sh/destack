@@ -30,6 +30,8 @@ pub struct CacheKey {
     pub config_hash: u64,
     /// The target hash.
     pub target_hash: u64,
+    /// The dependency hash.
+    pub dependency_hash: u64,
 }
 
 impl CacheKey {
@@ -44,6 +46,7 @@ impl CacheKey {
             source_hash: context.source_hash,
             config_hash: context.config_hash,
             target_hash: context.target_hash,
+            dependency_hash: context.dependency_hash,
         }
     }
 }

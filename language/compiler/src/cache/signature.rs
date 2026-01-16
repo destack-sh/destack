@@ -17,8 +17,8 @@ use destack_dir::{
 };
 use destack_source::ModuleId;
 use destack_workspace::{
-    ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation, ModuleSignatureBinding,
-    ModuleSignatureExport, ModuleSignatureKey, ProfileId,
+    ModuleContent, ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation,
+    ModuleSignatureBinding, ModuleSignatureExport, ModuleSignatureKey, ProfileId,
 };
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
@@ -72,9 +72,34 @@ impl Compiler {
         let dependents = graph.dependents_for(module_id);
         drop(graph);
 
-        // bump module versions for dependents
+        // drop profile data for dependents
         for dependent in dependents {
-            self.program.bump_module_version(dependent);
+            self.invalidate_module_profile_data(dependent, profile_id);
+        }
+    }
+
+    /// Invalidate profile data for a module.
+    fn invalidate_module_profile_data(&self, module_id: ModuleId, profile_id: ProfileId) {
+        // drop profile dirs and dependent artifacts
+        let module = self.program.modules.get(module_id);
+        let mut module = module.write();
+        match &mut module.content {
+            ModuleContent::Code(code) => {
+                code.dirs.retain(|dir| dir.profile_id != Some(profile_id));
+                code.comptimes
+                    .retain(|entry| entry.profile_id != profile_id);
+                code.mirs.clear();
+            }
+            ModuleContent::Data { dirs, .. } => {
+                dirs.retain(|dir| dir.profile_id != Some(profile_id));
+            }
+            ModuleContent::Text { dirs, .. } => {
+                dirs.retain(|dir| dir.profile_id != Some(profile_id));
+            }
+            ModuleContent::Binary { dirs, .. } => {
+                dirs.retain(|dir| dir.profile_id != Some(profile_id));
+            }
+            ModuleContent::Unloaded => {}
         }
     }
 

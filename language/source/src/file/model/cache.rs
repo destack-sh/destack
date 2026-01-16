@@ -5,7 +5,7 @@ use crate::{FileVersion, ModuleId, ProfileId, ProfileVersion};
 /// Magic prefix for on disk cache headers.
 pub const CACHE_MAGIC: [u8; 4] = *b"DSCH";
 /// Cache header format version.
-pub const CACHE_FORMAT_VERSION: u32 = 1;
+pub const CACHE_FORMAT_VERSION: u32 = 2;
 
 /// Kind of cached payload stored after the header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -43,6 +43,8 @@ pub struct CacheHeader {
     pub config_hash: u64,
     /// Hash of the target configuration and triple.
     pub target_hash: u64,
+    /// Hash of dependency signatures for invalidation.
+    pub dependency_hash: u64,
     /// Hash of the serialized payload bytes.
     pub payload_hash: u64,
 }
@@ -60,6 +62,7 @@ impl CacheHeader {
         source_hash: u64,
         config_hash: u64,
         target_hash: u64,
+        dependency_hash: u64,
         payload_hash: u64,
     ) -> Self {
         // populate header fields
@@ -75,6 +78,7 @@ impl CacheHeader {
             source_hash,
             config_hash,
             target_hash,
+            dependency_hash,
             payload_hash,
         }
     }

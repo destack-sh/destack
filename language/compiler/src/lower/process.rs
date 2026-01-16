@@ -4,7 +4,7 @@ use std::str::FromStr;
 use crate::{Compiler, LowerError, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
-use destack_source::ModuleId;
+use destack_source::{CacheKind, ModuleId};
 use destack_workspace::{ModuleMir, OutputFormat, Target, TargetId};
 use target_lexicon::Triple;
 
@@ -47,7 +47,12 @@ impl Compiler {
             })?;
 
         // try to load MIR from cache
-        let cache_handle = self.cache_handle_for_module(module_id, Some(profile), Some(&target_id));
+        let cache_handle = self.cache_handle_for_module(
+            module_id,
+            Some(profile),
+            Some(&target_id),
+            CacheKind::Mir,
+        );
         if let Some(cache) = cache_handle.as_ref()
             && let Ok(Some(entry)) = cache.read_mir()
         {

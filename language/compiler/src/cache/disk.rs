@@ -300,6 +300,7 @@ impl CacheRegistry {
             && expected.source_hash == actual.source_hash
             && expected.config_hash == actual.config_hash
             && expected.target_hash == actual.target_hash
+            && expected.dependency_hash == actual.dependency_hash
     }
 
     /// Write a cache entry to disk after ensuring its directory exists.
@@ -369,10 +370,11 @@ impl CacheRegistry {
         let profile_id = key.profile_id.raw();
         let profile_version = key.profile_version.0;
         let file_name = format!(
-            "{kind_dir}-f{file_version}-p{profile_id}-pv{profile_version}-s{source_hash:016x}-c{config_hash:016x}-t{target_hash:016x}.bin",
+            "{kind_dir}-f{file_version}-p{profile_id}-pv{profile_version}-s{source_hash:016x}-c{config_hash:016x}-t{target_hash:016x}-d{dependency_hash:016x}.bin",
             source_hash = key.source_hash,
             config_hash = key.config_hash,
             target_hash = key.target_hash,
+            dependency_hash = key.dependency_hash,
         );
 
         // build the cache path

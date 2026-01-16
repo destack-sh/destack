@@ -2,7 +2,7 @@ use crate::{Compiler, ImportError, ImportResult};
 
 use destack_base::StringPool;
 use destack_parser::Parser;
-use destack_source::{File, FileType, LanguageType, ModuleId, Span};
+use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, Span};
 use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
 
 impl Compiler {
@@ -96,7 +96,7 @@ impl Compiler {
         };
 
         // resolve cache handle
-        let cache_handle = self.cache_handle_for_module(module_id, None, None);
+        let cache_handle = self.cache_handle_for_module(module_id, None, None, CacheKind::Ast);
 
         // try to load AST from cache
         if let Some(cache) = cache_handle.as_ref()

@@ -9,7 +9,7 @@ use destack_dir::{
     SymbolTable,
 };
 
-use destack_source::ModuleId;
+use destack_source::{CacheKind, ModuleId};
 use destack_workspace::{
     ImportMeta, Module, ModuleContent, ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId,
 };
@@ -40,7 +40,8 @@ impl Compiler {
         }
 
         // resolve cache handle
-        let cache_handle = self.cache_handle_for_module(module_id, Some(profile_id), None);
+        let cache_handle =
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::Dir);
 
         // load the module and skip when the profile dir already exists
         let module = self.program.modules.get(module_id);
@@ -123,7 +124,8 @@ impl Compiler {
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
         // resolve cache handle
-        let cache_handle = self.cache_handle_for_module(module_id, Some(profile_id), None);
+        let cache_handle =
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::Dir);
 
         let module = self.program.modules.get(module_id);
         let mut module = module.write();

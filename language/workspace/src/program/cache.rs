@@ -9,9 +9,9 @@ use rustc_hash::FxHasher;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use destack_source::{CACHE_FORMAT_VERSION, CACHE_MAGIC, CacheHeader, CacheKind};
+use destack_source::{CACHE_FORMAT_VERSION, CACHE_MAGIC, CacheHeader, CacheKind, ModuleId};
 
-use crate::{ModuleAstData, ModuleDirData, ModuleMirData};
+use crate::{ModuleAstData, ModuleDirData, ModuleMirData, ProfileId};
 
 // limit cache entry size to avoid excessive memory usage
 pub const CACHE_ENTRY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
@@ -125,6 +125,15 @@ pub enum CacheError {
     InvalidPayloadHash { expected: u64, found: u64 },
     /// The cache entry failed to read or write.
     Io(std::io::Error),
+    /// Missing dependency data for cache validation.
+    MissingDependencyData {
+        /// The module id for the missing dependency data.
+        module_id: ModuleId,
+        /// The profile id for the missing dependency data.
+        profile_id: ProfileId,
+        /// Description of the missing data.
+        reason: String,
+    },
 }
 
 impl fmt::Display for CacheError {
@@ -166,6 +175,16 @@ impl fmt::Display for CacheError {
                 )
             }
             CacheError::Io(error) => write!(f, "cache io error: {error}"),
+            CacheError::MissingDependencyData {
+                module_id,
+                profile_id,
+                reason,
+            } => {
+                write!(
+                    f,
+                    "missing dependency data for {module_id:?} at {profile_id:?}: {reason}"
+                )
+            }
         }
     }
 }
@@ -436,6 +455,7 @@ mod tests {
             FileVersion::INITIAL,
             ProfileId::new(0),
             ProfileVersion::INITIAL,
+            0,
             0,
             0,
             0,

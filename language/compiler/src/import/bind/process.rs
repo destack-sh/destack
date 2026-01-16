@@ -1,5 +1,5 @@
 use crate::{Compiler, ImportResult};
-use destack_source::ModuleId;
+use destack_source::{CacheKind, ModuleId};
 use destack_workspace::ModuleDir;
 
 impl Compiler {
@@ -11,7 +11,7 @@ impl Compiler {
         }
 
         // resolve cache handle
-        let cache_handle = self.cache_handle_for_module(module_id, None, None);
+        let cache_handle = self.cache_handle_for_module(module_id, None, None, CacheKind::Dir);
 
         // try to load base DIR from cache
         if let Some(cache) = cache_handle.as_ref()
