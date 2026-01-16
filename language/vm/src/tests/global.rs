@@ -24,7 +24,7 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter -> ref<raw mut i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
@@ -43,7 +43,7 @@ global @CONST: i32 = 42i32 ; const
 
 function @bad_write() -> void {
 block0:
-    v0 = global.addr @CONST -> ref<raw i32>
+    v0 = global.addr @CONST -> ref<raw addrspace(global) i32>
     v1 = iconst 99i32
     store v0, v1
     return
@@ -62,7 +62,7 @@ global @counter: i32 = 0i32 ; mut
 
 function @inc() -> void {
 block0:
-    v0 = global.addr @counter -> ref<raw mut i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
@@ -72,7 +72,7 @@ block0:
 
 function @get() -> i32 {
 block0:
-    v0 = global.addr @counter -> ref<raw mut i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     return v1
 }
@@ -96,7 +96,7 @@ global @data: i32 = zeroinit ; mut
 
 function @read() -> i32 {
 block0:
-    v0 = global.addr @data -> ref<raw mut i32>
+    v0 = global.addr @data -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     return v1
 }"#;
@@ -111,7 +111,7 @@ global @data: f64 = zeroinit ; mut
 
 function @read() -> f64 {
 block0:
-    v0 = global.addr @data -> ref<raw mut f64>
+    v0 = global.addr @data -> ref<raw addrspace(global) mut f64>
     v1 = load v0 -> f64
     return v1
 }"#;
@@ -126,7 +126,7 @@ global @flag: bool = zeroinit ; mut
 
 function @read() -> bool {
 block0:
-    v0 = global.addr @flag -> ref<raw mut bool>
+    v0 = global.addr @flag -> ref<raw addrspace(global) mut bool>
     v1 = load v0 -> bool
     return v1
 }"#;
@@ -160,7 +160,7 @@ function @sum() -> i32 {
 block0:
     v0 = global.const @a
     v1 = global.const @b
-    v2 = global.addr @c -> ref<raw mut i32>
+    v2 = global.addr @c -> ref<raw addrspace(global) mut i32>
     v3 = load v2 -> i32
     v4 = iadd v0, v1
     v5 = iadd v4, v3
@@ -177,7 +177,7 @@ global @value: i32 = 0i32 ; mut
 
 function @test() -> i32 {
 block0:
-    v0 = global.addr @value -> ref<raw mut i32>
+    v0 = global.addr @value -> ref<raw addrspace(global) mut i32>
     v1 = iconst 10i32
     store v0, v1
     v2 = iconst 20i32
@@ -229,7 +229,7 @@ global @flag: bool = true ; mut
 
 function @toggle() -> bool {
 block0:
-    v0 = global.addr @flag -> ref<raw mut bool>
+    v0 = global.addr @flag -> ref<raw addrspace(global) mut bool>
     v1 = load v0 -> bool
     v2 = bnot v1
     store v0, v2
