@@ -64,6 +64,32 @@ impl Compiler {
         types: &mut TypeTable,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<Type> {
+        // default to enforcing implicit managed checks
+        self.try_evaluate_expression_to_type_value_with_controls(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            true,
+        )
+    }
+
+    /// Try to evaluate an Expression as a Type with ownership enforcement controls.
+    fn try_evaluate_expression_to_type_value_with_controls(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Type> {
+        // evaluate to a concrete type when possible
         let ty = self
             .evaluate_expression_to_type(
                 module,
@@ -73,6 +99,7 @@ impl Compiler {
                 symbols,
                 types,
                 validate_static_argument_bounds,
+                enforce_implicit_managed,
             )?
             .unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
@@ -90,7 +117,8 @@ impl Compiler {
         types: &mut TypeTable,
         validate_static_argument_bounds: bool,
     ) -> AnalyzeResult<LocalTypeId> {
-        let ty = self.try_evaluate_expression_to_type_value(
+        // default to enforcing implicit managed checks
+        let ty = self.try_evaluate_expression_to_type_value_with_controls(
             module,
             profile,
             expression_id,
@@ -98,6 +126,33 @@ impl Compiler {
             symbols,
             types,
             validate_static_argument_bounds,
+            true,
+        )?;
+        Ok(types.insert_type_from(ty, expression_id))
+    }
+
+    /// Try to evaluate an Expression as a Type id with ownership enforcement controls.
+    fn try_evaluate_expression_to_type_with_controls(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // evaluate to a concrete type when possible
+        let ty = self.try_evaluate_expression_to_type_value_with_controls(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
         )?;
         Ok(types.insert_type_from(ty, expression_id))
     }
@@ -232,6 +287,7 @@ impl Compiler {
                 symbols,
                 types,
                 true,
+                true,
             )?;
 
             // keep unevaluated arguments so later phases can resolve them
@@ -352,6 +408,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<Type>> {
         let options = self.analyze_context_options_for_module(module.id);
         let is_user_module = matches!(module.source, ModuleSource::User);
@@ -421,6 +478,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 );
             }
 
@@ -489,7 +547,7 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id = self.try_evaluate_expression_to_type(
+                let type_id = self.try_evaluate_expression_to_type_with_controls(
                     module,
                     profile,
                     right,
@@ -497,6 +555,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    false,
                 )?;
                 Type::ValueOf {
                     mutability,
@@ -510,7 +569,7 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id = self.try_evaluate_expression_to_type(
+                let type_id = self.try_evaluate_expression_to_type_with_controls(
                     module,
                     profile,
                     right,
@@ -518,6 +577,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    false,
                 )?;
                 Type::ReferenceOf {
                     mutability,
@@ -527,7 +587,7 @@ impl Compiler {
             }
             // pointer
             Expression::PointerOf { mutability, right } => {
-                let type_id = self.try_evaluate_expression_to_type(
+                let type_id = self.try_evaluate_expression_to_type_with_controls(
                     module,
                     profile,
                     right,
@@ -535,6 +595,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    false,
                 )?;
                 Type::PointerOf {
                     mutability,
@@ -1266,6 +1327,31 @@ impl Compiler {
 
             _ => return Ok(None),
         };
+
+        // enforce managed type restrictions in user code
+        if is_user_module {
+            // reject any managed types when managed memory is disabled
+            if options.no_managed && self.type_contains_managed(module, profile, &ty, types) {
+                return Err(AnalyzeError::ManagedMemoryDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            }
+
+            // reject implicit managed types in type expressions
+            if enforce_implicit_managed
+                && options.no_implicit_managed
+                && !self.expression_has_explicit_ownership(tree, expression_id)
+                && self.type_is_implicit_managed(module, profile, &ty, types)
+            {
+                return Err(AnalyzeError::ImplicitManagedTypeDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+            }
+        }
 
         Ok(Some(ty))
     }

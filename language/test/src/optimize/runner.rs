@@ -712,9 +712,7 @@ fn run_matrix_case(
     // verify the resulting MIR tree
     if let Err(error) = mir::Verifier::new(&tree).verify_tree() {
         let message = format_verify_error(&tree, error);
-        return Some(format!(
-            "case '{label}': verification failed: {message}"
-        ));
+        return Some(format!("case '{label}': verification failed: {message}"));
     }
 
     let context = format!("case '{label}'");
@@ -735,8 +733,7 @@ fn format_verify_error(tree: &mir::NodeTree, error: mir::VerifyError) -> String 
     match error {
         mir::VerifyError::UseOfUndefinedValue { value, anchor } => {
             if anchor.node.ty == mir::NodeType::Instruction {
-                let instruction_id =
-                    mir::LocalNodeId::<mir::Instruction>::new(anchor.node.id);
+                let instruction_id = mir::LocalNodeId::<mir::Instruction>::new(anchor.node.id);
                 let instruction = tree.get(instruction_id);
                 if let Some((block_id, block)) = find_instruction_block(tree, instruction_id) {
                     let definition = find_value_definition(tree, value);
@@ -746,9 +743,7 @@ fn format_verify_error(tree: &mir::NodeTree, error: mir::VerifyError) -> String 
                     );
                 }
 
-                return format!(
-                    "{error:?} at instruction {instruction_id:?}: {instruction:?}"
-                );
+                return format!("{error:?} at instruction {instruction_id:?}: {instruction:?}");
             }
 
             format!("{error:?}")

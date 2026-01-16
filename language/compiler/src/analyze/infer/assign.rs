@@ -637,6 +637,92 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
+            // owned values: invariant in mutability, variance, and inner type
+            (
+                Type::ValueOf {
+                    mutability: target_mutability,
+                    variance: target_variance,
+                    right: target_right,
+                },
+                Type::ValueOf {
+                    mutability: source_mutability,
+                    variance: source_variance,
+                    right: source_right,
+                },
+            ) => {
+                if target_mutability != source_mutability || target_variance != source_variance {
+                    return Assignability::NotAssignable;
+                }
+
+                let target_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_right,
+                    source_right,
+                    types,
+                    options,
+                );
+                let source_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    source_right,
+                    target_right,
+                    types,
+                    options,
+                );
+
+                if target_assignable.is_assignable() && source_assignable.is_assignable() {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+
+            // references: invariant in mutability, variance, and inner type
+            (
+                Type::ReferenceOf {
+                    mutability: target_mutability,
+                    variance: target_variance,
+                    right: target_right,
+                },
+                Type::ReferenceOf {
+                    mutability: source_mutability,
+                    variance: source_variance,
+                    right: source_right,
+                },
+            ) => {
+                if target_mutability != source_mutability || target_variance != source_variance {
+                    return Assignability::NotAssignable;
+                }
+
+                let target_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_right,
+                    source_right,
+                    types,
+                    options,
+                );
+                let source_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    source_right,
+                    target_right,
+                    types,
+                    options,
+                );
+
+                if target_assignable.is_assignable() && source_assignable.is_assignable() {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+
             // pointers: invariant in mutability and pointee type
             (
                 Type::PointerOf {

@@ -169,14 +169,10 @@ impl DsConfig {
             compiler.no_implicit_conversions || parent_compiler.no_implicit_conversions;
         compiler.no_unsafe_type_assertions =
             compiler.no_unsafe_type_assertions || parent_compiler.no_unsafe_type_assertions;
-        compiler.no_implicit_self = compiler.no_implicit_self || parent_compiler.no_implicit_self;
-        compiler.no_arguments = compiler.no_arguments || parent_compiler.no_arguments;
         compiler.no_redeclared_locals =
             compiler.no_redeclared_locals || parent_compiler.no_redeclared_locals;
-        compiler.no_implicit_managed_type =
-            compiler.no_implicit_managed_type || parent_compiler.no_implicit_managed_type;
-        compiler.no_implicit_managed_value =
-            compiler.no_implicit_managed_value || parent_compiler.no_implicit_managed_value;
+        compiler.no_implicit_managed =
+            compiler.no_implicit_managed || parent_compiler.no_implicit_managed;
         compiler.no_managed = compiler.no_managed || parent_compiler.no_managed;
         compiler.no_dynamic_evaluation =
             compiler.no_dynamic_evaluation || parent_compiler.no_dynamic_evaluation;
@@ -535,16 +531,10 @@ pub struct DsConfigCompilerOptions {
     pub no_implicit_conversions: bool,
     /// Forbid unsafe type assertions (`as T`).
     pub no_unsafe_type_assertions: bool,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: bool,
-    /// Forbid `arguments` object (use rest parameters instead).
-    pub no_arguments: bool,
     /// Forbid re-declaration of local variables.
     pub no_redeclared_locals: bool,
-    /// Require `^T` or `&T` in type positions (no implicit managed types).
-    pub no_implicit_managed_type: bool,
-    /// Require explicit copy/borrow at call sites (no implicit managed values).
-    pub no_implicit_managed_value: bool,
+    /// Require explicit ownership for managed types and values.
+    pub no_implicit_managed: bool,
     /// Forbid managed memory features entirely (no unowned `T` at all, pure value types only).
     pub no_managed: bool,
     /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...)
@@ -640,11 +630,8 @@ impl Default for DsConfigCompilerOptions {
             no_imprecise_primitives: false,
             no_implicit_conversions: false,
             no_unsafe_type_assertions: false,
-            no_implicit_self: false,
-            no_arguments: false,
             no_redeclared_locals: false,
-            no_implicit_managed_type: false,
-            no_implicit_managed_value: false,
+            no_implicit_managed: false,
             no_managed: false,
             no_runtime: false,
             no_referential_equality: false,
@@ -720,6 +707,30 @@ impl DsConfigCompilerOptions {
         self.no_dynamic_shapes = true;
         self.no_exceptions = true;
         self.no_global_this = true;
+    }
+
+    /// Enable explicit ownership defaults for managed memory control.
+    pub fn apply_no_managed_defaults(&mut self) {
+        // require explicit ownership markers for managed types and values
+        self.no_implicit_managed = true;
+    }
+
+    /// Enable runtime-free restrictions for compile-time only targets.
+    pub fn apply_no_runtime_restrictions(&mut self) {
+        // force runtime control flags on when runtime is disabled
+        self.no_runtime = true;
+        self.no_managed = true;
+        self.no_exceptions = true;
+        self.no_dynamic_evaluation = true;
+        self.no_dynamic_import = true;
+        self.no_dynamic_shapes = true;
+        self.no_computed_property_access = true;
+        self.no_proxy = true;
+        self.no_global_this = true;
+        self.no_implicit_dynamic_dispatch = true;
+
+        // require explicit ownership markers for managed types and values
+        self.apply_no_managed_defaults();
     }
 }
 
@@ -2249,16 +2260,10 @@ pub struct CompilerOptionsJson {
     pub no_implicit_conversions: Option<bool>,
     /// Forbid unsafe type assertions (`as T`).
     pub no_unsafe_type_assertions: Option<bool>,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: Option<bool>,
-    /// Forbid `arguments` object (use rest parameters instead).
-    pub no_arguments: Option<bool>,
     /// Forbid re-declaration of local variables.
     pub no_redeclared_locals: Option<bool>,
-    /// Require `^T` or `&T` in type positions (no implicit managed types).
-    pub no_implicit_managed_type: Option<bool>,
-    /// Require explicit copy/borrow at call sites (no implicit managed values).
-    pub no_implicit_managed_value: Option<bool>,
+    /// Require explicit ownership for managed types and values.
+    pub no_implicit_managed: Option<bool>,
     /// Forbid managed runtime features entirely (no &T at all, pure value types only).
     pub no_managed: Option<bool>,
     /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).
@@ -2314,7 +2319,7 @@ pub struct CompilerOptionsJson {
 impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
     fn from(json: &CompilerOptionsJson) -> Self {
         let strict = json.strict.unwrap_or(true);
-        Self {
+        let mut options = Self {
             base_url: json.base_url.as_ref().map(PathBuf::from),
             paths: json.paths.clone(),
             module: json
@@ -2363,11 +2368,8 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
             no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),
             no_unsafe_type_assertions: json.no_unsafe_type_assertions.unwrap_or(false),
-            no_implicit_self: json.no_implicit_self.unwrap_or(false),
-            no_arguments: json.no_arguments.unwrap_or(false),
             no_redeclared_locals: json.no_redeclared_locals.unwrap_or(false),
-            no_implicit_managed_type: json.no_implicit_managed_type.unwrap_or(false),
-            no_implicit_managed_value: json.no_implicit_managed_value.unwrap_or(false),
+            no_implicit_managed: json.no_implicit_managed.unwrap_or(false),
             no_managed: json.no_managed.unwrap_or(false),
             no_runtime: json.no_runtime.unwrap_or(false),
             no_referential_equality: json.no_referential_equality.unwrap_or(false),
@@ -2398,7 +2400,19 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             allow_js: json.allow_js.unwrap_or(true),
             check_js: json.check_js.unwrap_or(false),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
+        };
+
+        // apply managed defaults when managed runtime is explicitly disabled
+        if options.no_managed {
+            options.apply_no_managed_defaults();
         }
+
+        // apply runtime-free restrictions when requested
+        if options.no_runtime {
+            options.apply_no_runtime_restrictions();
+        }
+
+        options
     }
 }
 

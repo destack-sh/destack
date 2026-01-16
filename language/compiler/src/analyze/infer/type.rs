@@ -1148,8 +1148,7 @@ impl Compiler {
                 );
 
                 // reject unsafe type assertions when configured
-                if options.no_unsafe_type_assertions
-                    && matches!(module.source, ModuleSource::User)
+                if options.no_unsafe_type_assertions && matches!(module.source, ModuleSource::User)
                 {
                     let left_ty = types.get_type(left_ty_id);
                     let is_any_or_unknown = matches!(
@@ -1231,23 +1230,31 @@ impl Compiler {
     /// Infer the result type of a value of operation.
     pub(super) fn infer_value_of_operation(
         &self,
-        _mutability: Option<Mutability>,
-        _variance: Option<VarianceBound>,
-        right: &Type,
+        mutability: Option<Mutability>,
+        variance: Option<VarianceBound>,
+        right_ty_id: LocalTypeId,
     ) -> Type {
-        // NOTE #Incomplete: resolve value of operation type
-        right.clone()
+        // wrap the owned value with explicit ownership
+        Type::ValueOf {
+            mutability,
+            variance,
+            right: right_ty_id,
+        }
     }
 
     /// Infer the result type of a reference of operation.
     pub(super) fn infer_reference_of_operation(
         &self,
-        _mutability: Option<Mutability>,
-        _variance: Option<VarianceBound>,
-        right: &Type,
+        mutability: Option<Mutability>,
+        variance: Option<VarianceBound>,
+        right_ty_id: LocalTypeId,
     ) -> Type {
-        // NOTE #Incomplete: resolve reference of operation type
-        right.clone()
+        // wrap the reference with explicit ownership
+        Type::ReferenceOf {
+            mutability,
+            variance,
+            right: right_ty_id,
+        }
     }
 
     /// Infer the type of a member field on a type by key.

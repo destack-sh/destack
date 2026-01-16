@@ -8,7 +8,7 @@ use destack_dir::{
     ResolutionCandidate, ResolvedSignature, StaticArgument, StaticKey, StaticParameterKind,
     SymbolTable, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleSource, ProfileId};
 
 /// Resolved member function for an operator invocation.
 #[derive(Debug)]
@@ -422,6 +422,7 @@ impl Compiler {
         dynamic_arguments: &[LocalNodeId<Argument>],
         argument_ty_ids: &[LocalTypeId],
         parameter_types: &[LocalTypeId],
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         options: &AnalyzeOptions,
@@ -432,6 +433,21 @@ impl Compiler {
             .zip(parameter_types.iter())
             .enumerate()
         {
+            // enforce explicit ownership when implicit managed values are disabled
+            if let Some(argument) = dynamic_arguments.get(index) {
+                let argument_value = tree.get(*argument).value();
+                self.check_no_implicit_managed_value(
+                    module,
+                    profile,
+                    argument_value,
+                    *param_ty_id,
+                    *argument_ty_id,
+                    tree,
+                    types,
+                    options,
+                );
+            }
+
             if !self.is_infer_var_type(*param_ty_id, types)
                 && !self.is_infer_var_type(*argument_ty_id, types)
                 && self.is_type_assignable(
@@ -1330,6 +1346,7 @@ impl Compiler {
                 dynamic_arguments,
                 &argument_ty_ids,
                 resolved_dynamic_parameters,
+                tree,
                 symbols,
                 types,
                 &options,
@@ -1567,6 +1584,7 @@ impl Compiler {
                 dynamic_arguments,
                 &argument_ty_ids,
                 resolved_dynamic_parameters,
+                tree,
                 symbols,
                 types,
                 &options,
@@ -1615,6 +1633,21 @@ impl Compiler {
             };
             types.insert_type_from(ty, expression_id)
         };
+
+        // reject managed allocations when managed memory is disabled
+        if ctx.options.no_managed
+            && !ctx.is_explicit_ownership
+            && matches!(module.source, ModuleSource::User)
+        {
+            let value_ty = types.get_type(ty_id);
+            if self.type_contains_managed(module, ctx.profile, value_ty, types) {
+                self.error(AnalyzeError::ManagedMemoryDisabled {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
 
         Ok(ty_id)
     }

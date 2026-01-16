@@ -46,6 +46,8 @@ pub struct InferContext {
     pub flow: Option<FlowContext>,
     /// Whether this context should avoid caching inferred types.
     pub is_surface_inference: bool,
+    /// Whether the current expression is under an explicit ownership operator.
+    pub is_explicit_ownership: bool,
 }
 
 /// Describe flow data used for inference.
@@ -98,6 +100,7 @@ impl InferContext {
             try_stack: Vec::new(),
             flow: None,
             is_surface_inference: false,
+            is_explicit_ownership: false,
         }
     }
 
@@ -121,6 +124,7 @@ impl InferContext {
             try_stack: self.try_stack.clone(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
+            is_explicit_ownership: self.is_explicit_ownership,
         }
     }
 
@@ -144,12 +148,19 @@ impl InferContext {
             try_stack: Vec::new(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
+            is_explicit_ownership: self.is_explicit_ownership,
         }
     }
 
     /// Attach flow context to this inference context.
     pub fn with_flow_context(mut self, flow: FlowContext) -> Self {
         self.flow = Some(flow);
+        self
+    }
+
+    /// Mark this context as explicitly controlling ownership.
+    pub fn with_explicit_ownership(mut self) -> Self {
+        self.is_explicit_ownership = true;
         self
     }
 

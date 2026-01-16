@@ -367,20 +367,6 @@
             "null"
           ]
         },
-        "noImplicitSelf": {
-          "description": "Require explicit `self.` for member access in methods.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noArguments": {
-          "description": "Forbid `arguments` object (use rest parameters instead).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "noRedeclaredLocals": {
           "description": "Forbid re-declaration of local variables.",
           "type": [
@@ -388,15 +374,8 @@
             "null"
           ]
         },
-        "noImplicitManagedType": {
-          "description": "Require `^T` or `&T` in type positions (no implicit managed types).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "noImplicitManagedValue": {
-          "description": "Require explicit copy/borrow at call sites (no implicit managed values).",
+        "noImplicitManaged": {
+          "description": "Require explicit ownership for managed types and values.",
           "type": [
             "boolean",
             "null"

@@ -492,7 +492,18 @@ impl Compiler {
                 operator: _,
                 source: _,
                 value,
-            } => self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?,
+            } => {
+                let mut ownership_ctx = ctx.fork().with_explicit_ownership();
+                self.infer_expression(
+                    module,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut ownership_ctx,
+                )?
+            }
 
             // unary operations: compound type
             Expression::Unary { operator, right } => self.infer_unary_expression(
@@ -513,14 +524,18 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+                let mut ownership_ctx = ctx.fork().with_explicit_ownership();
+                let right_ty_id = self.infer_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut ownership_ctx,
+                )?;
 
-                let ty = self.infer_value_of_operation(
-                    *mutability,
-                    *variance,
-                    types.get_type(right_ty_id),
-                );
+                let ty = self.infer_value_of_operation(*mutability, *variance, right_ty_id);
                 types.insert_type_from(ty, expression_id)
             }
 
@@ -530,14 +545,18 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let right_ty_id =
-                    self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
+                let mut ownership_ctx = ctx.fork().with_explicit_ownership();
+                let right_ty_id = self.infer_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    &mut ownership_ctx,
+                )?;
 
-                let ty = self.infer_reference_of_operation(
-                    *mutability,
-                    *variance,
-                    types.get_type(right_ty_id),
-                );
+                let ty = self.infer_reference_of_operation(*mutability, *variance, right_ty_id);
                 types.insert_type_from(ty, expression_id)
             }
 
@@ -695,6 +714,19 @@ impl Compiler {
 
             // scalar literal: derive type from value
             Expression::ScalarLiteral { value } => {
+                // reject managed literals when runtime-managed values are disabled
+                if ctx.options.no_managed
+                    && !ctx.is_explicit_ownership
+                    && matches!(module.source, ModuleSource::User)
+                    && self.scalar_literal_is_managed(value)
+                {
+                    self.error(AnalyzeError::ManagedMemoryDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 // apply contextual typing when a matching expected type is available
                 if let Some(expected_ty_id) =
                     self.expected_type_for_scalar_literal(value, ctx.expected_type, types)
@@ -834,7 +866,25 @@ impl Compiler {
                         element: element_ty_id,
                     }
                 };
-                types.insert_type_from(ty, expression_id)
+
+                let ty_id = types.insert_type_from(ty, expression_id);
+
+                // reject managed array types when managed memory is disabled
+                if ctx.options.no_managed
+                    && !ctx.is_explicit_ownership
+                    && matches!(module.source, ModuleSource::User)
+                {
+                    let value_ty = types.get_type(ty_id);
+                    if self.type_contains_managed(module, ctx.profile, value_ty, types) {
+                        self.error(AnalyzeError::ManagedMemoryDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
+                    }
+                }
+
+                ty_id
             }
 
             // tuple expression: preserve positional element types
@@ -972,7 +1022,7 @@ impl Compiler {
                         .push(types.insert_type_from(shape.into_object_type(), expression_id));
                 }
 
-                match shape_ids.len() {
+                let ty_id = match shape_ids.len() {
                     0 => types.insert_type_from(
                         Type::Object {
                             fields: Vec::new(),
@@ -989,7 +1039,24 @@ impl Compiler {
                         },
                         expression_id,
                     ),
+                };
+
+                // reject managed object types when managed memory is disabled
+                if ctx.options.no_managed
+                    && !ctx.is_explicit_ownership
+                    && matches!(module.source, ModuleSource::User)
+                {
+                    let value_ty = types.get_type(ty_id);
+                    if self.type_contains_managed(module, ctx.profile, value_ty, types) {
+                        self.error(AnalyzeError::ManagedMemoryDisabled {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
+                    }
                 }
+
+                ty_id
             }
 
             // call: return type of callee
@@ -1572,6 +1639,19 @@ impl Compiler {
                         &mut return_ctx,
                     )?;
                     if let Some(return_ty_id) = ctx.return_type {
+                        // enforce explicit ownership when implicit managed values are disabled
+                        self.check_no_implicit_managed_value(
+                            module,
+                            ctx.profile,
+                            *val,
+                            return_ty_id,
+                            value_ty_id,
+                            tree,
+                            types,
+                            &ctx.options,
+                        );
+                    }
+                    if let Some(return_ty_id) = ctx.return_type {
                         infer.push_constraint(Constraint::Subtype {
                             sub_type: value_ty_id,
                             super_type: return_ty_id,
@@ -1690,6 +1770,15 @@ impl Compiler {
 
             // await: awaited type
             Expression::Await { expression } => {
+                // reject await when runtime is disabled
+                if ctx.options.no_runtime && matches!(module.source, ModuleSource::User) {
+                    self.error(AnalyzeError::RuntimeDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 if !ctx.can_await() {
                     self.error(AnalyzeError::InvalidAwait {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
@@ -1736,6 +1825,15 @@ impl Compiler {
                 cardinality: _,
                 value,
             } => {
+                // reject yield when runtime is disabled
+                if ctx.options.no_runtime && matches!(module.source, ModuleSource::User) {
+                    self.error(AnalyzeError::RuntimeDisabled {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                }
+
                 if !ctx.can_yield() {
                     self.error(AnalyzeError::InvalidYield {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),

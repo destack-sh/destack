@@ -3,6 +3,7 @@ mod conditional;
 mod json;
 mod key;
 mod literal;
+mod managed;
 mod mapped;
 mod normalize;
 mod shape;

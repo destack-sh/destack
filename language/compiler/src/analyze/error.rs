@@ -239,6 +239,22 @@ pub enum AnalyzeError {
     #[error(code = "EA815", message = "implicit dynamic dispatch is disabled")]
     ImplicitDynamicDispatchDisabled { node: AnchoredGlobalNodeId },
 
+    /// Implicit managed types are disabled.
+    #[error(code = "EA816", message = "implicit managed types are disabled")]
+    ImplicitManagedTypeDisabled { node: AnchoredGlobalNodeId },
+
+    /// Implicit managed values are disabled.
+    #[error(code = "EA817", message = "implicit managed values are disabled")]
+    ImplicitManagedValueDisabled { node: AnchoredGlobalNodeId },
+
+    /// Managed memory is disabled.
+    #[error(code = "EA818", message = "managed memory is disabled")]
+    ManagedMemoryDisabled { node: AnchoredGlobalNodeId },
+
+    /// Runtime features are disabled.
+    #[error(code = "EA819", message = "runtime features are disabled")]
+    RuntimeDisabled { node: AnchoredGlobalNodeId },
+
     /// Invalid continue.
     #[error(code = "EA301", message = "invalid continue to '{label}'")]
     InvalidContinue {

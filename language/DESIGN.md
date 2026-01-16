@@ -932,8 +932,7 @@ Configure strictness in `dsconfig.json`:
 ```json
 {
   "compilerOptions": {
-    "noImplicitManagedType": true,   // require ^T or &T on types
-    "noImplicitManagedValue": true,  // require ^x or &x on values
+    "noImplicitManaged": true,       // require ^T or &T on types and values
     "noManaged": true,               // forbid GC entirely
     "borrowMode": "strict",          // enforce &mut exclusivity rules
     "noRuntime": true                // forbid runtime features

@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem, DependencyMode,
-    DynamicKey, EnumBackingType, EnumField, Expression, FunctionSignature, GlobalSymbolId,
-    InferOrigin, InferScope, InferTable, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member,
-    ModuleTarget, NodeTree, Parameter, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type,
-    TypeLiteral, TypeTable, WhereClause,
+    Asynchrony, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
+    DependencyMode, DynamicKey, EnumBackingType, EnumField, Expression, FunctionCardinality,
+    FunctionSignature, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, PrimitiveType,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -682,6 +682,19 @@ impl Compiler {
         // capture options for diagnostics
         let options = ctx.options;
 
+        // reject runtime features in no-runtime mode
+        if options.no_runtime
+            && matches!(module.source, ModuleSource::User)
+            && (signature.asynchrony == Asynchrony::Async
+                || signature.cardinality == FunctionCardinality::Generator)
+        {
+            self.error(AnalyzeError::RuntimeDisabled {
+                node: node_id
+                    .into_global(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+        }
+
         // walk generics
         let where_clauses = signature
             .generics
@@ -1272,6 +1285,32 @@ impl Compiler {
         } else {
             None
         };
+
+        // enforce explicit ownership when implicit managed values are disabled
+        if let (Some(inferred_ty_id), Some(value_id)) = (inferred_ty_id, value) {
+            if let Some(declared_ty_id) = declared_ty_id {
+                self.check_no_implicit_managed_value(
+                    module,
+                    ctx.profile,
+                    *value_id,
+                    declared_ty_id,
+                    inferred_ty_id,
+                    tree,
+                    types,
+                    &options,
+                );
+            } else {
+                self.check_no_implicit_managed_inferred(
+                    module,
+                    ctx.profile,
+                    *value_id,
+                    inferred_ty_id,
+                    tree,
+                    types,
+                    &options,
+                );
+            }
+        }
 
         // type check: if both declared and inferred, check assignability
         if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {

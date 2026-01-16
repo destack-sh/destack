@@ -62,14 +62,8 @@ pub struct AnalyzeOptions {
     pub no_implicit_conversions: bool,
     /// Forbid unsafe type assertions (`as T`).
     pub no_unsafe_type_assertions: bool,
-    /// Require explicit `self.` for member access in methods.
-    pub no_implicit_self: bool,
-    /// Forbid `arguments` object (use rest parameters instead).
-    pub no_arguments: bool,
-    /// Require `^T` or `&T` in type positions (no implicit managed types).
-    pub no_implicit_managed_type: bool,
-    /// Require explicit copy/borrow at call sites (no implicit managed values).
-    pub no_implicit_managed_value: bool,
+    /// Require explicit ownership for managed types and values.
+    pub no_implicit_managed: bool,
     /// Forbid managed memory features entirely (no unowned `T` at all, pure value types only).
     pub no_managed: bool,
     /// Forbid runtime entirely (no managed memory, no Promise, no exceptions, ...).
@@ -158,10 +152,7 @@ impl From<&DsConfigCompilerOptions> for AnalyzeOptions {
             no_imprecise_primitives: options.no_imprecise_primitives,
             no_implicit_conversions: options.no_implicit_conversions,
             no_unsafe_type_assertions: options.no_unsafe_type_assertions,
-            no_implicit_self: options.no_implicit_self,
-            no_arguments: options.no_arguments,
-            no_implicit_managed_type: options.no_implicit_managed_type,
-            no_implicit_managed_value: options.no_implicit_managed_value,
+            no_implicit_managed: options.no_implicit_managed,
             no_managed: options.no_managed,
             no_runtime: options.no_runtime,
             no_referential_equality: options.no_referential_equality,
@@ -207,10 +198,7 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
             no_imprecise_primitives: false,
             no_implicit_conversions: false,
             no_unsafe_type_assertions: false,
-            no_implicit_self: false,
-            no_arguments: false,
-            no_implicit_managed_type: false,
-            no_implicit_managed_value: false,
+            no_implicit_managed: false,
             no_managed: false,
             no_runtime: false,
             no_referential_equality: false,

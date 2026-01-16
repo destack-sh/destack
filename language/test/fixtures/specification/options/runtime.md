@@ -90,6 +90,52 @@ Object.defineProperty(target, "x", descriptor);
 
 - contains: dynamic shape mutation is disabled
 
+## noManaged
+
+### noManaged reports managed allocations when true
+
+> Managed allocations are rejected when noManaged is true.
+
+```ds:main.ds
+class Box {
+    value: number = 0;
+}
+
+let value = new Box();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noManaged": true } }
+```
+
+- contains: managed memory is disabled
+
+## noRuntime
+
+### noRuntime reports async functions when true
+
+> Runtime features are rejected when noRuntime is true.
+
+```ds:main.ds
+async function run(): int32 {
+    return 1;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRuntime": true } }
+```
+
+- contains: runtime features are disabled
+
 ## noComputedPropertyAccess
 
 ### noComputedPropertyAccess reports computed access when true
