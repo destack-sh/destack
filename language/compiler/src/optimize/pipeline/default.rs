@@ -1,13 +1,14 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
     BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold, CopyPropagate,
-    CorrelatedValueProp, DeadCodeEliminate, DeadFunctionEliminate, DeadStoreEliminate, DropInsert,
-    FunctionAttrs, GlobalValueNumbering, GuardEliminate, IfConvert, InductionVariableSimplify,
-    Inline, InstructionCombine, Licm, LoadStoreForward, LocalCse, LoopBoundsCheckEliminate,
-    LoopDelete, LoopIdiomRecognize, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce,
-    LoopUnroll, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck, Narrow,
-    PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
-    Sroa, StackCheck, TailCallElim, ValueRangePropagation,
+    CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadFunctionEliminate,
+    DeadStoreEliminate, DropInsert, FunctionAttrs, GlobalDeadCodeEliminate, GlobalOpt,
+    GlobalValueNumbering, GuardEliminate, IfConvert, InductionVariableSimplify, Inline,
+    InstructionCombine, InterproceduralConstantPropagation, Licm, LoadStoreForward, LocalCse,
+    LoopBoundsCheckEliminate, LoopDelete, LoopIdiomRecognize, LoopPeel, LoopRotate, LoopSimplify,
+    LoopStrengthReduce, LoopUnroll, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck,
+    Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
+    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim, ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -193,7 +194,11 @@ fn o2_pipeline() -> super::module::CompositePipeline {
         // interprocedural inlining and attribute inference
         .module_pass(Inline)
         .module_pass(FunctionAttrs)
+        .module_pass(InterproceduralConstantPropagation)
+        .module_pass(DeadArgEliminate)
         .module_pass(DeadFunctionEliminate)
+        .module_pass(GlobalOpt)
+        .module_pass(GlobalDeadCodeEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(false))
@@ -228,7 +233,11 @@ fn o3_pipeline() -> super::module::CompositePipeline {
         // interprocedural inlining and attribute inference
         .module_pass(Inline)
         .module_pass(FunctionAttrs)
+        .module_pass(InterproceduralConstantPropagation)
+        .module_pass(DeadArgEliminate)
         .module_pass(DeadFunctionEliminate)
+        .module_pass(GlobalOpt)
+        .module_pass(GlobalDeadCodeEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(true))
@@ -266,7 +275,11 @@ fn o4_pipeline() -> super::module::CompositePipeline {
         // interprocedural inlining and attribute inference
         .module_pass(Inline)
         .module_pass(FunctionAttrs)
+        .module_pass(InterproceduralConstantPropagation)
+        .module_pass(DeadArgEliminate)
         .module_pass(DeadFunctionEliminate)
+        .module_pass(GlobalOpt)
+        .module_pass(GlobalDeadCodeEliminate)
         // memory optimization
         .function_passes(optimize_memory())
         .function_passes(scalar_island_full(true))

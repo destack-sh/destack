@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use destack_mir as mir;
 use destack_mir::{
     BinaryOperator, CastOperator, Constant, Global, Intrinsic, LocalNodeId, NodeTree, Type,
@@ -17,6 +19,26 @@ pub enum ConstantType {
     Char,
     /// String constant type.
     String,
+}
+
+/// Return the constant type for a MIR constant.
+pub fn constant_type_of(constant: &Constant) -> ConstantType {
+    match constant {
+        Constant::Boolean { .. } => ConstantType::Boolean,
+        Constant::Int {
+            width, is_signed, ..
+        } => ConstantType::Int {
+            width: *width,
+            signed: *is_signed,
+        },
+        Constant::UInt { width, .. } => ConstantType::Int {
+            width: *width,
+            signed: false,
+        },
+        Constant::Float { width, .. } => ConstantType::Float { width: *width },
+        Constant::String { .. } => ConstantType::String,
+        Constant::Char { .. } => ConstantType::Char,
+    }
 }
 
 /// Check whether a constant type matches a MIR type.
@@ -49,6 +71,24 @@ pub fn constant_matches_type(
             },
         ) => string_layout_matches(*pointee, tree),
         _ => false,
+    }
+}
+
+/// Extract a constant value from the given operand.
+pub fn constant_for_value(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+) -> Option<mir::Constant> {
+    // find the instruction that defines the value
+    let inst_id = *definitions.get(&value)?;
+    let inst = tree.get(inst_id);
+
+    // extract constants from direct or global constant instructions
+    match inst {
+        mir::Instruction::Const { value, .. } => Some(value.clone()),
+        mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
+        _ => None,
     }
 }
 

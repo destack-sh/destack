@@ -7,7 +7,7 @@ use crate::optimize::analyses::{
     ControlFlowGraph, DominatorTree, LoopAnalysis, OwnershipAnalysis, ScalarEvolution, Scev,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, build_use_def_maps, build_value_definition_map,
+    BlockParamForwarding, build_use_def_maps, build_value_definition_map, constant_for_value,
     instruction_has_side_effects, instruction_is_speculatable, unsigned_int_width_for_value,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
@@ -357,29 +357,13 @@ fn match_memset_pattern(
 
     // extract a constant fill value when possible
     let value = store_value?;
-    let value_const = constant_for_value(value, tree, value_definitions);
+    let value_const = constant_for_value(value, value_definitions, tree);
     Some(MemsetPattern {
         array,
         element_addr_type,
         value_constant: value_const,
         store_block: store_block?,
     })
-}
-
-/// Extract a constant value from the given operand.
-fn constant_for_value(
-    value: mir::Value,
-    tree: &mir::NodeTree,
-    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-) -> Option<mir::Constant> {
-    // find the instruction that defines the value
-    let inst_id = *value_definitions.get(&value)?;
-
-    // accept only constant definitions
-    match tree.get(inst_id) {
-        mir::Instruction::Const { value, .. } => Some(value.clone()),
-        _ => None,
-    }
 }
 
 /// Find an element address instruction for the given pointer.
