@@ -34,6 +34,7 @@ fn test_cache_roundtrip_disk() {
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
+        dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(1), 1);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
@@ -79,6 +80,7 @@ fn test_cache_roundtrip_memory() {
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
+        dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(2), 2);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
@@ -134,6 +136,7 @@ fn test_cache_miss_on_context_change() {
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
+        dependency_hash: 0,
     };
     let module_id = ModuleId::new(PackageId::new(3), 3);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
@@ -151,6 +154,7 @@ fn test_cache_miss_on_context_change() {
         source_hash: 10,
         config_hash: 2,
         target_hash: 3,
+        dependency_hash: 0,
     };
 
     // assertion block
@@ -163,4 +167,54 @@ fn test_cache_miss_on_context_change() {
     );
 
     let _ = std::fs::remove_dir_all(cache_root);
+}
+
+/// Cache entries are invalidated when dependency hashes change.
+#[test]
+fn test_cache_miss_on_dependency_change() {
+    let options = CacheOptions {
+        mode: CacheMode::Memory,
+        dir: std::env::temp_dir(),
+        policy: CachePolicy::Lru,
+        validate: CacheValidate::Strict,
+        scope: CacheScope::Workspace,
+        max_size_mb: None,
+    };
+    let context = CacheContext {
+        compiler_version: "test".to_string(),
+        file_version: FileVersion::INITIAL,
+        profile_id: ProfileId::new(0),
+        profile_version: ProfileVersion::INITIAL,
+        source_hash: 1,
+        config_hash: 2,
+        target_hash: 3,
+        dependency_hash: 10,
+    };
+    let module_id = ModuleId::new(PackageId::new(4), 4);
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+
+    let registry = CacheRegistry::new();
+    registry
+        .write_ast_cache(&options, &context, module_id, payload)
+        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
+
+    let mismatched_context = CacheContext {
+        compiler_version: "test".to_string(),
+        file_version: FileVersion::INITIAL,
+        profile_id: ProfileId::new(0),
+        profile_version: ProfileVersion::INITIAL,
+        source_hash: 1,
+        config_hash: 2,
+        target_hash: 3,
+        dependency_hash: 999,
+    };
+
+    // assertion block
+    let entry = registry
+        .read_ast_cache(&options, &mismatched_context, module_id)
+        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
+    assert!(
+        entry.is_none(),
+        "expected dependency hash mismatch to invalidate cache entry"
+    );
 }

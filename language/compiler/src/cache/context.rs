@@ -6,7 +6,9 @@ use destack_source::{
     CacheHeader, CacheKind, FileContent, FileId, FileVersion, ModuleId, ProfileId, ProfileVersion,
     TargetId,
 };
-use destack_workspace::{CacheError, CacheScope, resolve_global_cache_root};
+use destack_workspace::{
+    CacheError, CacheScope, ModuleGraphKey, ModuleSignatureKey, resolve_global_cache_root,
+};
 
 use crate::compile::Compiler;
 
@@ -39,6 +41,8 @@ pub struct CacheContext {
     pub config_hash: u64,
     /// Hash of the target configuration and triple.
     pub target_hash: u64,
+    /// Hash of dependency signatures for cache invalidation.
+    pub dependency_hash: u64,
 }
 
 impl CacheContext {
@@ -54,6 +58,7 @@ impl CacheContext {
             self.source_hash,
             self.config_hash,
             self.target_hash,
+            self.dependency_hash,
             0,
         )
     }
@@ -113,6 +118,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: Option<ProfileId>,
         target_id: Option<&TargetId>,
+        cache_kind: CacheKind,
     ) -> Result<CacheContext, CacheError> {
         // load module file id
         let module = self.program.modules.get(module_id);
@@ -132,6 +138,7 @@ impl Compiler {
         let source_hash = self.cache_source_hash(file_id)?;
         let config_hash = self.cache_config_hash(module_id, profile_id);
         let target_hash = self.cache_target_hash(module_id, target_id);
+        let dependency_hash = self.cache_dependency_hash(module_id, profile_id, cache_kind)?;
 
         // build cache context
         Ok(CacheContext {
@@ -142,6 +149,7 @@ impl Compiler {
             source_hash,
             config_hash,
             target_hash,
+            dependency_hash,
         })
     }
 
@@ -151,6 +159,7 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: Option<ProfileId>,
         target_id: Option<&TargetId>,
+        cache_kind: CacheKind,
     ) -> Option<CacheHandle<'_>> {
         // resolve cache options
         let options = self.cache_options_for_module(module_id);
@@ -162,7 +171,7 @@ impl Compiler {
 
         // resolve cache context
         let context = self
-            .cache_context_for_module(module_id, profile_id, target_id)
+            .cache_context_for_module(module_id, profile_id, target_id, cache_kind)
             .ok()?;
 
         Some(CacheHandle {
@@ -249,5 +258,61 @@ impl Compiler {
         }
 
         hasher.finish()
+    }
+
+    /// Compute dependency signature hash for a cache context.
+    fn cache_dependency_hash(
+        &self,
+        module_id: ModuleId,
+        profile_id: Option<ProfileId>,
+        cache_kind: CacheKind,
+    ) -> Result<u64, CacheError> {
+        // only include dependency signatures for mir caches
+        if cache_kind != CacheKind::Mir {
+            return Ok(0);
+        }
+
+        // resolve the profile id for dependency tracking
+        let profile_id = profile_id.unwrap_or(ProfileId::new(0));
+
+        // load the module graph for this profile
+        let graph_key = ModuleGraphKey::new(profile_id);
+        let Some(graph) = self.program.index.module_graphs.get(&graph_key) else {
+            return Err(CacheError::MissingDependencyData {
+                module_id,
+                profile_id,
+                reason: "module graph missing".to_string(),
+            });
+        };
+
+        // snapshot dependency list before releasing the graph guard
+        let dependencies = graph.dependencies_for(module_id);
+        drop(graph);
+
+        // hash dependency ids and signature hashes
+        let mut hasher = FxHasher::default();
+        for dependency in dependencies {
+            let module = self.program.modules.get(dependency);
+            if module.read().dir_maybe(profile_id).is_none() {
+                return Err(CacheError::MissingDependencyData {
+                    module_id,
+                    profile_id,
+                    reason: format!("missing dir for dependency {dependency:?}"),
+                });
+            }
+
+            let signature_key = ModuleSignatureKey::new(dependency, profile_id);
+            let Some(signature) = self.program.index.module_signatures.get(&signature_key) else {
+                return Err(CacheError::MissingDependencyData {
+                    module_id,
+                    profile_id,
+                    reason: format!("missing signature for dependency {dependency:?}"),
+                });
+            };
+            dependency.hash(&mut hasher);
+            signature.value().hash.hash(&mut hasher);
+        }
+
+        Ok(hasher.finish())
     }
 }
