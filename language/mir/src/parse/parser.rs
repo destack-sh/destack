@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
@@ -145,6 +145,8 @@ pub struct Parser<'a> {
     global_map: HashMap<String, LocalNodeId<Global>>,
     /// Map from type alias names to their ids (for references).
     type_alias_map: HashMap<String, LocalNodeId<Type>>,
+    /// Set of type aliases that have been defined.
+    type_alias_definitions: HashSet<String>,
     /// Type interner for canonical type ids.
     type_intern: HashMap<TypeKey, LocalNodeId<Type>>,
     /// Field interner for canonical field ids.
@@ -165,6 +167,7 @@ impl<'a> Parser<'a> {
             function_map: HashMap::new(),
             global_map: HashMap::new(),
             type_alias_map: HashMap::new(),
+            type_alias_definitions: HashSet::new(),
             type_intern: HashMap::new(),
             field_intern: HashMap::new(),
         }
@@ -305,10 +308,13 @@ impl<'a> Parser<'a> {
 
     /// Parse a module (list of type aliases, globals, and functions).
     fn parse_module(&mut self) -> ParseResult<()> {
-        // first pass: register all function names for forward references
+        // first pass: register all type aliases for forward references
+        self.register_all_type_aliases();
+
+        // second pass: register all function names for forward references
         self.register_all_functions();
 
-        // second pass: parse everything
+        // third pass: parse everything
         while !self.peek_token(TokenType::End) {
             // parse optional linkage prefix: extern or export
             let linkage = if self.peek_token(TokenType::Extern) {
@@ -416,6 +422,44 @@ impl<'a> Parser<'a> {
         self.pos = saved_pos;
     }
 
+    /// Pre register all type aliases to allow forward references.
+    ///
+    /// This scans for `type @name` patterns without parsing anything else.
+    fn register_all_type_aliases(&mut self) {
+        let saved_pos = self.pos;
+
+        // scan token by token looking for type alias declarations
+        while !self.peek_token(TokenType::End) {
+            // skip optional linkage prefix
+            if self.peek_token(TokenType::Extern) || self.peek_token(TokenType::Export) {
+                self.bump();
+            }
+
+            // look for: type @name
+            if self.peek_token(TokenType::Type) {
+                self.bump();
+                if self.peek_token(TokenType::At) {
+                    self.bump();
+                    if let Some(token) = self.peek()
+                        && token.ty == TokenType::Identifier
+                    {
+                        let name = token.text.to_string();
+
+                        // register placeholder if not already known
+                        if !self.type_alias_map.contains_key(&name) {
+                            let placeholder = self.tree.insert(Type::Void);
+                            self.type_alias_map.insert(name, placeholder);
+                        }
+                    }
+                }
+            }
+
+            self.bump();
+        }
+
+        self.pos = saved_pos;
+    }
+
     /// Parse a type alias.
     /// Syntax: `type @name = type`
     fn parse_type_alias(&mut self) -> ParseResult<LocalNodeId<TypeAlias>> {
@@ -431,21 +475,38 @@ impl<'a> Parser<'a> {
                 Self::span_for_token(file_id, name_token),
             )
         };
-        if self.type_alias_map.contains_key(&name) {
+        if self.type_alias_definitions.contains(&name) {
             return Err(ParseError::invalid(
                 &format!("duplicate type alias '@{name}'"),
                 name_start,
             ));
         }
 
+        // reuse pre-registered placeholder or create a fresh one
+        let placeholder_id = match self.type_alias_map.get(&name).copied() {
+            Some(existing) => existing,
+            None => {
+                let placeholder = self.tree.insert(Type::Void);
+                self.type_alias_map.insert(name.clone(), placeholder);
+                placeholder
+            }
+        };
+
         self.eat_token(TokenType::Equals)?;
         let ty = self.parse_type()?;
 
         let name_id = self.strings.intern(&name);
-        let alias = TypeAlias { name: name_id, ty };
+        let alias = TypeAlias {
+            name: name_id,
+            ty: placeholder_id,
+        };
         let id = self.tree.insert(alias);
         self.tree.set_span(id, name_span);
-        self.type_alias_map.insert(name, ty);
+        if ty != placeholder_id {
+            let resolved = self.tree.get(ty).clone();
+            *self.tree.get_mut(placeholder_id) = resolved;
+        }
+        self.type_alias_definitions.insert(name);
         Ok(id)
     }
 

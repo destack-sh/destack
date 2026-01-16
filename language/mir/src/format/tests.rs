@@ -215,7 +215,7 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; mut
 function @increment() -> void {
 block0:
-    v0 = global.addr @counter -> ref<raw i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
