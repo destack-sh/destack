@@ -72,6 +72,10 @@ pub(crate) fn compute_type_layout(
             let bytes = (*width as u32).div_ceil(8);
             Ok(TypeLayout::natural(bytes))
         }
+        mir::Type::Isize | mir::Type::Usize => {
+            let bytes = pointer_bytes as u32;
+            Ok(TypeLayout::natural(bytes))
+        }
 
         // float types
         mir::Type::Float { width } => {
@@ -80,9 +84,9 @@ pub(crate) fn compute_type_layout(
         }
 
         // pointers and references
-        mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
-            Ok(TypeLayout::natural(pointer_bytes as u32))
-        }
+        mir::Type::TypeTag
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
 
         // arrays: size = element_size * length, alignment = element alignment
         mir::Type::Array {

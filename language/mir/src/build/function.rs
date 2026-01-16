@@ -1503,13 +1503,13 @@ impl<'a> FunctionBuilder<'a> {
         function.blocks = self.blocks;
         function.next_value_id = self.next_value_id;
 
-        // verify in debug and test builds
+        // always verify in debug and test builds
         #[cfg(any(test, debug_assertions))]
         {
-            let verifier = crate::verify::Verifier::new_with_options(
-                &self.tree,
-                crate::verify::VerifierOptions::strict(),
-            );
+            use crate::VerifierOptions;
+
+            let verifier =
+                crate::verify::Verifier::new_with_options(self.tree, VerifierOptions::strict());
             if let Err(error) = verifier.verify_function(self.function_id) {
                 panic!("mir verification failed: {error}");
             }
