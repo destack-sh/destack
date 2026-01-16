@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use destack_dir::{GlobalSymbolId, LocalNodeId};
 
 use crate::lower::{
-    FieldInput, LayoutPolicy, compute_struct_layout, size_and_align_of_type,
-    static_key_to_field_name,
+    FieldInput, LayoutPolicy, compute_struct_layout, compute_struct_layout_with_prefix,
+    size_and_align_of_type, static_key_to_field_name,
 };
 use crate::{LowerError, LowerResult};
 
@@ -39,6 +39,58 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
+    /// Predeclare interface reference types for this module.
+    pub(crate) fn predeclare_interface_reference_types(&mut self) -> LowerResult<()> {
+        // track interface symbols already processed
+        let mut seen_symbols = HashSet::new();
+
+        // scan interface declarations
+        for (declaration_id, declaration) in self
+            .dir_tree
+            .iter_nodes_of_type::<destack_dir::Declaration>()
+        {
+            // skip non interface declarations
+            let destack_dir::Declaration::Interface { descriptor, .. } = declaration else {
+                continue;
+            };
+
+            // deduplicate symbols across declarations
+            let symbol = descriptor.symbol.into_global(self.module_id);
+            if !seen_symbols.insert(symbol) {
+                continue;
+            }
+
+            // build a stable anchor for diagnostics
+            let anchor = declaration_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+
+            // resolve reference type ids for this interface
+            let reference_type_ids = self.nominal_reference_type_ids_for_symbol(symbol);
+            for reference_type_id in reference_type_ids {
+                // skip cached types
+                if self
+                    .type_lowerer
+                    .type_cache
+                    .contains_key(&reference_type_id)
+                {
+                    continue;
+                }
+
+                // lower the interface reference type
+                let _ = self.type_lowerer.lower_type(
+                    self.types,
+                    reference_type_id,
+                    self.module_id,
+                    anchor,
+                    &mut self.builder,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Predeclare the instance layout for a struct or class symbol.
     fn predeclare_nominal_layout_for_symbol(&mut self, symbol: GlobalSymbolId) -> LowerResult<()> {
         // skip when no instance type is registered
@@ -53,8 +105,33 @@ impl ModuleLowerer<'_> {
 
         // collect field inputs from declaration members
         let field_inputs = self.collect_nominal_field_inputs(symbol)?;
+
         // compute and cache the layout for this instance type
-        let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
+        let layout = if symbol.ty() == destack_dir::SymbolType::Class
+            && self.class_has_virtual_methods(symbol)?
+        {
+            let pointer_bytes = self.type_lowerer.pointer_bytes();
+            let vtable_name = self.builder.intern("@vtable");
+            let vtable_type = self.builder.type_raw_pointer(self.type_lowerer.ty_void);
+            let (size, alignment) = size_and_align_of_type(
+                self.builder.tree().get(vtable_type),
+                self.builder.tree(),
+                pointer_bytes,
+            );
+
+            let vtable_field = FieldInput {
+                name: vtable_name,
+                ty: vtable_type,
+                size,
+                alignment,
+                source_index: None,
+            };
+
+            compute_struct_layout_with_prefix(vtable_field, field_inputs, LayoutPolicy::default())
+        } else {
+            compute_struct_layout(field_inputs, LayoutPolicy::default())
+        };
+
         let mir_type = self
             .type_lowerer
             .create_struct_type(&layout, &mut self.builder);
@@ -207,7 +284,7 @@ impl ModuleLowerer<'_> {
                     ty: mir_type,
                     size,
                     alignment,
-                    source_index,
+                    source_index: Some(source_index),
                 });
                 source_index += 1;
             }

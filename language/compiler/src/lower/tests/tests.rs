@@ -1,5 +1,6 @@
 use destack_base::ImmutableStringPool;
-use destack_mir as mir;
+use destack_source::ModuleId;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::TestProgram;
 
@@ -154,6 +155,241 @@ impl TestProgram {
         None
     }
 
+    /// Find a struct type that contains all requested field names.
+    pub(crate) fn find_struct_type_by_field_names(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        field_names: &[&str],
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // scan struct types for matching field names
+        for (type_id, ty) in tree.iter_nodes::<mir::Type>() {
+            let mir::Type::Struct { fields, .. } = ty else {
+                continue;
+            };
+
+            // check if all requested field names exist
+            let has_all = field_names.iter().all(|name| {
+                fields.iter().any(|field_id| {
+                    let field = tree.get(*field_id);
+                    field
+                        .name
+                        .map(|field_name| strings.get(field_name) == *name)
+                        .unwrap_or(false)
+                })
+            });
+
+            if has_all {
+                return Some(type_id);
+            }
+        }
+
+        None
+    }
+
+    /// Find a struct type with a matching type metadata name.
+    #[allow(dead_code)]
+    pub(crate) fn find_struct_type_by_metadata_name(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        name: &str,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // scan metadata entries for a matching name
+        for (ty, metadata) in &tree.type_table.type_metadata_by_id {
+            let Some(name_id) = metadata.name else {
+                continue;
+            };
+
+            if strings.get(name_id) != name {
+                continue;
+            }
+
+            if matches!(tree.get(*ty), mir::Type::Struct { .. }) {
+                return Some(*ty);
+            }
+        }
+
+        None
+    }
+
+    /// Find a struct type with a metadata name that starts with the prefix.
+    pub(crate) fn find_struct_type_by_metadata_prefix(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        prefix: &str,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // scan metadata entries for a matching prefix
+        for (ty, metadata) in &tree.type_table.type_metadata_by_id {
+            let Some(name_id) = metadata.name else {
+                continue;
+            };
+
+            if !strings.get(name_id).starts_with(prefix) {
+                continue;
+            }
+
+            if matches!(tree.get(*ty), mir::Type::Struct { .. }) {
+                return Some(*ty);
+            }
+        }
+
+        None
+    }
+
+    /// Resolve a function parameter type id from DIR by function name.
+    #[allow(dead_code)]
+    pub(crate) fn dir_function_parameter_type_id(
+        &self,
+        module_id: ModuleId,
+        function_name: &str,
+        index: usize,
+    ) -> Option<dir::LocalTypeId> {
+        // load the dir module state
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module
+            .dir_base_maybe()
+            .or_else(|| module.dir_maybe(self.default_profile_id(module_id)))
+            .unwrap_or_else(|| {
+                panic!("no DIR available for module {module_id:?}");
+            });
+        let tree = dir.tree.read();
+        let types = dir.types.read();
+
+        // scan for the named function declaration
+        for (_, declaration) in tree.iter_nodes_of_type::<dir::Declaration>() {
+            let dir::Declaration::Function {
+                descriptor,
+                signature,
+                ..
+            } = declaration
+            else {
+                continue;
+            };
+
+            let Some(name) = descriptor.name else {
+                continue;
+            };
+
+            let name_str = self.program.strings.get(name.string());
+            if name_str != function_name {
+                continue;
+            }
+
+            let parameter_id = signature.dynamic_parameters.get(index)?;
+            let parameter = tree.get(*parameter_id);
+            let symbol_id = parameter.symbol();
+            let global_symbol = dir::GlobalSymbolId::new(module_id, symbol_id);
+            return types.get_value_type_id(global_symbol);
+        }
+
+        None
+    }
+
+    /// Build the deterministic metadata name for a union type.
+    #[allow(dead_code)]
+    pub(crate) fn union_metadata_name(
+        &self,
+        module_id: ModuleId,
+        type_id: dir::LocalTypeId,
+    ) -> String {
+        format!("@union:{module_id}:{}", type_id.0)
+    }
+
+    /// Find a struct type by source name.
+    #[allow(dead_code)]
+    pub(crate) fn find_struct_type_by_name(
+        &self,
+        module_id: ModuleId,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        struct_name: &str,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // load the dir tree for the module
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module
+            .dir_base_maybe()
+            .or_else(|| module.dir_maybe(self.default_profile_id(module_id)))
+            .unwrap_or_else(|| {
+                panic!("no DIR available for module {module_id:?}");
+            });
+        let dir_tree = dir.tree.read();
+        let types = dir.types.read();
+
+        // locate the struct declaration
+        for (_, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
+            let dir::Declaration::Struct { descriptor, .. } = declaration else {
+                continue;
+            };
+
+            let Some(name) = descriptor.name else {
+                continue;
+            };
+
+            let name_id = name.string();
+            let name_str = self.program.strings.get(name_id);
+            if name_str != struct_name {
+                continue;
+            }
+
+            let symbol_id = dir::GlobalSymbolId::new(module_id, descriptor.symbol);
+            let Some(instance_type_id) = types.get_instance_type_id(symbol_id) else {
+                return None;
+            };
+
+            // collect field names from the instance type
+            let dir::Type::Object { fields, .. } = types.get_type(instance_type_id) else {
+                return None;
+            };
+
+            let mut names = Vec::with_capacity(fields.len());
+            for field in fields {
+                let Some(name_id) = field.key.name() else {
+                    return None;
+                };
+
+                let name_str = self.program.strings.get(name_id);
+                names.push(name_str.to_string());
+            }
+
+            let name_refs: Vec<&str> = names.iter().map(|name| name.as_str()).collect();
+            return self.find_struct_type_by_field_names(tree, strings, &name_refs);
+        }
+
+        None
+    }
+
+    /// Resolve the field type id for a struct field name.
+    pub(crate) fn struct_field_type_by_name(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        struct_type: mir::LocalNodeId<mir::Type>,
+        field_name: &str,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // load the struct type
+        let mir::Type::Struct { fields, .. } = tree.get(struct_type) else {
+            return None;
+        };
+
+        // scan for the named field
+        for field_id in fields {
+            let field = tree.get(*field_id);
+            let Some(name_id) = field.name else {
+                continue;
+            };
+
+            if strings.get(name_id) == field_name {
+                return Some(field.ty);
+            }
+        }
+
+        None
+    }
+
     /// Find a MIR function id by name.
     pub(crate) fn find_function_by_name(
         &self,
@@ -165,6 +401,23 @@ impl TestProgram {
         tree.iter_nodes::<mir::Function>()
             .find(|(_, function)| strings.get(function.name) == name)
             .map(|(id, _)| id)
+    }
+
+    /// Resolve a function parameter type by function name and index.
+    #[allow(dead_code)]
+    pub(crate) fn function_parameter_type_by_name(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        name: &str,
+        index: usize,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        // find the matching function
+        let function_id = self.find_function_by_name(tree, strings, name)?;
+        let function = tree.get(function_id);
+
+        // resolve the parameter type
+        function.parameters.get(index).map(|param| param.ty)
     }
 
     /// Find the first interface dispatch metadata in a function body.

@@ -69,14 +69,6 @@ impl ModuleLowerer<'_> {
                     continue;
                 }
 
-                // skip constructor style signatures
-                if matches!(
-                    signature.mode,
-                    Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
-                ) {
-                    continue;
-                }
-
                 // skip already declared stubs
                 let method_symbol = symbol.into_global(self.module_id);
                 if self.functions_by_symbol.contains_key(&method_symbol) {
@@ -84,7 +76,8 @@ impl ModuleLowerer<'_> {
                 }
 
                 // resolve the method name
-                let method_name = self.member_name_or_error(key.as_ref(), *member_id)?;
+                let method_name =
+                    self.member_dispatch_name_or_error(key.as_ref(), signature.mode, *member_id)?;
                 let name_str = self.compiler.program.strings.get(method_name).to_string();
 
                 // resolve signature types

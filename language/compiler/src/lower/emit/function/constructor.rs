@@ -15,6 +15,8 @@ pub(crate) struct ConstructorState {
     pub(crate) layout: StructLayout,
     /// The set of initialized field indices in layout order.
     pub(crate) initialized_fields: HashSet<u32>,
+    /// The set of layout indices that require initialization.
+    pub(crate) required_fields: HashSet<u32>,
 }
 
 impl FunctionContext<'_> {
@@ -59,7 +61,17 @@ impl FunctionContext<'_> {
         self.state.constructor_state = Some(ConstructorState {
             layout,
             initialized_fields: HashSet::new(),
+            required_fields: HashSet::new(),
         });
+
+        // mark layout indices that need explicit initialization
+        if let Some(state) = self.state.constructor_state.as_mut() {
+            for (index, field) in state.layout.fields.iter().enumerate() {
+                if field.source_index.is_some() {
+                    state.required_fields.insert(index as u32);
+                }
+            }
+        }
 
         Ok(())
     }
@@ -71,7 +83,9 @@ impl FunctionContext<'_> {
             return;
         };
 
-        state.initialized_fields.insert(field_index);
+        if state.required_fields.contains(&field_index) {
+            state.initialized_fields.insert(field_index);
+        }
     }
 
     /// Ensure a constructor field was initialized before use.
@@ -110,18 +124,21 @@ impl FunctionContext<'_> {
         };
 
         // return early when all fields are initialized
-        if state.initialized_fields.len() == state.layout.fields.len() {
+        if state
+            .required_fields
+            .iter()
+            .all(|index| state.initialized_fields.contains(index))
+        {
             return Ok(());
         }
 
         // pick the first missing field for an error message
         let missing_field = state
-            .layout
-            .fields
+            .required_fields
             .iter()
-            .enumerate()
-            .find(|(index, _)| !state.initialized_fields.contains(&(*index as u32)))
-            .map(|(_, field)| field.name);
+            .find(|index| !state.initialized_fields.contains(index))
+            .and_then(|index| state.layout.fields.get(*index as usize))
+            .map(|field| field.name);
 
         // build the error message
         let message = if let Some(name) = missing_field {

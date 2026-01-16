@@ -174,6 +174,29 @@ impl FunctionContext<'_> {
                             .into_anchored(Some(self.env.profile)),
                         message: "call returned no value".to_string(),
                     })?
+            } else if let Some(slot_id) = self.virtual_method_slot_id(target_symbol)
+                && self.class_symbol_for_type(receiver_type_id).is_some()
+            {
+                // emit virtual call metadata
+                let declaring_type =
+                    self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
+                let signature = result_type;
+                let metadata = mir::CallMetadata::virtual_call(
+                    receiver_value,
+                    declaring_type,
+                    slot_id,
+                    signature,
+                    Some(function_id),
+                );
+                self.state
+                    .builder
+                    .call_with_metadata(function_id, arguments, metadata)
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "call returned no value".to_string(),
+                    })?
             } else {
                 // emit direct call metadata
                 let signature = result_type;
@@ -318,7 +341,7 @@ impl FunctionContext<'_> {
 
         // load the member declaration
         let member = self.env.dir_tree.get(member_id);
-        let dir::Member::Method { key, .. } = member else {
+        let dir::Member::Method { key, signature, .. } = member else {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)
@@ -328,8 +351,12 @@ impl FunctionContext<'_> {
         };
 
         // resolve the method name
-        let method_name = match key {
-            Some(dir::DynamicKey::Name(name)) => *name,
+        let method_name = match (key, signature.mode) {
+            (Some(dir::DynamicKey::Name(name)), _) => *name,
+            (None, Some(dir::FunctionMode::Call)) => self.env.dispatch_call_name,
+            (None, Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)) => {
+                self.env.dispatch_construct_name
+            }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -364,6 +391,10 @@ impl FunctionContext<'_> {
             dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Interface => {
                 Some(*symbol)
             }
+            dir::Type::Value { value } => self.interface_symbol_for_type(*value),
+            dir::Type::Intersection { elements } => elements
+                .iter()
+                .find_map(|element| self.interface_symbol_for_type(*element)),
             _ => None,
         }
     }
@@ -411,5 +442,67 @@ impl FunctionContext<'_> {
         };
 
         Ok(slot_index as u32 + 1)
+    }
+
+    /// Resolve the vtable slot id for a virtual method symbol.
+    fn virtual_method_slot_id(&self, symbol: GlobalSymbolId) -> Option<u32> {
+        self.env
+            .virtual_method_slots_by_symbol
+            .get(&symbol)
+            .copied()
+    }
+
+    /// Resolve the class symbol for a receiver type when possible.
+    fn class_symbol_for_type(&self, receiver_type_id: dir::LocalTypeId) -> Option<GlobalSymbolId> {
+        match self.env.types.get_type(receiver_type_id) {
+            dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Class => {
+                Some(*symbol)
+            }
+            dir::Type::Value { value } => self.class_symbol_for_type(*value),
+            dir::Type::Intersection { elements } => elements
+                .iter()
+                .find_map(|element| self.class_symbol_for_type(*element)),
+            _ => None,
+        }
+    }
+
+    /// Resolve the declaring MIR type for a virtual call.
+    fn declaring_type_for_virtual_call(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        receiver_type_id: dir::LocalTypeId,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let class_symbol = self
+            .class_symbol_for_type(receiver_type_id)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "virtual dispatch requires a class receiver".to_string(),
+            })?;
+
+        let instance_type_id = self
+            .env
+            .types
+            .get_instance_type_id(class_symbol)
+            .ok_or_else(|| LowerError::MissingType {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })?;
+
+        let mir_type = self
+            .env
+            .type_lowerer
+            .type_cache
+            .get(&instance_type_id)
+            .copied()
+            .ok_or_else(|| LowerError::MissingType {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })?;
+
+        Ok(mir_type)
     }
 }

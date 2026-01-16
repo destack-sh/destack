@@ -189,6 +189,17 @@ impl ModuleLowerer<'_> {
                 value,
                 ..
             } => {
+                // reject index signatures for native lowering
+                if matches!(key, Some(DynamicKey::NamedExpression { .. })) {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "index signatures are not supported for native lowering"
+                            .to_string(),
+                    });
+                }
+
                 // skip non instance fields
                 if self.member_is_static(modifiers.as_ref())
                     || self.member_is_private(modifiers.as_ref())
@@ -246,16 +257,9 @@ impl ModuleLowerer<'_> {
                     return Ok(());
                 }
 
-                // skip constructor style signatures
-                if matches!(
-                    signature.mode,
-                    Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
-                ) {
-                    return Ok(());
-                }
-
                 // resolve the method name
-                let method_name = self.member_name_or_error(key.as_ref(), member_id)?;
+                let method_name =
+                    self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
 
                 // resolve the method signature type
                 let signature_type_id = self.method_signature_type_id(member_id)?;

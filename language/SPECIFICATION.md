@@ -364,6 +364,27 @@ if (result.kind == 'ok') {
 
 This is standard TypeScript and works unchanged in Destack.
 
+#### Discriminant Tag Interning
+
+Discriminant literals are interned to integer tags at compile time for native targets.
+Supported literal kinds:
+- string
+- number
+- bigint
+- boolean
+- null
+- undefined
+- unique symbol
+
+NaN is not a valid discriminant literal.
+-0 and 0 are treated as the same discriminant literal.
+Tags are assigned deterministically within a compilation.
+Each discriminated union emits a tag value table with literal values in tag order.
+Reading a discriminant field loads the literal value from that table.
+Duplicate discriminant values are a type error.
+Tag values are not stable across different compilations or compiler versions.
+Code should never serialize or persist tag integers.
+
 #### Result Types
 
 For richer `Result` types with methods, use nominal structs and newtypes:

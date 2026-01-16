@@ -1522,7 +1522,7 @@ Lowers to a MIR struct with:
 The `tag` field is the discriminant.
 Pattern matching becomes a switch on tag.
 
-#### String Tag Interning
+#### Discriminant Tag Interning
 
 TypeScript-style discriminated unions typically use string literals as tags:
 ```ds
@@ -1532,8 +1532,38 @@ type LoadState<T> =
     | { kind: "error", msg: string }
 ```
 
-This is a very common pattern in TypeScript, and we can optimize it nicely for native targets.
-We intern these string tags to integer discriminants at compile time; conceptually this looks like this:
+This is a very common pattern in TypeScript.
+We optimize it for native targets by interning discriminant literals to integer tags at compile time.
+
+Supported literal kinds:
+- string
+- number
+- bigint
+- boolean
+- null
+- undefined
+- unique symbol
+
+NaN is not a valid discriminant literal.
+-0 and 0 are treated as the same discriminant literal.
+Tags are assigned in a canonical order that does not depend on source order.
+Tags are assigned per union and deterministic within a module.
+Tag integers use the smallest unsigned width that can represent the tag count.
+
+Canonical ordering:
+- null
+- undefined
+- false
+- true
+- numbers ascending
+- bigints ascending
+- strings lexicographic by UTF-8
+- unique symbols by fully qualified symbol id
+
+Each discriminated union emits a tag value table with literal values in tag order.
+Reading `x.kind` loads the literal value from that table.
+
+Conceptually, string-only tags look like this:
 
 ```ds
 // tag mapping (compile time)
@@ -1556,10 +1586,13 @@ struct ErrorState { tag: uint8, msg: string }
 
 This preserves TS semantics while enabling efficient native dispatch.
 
-**Tag assignment determinism:** Tag integers are assigned deterministically within a compilation unit.
-The same union type always gets the same tag assignments in the same compilation.
-However, tag values are NOT stable across different compilations or compiler versions.
-Code should never serialize or persist tag integers; use the string values for serialization.
+**Tag assignment determinism:**
+- Tag integers are assigned deterministically within a compilation unit.
+- The same union type always gets the same tag assignments in the same compilation.
+- Duplicate discriminant values are a type error.
+- Tag values are not stable across different compilations or compiler versions.
+- Code should never serialize or persist tag integers.
+- Use the literal values for serialization.
 
 #### TypeId Interning
 

@@ -50,7 +50,7 @@ impl TypeLowerer {
                 ty: field_mir_type,
                 size,
                 alignment,
-                source_index: source_index as u32,
+                source_index: Some(source_index as u32),
             });
         }
 
@@ -71,24 +71,6 @@ impl TypeLowerer {
         node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        // reject optional and rest elements for now
-        for element in elements {
-            if element.is_optional {
-                return Err(LowerError::UnsupportedType {
-                    node,
-                    ty: element.ty.into_global(module_id),
-                    message: "optional tuple elements are not yet supported".to_string(),
-                });
-            }
-            if element.is_rest {
-                return Err(LowerError::UnsupportedType {
-                    node,
-                    ty: element.ty.into_global(module_id),
-                    message: "rest tuple elements are not yet supported".to_string(),
-                });
-            }
-        }
-
         // lower each element type
         let mut mir_elements = Vec::with_capacity(elements.len());
         for element in elements {

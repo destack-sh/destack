@@ -158,6 +158,8 @@ impl DispatchTables {
 /// Type metadata available for optimization and codegen.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct TypeMetadata {
+    /// The display name of the type for diagnostics and debugging only.
+    pub name: Option<StringId>,
     /// Layout metadata for the type.
     pub layout: Option<TypeLayout>,
     /// Lineage metadata for the type.

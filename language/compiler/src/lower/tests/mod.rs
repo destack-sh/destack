@@ -9,3 +9,4 @@ mod logical;
 mod string;
 mod r#struct;
 mod tests;
+mod union;
