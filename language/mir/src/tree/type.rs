@@ -329,7 +329,7 @@ impl Type {
                 | Type::Isize
                 | Type::Usize
                 | Type::Float { .. }
-            | Type::TypeTag
+                | Type::TypeTag
                 | Type::Reference { .. }
         )
     }

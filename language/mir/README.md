@@ -509,6 +509,12 @@ Layouts store size, alignment, stride, and field offsets in declaration order.
 Lineage tracks parent types, interfaces, and sealed or final flags.
 Dispatch tables describe vtables and itabs with slot ordering and targets.
 Dispatch tables are stored in `NodeTree.type_table.dispatch_tables`.
+VTables are only emitted for classes that require virtual dispatch.
+Interface dispatch uses itabs for both struct and class implementations.
+Each itab is specific to a (Type, Interface) pair.
+Itab slots include field offsets and method targets in interface declaration order.
+Interface inheritance flattens base interfaces in extends list order before local members.
+Members inherited with the same name and signature reuse the first slot.
 Type descriptors link types to runtime metadata globals when needed.
 Field maps provide name to field lookups for property access specialization.
 Struct layouts describe value payloads with no identity semantics.
