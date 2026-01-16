@@ -165,7 +165,7 @@ fn test_roundtrip_stack_alloc() {
     roundtrip(
         r#"function @stackAlloc() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     return v0
 }"#,
     );
@@ -464,6 +464,17 @@ fn test_roundtrip_type_alias() {
         r#"type @Point = { i32, i32 }
 function @usePoint(v0: ref<managed @Point>) -> ref<managed @Point> {
 block0(v0: ref<managed @Point>):
+    return v0
+}"#,
+    );
+}
+
+#[test]
+fn test_roundtrip_recursive_type_alias() {
+    roundtrip(
+        r#"type @Node = { value: i64, next: ref<managed @Node> }
+function @useNode(v0: ref<managed @Node>) -> ref<managed @Node> {
+block0(v0: ref<managed @Node>):
     return v0
 }"#,
     );

@@ -150,6 +150,7 @@ To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new
 
 `field.addr` and `element.addr` produce a reference to a field or element.
 Pointer producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
+`global.addr` returns `ref<raw addrspace(global) T>` and `stack.alloc` returns `ref<raw addrspace(stack) T>`.
 `load` carries the loaded type inline with `->`.
 `call.indirect` carries its signature type inline with `->`.
 These annotations are required for Core MIR and enable precise alias and ownership analysis.

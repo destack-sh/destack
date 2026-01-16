@@ -1,4 +1,4 @@
-use crate::{Copyability, MirFormatOptions, Mutability, ReferenceKind, format_mir};
+use crate::{AddressSpace, Copyability, MirFormatOptions, Mutability, ReferenceKind, Type, format_mir};
 
 use super::ModuleBuilder;
 
@@ -735,7 +735,13 @@ fn test_build_stack_alloc() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let raw_ref_type = module.type_raw_pointer(i32_type);
+    let raw_ref_type = module.tree_mut().insert(Type::Reference {
+        kind: ReferenceKind::Raw,
+        address_space: AddressSpace::Stack,
+        mutability: Mutability::Immutable,
+        pointee: i32_type,
+        is_nullable: false,
+    });
 
     // build function with stack.alloc
     let mut builder = module.function("stack_alloc_test", &[], raw_ref_type);
@@ -752,7 +758,7 @@ fn test_build_stack_alloc() {
     let expected = "\
 function @stack_alloc_test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw i32>
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     return v0
 }";
     assert_eq!(output, expected);
