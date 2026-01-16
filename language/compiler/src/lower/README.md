@@ -1578,6 +1578,7 @@ This unifies discriminated union tags and type identifiers under a single
 string interning mechanism, reducing complexity and code duplication.
 
 TypeId is a stable string identity for reflection and JS interop.
+TypeId is distinct from TypeTag: TypeId is a string identity, while TypeTag is an opaque handle to a TypeDescriptor record.
 Native dynamic dispatch does not use TypeId for equality checks.
 TypeTag values are pointers to TypeDescriptor values.
 
