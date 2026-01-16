@@ -33,16 +33,10 @@ pub struct ProfileFlags {
     pub no_implicit_conversions: bool,
     /// Forbid unsafe type assertions.
     pub no_unsafe_type_assertions: bool,
-    /// Require explicit `self.` in methods.
-    pub no_implicit_self: bool,
-    /// Forbid `arguments` usage.
-    pub no_arguments: bool,
     /// Forbid redeclaration of locals.
     pub no_redeclared_locals: bool,
-    /// Require explicit managed types.
-    pub no_implicit_managed_type: bool,
-    /// Require explicit managed values.
-    pub no_implicit_managed_value: bool,
+    /// Require explicit managed ownership.
+    pub no_implicit_managed: bool,
     /// Forbid managed memory features.
     pub no_managed: bool,
     /// Forbid runtime features.
@@ -208,11 +202,8 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
             no_imprecise_primitives: options.no_imprecise_primitives,
             no_implicit_conversions: options.no_implicit_conversions,
             no_unsafe_type_assertions: options.no_unsafe_type_assertions,
-            no_implicit_self: options.no_implicit_self,
-            no_arguments: options.no_arguments,
             no_redeclared_locals: options.no_redeclared_locals,
-            no_implicit_managed_type: options.no_implicit_managed_type,
-            no_implicit_managed_value: options.no_implicit_managed_value,
+            no_implicit_managed: options.no_implicit_managed,
             no_managed: options.no_managed,
             no_runtime: options.no_runtime,
             no_referential_equality: options.no_referential_equality,

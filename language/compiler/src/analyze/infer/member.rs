@@ -108,7 +108,7 @@ impl Compiler {
             symbols,
             types,
         )?;
-        
+
         // reject implicit dynamic dispatch when configured
         if ctx.options.no_implicit_dynamic_dispatch
             && matches!(module.source, ModuleSource::User)

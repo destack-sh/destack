@@ -427,6 +427,18 @@ impl Compiler {
             &mut right_ctx,
         )?;
 
+        // enforce explicit ownership when implicit managed values are disabled
+        self.check_no_implicit_managed_value(
+            module,
+            ctx.profile,
+            right_id,
+            left_ty_id,
+            right_ty_id,
+            tree,
+            types,
+            &options,
+        );
+
         // add the subtype constraint
         infer.push_constraint(Constraint::Subtype {
             sub_type: right_ty_id,
@@ -869,6 +881,18 @@ impl Compiler {
                 &mut value_ctx,
             )?;
 
+            // enforce explicit ownership when implicit managed values are disabled
+            self.check_no_implicit_managed_value(
+                module,
+                ctx.profile,
+                value_expression_id,
+                builtin_value_ty_id,
+                value_ty_id,
+                tree,
+                types,
+                &options,
+            );
+
             infer.push_constraint(Constraint::Subtype {
                 sub_type: value_ty_id,
                 super_type: builtin_value_ty_id,
@@ -1001,6 +1025,20 @@ impl Compiler {
             infer,
             &mut value_ctx,
         )?;
+
+        // enforce explicit ownership when implicit managed values are disabled
+        if let Some(value_param_ty_id) = value_param_ty_id {
+            self.check_no_implicit_managed_value(
+                module,
+                ctx.profile,
+                value_expression_id,
+                value_param_ty_id,
+                value_ty_id,
+                tree,
+                types,
+                &options,
+            );
+        }
 
         // check value argument assignability
         if let Some(value_param_ty_id) = value_param_ty_id {

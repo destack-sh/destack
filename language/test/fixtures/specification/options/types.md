@@ -102,3 +102,69 @@ let cast = value as int32;
 ```
 
 - contains: unsafe type assertions are disabled
+
+## noImplicitManaged
+
+### noImplicitManaged reports implicit managed types in annotations
+
+> Managed defaults are rejected in type positions when noImplicitManaged is true.
+
+```ds:main.ds
+class Box {
+    value: number = 0;
+}
+
+let value: Box = new Box();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed types are disabled
+
+### noImplicitManaged reports inferred managed values
+
+> Inferred managed values require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+class Box {
+    value: number = 0;
+}
+
+let value = new Box();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed values are disabled
+
+### noImplicitManaged allows explicit ownership
+
+> Explicit ownership annotations satisfy noImplicitManaged.
+
+```ds:main.ds
+class Box {
+    value: number = 0;
+}
+
+let value: ^Box = ^(new Box());
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```

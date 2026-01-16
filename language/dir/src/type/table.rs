@@ -511,9 +511,7 @@ impl TypeTable {
 
     /// Get the declared target type id for an alias symbol.
     pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.alias_target_type_by_symbol_id
-            .get(&symbol_id)
-            .copied()
+        self.alias_target_type_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Set the enum backing type for a symbol.

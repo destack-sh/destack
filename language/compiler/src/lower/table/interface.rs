@@ -163,12 +163,7 @@ impl ModuleLowerer<'_> {
 
             // scan interface members
             for member_id in members {
-                self.collect_interface_member_slots(
-                    *member_id,
-                    slots,
-                    seen_fields,
-                    seen_methods,
-                )?;
+                self.collect_interface_member_slots(*member_id, slots, seen_fields, seen_methods)?;
             }
         }
 
