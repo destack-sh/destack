@@ -158,6 +158,12 @@ impl InferContext {
         self
     }
 
+    /// Override semantic options for this context.
+    pub fn with_options(mut self, options: AnalyzeOptions) -> Self {
+        self.options = options;
+        self
+    }
+
     /// Mark this context as explicitly controlling ownership.
     pub fn with_explicit_ownership(mut self) -> Self {
         self.is_explicit_ownership = true;

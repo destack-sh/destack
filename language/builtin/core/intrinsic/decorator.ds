@@ -87,7 +87,7 @@ export newtype intrinsic = (string,) | ();
 /// ```
 export newtype languageItem = (string,) | ();
 
-/// Forbid managed allocations in a function.
+/// Forbid managed values in a function.
 ///
 /// ```
 /// @noManaged
@@ -95,7 +95,10 @@ export newtype languageItem = (string,) | ();
 /// ```
 export newtype noManaged = ();
 
-/// Forbid all heap allocations in a function (managed or raw).
+/// Forbid managed values in a function.
+///
+/// This is stricter than noManaged and also forbids raw heap allocations
+/// when explicit allocation constructs are available.
 ///
 /// ```
 /// @stackOnly

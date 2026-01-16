@@ -397,6 +397,7 @@ impl Compiler {
                             symbols,
                             types,
                             true,
+                            true,
                         )?,
                     _ => self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?,
                 };
@@ -408,6 +409,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
+                        true,
                         true,
                     )?;
 
@@ -470,6 +472,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                     true,
                 )?;
 
@@ -1925,6 +1928,7 @@ impl Compiler {
                     symbols,
                     types,
                     true,
+                    true,
                 )?;
 
                 // infer the value expression
@@ -1941,6 +1945,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                     true,
                 )?;
 
@@ -1975,6 +1980,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
                     true,
                 )?;
 
@@ -2972,6 +2978,7 @@ impl Compiler {
             tree,
             symbols,
             types,
+            true,
             true,
         )?;
 

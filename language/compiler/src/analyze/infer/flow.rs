@@ -1282,7 +1282,9 @@ impl Compiler {
         }
 
         // fall back to evaluating the expression as a type
-        self.try_evaluate_expression_to_type(module, profile, target_id, tree, symbols, types, true)
+        self.try_evaluate_expression_to_type(
+            module, profile, target_id, tree, symbols, types, true, true,
+        )
     }
 
     /// Unwrap a Type::Value wrapper to a usable guard target.

@@ -485,6 +485,12 @@ Raw pointers are separate from ownership modifiers:
 Managed reference types are collected by the GC.
 Value types only drop when owned or used with `using`.
 
+**Implicit managed defaults:**
+`noImplicitManaged` requires explicit ownership operators anywhere a type or value would otherwise use managed defaults.
+Managed defaults include classes, interfaces, structural object types, arrays, functions, and string-like literals.
+Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both type annotations and inferred values.
+`noManaged` forbids managed defaults entirely, even when explicit ownership operators are present.
+
 **Use after move:**
 
 ```
@@ -3153,6 +3159,11 @@ function oldAPI() { }
 @addrspace("shared")       // type metadata, lowered to explicit address space
 function kernel(data: @addrspace("shared") &Point) { }
 ```
+
+Built-in compiler directives also use newtype decorators:
+- `@noManaged` enforces no-managed semantics for the annotated function signature and body.
+- `@stackOnly` enforces stack-only semantics for the annotated function signature and body.
+`@stackOnly` currently enforces the same managed restrictions as `@noManaged` until explicit heap allocation constructs exist.
 
 ### Comments
 

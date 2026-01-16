@@ -213,7 +213,7 @@ impl Compiler {
 
                 // evaluate the type alias value
                 let declared_ty_id = self.try_evaluate_expression_to_type(
-                    module, profile, *value, tree, symbols, types, true,
+                    module, profile, *value, tree, symbols, types, true, true,
                 )?;
                 types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
 
@@ -698,6 +698,7 @@ impl Compiler {
                     symbols,
                     types,
                     true,
+                    true,
                 )?;
                 self.declare_heritage(
                     module,
@@ -805,6 +806,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
                 true,
             )?;
             let type_symbol = self.unwrap_type_value_symbol(types, ty_id);
@@ -1001,11 +1003,11 @@ impl Compiler {
                     if let Some(DynamicKey::NamedExpression { name, key }) = key {
                         // resolve index signature types
                         let key_type = self.try_evaluate_expression_to_type(
-                            module, profile, *key, tree, symbols, types, true,
+                            module, profile, *key, tree, symbols, types, true, true,
                         )?;
                         let value_type = if let Some(value) = value {
                             self.try_evaluate_expression_to_type(
-                                module, profile, *value, tree, symbols, types, true,
+                                module, profile, *value, tree, symbols, types, true, true,
                             )?
                         } else {
                             let ty = Type::TypeLiteral {
@@ -1036,7 +1038,7 @@ impl Compiler {
                     // resolve the field type
                     let value_ty_id = if let Some(value) = value {
                         let value_ty_id = self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types, true,
+                            module, profile, *value, tree, symbols, types, true, true,
                         )?;
                         types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                         value_ty_id
@@ -1249,11 +1251,11 @@ impl Compiler {
                 // handle index signatures
                 if let Some(DynamicKey::NamedExpression { name, key }) = key {
                     let key_type = self.try_evaluate_expression_to_type(
-                        module, profile, *key, tree, symbols, types, true,
+                        module, profile, *key, tree, symbols, types, true, true,
                     )?;
                     let value_type = if let Some(value) = value {
                         self.try_evaluate_expression_to_type(
-                            module, profile, *value, tree, symbols, types, true,
+                            module, profile, *value, tree, symbols, types, true, true,
                         )?
                     } else {
                         let ty = Type::TypeLiteral {
@@ -1283,7 +1285,7 @@ impl Compiler {
                 // resolve the field type
                 let value_ty_id = if let Some(value) = value {
                     let value_ty_id = self.try_evaluate_expression_to_type(
-                        module, profile, *value, tree, symbols, types, true,
+                        module, profile, *value, tree, symbols, types, true, true,
                     )?;
                     types.set_declared_type(value.into_global_any(module.id), value_ty_id);
                     value_ty_id
@@ -1568,7 +1570,7 @@ impl Compiler {
                     .into_anchored(Some(profile)),
             })?;
             let field_ty_id = self.try_evaluate_expression_to_type(
-                module, profile, value_id, tree, symbols, types, true,
+                module, profile, value_id, tree, symbols, types, true, true,
             )?;
             dynamic_parameters.push(field_ty_id);
         }

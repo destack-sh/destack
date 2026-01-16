@@ -1,3 +1,4 @@
+use destack_dir::SymbolDecorators;
 use destack_source::ModuleId;
 use destack_workspace::{DsConfigCompilerOptions, TsCompilerOptions};
 
@@ -84,6 +85,18 @@ pub struct AnalyzeOptions {
     pub no_proxy: bool,
     /// Require overloads to be statically resolvable (no implicit runtime dispatch).
     pub no_implicit_dynamic_dispatch: bool,
+}
+
+impl AnalyzeOptions {
+    /// Apply symbol decorator overrides to these options.
+    pub fn with_symbol_decorators(mut self, decorators: &SymbolDecorators) -> Self {
+        // force no-managed checks for stack-only or no-managed declarations
+        if decorators.is_no_managed || decorators.is_stack_only {
+            self.no_managed = true;
+        }
+
+        self
+    }
 }
 
 /// Language compatibility options for a module.

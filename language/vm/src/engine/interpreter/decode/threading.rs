@@ -2021,9 +2021,7 @@ fn infer_instruction_kind(
             let aggregate_kind = value_kinds.get(*aggregate)?;
             kind_from_field(tree, aggregate_kind, *index)
         }
-        mir::Instruction::FieldAddr { result_type, .. } => {
-            Some(kind_from_type(tree, *result_type))
-        }
+        mir::Instruction::FieldAddr { result_type, .. } => Some(kind_from_type(tree, *result_type)),
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
         mir::Instruction::ElementGet { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
@@ -2939,9 +2937,7 @@ fn thread_terminator(
         }
 
         mir::Terminator::TailCallIndirect {
-            callee,
-            arguments,
-            ..
+            callee, arguments, ..
         } => {
             let args = push_argument_range(argument_pool, arguments);
             ThreadedInstruction {
