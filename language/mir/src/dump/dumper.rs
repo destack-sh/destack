@@ -143,7 +143,10 @@ impl<'a> Dumper<'a> {
                     format!("u{width}")
                 }
             }
+            Type::Isize => "isize".to_string(),
+            Type::Usize => "usize".to_string(),
             Type::Float { width } => format!("f{width}"),
+            Type::TypeTag => "type_tag".to_string(),
             Type::Reference {
                 kind,
                 address_space,

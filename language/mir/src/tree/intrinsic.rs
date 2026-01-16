@@ -962,7 +962,7 @@ impl Intrinsic {
         match self {
             // reflection: fixed types
             Intrinsic::SizeOf | Intrinsic::AlignOf => IntrinsicResultType::Usize,
-            Intrinsic::TypeOf => IntrinsicResultType::TypeDescriptor,
+            Intrinsic::TypeOf => IntrinsicResultType::TypeTag,
 
             // comparisons: bool
             Intrinsic::RawEq => IntrinsicResultType::Bool,
@@ -1050,7 +1050,7 @@ pub enum IntrinsicResultType {
 
     /// Result type is a type descriptor (Type<T>).
     /// Used for typeof.
-    TypeDescriptor,
+    TypeTag,
 
     /// Result type must be explicitly provided (can't be inferred).
     /// Used for transmute where the target type comes from context.

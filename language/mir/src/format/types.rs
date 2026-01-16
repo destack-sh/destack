@@ -41,9 +41,12 @@ fn format_type_inner<'a>(
             let prefix = if *signed { "i" } else { "u" };
             write!(f, [text(&format!("{prefix}{width}"))])
         }
+        Type::Isize => write!(f, [token("isize")]),
+        Type::Usize => write!(f, [token("usize")]),
         Type::Float { width } => {
             write!(f, [text(&format!("f{width}"))])
         }
+        Type::TypeTag => write!(f, [token("type_tag")]),
         Type::Reference {
             kind,
             address_space,

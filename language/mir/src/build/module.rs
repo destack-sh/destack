@@ -64,6 +64,16 @@ impl ModuleBuilder {
         self.tree.insert(Type::Int { width, signed })
     }
 
+    /// Create a pointer-sized signed integer type.
+    pub fn type_isize(&mut self) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Isize)
+    }
+
+    /// Create a pointer-sized unsigned integer type.
+    pub fn type_usize(&mut self) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Usize)
+    }
+
     /// Create a 32-bit signed integer type.
     pub fn type_i32(&mut self) -> LocalNodeId<Type> {
         self.type_int(32, true)
@@ -97,6 +107,11 @@ impl ModuleBuilder {
     /// Create a 64-bit float type.
     pub fn type_f64(&mut self) -> LocalNodeId<Type> {
         self.type_float(64)
+    }
+
+    /// Create a type tag handle type.
+    pub fn type_type_tag(&mut self) -> LocalNodeId<Type> {
+        self.tree.insert(Type::TypeTag)
     }
 
     /// Create a raw pointer type (manual memory management).

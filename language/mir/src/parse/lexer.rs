@@ -300,7 +300,7 @@ fn is_ident_continue(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '.'
 }
 
-/// Check if string is a type name (i8, i16, i32, i64, u8, u16, u32, u64, f32, f64).
+/// Check if string is a type name (i8, i16, i32, u8, f32, isize, usize).
 fn is_type_name(s: &str) -> bool {
     matches!(
         s,
@@ -317,6 +317,9 @@ fn is_type_name(s: &str) -> bool {
             | "u256"
             | "f32"
             | "f64"
+            | "isize"
+            | "usize"
+            | "type_tag"
     )
 }
 

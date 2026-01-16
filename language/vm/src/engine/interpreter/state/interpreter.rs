@@ -304,6 +304,8 @@ impl<'a> InterpreterContext<'a> {
                     Value::uint(0, width as u8)
                 }
             }
+            mir::Type::Isize => Value::int(0, usize::BITS as u8),
+            mir::Type::Usize => Value::uint(0, usize::BITS as u8),
             mir::Type::Float { width } => {
                 // select float width
                 if width == 32 {
@@ -313,6 +315,7 @@ impl<'a> InterpreterContext<'a> {
                 }
             }
             mir::Type::Boolean => Value::bool(false),
+            mir::Type::TypeTag => Value::uint(0, usize::BITS as u8),
             mir::Type::Tuple {
                 elements,
                 copyability: _,
