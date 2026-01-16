@@ -1,8 +1,5 @@
 mod assert;
-mod cache;
 mod dumper;
-#[path = "../cache/incremental.rs"]
-mod incremental;
 mod resolve;
 mod tests;
 mod tracing;
