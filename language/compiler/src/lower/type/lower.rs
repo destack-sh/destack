@@ -57,6 +57,20 @@ impl TypeLowerer {
         self.layout_cache.get(&ty)
     }
 
+    /// Get the cached layout for a struct type or emit a missing layout error.
+    pub(crate) fn layout_for_type_or_error(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<&StructLayout> {
+        self.layout_cache
+            .get(&ty)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "missing struct layout".to_string(),
+            })
+    }
+
     /// Resolve a field name to its index for a given aggregate type.
     ///
     /// For structs, uses the cached layout. For tuples, parses the numeric field name.
@@ -67,23 +81,31 @@ impl TypeLowerer {
         strings: &StringPool,
         tree: &mir::NodeTree,
     ) -> Option<usize> {
-        let mir_type = tree.get(ty);
-        match mir_type {
-            mir::Type::Struct { .. } => self
-                .layout_for_type(ty)
-                .and_then(|layout| layout.field_index(field_name))
-                .map(|i| i as usize),
-            mir::Type::Tuple {
-                elements,
-                copyability: _,
-            } => {
-                let name_str = strings.get(field_name);
-                name_str
-                    .parse::<usize>()
-                    .ok()
-                    .filter(|&i| i < elements.len())
+        let mut target_ty = ty;
+        loop {
+            let mir_type = tree.get(target_ty);
+            match mir_type {
+                mir::Type::Reference { pointee, .. } => {
+                    target_ty = *pointee;
+                }
+                mir::Type::Struct { .. } => {
+                    return self
+                        .layout_for_type(target_ty)
+                        .and_then(|layout| layout.field_index(field_name))
+                        .map(|i| i as usize);
+                }
+                mir::Type::Tuple {
+                    elements,
+                    copyability: _,
+                } => {
+                    let name_str = strings.get(field_name);
+                    return name_str
+                        .parse::<usize>()
+                        .ok()
+                        .filter(|&i| i < elements.len());
+                }
+                _ => return None,
             }
-            _ => None,
         }
     }
 
@@ -158,8 +180,16 @@ impl TypeLowerer {
                     }
                 })?;
                 // recursively lower the instance type
-                let mir_type =
+                let instance_type =
                     self.lower_type(types, instance_type_id, module_id, node, builder)?;
+
+                // wrap class instance types in a managed reference
+                let mir_type = if symbol.ty() == dir::SymbolType::Class {
+                    builder.type_managed_reference(instance_type)
+                } else {
+                    instance_type
+                };
+
                 // cache this reference type id as well so we don't re-resolve next time
                 self.type_cache.insert(type_id, mir_type);
                 return Ok(mir_type);

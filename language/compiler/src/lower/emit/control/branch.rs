@@ -30,13 +30,7 @@ impl FunctionContext<'_> {
         self.check_type_is_bool(condition_id, condition_type, "conditional expression")?;
 
         // get the result type from the expression
-        let result_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let result_type = self.mir_type_for_expression(expression_id)?;
 
         // create blocks for each branch
         let then_block = self.builder.create_block();

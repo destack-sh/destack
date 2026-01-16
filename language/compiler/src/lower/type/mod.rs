@@ -3,6 +3,7 @@ mod builtin;
 mod layout;
 mod lower;
 mod nominal;
+mod query;
 mod resolve;
 mod scalar;
 

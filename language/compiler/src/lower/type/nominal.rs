@@ -53,10 +53,6 @@ impl ModuleLowerer<'_> {
 
         // collect field inputs from declaration members
         let field_inputs = self.collect_nominal_field_inputs(symbol)?;
-        if field_inputs.is_empty() {
-            return Ok(());
-        }
-
         // compute and cache the layout for this instance type
         let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
         let mir_type = self
@@ -66,6 +62,39 @@ impl ModuleLowerer<'_> {
         self.type_lowerer
             .type_cache
             .insert(instance_type_id, mir_type);
+
+        // predeclare nominal reference types for class symbols
+        if symbol.ty() == destack_dir::SymbolType::Class {
+            let source = self.types.get_type_source(instance_type_id);
+            let anchor = source
+                .into_global(self.module_id)
+                .into_anchored(Some(self.profile));
+            let reference_type_ids = self.nominal_reference_type_ids_for_symbol(symbol);
+            if reference_type_ids.is_empty() {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "class missing nominal reference type".to_string(),
+                });
+            }
+
+            for reference_type_id in reference_type_ids {
+                if self
+                    .type_lowerer
+                    .type_cache
+                    .contains_key(&reference_type_id)
+                {
+                    continue;
+                }
+
+                let _ = self.type_lowerer.lower_type(
+                    self.types,
+                    reference_type_id,
+                    self.module_id,
+                    anchor,
+                    &mut self.builder,
+                )?;
+            }
+        }
 
         Ok(())
     }

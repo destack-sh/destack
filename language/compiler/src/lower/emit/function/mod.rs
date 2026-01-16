@@ -1,3 +1,6 @@
+mod constructor;
+mod statement;
+
 use std::collections::HashMap;
 
 use destack_base::StringPool;
@@ -11,6 +14,7 @@ use crate::{LowerError, LowerResult};
 use super::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
 use crate::lower::r#type::TypeLowerer;
+use constructor::ConstructorState;
 
 /// Mutable context for lowering a single function body into MIR.
 ///
@@ -51,6 +55,8 @@ pub(crate) struct FunctionContext<'a> {
     pub(crate) break_stack: Vec<BreakContext>,
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
+    /// Track constructor state when lowering a constructor body.
+    pub(crate) constructor_state: Option<ConstructorState>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -87,6 +93,7 @@ impl<'a> FunctionContext<'a> {
             loop_stack: Vec::new(),
             break_stack: Vec::new(),
             this_binding: None,
+            constructor_state: None,
         }
     }
 
@@ -185,6 +192,12 @@ impl<'a> FunctionContext<'a> {
             } => {
                 self.lower_call_expression(expression_id, left, dynamic_arguments, static_arguments)
             }
+
+            Expression::New {
+                static_arguments,
+                dynamic_arguments,
+                ..
+            } => self.lower_new_expression(expression_id, static_arguments, dynamic_arguments),
 
             Expression::TupleExpression { elements } => {
                 self.lower_tuple_expression(expression_id, elements)
@@ -307,13 +320,7 @@ impl<'a> FunctionContext<'a> {
         let (value, _) = self.lower_value_expression(value_id)?;
 
         // resolve the target type for the cast
-        let target_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let target_type = self.mir_type_for_expression(expression_id)?;
 
         // pick the mir cast operator
         let mir_operator = self.lower_cast_operator(expression_id, operator, value_id)?;
@@ -346,13 +353,7 @@ impl<'a> FunctionContext<'a> {
         let (right_value, _) = self.lower_value_expression(right)?;
 
         // get result type
-        let result_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let result_type = self.mir_type_for_expression(expression_id)?;
 
         // emit binary operation
         let op = self.lower_binary_operator(expression_id, operator, left)?;
@@ -375,9 +376,91 @@ impl<'a> FunctionContext<'a> {
         left: LocalNodeId<Expression>,
         right: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve the assignment target
-        let target_symbol = match self.dir_tree.get(left) {
-            Expression::LocalReference { target_symbol, .. } => *target_symbol,
+        // lower the assigned value
+        let (value, value_type) = self.lower_value_expression(right)?;
+
+        // update the assignment target
+        match self.dir_tree.get(left) {
+            Expression::LocalReference { target_symbol, .. } => {
+                // resolve the target binding
+                let binding = self.local_binding_for_symbol(left, *target_symbol)?;
+
+                // update the variable binding
+                self.builder.define_variable(binding.variable, value);
+            }
+            Expression::Member {
+                left: receiver_id,
+                name,
+                static_arguments,
+            } => {
+                // reject static arguments on assignment
+                if static_arguments.is_some() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "static arguments on member assignment not supported".to_string(),
+                    });
+                }
+
+                // only support assignments to this fields in constructors
+                let receiver = self.dir_tree.get(*receiver_id);
+                if !matches!(receiver, Expression::This) {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "unsupported assignment target".to_string(),
+                    });
+                }
+
+                // require a constructor context for this assignment
+                if self.constructor_state.is_none() {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "assignment to this fields is only supported in constructors"
+                            .to_string(),
+                    });
+                }
+
+                // resolve the this binding
+                let binding =
+                    self.this_binding
+                        .ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
+                            message: "this reference outside of constructor context".to_string(),
+                        })?;
+
+                // resolve the field index for this assignment
+                let field_index = self
+                    .type_lowerer
+                    .field_index_for_type(binding.ty, *name, self.strings, self.builder.tree())
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "field not found in aggregate type".to_string(),
+                    })?;
+
+                // update the aggregate value
+                let current = self.builder.use_variable(binding.variable);
+                match self.builder.tree().get(binding.ty) {
+                    mir::Type::Reference { .. } => {
+                        let aggregate = self.builder.load(current);
+                        let updated = self.builder.field_set(aggregate, field_index as u32, value);
+                        self.builder.store(current, updated);
+                    }
+                    _ => {
+                        let updated = self.builder.field_set(current, field_index as u32, value);
+                        self.builder.define_variable(binding.variable, updated);
+                    }
+                };
+                self.mark_constructor_field_initialized(field_index as u32);
+            }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -386,14 +469,7 @@ impl<'a> FunctionContext<'a> {
                     message: "unsupported assignment target".to_string(),
                 })?;
             }
-        };
-        let binding = self.local_binding_for_symbol(left, target_symbol)?;
-
-        // lower the assigned value
-        let (value, value_type) = self.lower_value_expression(right)?;
-
-        // update the variable binding
-        self.builder.define_variable(binding.variable, value);
+        }
 
         Ok((value, value_type))
     }

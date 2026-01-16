@@ -609,6 +609,8 @@ function getFirst(v: int32[] | Vec2): int32 {
 
 Calls that Analyze resolves as nominal constructors become tagged expressions in DIR.
 This preserves newtype and nominal struct intent for Lower and codegen.
+Tagged object literals (`Type { ... }`) are already bound as `TaggedObjectExpression`.
+Reify only needs to handle call-form constructors (primarily newtypes).
 
 ```ds
 newtype UserId = int64;

@@ -1,4 +1,6 @@
-use destack_dir::{Expression, LocalNodeId};
+use std::collections::HashSet;
+
+use destack_dir::{AnchoredGlobalNodeId, Expression, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, StructLayout};
@@ -13,13 +15,7 @@ impl FunctionContext<'_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the tuple type
-        let tuple_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let tuple_type = self.mir_type_for_expression(expression_id)?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -53,13 +49,7 @@ impl FunctionContext<'_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the array type
-        let array_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let array_type = self.mir_type_for_expression(expression_id)?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -94,24 +84,15 @@ impl FunctionContext<'_> {
         properties: &[LocalNodeId<dir::Property>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the struct type from type inference
-        let struct_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let struct_type = self.mir_type_for_expression(expression_id)?;
 
         // get the cached layout for this struct type
-        let layout = self
-            .type_lowerer
-            .layout_for_type(struct_type)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: "missing struct layout".to_string(),
-            })?;
+        let layout = self.type_lowerer.layout_for_type_or_error(
+            struct_type,
+            expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile)),
+        )?;
 
         // initialize field values array (one slot per field in layout order)
         let field_count = layout.fields.len();
@@ -197,6 +178,278 @@ impl FunctionContext<'_> {
         Ok((value, struct_type))
     }
 
+    /// Lower a constructor call expression to a struct value.
+    pub(crate) fn lower_new_expression(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        static_arguments: &Option<Vec<LocalNodeId<dir::Argument>>>,
+        dynamic_arguments: &[LocalNodeId<dir::Argument>],
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // reject static arguments for now
+        if static_arguments
+            .as_ref()
+            .is_some_and(|args| !args.is_empty())
+        {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "static arguments are not supported".to_string(),
+            });
+        }
+
+        // get the instance type from type inference
+        let result_type = self.mir_type_for_expression(expression_id)?;
+        let (instance_type, reference_kind) = match self.builder.tree().get(result_type) {
+            mir::Type::Reference { kind, pointee, .. } => (*pointee, Some(*kind)),
+            _ => (result_type, None),
+        };
+
+        // call explicit constructors when present
+        if let Some(constructor_id) = self.explicit_constructor_member_for_expression(expression_id)
+        {
+            let constructor = self.dir_tree.get(constructor_id);
+            let dir::Member::Method { symbol, .. } = constructor else {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: constructor_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "unsupported constructor member".to_string(),
+                });
+            };
+
+            let constructor_symbol = symbol.into_global(self.module_id);
+            let function_id = *self
+                .functions_by_symbol
+                .get(&constructor_symbol)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: constructor_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "missing constructor function".to_string(),
+                })?;
+
+            // lower constructor arguments
+            let mut arguments = Vec::with_capacity(dynamic_arguments.len());
+            for argument_id in dynamic_arguments {
+                let argument = self.dir_tree.get(*argument_id);
+                if !matches!(argument, dir::Argument::Positional { .. }) {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                        message: "unsupported non positional constructor argument".to_string(),
+                    });
+                }
+                let (value, _) = self.lower_value_expression(argument.value())?;
+                arguments.push(value);
+            }
+
+            // emit the constructor call
+            let value = self.builder.call(function_id, arguments).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor returned no value".to_string(),
+                }
+            })?;
+
+            return Ok((value, result_type));
+        }
+
+        // get the cached layout for this struct type
+        let layout = self.type_lowerer.layout_for_type_or_error(
+            instance_type,
+            expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile)),
+        )?;
+
+        // match arguments to fields in source order
+        let field_count = layout.fields.len();
+        if dynamic_arguments.len() != field_count {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: "constructor argument count does not match field count".to_string(),
+            });
+        }
+
+        // initialize field values array in layout order
+        let mut field_values: Vec<Option<mir::Value>> = vec![None; field_count];
+        for (source_index, argument_id) in dynamic_arguments.iter().enumerate() {
+            let argument = self.dir_tree.get(*argument_id);
+            let dir::Argument::Positional { value, .. } = argument else {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "unsupported non positional constructor argument".to_string(),
+                });
+            };
+
+            // lower the argument value
+            let (value, _) = self.lower_value_expression(*value)?;
+
+            // map source index to layout index
+            let layout_index = layout
+                .field_index_by_source(source_index as u32)
+                .map(|index| index as usize)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor field index out of bounds".to_string(),
+                })?;
+
+            // check for duplicate field assignment
+            if field_values[layout_index].is_some() {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "duplicate constructor field".to_string(),
+                });
+            }
+
+            field_values[layout_index] = Some(value);
+        }
+
+        // check all fields are initialized
+        let values: Vec<mir::Value> = field_values
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| {
+                value.ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: format!("constructor field {index} not initialized"),
+                })
+            })
+            .collect::<LowerResult<Vec<_>>>()?;
+
+        // construct the struct
+        let instance_value = self.builder.struct_(instance_type, values);
+        let value = match reference_kind {
+            Some(mir::ReferenceKind::Managed) => {
+                let pointer = self.builder.managed_alloc(instance_type);
+                self.builder.store(pointer, instance_value);
+                pointer
+            }
+            Some(_) => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "unsupported reference kind for constructor".to_string(),
+                });
+            }
+            None => instance_value,
+        };
+        Ok((value, result_type))
+    }
+
+    /// Build a zero value for a MIR type.
+    pub(crate) fn zero_value_for_type(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // initialize recursion guard
+        let mut visiting = HashSet::new();
+
+        // compute the zero value
+        self.zero_value_for_type_inner(ty, node, &mut visiting)
+    }
+
+    /// Build a zero value for a MIR type with a recursion guard.
+    fn zero_value_for_type_inner(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+        visiting: &mut HashSet<mir::LocalNodeId<mir::Type>>,
+    ) -> LowerResult<mir::Value> {
+        // guard against recursive constructor initialization
+        if !visiting.insert(ty) {
+            return Err(LowerError::UnsupportedConstruct {
+                node,
+                message: "recursive constructor initialization not supported".to_string(),
+            });
+        }
+
+        // build the zero value for the requested type
+        let mir_type = self.builder.tree().get(ty).clone();
+        let value = match mir_type {
+            mir::Type::Void => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "constructor cannot initialize void field".to_string(),
+                });
+            }
+            mir::Type::Boolean => self.builder.bconst(false),
+            mir::Type::Int { width, signed } => {
+                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "unsupported integer width for constructor initialization".to_string(),
+                })?;
+                self.builder.iconst(0, width, signed)
+            }
+            mir::Type::Float { width } => {
+                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
+                    node,
+                    message: "unsupported float width for constructor initialization".to_string(),
+                })?;
+                self.builder.fconst(0.0, width)
+            }
+            mir::Type::Reference { .. } => {
+                let pointer_bits = self.type_lowerer.pointer_bytes() * 8;
+                let zero = self.builder.iconst(0, pointer_bits, false);
+                self.builder.cast(mir::CastOperator::IntToPointer, zero, ty)
+            }
+            mir::Type::Array {
+                element, length, ..
+            } => {
+                let length =
+                    usize::try_from(length).map_err(|_| LowerError::UnsupportedConstruct {
+                        node,
+                        message: "array too large for constructor initialization".to_string(),
+                    })?;
+                let mut elements = Vec::with_capacity(length);
+                for _ in 0..length {
+                    elements.push(self.zero_value_for_type_inner(element, node, visiting)?);
+                }
+                self.builder.array(ty, elements)
+            }
+            mir::Type::Tuple { elements, .. } => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements {
+                    values.push(self.zero_value_for_type_inner(element, node, visiting)?);
+                }
+                self.builder.tuple(ty, values)
+            }
+            mir::Type::Struct { .. } => {
+                let layout = self.type_lowerer.layout_for_type_or_error(ty, node)?;
+                let mut values = Vec::with_capacity(layout.fields.len());
+                for field in &layout.fields {
+                    values.push(self.zero_value_for_type_inner(field.ty, node, visiting)?);
+                }
+                self.builder.struct_(ty, values)
+            }
+            mir::Type::FunctionPointer { .. } => {
+                let pointer_bits = self.type_lowerer.pointer_bytes() * 8;
+                let zero = self.builder.iconst(0, pointer_bits, false);
+                self.builder.cast(mir::CastOperator::IntToPointer, zero, ty)
+            }
+        };
+
+        // clear recursion guard
+        visiting.remove(&ty);
+        Ok(value)
+    }
+
     /// Resolve a property key to a field index in the struct using the cached layout.
     fn resolve_property_key_to_field_index(
         &self,
@@ -248,5 +501,93 @@ impl FunctionContext<'_> {
                 })
             }
         }
+    }
+
+    /// Find an explicit constructor member for the expression type when present.
+    fn explicit_constructor_member_for_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<LocalNodeId<dir::Member>> {
+        // resolve the nominal symbol for constructor lookup
+        let type_id = self.dir_type_for_expression(expression_id)?;
+        let symbol = match self.types.get_type(type_id) {
+            dir::Type::Reference { symbol, .. } => *symbol,
+            _ => return None,
+        };
+
+        // skip remote symbols
+        if symbol.module_id != self.module_id {
+            return None;
+        }
+
+        self.explicit_constructor_member_for_symbol(symbol)
+    }
+
+    /// Find explicit constructor members for a nominal symbol.
+    fn explicit_constructor_member_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<LocalNodeId<dir::Member>> {
+        // scan declarations for explicit constructors
+        let declaration_ids = self.declaration_ids_for_symbol(symbol);
+        for declaration_id in declaration_ids {
+            let declaration = self.dir_tree.get(declaration_id);
+            let members = match declaration {
+                dir::Declaration::Struct { members, .. }
+                | dir::Declaration::Class { members, .. } => members,
+                _ => continue,
+            };
+
+            for member_id in members {
+                let member = self.dir_tree.get(*member_id);
+                let dir::Member::Method { key, signature, .. } = member else {
+                    continue;
+                };
+
+                // constructors are nameless methods with constructor or new mode
+                if key.is_none()
+                    && matches!(
+                        signature.mode,
+                        Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)
+                    )
+                {
+                    return Some(*member_id);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Collect declaration ids that belong to a symbol in this module.
+    fn declaration_ids_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Vec<LocalNodeId<dir::Declaration>> {
+        // read the symbol entry for declaration lists
+        let symbol_entry = self.symbols.get_symbol(symbol.local_id);
+        let mut declaration_ids = Vec::new();
+
+        // add the primary declaration first
+        if let Some(primary) = symbol_entry.primary_declaration
+            && primary.module_id == self.module_id
+            && let Ok(local_id) = primary.local_id.try_into_typed::<dir::Declaration>()
+        {
+            declaration_ids.push(local_id);
+        }
+
+        // add secondary declarations in order
+        if let Some(secondary) = symbol_entry.secondary_declarations.as_deref() {
+            for declaration_id in secondary {
+                if declaration_id.module_id != self.module_id {
+                    continue;
+                }
+                if let Ok(local_id) = declaration_id.local_id.try_into_typed::<dir::Declaration>() {
+                    declaration_ids.push(local_id);
+                }
+            }
+        }
+
+        declaration_ids
     }
 }

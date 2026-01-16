@@ -146,13 +146,7 @@ impl FunctionContext<'_> {
         }
 
         // get result type
-        let result_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let result_type = self.mir_type_for_expression(expression_id)?;
 
         // emit call with metadata when we have a static resolution
         let value = if static_target.is_some() {

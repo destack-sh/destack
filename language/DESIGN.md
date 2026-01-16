@@ -598,11 +598,12 @@ parse(User, data);  // User IS the Type (schema)
 Runtime type identity (RTTI) is demand-driven.
 The compiler only emits RTTI for types that are used at runtime.
 Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
-Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
-unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
-property rather than a global WeakMap, preserving "plain object" semantics.
+Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
+Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
+Structs are pure data unless RTTI is required by usage.
+On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
 Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
-Classes reach RTTI via vtable slot 0, while thin pointers without tags recover RTTI via GC metadata.
+Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
 
 ## Dispatch
 

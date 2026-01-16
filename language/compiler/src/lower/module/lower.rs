@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, LocalSymbolId};
+use destack_dir::{GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, TaskDependencyError};
+use crate::LowerResult;
 
 use crate::lower::item::GlobalBinding;
 use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
@@ -58,7 +58,14 @@ impl<'a> ModuleLowerer<'a> {
         target: &'a TargetId,
         pointer_bytes: u8,
     ) -> Self {
+        // initialize the module builder
         let mut builder = mir::ModuleBuilder::new();
+
+        // seed the mir string pool with program strings
+        let strings = compiler.program.strings.as_ref().clone().into_immutable();
+        builder.strings().copy_from_immutable(&strings);
+
+        // create the type lowerer
         let type_lowerer = TypeLowerer::new(&mut builder, pointer_bytes);
 
         Self {
@@ -124,204 +131,9 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Predeclare external functions referenced by this module.
-    fn predeclare_external_calls(&mut self) -> LowerResult<()> {
-        for (expression_id, expression) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
-            let dir::Expression::Call { .. } = expression else {
-                continue;
-            };
-
-            let node_id = expression_id.into_global_any(self.module_id);
-            let Some(resolution_id) = self.types.get_resolution_for_node(node_id) else {
-                continue;
-            };
-            let resolution = self.types.get_resolution(resolution_id);
-            let dir::Resolution::Static { candidate, .. } = resolution else {
-                continue;
-            };
-            let target_symbol = candidate.target_symbol;
-            if target_symbol.module_id == self.module_id {
-                continue;
-            }
-            if self.functions_by_symbol.contains_key(&target_symbol) {
-                continue;
-            }
-
-            let Some(signature) = candidate.resolved_signature.as_ref() else {
-                return Err(LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                    message: "missing resolved signature for external call".to_string(),
-                });
-            };
-
-            self.ensure_external_function(expression_id, target_symbol, signature)?;
-        }
-
-        Ok(())
-    }
-
-    /// Ensure an external function is declared for a call target.
-    fn ensure_external_function(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-        target_symbol: GlobalSymbolId,
-        signature: &dir::ResolvedSignature,
-    ) -> LowerResult<()> {
-        if self.functions_by_symbol.contains_key(&target_symbol) {
-            return Ok(());
-        }
-
-        let extern_name = self
-            .extern_name_for_symbol(expression_id, target_symbol)?
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: "missing @extern binding for call target".to_string(),
-            })?;
-
-        let anchor = expression_id
-            .into_global_any(self.module_id)
-            .into_anchored(Some(self.profile));
-
-        let mut parameter_types = Vec::with_capacity(signature.dynamic_parameters.len());
-        for type_id in &signature.dynamic_parameters {
-            let parameter_type = self.type_lowerer.lower_type(
-                self.types,
-                *type_id,
-                self.module_id,
-                anchor,
-                &mut self.builder,
-            )?;
-            parameter_types.push(parameter_type);
-        }
-
-        let return_type = match signature.return_type {
-            Some(return_type) => self.type_lowerer.lower_type(
-                self.types,
-                return_type,
-                self.module_id,
-                anchor,
-                &mut self.builder,
-            )?,
-            None => self.type_lowerer.ty_void,
-        };
-
-        let function_id = self
-            .builder
-            .extern_function(&extern_name, &parameter_types, return_type);
-        self.functions_by_symbol.insert(target_symbol, function_id);
-
-        Ok(())
-    }
-
-    /// Resolve the extern binding name for a symbol, if any.
-    fn extern_name_for_symbol(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        symbol: GlobalSymbolId,
-    ) -> LowerResult<Option<String>> {
-        self.require_analyzed_module(symbol.module_id)?;
-
-        let module = self.compiler.program.modules.get(symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(self.profile);
-        let symbols = dir.symbols.read();
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let Some(binding) = symbol_entry.decorators.extern_binding.as_ref() else {
-            return Ok(None);
-        };
-
-        if let Some(name) = binding.name {
-            return Ok(Some(self.compiler.program.strings.get(name).to_string()));
-        }
-
-        let default_name = symbol_entry
-            .name()
-            .map(|name| self.compiler.program.strings.get(name).to_string())
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: "extern symbol is missing a name".to_string(),
-            })?;
-
-        Ok(Some(default_name))
-    }
-
-    /// Ensure the module has been analyzed for this profile.
-    fn require_analyzed_module(&self, module_id: ModuleId) -> LowerResult<()> {
-        let result = self
-            .compiler
-            .require_analyze_module(module_id, self.profile);
-        let Err(error) = result else {
-            return Ok(());
-        };
-
-        match error {
-            TaskDependencyError::NotReady { dependency } => Err(LowerError::Yield { dependency }),
-            TaskDependencyError::Failed { dependency } => {
-                Err(LowerError::UnsatisfiedDependency { dependency })
-            }
-        }
-    }
-
     /// Finish the module lowering process and return the resulting MIR tree and string pool.
     pub(crate) fn finish(self) -> (mir::NodeTree, StringPool) {
         self.builder.finish_mutable()
-    }
-
-    /// Get the name of a symbol as a String.
-    pub(crate) fn get_symbol_name(&self, symbol_id: LocalSymbolId) -> Option<String> {
-        let symbol = self.symbols.get_symbol(symbol_id);
-        symbol
-            .name()
-            .map(|n| self.compiler.program.strings.get(n).to_string())
-    }
-
-    /// Get the name of a symbol, returning an error if it has no name.
-    pub(crate) fn symbol_name(
-        &self,
-        symbol_id: LocalSymbolId,
-        node: GlobalNodeIdAny,
-    ) -> LowerResult<String> {
-        self.get_symbol_name(symbol_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: node.into_anchored(Some(self.profile)),
-                message: "symbol must have a name".to_string(),
-            })
-    }
-
-    /// Lower a root expression.
-    pub(crate) fn lower_root_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> LowerResult<()> {
-        let expression = self.dir_tree.get(expression_id);
-        match expression {
-            Expression::Declaration { declaration } => {
-                let declaration_id = *declaration;
-                let declaration = self.dir_tree.get(declaration_id);
-                self.lower_declaration(declaration_id, declaration)
-            }
-            Expression::Statement { statement } => {
-                // unwrap statement wrapper and process the inner expression
-                self.lower_root_expression(*statement)
-            }
-            Expression::Let {
-                mutability,
-                declarators,
-                ..
-            } => self.lower_module_let(expression_id, *mutability, declarators),
-            _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile)),
-                message: format!("unsupported root expression `{}`", expression.kind_name()),
-            })?,
-        }
     }
 
     /// Initialize the canonical string type from builtin definitions.
