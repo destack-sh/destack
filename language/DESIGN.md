@@ -54,6 +54,7 @@ This mindest also extends to the features Destack extends TypeScript with:
 Destack treats interactive workflows as first class language use cases.
 REPLs and notebooks use the same compiler pipeline and VM as production code.
 Incremental compilation relies on module signatures and profile versions to keep latency low without query systems.
+The compiler, daemon, and LSP share a canonical cache format, with sidecars for consumer-specific metadata.
 
 
 ## Expressions

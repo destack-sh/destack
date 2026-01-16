@@ -10,6 +10,8 @@ use crate::*;
 pub struct DumperOptions {
     /// Use colors.
     pub use_colors: bool = true,
+    /// Include node ids in output.
+    pub include_node_ids: bool = true,
 }
 
 /// A Dumper for dumping DIR nodes.
@@ -248,7 +250,9 @@ impl<'d, 'p> StructDumper<'d, 'p> {
         if self.has_fields {
             self.dumper.write_str(" }", Some(Color::White));
         }
-        if let Some(node_id) = self.node_id {
+        if let Some(node_id) = self.node_id
+            && self.dumper.options.include_node_ids
+        {
             self.dumper
                 .write_str(format!(" :{node_id}").as_str(), Some(Color::White));
             self.dumper.write_str("\n", Some(Color::White));

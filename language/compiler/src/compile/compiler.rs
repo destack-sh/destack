@@ -4,6 +4,7 @@ use std::thread;
 
 use dashmap::DashMap;
 
+use destack_base::ImmutableStringPool;
 use destack_source::{DiagnosticCollector, DiagnosticOptions, DiagnosticSeverity, ModuleId, Uri};
 use destack_workspace::{Builtins, Program, Session, Target};
 use parking_lot::Mutex;
@@ -166,10 +167,20 @@ pub struct Compiler {
     pub stats: Arc<CompilerStats>,
     /// Cache registry for compiler artifacts.
     pub cache: CacheRegistry,
+    /// Snapshot of strings for signature hashing.
+    signature_strings: Mutex<Option<CompilerStringSnapshot>>,
 
     /// Locks for serializing module creation per (URI, loader) pair.
     /// The loader salt distinguishes imports with non-default loaders.
     import_locks: DashMap<(Uri, Option<String>), Arc<Mutex<Option<ModuleId>>>>,
+}
+
+#[derive(Debug)]
+struct CompilerStringSnapshot {
+    /// The string pool size used for this snapshot.
+    string_count: usize,
+    /// The immutable string snapshot.
+    strings: Arc<ImmutableStringPool>,
 }
 
 impl std::fmt::Debug for Compiler {
@@ -201,6 +212,7 @@ impl Compiler {
             import_locks: DashMap::new(),
             stats: Arc::new(CompilerStats::new()),
             cache: CacheRegistry::new(),
+            signature_strings: Mutex::new(None),
         }
     }
 
@@ -210,6 +222,25 @@ impl Compiler {
         if let Some(handler) = &self.options.event_handler {
             handler(event);
         }
+    }
+
+    /// Get an immutable string snapshot for signature hashing.
+    pub(crate) fn signature_strings(&self) -> Arc<ImmutableStringPool> {
+        // snapshot when the pool grows
+        let string_count = self.program.strings.len();
+        let mut snapshot = self.signature_strings.lock();
+        if let Some(snapshot) = snapshot.as_ref()
+            && snapshot.string_count == string_count
+        {
+            return snapshot.strings.clone();
+        }
+
+        let strings = Arc::new(self.program.strings.as_ref().clone().into_immutable());
+        *snapshot = Some(CompilerStringSnapshot {
+            string_count,
+            strings: strings.clone(),
+        });
+        strings
     }
 
     /// Get the builtins (if loaded in program).

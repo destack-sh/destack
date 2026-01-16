@@ -58,6 +58,8 @@ Downstream modules are re analyzed only when the signatures they import change.
 Caching policies are part of dsconfig and are folded into cache keys.
 Cache keys include the module file version, profile version, canonical config hash, and target hash.
 Cache format mismatches are treated as cache misses and do not fail compilation.
+The workspace uses the canonical cache format shared by compiler, daemon, and LSP.
+Consumer-specific metadata is stored in sidecar files keyed by the same cache key.
 
 ### File Watching
 

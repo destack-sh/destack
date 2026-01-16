@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_source::{FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion};
 use destack_workspace::{CacheMode, CachePolicy, CacheScope, CacheValidate, ModuleAst};
 
-use crate::{CacheContext, CacheRegistry, CacheSettings};
+use crate::{CacheContext, CacheOptions, CacheRegistry};
 
 /// Cache entries roundtrip through disk storage.
 #[test]
@@ -18,7 +18,7 @@ fn test_cache_roundtrip_disk() {
     std::fs::create_dir_all(&cache_root)
         .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
 
-    let settings = CacheSettings {
+    let options = CacheOptions {
         mode: CacheMode::Disk,
         dir: cache_root.clone(),
         policy: CachePolicy::Lru,
@@ -40,18 +40,18 @@ fn test_cache_roundtrip_disk() {
 
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&settings, &context, module_id, payload.clone())
+        .write_ast_cache(&options, &context, module_id, payload.clone())
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&settings, &context, module_id)
+        .read_ast_cache(&options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
     let fresh_registry = CacheRegistry::new();
     let entry = fresh_registry
-        .read_ast_cache(&settings, &context, module_id)
+        .read_ast_cache(&options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
 
     // assertion block
@@ -63,7 +63,7 @@ fn test_cache_roundtrip_disk() {
 /// Memory cache entries roundtrip within the same registry.
 #[test]
 fn test_cache_roundtrip_memory() {
-    let settings = CacheSettings {
+    let options = CacheOptions {
         mode: CacheMode::Memory,
         dir: std::env::temp_dir(),
         policy: CachePolicy::Lru,
@@ -85,19 +85,19 @@ fn test_cache_roundtrip_memory() {
 
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&settings, &context, module_id, payload)
+        .write_ast_cache(&options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&settings, &context, module_id)
+        .read_ast_cache(&options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
     // assertion block
     let fresh_registry = CacheRegistry::new();
     let entry = fresh_registry
-        .read_ast_cache(&settings, &context, module_id)
+        .read_ast_cache(&options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(
         entry.is_none(),
@@ -118,7 +118,7 @@ fn test_cache_miss_on_context_change() {
     std::fs::create_dir_all(&cache_root)
         .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
 
-    let settings = CacheSettings {
+    let options = CacheOptions {
         mode: CacheMode::Disk,
         dir: cache_root.clone(),
         policy: CachePolicy::Lru,
@@ -140,7 +140,7 @@ fn test_cache_miss_on_context_change() {
 
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&settings, &context, module_id, payload)
+        .write_ast_cache(&options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     let mismatched_context = CacheContext {
@@ -155,7 +155,7 @@ fn test_cache_miss_on_context_change() {
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&settings, &mismatched_context, module_id)
+        .read_ast_cache(&options, &mismatched_context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(
         entry.is_none(),

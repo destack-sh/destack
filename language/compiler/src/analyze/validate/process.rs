@@ -31,7 +31,10 @@ impl Compiler {
         profile: ProfileId,
     ) -> AnalyzeResult<()> {
         self.require_analyze_module_infer(module_id, profile)?;
+
+        // update signature for non-code modules and skip validation
         if !self.is_code_module(module_id) {
+            self.update_module_signature(module_id, profile)?;
             return Ok(());
         }
 
@@ -62,9 +65,11 @@ impl Compiler {
             self.validate_member(&module, profile, &tree, id, member);
         }
 
-        // validate option-dependent checks
+        // validate option dependent checks
         self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
 
+        // update module signature after validation
+        self.update_module_signature(module_id, profile)?;
         Ok(())
     }
 }
