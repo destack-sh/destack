@@ -61,9 +61,7 @@ pub enum TypeKey {
         result: Box<TypeKey>,
     },
     /// Recursive reference to a previously visited type id.
-    Recursive {
-        id: mir::LocalNodeId<mir::Type>,
-    },
+    Recursive { id: mir::LocalNodeId<mir::Type> },
 }
 
 impl TypeKey {
@@ -453,10 +451,7 @@ mod tests {
             TypeKey::from_type(float64_id, &tree),
             TypeKey::Float { width: 64 }
         );
-        assert_eq!(
-            TypeKey::from_type(type_tag_id, &tree),
-            TypeKey::TypeTag
-        );
+        assert_eq!(TypeKey::from_type(type_tag_id, &tree), TypeKey::TypeTag);
     }
 
     /// Scalar types are identified as scalar.

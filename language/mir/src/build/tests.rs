@@ -1,4 +1,6 @@
-use crate::{AddressSpace, Copyability, MirFormatOptions, Mutability, ReferenceKind, Type, format_mir};
+use crate::{
+    AddressSpace, Copyability, MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
+};
 
 use super::ModuleBuilder;
 
