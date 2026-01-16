@@ -405,7 +405,10 @@ newtype Type =
     | Void
     | Boolean
     | Int { width: uint16, signed: bool }
+    | Isize
+    | Usize
     | Float { width: uint16 }
+    | TypeTag
     | Reference { kind: ReferenceKind, addressSpace: AddressSpace, mutability: Mutability, pointee: Type, isNullable: bool }
     | Array { element: Type, length: uint64 }
     | Tuple { elements: Type[] }
@@ -414,8 +417,16 @@ newtype Type =
 ```
 
 Structs include byte offsets for each field.
-Layout is fully computed.
-This is what makes MIR "machine-level": no abstract sizes, everything is concrete.
+Layout is computed against a target data layout.
+This makes MIR "machine-level" while remaining target flexible.
+
+Pointer sized integer types are modeled explicitly.
+`isize` is a signed integer with the target pointer width.
+`usize` is an unsigned integer with the target pointer width.
+Their concrete widths are resolved from the target data layout.
+
+`TypeTag` is an opaque handle that points to a `TypeDescriptor` record.
+It is pointer sized and comparable for equality.
 
 References carry a kind _and_ mutability:
 - `managed` for auto-managed references

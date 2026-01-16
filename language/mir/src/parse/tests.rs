@@ -33,6 +33,16 @@ block0:
 }
 
 #[test]
+fn test_roundtrip_pointer_sized_types() {
+    roundtrip(
+        r#"function @pointerSized(v0: isize, v1: usize, v2: type_tag) -> isize {
+block0(v0: isize, v1: usize, v2: type_tag):
+    return v0
+}"#,
+    );
+}
+
+#[test]
 fn test_roundtrip_branch() {
     roundtrip(
         r#"function @select(v0: bool) -> i32 {

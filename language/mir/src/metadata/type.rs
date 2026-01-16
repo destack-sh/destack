@@ -90,8 +90,8 @@ pub enum DispatchTableKind {
 /// Entry in a dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DispatchSlot {
-    /// Slot containing a type descriptor pointer.
-    TypeDescriptor,
+    /// Slot containing a type tag handle.
+    TypeTag,
     /// Slot containing a destructor or drop function.
     Destructor {
         /// The drop glue function when present.

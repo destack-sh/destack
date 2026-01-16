@@ -2130,11 +2130,11 @@ fn infer_intrinsic_kind(
             signed: true,
         }),
         mir::IntrinsicResultType::Isize => Some(ValueKind::Int {
-            width: 64,
+            width: usize::BITS as u8,
             signed: true,
         }),
         mir::IntrinsicResultType::Usize => Some(ValueKind::Int {
-            width: 64,
+            width: usize::BITS as u8,
             signed: false,
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
@@ -2147,7 +2147,7 @@ fn infer_intrinsic_kind(
             kind_from_pointer(tree, pointer_kind)
         }
         mir::IntrinsicResultType::CheckedArithmetic => Some(ValueKind::Unknown),
-        mir::IntrinsicResultType::TypeDescriptor => Some(ValueKind::Unknown),
+        mir::IntrinsicResultType::TypeTag => Some(ValueKind::Unknown),
         mir::IntrinsicResultType::Explicit => Some(ValueKind::Unknown),
     }
 }
@@ -2162,8 +2162,20 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
             width: *width as u8,
             signed: *signed,
         },
+        mir::Type::Isize => ValueKind::Int {
+            width: usize::BITS as u8,
+            signed: true,
+        },
+        mir::Type::Usize => ValueKind::Int {
+            width: usize::BITS as u8,
+            signed: false,
+        },
         mir::Type::Float { width } => ValueKind::Float {
             width: *width as u8,
+        },
+        mir::Type::TypeTag => ValueKind::Int {
+            width: usize::BITS as u8,
+            signed: false,
         },
         mir::Type::Reference {
             kind,
@@ -2396,7 +2408,10 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
         mir::Type::Void => Some(1),
         mir::Type::Boolean
         | mir::Type::Int { .. }
+        | mir::Type::Isize
+        | mir::Type::Usize
         | mir::Type::Float { .. }
+        | mir::Type::TypeTag
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. } => Some(1),
     }

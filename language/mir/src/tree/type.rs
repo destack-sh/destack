@@ -187,8 +187,14 @@ pub enum Type {
     Boolean,
     /// Integer with explicit width and signedness.
     Int { width: u16, signed: bool },
+    /// Pointer-sized signed integer.
+    Isize,
+    /// Pointer-sized unsigned integer.
+    Usize,
     /// Floating point with explicit width (32 or 64).
     Float { width: u16 },
+    /// Runtime type tag handle.
+    TypeTag,
 
     /// Reference with explicit kind and mutability.
     Reference {
@@ -295,6 +301,24 @@ impl Type {
     pub const FLOAT32: Type = Type::Float { width: 32 };
     pub const FLOAT64: Type = Type::Float { width: 64 };
 
+    /// Return integer width and signedness for concrete integer types.
+    pub fn int_info(&self) -> Option<(u16, bool)> {
+        match self {
+            Type::Int { width, signed } => Some((*width, *signed)),
+            _ => None,
+        }
+    }
+
+    /// Return integer width and signedness with pointer-sized integers resolved.
+    pub fn int_info_with_pointer_width(&self, pointer_width_bits: u16) -> Option<(u16, bool)> {
+        match self {
+            Type::Int { width, signed } => Some((*width, *signed)),
+            Type::Isize => Some((pointer_width_bits, true)),
+            Type::Usize => Some((pointer_width_bits, false)),
+            _ => None,
+        }
+    }
+
     /// Whether this type is a scalar (non-compound).
     pub fn is_scalar(&self) -> bool {
         matches!(
@@ -302,7 +326,10 @@ impl Type {
             Type::Void
                 | Type::Boolean
                 | Type::Int { .. }
+                | Type::Isize
+                | Type::Usize
                 | Type::Float { .. }
+            | Type::TypeTag
                 | Type::Reference { .. }
         )
     }
@@ -367,9 +394,13 @@ impl Type {
     pub fn copyability(&self) -> Copyability {
         match self {
             // primitives are always trivially copyable
-            Type::Void | Type::Boolean | Type::Int { .. } | Type::Float { .. } => {
-                Copyability::Trivial
-            }
+            Type::Void
+            | Type::Boolean
+            | Type::Int { .. }
+            | Type::Isize
+            | Type::Usize
+            | Type::Float { .. }
+            | Type::TypeTag => Copyability::Trivial,
 
             // references depend on ownership
             Type::Reference { kind, .. } => {

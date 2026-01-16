@@ -570,6 +570,8 @@ pub(crate) fn execute_cast(
     argument: Value,
     to_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<Value, Error> {
+    let pointer_width_bits = usize::BITS as u16;
+
     // load target type
     let target_type = tree.get(to_type);
 
@@ -578,9 +580,10 @@ pub(crate) fn execute_cast(
         mir::CastOperator::Bitcast => argument,
 
         mir::CastOperator::Truncate => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => return Ok(argument),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Ok(argument),
             };
             match argument.tag() {
                 ValueTag::Int => {
@@ -596,9 +599,10 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::ZeroExtend => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => return Ok(argument),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Ok(argument),
             };
             match argument.tag() {
                 ValueTag::UInt => Value::uint(argument.raw_data(), target_width),
@@ -613,9 +617,10 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::SignExtend => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => return Ok(argument),
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => return Ok(argument),
             };
             match argument.tag() {
                 ValueTag::Int => {
@@ -636,9 +641,10 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::FloatToSignedInt => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => 64,
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
             };
             match argument.tag() {
                 ValueTag::Float64 => {
@@ -654,9 +660,10 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::FloatToUnsignedInt => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => 64,
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
             };
             match argument.tag() {
                 ValueTag::Float64 => {
@@ -738,9 +745,10 @@ pub(crate) fn execute_cast(
         }
 
         mir::CastOperator::PointerToInt => {
-            let target_width = match target_type {
-                mir::Type::Int { width, .. } => *width as u8,
-                _ => 64,
+            let target_width =
+                match target_type.int_info_with_pointer_width(pointer_width_bits) {
+                Some((width, _)) => width as u8,
+                None => 64,
             };
             match argument.tag() {
                 ValueTag::RawPointer | ValueTag::ManagedReference => {
