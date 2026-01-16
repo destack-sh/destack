@@ -1231,6 +1231,26 @@ impl<'a> FunctionBuilder<'a> {
         Some(destination)
     }
 
+    /// Call a function with no return value and associated dispatch metadata.
+    pub fn call_void_with_metadata(
+        &mut self,
+        function: LocalNodeId<Function>,
+        argument_values: Vec<Value>,
+        metadata: CallMetadata,
+    ) {
+        let arguments = self.tree.add_arguments(&argument_values);
+        let instruction_id = self.insert_instruction(Instruction::Call {
+            destination: None,
+            function,
+            arguments,
+        });
+
+        // store call metadata for later optimization passes
+        self.tree
+            .call_table
+            .insert_call_metadata(instruction_id, metadata);
+    }
+
     /// Call through a function pointer.
     pub fn call_indirect(&mut self, callee: Value, args: Vec<Value>) -> Value {
         let destination = self.allocate_value();

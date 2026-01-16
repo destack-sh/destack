@@ -92,7 +92,7 @@ pub enum DispatchTableKind {
 pub enum DispatchSlot {
     /// Slot containing a type tag handle.
     TypeTag,
-    /// Slot containing a destructor or drop function.
+    /// Slot containing a drop glue function.
     Destructor {
         /// The drop glue function when present.
         function: Option<LocalNodeId<Function>>,

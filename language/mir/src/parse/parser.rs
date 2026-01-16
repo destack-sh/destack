@@ -1566,8 +1566,9 @@ impl<'a> Parser<'a> {
             }
             TokenType::TypeName => {
                 self.bump();
-                parse_primitive_type(&token_text)
-                    .ok_or_else(|| ParseError::invalid(&format!("type '{token_text}'"), token_start))?
+                parse_primitive_type(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("type '{token_text}'"), token_start)
+                })?
             }
             TokenType::Ref | TokenType::RefNullable => {
                 let is_nullable = token.ty == TokenType::RefNullable;
