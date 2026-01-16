@@ -709,6 +709,14 @@ fn run_matrix_case(
     // apply the case and execute
     apply(&mut tree, &strings_pool, &ctx);
 
+    // verify the resulting MIR tree
+    if let Err(error) = mir::Verifier::new(&tree).verify_tree() {
+        let message = format_verify_error(&tree, error);
+        return Some(format!(
+            "case '{label}': verification failed: {message}"
+        ));
+    }
+
     let context = format!("case '{label}'");
     run_and_compare_output(
         program,
@@ -719,6 +727,69 @@ fn run_matrix_case(
         &context,
     )
     .err()
+}
+
+/// Format a verifier error with context when available.
+fn format_verify_error(tree: &mir::NodeTree, error: mir::VerifyError) -> String {
+    // include instruction context for undefined value errors
+    match error {
+        mir::VerifyError::UseOfUndefinedValue { value, anchor } => {
+            if anchor.node.ty == mir::NodeType::Instruction {
+                let instruction_id =
+                    mir::LocalNodeId::<mir::Instruction>::new(anchor.node.id);
+                let instruction = tree.get(instruction_id);
+                if let Some((block_id, block)) = find_instruction_block(tree, instruction_id) {
+                    let definition = find_value_definition(tree, value);
+                    return format!(
+                        "{error:?} at instruction {instruction_id:?} in {block_id:?}: {instruction:?} (params: {:?}, def: {definition})",
+                        block.parameters
+                    );
+                }
+
+                return format!(
+                    "{error:?} at instruction {instruction_id:?}: {instruction:?}"
+                );
+            }
+
+            format!("{error:?}")
+        }
+        _ => format!("{error:?}"),
+    }
+}
+
+/// Locate the block containing an instruction.
+fn find_instruction_block(
+    tree: &mir::NodeTree,
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+) -> Option<(mir::LocalNodeId<mir::Block>, mir::Block)> {
+    // scan blocks to find the instruction
+    for (block_id, block) in tree.iter_nodes::<mir::Block>() {
+        if block.instructions.iter().any(|id| *id == instruction_id) {
+            return Some((block_id, block.clone()));
+        }
+    }
+
+    None
+}
+
+/// Describe where a value is defined, if known.
+fn find_value_definition(tree: &mir::NodeTree, value: mir::Value) -> String {
+    // scan blocks for parameter definitions
+    for (block_id, block) in tree.iter_nodes::<mir::Block>() {
+        if let Some(param) = block.parameters.iter().find(|param| param.value == value) {
+            return format!("{block_id:?} param {param:?}");
+        }
+
+        // scan instructions for destination definitions
+        for instruction_id in &block.instructions {
+            let instruction = tree.get(*instruction_id);
+            if instruction.destination() == Some(value) {
+                return format!("{block_id:?} {instruction_id:?} {instruction:?}");
+            }
+        }
+    }
+
+    "unknown".to_string()
 }
 
 /// Run matrix diagnostics for the given pipeline.
