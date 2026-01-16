@@ -45,10 +45,10 @@ pub(crate) struct ParserOptions {
     /// These expressions might be tuple literals if followed by a comma.
     pub in_parenthesis: bool = false,
     /// Whether we're parsing at the start of a "statement".
-    /// Disallows anonymous struct literals.
+    /// Disallows object literals.
     pub in_statement_position: bool = false,
     /// Whether we're parsing an expression followed by a block (like in if, match, for, while).
-    /// Disallows all struct literals at the root level in these cases to avoid ambiguity with `expr {}`.
+    /// Disallows object and typed struct literals at the root level to avoid ambiguity with `expr {}`.
     pub in_before_block: bool = false,
     /// Whether we're in a tree literal.
     /// Disallows angle brackets and divides to avoid ambiguity with `</>``.

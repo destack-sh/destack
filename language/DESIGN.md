@@ -351,12 +351,21 @@ const c = Config({ debug: true }); // wraps object
 
 ### Structs
 
-Structs are data-oriented object types with fixed layout.
-Structs are simpler than classes: no reference identity, no inheritance, just data with a name.
+Structs are data-oriented value types with fixed layout.
+Structs have no identity or inheritance, just data with a name.
 Structs may embed other structs to compose types, and structs can implement interfaces.
+Struct values can be boxed when a reference is required, which allocates managed storage without changing the struct type.
+Boxing is compiler inserted and does not introduce a surface `Box<T>` type.
+Boxing copies the value into managed storage, and repeated boxing creates distinct reference identities.
+Structural object types remain reference types, even when written as type aliases.
+Type aliases inherit the semantics of the underlying type.
+Struct declarations require a name and cannot be anonymous.
 
 ```
-struct Point { x: float32, y: float32 }
+struct Point {
+    x: float32;
+    y: float32;
+}
 ```
 
 #### Structs vs Classes
@@ -365,37 +374,40 @@ struct Point { x: float32, y: float32 }
 |---|---|---|
 | Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
 | Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
-| Default passing | Reference | Reference |
+| Default passing | Value | Reference |
+| Default storage | Inline | Managed reference |
 | JS output | Plain object | ES6 class |
 
-Both structs and classes are reference types by default; ownership modifiers (`^T`, `&T`) are orthogonal.
-Two structs with the same field values are equal (`==`)—structs *are* their data.
-Two class instances with the same field values are not equal unless they're the same instance—classes *have* identity.
+Structs are value types, so `==` compares fields and `===` is not defined.
+Classes are reference types, so `===` compares identity.
+Ownership modifiers (`^T`, `&T`) describe access and lifetime without changing identity semantics.
+Struct values may still be heap allocated by escape analysis, but the semantics remain value based.
 
 ```
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
-p1 == p2  // true: same data
+p1 == p2;  // true: same data
 
 const e1 = new Entity(1);
 const e2 = new Entity(1);
-e1 == e2  // false: different instances
+e1 == e2;  // false: different instances
 ```
 
 #### Structs Are Nominal
 
 Structs are nominal (like newtypes), so they must be explicitly constructed:
+Prefer `Point { ... }` for structs and reserve `new Point(...)` for compatibility with TS-style call sites.
 
 ```
-let x: Point = Point { x, y }  // ok
-let x: Point = { x, y }        // error: plain object is not Point
+let x: Point = Point { x, y };  // ok
+let x: Point = { x, y };        // error: plain object is not Point
 ```
 
 For composition, structs use embedding instead of inheritance:
 
 ```
-struct Transform { position: Vec3, rotation: Quat }
-struct Player { ...Transform, health: int }  // embeds Transform's fields
+struct Transform { position: Vec3; rotation: Quat; }
+struct Player { ...Transform; health: int; }  // embeds Transform's fields
 ```
 
 #### Associated Types
@@ -704,14 +716,15 @@ Extension methods participate in member resolution, too.
 
 ## Ownership
 
-TypeScript doesn't distinguish references from values in its type system, everything is implicitly GC managed or copied purely based on type.
+TypeScript does not encode ownership in its type system.
+Reference types are implicitly GC managed, and value types are copied by default.
 Destack adds opt in explicit control, enabling a spectrum from TypeScript simplicity to Rust level control.
 
 ### Ownership Modifiers
 
 In addition to the default `T`, there are four other ownership options:
 ```
-T            // automatic (TypeScript behavior, implicitly GC managed)
+T            // type default (value or managed reference)
 &T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
 ^T           // ownership transfer (caller gives up ownership)

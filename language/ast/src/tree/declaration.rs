@@ -194,40 +194,30 @@ pub enum Declaration {
         value: LocalNodeId<Expression>,
     },
 
-    /// A Struct is a nominal object type with value semantics and fixed layout.
+    /// A Struct is a nominal value type with fixed layout.
     /// The ',' separator is optional if newline-delimited.
     /// Structs have no identity (value equality) and cannot use inheritance.
     /// Use embedding (`...Other`) for composition instead of `extends`.
     /// Structs can `implements` interfaces.
+    /// Struct declarations require a name.
     ///
     /// Examples:
     /// ```
-    /// { a: 2 } // anonymous struct
-    ///
-    /// struct {} // empty anonymous struct
-    ///
-    /// struct { a: int32, b: boolean }
-    ///
-    /// struct { // anonymous struct (for use as a value)
-    ///     myField: int32 // colon optional
-    ///     myOtherField: boolean
-    /// }
-    ///
     /// struct Bar {
-    ///     myField: int32
-    ///     myOtherField: boolean
-    /// }
+    ///     myField: int32;
+    ///     myOtherField: boolean;
+    /// };
     ///
     /// struct Foo<T> implements Drawable { // structs can implement interfaces
-    ///     myField: int32
-    ///     myOtherField: T
+    ///     myField: int32;
+    ///     myOtherField: T;
     ///
-    ///     ...Bar              // embedding for composition (not extends)
-    ///     static x: int32 = 7 // constant
+    ///     ...Bar;              // embedding for composition (not extends)
+    ///     static x: int32 = 7; // constant
     ///
     ///     myFunc() { // nested declaration
     ///     }
-    /// }
+    /// };
     /// ```
     Struct {
         descriptor: DeclarationDescriptor,
@@ -242,20 +232,20 @@ pub enum Declaration {
     /// Examples:
     /// ```
     /// class Foo {
-    ///     myField: int32
+    ///     myField: int32;
     ///
     ///     constructor(value: int32) {
-    ///         this.myField = value
+    ///         this.myField = value;
     ///     }
     ///
     ///     static {
-    ///         console.log("class initialized")
+    ///         console.log("class initialized");
     ///     }
-    /// }
+    /// };
     ///
     /// class Bar extends Foo {
-    ///     otherField: boolean
-    /// }
+    ///     otherField: boolean;
+    /// };
     /// ```
     Class {
         descriptor: DeclarationDescriptor,
