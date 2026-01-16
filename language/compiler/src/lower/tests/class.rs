@@ -10,8 +10,8 @@ fn test_class_construction_with_new() {
         "test.ds",
         r#"
 class Point {
-    x: number;
-    y: number;
+    x: number = 0;
+    y: number = 0;
 }
 
 function sumFieldsClass(a: number, b: number): number {
@@ -43,7 +43,7 @@ fn test_class_new_mir() {
         "test.ds",
         r#"
 class Box {
-    value: int32;
+    value: int32 = 0;
 }
 
 function sumBox(value: int32): int32 {
@@ -134,7 +134,7 @@ fn test_class_method_returns_field() {
         "test.ds",
         r#"
 class Box {
-    value: int32;
+    value: int32 = 0;
 
     get(): int32 {
         return this.value;
@@ -169,7 +169,7 @@ fn test_class_method_with_parameters() {
         "test.ds",
         r#"
 class Adder {
-    base: int32;
+    base: int32 = 0;
 
     add(n: int32): int32 {
         return this.base + n;
@@ -204,13 +204,13 @@ fn test_class_vtable_metadata() {
         "test.ds",
         r#"
 class Animal {
-    name: int32;
+    name: int32 = 0;
     speak(): int32 { return 1; }
 }
 
 class Dog extends Animal {
-    breed: int32;
-    speak(): int32 { return 2; }
+    breed: int32 = 0;
+    override speak(): int32 { return 2; }
 }
 
 function useDog(d: Dog): int32 {
