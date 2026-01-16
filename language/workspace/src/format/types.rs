@@ -1,7 +1,9 @@
+use std::collections::HashSet;
+
 use destack_base::StringPool;
 use destack_dir as dir;
 
-use crate::{ModuleRegistry, ProfileId};
+use crate::{Module, ModuleRegistry, Package, PackageRegistry, ProfileId};
 
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(
@@ -456,6 +458,143 @@ pub fn format_symbol_name(
         strings.get(name_id).to_string()
     } else {
         "<anonymous>".to_string()
+    }
+}
+
+/// Get the symbol path for a symbol within its module.
+pub fn format_symbol_path(
+    symbol_id: dir::GlobalSymbolId,
+    modules: &ModuleRegistry,
+    strings: &StringPool,
+) -> Option<String> {
+    // load the module symbols
+    let module = modules.get(symbol_id.module_id);
+    let module = module.read();
+    let dir = module.dir_base_maybe()?;
+    let symbols = dir.symbols.read();
+
+    // seed with the symbol name
+    let symbol = symbols.get_symbol(symbol_id.into_local());
+    let symbol_name = static_key_segment(symbol.key, strings)?;
+    let mut segments = vec![symbol_name];
+
+    // walk owner scopes for namespaces and types
+    let mut scope_id = symbol.scope.0;
+    let mut seen_scopes = HashSet::new();
+    loop {
+        // avoid cycles in scope ownership
+        if !seen_scopes.insert(scope_id) {
+            break;
+        }
+
+        // collect named owners into the path
+        let scope = symbols.get_scope_by_id(scope_id);
+        if let Some(owner_id) = scope.owner_id
+            && owner_id != symbol_id.into_local()
+        {
+            let owner = symbols.get_symbol(owner_id);
+            let owner_name = static_key_segment(owner.key, strings)?;
+            segments.push(owner_name);
+        }
+
+        // climb to the parent scope
+        let Some((parent_id, _)) = scope.parent else {
+            break;
+        };
+        scope_id = parent_id;
+    }
+
+    // reverse for root to leaf order
+    segments.reverse();
+    Some(segments.join("."))
+}
+
+/// Get the qualified name of a symbol with module prefix.
+pub fn format_symbol_qualified_name(
+    symbol_id: dir::GlobalSymbolId,
+    modules: &ModuleRegistry,
+    packages: &PackageRegistry,
+    strings: &StringPool,
+) -> Option<String> {
+    // resolve the owning module and package
+    let module = modules.get(symbol_id.module_id);
+    let module = module.read();
+    let package = packages.get(module.package_id);
+    let package = package.read();
+
+    // resolve package and module path
+    let package_name = package.name.as_ref()?;
+    if package_name.is_empty() {
+        return None;
+    }
+    let module_path = module_path_without_extension(&module, &package)?;
+
+    // resolve symbol path
+    let symbol_path = format_symbol_path(symbol_id, modules, strings)?;
+    let module_prefix = if module_path.is_empty() {
+        package_name.to_string()
+    } else {
+        format!("{package_name}/{module_path}")
+    };
+
+    Some(format!("{module_prefix}:{symbol_path}"))
+}
+
+/// Get the qualified name of a unique symbol.
+pub fn format_unique_symbol_qualified_name(
+    symbol_id: dir::GlobalSymbolId,
+    modules: &ModuleRegistry,
+    packages: &PackageRegistry,
+    strings: &StringPool,
+) -> Option<String> {
+    let name = format_symbol_qualified_name(symbol_id, modules, packages, strings)?;
+    Some(format!("{name}#unique"))
+}
+
+/// Resolve the package relative module path without extension.
+fn module_path_without_extension(module: &Module, package: &Package) -> Option<String> {
+    // prefer package relative paths when available
+    let module_path = if let Some(path) = &module.path {
+        let relative = package
+            .path
+            .as_ref()
+            .and_then(|package_path| path.strip_prefix(package_path).ok())
+            .unwrap_or(path);
+        relative.to_string_lossy().to_string()
+    } else {
+        module.uri.to_string()
+    };
+
+    // normalize separators and drop extension
+    let module_path = normalize_path_separators(&module_path);
+    Some(strip_extension_from_path(&module_path))
+}
+
+/// Normalize a module path to use forward slashes.
+fn normalize_path_separators(path: &str) -> String {
+    let normalized = path.replace('\\', "/");
+    normalized.trim_start_matches('/').to_string()
+}
+
+/// Strip the file extension from a module path.
+fn strip_extension_from_path(path: &str) -> String {
+    let (prefix, leaf) = path.rsplit_once('/').unwrap_or(("", path));
+    let stripped = leaf.rsplit_once('.').map(|(base, _)| base).unwrap_or(leaf);
+    if prefix.is_empty() {
+        stripped.to_string()
+    } else {
+        format!("{prefix}/{stripped}")
+    }
+}
+
+/// Convert a static key into a symbol path segment.
+fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Option<String> {
+    let key = key?;
+    match key {
+        dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
+            Some(strings.get(name_id).to_string())
+        }
+        dir::StaticKey::Symbol(_) => None,
     }
 }
 

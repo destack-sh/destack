@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_base::{StringId, StringPool};
 use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
+use destack_workspace::format::format_unique_symbol_qualified_name;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
@@ -307,7 +308,7 @@ impl TypeLowerer {
         }
 
         // sort keys to pick a stable primary discriminant
-        common_keys.sort_by(|left, right| Self::compare_static_keys(*left, *right, strings));
+        common_keys.sort_by(|left, right| self.compare_static_keys(*left, *right, strings));
 
         // collect discriminant values per key
         let mut fields = Vec::with_capacity(common_keys.len());
@@ -601,6 +602,7 @@ impl TypeLowerer {
 
     /// Compare static keys for deterministic discriminant field selection.
     fn compare_static_keys(
+        &self,
         left: dir::StaticKey,
         right: dir::StaticKey,
         strings: &StringPool,
@@ -631,7 +633,7 @@ impl TypeLowerer {
                 }
             }
             (dir::StaticKey::Symbol(left), dir::StaticKey::Symbol(right)) => {
-                Self::compare_symbol_keys(left, right, strings)
+                self.compare_symbol_keys(left, right, strings)
             }
             (dir::StaticKey::Symbol(_), _) => Ordering::Greater,
             (_, dir::StaticKey::Symbol(_)) => Ordering::Less,
@@ -640,6 +642,7 @@ impl TypeLowerer {
 
     /// Compare symbol keys for deterministic ordering.
     fn compare_symbol_keys(
+        &self,
         left: dir::SymbolKey,
         right: dir::SymbolKey,
         strings: &StringPool,
@@ -651,11 +654,35 @@ impl TypeLowerer {
             (dir::SymbolKey::Registry(left), dir::SymbolKey::Registry(right)) => {
                 strings.get(left).cmp(&strings.get(right))
             }
-            (dir::SymbolKey::Unique(left), dir::SymbolKey::Unique(right)) => left.cmp(&right),
+            (dir::SymbolKey::Unique(left), dir::SymbolKey::Unique(right)) => {
+                self.compare_unique_symbol_keys(left, right, strings)
+            }
             (dir::SymbolKey::WellKnown(_), _) => Ordering::Less,
             (dir::SymbolKey::Registry(_), dir::SymbolKey::WellKnown(_)) => Ordering::Greater,
             (dir::SymbolKey::Registry(_), dir::SymbolKey::Unique(_)) => Ordering::Less,
             (dir::SymbolKey::Unique(_), _) => Ordering::Greater,
+        }
+    }
+
+    /// Compare unique symbol keys using qualified names when available.
+    fn compare_unique_symbol_keys(
+        &self,
+        left: dir::GlobalSymbolId,
+        right: dir::GlobalSymbolId,
+        strings: &StringPool,
+    ) -> std::cmp::Ordering {
+        // build qualified names for unique symbols
+        let left_name =
+            format_unique_symbol_qualified_name(left, &self.modules, &self.packages, strings);
+        let right_name =
+            format_unique_symbol_qualified_name(right, &self.modules, &self.packages, strings);
+
+        // prefer qualified ordering with a stable fallback
+        match (left_name, right_name) {
+            (Some(left_name), Some(right_name)) => left_name.cmp(&right_name),
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (None, None) => left.cmp(&right),
         }
     }
 }

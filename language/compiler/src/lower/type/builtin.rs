@@ -153,7 +153,12 @@ impl<'a> BuiltinTypeLayouts<'a> {
         // compute layout from declared struct fields only
         let pointer_bytes = self.type_lowerer.pointer_bytes();
         let mut field_inputs = Vec::new();
-        let mut field_lowerer = TypeLowerer::new(self.builder, pointer_bytes);
+        let mut field_lowerer = TypeLowerer::new(
+            self.builder,
+            pointer_bytes,
+            self.compiler.program.modules.clone(),
+            self.compiler.program.packages.clone(),
+        );
 
         for (source_index, member_id) in members.iter().enumerate() {
             let Member::Field { key, value, .. } = tree.get(*member_id) else {

@@ -1563,6 +1563,11 @@ Canonical ordering:
 Each discriminated union emits a tag value table with literal values in tag order.
 Reading `x.kind` loads the literal value from that table.
 
+Unique symbol ordering uses a fully qualified symbol path.
+The format is `@package/module/path:Namespace.Symbol#unique`.
+The module path is the package relative path without extension.
+If a module has no path, use its URI string instead.
+
 Conceptually, string-only tags look like this:
 
 ```ds

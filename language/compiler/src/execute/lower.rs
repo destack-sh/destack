@@ -88,7 +88,12 @@ impl Compiler {
                     error: Box::new(error.clone()),
                     message: format!("{error}"),
                 })?;
-            TypeLowerer::new(&mut builder, pointer_bytes)
+            TypeLowerer::new(
+                &mut builder,
+                pointer_bytes,
+                self.program.modules.clone(),
+                self.program.packages.clone(),
+            )
         };
 
         // prepare builtin layouts for comptime lowering
