@@ -65,6 +65,8 @@ pub struct ProfileFlags {
     pub no_implicit_dynamic_dispatch: bool,
     /// Forbid exceptions.
     pub no_exceptions: bool,
+    /// Enable strict checking of built in iterator return types.
+    pub strict_builtin_iterator_return: bool,
 }
 
 /// Canonical profile key for semantic identity.
@@ -222,6 +224,7 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
             no_proxy: options.no_proxy,
             no_implicit_dynamic_dispatch: options.no_implicit_dynamic_dispatch,
             no_exceptions: options.no_exceptions,
+            strict_builtin_iterator_return: options.strict_builtin_iterator_return,
         }
     }
 }

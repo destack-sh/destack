@@ -245,6 +245,9 @@ impl Compiler {
     /// Add an error to the compiler (deduplicated).
     pub fn error<T: Into<TaskError>>(&self, error: T) {
         let error: TaskError = error.into();
+        if !self.should_emit_error(&error) {
+            return;
+        }
         let mut seen = self.seen_errors.lock();
         if seen.contains(&error) {
             return;
@@ -255,6 +258,9 @@ impl Compiler {
     /// Add a warning to the compiler (deduplicated).
     pub fn warning<T: Into<TaskWarning>>(&self, warning: T) {
         let warning: TaskWarning = warning.into();
+        if !self.should_emit_warning(&warning) {
+            return;
+        }
         let mut seen = self.seen_warnings.lock();
         if seen.contains(&warning) {
             return;

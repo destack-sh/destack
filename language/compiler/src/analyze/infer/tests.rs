@@ -1300,6 +1300,7 @@ let origin = Point { x: 0, y: 0 };
 fn test_analyze_infer_parameter_types_from_call_arguments() {
     // infers parameter types from call arguments
     let test = TestProgram::memory_sequential();
+    test.add_package("test", Some(r#""noImplicitAny": false"#));
     let module_id = test.add_module(
         "test.ds",
         r#"

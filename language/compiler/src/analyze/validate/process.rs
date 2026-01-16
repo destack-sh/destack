@@ -35,10 +35,16 @@ impl Compiler {
             return Ok(());
         }
 
+        // skip validation when module language is disabled
+        if !self.module_language_allowed(module_id) {
+            return Ok(());
+        }
+
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);
         let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
         let types = dir.types.read();
 
         // validate declarations
@@ -55,6 +61,9 @@ impl Compiler {
         for (id, member) in tree.iter_nodes_of_type::<Member>() {
             self.validate_member(&module, profile, &tree, id, member);
         }
+
+        // validate option-dependent checks
+        self.validate_strict_checks(&module, profile, &tree, &symbols, &types);
 
         Ok(())
     }

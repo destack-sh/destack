@@ -36,6 +36,121 @@ function greet(name: string): string {
 }
 ```
 
+## noImplicitReturns
+
+### noImplicitReturns rejects missing return in block body
+
+> Not all code paths return a value when implicit returns are disabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitReturns": true } }
+```
+
+```ds
+function example(value: number): number {
+    if (value > 0) {
+        return value;
+    }
+}
+```
+
+- contains: missing return
+- contains: not assignable
+
+### noImplicitReturns allows implicit return expression
+
+> Implicit return expressions satisfy the return requirement.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitReturns": true } }
+```
+
+```ds
+function example(value: number): number {
+    if (value > 0) {
+        return value;
+    }
+    value + 1
+}
+```
+
+## noImplicitAny
+
+### noImplicitAny rejects implicit parameter types
+
+> Parameters without annotations or defaults are implicit any when strict checking is enabled.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitAny": true } }
+```
+
+```ds
+function handle(value) {
+}
+```
+
+- contains: implicit any type
+
+### noImplicitAny allows defaulted parameters
+
+> Defaults provide an inferred parameter type.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitAny": true } }
+```
+
+```ds
+function handle(value = 1) {
+    value satisfies number;
+}
+```
+
+### noImplicitAny rejects uninitialized bindings
+
+> Bindings without annotations or initializers are implicit any.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitAny": true } }
+```
+
+```ds
+let pending;
+```
+
+- contains: implicit any type
+
+## noImplicitThis
+
+### noImplicitThis rejects implicit this in functions
+
+> `this` inside functions requires an explicit `this` parameter in strict mode.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitThis": true } }
+```
+
+```ds
+function counter() {
+    this;
+}
+```
+
+- contains: implicit this type
+
+### noImplicitThis allows explicit this parameters
+
+> Explicit `this` parameters provide a concrete type.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitThis": true } }
+```
+
+```ds
+function counter(this: { value: number }) {
+    this.value satisfies number;
+}
+```
+
 ## Arrow Functions
 
 ### arrow with no parameters

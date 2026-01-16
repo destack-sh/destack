@@ -9,7 +9,9 @@ Tests for static parameters on class type references.
 > Class type references accept explicit static type arguments.
 
 ```ds
-class Box<T> { value: T }
+class Box<T> {
+    value?: T
+}
 
 declare function make_box(): Box<number>;
 
@@ -22,7 +24,9 @@ value satisfies Box<number>;
 > Static type arguments must satisfy declared bounds.
 
 ```ds
-class Box<T: number> { value: T }
+class Box<T: number> {
+    value?: T
+}
 
 declare function make_box(): Box<number>;
 
@@ -36,7 +40,9 @@ let value: Box<string> = make_box();
 > Static value arguments are checked against declared types.
 
 ```ds
-class Buffer<T, N: number> { value: T }
+class Buffer<T, N: number> {
+    value?: T
+}
 
 declare function make_buffer(): Buffer<string, 4>;
 
@@ -49,7 +55,9 @@ buffer satisfies Buffer<string, 4>;
 > Static value arguments must satisfy declared types.
 
 ```ds
-class Buffer<T, N: number> { value: T }
+class Buffer<T, N: number> {
+    value?: T
+}
 
 declare function make_buffer(): Buffer<string, 4>;
 
@@ -63,7 +71,9 @@ let buffer: Buffer<string, true> = make_buffer();
 > Static type parameters fall back to defaults when omitted.
 
 ```ds
-class Box<T = number> { value: T }
+class Box<T = number> {
+    value?: T
+}
 
 declare function makeBox(): Box;
 
@@ -76,7 +86,9 @@ value satisfies Box<number>;
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-class Buffer<T, N: number = 4> { value: T }
+class Buffer<T, N: number = 4> {
+    value?: T
+}
 
 declare function makeBuffer(): Buffer<string>;
 

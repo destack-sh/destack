@@ -19,6 +19,7 @@ pub(crate) const ES2015_DECLARED_SYMBOLS: &[&str] = &[
     "TypeError",
     "ArrayBuffer",
     "DataView",
+    "BuiltinIteratorReturn",
     "Generator",
     "Iterable",
     "Iterator",
@@ -34,7 +35,8 @@ pub(crate) const ES2015_DECLARED_SYMBOLS: &[&str] = &[
 
 const ES2015_COLLECTION_DECLARED_SYMBOLS: &[&str] = &["Map", "Set", "WeakMap", "WeakSet"];
 const ES2015_GENERATOR_DECLARED_SYMBOLS: &[&str] = &["Generator"];
-const ES2015_ITERABLE_DECLARED_SYMBOLS: &[&str] = &["Iterable", "Iterator"];
+const ES2015_ITERABLE_DECLARED_SYMBOLS: &[&str] =
+    &["BuiltinIteratorReturn", "Iterable", "Iterator"];
 const ES2015_PROMISE_DECLARED_SYMBOLS: &[&str] = &["Promise"];
 const ES2015_PROXY_DECLARED_SYMBOLS: &[&str] = &["Proxy"];
 const ES2015_REFLECT_DECLARED_SYMBOLS: &[&str] = &["Reflect"];

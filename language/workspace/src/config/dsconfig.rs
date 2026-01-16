@@ -629,7 +629,7 @@ impl Default for DsConfigCompilerOptions {
             allow_unreachable_code: false,
             allow_unused_labels: false,
             no_implicit_override: true,
-            no_fallthrough_cases_in_switch: true,
+            no_fallthrough_cases_in_switch: false,
             exact_optional_property_types: true,
             no_unchecked_indexed_access: true,
             no_property_access_from_index_signature: true,
@@ -673,6 +673,53 @@ impl Default for DsConfigCompilerOptions {
             check_js: false,
             skip_lib_check: false,
         }
+    }
+}
+
+impl DsConfigCompilerOptions {
+    /// Enable strict-mode defaults.
+    pub fn apply_strict_defaults(&mut self) {
+        // lock the strict umbrella flag and parser strictness
+        self.strict = true;
+        self.always_strict = true;
+
+        // enable strict checks under the TypeScript umbrella
+        self.no_implicit_any = true;
+        self.no_implicit_this = true;
+        self.strict_null_checks = true;
+        self.strict_function_types = true;
+        self.strict_bind_call_apply = true;
+        self.strict_builtin_iterator_return = true;
+        self.strict_property_initialization = true;
+        self.use_unknown_in_catch_variables = true;
+
+        // enable stricter checking defaults beyond the TS strict umbrella
+        self.no_implicit_returns = true;
+        self.no_implicit_override = true;
+        self.exact_optional_property_types = true;
+        self.no_unchecked_indexed_access = true;
+        self.no_property_access_from_index_signature = true;
+
+        // enable strict diagnostics by default
+        self.no_unused_locals = true;
+        self.no_unused_parameters = true;
+        self.no_fallthrough_cases_in_switch = true;
+        self.allow_unreachable_code = false;
+        self.allow_unused_labels = false;
+    }
+
+    /// Enable native-only restrictions for native and wasm targets.
+    pub fn apply_native_restrictions(&mut self) {
+        // strict TypeScript checks are required for native targets
+        self.apply_strict_defaults();
+
+        // disable runtime features that native backends cannot support
+        self.no_dynamic_evaluation = true;
+        self.no_dynamic_import = true;
+        self.no_proxy = true;
+        self.no_dynamic_shapes = true;
+        self.no_exceptions = true;
+        self.no_global_this = true;
     }
 }
 
@@ -2303,7 +2350,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
             allow_unreachable_code: json.allow_unreachable_code.unwrap_or(false),
             allow_unused_labels: json.allow_unused_labels.unwrap_or(false),
             no_implicit_override: json.no_implicit_override.unwrap_or(true),
-            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(true),
+            no_fallthrough_cases_in_switch: json.no_fallthrough_cases_in_switch.unwrap_or(false),
             exact_optional_property_types: json.exact_optional_property_types.unwrap_or(true),
             no_unchecked_indexed_access: json.no_unchecked_indexed_access.unwrap_or(true),
             no_property_access_from_index_signature: json

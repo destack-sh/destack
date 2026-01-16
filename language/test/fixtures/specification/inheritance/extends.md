@@ -10,11 +10,11 @@ Tests for class inheritance using `extends`.
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 declare function getDog(): Dog;
@@ -28,11 +28,11 @@ const animal: Animal = getDog();
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 declare function getAnimal(): Animal;
@@ -48,11 +48,11 @@ const dog: Dog = getAnimal();
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 declare function getDog(): Dog;
@@ -66,11 +66,11 @@ getDog() satisfies Animal;
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 declare function getAnimal(): Animal;
@@ -88,15 +88,15 @@ getAnimal() satisfies Dog;
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 class Labrador extends Dog {
-    color: string
+    color: string = ""
 }
 
 declare function getLabrador(): Labrador;
@@ -110,15 +110,15 @@ const animal: Animal = getLabrador();
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 class Labrador extends Dog {
-    color: string
+    color: string = ""
 }
 
 declare function getLabrador(): Labrador;
@@ -132,15 +132,15 @@ const dog: Dog = getLabrador();
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 class Labrador extends Dog {
-    color: string
+    color: string = ""
 }
 
 declare function getAnimal(): Animal;
@@ -158,11 +158,11 @@ const labrador: Labrador = getAnimal();
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 function acceptAnimal(a: Animal): void {}
@@ -178,11 +178,11 @@ acceptAnimal(getDog());
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 function acceptDog(d: Dog): void {}
@@ -202,15 +202,15 @@ acceptDog(getAnimal());
 
 ```ds
 class Animal {
-    name: string
+    name: string = ""
 }
 
 class Dog extends Animal {
-    breed: string
+    breed: string = ""
 }
 
 class Cat extends Animal {
-    whiskers: number
+    whiskers: number = 0
 }
 
 declare function getDog(): Dog;

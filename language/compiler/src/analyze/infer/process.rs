@@ -34,6 +34,11 @@ impl Compiler {
             return self.analyze_data_module_infer(module_id, profile);
         }
 
+        // skip inference when module language is disabled
+        if !self.module_language_allowed(module_id) {
+            return Ok(());
+        }
+
         let module = self.program.modules.get(module_id);
         let module = module.read();
         let dir = module.dir(profile);

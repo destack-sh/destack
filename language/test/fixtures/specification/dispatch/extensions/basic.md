@@ -83,7 +83,11 @@ vector.scale(2) satisfies Vector2;
 
 ```ds
 class Counter {
-    count: number
+    count: number;
+
+    constructor(count: number) {
+        this.count = count;
+    }
 }
 
 extension for Counter {

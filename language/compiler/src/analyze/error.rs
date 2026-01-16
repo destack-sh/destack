@@ -6,6 +6,7 @@ use destack_compiler_macros::DefineError;
 use destack_dir::{
     AnchoredGlobalNodeId, FunctionAbstraction, GlobalSymbolId, GlobalTypeId, StaticKey, Visibility,
 };
+use destack_source::ModuleId;
 use destack_workspace::Program;
 
 /// Errors during the analyze phase.
@@ -73,6 +74,14 @@ pub enum AnalyzeError {
         node: AnchoredGlobalNodeId,
         ty: GlobalTypeId,
     },
+
+    /// Implicit any type.
+    #[error(code = "EA106", message = "implicit any type")]
+    ImplicitAny { node: AnchoredGlobalNodeId },
+
+    /// Implicit this type.
+    #[error(code = "EA107", message = "implicit this type")]
+    ImplicitThis { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
@@ -174,6 +183,10 @@ pub enum AnalyzeError {
     /// Switch cases do not support guards.
     #[error(code = "EA310", message = "switch cases do not support guards")]
     InvalidSwitchCaseGuard { node: AnchoredGlobalNodeId },
+
+    /// Exceptions are disabled by configuration.
+    #[error(code = "EA311", message = "exceptions are disabled")]
+    ExceptionsDisabled { node: AnchoredGlobalNodeId },
 
     /// Invalid continue.
     #[error(code = "EA301", message = "invalid continue to '{label}'")]
@@ -283,6 +296,18 @@ pub enum AnalyzeError {
         abstraction: FunctionAbstraction,
     },
 
+    /// Missing override modifier for an overriding member.
+    #[error(code = "EA509", message = "missing override modifier")]
+    MissingOverride { node: AnchoredGlobalNodeId },
+
+    /// Override modifier used without a matching base member.
+    #[error(code = "EA510", message = "override does not match a base member")]
+    InvalidOverride { node: AnchoredGlobalNodeId },
+
+    /// Instance field is not initialized in every constructor.
+    #[error(code = "EA511", message = "property is not definitely assigned")]
+    UninitializedProperty { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 6xx: Accessibility
     // -------------------------------------------------------------------------
@@ -305,9 +330,51 @@ pub enum AnalyzeError {
     },
 
     // -------------------------------------------------------------------------
+    // 8xx: Options
+    // -------------------------------------------------------------------------
+    /// Unused local binding.
+    #[error(code = "EA800", message = "unused local '{name}'")]
+    UnusedLocal {
+        node: AnchoredGlobalNodeId,
+        name: StringId,
+    },
+
+    /// Unused parameter binding.
+    #[error(code = "EA801", message = "unused parameter '{name}'")]
+    UnusedParameter {
+        node: AnchoredGlobalNodeId,
+        name: StringId,
+    },
+
+    /// Unused label.
+    #[error(code = "EA802", message = "unused label '{name}'")]
+    UnusedLabel {
+        node: AnchoredGlobalNodeId,
+        name: StringId,
+    },
+
+    /// Switch case falls through to the next case.
+    #[error(code = "EA803", message = "switch case falls through")]
+    SwitchFallthrough { node: AnchoredGlobalNodeId },
+
+    // -------------------------------------------------------------------------
     // 9xx: Unsupported / internal
     // -------------------------------------------------------------------------
     /// Unsupported node.
     #[error(code = "EA900", message = "unsupported construct")]
     UnsupportedConstruct { node: AnchoredGlobalNodeId },
+
+    /// TypeScript modules are disabled by configuration.
+    #[error(
+        code = "EA901",
+        message = "typescript modules are disabled by configuration"
+    )]
+    TypeScriptDisabled { module: ModuleId },
+
+    /// JavaScript modules are disabled by configuration.
+    #[error(
+        code = "EA902",
+        message = "javascript modules are disabled by configuration"
+    )]
+    JavaScriptDisabled { module: ModuleId },
 }

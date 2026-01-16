@@ -116,7 +116,7 @@ const saveable: Saveable = getDocument();
 
 ```ds
 class Base {
-    id: number
+    id: number = 0
 }
 
 interface Printable {
@@ -146,7 +146,7 @@ interface HasId {
 }
 
 class Document {
-    id: number
+    id: number = 0
 }
 
 declare function getDocument(): Document;
@@ -164,7 +164,7 @@ interface HasId {
 }
 
 class Document {
-    name: string
+    name: string = ""
 }
 
 declare function getDocument(): Document;
@@ -203,9 +203,9 @@ interface Named {
 }
 
 class User {
-    name: string
-    email: string
-    age: number
+    name: string = ""
+    email: string = ""
+    age: number = 0
 }
 
 declare function getUser(): User;
