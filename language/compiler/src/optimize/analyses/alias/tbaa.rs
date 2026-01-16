@@ -74,14 +74,28 @@ impl TypeBasedAA {
             | (TypeKey::Struct { .. }, TypeKey::Tuple { .. }) => true,
 
             // different struct layouts cannot alias
-            (TypeKey::Struct { fields: f1 }, TypeKey::Struct { fields: f2 }) => {
-                self.structs_cannot_alias(f1, f2)
-            }
+            (
+                TypeKey::Struct {
+                    fields: f1,
+                    copyability: _,
+                },
+                TypeKey::Struct {
+                    fields: f2,
+                    copyability: _,
+                },
+            ) => self.structs_cannot_alias(f1, f2),
 
             // different tuple layouts cannot alias
-            (TypeKey::Tuple { elements: e1 }, TypeKey::Tuple { elements: e2 }) => {
-                self.tuples_cannot_alias(e1, e2)
-            }
+            (
+                TypeKey::Tuple {
+                    elements: e1,
+                    copyability: _,
+                },
+                TypeKey::Tuple {
+                    elements: e2,
+                    copyability: _,
+                },
+            ) => self.tuples_cannot_alias(e1, e2),
 
             // array vs non-array aggregates cannot alias
             (TypeKey::Array { .. }, TypeKey::Struct { .. })
@@ -90,9 +104,18 @@ impl TypeBasedAA {
             | (TypeKey::Tuple { .. }, TypeKey::Array { .. }) => true,
 
             // arrays with different element types
-            (TypeKey::Array { element: e1, .. }, TypeKey::Array { element: e2, .. }) => {
-                self.types_cannot_alias(e1, e2)
-            }
+            (
+                TypeKey::Array {
+                    element: e1,
+                    copyability: _,
+                    ..
+                },
+                TypeKey::Array {
+                    element: e2,
+                    copyability: _,
+                    ..
+                },
+            ) => self.types_cannot_alias(e1, e2),
 
             // references with different address spaces or pointee types
             (
@@ -191,6 +214,8 @@ impl Default for TypeBasedAA {
 
 #[cfg(test)]
 mod tests {
+    use destack_mir::Copyability;
+
     use super::*;
 
     fn make_loc_with_type(ptr_id: u32, ty: TypeKey) -> MemoryLocation {
@@ -265,6 +290,7 @@ mod tests {
                     },
                 ),
             ],
+            copyability: Copyability::Trivial,
         };
         let tuple_ty = TypeKey::Tuple {
             elements: vec![
@@ -277,6 +303,7 @@ mod tests {
                     signed: true,
                 },
             ],
+            copyability: Copyability::Trivial,
         };
 
         let loc_struct = make_loc_with_type(0, struct_ty);
@@ -306,6 +333,7 @@ mod tests {
                     },
                 ),
             ],
+            copyability: Copyability::Trivial,
         };
         let struct_3field = TypeKey::Struct {
             fields: vec![
@@ -331,6 +359,7 @@ mod tests {
                     },
                 ),
             ],
+            copyability: Copyability::Trivial,
         };
 
         let loc1 = make_loc_with_type(0, struct_2field);
@@ -349,6 +378,7 @@ mod tests {
                 signed: true,
             }),
             length: 10,
+            copyability: Copyability::Trivial,
         };
         let struct_ty = TypeKey::Struct {
             fields: vec![(
@@ -358,6 +388,7 @@ mod tests {
                     signed: true,
                 },
             )],
+            copyability: Copyability::Trivial,
         };
 
         let loc_array = make_loc_with_type(0, array_ty);
@@ -404,10 +435,12 @@ mod tests {
                 signed: true,
             }),
             length: 10,
+            copyability: Copyability::Trivial,
         };
         let array_f64 = TypeKey::Array {
             element: Box::new(TypeKey::Float { width: 64 }),
             length: 10,
+            copyability: Copyability::Trivial,
         };
 
         let loc1 = make_loc_with_type(0, array_i32);

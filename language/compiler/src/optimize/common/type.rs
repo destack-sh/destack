@@ -38,12 +38,20 @@ pub enum TypeKey {
         is_nullable: bool,
     },
     /// Fixed-size array type.
-    Array { element: Box<TypeKey>, length: u64 },
+    Array {
+        element: Box<TypeKey>,
+        length: u64,
+        copyability: mir::Copyability,
+    },
     /// Tuple type with ordered elements.
-    Tuple { elements: Vec<TypeKey> },
+    Tuple {
+        elements: Vec<TypeKey>,
+        copyability: mir::Copyability,
+    },
     /// Struct type with optionally named fields.
     Struct {
         fields: Vec<(Option<StringId>, TypeKey)>,
+        copyability: mir::Copyability,
     },
     /// Function pointer type.
     FunctionPointer {
@@ -87,29 +95,33 @@ impl TypeKey {
             mir::Type::Array {
                 element,
                 length,
-                copyability: _,
+                copyability,
             } => {
                 let element_ty = tree.get(*element);
                 TypeKey::Array {
                     element: Box::new(TypeKey::from_type(element_ty, tree)),
                     length: *length,
+                    copyability: *copyability,
                 }
             }
 
             mir::Type::Tuple {
                 elements,
-                copyability: _,
+                copyability,
             } => {
                 let elements = elements
                     .iter()
                     .map(|e| TypeKey::from_type(tree.get(*e), tree))
                     .collect();
-                TypeKey::Tuple { elements }
+                TypeKey::Tuple {
+                    elements,
+                    copyability: *copyability,
+                }
             }
 
             mir::Type::Struct {
                 fields,
-                copyability: _,
+                copyability,
             } => {
                 let fields = fields
                     .iter()
@@ -119,7 +131,10 @@ impl TypeKey {
                         (field.name, field_ty)
                     })
                     .collect();
-                TypeKey::Struct { fields }
+                TypeKey::Struct {
+                    fields,
+                    copyability: *copyability,
+                }
             }
 
             mir::Type::FunctionPointer { parameters, result } => {
@@ -156,7 +171,11 @@ impl TypeKey {
             TypeKey::Int { width, .. } => bytes_for_width(*width),
             TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
             TypeKey::Float { width } => bytes_for_width(*width),
-            TypeKey::Array { element, length } => {
+            TypeKey::Array {
+                element,
+                length,
+                copyability: _,
+            } => {
                 let element_size = element.byte_size(pointer_width_bits)?;
                 element_size.checked_mul(*length)
             }
@@ -184,22 +203,6 @@ pub fn unsigned_int_width_for_value(
     }
 }
 
-/// Return true when a value has a reference type or unknown type.
-pub fn value_is_reference(
-    value: mir::Value,
-    ownership: &OwnershipAnalysis,
-    tree: &mir::NodeTree,
-) -> bool {
-    // resolve the value type
-    let type_id = ownership.value_type(value);
-    let Some(type_id) = type_id else {
-        return true;
-    };
-
-    // report whether the type is a reference
-    matches!(tree.get(type_id), mir::Type::Reference { .. })
-}
-
 /// Return true when two values can be safely substituted.
 pub fn can_substitute_value(
     destination: mir::Value,
@@ -208,17 +211,17 @@ pub fn can_substitute_value(
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> bool {
-    // resolve destination and replacement types
-    let destination_type = ownership.value_type(destination);
-    let replacement_type = ownership.value_type(replacement);
+    // resolve destination and replacement type keys
+    let destination_key = ownership.value_type_key(destination);
+    let replacement_key = ownership.value_type_key(replacement);
 
-    // require structural type equivalence when both are known
-    if let (Some(destination_type), Some(replacement_type)) = (destination_type, replacement_type) {
-        return types_are_equal(destination_type, replacement_type, tree);
+    // require structural equivalence when both are known
+    if let (Some(destination_key), Some(replacement_key)) = (destination_key, replacement_key) {
+        return destination_key == replacement_key;
     }
 
     // allow constants when they match the destination type
-    if let Some(destination_type) = destination_type
+    if let Some(destination_type) = ownership.value_type(destination)
         && let Some(constant_type) = ownership.constant_type(replacement)
     {
         return constant_matches_type(constant_type, destination_type, pointer_width_bits, tree);
@@ -301,27 +304,28 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
             mir::Type::Array {
                 element: e1,
                 length: l1,
-                copyability: _,
+                copyability: c1,
             },
             mir::Type::Array {
                 element: e2,
                 length: l2,
-                copyability: _,
+                copyability: c2,
             },
-        ) => l1 == l2 && types_are_equal(*e1, *e2, tree),
+        ) => c1 == c2 && l1 == l2 && types_are_equal(*e1, *e2, tree),
 
         // tuples: compare element types
         (
             mir::Type::Tuple {
                 elements: e1,
-                copyability: _,
+                copyability: c1,
             },
             mir::Type::Tuple {
                 elements: e2,
-                copyability: _,
+                copyability: c2,
             },
         ) => {
-            e1.len() == e2.len()
+            c1 == c2
+                && e1.len() == e2.len()
                 && e1
                     .iter()
                     .zip(e2.iter())
@@ -332,14 +336,15 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
         (
             mir::Type::Struct {
                 fields: f1,
-                copyability: _,
+                copyability: c1,
             },
             mir::Type::Struct {
                 fields: f2,
-                copyability: _,
+                copyability: c2,
             },
         ) => {
-            f1.len() == f2.len()
+            c1 == c2
+                && f1.len() == f2.len()
                 && f1.iter().zip(f2.iter()).all(|(a, b)| {
                     let field_a = tree.get(*a);
                     let field_b = tree.get(*b);
@@ -445,7 +450,8 @@ mod tests {
                     width: 32,
                     signed: true
                 }),
-                length: 10
+                length: 10,
+                copyability: mir::Copyability::Trivial
             }
         );
         assert!(!key.is_scalar());
@@ -475,5 +481,28 @@ mod tests {
         let key_1 = TypeKey::from_type(&array_1, &tree);
         let key_2 = TypeKey::from_type(&array_2, &tree);
         assert_eq!(key_1, key_2);
+    }
+
+    /// Copyability differences yield distinct keys.
+    #[test]
+    fn test_type_key_copyability_distinguishes() {
+        let mut tree = mir::NodeTree::new();
+
+        let i32_id = tree.insert(mir::Type::INT32);
+        let array_trivial = mir::Type::Array {
+            element: i32_id,
+            length: 4,
+            copyability: mir::Copyability::Trivial,
+        };
+        let array_linear = mir::Type::Array {
+            element: i32_id,
+            length: 4,
+            copyability: mir::Copyability::Linear,
+        };
+
+        let key_trivial = TypeKey::from_type(&array_trivial, &tree);
+        let key_linear = TypeKey::from_type(&array_linear, &tree);
+
+        assert_ne!(key_trivial, key_linear);
     }
 }

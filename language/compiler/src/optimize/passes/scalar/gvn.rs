@@ -9,7 +9,7 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
-    location_sets_may_alias, memory_locations_compatible, tbaa_tags_may_alias, value_is_reference,
+    location_sets_may_alias, memory_locations_compatible, tbaa_tags_may_alias,
 };
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
@@ -127,7 +127,6 @@ fn run_gvn(
     // run GVN using dominator tree traversal
     let (substitutions, to_remove) = find_redundant_expressions(
         entry,
-        function,
         tree,
         dom_children,
         alias,
@@ -401,7 +400,6 @@ impl ScopedValueTable {
 #[allow(clippy::too_many_arguments)]
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
-    _function: &mir::Function,
     tree: &mir::NodeTree,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasAnalysis,
@@ -613,11 +611,6 @@ fn process_block(
 
         // forward redundant loads
         if let mir::Instruction::Load { destination, .. } = instruction {
-            // skip reference loads to avoid aliasing unsoundness
-            if value_is_reference(*destination, ownership, tree) {
-                continue;
-            }
-
             // resolve the memory ssa use access
             let Some(use_access_id) = load_use_access_id(memory_ssa, instruction_id) else {
                 continue;
