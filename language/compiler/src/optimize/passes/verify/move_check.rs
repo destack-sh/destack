@@ -6,7 +6,7 @@ use mir::{Instruction, Value};
 
 use crate::OptimizeError;
 use crate::optimize::{
-    AnalysisPreservation, DiagnosticEmitter, FunctionAnalyses, FunctionPass, MoveLocation,
+    AnalysisPreservation, DiagnosticEmitter, FunctionPass, MoveLocation,
     OwnershipAnalysis, OwnershipMap, PipelineContext,
 };
 
@@ -260,7 +260,7 @@ impl FunctionPass for MoveCheck {
     ) -> AnalysisPreservation {
         // get ownership analysis
         let ownership = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<OwnershipAnalysis>().clone()
         };
 

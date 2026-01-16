@@ -81,6 +81,21 @@ impl Default for PipelineDiagnostics {
     }
 }
 
+/// Type related context for optimization decisions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypeContext {
+    /// Pointer width in bits for pointer sized integers.
+    pub pointer_width_bits: u16,
+}
+
+impl Default for TypeContext {
+    fn default() -> Self {
+        Self {
+            pointer_width_bits: usize::BITS as u16,
+        }
+    }
+}
+
 /// Options for pipeline execution.
 #[derive(Debug, Clone)]
 pub struct PipelineOptions {
@@ -90,6 +105,8 @@ pub struct PipelineOptions {
     pub sroa_max_array_elements: usize,
     /// Floating point math optimization policy.
     pub float_math: FloatMathPolicy,
+    /// Type context for layout sensitive optimizations.
+    pub type_context: TypeContext,
 }
 
 impl Default for PipelineOptions {
@@ -98,7 +115,15 @@ impl Default for PipelineOptions {
             strict_borrow_mode: false,
             sroa_max_array_elements: 8,
             float_math: FloatMathPolicy::Strict,
+            type_context: TypeContext::default(),
         }
+    }
+}
+
+impl PipelineOptions {
+    /// Return the type context for this pipeline run.
+    pub fn type_context(&self) -> TypeContext {
+        self.type_context
     }
 }
 
@@ -211,6 +236,11 @@ impl<'a> PipelineContext<'a> {
         tree: &'b mir::NodeTree,
     ) -> FunctionAnalyses<'b> {
         FunctionAnalyses::with_options(function, tree, self.options.clone())
+    }
+
+    /// Return the type context for this pipeline run.
+    pub fn type_context(&self) -> TypeContext {
+        self.options.type_context
     }
 
     /// Emit an optimization error.

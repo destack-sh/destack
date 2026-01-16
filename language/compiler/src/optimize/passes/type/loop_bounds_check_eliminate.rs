@@ -8,7 +8,7 @@ use crate::optimize::analyses::{
     Scev, ValueRange,
 };
 use crate::optimize::common::{BlockParamForwarding, constant_zero_like};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Eliminate bounds checks dominated by loop guards.
@@ -72,7 +72,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -80,7 +80,7 @@ impl FunctionPass for LoopBoundsCheckEliminate {
         }
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let loops = analyses.get::<LoopAnalysis>().clone();
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();

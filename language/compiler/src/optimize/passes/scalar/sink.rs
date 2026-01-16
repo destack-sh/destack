@@ -5,10 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{
-    build_use_def_maps, instruction_is_memory_read, instruction_is_speculatable,
-    instruction_may_affect_memory,
+    build_instruction_block_map, build_use_def_maps, build_value_definition_map,
+    instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Sink instructions closer to their uses.
@@ -63,7 +63,7 @@ impl FunctionPass for Sink {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -72,7 +72,7 @@ impl FunctionPass for Sink {
         };
 
         // get analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
         let loops = analyses.get::<LoopAnalysis>().clone();
@@ -114,11 +114,13 @@ fn run_sink(
     let loop_blocks: HashSet<mir::LocalNodeId<mir::Block>> = loops
         .loops()
         .iter()
-        .flat_map(|lp| lp.blocks.iter().copied())
+        .flat_map(|loop_info| loop_info.blocks.iter().copied())
         .collect();
 
     // build value->uses map and value->defining-block map
     let use_def = build_use_def_maps(function, tree);
+    let definition_map = build_value_definition_map(function, tree);
+    let instruction_blocks = build_instruction_block_map(function, tree);
 
     // collect sinking work
     let mut work: Vec<SinkWork> = Vec::new();
@@ -220,24 +222,27 @@ fn run_sink(
                 continue;
             }
 
-            // don't sink from outside a loop to inside a loop
-            // (would increase execution frequency)
-            let source_in_loop = loop_blocks.contains(&block_id);
-            let target_in_loop = loop_blocks.contains(&successor);
-            if !source_in_loop && target_in_loop {
+            // avoid sinking inside loops
+            if loop_blocks.contains(&block_id) {
                 continue;
             }
 
             // verify the instruction's operands will still be available in the successor
             // (they must dominate the successor)
             let operands_ok = instruction.uses().iter().all(|&operand| {
+                if let Some(def_id) = definition_map.get(&operand)
+                    && instruction_blocks.get(def_id) == Some(&successor)
+                {
+                    return false;
+                }
+
                 // check if operand is defined in a block that dominates successor
                 match use_def.def_block.get(&operand) {
                     Some(&operand_block) => {
                         domtree.dominates(operand_block, successor)
                             || domtree.dominates(operand_block, block_id)
                     }
-                    // function parameter - always available
+                    // function parameter, always available
                     None => true,
                 }
             });

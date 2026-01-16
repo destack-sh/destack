@@ -6,7 +6,7 @@ use crate::optimize::common::{
     BlockParamForwarding, constant_from_global, constant_is_one, constant_is_zero,
     constant_zero_for_type, constant_zero_like, fold_binary, fold_cast, instruction_is_pure,
 };
-use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
 use super::{ControlFlowGraph, Loop, LoopAnalysis};
 
@@ -128,6 +128,7 @@ impl ScalarEvolution {
         tree: &mir::NodeTree,
         cfg: &ControlFlowGraph,
         loops: &LoopAnalysis,
+        type_context: TypeContext,
     ) -> Self {
         // handle functions without bodies
         if function.entry.is_none() {
@@ -145,8 +146,15 @@ impl ScalarEvolution {
         // compute per loop SCEV maps
         let mut loop_scev = HashMap::new();
         for (loop_index, lp) in loops.loops().iter().enumerate() {
-            let mut builder =
-                LoopScevBuilder::new(function, tree, cfg, lp, &definitions, &forwarding);
+            let mut builder = LoopScevBuilder::new(
+                function,
+                tree,
+                cfg,
+                lp,
+                &definitions,
+                &forwarding,
+                type_context,
+            );
             let scev_map = builder.build();
             loop_scev.insert(loop_index, scev_map);
         }
@@ -178,7 +186,7 @@ impl FunctionAnalysis for ScalarEvolution {
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
         let loops = analyses.get::<LoopAnalysis>();
-        Self::build(function, tree, &cfg, &loops)
+        Self::build(function, tree, &cfg, &loops, analyses.type_context())
     }
 }
 
@@ -278,6 +286,8 @@ struct LoopScevBuilder<'a> {
     cache: HashMap<mir::Value, Scev>,
     /// Values currently being computed.
     in_progress: HashSet<mir::Value>,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 impl<'a> LoopScevBuilder<'a> {
@@ -289,6 +299,7 @@ impl<'a> LoopScevBuilder<'a> {
         lp: &'a Loop,
         definitions: &'a ValueDefinitions,
         forwarding: &'a BlockParamForwarding,
+        type_context: TypeContext,
     ) -> Self {
         let invariants = collect_loop_invariants(function, tree, lp, definitions);
 
@@ -301,6 +312,7 @@ impl<'a> LoopScevBuilder<'a> {
             invariants,
             cache: HashMap::new(),
             in_progress: HashSet::new(),
+            type_context,
         }
     }
 
@@ -536,18 +548,24 @@ impl<'a> LoopScevBuilder<'a> {
 
         // fold constant casts when possible
         if let Scev::Constant(constant) = &argument_scev
-            && let Some(result) = fold_cast(operator, constant.clone(), to_type, self.tree)
+            && let Some(result) = fold_cast(
+                operator,
+                constant.clone(),
+                to_type,
+                self.type_context.pointer_width_bits,
+                self.tree,
+            )
         {
             return Scev::Constant(result);
         }
 
         // read the target type
         let target_type = self.tree.get(to_type);
-        let mir::Type::Int { width, .. } = target_type else {
+        let Some((width, _)) =
+            target_type.int_info_with_pointer_width(self.type_context.pointer_width_bits)
+        else {
             return Scev::Unknown(destination);
         };
-
-        let width = *width;
 
         match operator {
             mir::CastOperator::ZeroExtend => Scev::ZeroExtend {
@@ -652,7 +670,12 @@ impl<'a> LoopScevBuilder<'a> {
         let latch_arg = self.forwarding.resolve(latch_arg);
 
         // build a zero step for the parameter type
-        let step_zero = zero_constant_for_param(self.tree, self.lp.header, param_index)?;
+        let step_zero = zero_constant_for_param(
+            self.tree,
+            self.lp.header,
+            param_index,
+            self.type_context.pointer_width_bits,
+        )?;
         let step_zero = Scev::Constant(step_zero);
 
         // extract an additive step from the latch expression
@@ -849,12 +872,13 @@ fn zero_constant_for_param(
     tree: &mir::NodeTree,
     header: mir::LocalNodeId<mir::Block>,
     param_index: usize,
+    pointer_width_bits: u16,
 ) -> Option<mir::Constant> {
     // resolve the parameter type
     let header_block = tree.get(header);
     let param = header_block.parameters.get(param_index)?;
     let ty = tree.get(param.ty);
-    constant_zero_for_type(ty)
+    constant_zero_for_type(ty, pointer_width_bits)
 }
 
 /// Build an additive SCEV with basic simplifications.

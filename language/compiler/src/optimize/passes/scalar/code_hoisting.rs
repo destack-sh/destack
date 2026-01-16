@@ -9,7 +9,7 @@ use crate::optimize::common::{
     expression_key_from_instruction, instruction_is_speculatable, instruction_map,
     instruction_substitute_uses_in_tree,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Hoist common instructions out of diamonds.
@@ -64,7 +64,7 @@ impl FunctionPass for CodeHoisting {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -75,7 +75,7 @@ impl FunctionPass for CodeHoisting {
         function.recompute_next_value_id(tree);
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
 

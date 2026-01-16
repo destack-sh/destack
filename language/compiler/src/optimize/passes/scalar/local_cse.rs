@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
+    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
     instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
@@ -47,10 +47,10 @@ impl FunctionPass for LocalCse {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // build alias analysis
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let alias = analyses.get::<AliasAnalysis>();
 
         // run local CSE

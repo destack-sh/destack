@@ -8,10 +8,10 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
 use crate::optimize::{
-    AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext, constant_all_ones_like,
-    constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
-    constant_is_zero, constant_zero_like, instruction_substitute_uses, resolve_substitution_chains,
-    terminator_substitute_uses,
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
+    constant_all_ones_like, constant_is_all_ones, constant_is_float_one, constant_is_float_zero,
+    constant_is_one, constant_is_zero, constant_zero_like, instruction_substitute_uses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -62,12 +62,19 @@ impl FunctionPass for InstructionCombine {
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // collect analyses and options
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let constants = analyses.get::<ConstantPropagation>().clone();
         let ranges = analyses.get::<RangeAnalysis>().clone();
         let float_math = ctx.options.float_math;
 
-        let changed = run_instruction_combine(function, tree, &constants, &ranges, float_math);
+        let changed = run_instruction_combine(
+            function,
+            tree,
+            &constants,
+            &ranges,
+            float_math,
+            ctx.type_context(),
+        );
 
         // preserve analyses when nothing changed
         if changed {
@@ -93,6 +100,7 @@ fn run_instruction_combine(
     constants: &ConstantPropagation,
     ranges: &RangeAnalysis,
     float_math: FloatMathPolicy,
+    type_context: TypeContext,
 ) -> bool {
     // build map of value to instruction for unary simplifications
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
@@ -260,7 +268,13 @@ fn run_instruction_combine(
 
             // update constant tracking for instructions
             if !applied_simplification {
-                update_constant_map(&instruction, tree, &mut block_constants, &block_ranges);
+                update_constant_map(
+                    &instruction,
+                    tree,
+                    &mut block_constants,
+                    &block_ranges,
+                    type_context,
+                );
             }
         }
     }
@@ -590,6 +604,7 @@ fn update_constant_map(
     tree: &mir::NodeTree,
     block_constants: &mut crate::optimize::analyses::ConstantMap,
     ranges: &RangeMap,
+    type_context: TypeContext,
 ) {
     // skip instructions without destinations
     let Some(destination) = instruction.destination() else {
@@ -657,8 +672,13 @@ fn update_constant_map(
             // fold casts when possible
             let argument = constant_for(*argument);
             if let Some(argument) = argument
-                && let Some(result) =
-                    crate::optimize::common::fold_cast(*operator, argument, *to_type, tree)
+                && let Some(result) = crate::optimize::common::fold_cast(
+                    *operator,
+                    argument,
+                    *to_type,
+                    type_context.pointer_width_bits,
+                    tree,
+                )
             {
                 block_constants.insert(destination, result);
             } else {

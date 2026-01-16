@@ -26,7 +26,7 @@ function fibonacci(n: number): number {
         "native",
         r#"
 function @fibonacci(v0: f64) -> f64 {
-block0:
+block0(v0: f64):
     v1 = iconst 2i32
     v2 = scvt_to_float v1 -> f64
     v3 = fcmp_lt v0, v2

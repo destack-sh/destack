@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{OwnershipAnalysis, RangeAnalysis, RangeMap, ValueRange};
 use crate::optimize::common::is_comparison_operator;
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Narrow integer operands for comparisons and bounds checks.
@@ -41,7 +41,7 @@ impl FunctionPass for Narrow {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -49,7 +49,7 @@ impl FunctionPass for Narrow {
         }
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let ranges = analyses.get::<RangeAnalysis>().clone();
         let ownership = analyses.get::<OwnershipAnalysis>().clone();
 

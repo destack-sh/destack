@@ -5,14 +5,17 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{
     AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA,
+    MemoryAccessLocation, MemorySSA, OwnershipAnalysis,
 };
 use crate::optimize::common::{
-    address_spaces_may_alias, alias_scopes_may_alias, instruction_substitute_uses,
-    location_sets_may_alias, memory_locations_compatible, resolve_substitution_chains,
-    tbaa_tags_may_alias, terminator_substitute_uses,
+    address_spaces_may_alias, alias_scopes_may_alias, can_substitute_value,
+    instruction_substitute_uses, location_sets_may_alias, memory_locations_compatible,
+    resolve_substitution_chains, tbaa_tags_may_alias, terminator_substitute_uses,
+    value_is_reference,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{
+    AnalysisPreservation, FunctionPass, PipelineContext, TypeContext,
+};
 
 declare_pass! {
     /// Forward stored values to subsequent loads.
@@ -84,7 +87,7 @@ impl FunctionPass for LoadStoreForward {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip empty functions
         let entry = match function.entry {
@@ -93,13 +96,14 @@ impl FunctionPass for LoadStoreForward {
         };
 
         // get analyses
-        let (aa, memory_ssa, dom_children) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+        let (aa, memory_ssa, dom_children, ownership) = {
+            let analyses = ctx.function_analyses(function, tree);
             let domtree = analyses.get::<DominatorTree>();
             let aa = analyses.get::<AliasAnalysis>().clone();
             let memory_ssa = analyses.get::<MemorySSA>();
+            let ownership = analyses.get::<OwnershipAnalysis>();
             let dom_children = build_dominator_children(function, &domtree);
-            (aa, memory_ssa, dom_children)
+            (aa, memory_ssa, dom_children, ownership)
         };
 
         // run load store forwarding
@@ -110,6 +114,8 @@ impl FunctionPass for LoadStoreForward {
             &aa,
             memory_ssa.as_ref(),
             &dom_children,
+            ownership.as_ref(),
+            ctx.type_context(),
         );
 
         // report analysis preservation
@@ -130,6 +136,7 @@ impl FunctionPass for LoadStoreForward {
 }
 
 /// Core load-store forwarding logic. Returns true if changes were made.
+#[allow(clippy::too_many_arguments)]
 fn run_load_store_forward(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -137,10 +144,12 @@ fn run_load_store_forward(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
 ) -> bool {
     // run forwarding using dominator tree traversal
     let (substitutions, to_remove) =
-        find_forwardable_loads(entry, tree, aa, memory_ssa, dom_children);
+        find_forwardable_loads(entry, tree, aa, memory_ssa, dom_children, ownership, type_context);
 
     // nothing to do if no forwarding found
     if substitutions.is_empty() {
@@ -322,6 +331,8 @@ fn find_forwardable_loads(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
 ) -> (
     HashMap<mir::Value, mir::Value>,
     HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -351,6 +362,8 @@ fn find_forwardable_loads(
                     tree,
                     aa,
                     memory_ssa,
+                    ownership,
+                    type_context,
                     &mut available,
                     &mut substitutions,
                     &mut to_remove,
@@ -376,11 +389,14 @@ fn find_forwardable_loads(
 }
 
 /// Process a single block, tracking available values and finding forwardable loads.
+#[allow(clippy::too_many_arguments)]
 fn process_block(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::NodeTree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
+    ownership: &OwnershipAnalysis,
+    type_context: TypeContext,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -426,8 +442,12 @@ fn process_block(
                 });
             }
 
-            mir::Instruction::Load { destination, .. }
-            | mir::Instruction::LocalGet { destination, .. } => {
+            mir::Instruction::Load { destination, .. } => {
+                // skip reference loads to avoid aliasing unsoundness
+                if value_is_reference(*destination, ownership, tree) {
+                    continue;
+                }
+
                 // resolve the memory use access
                 let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
                     continue;
@@ -450,9 +470,73 @@ fn process_block(
 
                 // compute the clobbering access for this read
                 let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
+                if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+                    continue;
+                }
 
                 // forward from an existing value when possible
-                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree) {
+                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
+                    && can_substitute_value(
+                        *destination,
+                        existing,
+                        ownership,
+                        type_context.pointer_width_bits,
+                        tree,
+                    )
+                {
+                    substitutions.insert(*destination, existing);
+                    to_remove.insert(instruction_id);
+                } else {
+                    available.insert(MemoryEntry {
+                        clobber,
+                        location: use_access.effect.location.clone(),
+                        value: *destination,
+                        location_set: use_access.effect.location_set,
+                        address_spaces: use_access.effect.address_spaces.clone(),
+                        alias_scopes: use_access.effect.alias_scopes.clone(),
+                        noalias_scopes: use_access.effect.noalias_scopes.clone(),
+                        tbaa_tag: use_access.effect.tbaa_tag,
+                    });
+                }
+            }
+
+            mir::Instruction::LocalGet { destination, .. } => {
+                // resolve the memory use access
+                let Some(use_access_id) = use_access_id(memory_ssa, instruction_id) else {
+                    continue;
+                };
+
+                // read the use access data
+                let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
+                    continue;
+                };
+
+                // skip volatile or barrier reads
+                if use_access.effect.is_volatile || use_access.effect.is_barrier {
+                    continue;
+                }
+
+                // skip unknown locations
+                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                    continue;
+                }
+
+                // compute the clobbering access for this read
+                let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
+                if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+                    continue;
+                }
+
+                // forward from an existing value when possible
+                if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
+                    && can_substitute_value(
+                        *destination,
+                        existing,
+                        ownership,
+                        type_context.pointer_width_bits,
+                        tree,
+                    )
+                {
                     substitutions.insert(*destination, existing);
                     to_remove.insert(instruction_id);
                 } else {

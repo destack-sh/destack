@@ -2,7 +2,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Canonicalize loops into a simplified form.
@@ -33,7 +33,7 @@ impl FunctionPass for LoopSimplify {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         let entry = match function.entry {
             Some(entry) => entry,
@@ -42,7 +42,7 @@ impl FunctionPass for LoopSimplify {
 
         // get analyses
         let (loops, cfg) = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<ControlFlowGraph>().clone(),
@@ -279,7 +279,7 @@ fn insert_preheader(
     // preheader unconditionally jumps to header, forwarding its parameters
     let preheader_args: Vec<mir::Value> = preheader_params.iter().map(|p| p.value).collect();
     let preheader = mir::Block {
-        parameters: preheader_params,
+        parameters: preheader_params.clone(),
         instructions: vec![],
         terminator: mir::Terminator::Jump {
             target: header,
@@ -306,6 +306,8 @@ fn insert_preheader(
 
     // if header was the entry, preheader becomes entry
     if header == entry {
+        // keep function parameters aligned with the entry block
+        function.parameters = preheader_params.clone();
         function.entry = Some(preheader_id);
         redirected = true;
     }
@@ -632,7 +634,7 @@ block1:
     return
 }"#;
         // preheader (block2) becomes new entry with fresh param v1
-        let expected = r#"function @test(v0: bool) -> void {
+        let expected = r#"function @test(v1: bool) -> void {
 block0(v0: bool):
     branch v0, block0(v0), block1
 block1:
@@ -770,7 +772,7 @@ block0(v0: bool):
     jump block0(v0)
 }"#;
         // preheader (block1) becomes entry with fresh param v1
-        let expected = r#"function @test(v0: bool) -> void {
+        let expected = r#"function @test(v1: bool) -> void {
 block0(v0: bool):
     jump block0(v0)
 block1(v1: bool):

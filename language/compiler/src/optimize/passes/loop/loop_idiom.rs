@@ -10,7 +10,7 @@ use crate::optimize::common::{
     BlockParamForwarding, build_use_def_maps, build_value_definition_map,
     instruction_has_side_effects, instruction_is_speculatable, unsigned_int_width_for_value,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Recognize loop idioms and replace them with memory intrinsics.
@@ -71,14 +71,14 @@ impl FunctionPass for LoopIdiomRecognize {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_idiom(function, tree);
+        let changed = run_loop_idiom(function, tree, ctx);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -107,9 +107,13 @@ struct GuardInfo {
 }
 
 /// Run loop idiom recognition on a single function and report whether it changed.
-fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_loop_idiom(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // gather analyses
-    let analyses = FunctionAnalyses::new(function, tree);
+    let analyses = ctx.function_analyses(function, tree);
     let loops = analyses.get::<LoopAnalysis>().clone();
     let cfg = analyses.get::<ControlFlowGraph>().clone();
     let domtree = analyses.get::<DominatorTree>().clone();
@@ -165,11 +169,21 @@ fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
         }
 
         // require consistent unsigned types for induction and bound
-        let Some(induction_width) = unsigned_int_width_for_value(guard.induction, &ownership, tree)
+        let Some(induction_width) = unsigned_int_width_for_value(
+            guard.induction,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        )
         else {
             continue;
         };
-        let Some(bound_width) = unsigned_int_width_for_value(guard.bound, &ownership, tree) else {
+        let Some(bound_width) = unsigned_int_width_for_value(
+            guard.bound,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        ) else {
             continue;
         };
         if induction_width != bound_width {
@@ -206,7 +220,12 @@ fn run_loop_idiom(function: &mut mir::Function, tree: &mut mir::NodeTree) -> boo
         };
 
         // compute a zero index value
-        let Some(zero_const) = const_zero_for_index(guard.induction, &ownership, tree) else {
+        let Some(zero_const) = const_zero_for_index(
+            guard.induction,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        ) else {
             continue;
         };
 
@@ -379,27 +398,24 @@ fn element_addr_for_pointer(
 fn const_zero_for_index(
     index: mir::Value,
     ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> Option<mir::Constant> {
     // select a zero constant that matches the index type
     let ty_id = ownership.value_type(index)?;
     let ty = tree.get(ty_id);
-    match ty {
-        mir::Type::Int { width, signed } => {
-            if *signed {
-                Some(mir::Constant::Int {
-                    value: 0,
-                    width: *width as u8,
-                    is_signed: true,
-                })
-            } else {
-                Some(mir::Constant::UInt {
-                    value: 0,
-                    width: *width as u8,
-                })
-            }
-        }
-        _ => None,
+    let (width, signed) = ty.int_info_with_pointer_width(pointer_width_bits)?;
+    if signed {
+        Some(mir::Constant::Int {
+            value: 0,
+            width: width as u8,
+            is_signed: true,
+        })
+    } else {
+        Some(mir::Constant::UInt {
+            value: 0,
+            width: width as u8,
+        })
     }
 }
 

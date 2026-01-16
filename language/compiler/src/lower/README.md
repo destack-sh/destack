@@ -189,21 +189,13 @@ Layout categories are Lower metadata, not MIR:
 | Pointer | address | pointer-sized | heap-managed or external |
 | Tuple | ordered fields | packed/offset fields | homogeneous is still tuple |
 | Struct | named fields | packed/offset fields | nominal, value semantics |
-| Class | instance fields | managed reference to payload layout | reference semantics |
+| Class | instance fields | pointer + optional vtable | reference semantics |
 | Array/Slice | element + length | header + data | policy: inline vs heap |
 | Function | signature | pointer or fat pointer | closure captures add env ptr |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
 | Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
 | Intersection | composed view | no new storage | layout = primary + itabs |
-
-### Structs, Classes, and Boxing
-
-Struct layouts describe value payloads with field offsets.
-Class instance types are represented as `ref<managed @Payload>` where `@Payload` is the class field layout.
-Dispatch metadata is attached out of line in type metadata, and polymorphic classes include a vtable pointer in the payload layout when virtual dispatch remains.
-Lower inserts boxing when a struct value is used in a reference typed context, which is modeled as `managed.alloc` plus a `store` of the value.
-The `new` expression constructs a value for structs and allocates a managed reference for classes.
 
 ### Union Strategy
 
@@ -662,7 +654,7 @@ Child classes inherit parent slots; overrides reuse the same slot.
 Lower populates MIR metadata tables incrementally as phases complete.
 Phase 1 records type layouts and lineages in `NodeTree.type_table.type_metadata_by_id`.
 Phase 2 records function memory effects and pointer attributes on MIR `Function`.
-Phase 3 registers dispatch tables and type descriptors in `NodeTree.type_table.dispatch_tables` and type metadata.
+Phase 3 registers dispatch tables, type descriptors, and type tags in `NodeTree.type_table.dispatch_tables` and type metadata.
 Phase 4 records callsite metadata in `NodeTree.call_table`, memory access metadata (including alias
 scopes and TBAA tags) in `NodeTree.memory_table`, and debug scopes in `NodeTree.debug_info`.
 
@@ -720,7 +712,7 @@ Generate dispatch tables and runtime type information.
 ### Output
 - VTable constants for polymorphic classes
 - ITab constants for (Type, Interface) pairs
-- TypeDescriptor constants for RTTI
+- TypeTag constants for RTTI
 - Interned string tag tables
 
 ### Operations
@@ -728,7 +720,7 @@ Generate dispatch tables and runtime type information.
 **VTable generation:** For each polymorphic class, emit a constant vtable:
 ```ds
 struct VTable {
-    typeDescriptor: &TypeDescriptor  // slot 0, for instanceof/T.is
+    typeTag: TypeTag    // slot 0, for instanceof and T.is
     destructor: fn()                 // slot 1, drop glue
     methods: [fn; N]                 // virtual methods in slot order
 }
@@ -737,7 +729,7 @@ struct VTable {
 **ITab generation:** For each (Type, Interface) pair where the type implements the interface:
 ```ds
 struct ITab {
-    typeDescriptor: &TypeDescriptor  // for T.is on interface refs
+    typeTag: TypeTag    // for T.is on interface refs
     methods: [fn; M]                 // interface methods in declaration order
 }
 ```
@@ -755,6 +747,7 @@ struct TypeDescriptor {
     ...
 }
 ```
+TypeTag values are pointers to these TypeDescriptor constants.
 
 **String tag interning:** TypeScript-style discriminated unions use string tags.
 Lower interns these to integer discriminants:
@@ -768,6 +761,7 @@ Lower interns these to integer discriminants:
 - All vtables are generated as global constants
 - All itabs are generated as global constants
 - All needed TypeDescriptors are generated
+- All needed TypeTags are generated
 - String tags are interned to integers
 
 ## Phase 4: Emit
@@ -956,15 +950,15 @@ type @ObjectWithVTable = struct { ref<raw void> }
 function @render(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>) -> void {
 block0(v0: ref<@ObjectWithVTable>, ctx: ref<@RenderContext>):
     v1 = field.get v0, 0       ; vtable pointer
-    v2 = field.get v1, 0       ; type descriptor from vtable slot 0
-    v3 = global.const @Mesh_TypeDescriptor
+    v2 = field.get v1, 0       ; type tag from vtable slot 0
+    v3 = global.const @Mesh_TypeTag
     v4 = icmp_eq v2, v3
     branch v4, block1, block2
 block1:
     call @Mesh.draw(v0, ctx)
     jump block4
 block2:
-    v5 = global.const @Light_TypeDescriptor
+    v5 = global.const @Light_TypeTag
     v6 = icmp_eq v2, v5
     branch v6, block3, block5
 block3:
@@ -1281,9 +1275,8 @@ Borrowing an array object does not imply a slice view.
 
 ### Structs and Classes
 
-Structs are value types with no identity, while classes are reference types with identity.
-Structural object types are reference types even when written as type aliases.
-Ownership modifiers (`^T`, `&T`) describe ownership and borrowing without changing identity semantics.
+Both structs and classes are **reference types by default** in Destack (like all TypeScript objects).
+Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference semantics on either.
 
 | Aspect | struct | class |
 |--------|--------|-------|
@@ -1293,8 +1286,6 @@ Ownership modifiers (`^T`, `&T`) describe ownership and borrowing without changi
 | Extends | No | Yes |
 | Implements | Yes | Yes |
 | Virtual | None (all calls static) | Methods virtual by default |
-| Default passing | Value | Reference |
-| Default storage | Inline | Managed reference |
 
 **Virtual method dispatch for classes:**
 - All class methods are virtual by default (like TypeScript/JavaScript prototype methods)
@@ -1309,18 +1300,16 @@ The `final` keyword on methods or classes is an API contract ("you may not overr
 For whole-program compilation, the optimizer already knows what's overridden.
 `final` matters for libraries where downstream users could extend classes.
 
-Struct layouts are value payloads with computed property offsets.
-Class instance types are managed references to payload layouts, and the payload includes a vtable pointer when dynamic dispatch remains.
-Both can carry type identity metadata for `instanceof`, `T.is`, or `typeOf` when needed.
+Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
 
 #### RTTI and Type Tags
 
-RTTI (runtime type identity) is unified via `TypeDescriptor` pointers.
-Polymorphic classes include a vtable pointer in the payload layout when virtual dispatch remains.
-Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
+RTTI (runtime type identity) is unified via `TypeTag` handles that point to `TypeDescriptor` values.
+Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
+Vtable slot 0 stores the `TypeTag` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
-Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
-Interface and `unknown` values carry `TypeDescriptor` in fat pointers.
+Thin-pointer checks on structs recover `TypeTag` from GC metadata when needed.
+Interface and `unknown` values carry `TypeTag` in fat pointers.
 Class references are thin pointers, so the vtable pointer must live in the object layout when present.
 
 GC metadata lookup only applies to managed references.
@@ -1385,7 +1374,7 @@ class Node {
 Native layout:
 ```ds
 struct NodeLayout {
-    vtablePtr: &VTable,      // offset 0, vtable[0] = &Node_TypeDescriptor
+    vtablePtr: &VTable,      // offset 0, vtable[0] = Node_TypeTag
     name: ref<string>,       // offset 8
 }
 ```
@@ -1403,13 +1392,13 @@ Dynamic property addition must use explicit map/dictionary types.
 
 Managed objects have no per object GC header.
 GC metadata is stored out of line in allocator side tables, similar to Go.
-Type tags are pointers to TypeDescriptor values, not integer ids.
+TypeTag values are pointers to TypeDescriptor values, not integer ids.
 Null and undefined use niche optimization in the pointer (e.g., 0x0 for null, 0x1 for undefined).
 
 Per span metadata includes:
 - Mark bits for GC tracing
 - Size class and allocation layout info
-- A TypeDescriptor pointer per object for scanning and type queries
+- A TypeTag per object for scanning and type queries
 
 Polymorphic classes store a vtable pointer in the object for virtual dispatch and fast `instanceof`/`T.is`.
 Structs remain headerless and rely on metadata or fat pointers for RTTI.
@@ -1418,11 +1407,11 @@ Tradeoffs:
 - Predictable object layouts and smaller per object overhead
 - Thin pointer RTTI queries require a metadata lookup
 
-**Explicit ownership:**
-Use `^T` to require a single owner and enable drop semantics:
+**Explicit value semantics:**
+Use `^T` to force value/copy semantics:
 ```ds
-function process(point: ^Point) {    // ownership transferred into the callee
-    // modifications don't affect the caller
+function process(point: ^Point) {    // ^Point = value type, point is copied
+    // modifications don't affect caller
 }
 ```
 
@@ -1590,7 +1579,7 @@ string interning mechanism, reducing complexity and code duplication.
 
 TypeId is a stable string identity for reflection and JS interop.
 Native dynamic dispatch does not use TypeId for equality checks.
-Native type tags are pointers to TypeDescriptor values.
+TypeTag values are pointers to TypeDescriptor values.
 
 ### Union Representation
 
@@ -1632,7 +1621,7 @@ Lower chooses union representation based on these rules (in order):
 
    ```ds
    type Dynamic = unknown
-   // layout: { typeDescriptor: &TypeDescriptor, payload: word }
+   // layout: { typeTag: TypeTag, payload: word }
 
    type LargeUnion = LargeA | LargeB
    // layout: { tag: u8, data: pointer to variant }
@@ -1641,7 +1630,7 @@ Lower chooses union representation based on these rules (in order):
 The inline size threshold is fixed per target for ABI stability.
 **Owned unions** (`^(A | B)`) prefer inline representation when the variant is known at runtime
 without additional RTTI. If RTTI is required for drop, the union is boxed with an explicit tag.
-The `typeDescriptor` in boxed unions points at the RTTI descriptor.
+The `typeTag` in boxed unions points at the RTTI descriptor.
 
 ### Dynamic Types (unknown)
 
@@ -1659,12 +1648,12 @@ if (value is User) {
 
 ```ds
 struct unknown {
-    typeDescriptor: &TypeDescriptor
+    typeTag: TypeTag
     payload: word
 }
 ```
 
-The `payload` is a pointer-sized word interpreted by `typeDescriptor`.
+The `payload` is a pointer-sized word interpreted by `typeTag`.
 `word` is a pointer-sized integer type (u64 on 64-bit, u32 on 32-bit).
 Managed references store the object pointer in `payload`.
 Small primitives store their bitwise representation directly in `payload`.
@@ -1749,29 +1738,28 @@ struct PropertyDescriptor {
 }
 ```
 
-At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor`
-data is accessed directly.
+At runtime, when user code accesses `User.properties` or `typeOf(value)`, the `TypeDescriptor` data is accessed directly.
 (Comptime and runtime share the same MIR representation, so no synthesis or conversion step is needed.)
-Runtime type tags are pointers to TypeDescriptor values.
-When a vtable exists, slot 0 stores the TypeDescriptor pointer. Interface and `unknown` values carry it in fat pointers,
-and thin pointers recover it via GC metadata when needed.
+Runtime `Type<T>` values are represented as `TypeTag` handles that point to `TypeDescriptor` records.
+When a vtable exists, slot 0 stores the `TypeTag` handle.
+Interface and `unknown` values carry it in fat pointers, and thin pointers recover it via GC metadata when needed.
 
 **Lowering Type<T> operations:**
 
 | Source | Comptime | Runtime (if needed) |
 |--------|----------|---------------------|
 | `User` (in type position) | Type check | N/A |
-| `User` (in value position) | Constant TypeDescriptor* | Load from RTTI table |
+| `User` (in value position) | Constant TypeTag | Load from RTTI table |
 | `User.name` | Constant "User" | `rtti[user_id].name` |
 | `User.properties` | Constant array | Load property descriptors |
-| `value instanceof User` | Eliminated if type known | Compare `value.typeDescriptor == &User_TypeDescriptor` |
-| `User.is(value)` | Eliminated if type known | Compare `value.typeDescriptor == &User_TypeDescriptor` |
-| `typeOf(value)` | Constant if type known | Load `value.typeDescriptor`, return descriptor |
+| `value instanceof User` | Eliminated if type known | Compare `value.typeTag == @User_TypeTag` |
+| `User.is(value)` | Eliminated if type known | Compare `value.typeTag == @User_TypeTag` |
+| `typeOf(value)` | Constant if type known | Load `value.typeTag` |
 
-When a value is a thin pointer without an embedded type tag, we get the TypeDescriptor pointer from GC metadata for comparison.
+When a value is a thin pointer without an embedded type tag, we get the `TypeTag` handle from GC metadata for comparison.
 
 **RTTI generation rules:**
-RTTI (TypeDescriptor) is only emitted for types that need runtime type checks.
+RTTI (TypeDescriptor records) are only emitted for types that need runtime type checks.
 Lower conservatively emits RTTI for any type that might need it:
 - Types used with `instanceof` or `T.is` on values of unknown concrete type
 - Types used with `typeOf()` on values of unknown concrete type
@@ -1805,7 +1793,7 @@ The vtable is an array of function pointers, one per virtual method.
 **VTable structure (conceptual):**
 ```ds
 struct VTable {
-    typeDescriptor: &TypeDescriptor    // for instanceof, T.is, and typeOf
+    typeTag: TypeTag    // for instanceof, T.is, and typeOf
     destructor: () => void       // cleanup function
     methods: ((...args: unknown[]) => unknown)[] // virtual method pointers
 }
@@ -1814,18 +1802,18 @@ struct VTable {
 **Example vtable layout:**
 <pre>
 Node vtable:
-  slot 0: typeDescriptor = &Node_TypeDescriptor
+  slot 0: typeTag = @Node_TypeTag
   slot 1: destructor = Node_drop
   slot 2: update = Node.update
 
 Sprite vtable (inherits Node):
-  slot 0: typeDescriptor = &Sprite_TypeDescriptor
+  slot 0: typeTag = @Sprite_TypeTag
   slot 1: destructor = Sprite_drop
   slot 2: update = Sprite.update      // overrides Node::update
 </pre>
 
 **Slot assignment (inheritance-preserving):**
-- Slot 0: always `typeDescriptor` (for `instanceof`, `T.is`, `typeOf`)
+- Slot 0: always `typeTag` (for `instanceof`, `T.is`, `typeOf`)
 - Slot 1: always `destructor` (drop glue)
 - Slots 2+: virtual methods in declaration order
 - Child classes inherit all parent slots at the same indices
@@ -1908,13 +1896,13 @@ Each (Type, Interface) pair generates its own itab:
 ```ds
 // circle as Drawable
 const Circle_Drawable_itab: InterfaceItab<Drawable> = {
-    typeDescriptor: &Circle_TypeDescriptor,
+    typeTag: @Circle_TypeTag,
     draw: @Circle.draw
 }
 
 // rectangle as Drawable
 const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
-    typeDescriptor: &Rectangle_TypeDescriptor,
+    typeTag: @Rectangle_TypeTag,
     draw: @Rectangle.draw
 }
 ```
@@ -1922,7 +1910,7 @@ const Rectangle_Drawable_itab: InterfaceItab<Drawable> = {
 **Interface call lowering:**
 
 Each (Type, Interface) pair gets its own itab with slots assigned in interface method declaration order.
-Slot 0 is always `typeDescriptor`, then methods follow.
+Slot 0 is always `typeTag`, then methods follow.
 The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
 
 ```ds
@@ -1989,12 +1977,12 @@ For each (Type, Interface) pair where the type implements the interface:
 2. Store the itab as a global constant
 3. When creating an interface reference, pair the object with the appropriate itab
 4. For `unknown` or dynamic casts, build and cache the itab at runtime on first use
-5. The cache is global per runtime and keyed by `(concrete TypeDescriptor, interface TypeDescriptor)`
+5. The cache is global per runtime and keyed by `(concrete TypeTag, interface TypeTag)`
 
 **Itab layout:**
 ```ds
 struct InterfaceItab<I> {
-    typeDescriptor: &TypeDescriptor  // for T.is on interface refs
+    typeTag: TypeTag  // for T.is on interface refs
     methods: [FunctionPointer] // one per interface method, in declaration order
 }
 ```
@@ -2089,8 +2077,7 @@ else { const x = __foo; ... }
 
 Memory allocation and ownership at the MIR level.
 TypeScript/JavaScript uses garbage collection with no explicit memory management.
-Destack preserves this simplicity by default for reference types, and value types are inline unless boxed.
-It enables opt in control for performance critical code.
+Destack preserves this simplicity by default (GC managed heap allocation), but enables opt in control for performance critical code.
 The **GC** implementation is assumed abstractly as "managed allocate" and TS compatible, we assume potential pauses and add some barriers.
 
 ### Allocation Modes
@@ -2126,8 +2113,8 @@ See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
-Managed allocations do not include implicit headers, and any vtable pointer is part of the payload layout.
-The allocator side tables store mark bits, size class, and the TypeDescriptor pointer used for scanning.
+Managed allocations do not include per object headers.
+The allocator side tables store mark bits, size class, and the TypeTag handle used for scanning.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
 The general approach (when GC is enabled) is Go-like: insertion write barriers with a concurrent mark phase.
@@ -2250,36 +2237,29 @@ The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 
 ### Ownership
 
-Destack aims to cover the "managedness" spectrum from TS to Go to Rust: managed references by default for reference types, explicit ownership when needed.
+Destack aims to cover the "managedness" spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
 Most code just uses the default, and that should still be plenty fast thanks to real AOT compilation and fixed layouts (more like Go, Java, C#).
 Performance critical code adds these ownership modifiers for manual control.
 
 **Explicit Ownership:**
 
-By default, a plain type `T` follows its type semantics.
-Structs and primitives are values.
-Classes and structural object types are managed references.
-Type aliases inherit the semantics of their underlying type.
+To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC managed references, primitives are values).
 
 | Modifier | Semantics | After `foo(x)` | Who cleans up? |
 |----------|-----------|----------------|----------------|
-| `T` | Type default (value or managed reference) | `x` still valid | Type default |
+| `T` | GC managed (implicit) | `x` still valid | GC |
 | `&T` | Borrow (read only) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
 | `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
 | `^mut T` | Ownership transfer (mutable) | `x` **invalid** | New owner (or GC fallback) |
 
-Managed reference types are collected by the GC.
-Value types only drop when owned or used with `using`.
-
 For the default (`T`), the compiler optimizes automatically:
-- Small value types are passed by copy
-- Large value types may be passed indirectly or boxed when required
-- Reference types are passed as references
-- Escape analysis promotes managed allocations to stack when safe
+- Small values are passed by copy (registers)
+- Large values are GC managed references
+- Escape analysis promotes heap to stack when safe
 
-Reference types are GC managed by default and can be shared freely.
-Value types are copied by default and are not implicitly shared.
+`T` is not owned by anyone, it is implicitly GC managed and freed whenever all references to it are gone.
+Many people can hold and mutate `T` as long as they like.
 `^T` is for when there should only be one owner.
 Accordingly, when calling a function with `^T`, the caller gives up ownership of the value to the callee.
 After the transfer, the original binding is invalid:
@@ -2410,11 +2390,9 @@ The Optimize phase decides whether to actually inline based on:
 `@inline("never")` prevents inlining (useful for debugging, code size).
 
 **Move Semantics:**
-By default, Destack follows TypeScript semantics for reference types.
-Classes and structural object types are GC-managed references.
+By default, Destack uses TypeScript semantics: objects are GC-managed references.
 Assignment shares references; variables remain valid after being passed to functions.
-Value types are copied unless moved with `^T`.
-Move semantics only apply with explicit `^T` ownership.
+Move semantics only apply with explicit `^T` value types.
 
 ### Stack Safety
 

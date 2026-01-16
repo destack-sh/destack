@@ -11,7 +11,7 @@ use crate::optimize::common::{
     constant_is_zero, instruction_is_speculatable, instruction_map,
     instruction_substitute_uses_in_tree, resolve_substitution_chains, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 declare_pass! {
     /// Reduce strength of loop expressions derived from induction variables.
@@ -70,7 +70,7 @@ impl FunctionPass for LoopStrengthReduce {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -78,7 +78,7 @@ impl FunctionPass for LoopStrengthReduce {
         }
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let loops = analyses.get::<LoopAnalysis>().clone();
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
@@ -99,6 +99,7 @@ impl FunctionPass for LoopStrengthReduce {
             scev: &scev,
             ownership: &ownership,
             ranges: &ranges,
+            type_context: ctx.type_context(),
         };
         let changed = run_loop_strength_reduce(function, tree, &context);
         if changed {
@@ -290,6 +291,8 @@ struct StrengthReduceContext<'a> {
     ownership: &'a OwnershipAnalysis,
     /// Range analysis for loop invariants.
     ranges: &'a RangeAnalysis,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 /// Shared context for collecting strength reduction candidates.
@@ -312,6 +315,8 @@ struct CandidateContext<'a> {
     uses: &'a ValueUses,
     /// Range analysis for safety checks.
     ranges: &'a RangeAnalysis,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 impl<'a> CandidateContext<'a> {
@@ -381,6 +386,7 @@ impl<'a> CandidateContext<'a> {
                             block_id,
                             self.ranges,
                             self.ownership,
+                            self.type_context.pointer_width_bits,
                             self.tree,
                         )
                     {
@@ -391,7 +397,8 @@ impl<'a> CandidateContext<'a> {
                     let Some(value_type) = self.ownership.value_type(destination) else {
                         continue;
                     };
-                    if !type_is_integer(value_type, self.tree) {
+                    if !type_is_integer(value_type, self.type_context.pointer_width_bits, self.tree)
+                    {
                         continue;
                     }
 
@@ -486,6 +493,7 @@ fn run_loop_strength_reduce(
         definitions: &definitions,
         uses: &uses,
         ranges: context.ranges,
+        type_context: context.type_context,
     };
     let candidates = candidates_context.collect_candidates();
 
@@ -529,6 +537,7 @@ fn run_loop_strength_reduce(
             context.ownership,
             context.ranges,
             context.domtree,
+            context.type_context,
         );
 
         // merge substitutions into the global map
@@ -583,6 +592,7 @@ fn run_loop_strength_reduce(
 }
 
 /// Apply candidates for a single loop and return substitutions.
+#[allow(clippy::too_many_arguments)]
 fn apply_candidates_for_loop(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
@@ -591,6 +601,7 @@ fn apply_candidates_for_loop(
     ownership: &OwnershipAnalysis,
     ranges: &RangeAnalysis,
     domtree: &DominatorTree,
+    type_context: TypeContext,
 ) -> Vec<(mir::Value, mir::Value)> {
     // skip empty candidate lists
     if candidates.is_empty() {
@@ -612,6 +623,7 @@ fn apply_candidates_for_loop(
         ownership,
         ranges,
         domtree,
+        type_context,
     );
 
     // build plan items
@@ -738,12 +750,19 @@ fn scev_is_zero(scev: &Scev) -> bool {
 }
 
 /// Check if a type is an integer.
-fn type_is_integer(ty: mir::LocalNodeId<mir::Type>, tree: &mir::NodeTree) -> bool {
+fn type_is_integer(
+    ty: mir::LocalNodeId<mir::Type>,
+    pointer_width_bits: u16,
+    tree: &mir::NodeTree,
+) -> bool {
     // inspect the referenced type
-    matches!(tree.get(ty), mir::Type::Int { .. })
+    tree.get(ty)
+        .int_info_with_pointer_width(pointer_width_bits)
+        .is_some()
 }
 
 /// Check whether a division or remainder is safe to eliminate.
+#[allow(clippy::too_many_arguments)]
 fn division_is_safe(
     operator: mir::BinaryOperator,
     left: mir::Value,
@@ -751,11 +770,20 @@ fn division_is_safe(
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> bool {
     match operator {
         mir::BinaryOperator::SignedDivide | mir::BinaryOperator::SignedRemainder => {
-            signed_division_is_safe(left, right, block_id, ranges, ownership, tree)
+            signed_division_is_safe(
+                left,
+                right,
+                block_id,
+                ranges,
+                ownership,
+                pointer_width_bits,
+                tree,
+            )
         }
         mir::BinaryOperator::UnsignedDivide | mir::BinaryOperator::UnsignedRemainder => {
             unsigned_division_is_safe(right, block_id, ranges)
@@ -771,6 +799,7 @@ fn signed_division_is_safe(
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
     ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> bool {
     // require signed operand ranges
@@ -789,7 +818,7 @@ fn signed_division_is_safe(
             return false;
         };
 
-        let Some(min_value) = signed_min_for_value(left, ownership, tree)
+        let Some(min_value) = signed_min_for_value(left, ownership, pointer_width_bits, tree)
             .or_else(|| signed_min_from_range(&left_range))
         else {
             return false;
@@ -901,18 +930,18 @@ fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
 fn signed_min_for_value(
     value: mir::Value,
     ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> Option<i128> {
     let ty = ownership.value_type(value)?;
-    let mir::Type::Int { width, signed } = tree.get(ty) else {
-        return None;
-    };
-
-    if !*signed {
+    let (width, is_signed) = tree
+        .get(ty)
+        .int_info_with_pointer_width(pointer_width_bits)?;
+    if !is_signed {
         return None;
     }
 
-    signed_min_for_width(*width)
+    signed_min_for_width(width)
 }
 
 /// Extract the signed minimum for a range when a type is unavailable.
@@ -1186,8 +1215,11 @@ struct ScevMaterializer<'a> {
     value_in_progress: HashSet<mir::Value>,
     /// Cached integer types by width and signedness.
     type_cache: HashMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl<'a> ScevMaterializer<'a> {
     /// Create a new materializer for the preheader.
     fn new(
@@ -1198,6 +1230,7 @@ impl<'a> ScevMaterializer<'a> {
         ownership: &'a OwnershipAnalysis,
         ranges: &'a RangeAnalysis,
         domtree: &'a DominatorTree,
+        type_context: TypeContext,
     ) -> Self {
         // collect constants already in the preheader
         let mut constant_cache = Vec::new();
@@ -1226,6 +1259,7 @@ impl<'a> ScevMaterializer<'a> {
             value_cache: HashMap::new(),
             value_in_progress: HashSet::new(),
             type_cache: HashMap::new(),
+            type_context,
         }
     }
 
@@ -1653,11 +1687,8 @@ impl<'a> ScevMaterializer<'a> {
         // read the argument type
         let ty_id = self.ownership.value_type(argument)?;
         let ty = self.tree.get(ty_id);
-        let mir::Type::Int { signed, .. } = ty else {
-            return None;
-        };
-
-        Some(*signed)
+        let (_, signed) = ty.int_info_with_pointer_width(self.type_context.pointer_width_bits)?;
+        Some(signed)
     }
 
     /// Check whether signed division is safe to hoist.

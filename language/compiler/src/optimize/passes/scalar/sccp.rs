@@ -7,7 +7,7 @@ use crate::optimize::common::{
     ConstantTree, build_use_def_maps, constant_tree_from_global, fold_binary, fold_cast,
     fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
-use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
 /// Maximum aggregate elements to materialize from globals.
 const MAX_AGGREGATE_ELEMENTS: usize = 1024;
@@ -61,10 +61,10 @@ impl FunctionPass for SparseConditionalConstantPropagation {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // run SCCP
-        let (cfg_changed, value_changed) = run_sccp(function, tree);
+        let (cfg_changed, value_changed) = run_sccp(function, tree, ctx.type_context());
 
         if cfg_changed || value_changed {
             AnalysisPreservation::none()
@@ -83,7 +83,11 @@ impl FunctionPass for SparseConditionalConstantPropagation {
 }
 
 /// SCCP logic. Returns (cfg_changed, value_changed).
-fn run_sccp(function: &mut mir::Function, tree: &mut mir::NodeTree) -> (bool, bool) {
+fn run_sccp(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    type_context: TypeContext,
+) -> (bool, bool) {
     // skip extern functions
     let entry = match function.entry {
         Some(entry) => entry,
@@ -94,7 +98,7 @@ fn run_sccp(function: &mut mir::Function, tree: &mut mir::NodeTree) -> (bool, bo
     let use_def = build_use_def_maps(function, tree);
 
     // run sccp analysis
-    let mut state = SccpState::new(tree, &use_def.use_blocks, entry);
+    let mut state = SccpState::new(tree, &use_def.use_blocks, entry, type_context);
     let result = state.run();
 
     // apply constant folding and reachability
@@ -208,6 +212,8 @@ struct SccpState<'a> {
     block_worklist: VecDeque<mir::LocalNodeId<mir::Block>>,
     /// Blocks already in the worklist.
     in_worklist: HashSet<mir::LocalNodeId<mir::Block>>,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 impl<'a> SccpState<'a> {
@@ -216,6 +222,7 @@ impl<'a> SccpState<'a> {
         tree: &'a mir::NodeTree,
         use_blocks: &'a HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
         entry: mir::LocalNodeId<mir::Block>,
+        type_context: TypeContext,
     ) -> Self {
         // initialize the analysis state
         Self {
@@ -228,6 +235,7 @@ impl<'a> SccpState<'a> {
             edge_use_blocks: HashMap::new(),
             block_worklist: VecDeque::new(),
             in_worklist: HashSet::new(),
+            type_context,
         }
     }
 
@@ -235,6 +243,9 @@ impl<'a> SccpState<'a> {
     fn run(&mut self) -> SccpResult {
         // seed entry block
         self.mark_block_executable(self.entry);
+
+        // seed entry parameters as overdefined
+        self.seed_entry_parameters();
 
         // process blocks to a fixed point
         while let Some(block_id) = self.block_worklist.pop_front() {
@@ -254,6 +265,17 @@ impl<'a> SccpState<'a> {
         SccpResult {
             executable_blocks: self.executable_blocks.clone(),
             value_states: self.value_states.clone(),
+        }
+    }
+
+    /// Seed entry block parameters as overdefined values.
+    fn seed_entry_parameters(&mut self) {
+        // read the entry block
+        let block = self.tree.get(self.entry);
+
+        // treat entry parameters as overdefined
+        for param in &block.parameters {
+            self.update_value(param.value, LatticeValue::Overdefined);
         }
     }
 
@@ -538,7 +560,12 @@ impl<'a> SccpState<'a> {
             mir::Instruction::Const { value, .. } => LatticeValue::Constant(value.clone()),
             mir::Instruction::GlobalConst { global, .. } => {
                 // read global constant
-                lattice_from_global(*global, self.tree).unwrap_or(LatticeValue::Overdefined)
+                lattice_from_global(
+                    *global,
+                    self.tree,
+                    self.type_context.pointer_width_bits,
+                )
+                    .unwrap_or(LatticeValue::Overdefined)
             }
             mir::Instruction::Binary {
                 operator,
@@ -594,7 +621,13 @@ impl<'a> SccpState<'a> {
                 // fold based on operand state
                 match argument_state {
                     LatticeValue::Constant(value) => {
-                        fold_cast(*operator, value, *to_type, self.tree)
+                        fold_cast(
+                            *operator,
+                            value,
+                            *to_type,
+                            self.type_context.pointer_width_bits,
+                            self.tree,
+                        )
                             .map(LatticeValue::Constant)
                             .unwrap_or(LatticeValue::Overdefined)
                     }
@@ -843,9 +876,15 @@ fn switch_constant_value(constant: &mir::Constant) -> Option<i64> {
 fn lattice_from_global(
     global_id: mir::LocalNodeId<mir::Global>,
     tree: &mir::NodeTree,
+    pointer_width_bits: u16,
 ) -> Option<LatticeValue> {
     // read constant tree
-    let constant_tree = constant_tree_from_global(global_id, tree, MAX_AGGREGATE_ELEMENTS)?;
+    let constant_tree = constant_tree_from_global(
+        global_id,
+        tree,
+        MAX_AGGREGATE_ELEMENTS,
+        pointer_width_bits,
+    )?;
 
     // map to lattice value
     Some(lattice_from_constant_tree(&constant_tree))

@@ -1,6 +1,7 @@
 use destack_base::StringId;
 use destack_mir as mir;
 
+use super::constant_matches_type;
 use crate::optimize::analyses::OwnershipAnalysis;
 
 /// Structural type representation for CSE matching.
@@ -20,8 +21,14 @@ pub enum TypeKey {
     Boolean,
     /// Integer type with width and signedness.
     Int { width: u16, signed: bool },
+    /// Pointer-sized signed integer type.
+    Isize,
+    /// Pointer-sized unsigned integer type.
+    Usize,
     /// Floating-point type with width.
     Float { width: u16 },
+    /// Type descriptor handle.
+    TypeTag,
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
@@ -55,7 +62,10 @@ impl TypeKey {
                 width: *width,
                 signed: *signed,
             },
+            mir::Type::Isize => TypeKey::Isize,
+            mir::Type::Usize => TypeKey::Usize,
             mir::Type::Float { width } => TypeKey::Float { width: *width },
+            mir::Type::TypeTag => TypeKey::TypeTag,
 
             mir::Type::Reference {
                 kind,
@@ -130,17 +140,24 @@ impl TypeKey {
     pub fn is_scalar(&self) -> bool {
         matches!(
             self,
-            TypeKey::Void | TypeKey::Boolean | TypeKey::Int { .. } | TypeKey::Float { .. }
+            TypeKey::Void
+                | TypeKey::Boolean
+                | TypeKey::Int { .. }
+                | TypeKey::Isize
+                | TypeKey::Usize
+                | TypeKey::Float { .. }
+                | TypeKey::TypeTag
         )
     }
 
     /// Return the byte size when it is unambiguous.
-    pub fn byte_size(&self) -> Option<u64> {
+    pub fn byte_size(&self, pointer_width_bits: u16) -> Option<u64> {
         match self {
             TypeKey::Int { width, .. } => bytes_for_width(*width),
+            TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
             TypeKey::Float { width } => bytes_for_width(*width),
             TypeKey::Array { element, length } => {
-                let element_size = element.byte_size()?;
+                let element_size = element.byte_size(pointer_width_bits)?;
                 element_size.checked_mul(*length)
             }
             _ => None,
@@ -152,6 +169,7 @@ impl TypeKey {
 pub fn unsigned_int_width_for_value(
     value: mir::Value,
     ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> Option<u16> {
     // look up the value type
@@ -161,8 +179,52 @@ pub fn unsigned_int_width_for_value(
     // accept unsigned integer types
     match ty {
         mir::Type::Int { width, signed } if !*signed => Some(*width),
+        mir::Type::Usize => Some(pointer_width_bits),
         _ => None,
     }
+}
+
+/// Return true when a value has a reference type or unknown type.
+pub fn value_is_reference(
+    value: mir::Value,
+    ownership: &OwnershipAnalysis,
+    tree: &mir::NodeTree,
+) -> bool {
+    // resolve the value type
+    let type_id = ownership.value_type(value);
+    let Some(type_id) = type_id else {
+        return true;
+    };
+
+    // report whether the type is a reference
+    matches!(tree.get(type_id), mir::Type::Reference { .. })
+}
+
+/// Return true when two values can be safely substituted.
+pub fn can_substitute_value(
+    destination: mir::Value,
+    replacement: mir::Value,
+    ownership: &OwnershipAnalysis,
+    pointer_width_bits: u16,
+    tree: &mir::NodeTree,
+) -> bool {
+    // resolve destination and replacement types
+    let destination_type = ownership.value_type(destination);
+    let replacement_type = ownership.value_type(replacement);
+
+    // require structural type equivalence when both are known
+    if let (Some(destination_type), Some(replacement_type)) = (destination_type, replacement_type) {
+        return types_are_equal(destination_type, replacement_type, tree);
+    }
+
+    // allow constants when they match the destination type
+    if let Some(destination_type) = destination_type
+        && let Some(constant_type) = ownership.constant_type(replacement)
+    {
+        return constant_matches_type(constant_type, destination_type, pointer_width_bits, tree);
+    }
+
+    false
 }
 
 /// Convert a bit width into bytes when the width is byte aligned.
@@ -211,7 +273,10 @@ fn types_are_equal_inner(a: &mir::Type, b: &mir::Type, tree: &mir::NodeTree) -> 
                 signed: s2,
             },
         ) => w1 == w2 && s1 == s2,
+        (mir::Type::Isize, mir::Type::Isize) => true,
+        (mir::Type::Usize, mir::Type::Usize) => true,
         (mir::Type::Float { width: w1 }, mir::Type::Float { width: w2 }) => w1 == w2,
+        (mir::Type::TypeTag, mir::Type::TypeTag) => true,
 
         // references: compare all fields recursively
         (
@@ -327,6 +392,8 @@ mod tests {
                 signed: true
             }
         );
+        assert_eq!(TypeKey::from_type(&mir::Type::Isize, &tree), TypeKey::Isize);
+        assert_eq!(TypeKey::from_type(&mir::Type::Usize, &tree), TypeKey::Usize);
         assert_eq!(
             TypeKey::from_type(&mir::Type::UINT64, &tree),
             TypeKey::Int {
@@ -338,6 +405,10 @@ mod tests {
             TypeKey::from_type(&mir::Type::FLOAT64, &tree),
             TypeKey::Float { width: 64 }
         );
+        assert_eq!(
+            TypeKey::from_type(&mir::Type::TypeTag, &tree),
+            TypeKey::TypeTag
+        );
     }
 
     /// Scalar types are identified as scalar.
@@ -348,7 +419,10 @@ mod tests {
         assert!(TypeKey::from_type(&mir::Type::Void, &tree).is_scalar());
         assert!(TypeKey::from_type(&mir::Type::Boolean, &tree).is_scalar());
         assert!(TypeKey::from_type(&mir::Type::INT32, &tree).is_scalar());
+        assert!(TypeKey::from_type(&mir::Type::Isize, &tree).is_scalar());
+        assert!(TypeKey::from_type(&mir::Type::Usize, &tree).is_scalar());
         assert!(TypeKey::from_type(&mir::Type::FLOAT64, &tree).is_scalar());
+        assert!(TypeKey::from_type(&mir::Type::TypeTag, &tree).is_scalar());
     }
 
     /// Complex types produce complex keys.

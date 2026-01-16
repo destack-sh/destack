@@ -12,7 +12,7 @@ use crate::optimize::analyses::{
     ReachingDefinitions, ScalarEvolution,
 };
 
-use crate::optimize::{PackageWorkset, PipelineOptions, ProgramWorkset};
+use crate::optimize::{PackageWorkset, PipelineOptions, ProgramWorkset, TypeContext};
 
 /// Unique identifier for an analysis type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -162,6 +162,11 @@ impl<'a> FunctionAnalyses<'a> {
     /// Get pipeline options.
     pub fn options(&self) -> &PipelineOptions {
         &self.options
+    }
+
+    /// Return the type context for this analysis run.
+    pub fn type_context(&self) -> TypeContext {
+        self.options.type_context
     }
 
     /// Get or compute a function analysis.

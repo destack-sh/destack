@@ -11,7 +11,7 @@ use crate::optimize::common::{
     BlockParamForwarding, build_use_def_maps, clone_loop_blocks, terminator_remap,
     unsigned_int_width_for_value,
 };
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Version loops to specialize bounds checks with a preheader guard.
@@ -90,14 +90,14 @@ impl FunctionPass for LoopVersioning {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
             return AnalysisPreservation::all();
         }
 
-        let changed = run_loop_versioning(function, tree);
+        let changed = run_loop_versioning(function, tree, ctx);
         if changed {
             AnalysisPreservation::none()
         } else {
@@ -128,9 +128,13 @@ struct GuardInfo {
 }
 
 /// Run loop versioning on a single function and report whether it changed.
-fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -> bool {
+fn run_loop_versioning(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
     // gather analyses
-    let analyses = FunctionAnalyses::new(function, tree);
+    let analyses = ctx.function_analyses(function, tree);
     let loops = analyses.get::<LoopAnalysis>().clone();
     let cfg = analyses.get::<ControlFlowGraph>().clone();
     let scev = analyses.get::<ScalarEvolution>().clone();
@@ -193,15 +197,30 @@ fn run_loop_versioning(function: &mut mir::Function, tree: &mut mir::NodeTree) -
         }
 
         // require consistent unsigned integer types
-        let Some(bound_width) = unsigned_int_width_for_value(resolved_bound, &ownership, tree)
+        let Some(bound_width) = unsigned_int_width_for_value(
+            resolved_bound,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        )
         else {
             continue;
         };
-        let Some(length_width) = unsigned_int_width_for_value(resolved_length, &ownership, tree)
+        let Some(length_width) = unsigned_int_width_for_value(
+            resolved_length,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        )
         else {
             continue;
         };
-        let Some(induction_width) = unsigned_int_width_for_value(guard.induction, &ownership, tree)
+        let Some(induction_width) = unsigned_int_width_for_value(
+            guard.induction,
+            &ownership,
+            ctx.type_context().pointer_width_bits,
+            tree,
+        )
         else {
             continue;
         };

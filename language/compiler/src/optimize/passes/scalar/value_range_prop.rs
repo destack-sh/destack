@@ -3,7 +3,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::RangeAnalysis;
 use crate::optimize::common::instruction_is_pure;
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Fold values that range analysis proves constant.
@@ -42,7 +42,7 @@ impl FunctionPass for ValueRangePropagation {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         if function.entry.is_none() {
@@ -51,7 +51,7 @@ impl FunctionPass for ValueRangePropagation {
 
         // gather range analysis
         let ranges = {
-            let analyses = FunctionAnalyses::new(function, tree);
+            let analyses = ctx.function_analyses(function, tree);
             analyses.get::<RangeAnalysis>().clone()
         };
 

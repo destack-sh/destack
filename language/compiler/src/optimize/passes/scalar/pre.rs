@@ -12,7 +12,7 @@ use crate::optimize::common::{
     terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{
-    AnalysisPreservation, ExpressionKey, FunctionAnalyses, FunctionPass, PipelineContext,
+    AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
     apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
 };
 
@@ -63,7 +63,7 @@ impl FunctionPass for PartialRedundancyElim {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::NodeTree,
-        _ctx: &PipelineContext<'_>,
+        ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
         // skip imported functions
         let Some(entry) = function.entry else {
@@ -71,7 +71,7 @@ impl FunctionPass for PartialRedundancyElim {
         };
 
         // gather analyses
-        let analyses = FunctionAnalyses::new(function, tree);
+        let analyses = ctx.function_analyses(function, tree);
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
         let available = analyses.get::<AvailableExpressions>().clone();

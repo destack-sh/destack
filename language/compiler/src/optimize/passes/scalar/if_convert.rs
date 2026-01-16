@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::ControlFlowGraph;
 use crate::optimize::common::{instruction_is_speculatable, instruction_map};
-use crate::optimize::{AnalysisPreservation, FunctionAnalyses, FunctionPass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
     /// Convert simple diamonds into select instructions.
@@ -123,7 +123,7 @@ fn run_if_convert(
     ctx: &PipelineContext<'_>,
 ) -> bool {
     // build control flow graph
-    let analyses = FunctionAnalyses::new(function, tree);
+    let analyses = ctx.function_analyses(function, tree);
     let cfg = analyses.get::<ControlFlowGraph>().clone();
 
     // collect candidates before mutation

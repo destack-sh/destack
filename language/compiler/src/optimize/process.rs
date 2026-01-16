@@ -1,5 +1,7 @@
 use std::collections::HashMap;
+use std::mem;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::{
     Compiler, OptimizeError, OptimizeResult, TargetDiscoveryIssue, TaskDependencyError,
@@ -9,13 +11,15 @@ use crate::{
 use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleId, PackageId};
 use destack_workspace::{
-    LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, Target, TargetDiscovery, TargetId,
+    LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, Target,
+    TargetDiscovery, TargetId,
 };
+use target_lexicon::Triple;
 
 use super::{
     ModuleWorkItem, OptimizationLevel, PackagePipeline, PackagePipelineContext, PackageWorkset,
     Pipeline, PipelineContext, PipelineOptions, ProgramPipeline, ProgramPipelineContext,
-    ProgramWorkset, count_mir_size, default_package_pipeline, default_pipeline,
+    ProgramWorkset, TypeContext, count_mir_size, default_package_pipeline, default_pipeline,
     default_program_pipeline,
 };
 
@@ -426,10 +430,42 @@ impl Compiler {
             .with_dsconfig_options(module, |opts| opts.compiler.borrow_mode.is_strict())
             .unwrap_or(false);
 
+        // resolve pointer width from target configuration
+        let pointer_width_bits = self.pointer_width_bits_for_target(target);
+
         PipelineOptions {
             strict_borrow_mode,
             float_math: target.float_math,
+            type_context: TypeContext { pointer_width_bits },
             ..Default::default()
+        }
+    }
+
+    /// Resolve pointer width in bits for a target configuration.
+    fn pointer_width_bits_for_target(&self, target: &Target) -> u16 {
+        // prefer explicit triple for pointer width
+        if let Some(triple) = target.target_triple.as_ref()
+            && let Ok(triple) = Triple::from_str(triple)
+            && let Ok(pointer_width) = triple.pointer_width()
+        {
+            let bits = pointer_width.bits() as u16;
+            if matches!(bits, 16 | 32 | 64) {
+                return bits;
+            }
+        }
+
+        // fall back to output defaults
+        let bits = match target.output {
+            OutputFormat::Wasm => 32,
+            OutputFormat::Native => (mem::size_of::<usize>() * 8) as u16,
+            _ => (mem::size_of::<usize>() * 8) as u16,
+        };
+
+        // ensure supported sizes
+        if matches!(bits, 16 | 32 | 64) {
+            bits
+        } else {
+            (mem::size_of::<usize>() * 8) as u16
         }
     }
 

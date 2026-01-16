@@ -130,7 +130,7 @@ function logicalAnd(a: boolean, b: boolean): boolean {
         "native",
         r#"
 function @logicalAnd(v0: bool, v1: bool) -> bool {
-block0:
+block0(v0: bool, v1: bool):
     branch v0, block2, block1
 block1:
     v2 = iconst false
@@ -166,7 +166,7 @@ function logicalOr(a: boolean, b: boolean): boolean {
         "native",
         r#"
 function @logicalOr(v0: bool, v1: bool) -> bool {
-block0:
+block0(v0: bool, v1: bool):
     branch v0, block1, block2
 block1:
     v2 = iconst true

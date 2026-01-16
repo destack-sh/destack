@@ -56,7 +56,7 @@ function assignReturn(x: number): number {
         "native",
         r#"
 function @assignReturn(v0: f64) -> f64 {
-block0:
+block0(v0: f64):
     v1 = iconst 1f64
     v2 = fadd v0, v1
     v3 = iconst 2f64

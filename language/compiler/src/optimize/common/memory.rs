@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_mir as mir;
 
+use crate::optimize::TypeContext;
 use crate::optimize::analyses::OwnershipAnalysis;
 
 use super::TypeKey;
@@ -268,7 +269,6 @@ pub fn resolve_pointer_pointee_type(
     function: &mir::Function,
     tree: &mir::NodeTree,
     ownership: &OwnershipAnalysis,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
     // check parameter types first
     if let Some(param_type) = parameter_type(pointer, function, tree)
@@ -277,64 +277,8 @@ pub fn resolve_pointer_pointee_type(
         return Some(*pointee);
     }
 
-    // check ownership-derived value types
-    if let Some(ty_id) = ownership.value_type(pointer)
-        && let mir::Type::Reference { pointee, .. } = tree.get(ty_id)
-    {
-        return Some(*pointee);
-    }
-
-    // resolve from defining instruction
-    let instruction_id = definitions.get(&pointer)?;
-    let instruction = tree.get(*instruction_id);
-
-    match instruction {
-        mir::Instruction::StackAlloc { layout, .. }
-        | mir::Instruction::RawAlloc { layout, .. }
-        | mir::Instruction::ManagedAlloc { layout, .. } => Some(*layout),
-        mir::Instruction::ManagedAllocArray { element, .. } => Some(*element),
-        mir::Instruction::GlobalAddr { global, .. } => {
-            let global_def = tree.get(*global);
-            Some(global_def.ty)
-        }
-        mir::Instruction::FieldAddr {
-            aggregate, index, ..
-        } => {
-            let aggregate_type = ownership.value_type(*aggregate)?;
-            match tree.get(aggregate_type) {
-                mir::Type::Struct { fields, .. } => fields
-                    .get(*index as usize)
-                    .map(|field_id| tree.get(*field_id).ty),
-                mir::Type::Tuple { elements, .. } => elements.get(*index as usize).copied(),
-                _ => None,
-            }
-        }
-        mir::Instruction::ElementAddr { array, .. } => {
-            let array_type = ownership.value_type(*array)?;
-            match tree.get(array_type) {
-                mir::Type::Array { element, .. } => Some(*element),
-                _ => None,
-            }
-        }
-        mir::Instruction::Cast { to_type, .. } => {
-            let ty = tree.get(*to_type);
-            if let mir::Type::Reference { pointee, .. } = ty {
-                Some(*pointee)
-            } else {
-                None
-            }
-        }
-        mir::Instruction::Call { function, .. } => {
-            let callee = tree.get(*function);
-            let ty = tree.get(callee.return_type);
-            if let mir::Type::Reference { pointee, .. } = ty {
-                Some(*pointee)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    }
+    // check ownership derived pointee types
+    ownership.pointee_type(pointer, tree)
 }
 
 /// Resolve a pointer's address space when it is statically known.
@@ -550,6 +494,8 @@ pub struct PointerDecomposer<'a> {
     strict_borrow_mode: bool,
     /// Optional value type map for element sizing.
     value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+    /// Type context for layout sensitive operations.
+    type_context: TypeContext,
 }
 
 impl<'a> PointerDecomposer<'a> {
@@ -561,6 +507,7 @@ impl<'a> PointerDecomposer<'a> {
         parameters: &'a [mir::TypedValue],
         strict_borrow_mode: bool,
         value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        type_context: TypeContext,
     ) -> Self {
         Self {
             cache: HashMap::new(),
@@ -570,6 +517,7 @@ impl<'a> PointerDecomposer<'a> {
             parameters,
             strict_borrow_mode,
             value_types,
+            type_context,
         }
     }
 
@@ -730,7 +678,7 @@ impl<'a> PointerDecomposer<'a> {
 
         let element_ty = self.tree.get(element_id);
         let key = TypeKey::from_type(element_ty, self.tree);
-        key.byte_size()
+        key.byte_size(self.type_context.pointer_width_bits)
     }
 }
 

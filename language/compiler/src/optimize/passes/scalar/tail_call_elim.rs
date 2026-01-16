@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, Instruction};
@@ -784,6 +786,25 @@ fn detect_accumulator_pattern(
 
     let (binary_idx, (operator, left, right)) = binary_index.zip(binary_info)?;
 
+    // collect recursive call results and definition indices
+    let mut recursive_call_results: HashSet<mir::Value> = HashSet::new();
+    let mut definition_indices: HashMap<mir::Value, usize> = HashMap::new();
+    for (idx, &instr_id) in block.instructions.iter().enumerate() {
+        let instr = tree.get(instr_id);
+        if let Some(destination) = instr.destination() {
+            definition_indices.insert(destination, idx);
+        }
+        if let Instruction::Call {
+            destination: Some(destination),
+            function: called_func,
+            ..
+        } = instr
+            && *called_func == current_function_id
+        {
+            recursive_call_results.insert(*destination);
+        }
+    }
+
     // find the call instruction that produces one of the binary operands
     for (idx, &instr_id) in block.instructions.iter().enumerate() {
         let instr = tree.get(instr_id);
@@ -807,8 +828,20 @@ fn detect_accumulator_pattern(
                 continue;
             };
 
+            // skip when the other operand is another recursive call result
+            if recursive_call_results.contains(&other_operand) {
+                continue;
+            }
+
             // the call must come before the binary op
             if idx >= binary_idx {
+                continue;
+            }
+
+            // the other operand must be available before the call
+            if let Some(def_index) = definition_indices.get(&other_operand)
+                && *def_index > idx
+            {
                 continue;
             }
 

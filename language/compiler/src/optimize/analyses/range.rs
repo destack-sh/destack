@@ -6,7 +6,9 @@ use crate::optimize::common::{
     SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
-use crate::optimize::{Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, FunctionAnalysis};
+use crate::optimize::{
+    Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, FunctionAnalysis, TypeContext,
+};
 
 use super::Lattice;
 
@@ -320,7 +322,12 @@ pub struct RangeAnalysis {
 
 impl RangeAnalysis {
     /// Build range analysis for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree, cfg: &ControlFlowGraph) -> Self {
+    fn build(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        cfg: &ControlFlowGraph,
+        type_context: TypeContext,
+    ) -> Self {
         let Some(entry) = function.entry else {
             return Self {
                 block_entry: HashMap::new(),
@@ -395,7 +402,12 @@ impl RangeAnalysis {
                 block_entry.insert(block_id, entry_state.clone());
 
                 // transfer through block
-                let exit_state = transfer_block(block_id, &entry_state, tree);
+                let exit_state = transfer_block(
+                    block_id,
+                    &entry_state,
+                    tree,
+                    type_context.pointer_width_bits,
+                );
 
                 // check if exit state changed
                 let exit_changed = block_exit
@@ -453,7 +465,7 @@ impl FunctionAnalysis for RangeAnalysis {
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
-        Self::build(function, tree, &cfg)
+        Self::build(function, tree, &cfg, analyses.type_context())
     }
 }
 
@@ -589,6 +601,7 @@ fn transfer_block(
     block_id: mir::LocalNodeId<mir::Block>,
     entry_state: &RangeMap,
     tree: &mir::NodeTree,
+    pointer_width_bits: u16,
 ) -> RangeMap {
     // clone entry state for updates
     let block = tree.get(block_id);
@@ -601,7 +614,7 @@ fn transfer_block(
             continue;
         };
 
-        if let Some(range) = range_for_instruction(instruction, tree, &state) {
+        if let Some(range) = range_for_instruction(instruction, tree, &state, pointer_width_bits) {
             state.insert(destination, range);
         } else {
             state.remove(destination);
@@ -616,6 +629,7 @@ fn range_for_instruction(
     instruction: &mir::Instruction,
     tree: &mir::NodeTree,
     state: &RangeMap,
+    pointer_width_bits: u16,
 ) -> Option<ValueRange> {
     match instruction {
         mir::Instruction::Const { value, .. } => ValueRange::from_constant(value),
@@ -637,7 +651,13 @@ fn range_for_instruction(
             argument,
             to_type,
             ..
-        } => range_for_cast(*operator, state.get(*argument), *to_type, tree),
+        } => range_for_cast(
+            *operator,
+            state.get(*argument),
+            *to_type,
+            tree,
+            pointer_width_bits,
+        ),
         mir::Instruction::Select {
             then_value,
             else_value,
@@ -724,13 +744,14 @@ fn range_for_cast(
     argument: Option<&ValueRange>,
     to_type: mir::LocalNodeId<mir::Type>,
     tree: &mir::NodeTree,
+    pointer_width_bits: u16,
 ) -> Option<ValueRange> {
     // require a range for the operand
     let argument = argument?;
 
     // fold exact constants when possible
     if let Some(constant) = argument.as_constant() {
-        let result = fold_cast(operator, constant, to_type, tree)?;
+        let result = fold_cast(operator, constant, to_type, pointer_width_bits, tree)?;
         return ValueRange::from_constant(&result);
     }
 
@@ -753,16 +774,10 @@ fn range_for_cast(
             };
 
             // require an integer target type
-            let mir::Type::Int {
-                width: to_width,
-                signed: to_signed,
-            } = to_type
-            else {
-                return None;
-            };
+            let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
 
             // normalize the target width
-            let to_width = u8::try_from(*to_width).ok()?;
+            let to_width = u8::try_from(to_width).ok()?;
 
             match operator {
                 mir::CastOperator::SignExtend => {
@@ -788,7 +803,7 @@ fn range_for_cast(
                     })
                 }
                 mir::CastOperator::Truncate => {
-                    let (min_bound, max_bound) = integer_bounds(to_width, *to_signed)?;
+                    let (min_bound, max_bound) = integer_bounds(to_width, to_signed)?;
                     if *min < min_bound || *max > max_bound {
                         return None;
                     }
@@ -796,7 +811,7 @@ fn range_for_cast(
                         min: *min,
                         max: *max,
                         width: to_width,
-                        is_signed: *to_signed,
+                        is_signed: to_signed,
                     })
                 }
                 _ => None,
@@ -813,16 +828,10 @@ fn range_for_cast(
         }
         mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt => {
             // require an integer target type
-            let mir::Type::Int {
-                width: to_width,
-                signed: to_signed,
-            } = to_type
-            else {
-                return None;
-            };
-
-            let to_width = u8::try_from(*to_width).ok()?;
-            integer_range_from_float(argument, to_width, *to_signed, operator)
+            let (to_width, to_signed) = to_type.int_info_with_pointer_width(pointer_width_bits)?;
+        
+            let to_width = u8::try_from(to_width).ok()?;
+            integer_range_from_float(argument, to_width, to_signed, operator)
         }
         mir::CastOperator::FloatTruncate | mir::CastOperator::FloatExtend => {
             // require a float target type
