@@ -107,32 +107,8 @@ impl Compiler {
 
     /// Try to evaluate an Expression as a Type id.
     /// Set validate_static_argument_bounds to false to defer bound checks.
+    /// Set enforce_implicit_managed to false to skip noImplicitManaged enforcement.
     pub(crate) fn try_evaluate_expression_to_type(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        validate_static_argument_bounds: bool,
-    ) -> AnalyzeResult<LocalTypeId> {
-        // default to enforcing implicit managed checks
-        let ty = self.try_evaluate_expression_to_type_value_with_controls(
-            module,
-            profile,
-            expression_id,
-            tree,
-            symbols,
-            types,
-            validate_static_argument_bounds,
-            true,
-        )?;
-        Ok(types.insert_type_from(ty, expression_id))
-    }
-
-    /// Try to evaluate an Expression as a Type id with ownership enforcement controls.
-    fn try_evaluate_expression_to_type_with_controls(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -216,6 +192,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
+                true,
                 true,
             )?)
         } else {
@@ -515,6 +492,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Not,
@@ -535,6 +513,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 Type::Unary {
                     operator: TypeUnaryOperator::Must,
@@ -547,7 +526,7 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id = self.try_evaluate_expression_to_type_with_controls(
+                let type_id = self.try_evaluate_expression_to_type(
                     module,
                     profile,
                     right,
@@ -569,7 +548,7 @@ impl Compiler {
                 variance,
                 right,
             } => {
-                let type_id = self.try_evaluate_expression_to_type_with_controls(
+                let type_id = self.try_evaluate_expression_to_type(
                     module,
                     profile,
                     right,
@@ -587,7 +566,7 @@ impl Compiler {
             }
             // pointer
             Expression::PointerOf { mutability, right } => {
-                let type_id = self.try_evaluate_expression_to_type_with_controls(
+                let type_id = self.try_evaluate_expression_to_type(
                     module,
                     profile,
                     right,
@@ -624,6 +603,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 Type::Unary {
                     operator,
@@ -644,6 +624,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let right_id = self.try_evaluate_expression_to_type(
                     module,
@@ -653,6 +634,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 Type::Binary {
                     left: left_id,
@@ -674,6 +656,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let right_id = self.try_evaluate_expression_to_type(
                     module,
@@ -683,6 +666,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let should_validate_branches = !self.type_contains_static_parameters(
                     module,
@@ -700,6 +684,7 @@ impl Compiler {
                     symbols,
                     types,
                     should_validate_branches,
+                    enforce_implicit_managed,
                 )?;
                 let else_type_id = self.try_evaluate_expression_to_type(
                     module,
@@ -709,6 +694,7 @@ impl Compiler {
                     symbols,
                     types,
                     should_validate_branches,
+                    enforce_implicit_managed,
                 )?;
                 Type::Conditional {
                     left: left_id,
@@ -730,6 +716,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 // cache the mapped parameter constraint for later validation
                 let parameter_symbol = parameter.symbol.into_global(module.id);
@@ -743,6 +730,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )
                 });
                 let key_remap = match key_remap {
@@ -758,6 +746,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let parameter = TypeMappedParameter {
                     name: parameter.name,
@@ -779,6 +768,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let index_id = self.try_evaluate_expression_to_type(
                     module,
@@ -788,6 +778,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 Type::Index {
                     left: left_id,
@@ -806,6 +797,7 @@ impl Compiler {
                             symbols,
                             types,
                             validate_static_argument_bounds,
+                            enforce_implicit_managed,
                         )
                     })
                     .collect::<AnalyzeResult<Vec<_>>>()?;
@@ -843,6 +835,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )
                 });
                 let constraint = match constraint {
@@ -866,6 +859,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )
                 });
                 let target = match target {
@@ -895,6 +889,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
                 let right_id = self.try_evaluate_expression_to_type(
                     module,
@@ -904,6 +899,7 @@ impl Compiler {
                     symbols,
                     types,
                     validate_static_argument_bounds,
+                    enforce_implicit_managed,
                 )?;
 
                 match operator {
@@ -1044,6 +1040,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )?;
                     let mut element = TypeElement::new(value_ty_id);
                     match argument {
@@ -1080,6 +1077,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )?;
                     element_types.push(TypeElement::new(value_ty_id));
                 }
@@ -1123,6 +1121,7 @@ impl Compiler {
                                     symbols,
                                     types,
                                     validate_static_argument_bounds,
+                                    enforce_implicit_managed,
                                 )?;
                                 let value_type = if let Some(value_id) = value {
                                     self.try_evaluate_expression_to_type(
@@ -1133,6 +1132,7 @@ impl Compiler {
                                         symbols,
                                         types,
                                         validate_static_argument_bounds,
+                                        enforce_implicit_managed,
                                     )?
                                 } else {
                                     let ty = Type::TypeLiteral {
@@ -1174,6 +1174,7 @@ impl Compiler {
                                     symbols,
                                     types,
                                     validate_static_argument_bounds,
+                                    enforce_implicit_managed,
                                 )?
                             } else {
                                 let ty = Type::TypeLiteral {
@@ -1302,6 +1303,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )?;
                     Type::ArraySized {
                         element: left_id,
@@ -1318,6 +1320,7 @@ impl Compiler {
                         symbols,
                         types,
                         validate_static_argument_bounds,
+                        enforce_implicit_managed,
                     )?;
                     Type::Array {
                         element: Some(left_id),

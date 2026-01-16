@@ -1402,6 +1402,7 @@ impl Compiler {
             symbols,
             types,
             true,
+            true,
         )?;
         if matches!(types.get_type(ty_id), Type::Unevaluated { .. }) {
             return Ok(None);

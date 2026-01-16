@@ -5,9 +5,10 @@ use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Asynchrony, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
     DependencyMode, DynamicKey, EnumBackingType, EnumField, Expression, FunctionCardinality,
-    FunctionSignature, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, PrimitiveType,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
+    FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
+    IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, NodeTree, Parameter,
+    PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -34,9 +35,6 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         // load the declaration node
         let declaration = tree.get(declaration_id);
-
-        // capture context options
-        let options = ctx.options;
 
         // dispatch by declaration kind
         match declaration {
@@ -253,6 +251,7 @@ impl Compiler {
                         symbols,
                         types,
                         true,
+                        true,
                     )?;
                     let static_arguments = self.unwrap_type_symbol(types, target_ty_id).and_then(
                         |(symbol, static_arguments, _)| {
@@ -328,9 +327,16 @@ impl Compiler {
                 scope: _,
                 body,
             } => {
+                // apply decorator options for this function
+                let function_options = {
+                    let symbol = symbols.get_symbol(descriptor.symbol);
+                    ctx.options.with_symbol_decorators(&symbol.decorators)
+                };
+
                 // infer the function signature
                 let declared_signature_ty_id =
                     types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
+                let mut signature_ctx = ctx.fork().with_options(function_options);
                 let fn_ty_id = self.infer_signature(
                     module,
                     declaration_id.into_any(),
@@ -342,7 +348,7 @@ impl Compiler {
                     symbols,
                     types,
                     infer,
-                    ctx,
+                    &mut signature_ctx,
                 )?;
 
                 // infer the body when present
@@ -351,6 +357,7 @@ impl Compiler {
                     let return_type = self.function_return_type(fn_ty_id, types);
                     let ctx = ctx
                         .reset()
+                        .with_options(function_options)
                         .in_function_with_signature(declaration_id.into_any(), signature);
                     let mut ctx = ctx
                         .with_return_type(return_type)
@@ -379,7 +386,7 @@ impl Compiler {
                                 return_ty_id,
                                 body_ty_id,
                                 types,
-                                &options,
+                                &function_options,
                             ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
@@ -410,8 +417,7 @@ impl Compiler {
         ctx: &mut InferContext,
         this_ty_id: Option<LocalTypeId>,
     ) -> AnalyzeResult<()> {
-        // capture the context and member node
-        let options = ctx.options;
+        // capture the member node
         let member = tree.get(member_id);
 
         // dispatch by member kind
@@ -453,6 +459,7 @@ impl Compiler {
                         symbols,
                         types,
                         true,
+                        true,
                     )?;
                     let _value_type = if let Some(value) = value {
                         self.try_evaluate_expression_to_type(
@@ -462,6 +469,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
+                            true,
                             true,
                         )?
                     } else {
@@ -491,6 +499,7 @@ impl Compiler {
                         symbols,
                         types,
                         true,
+                        true,
                     )?
                 } else {
                     // no value, return unknown type
@@ -514,6 +523,12 @@ impl Compiler {
                 modifiers: _,
                 ..
             } => {
+                // apply decorator options for this method
+                let method_options = {
+                    let symbol = symbols.get_symbol(member.symbol());
+                    ctx.options.with_symbol_decorators(&symbol.decorators)
+                };
+
                 // assign this type for method bodies when available
                 if let Some(this_ty_id) = this_ty_id {
                     let this_name = self.program.strings.intern("this");
@@ -526,6 +541,7 @@ impl Compiler {
                 // infer the method signature
                 let declared_signature_ty_id =
                     types.get_signature_type_for_node(member_id.into_global_any(module.id));
+                let mut signature_ctx = ctx.fork().with_options(method_options);
                 let method_ty_id = self.infer_signature(
                     module,
                     member_id.into_any(),
@@ -537,7 +553,7 @@ impl Compiler {
                     symbols,
                     types,
                     infer,
-                    ctx,
+                    &mut signature_ctx,
                 )?;
 
                 // prepare the return type for body inference
@@ -584,6 +600,7 @@ impl Compiler {
                 if let Some(body) = body {
                     let ctx = ctx
                         .reset()
+                        .with_options(method_options)
                         .in_function_with_signature(member_id.into_any(), signature);
                     let mut ctx = ctx
                         .with_return_type(return_type)
@@ -612,7 +629,7 @@ impl Compiler {
                                 return_ty_id,
                                 body_ty_id,
                                 types,
-                                &options,
+                                &method_options,
                             ) == Assignability::NotAssignable
                         {
                             self.error(AnalyzeError::UnassignableType {
@@ -681,6 +698,8 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // capture options for diagnostics
         let options = ctx.options;
+        let module_options = self.analyze_context_options_for_module(module.id);
+        let enforce_decorator_no_managed = options.no_managed && !module_options.no_managed;
 
         // reject runtime features in no-runtime mode
         if options.no_runtime
@@ -818,14 +837,16 @@ impl Compiler {
         }
 
         // return type
-        let return_type = if let Some(return_type_expr_id) = signature.return_type {
+        let return_type_node_id = signature.return_type;
+        let return_type = if let Some(return_type_node_id) = return_type_node_id {
             Some(self.try_evaluate_expression_to_type(
                 module,
                 ctx.profile,
-                return_type_expr_id,
+                return_type_node_id,
                 tree,
                 symbols,
                 types,
+                true,
                 true,
             )?)
         } else if let Some(return_type) =
@@ -841,6 +862,22 @@ impl Compiler {
                 scope,
             ))
         };
+
+        // enforce no-managed decorators on signature types
+        if enforce_decorator_no_managed {
+            self.check_no_managed_signature(
+                module,
+                ctx.profile,
+                signature,
+                this_parameter,
+                &dynamic_param_types,
+                return_type,
+                return_type_node_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
 
         // build the function type for this signature
         let ty = Type::Function {
@@ -869,6 +906,100 @@ impl Compiler {
         }
 
         Ok(ty_id)
+    }
+
+    /// Enforce no-managed decorators on function signatures.
+    fn check_no_managed_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        signature: &FunctionSignature,
+        this_parameter: Option<LocalTypeId>,
+        dynamic_param_types: &[LocalTypeId],
+        return_type: Option<LocalTypeId>,
+        return_type_node_id: Option<LocalNodeId<Expression>>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // only enforce for user modules
+        if !matches!(module.source, ModuleSource::User) {
+            return Ok(());
+        }
+
+        // enforce this parameter types when present
+        if let Some(this_parameter_id) = signature.this_parameter
+            && let Some(this_ty_id) = this_parameter
+        {
+            self.check_no_managed_signature_type(
+                module,
+                profile,
+                this_parameter_id.into_global_any(module.id),
+                this_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        // enforce dynamic parameter types
+        for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
+            let Some(param_ty_id) = dynamic_param_types.get(index).copied() else {
+                continue;
+            };
+            self.check_no_managed_signature_type(
+                module,
+                profile,
+                parameter_id.into_global_any(module.id),
+                param_ty_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        // enforce return type when declared
+        if let (Some(return_type_node_id), Some(return_type_id)) =
+            (return_type_node_id, return_type)
+        {
+            self.check_no_managed_signature_type(
+                module,
+                profile,
+                return_type_node_id.into_global_any(module.id),
+                return_type_id,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Enforce no-managed decorators on a single signature type.
+    fn check_no_managed_signature_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: GlobalNodeIdAny,
+        ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        // resolve unevaluated types before checking managed usage
+        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+            self.evaluate_type(module, profile, ty_id, tree, symbols, types)?;
+        }
+
+        // report managed types in signatures
+        if self.type_contains_managed(module, profile, types.get_type(ty_id), types) {
+            self.error(AnalyzeError::ManagedMemoryDisabled {
+                node: node_id.into_anchored(Some(profile)),
+            });
+        }
+
+        Ok(())
     }
 
     /// Infer a parameter.

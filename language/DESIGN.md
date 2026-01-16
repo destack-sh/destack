@@ -947,7 +947,7 @@ Use decorators for per-function restrictions:
 ```
 @noManaged
 function processFrame(entities: &Entity[]) {
-    // compiler error if any GC allocation happens here
+    // compiler error if any managed value is used or allocated here
 }
 ```
 

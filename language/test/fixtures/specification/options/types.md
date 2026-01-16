@@ -168,3 +168,19 @@ let value: ^Box = ^(new Box());
 ```ds:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
+
+### noImplicitManaged allows character literals
+
+> Character values are value types and do not require explicit ownership.
+
+```ds:main.ds
+let value: character = 'a';
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
