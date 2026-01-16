@@ -8,10 +8,9 @@ fn test_managed_allocate() {
     let mir = r#"
 function @alloc() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     return v0
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "alloc", &[]);
     assert!(output.value.is_managed_reference());
     assert_eq!(output.heap_cells, 1);
@@ -23,13 +22,12 @@ fn test_load_store() {
     let mir = r#"
 function @load_store() -> i32 {
 block0:
-    v0 = managed.alloc i32
+    v0 = managed.alloc i32 -> ref<managed i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
-}
-"#;
+}"#;
     run_mir_expect(mir, "load_store", &[], Value::int32(42));
 }
 
@@ -43,8 +41,7 @@ block0(v0: ref<raw addrspace(shared) mut i32>):
     v1 = iconst 1i32
     store v0, v1
     return
-}
-"#;
+}"#;
 
     // run and capture the error
     let pointer = Value::raw_pointer(RawPointer::new(1));
@@ -64,8 +61,7 @@ block0(v0: ref<raw addrspace(stack) mut i32>):
     v1 = iconst 1i32
     store v0, v1
     return
-}
-"#;
+}"#;
 
     // run with a heap pointer to trigger mismatch
     let pointer = Value::raw_pointer(RawPointer::new(1));
@@ -82,10 +78,9 @@ fn test_managed_allocate_array() {
 function @alloc_array() -> ref<managed i32> {
 block0:
     v0 = iconst 10i64
-    v1 = managed.alloc_array i32, v0
+    v1 = managed.alloc_array i32, v0 -> ref<managed i32>
     return v1
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "alloc_array", &[]);
     assert!(output.value.is_managed_reference());
     assert_eq!(output.heap_cells, 1);
@@ -99,8 +94,7 @@ function @get_first(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
     v1 = field.get v0, 0
     return v1
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "get_first", |interp| {
         let agg = create_aggregate(interp, vec![Value::int32(10), Value::int32(20)]);
         vec![agg]
@@ -118,8 +112,7 @@ block0(v0: (i32, i32), v1: i32):
     v2 = field.set v0, 0, v1
     v3 = field.get v2, 0
     return v3
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "set_and_get", |interp| {
         let agg = create_aggregate(interp, vec![Value::int32(10), Value::int32(20)]);
         vec![agg, Value::int32(99)]
@@ -135,8 +128,7 @@ function @get_elem(v0: [i32; 3], v1: i64) -> i32 {
 block0(v0: [i32; 3], v1: i64):
     v2 = element.get v0, v1
     return v2
-}
-"#;
+}"#;
     // test element 0
     let output = run_mir_with_ok(mir, "get_elem", |interp| {
         let arr = create_aggregate(
@@ -178,8 +170,7 @@ block0(v0: [i32; 3], v1: i64, v2: i32):
     v3 = element.set v0, v1, v2
     v4 = element.get v3, v1
     return v4
-}
-"#;
+}"#;
     let output = run_mir_with_ok(mir, "set_and_get", |interp| {
         let arr = create_aggregate(
             interp,
@@ -196,14 +187,13 @@ fn test_heap_field_access() {
     let mir = r#"
 function @heap_field() -> i32 {
 block0:
-    v0 = managed.alloc (i32, i32)
+    v0 = managed.alloc (i32, i32) -> ref<managed (i32, i32)>
     v1 = iconst 42i32
     store v0, v1
-    v2 = field.addr v0, 0
-    v3 = load v2
+    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v3 = load v2 -> i32
     return v3
-}
-"#;
+}"#;
     run_mir_expect(mir, "heap_field", &[], Value::int32(42));
 }
 
@@ -215,8 +205,7 @@ function @bad_field(v0: (i32,)) -> i32 {
 block0(v0: (i32,)):
     v1 = field.get v0, 5
     return v1
-}
-"#;
+}"#;
     let result = crate::tests::run_mir_with(mir, "bad_field", |interp| {
         let agg = create_aggregate(interp, vec![Value::int32(10)]);
         vec![agg]
@@ -234,8 +223,7 @@ function @bad_elem(v0: [i32; 3], v1: i64) -> i32 {
 block0(v0: [i32; 3], v1: i64):
     v2 = element.get v0, v1
     return v2
-}
-"#;
+}"#;
     let result = crate::tests::run_mir_with(mir, "bad_elem", |interp| {
         let arr = create_aggregate(
             interp,
@@ -257,7 +245,7 @@ block0:
     v0 = iconst 0i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = managed.alloc i32
+    v2 = managed.alloc i32 -> ref<managed i32>
     v3 = iconst 1i32
     v4 = iadd v1, v3
     v5 = iconst 2000i32
@@ -265,8 +253,7 @@ block1(v1: i32):
     branch v6, block1(v4), block2
 block2:
     return
-}
-"#;
+}"#;
     let result = run_mir(mir, "alloc_many", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -279,10 +266,9 @@ fn test_raw_allocate() {
     let mir = r#"
 function @raw_alloc() -> ref<raw i32> {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     return v0
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "raw_alloc", &[]);
     assert!(output.value.as_raw_pointer().is_some());
     assert_eq!(output.raw_heap_cells, 1);
@@ -294,14 +280,13 @@ fn test_raw_free() {
     let mir = r#"
 function @raw_alloc_free() -> i32 {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     raw.free v0
     return v2
-}
-"#;
+}"#;
     let output = run_mir_ok(mir, "raw_alloc_free", &[]);
     assert_eq!(output.value, Value::int32(42));
     // after free, raw heap should be empty
@@ -314,12 +299,11 @@ fn test_raw_free_invalid() {
     let mir = r#"
 function @double_free() -> void {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     raw.free v0
     raw.free v0
     return
-}
-"#;
+}"#;
     let result = run_mir(mir, "double_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -342,8 +326,7 @@ block0:
     v0 = iconst "h\u{00E9}"
     v1 = field.get v0, 1
     return v1
-}
-"#;
+}"#;
     run_mir_expect(mir, "len_utf16", &[], Value::uint32(2));
     run_mir_expect(mir, "len_bytes", &[], Value::uint32(3));
 }
@@ -356,7 +339,7 @@ function @first_byte() -> u8 {
 block0:
     v0 = iconst "Hi"
     v1 = field.get v0, 5
-    v2 = load v1
+    v2 = load v1 -> u8
     return v2
 }
 
@@ -367,8 +350,7 @@ block0:
     v2 = iconst 3u64
     v3 = intrinsic.memcmp(v1, v1, v2)
     return v3
-}
-"#;
+}"#;
     run_mir_expect(mir, "first_byte", &[], Value::uint(72, 8));
     run_mir_expect(mir, "memcmp_self", &[], Value::int32(0));
 }
@@ -379,13 +361,12 @@ fn test_stack_allocate() {
     let mir = r#"
 function @stack_alloc() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 99i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
-}
-"#;
+}"#;
     run_mir_expect(mir, "stack_alloc", &[], Value::int32(99));
 }
 
@@ -395,15 +376,14 @@ fn test_stack_allocate_struct() {
     let mir = r#"
 function @stack_struct() -> i32 {
 block0:
-    v0 = stack.alloc (i32, i32)
+    v0 = stack.alloc (i32, i32) -> ref<raw (i32, i32)>
     v1 = iconst 10i32
     v2 = iconst 20i32
     store v0, v1
-    v3 = field.addr v0, 0
-    v4 = load v3
+    v3 = field.addr v0, 0 -> ref<borrowed i32>
+    v4 = load v3 -> i32
     return v4
-}
-"#;
+}"#;
     run_mir_expect(mir, "stack_struct", &[], Value::int32(10));
 }
 
@@ -413,10 +393,9 @@ fn test_null_pointer_load() {
     let mir = r#"
 function @null_load(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0
+    v1 = load v0 -> i32
     return v1
-}
-"#;
+}"#;
     let result = run_mir(mir, "null_load", &[Value::raw_pointer(RawPointer::NULL)]);
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -431,8 +410,7 @@ function @null_store(v0: ref<raw mut i32>, v1: i32) -> void {
 block0(v0: ref<raw mut i32>, v1: i32):
     store v0, v1
     return
-}
-"#;
+}"#;
     let result = run_mir(
         mir,
         "null_store",
@@ -449,14 +427,13 @@ fn test_use_after_free() {
     let mir = r#"
 function @use_after_free() -> i32 {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
     raw.free v0
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
-}
-"#;
+}"#;
     let result = run_mir(mir, "use_after_free", &[]);
     assert!(result.is_err());
     let err = result.unwrap_err();

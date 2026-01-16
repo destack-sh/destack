@@ -762,12 +762,17 @@ fn update_terminator_arguments(
                 .map(|v| resolve_value(*v, substitutions))
                 .collect(),
         },
-        Terminator::TailCallIndirect { callee, arguments } => Terminator::TailCallIndirect {
+        Terminator::TailCallIndirect {
+            callee,
+            arguments,
+            signature,
+        } => Terminator::TailCallIndirect {
             callee: resolve_value(*callee, substitutions),
             arguments: arguments
                 .iter()
                 .map(|v| resolve_value(*v, substitutions))
                 .collect(),
+            signature: *signature,
         },
     }
 }

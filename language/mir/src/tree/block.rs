@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Function, Instruction, LocalNodeId, Node, NodeType, TypedValue, Value,
+    BinaryOperator, Function, Instruction, LocalNodeId, Node, NodeType, Type, TypedValue, Value,
 };
 
 /// A basic block is a sequence of instructions with:
@@ -231,6 +231,8 @@ pub enum Terminator {
         callee: Value,
         /// The arguments to pass.
         arguments: Vec<Value>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
     },
 }
 
@@ -315,7 +317,11 @@ impl Terminator {
             }
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { arguments, .. } => arguments.iter().copied().collect(),
-            Terminator::TailCallIndirect { callee, arguments } => {
+            Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                ..
+            } => {
                 let mut uses = smallvec![*callee];
                 uses.extend(arguments.iter().copied());
                 uses

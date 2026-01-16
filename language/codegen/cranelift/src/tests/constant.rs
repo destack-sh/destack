@@ -8,10 +8,9 @@ global @hello: ref<raw i8> = "hello" ; const
 
 function @get_hello() -> i64 {
 block0:
-    v0 = global.addr @hello
+    v0 = global.addr @hello -> ref<raw ref<raw>
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // string globals create a global_value instruction
@@ -29,10 +28,9 @@ global @empty: ref<raw i8> = "" ; const
 
 function @get_empty() -> i64 {
 block0:
-    v0 = global.addr @empty
+    v0 = global.addr @empty -> ref<raw ref<raw>
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
     assert!(
         clif.contains("global_value"),
@@ -50,8 +48,7 @@ function @get_magic() -> i32 {
 block0:
     v0 = global.const @magic
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // global.const should produce global_value + load
@@ -70,15 +67,14 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter
-    v1 = load v0
+    v0 = global.addr @counter -> ref<raw i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // mutable global should produce global_value, load, and store
@@ -98,11 +94,10 @@ global @data: i64 = zeroinit ; mut
 
 function @get_data() -> i64 {
 block0:
-    v0 = global.addr @data
-    v1 = load v0
+    v0 = global.addr @data -> ref<raw i64>
+    v1 = load v0 -> i64
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
     assert!(
         clif.contains("global_value"),

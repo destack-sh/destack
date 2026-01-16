@@ -4,8 +4,8 @@ function @nbody(v0: i64) -> i64 {
 // entry, init allocations
 block0(v0: i64):
     v1 = iconst 32i64
-    v2 = managed.alloc_array i64, v1
-    v3 = managed.alloc_array i64, v1
+    v2 = managed.alloc_array i64, v1 -> ref<managed i64>
+    v3 = managed.alloc_array i64, v1 -> ref<managed i64>
     v4 = iconst 0i64
     jump block1(v4)
 
@@ -21,9 +21,9 @@ block2:
     v9 = iconst 2i64
     v10 = imul v5, v9
     v11 = iadd v10, v7
-    v12 = element.addr v2, v5
+    v12 = element.addr v2, v5 -> ref<borrowed i64>
     store v12, v8
-    v13 = element.addr v3, v5
+    v13 = element.addr v3, v5 -> ref<borrowed i64>
     store v13, v11
     v14 = iadd v5, v7
     jump block1(v14)
@@ -66,8 +66,8 @@ block9(v25: i64, v26: i64, v27: i64):
 
 // merge branch, continue
 block10:
-    v29 = element.addr v2, v25
-    v30 = load v29
+    v29 = element.addr v2, v25 -> ref<borrowed i64>
+    v30 = load v29 -> i64
     v31 = iconst 0i64
     v32 = iconst 0i64
     jump block11(v32, v31, v30, v25, v26, v27)
@@ -84,8 +84,8 @@ block12:
 
 // branch on condition
 block13:
-    v41 = element.addr v2, v33
-    v42 = load v41
+    v41 = element.addr v2, v33 -> ref<borrowed i64>
+    v42 = load v41 -> i64
     v43 = isub v42, v35
     v44 = iconst 0i64
     v45 = icmp_slt v43, v44
@@ -118,12 +118,12 @@ block17:
 
 // loop body, update aggregates
 block18(v63: i64, v64: i64, v65: i64, v66: i64, v67: i64):
-    v68 = element.addr v3, v65
-    v69 = load v68
+    v68 = element.addr v3, v65 -> ref<borrowed i64>
+    v69 = load v68 -> i64
     v70 = iadd v69, v63
     v71 = iadd v64, v70
     store v68, v70
-    v72 = element.addr v2, v65
+    v72 = element.addr v2, v65 -> ref<borrowed i64>
     store v72, v71
     v73 = iconst 1i64
     v74 = iadd v65, v73
@@ -148,8 +148,8 @@ block25(v81: i64, v82: i64):
 
 // loop body, update aggregates
 block26:
-    v84 = element.addr v2, v81
-    v85 = load v84
+    v84 = element.addr v2, v81 -> ref<borrowed i64>
+    v85 = load v84 -> i64
     v86 = iadd v82, v85
     v87 = iconst 1i64
     v88 = iadd v81, v87

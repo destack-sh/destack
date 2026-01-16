@@ -572,6 +572,7 @@ impl<'a> PointerDecomposer<'a> {
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
+                ..
             } if *destination == ptr => DecomposedPointer::from_base(PointerBase::Global(*global)),
 
             // field address: decompose base and add field offset
@@ -579,6 +580,7 @@ impl<'a> PointerDecomposer<'a> {
                 destination,
                 aggregate,
                 index,
+                ..
             } if *destination == ptr => {
                 let mut base_decomp = self.decompose(*aggregate);
                 base_decomp.add_field(*index);
@@ -590,6 +592,7 @@ impl<'a> PointerDecomposer<'a> {
                 destination,
                 array,
                 index,
+                ..
             } if *destination == ptr => {
                 let mut base_decomp = self.decompose(*array);
 

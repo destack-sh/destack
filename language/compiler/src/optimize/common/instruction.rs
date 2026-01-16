@@ -291,9 +291,11 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Load {
             destination,
             pointer,
+            result_type,
         } => mir::Instruction::Load {
             destination: *destination,
             pointer: substitute(pointer),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: substitute(pointer),
@@ -318,10 +320,12 @@ pub fn instruction_substitute_uses(
             destination,
             aggregate,
             index,
+            result_type,
         } => mir::Instruction::FieldAddr {
             destination: *destination,
             aggregate: substitute(aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -347,10 +351,12 @@ pub fn instruction_substitute_uses(
             destination,
             array,
             index,
+            result_type,
         } => mir::Instruction::ElementAddr {
             destination: *destination,
             array: substitute(array),
             index: substitute(index),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -374,19 +380,23 @@ pub fn instruction_substitute_uses(
             destination,
             callee,
             arguments,
+            signature,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(callee),
             arguments: *arguments,
+            signature: *signature,
         },
         mir::Instruction::ManagedAllocArray {
             destination,
             element,
             length,
+            result_type,
         } => mir::Instruction::ManagedAllocArray {
             destination: *destination,
             element: *element,
             length: substitute(length),
+            result_type: *result_type,
         },
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: substitute(pointer),
@@ -486,10 +496,12 @@ pub fn instruction_substitute_uses_in_tree(
             destination,
             callee,
             arguments,
+            signature,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(*callee),
             arguments: substitute_arguments(*arguments),
+            signature: *signature,
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -853,9 +865,11 @@ pub fn instruction_map(
         mir::Instruction::Load {
             destination,
             pointer,
+            result_type,
         } => mir::Instruction::Load {
             destination: remap(*destination),
             pointer: remap(*pointer),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: remap(*pointer),
@@ -880,10 +894,12 @@ pub fn instruction_map(
             destination,
             aggregate,
             index,
+            result_type,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -909,10 +925,12 @@ pub fn instruction_map(
             destination,
             array,
             index,
+            result_type,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
             array: remap(*array),
             index: remap(*index),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -939,9 +957,11 @@ pub fn instruction_map(
         mir::Instruction::GlobalAddr {
             destination,
             global,
+            result_type,
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
+            result_type: *result_type,
         },
         mir::Instruction::GlobalConst {
             destination,
@@ -990,33 +1010,41 @@ pub fn instruction_map(
             destination,
             callee,
             arguments,
+            signature,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
             arguments: remap_arguments(*arguments),
+            signature: *signature,
         },
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::ManagedAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::ManagedAllocArray {
             destination,
             element,
             length,
+            result_type,
         } => mir::Instruction::ManagedAllocArray {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),
+            result_type: *result_type,
         },
         mir::Instruction::RawAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::RawAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
@@ -1024,9 +1052,11 @@ pub fn instruction_map(
         mir::Instruction::StackAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::StackAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -1166,7 +1196,11 @@ pub fn terminator_remap(
         } => {
             remap_args(arguments);
         }
-        mir::Terminator::TailCallIndirect { callee, arguments } => {
+        mir::Terminator::TailCallIndirect {
+            callee,
+            arguments,
+            ..
+        } => {
             remap_value(callee);
             remap_args(arguments);
         }

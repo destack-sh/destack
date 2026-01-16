@@ -7,8 +7,7 @@ fn test_empty_void_function() {
 function @empty() -> void {
 block0:
     return
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -28,8 +27,7 @@ function @add(v0: i32, v1: i32) -> i32 {
 block0:
     v2 = iadd v0, v1
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -50,8 +48,7 @@ function @returns_i64() -> i64 {
 block0:
     v0 = iconst 42i64
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"

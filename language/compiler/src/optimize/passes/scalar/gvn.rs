@@ -1256,18 +1256,18 @@ block1:
     fn test_eliminate_loads_across_blocks() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     jump block1
 block1:
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     jump block1
 block1:
     v3 = iadd v1, v1
@@ -1284,13 +1284,13 @@ block1:
     fn test_preserve_loads_after_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     store v0, v2
     jump block1
 block1:
-    v3 = load v0
+    v3 = load v0 -> i32
     return v3
 }"#;
 
@@ -1304,16 +1304,16 @@ block1:
     fn test_forward_loads_across_noalias_scope() {
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 2i32
     store v1, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     v5 = iadd v2, v4
     return v5
 }"#;
         let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 2i32
     store v1, v3
     v5 = iadd v2, v2
@@ -1361,16 +1361,16 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_forward_loads_across_tbaa_disjoint_offsets() {
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 2i32
     store v1, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     v5 = iadd v2, v4
     return v5
 }"#;
         let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iconst 2i32
     store v1, v3
     v5 = iadd v2, v2
@@ -1430,8 +1430,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_no_forward_load_size_mismatch() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0
-    v2 = load v0
+    v1 = load v0 -> i32
+    v2 = load v0 -> i32
     v3 = iadd v1, v2
     return v3
 }"#;
@@ -1475,18 +1475,18 @@ block0(v0: ref<raw i32>):
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     call @external(v0)
-    v2 = load v0
+    v2 = load v0 -> i32
     v3 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     call @external(v0)
     v3 = iadd v1, v1
     return v3

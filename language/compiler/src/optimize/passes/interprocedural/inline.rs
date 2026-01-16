@@ -745,9 +745,11 @@ fn instruction_inline_map(
         mir::Instruction::Load {
             destination,
             pointer,
+            result_type,
         } => mir::Instruction::Load {
             destination: remap(*destination),
             pointer: remap(*pointer),
+            result_type: *result_type,
         },
         mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
             pointer: remap(*pointer),
@@ -773,9 +775,11 @@ fn instruction_inline_map(
         mir::Instruction::GlobalAddr {
             destination,
             global,
+            result_type,
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
+            result_type: *result_type,
         },
         mir::Instruction::GlobalConst {
             destination,
@@ -824,10 +828,12 @@ fn instruction_inline_map(
             destination,
             aggregate,
             index,
+            result_type,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             index: *index,
+            result_type: *result_type,
         },
         mir::Instruction::FieldSet {
             destination,
@@ -853,10 +859,12 @@ fn instruction_inline_map(
             destination,
             array,
             index,
+            result_type,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
             array: remap(*array),
             index: remap(*index),
+            result_type: *result_type,
         },
         mir::Instruction::ElementSet {
             destination,
@@ -872,25 +880,31 @@ fn instruction_inline_map(
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::ManagedAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::ManagedAllocArray {
             destination,
             element,
             length,
+            result_type,
         } => mir::Instruction::ManagedAllocArray {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),
+            result_type: *result_type,
         },
         mir::Instruction::RawAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::RawAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
@@ -901,9 +915,11 @@ fn instruction_inline_map(
         mir::Instruction::StackAlloc {
             destination,
             layout,
+            result_type,
         } => mir::Instruction::StackAlloc {
             destination: remap(*destination),
             layout: *layout,
+            result_type: *result_type,
         },
         mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
             value: remap(*value),
@@ -921,10 +937,12 @@ fn instruction_inline_map(
             destination,
             callee,
             arguments,
+            signature,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
             arguments: remap_arguments(*arguments),
+            signature: *signature,
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -1277,7 +1295,7 @@ block0(v0: i32):
 }
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
 

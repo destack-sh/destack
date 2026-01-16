@@ -338,7 +338,10 @@ impl FunctionContext<'_> {
         let instance_value = self.state.builder.struct_(instance_type, values);
         let value = match reference_kind {
             Some(mir::ReferenceKind::Managed) => {
-                let pointer = self.state.builder.managed_alloc(instance_type);
+                let pointer = self
+                    .state
+                    .builder
+                    .managed_alloc(instance_type, result_type);
                 self.state.builder.store(pointer, instance_value);
                 pointer
             }

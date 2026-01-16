@@ -854,7 +854,7 @@ block0(v0: i32):
     fn test_function_attrs_alloc_behavior() {
         let input = r#"function @alloc() -> void {
 block0:
-    v0 = raw.alloc i32
+    v0 = raw.alloc i32 -> ref<raw i32>
     raw.free v0
     return
 }"#;
@@ -950,7 +950,7 @@ block0:
     fn test_function_attrs_unknown_indirect_effects() {
         let input = r#"function @callee(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
 

@@ -30,7 +30,7 @@ impl FunctionContext<'_> {
         let this_value = match instance_mir_type {
             mir::Type::Reference { kind, pointee, .. } => match kind {
                 mir::ReferenceKind::Managed => {
-                    let pointer = self.state.builder.managed_alloc(pointee);
+                    let pointer = self.state.builder.managed_alloc(pointee, instance_type);
                     let zero = self.zero_value_for_type(pointee, node)?;
                     self.state.builder.store(pointer, zero);
                     pointer

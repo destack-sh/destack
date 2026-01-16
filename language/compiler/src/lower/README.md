@@ -793,6 +793,9 @@ Lower function bodies to MIR blocks.
 - Function calls → `call` (direct) or `call.indirect` (virtual)
 - Field access → `field.get`/`field.addr`
 
+Lower emits inline result types for pointer producing instructions and `load`.
+Lower emits inline signature types for `call.indirect`.
+
 **Ownership marking:** For `^T` owned values, mark ownership in MIR.
 Optimize's `drop-insert` pass later inserts actual drops at last use points.
 
@@ -917,7 +920,7 @@ Lowers to:
 v1 = call @User.getName(v0)
 ```
 
-**Virtual dispatch** (virtual method on class/interface):
+**Virtual dispatch** (virtual method on class or interface):
 ```ds
 node.update(delta)  // static resolution { target: Node::update }, but virtual
 ```
@@ -926,7 +929,7 @@ Lowers to vtable lookup:
 ```mir
 v1 = field.get v0, 0           ; load vtable pointer from object layout
 v2 = field.get v1, 2           ; load update method at vtable slot 2
-v3 = call.indirect v2(v0, delta) ; indirect call through vtable
+v3 = call.indirect v2(v0, delta) -> fn(ref<raw void>, i32) -> void ; indirect call through vtable
 ```
 
 The key: static resolution means we know *which method signature* (Node::update), but if it's virtual, the actual implementation depends on the concrete type.
@@ -1834,7 +1837,7 @@ This inheritance-preserving order ensures:
 ; node.update(delta) where node could be Node or Sprite
 v1 = field.get v0, 0           ; load vtable pointer from object
 v2 = field.get v1, 2           ; load update method (slot 2)
-v3 = call.indirect v2(v0, delta) ; call with self as first arg
+v3 = call.indirect v2(v0, delta) -> fn(ref<raw void>, i32) -> void ; call with self as first arg
 ```
 
 **Super calls:**
@@ -1941,7 +1944,7 @@ block0(v0: ref<raw @Drawable>):
     v1 = field.get v0, 0       ; load objectPtr
     v2 = field.get v0, 1       ; load itabPtr
     v3 = field.get v2, 1       ; load draw method from itab slot 1
-    call.indirect v3(v1)       ; call with object as self
+    call.indirect v3(v1) -> fn(ref<raw void>) -> void ; call with object as self
     return
 }
 ```
@@ -2117,9 +2120,9 @@ Allocator selection for native targets is configured per-target (`allocator`).
 ```mir
 type @Point = struct { f32, f32 }
 
-function @alloc_example() -> ref<@Point> {
+function @alloc_example() -> ref<managed @Point> {
 block0:
-    v0 = managed.alloc @Point
+    v0 = managed.alloc @Point -> ref<managed @Point>
     return v0
 }
 ```
@@ -2182,7 +2185,7 @@ Cleanup uses `raw.drop` (with dispose) or `raw.free` (without dispose).
 ```mir
 type @SomeType = struct { i64 }
 
-v0 = raw.alloc @SomeType
+v0 = raw.alloc @SomeType -> ref<raw @SomeType>
 ; ... use v0 ...
 raw.drop v0    ; drop glue: dispose + deallocate
 ```
@@ -2190,7 +2193,7 @@ raw.drop v0    ; drop glue: dispose + deallocate
 For manual deallocation without dispose (FFI, low-level code):
 
 ```mir
-v0 = raw.alloc @SomeType
+v0 = raw.alloc @SomeType -> ref<raw @SomeType>
 ; ... use v0 ...
 raw.free v0    ; just deallocate, no dispose
 ```
@@ -2207,7 +2210,7 @@ Cleanup uses `stack.drop` for dispose; deallocation happens automatically when t
 ```mir
 type @SomeType = struct { i64 }
 
-v0 = stack.alloc @SomeType
+v0 = stack.alloc @SomeType -> ref<raw @SomeType>
 ; ... use v0 ...
 stack.drop v0    ; drop glue: dispose only, frame handles memory
 ```

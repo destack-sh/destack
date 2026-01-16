@@ -493,16 +493,16 @@ block0(v0: (i32, i32)):
     fn test_eliminate_redundant_loads() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
-    v2 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
+    v2 = load v0 -> i32
     v3 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     v3 = iadd v1, v1
     return v3
 }"#;
@@ -517,11 +517,11 @@ block0:
     fn test_preserve_loads_after_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
-    v1 = load v0
+    v0 = stack.alloc i32 -> ref<raw i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     store v0, v2
-    v3 = load v0
+    v3 = load v0 -> i32
     v4 = iadd v1, v3
     return v4
 }"#;

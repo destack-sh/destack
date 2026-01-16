@@ -926,6 +926,7 @@ fn try_fuse_addr_access(
             destination,
             aggregate,
             index,
+            ..
         } => {
             if !can_fuse(*destination) {
                 return None;
@@ -940,6 +941,7 @@ fn try_fuse_addr_access(
                 mir::Instruction::Load {
                     destination: load_dest,
                     pointer,
+                    ..
                 } if pointer == destination => Some((
                     ThreadedInstruction {
                         handler: select_field_load_handler(value_kinds, *aggregate),
@@ -977,6 +979,7 @@ fn try_fuse_addr_access(
             destination,
             array,
             index,
+            ..
         } => {
             if !can_fuse(*destination) {
                 return None;
@@ -991,6 +994,7 @@ fn try_fuse_addr_access(
                 mir::Instruction::Load {
                     destination: load_dest,
                     pointer,
+                    ..
                 } if pointer == destination => Some((
                     ThreadedInstruction {
                         handler: select_element_load_handler(value_kinds, *array),
@@ -1022,6 +1026,7 @@ fn try_fuse_addr_access(
         mir::Instruction::GlobalAddr {
             destination,
             global,
+            ..
         } => {
             if !can_fuse(*destination) {
                 return None;
@@ -1033,6 +1038,7 @@ fn try_fuse_addr_access(
                 mir::Instruction::Load {
                     destination: load_dest,
                     pointer,
+                    ..
                 } if pointer == destination => Some((
                     ThreadedInstruction {
                         handler: dispatch::handle_global_load,
@@ -1495,6 +1501,7 @@ fn thread_instruction(
             destination,
             callee,
             arguments,
+            ..
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
@@ -1540,6 +1547,7 @@ fn thread_instruction(
         mir::Instruction::GlobalAddr {
             destination,
             global,
+            ..
         } => ThreadedInstruction {
             handler: dispatch::handle_global_addr,
             data: ThreadedInstructionData::GlobalAddr {
@@ -1563,6 +1571,7 @@ fn thread_instruction(
         mir::Instruction::Load {
             destination,
             pointer,
+            ..
         } => ThreadedInstruction {
             handler: select_load_handler(value_kinds, *pointer),
             data: ThreadedInstructionData::Load {
@@ -1621,6 +1630,7 @@ fn thread_instruction(
             destination,
             aggregate,
             index,
+            ..
         } => ThreadedInstruction {
             handler: select_field_addr_handler(value_kinds, *aggregate),
             data: ThreadedInstructionData::FieldAddr {
@@ -1667,6 +1677,7 @@ fn thread_instruction(
             destination,
             array,
             index,
+            ..
         } => ThreadedInstruction {
             handler: select_element_addr_handler(value_kinds, *array),
             data: ThreadedInstructionData::ElementAddr {
@@ -1744,6 +1755,7 @@ fn thread_instruction(
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
+            ..
         } => ThreadedInstruction {
             handler: dispatch::handle_managed_alloc,
             data: ThreadedInstructionData::ManagedAlloc {
@@ -1762,18 +1774,14 @@ fn thread_instruction(
             data: ThreadedInstructionData::ManagedAllocArray {
                 dest: *destination,
                 length: *length,
-                reference: ReferenceMeta::new(
-                    mir::ReferenceKind::Managed,
-                    mir::AddressSpace::Generic,
-                    mir::Mutability::Mutable,
-                    false,
-                ),
+                reference: reference_meta_for_value(value_kinds, *destination),
             },
         },
 
         mir::Instruction::RawAlloc {
             destination,
             layout,
+            ..
         } => ThreadedInstruction {
             handler: dispatch::handle_raw_alloc,
             data: ThreadedInstructionData::RawAlloc {
@@ -1791,6 +1799,7 @@ fn thread_instruction(
         mir::Instruction::StackAlloc {
             destination,
             layout,
+            ..
         } => ThreadedInstruction {
             handler: dispatch::handle_stack_alloc,
             data: ThreadedInstructionData::StackAlloc {
@@ -1985,118 +1994,54 @@ fn infer_instruction_kind(
         }
         mir::Instruction::CallIndirect {
             destination,
-            callee,
+            signature,
             ..
         } => {
             destination.as_ref()?;
-            let callee_kind = value_kinds.get(*callee)?;
-            match callee_kind {
-                ValueKind::FunctionPointer { result } => Some(kind_from_type(tree, result)),
-                _ => None,
-            }
+            let mir::Type::FunctionPointer { result, .. } = tree.get(*signature) else {
+                return None;
+            };
+            Some(kind_from_type(tree, *result))
         }
         mir::Instruction::LocalGet { local, .. } => {
             let local = tree.get(*local);
             Some(kind_from_type(tree, local.ty))
         }
-        mir::Instruction::GlobalAddr { global, .. } => {
-            let global = tree.get(*global);
-            Some(ValueKind::Pointer {
-                pointee: global.ty,
-                storage: PointerStorage::Global,
-                reference: ReferenceMeta::new(
-                    mir::ReferenceKind::Raw,
-                    mir::AddressSpace::Global,
-                    global.mutability,
-                    false,
-                ),
-            })
+        mir::Instruction::GlobalAddr { result_type, .. } => {
+            Some(kind_from_type(tree, *result_type))
         }
         mir::Instruction::GlobalConst { global, .. } => {
             let global = tree.get(*global);
             Some(kind_from_type(tree, global.ty))
         }
-        mir::Instruction::Load { pointer, .. } => {
-            let pointer_kind = value_kinds.get(*pointer)?;
-            kind_from_pointer(tree, pointer_kind)
-        }
+        mir::Instruction::Load { result_type, .. } => Some(kind_from_type(tree, *result_type)),
         mir::Instruction::FieldGet {
             aggregate, index, ..
         } => {
             let aggregate_kind = value_kinds.get(*aggregate)?;
             kind_from_field(tree, aggregate_kind, *index)
         }
-        mir::Instruction::FieldAddr {
-            aggregate, index, ..
-        } => {
-            let aggregate_kind = value_kinds.get(*aggregate)?;
-            let field_type_id = field_type_id_from_kind(tree, aggregate_kind, *index)?;
-            let (storage, reference) = pointer_metadata_from_aggregate(aggregate_kind);
-            Some(ValueKind::Pointer {
-                pointee: field_type_id,
-                storage,
-                reference,
-            })
+        mir::Instruction::FieldAddr { result_type, .. } => {
+            Some(kind_from_type(tree, *result_type))
         }
         mir::Instruction::FieldSet { aggregate, .. } => value_kinds.get(*aggregate),
         mir::Instruction::ElementGet { array, .. } => {
             let array_kind = value_kinds.get(*array)?;
             kind_from_element(tree, array_kind)
         }
-        mir::Instruction::ElementAddr { array, .. } => {
-            let array_kind = value_kinds.get(*array)?;
-            let element_type_id = element_type_id_from_kind(tree, array_kind)?;
-            let (storage, reference) = pointer_metadata_from_array(array_kind);
-            Some(ValueKind::Pointer {
-                pointee: element_type_id,
-                storage,
-                reference,
-            })
+        mir::Instruction::ElementAddr { result_type, .. } => {
+            Some(kind_from_type(tree, *result_type))
         }
         mir::Instruction::ElementSet { array, .. } => value_kinds.get(*array),
         mir::Instruction::Struct { ty, .. } => Some(kind_from_type(tree, *ty)),
         mir::Instruction::Tuple { ty, .. } => Some(kind_from_type(tree, *ty)),
         mir::Instruction::Array { ty, .. } => Some(kind_from_type(tree, *ty)),
-        mir::Instruction::ManagedAlloc { layout, .. } => Some(ValueKind::Pointer {
-            pointee: *layout,
-            storage: PointerStorage::Managed,
-            reference: ReferenceMeta::new(
-                mir::ReferenceKind::Managed,
-                mir::AddressSpace::Generic,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        }),
-        mir::Instruction::ManagedAllocArray { element, .. } => Some(ValueKind::Pointer {
-            pointee: *element,
-            storage: PointerStorage::Managed,
-            reference: ReferenceMeta::new(
-                mir::ReferenceKind::Managed,
-                mir::AddressSpace::Generic,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        }),
-        mir::Instruction::RawAlloc { layout, .. } => Some(ValueKind::Pointer {
-            pointee: *layout,
-            storage: PointerStorage::Raw,
-            reference: ReferenceMeta::new(
-                mir::ReferenceKind::Raw,
-                mir::AddressSpace::Heap,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        }),
-        mir::Instruction::StackAlloc { layout, .. } => Some(ValueKind::Pointer {
-            pointee: *layout,
-            storage: PointerStorage::Stack,
-            reference: ReferenceMeta::new(
-                mir::ReferenceKind::Raw,
-                mir::AddressSpace::Stack,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        }),
+        mir::Instruction::ManagedAlloc { result_type, .. }
+        | mir::Instruction::ManagedAllocArray { result_type, .. }
+        | mir::Instruction::RawAlloc { result_type, .. }
+        | mir::Instruction::StackAlloc { result_type, .. } => {
+            Some(kind_from_type(tree, *result_type))
+        }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
@@ -2224,44 +2169,6 @@ fn pointer_storage_from_reference(
     }
 }
 
-/// Resolve pointer metadata for aggregate values or pointers.
-fn pointer_metadata_from_aggregate(kind: ValueKind) -> (PointerStorage, ReferenceMeta) {
-    match kind {
-        ValueKind::Pointer {
-            storage, reference, ..
-        } => (storage, reference),
-        ValueKind::Aggregate { .. } => (
-            PointerStorage::Managed,
-            ReferenceMeta::new(
-                mir::ReferenceKind::Managed,
-                mir::AddressSpace::Generic,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        ),
-        _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
-    }
-}
-
-/// Resolve pointer metadata for array values or pointers.
-fn pointer_metadata_from_array(kind: ValueKind) -> (PointerStorage, ReferenceMeta) {
-    match kind {
-        ValueKind::Pointer {
-            storage, reference, ..
-        } => (storage, reference),
-        ValueKind::Array { .. } | ValueKind::Aggregate { .. } => (
-            PointerStorage::Managed,
-            ReferenceMeta::new(
-                mir::ReferenceKind::Managed,
-                mir::AddressSpace::Generic,
-                mir::Mutability::Mutable,
-                false,
-            ),
-        ),
-        _ => (PointerStorage::Unknown, ReferenceMeta::NONE),
-    }
-}
-
 /// Get the kind for a constant value.
 fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
     // map constant to value kind
@@ -2328,37 +2235,6 @@ fn kind_from_field(tree: &mir::NodeTree, kind: ValueKind, index: u32) -> Option<
     }
 }
 
-/// Resolve the field type id for an aggregate or pointer kind.
-fn field_type_id_from_kind(
-    tree: &mir::NodeTree,
-    kind: ValueKind,
-    index: u32,
-) -> Option<mir::LocalNodeId<mir::Type>> {
-    // unwrap pointer kinds to their pointee
-    let type_id = match kind {
-        ValueKind::Aggregate { ty } => ty,
-        ValueKind::Pointer { pointee, .. } => pointee,
-        _ => return None,
-    };
-
-    // resolve field type from aggregate layout
-    match tree.get(type_id) {
-        mir::Type::Struct {
-            fields,
-            copyability: _,
-        } => {
-            let field = fields.get(index as usize)?;
-            let field = tree.get(*field);
-            Some(field.ty)
-        }
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
-        } => elements.get(index as usize).copied(),
-        _ => None,
-    }
-}
-
 /// Resolve the element kind for an array value.
 fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind> {
     // resolve element kind for array layouts
@@ -2367,26 +2243,6 @@ fn kind_from_element(tree: &mir::NodeTree, kind: ValueKind) -> Option<ValueKind>
         ValueKind::Aggregate { ty } => match tree.get(ty) {
             mir::Type::Array { element, .. } => Some(kind_from_type(tree, *element)),
             _ => None,
-        },
-        _ => None,
-    }
-}
-
-/// Resolve the element type id for an array or pointer kind.
-fn element_type_id_from_kind(
-    tree: &mir::NodeTree,
-    kind: ValueKind,
-) -> Option<mir::LocalNodeId<mir::Type>> {
-    // unwrap pointer kinds to their pointee
-    match kind {
-        ValueKind::Array { element, .. } => Some(element),
-        ValueKind::Aggregate { ty } => match tree.get(ty) {
-            mir::Type::Array { element, .. } => Some(*element),
-            _ => None,
-        },
-        ValueKind::Pointer { pointee, .. } => match tree.get(pointee) {
-            mir::Type::Array { element, .. } => Some(*element),
-            _ => Some(pointee),
         },
         _ => None,
     }
@@ -3082,7 +2938,11 @@ fn thread_terminator(
             }
         }
 
-        mir::Terminator::TailCallIndirect { callee, arguments } => {
+        mir::Terminator::TailCallIndirect {
+            callee,
+            arguments,
+            ..
+        } => {
             let args = push_argument_range(argument_pool, arguments);
             ThreadedInstruction {
                 handler: dispatch::handle_tail_call_indirect,

@@ -223,9 +223,14 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_value_list(arguments, f)
         }
 
-        Terminator::TailCallIndirect { callee, arguments } => {
+        Terminator::TailCallIndirect {
+            callee,
+            arguments,
+            signature,
+        } => {
             write!(f, [token("tailcall.indirect"), space(), callee])?;
-            format_value_list(arguments, f)
+            format_value_list(arguments, f)?;
+            write!(f, [space(), token("->"), space(), signature])
         }
     }
 }

@@ -259,6 +259,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::StackAlloc {
                 destination,
                 layout,
+                ..
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
@@ -274,6 +275,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::ManagedAlloc {
                 destination,
                 layout,
+                ..
             } => {
                 pointer_pointee_map.insert(*destination, *layout);
             }
@@ -290,6 +292,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
+                ..
             } => {
                 let global_data = self.tree.get(*global);
                 pointer_pointee_map.insert(*destination, global_data.ty);
@@ -299,6 +302,7 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 aggregate,
                 index,
+                ..
             } => {
                 let Some(aggregate_type_id) = type_map.get(aggregate) else {
                     return;
@@ -327,7 +331,9 @@ impl<'a> FunctionLowerer<'a> {
             }
             // element_addr: pointer to element type
             mir::Instruction::ElementAddr {
-                destination, array, ..
+                destination,
+                array,
+                ..
             } => {
                 let Some(array_type_id) = type_map.get(array) else {
                     return;
@@ -350,7 +356,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         instruction: &mir::Instruction,
         type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
-        pointer_pointee_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+        _pointer_pointee_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> Option<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match instruction {
             // constants: type is embedded in the constant, but we don't have a Type node
@@ -407,8 +413,12 @@ impl<'a> FunctionLowerer<'a> {
             // assume: no result
             mir::Instruction::Assume { .. } => None,
 
-            // global_addr: result type = pointer (but we don't track pointer types here)
-            mir::Instruction::GlobalAddr { .. } => None,
+            // global_addr: result type is explicit
+            mir::Instruction::GlobalAddr {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
             // global_const: result type = global's type
             mir::Instruction::GlobalConst {
@@ -419,24 +429,12 @@ impl<'a> FunctionLowerer<'a> {
                 Some((*destination, global_data.ty))
             }
 
-            // load: result type = pointee of pointer
+            // load: result type is explicit
             mir::Instruction::Load {
                 destination,
-                pointer,
-            } => {
-                // try pointer_pointee_map (for stack_allocate, etc.)
-                if let Some(&pointee) = pointer_pointee_map.get(pointer) {
-                    return Some((*destination, pointee));
-                }
-                // fallback to extracting from pointer type
-                if let Some(ptr_type_id) = type_map.get(pointer) {
-                    let ptr_type = self.tree.get(*ptr_type_id);
-                    if let mir::Type::Reference { pointee, .. } = ptr_type {
-                        return Some((*destination, *pointee));
-                    }
-                }
-                None
-            }
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
             // store: no result
             mir::Instruction::Store { .. } => None,
@@ -484,8 +482,12 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => type_map.get(aggregate).map(|ty| (*destination, *ty)),
 
-            // field_addr: no result in codegen type map
-            mir::Instruction::FieldAddr { .. } => None,
+            // field_addr: result type is explicit
+            mir::Instruction::FieldAddr {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
             // extract_element: type is array element type
             mir::Instruction::ElementGet {
@@ -505,8 +507,12 @@ impl<'a> FunctionLowerer<'a> {
                 destination, array, ..
             } => type_map.get(array).map(|ty| (*destination, *ty)),
 
-            // element_addr: no result in codegen type map
-            mir::Instruction::ElementAddr { .. } => None,
+            // element_addr: result type is explicit
+            mir::Instruction::ElementAddr {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
             // struct/tuple/array: result type is explicit
             mir::Instruction::Struct {
@@ -533,16 +539,14 @@ impl<'a> FunctionLowerer<'a> {
                 }
             }
 
-            // call_indirect: look up return type from function pointer type
+            // call_indirect: look up return type from signature type
             mir::Instruction::CallIndirect {
                 destination,
-                callee,
+                signature,
                 ..
             } => {
-                if let Some(dest) = destination
-                    && let Some(callee_type_id) = type_map.get(callee)
-                {
-                    let callee_type = self.tree.get(*callee_type_id);
+                if let Some(dest) = destination {
+                    let callee_type = self.tree.get(*signature);
                     if let mir::Type::FunctionPointer { result, .. } = callee_type {
                         return Some((*dest, *result));
                     }
@@ -550,15 +554,31 @@ impl<'a> FunctionLowerer<'a> {
                 None
             }
 
-            // stack_allocate: result type is ref<raw layout>
-            mir::Instruction::StackAlloc { .. } => None,
+            // stack_allocate: result type is explicit
+            mir::Instruction::StackAlloc {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
-            // managed_allocate: result type is managed reference
-            mir::Instruction::ManagedAlloc { .. } => None,
-            mir::Instruction::ManagedAllocArray { .. } => None,
+            // managed_allocate: result type is explicit
+            mir::Instruction::ManagedAlloc {
+                destination,
+                result_type,
+                ..
+            }
+            | mir::Instruction::ManagedAllocArray {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
-            // raw_allocate: result type is ref<raw>
-            mir::Instruction::RawAlloc { .. } => None,
+            // raw_allocate: result type is explicit
+            mir::Instruction::RawAlloc {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
 
             // these don't produce values
             mir::Instruction::RawFree { .. } => None,
@@ -771,6 +791,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
+                ..
             } => {
                 let global_value = self.get_or_declare_global(*global, builder)?;
                 let ptr = builder
@@ -802,17 +823,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::Load {
                 destination,
                 pointer,
+                result_type,
             } => {
                 let ptr_value = value_map[pointer];
-                let loaded_type_id = type_map.get(destination).ok_or_else(|| {
-                    CodegenCraneliftError::MissingType {
-                        node: instruction_id.into_any(),
-                        message: Some(format!(
-                            "could not infer type for load destination {destination:?} from pointer {pointer:?}"
-                        )),
-                    }
-                })?;
-                let loaded_type = lower_type(self.tree, *loaded_type_id, self.pointer_bytes)?;
+                let loaded_type = lower_type(self.tree, *result_type, self.pointer_bytes)?;
 
                 let result = builder
                     .ins()
@@ -922,6 +936,7 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 aggregate,
                 index,
+                ..
             } => {
                 // aggregate type
                 let aggregate_type_id =
@@ -1085,6 +1100,7 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 array,
                 index,
+                ..
             } => {
                 // array type
                 let array_type_id =
@@ -1195,13 +1211,10 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 callee,
                 arguments,
+                signature,
             } => {
-                let sig_ref = self.build_indirect_call_signature(
-                    *callee,
-                    type_map,
-                    builder,
-                    "indirect call",
-                )?;
+                let sig_ref =
+                    self.build_indirect_call_signature(*signature, builder, "indirect call")?;
                 let callee_value = value_map[callee];
                 let args = self.tree.get_arguments(*arguments);
                 let argument_values: Vec<cir::Value> = args.iter().map(|v| value_map[v]).collect();
@@ -1225,6 +1238,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Instruction::StackAlloc {
                 destination,
                 layout,
+                ..
             } => {
                 let ty = lower_type(self.tree, *layout, self.pointer_bytes)?;
                 let size = ty.bytes();
@@ -1286,7 +1300,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         value_map: &HashMap<mir::Value, cir::Value>,
         block_map: &HashMap<mir::LocalNodeId<mir::Block>, cir::Block>,
-        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+        _type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
     ) -> CodegenCraneliftResult<()> {
         match terminator {
             // return: function exit with optional value
@@ -1417,9 +1431,13 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // tail call indirect: return_call_indirect (indirect tail call)
-            mir::Terminator::TailCallIndirect { callee, arguments } => {
+            mir::Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                signature,
+            } => {
                 let sig_ref =
-                    self.build_indirect_call_signature(*callee, type_map, builder, "tail call")?;
+                    self.build_indirect_call_signature(*signature, builder, "tail call")?;
                 let callee_value = value_map[callee];
                 let argument_values: Vec<cir::Value> =
                     arguments.iter().map(|v| value_map[v]).collect();
@@ -1541,43 +1559,30 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// Build a Cranelift signature for an indirect call from a function pointer type.
+    /// Build a Cranelift signature for an indirect call from a function type.
     fn build_indirect_call_signature(
         &self,
-        callee: mir::Value,
-        type_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Type>>,
+        signature: mir::LocalNodeId<mir::Type>,
         builder: &mut FunctionBuilder<'_>,
         error_context: &str,
     ) -> CodegenCraneliftResult<cir::SigRef> {
-        // get callee type
-        let callee_type_id =
-            type_map
-                .get(&callee)
-                .ok_or_else(|| CodegenCraneliftError::Internal {
-                    message: format!("could not infer type for {error_context} callee"),
-                })?;
-        let callee_type = self.tree.get(*callee_type_id);
-
         // extract function pointer params and result
-        let (params, result) = match callee_type {
-            mir::Type::FunctionPointer { parameters, result } => (parameters, *result),
-            _ => {
-                return Err(CodegenCraneliftError::Internal {
-                    message: format!("{error_context} callee is not a function pointer"),
-                });
-            }
+        let mir::Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+            return Err(CodegenCraneliftError::Internal {
+                message: format!("{error_context} signature is not a function pointer"),
+            });
         };
 
         // build signature
         let call_conv = self.isa.default_call_conv();
         let mut signature = cir::Signature::new(call_conv);
-        for param_ty in params {
+        for param_ty in parameters {
             let ty = lower_type(self.tree, *param_ty, self.pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
-        let result_type = self.tree.get(result);
+        let result_type = self.tree.get(*result);
         if !matches!(result_type, mir::Type::Void) {
-            let ty = lower_type(self.tree, result, self.pointer_bytes)?;
+            let ty = lower_type(self.tree, *result, self.pointer_bytes)?;
             signature.returns.push(cir::AbiParam::new(ty));
         }
 

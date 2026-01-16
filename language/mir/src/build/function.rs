@@ -1,10 +1,11 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallMetadata, CastOperator,
-    CheckConstraint, CheckTarget, Constant, Function, Global, Instruction, Intrinsic, Lifetime,
-    Linkage, Local, LocalNodeId, MemoryEffect, MemoryOrdering, Mutability, NodeTree, Ownership,
-    PointerAttributes, Terminator, Type, TypedValue, UnaryOperator, Value,
+    AddressSpace, AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallMetadata,
+    CastOperator, CheckConstraint, CheckTarget, Constant, Function, Global, Instruction, Intrinsic,
+    Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, MemoryOrdering, Mutability, NodeTree,
+    Ownership, PointerAttributes, ReferenceKind, Terminator, Type, TypedValue, UnaryOperator,
+    Value,
 };
 
 use super::Variable;
@@ -603,7 +604,11 @@ impl<'a> FunctionBuilder<'a> {
             Terminator::TailCall { arguments, .. } => {
                 Self::replace_values_in_slice(arguments, from, to);
             }
-            Terminator::TailCallIndirect { callee, arguments } => {
+            Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                ..
+            } => {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(arguments, from, to);
             }
@@ -981,6 +986,24 @@ impl<'a> FunctionBuilder<'a> {
         local
     }
 
+    /// Create a reference type for inline instruction typing.
+    pub fn type_reference(
+        &mut self,
+        kind: ReferenceKind,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        })
+    }
+
     /// Load from a local variable.
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
@@ -994,11 +1017,16 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Get the address of a mutable global variable.
-    pub fn global_addr(&mut self, global: LocalNodeId<Global>) -> Value {
+    pub fn global_addr(
+        &mut self,
+        global: LocalNodeId<Global>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalAddr {
             destination,
             global,
+            result_type,
         });
         destination
     }
@@ -1014,11 +1042,12 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load from a pointer.
-    pub fn load(&mut self, pointer_value: Value) -> Value {
+    pub fn load(&mut self, pointer_value: Value, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::Load {
             destination,
             pointer: pointer_value,
+            result_type,
         });
         destination
     }
@@ -1125,34 +1154,50 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Allocate a managed (runtime-tracked) struct.
     /// Returns a `ref<managed T>`.
-    pub fn managed_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
+    pub fn managed_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAlloc {
             destination,
             layout,
+            result_type,
         });
         destination
     }
 
     /// Allocate a managed array.
     /// Returns a `ref<managed [T]>`.
-    pub fn managed_alloc_array(&mut self, element: LocalNodeId<Type>, length: Value) -> Value {
+    pub fn managed_alloc_array(
+        &mut self,
+        element: LocalNodeId<Type>,
+        length: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ManagedAllocArray {
             destination,
             element,
             length,
+            result_type,
         });
         destination
     }
 
     /// Allocate raw memory on the heap.
     /// Returns a `ref<raw T>`. Caller must free with `raw.free`.
-    pub fn raw_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
+    pub fn raw_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::RawAlloc {
             destination,
             layout,
+            result_type,
         });
         destination
     }
@@ -1164,11 +1209,16 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Allocate on the stack (lives until function returns).
     /// Returns a `ref<raw T>`.
-    pub fn stack_alloc(&mut self, layout: LocalNodeId<Type>) -> Value {
+    pub fn stack_alloc(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::StackAlloc {
             destination,
             layout,
+            result_type,
         });
         destination
     }
@@ -1264,6 +1314,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination),
             callee,
             arguments,
+            signature,
         });
         self.tree
             .call_table
@@ -1283,6 +1334,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: None,
             callee,
             arguments,
+            signature,
         });
         self.tree
             .call_table
@@ -1488,12 +1540,18 @@ impl<'a> FunctionBuilder<'a> {
     /// Tail call through a function pointer (does not return to this function).
     ///
     /// The callee's return value becomes this function's return value.
-    pub fn tail_call_indirect(&mut self, callee: Value, argument_values: Vec<Value>) {
+    pub fn tail_call_indirect(
+        &mut self,
+        callee: Value,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
         let block = self.current_block();
         let block = self.tree.get_mut(block);
         block.terminator = Terminator::TailCallIndirect {
             callee,
             arguments: argument_values,
+            signature,
         };
     }
 

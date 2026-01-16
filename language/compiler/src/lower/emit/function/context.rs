@@ -324,8 +324,18 @@ impl<'a> FunctionContext<'a> {
         // use global_const for immutable, global_addr + load for mutable
         if let Some(global_binding) = self.env.globals_by_symbol.get(&target_symbol) {
             if global_binding.mutability == mir::Mutability::Mutable {
-                let addr = self.state.builder.global_addr(global_binding.global);
-                let value = self.state.builder.load(addr);
+                let addr_type = self.state.builder.type_reference(
+                    mir::ReferenceKind::Raw,
+                    global_binding.ty,
+                    global_binding.mutability,
+                    mir::AddressSpace::Generic,
+                    false,
+                );
+                let addr = self
+                    .state
+                    .builder
+                    .global_addr(global_binding.global, addr_type);
+                let value = self.state.builder.load(addr, global_binding.ty);
                 Ok((value, global_binding.ty))
             } else {
                 let value = self.state.builder.global_const(global_binding.global);
@@ -500,8 +510,8 @@ impl<'a> FunctionContext<'a> {
                 // update the aggregate value
                 let current = self.state.builder.use_variable(binding.variable);
                 match self.state.builder.tree().get(binding.ty) {
-                    mir::Type::Reference { .. } => {
-                        let aggregate = self.state.builder.load(current);
+                    mir::Type::Reference { pointee, .. } => {
+                        let aggregate = self.state.builder.load(current, *pointee);
                         let updated =
                             self.state
                                 .builder

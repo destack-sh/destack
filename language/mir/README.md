@@ -80,11 +80,11 @@ v3 = field.get v0, 0                  ; extract first element (new SSA value)
 v4 = field.set v0, 1, v5              ; "update" creates new tuple value
 ```
 
-**Memory operations** compute addresses for load/store:
+**Memory operations** compute addresses for load and store:
 ```mir
-v0 = field.addr v1, 0                 ; get address of field 0
-v2 = load v0                          ; load through pointer
-store v0, v3                          ; store through pointer
+v0 = field.addr v1, 0 -> ref<borrowed i32> ; get address of field 0
+v2 = load v0 -> i32                        ; load through pointer
+store v0, v3                               ; store through pointer
 ```
 
 ### Comparison with Other IRs
@@ -149,7 +149,10 @@ SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).
 
 `field.addr` and `element.addr` produce a reference to a field or element.
-They are helpful for explicit borrowing and aliasing rules.
+Pointer producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
+`load` carries the loaded type inline with `->`.
+`call.indirect` carries its signature type inline with `->`.
+These annotations are required for Core MIR and enable precise alias and ownership analysis.
 
 `drop` invokes the type-specific drop glue for owned values.
 Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
@@ -173,8 +176,8 @@ Instructions with multiple memory accesses, such as `memcpy`, record multiple ac
 Function effects and pointer attributes live on `Function`.
 Callsite and per access metadata live in the call and memory tables.
 Backends and optimizers query the metadata directly.
-`call.indirect` instructions must have call metadata with a function pointer signature in the call table.
-The MIR parser infers this metadata from the callee's type when parsing text.
+`call.indirect` carries its signature type inline with `->`.
+Call metadata remains optional and refines effects, dispatch, and profiling data.
 
 ### Metadata Structures
 

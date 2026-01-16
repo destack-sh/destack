@@ -44,8 +44,7 @@ block3:
     v11 = call @fibonacci(v10)
     v12 = fadd v8, v11
     return v12
-}
-"#,
+}"#,
     );
 
     test.assert_mir_function_output(

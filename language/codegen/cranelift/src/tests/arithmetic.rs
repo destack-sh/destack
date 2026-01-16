@@ -15,8 +15,7 @@ block0:
     v3 = isub v2, v0
     v4 = imul v3, v1
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -43,8 +42,7 @@ block0:
     v3 = srem v0, v1
     v4 = iadd v2, v3
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -71,8 +69,7 @@ block0:
     v3 = bor v2, v0
     v4 = bxor v3, v1
     return v4
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -97,8 +94,7 @@ function @compare(v0: i32, v1: i32) -> bool {
 block0:
     v2 = icmp_slt v0, v1
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -121,8 +117,7 @@ function @negate(v0: i32) -> i32 {
 block0:
     v1 = ineg v0
     return v1
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -147,8 +142,7 @@ block0:
     v1 = iconst 100i32
     v2 = iadd v0, v1
     return v2
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     let expected = r#"
@@ -172,8 +166,7 @@ function @char_const() -> i32 {
 block0:
     v0 = iconst 'A'
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // 'A' = 65 in unicode
@@ -196,8 +189,7 @@ function @emoji() -> i32 {
 block0:
     v0 = iconst '😀'
     return v0
-}
-"#;
+}"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
     // '😀' = U+1F600 = 128512

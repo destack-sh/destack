@@ -17,8 +17,8 @@ block2:
 
 // update state, merge branch
 block3(v5: i64):
-    v6 = managed.alloc_array i64, v5
-    v7 = managed.alloc_array i64, v5
+    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
+    v7 = managed.alloc_array i64, v5 -> ref<managed i64>
     v8 = iconst 0i64
     v9 = iconst 1i64
     v10 = isub v8, v9
@@ -32,9 +32,9 @@ block4(v12: i64, v13: ref<managed i64>, v14: ref<managed i64>, v15: i64, v16: i6
 
 // loop body, update aggregates
 block5:
-    v19 = element.addr v13, v12
+    v19 = element.addr v13, v12 -> ref<borrowed i64>
     store v19, v16
-    v20 = element.addr v14, v12
+    v20 = element.addr v14, v12 -> ref<borrowed i64>
     store v20, v8
     v21 = iadd v12, v9
     jump block4(v21, v13, v14, v15, v16, v17)
@@ -85,14 +85,14 @@ block11(v53: i64, v54: i64, v55: i64, v56: i64, v57: i64):
 
 // base case check
 block12:
-    v59 = element.addr v31, v54
-    v60 = load v59
+    v59 = element.addr v31, v54 -> ref<borrowed i64>
+    v60 = load v59 -> i64
     v61 = icmp_eq v60, v56
     branch v61, block13, block14
 
 // update state, merge branch
 block13:
-    v62 = element.addr v32, v54
+    v62 = element.addr v32, v54 -> ref<borrowed i64>
     store v62, v57
     v63 = iadd v55, v57
     jump block27(v63)
@@ -109,9 +109,9 @@ block15:
 
 // update state, merge branch
 block16:
-    v66 = element.addr v31, v54
+    v66 = element.addr v31, v54 -> ref<borrowed i64>
     store v66, v56
-    v67 = element.addr v32, v54
+    v67 = element.addr v32, v54 -> ref<borrowed i64>
     store v67, v57
     v68 = iadd v55, v57
     jump block27(v68)
@@ -146,15 +146,15 @@ block20(v76: i64, v77: i64, v78: i64, v79: i64):
 
 // base case check
 block21:
-    v81 = element.addr v31, v77
-    v82 = load v81
+    v81 = element.addr v31, v77 -> ref<borrowed i64>
+    v82 = load v81 -> i64
     v83 = icmp_eq v82, v79
     branch v83, block22, block25
 
 // update state, merge branch
 block22:
-    v84 = element.addr v32, v77
-    v85 = load v84
+    v84 = element.addr v32, v77 -> ref<borrowed i64>
+    v85 = load v84 -> i64
     v86 = iadd v78, v85
     jump block27(v86)
 
@@ -193,19 +193,19 @@ block32(v95: i64, v96: i64, v97: i64, v98: i64):
 
 // base case check
 block33:
-    v100 = element.addr v31, v96
-    v101 = load v100
+    v100 = element.addr v31, v96 -> ref<borrowed i64>
+    v101 = load v100 -> i64
     v102 = icmp_eq v101, v98
     branch v102, block34, block37
 
 // loop body, update aggregates
 block34:
-    v103 = element.addr v32, v96
-    v104 = load v103
+    v103 = element.addr v32, v96 -> ref<borrowed i64>
+    v104 = load v103 -> i64
     v105 = iadd v97, v104
-    v106 = element.addr v31, v96
+    v106 = element.addr v31, v96 -> ref<borrowed i64>
     store v106, v35
-    v107 = element.addr v32, v96
+    v107 = element.addr v32, v96 -> ref<borrowed i64>
     v108 = iconst 0i64
     store v107, v108
     jump block27(v105)

@@ -3,7 +3,7 @@ function @array_walk(v0: i64) -> i64 {
 
 // entry, init allocations
 block0(v0: i64):
-    v1 = managed.alloc_array i64, v0
+    v1 = managed.alloc_array i64, v0 -> ref<managed i64>
     v2 = iconst 0i64
     jump block1(v2, v1)
 
@@ -14,7 +14,7 @@ block1(v3: i64, v4: ref<managed i64>):
 
 // loop body, update aggregates
 block2:
-    v6 = element.addr v4, v3
+    v6 = element.addr v4, v3 -> ref<borrowed i64>
     store v6, v3
     v7 = iconst 1i64
     v8 = iadd v3, v7
@@ -33,8 +33,8 @@ block4(v12: i64, v13: ref<managed i64>, v14: i64):
 
 // loop body, update aggregates
 block5:
-    v16 = element.addr v13, v12
-    v17 = load v16
+    v16 = element.addr v13, v12 -> ref<borrowed i64>
+    v17 = load v16 -> i64
     v18 = iadd v14, v17
     v19 = iconst 1i64
     v20 = iadd v12, v19

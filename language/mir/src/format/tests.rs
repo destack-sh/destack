@@ -198,8 +198,9 @@ fn test_format_global_variable() {
     let mut builder = module.function("increment", &[], void_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let ptr = builder.global_addr(counter);
-    let value = builder.load(ptr);
+    let ptr_type = module.type_raw_pointer(i32_type);
+    let ptr = builder.global_addr(counter, ptr_type);
+    let value = builder.load(ptr, i32_type);
     let one = builder.iconst_i32(1);
     let new_value = builder.iadd(value, one);
     builder.store(ptr, new_value);
@@ -214,8 +215,8 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; mut
 function @increment() -> void {
 block0:
-    v0 = global.addr @counter
-    v1 = load v0
+    v0 = global.addr @counter -> ref<raw i32>
+    v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
     store v0, v3

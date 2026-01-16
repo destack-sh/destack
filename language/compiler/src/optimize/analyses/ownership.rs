@@ -652,7 +652,11 @@ impl OwnershipAnalysis {
                     }
                 }
             }
-            mir::Terminator::TailCallIndirect { callee, arguments } => {
+            mir::Terminator::TailCallIndirect {
+                callee,
+                arguments,
+                ..
+            } => {
                 if !self.value_is_copy(*callee, tree) {
                     state.mark_moved(*callee, at.clone());
                 }
@@ -963,6 +967,7 @@ fn instruction_collect_types(
         Instruction::RawAlloc {
             destination,
             layout,
+            ..
         } => {
             copy_values.insert(*destination);
             let info = ReferenceInfo {
@@ -986,6 +991,7 @@ fn instruction_collect_types(
         Instruction::StackAlloc {
             destination,
             layout,
+            ..
         } => {
             copy_values.insert(*destination);
             stack_allocated.insert(*destination);
@@ -1011,6 +1017,7 @@ fn instruction_collect_types(
         Instruction::ManagedAlloc {
             destination,
             layout,
+            ..
         } => {
             managed_allocated.insert(*destination);
             let info = ReferenceInfo {
@@ -1056,6 +1063,7 @@ fn instruction_collect_types(
         Instruction::GlobalAddr {
             destination,
             global,
+            ..
         } => {
             copy_values.insert(*destination);
             let global_decl = tree.get(*global);
@@ -1164,6 +1172,7 @@ fn instruction_collect_types(
         Instruction::Load {
             destination,
             pointer,
+            ..
         } => {
             if let Some(pointee_type) =
                 pointer_pointee_type(*pointer, value_types, pointer_pointee_types, tree)
@@ -1925,7 +1934,11 @@ fn process_terminator(
                 state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
             }
         }
-        mir::Terminator::TailCallIndirect { callee, arguments } => {
+        mir::Terminator::TailCallIndirect {
+            callee,
+            arguments,
+            ..
+        } => {
             state.mark_moved_if_not_copy(*callee, at.clone(), tree, value_types, copy_values);
             for &arg in arguments {
                 state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);

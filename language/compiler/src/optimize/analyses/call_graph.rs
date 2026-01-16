@@ -1490,7 +1490,7 @@ block0:
         let program = TestProgram::new(
             r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
         );
@@ -1540,7 +1540,7 @@ block0(v0: i32):
         let program = TestProgram::new(
             r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    tailcall.indirect v0(v1)
+    tailcall.indirect v0(v1) -> fn(i32) -> i32
 }"#,
         );
 
@@ -1565,7 +1565,7 @@ block0(v0: i32):
 }
 function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1)
+    v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
         );

@@ -36,6 +36,21 @@ JS or TS targets lower and generate code directly from DIR without MIR.
 
 ---
 
+## MIR Contracts
+
+Optimize relies on two MIR contracts that become stricter at higher levels.
+Core MIR must be type-correct and fully typed for value producers.
+Pointer-producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry result types inline.
+`load` carries its result type inline.
+`call.indirect` carries its signature type inline.
+Core MIR is verified at O0 and O1.
+
+Optimizable MIR is required at O2 and above.
+All call sites must have call metadata with effects and dispatch information.
+All memory accesses must have memory metadata for size and address space at minimum.
+Aggregate layouts required by layout-sensitive passes must be present in the type table.
+Pipelines that enable profile guided transforms require profile data to be available.
+
 ## Analyses
 
 Analyses compute properties of the MIR without modifying it.

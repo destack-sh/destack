@@ -66,7 +66,7 @@ block2:
 
 // merge branch, continue
 block4:
-    v18 = call.indirect v2(v1, v8)
+    v18 = call.indirect v2(v1, v8) -> fn(i64, i64) -> i64
     jump block8(v18, v7)
 
 // branch on condition
@@ -77,12 +77,12 @@ block5:
 
 // merge branch, continue
 block6:
-    v21 = call.indirect v3(v1, v8)
+    v21 = call.indirect v3(v1, v8) -> fn(i64, i64) -> i64
     jump block8(v21, v7)
 
 // merge branch, continue
 block7:
-    v22 = call.indirect v4(v1, v8)
+    v22 = call.indirect v4(v1, v8) -> fn(i64, i64) -> i64
     jump block8(v22, v7)
 
 // merge branches, advance loop

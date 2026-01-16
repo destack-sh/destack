@@ -139,8 +139,7 @@ block2:
     jump block3(v1)
 block3(v4: bool):
     return v4
-}
-"#,
+}"#,
     );
 }
 
@@ -175,8 +174,7 @@ block2:
     jump block3(v1)
 block3(v4: bool):
     return v4
-}
-"#,
+}"#,
     );
 }
 

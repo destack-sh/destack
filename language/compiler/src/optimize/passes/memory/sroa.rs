@@ -134,6 +134,8 @@ struct SplitCandidate {
     alloc_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The aggregate layout type.
     layout: mir::LocalNodeId<mir::Type>,
+    /// Reference metadata for derived stack slots.
+    reference_spec: ReferenceSpec,
     /// The element types after splitting.
     element_types: Vec<mir::LocalNodeId<mir::Type>>,
     /// Uses of the allocation (field/element addresses).
@@ -142,6 +144,42 @@ struct SplitCandidate {
     base_loads: Vec<mir::LocalNodeId<mir::Instruction>>,
     /// Stores performed directly on the base pointer.
     base_stores: Vec<mir::LocalNodeId<mir::Instruction>>,
+}
+
+/// Reference attributes used to rebuild stack slot types.
+#[derive(Clone, Copy)]
+struct ReferenceSpec {
+    /// The reference kind.
+    kind: mir::ReferenceKind,
+    /// The address space for the reference.
+    address_space: mir::AddressSpace,
+    /// The mutability for the reference.
+    mutability: mir::Mutability,
+    /// The nullability for the reference.
+    is_nullable: bool,
+}
+
+impl ReferenceSpec {
+    /// Extract reference attributes from a reference type.
+    fn from_type(ty: &mir::Type) -> Option<Self> {
+        let mir::Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            is_nullable,
+            ..
+        } = ty
+        else {
+            return None;
+        };
+
+        Some(Self {
+            kind: *kind,
+            address_space: *address_space,
+            mutability: *mutability,
+            is_nullable: *is_nullable,
+        })
+    }
 }
 
 /// Information about a use of an allocation.
@@ -186,8 +224,13 @@ fn find_splittable_allocations_core(
             if let mir::Instruction::StackAlloc {
                 destination,
                 layout,
+                result_type,
             } = inst
             {
+                let reference_spec = match ReferenceSpec::from_type(tree.get(*result_type)) {
+                    Some(spec) => spec,
+                    None => continue,
+                };
                 let ty = tree.get(*layout);
 
                 // check if this is a splittable aggregate type
@@ -212,6 +255,7 @@ fn find_splittable_allocations_core(
                 candidates.push(SplitCandidate {
                     alloc_instruction: inst_id,
                     layout: *layout,
+                    reference_spec,
                     element_types,
                     uses: uses.uses,
                     base_loads: uses.base_loads,
@@ -313,6 +357,7 @@ fn analyze_uses(
                         destination,
                         aggregate,
                         index,
+                        ..
                     } if *aggregate == value => {
                         uses.push(UseInfo {
                             instruction: inst_id,
@@ -329,6 +374,7 @@ fn analyze_uses(
                         destination,
                         array,
                         index,
+                        ..
                     } if *array == value => {
                         // check if index is a constant
                         let const_index = resolve_constant_index(*index, block_id, constants)?;
@@ -439,9 +485,17 @@ fn split_allocation(
         new_allocs.push(new_value);
 
         // create the new StackAlloc instruction
+        let result_type = tree.insert(mir::Type::Reference {
+            kind: candidate.reference_spec.kind,
+            address_space: candidate.reference_spec.address_space,
+            mutability: candidate.reference_spec.mutability,
+            pointee: elem_type,
+            is_nullable: candidate.reference_spec.is_nullable,
+        });
         let new_inst = mir::Instruction::StackAlloc {
             destination: new_value,
             layout: elem_type,
+            result_type,
         };
 
         // insert at the start of the entry block (after existing allocs)
@@ -540,6 +594,7 @@ fn rewrite_base_load(
         mir::Instruction::Load {
             destination,
             pointer,
+            ..
         } => (*destination, *pointer),
         _ => panic!("sroa base load rewrite expects a load instruction"),
     };
@@ -556,6 +611,7 @@ fn rewrite_base_load(
         let load_inst = mir::Instruction::Load {
             destination: element_value,
             pointer: element_pointer,
+            result_type: candidate.element_types[index],
         };
         let load_id = tree.insert(load_inst);
         new_instructions.push(load_id);
@@ -737,21 +793,21 @@ mod tests {
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point
-    v1 = field.addr v0, 0
+    v0 = stack.alloc @Point -> ref<raw @Point>
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
-    v3 = load v1
+    v3 = load v1 -> i32
     return v3
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v5 = stack.alloc i32
-    v4 = stack.alloc i32
+    v5 = stack.alloc i32 -> ref<raw i32>
+    v4 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 42i32
     store v4, v2
-    v3 = load v4
+    v3 = load v4 -> i32
     return v3
 }"#;
 
@@ -767,20 +823,20 @@ block0:
     fn test_split_tuple() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc (i32, i64)
-    v1 = field.addr v0, 0
+    v0 = stack.alloc (i32, i64) -> ref<raw (i32, i64)>
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
-    v3 = load v1
+    v3 = load v1 -> i32
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v5 = stack.alloc i64
-    v4 = stack.alloc i32
+    v5 = stack.alloc i64 -> ref<raw i64>
+    v4 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 42i32
     store v4, v2
-    v3 = load v4
+    v3 = load v4 -> i32
     return v3
 }"#;
 
@@ -796,24 +852,24 @@ block0:
     fn test_split_small_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 4]
+    v0 = stack.alloc [i32; 4] -> ref<raw [i32; 4]>
     v1 = iconst 0i64
-    v2 = element.addr v0, v1
+    v2 = element.addr v0, v1 -> ref<borrowed i32>
     v3 = iconst 42i32
     store v2, v3
-    v4 = load v2
+    v4 = load v2 -> i32
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32
-    v7 = stack.alloc i32
-    v6 = stack.alloc i32
-    v5 = stack.alloc i32
+    v8 = stack.alloc i32 -> ref<raw i32>
+    v7 = stack.alloc i32 -> ref<raw i32>
+    v6 = stack.alloc i32 -> ref<raw i32>
+    v5 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 0i64
     v3 = iconst 42i32
     store v5, v3
-    v4 = load v5
+    v4 = load v5 -> i32
     return v4
 }"#;
 
@@ -829,12 +885,12 @@ block0:
     fn test_preserve_large_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 100]
+    v0 = stack.alloc [i32; 100] -> ref<raw [i32; 100]>
     v1 = iconst 0i64
-    v2 = element.addr v0, v1
+    v2 = element.addr v0, v1 -> ref<borrowed i32>
     v3 = iconst 42i32
     store v2, v3
-    v4 = load v2
+    v4 = load v2 -> i32
     return v4
 }"#;
 
@@ -853,7 +909,7 @@ block0:
 extern function @external(ref<raw @Point>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Point
+    v0 = stack.alloc @Point -> ref<raw @Point>
     call @external(v0)
     return
 }"#;
@@ -871,11 +927,11 @@ block0:
     fn test_preserve_dynamic_index() {
         let input = r#"function @test(v0: i64) -> i32 {
 block0(v0: i64):
-    v1 = stack.alloc [i32; 4]
-    v2 = element.addr v1, v0
+    v1 = stack.alloc [i32; 4] -> ref<raw [i32; 4]>
+    v2 = element.addr v1, v0 -> ref<borrowed i32>
     v3 = iconst 42i32
     store v2, v3
-    v4 = load v2
+    v4 = load v2 -> i32
     return v4
 }"#;
 
@@ -893,29 +949,29 @@ block0(v0: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point
-    v1 = field.addr v0, 0
+    v0 = stack.alloc @Point -> ref<raw @Point>
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 10i32
     store v1, v2
-    v3 = field.addr v0, 1
+    v3 = field.addr v0, 1 -> ref<borrowed i32>
     v4 = iconst 20i32
     store v3, v4
-    v5 = load v1
-    v6 = load v3
+    v5 = load v1 -> i32
+    v6 = load v3 -> i32
     v7 = iadd v5, v6
     return v7
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v9 = stack.alloc i32
-    v8 = stack.alloc i32
+    v9 = stack.alloc i32 -> ref<raw i32>
+    v8 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 10i32
     store v8, v2
     v4 = iconst 20i32
     store v9, v4
-    v5 = load v8
-    v6 = load v9
+    v5 = load v8 -> i32
+    v6 = load v9 -> i32
     v7 = iadd v5, v6
     return v7
 }"#;
@@ -935,22 +991,22 @@ block0:
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v0 = stack.alloc @Outer
-    v1 = field.addr v0, 1
+    v0 = stack.alloc @Outer -> ref<raw @Outer>
+    v1 = field.addr v0, 1 -> ref<borrowed i64>
     v2 = iconst 42i64
     store v1, v2
-    v3 = load v1
+    v3 = load v1 -> i64
     return v3
 }"#;
         let expected = r#"type @Inner = { i32, i32 }
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v5 = stack.alloc i64
-    v4 = stack.alloc @Inner
+    v5 = stack.alloc i64 -> ref<raw i64>
+    v4 = stack.alloc @Inner -> ref<raw @Inner>
     v2 = iconst 42i64
     store v5, v2
-    v3 = load v5
+    v3 = load v5 -> i64
     return v3
 }"#;
 
@@ -966,10 +1022,10 @@ block0:
     fn test_no_aggregates() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32
+    v0 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = load v0
+    v2 = load v0 -> i32
     return v2
 }"#;
 
@@ -987,7 +1043,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: ref<raw ref<raw @Point>>) -> void {
 block0(v0: ref<raw ref<raw @Point>>):
-    v1 = stack.alloc @Point
+    v1 = stack.alloc @Point -> ref<raw @Point>
     store v0, v1
     return
 }"#;
@@ -1006,20 +1062,20 @@ block0(v0: ref<raw ref<raw @Point>>):
         let input = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Wrapper
-    v1 = field.addr v0, 0
+    v0 = stack.alloc @Wrapper -> ref<raw @Wrapper>
+    v1 = field.addr v0, 0 -> ref<borrowed i32>
     v2 = iconst 42i32
     store v1, v2
-    v3 = load v1
+    v3 = load v1 -> i32
     return v3
 }"#;
         let expected = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v4 = stack.alloc i32
+    v4 = stack.alloc i32 -> ref<raw i32>
     v2 = iconst 42i32
     store v4, v2
-    v3 = load v4
+    v3 = load v4 -> i32
     return v3
 }"#;
 
@@ -1036,7 +1092,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: bool) -> void {
 block0(v0: bool):
-    v1 = stack.alloc @Point
+    v1 = stack.alloc @Point -> ref<raw @Point>
     branch v0, block1(v1), block2
 block1(v2: ref<raw @Point>):
     return
@@ -1057,23 +1113,23 @@ block0(v0: bool):
     v1 = iconst 0i64
     branch v0, block1(v1), block1(v1)
 block1(v2: i64):
-    v3 = stack.alloc [i32; 2]
-    v4 = element.addr v3, v2
+    v3 = stack.alloc [i32; 2] -> ref<raw [i32; 2]>
+    v4 = element.addr v3, v2 -> ref<borrowed i32>
     v5 = iconst 42i32
     store v4, v5
-    v6 = load v4
+    v6 = load v4 -> i32
     return v6
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v8 = stack.alloc i32
-    v7 = stack.alloc i32
+    v8 = stack.alloc i32 -> ref<raw i32>
+    v7 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 0i64
     branch v0, block1(v1), block1(v1)
 block1(v2: i64):
     v5 = iconst 42i32
     store v7, v5
-    v6 = load v7
+    v6 = load v7 -> i32
     return v6
 }"#;
 
@@ -1088,20 +1144,20 @@ block1(v2: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point
+    v0 = stack.alloc @Point -> ref<raw @Point>
     v1 = iconst 1i32
     v2 = iconst 2i32
     v3 = struct @Point (v1, v2)
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> @Point
     v5 = field.get v4, 0
     return v5
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v7 = stack.alloc i32
-    v6 = stack.alloc i32
+    v7 = stack.alloc i32 -> ref<raw i32>
+    v6 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 1i32
     v2 = iconst 2i32
     v3 = struct @Point (v1, v2)
@@ -1109,8 +1165,8 @@ block0:
     store v6, v8
     v9 = field.get v3, 1
     store v7, v9
-    v10 = load v6
-    v11 = load v7
+    v10 = load v6 -> i32
+    v11 = load v7 -> i32
     v4 = struct @Point (v10, v11)
     v5 = field.get v4, 0
     return v5
@@ -1126,20 +1182,20 @@ block0:
     fn test_rewrite_base_pointer_array_load_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 2]
+    v0 = stack.alloc [i32; 2] -> ref<raw [i32; 2]>
     v1 = iconst 10i32
     v2 = iconst 20i32
     v3 = array [i32; 2] (v1, v2)
     store v0, v3
-    v4 = load v0
+    v4 = load v0 -> i32
     v5 = iconst 1i64
     v6 = element.get v4, v5
     return v6
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32
-    v7 = stack.alloc i32
+    v8 = stack.alloc i32 -> ref<raw i32>
+    v7 = stack.alloc i32 -> ref<raw i32>
     v1 = iconst 10i32
     v2 = iconst 20i32
     v3 = array [i32; 2] (v1, v2)
@@ -1149,8 +1205,8 @@ block0:
     v12 = iconst 1i64
     v11 = element.get v3, v12
     store v8, v11
-    v13 = load v7
-    v14 = load v8
+    v13 = load v7 -> i32
+    v14 = load v8 -> i32
     v4 = array [i32; 2] (v13, v14)
     v5 = iconst 1i64
     v6 = element.get v4, v5
