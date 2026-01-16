@@ -166,6 +166,68 @@ Lower mirrors the phase boundaries in its module layout:
 
 Nominal layouts are computed from declared fields only and are predeclared in the Types phase.
 
+## Layout Map
+
+Lower treats layout as a **queryable, cached graph** instead of a monolithic pass.
+The goal is to keep representation decisions explicit and local.
+Lower can answer "what is the layout of this type?" at any point during lowering.
+
+### Layout Categories
+
+We model layout in two layers:
+- **Shape**: logical fields, tags, tables, and constraints.
+- **Placement**: concrete offsets, alignment, size class, inline vs boxed decisions.
+
+This keeps unions, intersections, and interfaces manageable.
+Their shape often exists without a single concrete placement.
+
+Layout categories are Lower metadata, not MIR:
+
+| Category | Shape | Placement | Notes |
+| --- | --- | --- | --- |
+| Scalar/Immediate | scalar value | fixed width | includes tagged pointer immediates |
+| Pointer | address | pointer-sized | heap-managed or external |
+| Tuple | ordered fields | packed/offset fields | homogeneous is still tuple |
+| Struct | named fields | packed/offset fields | nominal, value semantics |
+| Class | instance fields | pointer + optional vtable | reference semantics |
+| Array/Slice | element + length | header + data | policy: inline vs heap |
+| Function | signature | pointer or fat pointer | closure captures add env ptr |
+| Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
+| Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
+| Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
+| Intersection | composed view | no new storage | layout = primary + itabs |
+
+### Union Strategy
+
+Union layout is chosen per union:
+- **Inline tagged**: tag + payload in one block (size ≤ 2×ptr size)
+- **Boxed tagged**: tag + pointer to payload
+- **Untagged**: no tag, relies on RTTI or external discriminant
+
+The chosen strategy is stored on the union layout so Emit can generate the
+correct tag checks and field accesses.
+
+### Dispatch Layout (VTables/ITabs)
+
+Dispatch layout is modeled separately from data layout:
+- **VTable**: class/nominal method table for virtual dispatch
+- **ITab**: interface table for structural/nominal interface dispatch
+
+A type layout can reference zero or more dispatch layouts, but dispatch layouts
+never alter the data placement (they are attached metadata).
+
+### Layout Query Flow
+
+Layout queries should be deterministic and cacheable:
+1. **Resolve type identity** (nominal reference, instance arguments, etc.)
+2. **Build shape** (fields, tag, tables, constraints)
+3. **Select placement policy** (inline vs boxed, tag scheme)
+4. **Finalize placement** (offsets, alignment, size)
+5. **Cache** and return
+
+This is the backbone for later work on unions, interfaces, and RTTI without
+refactoring the phase boundaries again.
+
 ## Target Policies Summary
 
 Lower behavior is configured by target policies (see [Target Configuration](#target-configuration)):
@@ -593,7 +655,15 @@ Lower populates MIR metadata tables incrementally as phases complete.
 Phase 1 records type layouts and lineages in `NodeTree.type_table.type_metadata_by_id`.
 Phase 2 records function memory effects and pointer attributes on MIR `Function`.
 Phase 3 registers dispatch tables and type descriptors in `NodeTree.type_table.dispatch_tables` and type metadata.
-Phase 4 records callsite metadata in `NodeTree.call_table` and debug scopes in `NodeTree.debug_info`.
+Phase 4 records callsite metadata in `NodeTree.call_table`, memory access metadata (including alias
+scopes and TBAA tags) in `NodeTree.memory_table`, and debug scopes in `NodeTree.debug_info`.
+
+MIR metadata structures live in `language/mir/src/metadata/` and define the canonical expectations
+for layout, dispatch, and memory semantics. Lower must emit metadata that matches those invariants:
+- `TypeLayout.field_offsets` length matches the field or element count
+- `DispatchSlot` order follows the vtable/itab slot rules defined below
+- Callsite `CallMetadata` uses `CallDispatchKind` and provides `receiver` when required
+- Memory access metadata records sizes, alignment, volatility, ordering, and alias scopes when known
 
 ## Phase 2: Declarations
 

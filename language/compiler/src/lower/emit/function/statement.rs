@@ -6,7 +6,8 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::{BreakContext, FunctionContext, LocalBinding, LoopContext, Terminates};
+use super::super::{BreakContext, LocalBinding, LoopContext, Terminates};
+use super::FunctionContext;
 
 impl FunctionContext<'_> {
     /// Lower a statement expression.
@@ -33,6 +34,25 @@ impl FunctionContext<'_> {
                 self.lower_let_expression(expression_id, declarators)
             }
             Expression::Return { value } => {
+                // handle constructor returns separately
+                if self.constructor_state.is_some() {
+                    if value.is_some() {
+                        return Err(LowerError::UnsupportedConstruct {
+                            node: expression_id
+                                .into_global_any(self.module_id)
+                                .into_anchored(Some(self.profile)),
+                            message: "constructor cannot return a value".to_string(),
+                        });
+                    }
+
+                    let node = expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile));
+                    self.return_constructor_value(node)?;
+                    return Ok(Terminates::Yes);
+                }
+
+                // lower standard returns
                 let return_value = if let Some(value) = value {
                     let (value, _) = self.lower_value_expression(*value)?;
                     Some(value)
@@ -710,7 +730,7 @@ impl FunctionContext<'_> {
         // convert the symbol id for lookup
         let global_symbol_id = symbol_id.into_global(self.module_id);
 
-        // NOTE #Incomplete: reject duplicate bindings
+        // reject duplicate bindings
         if self.locals_by_symbol.contains_key(&global_symbol_id) {
             return Err(LowerError::UnsupportedConstruct {
                 node: node_id.into_anchored(self.module_id, Some(self.profile)),

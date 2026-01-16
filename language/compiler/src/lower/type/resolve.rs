@@ -13,27 +13,36 @@ impl FunctionContext<'_> {
     /// For scalar types, returns cached primitive types directly.
     /// For aggregate types, looks up the type in the type cache.
     pub(crate) fn mir_type_for_expression(
-        &self,
+        &mut self,
         expression_id: LocalNodeId<Expression>,
-    ) -> Option<mir::LocalNodeId<mir::Type>> {
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // first try scalar types
         if let Some(scalar_type) = self.scalar_type_for_expression(expression_id) {
             return match scalar_type {
-                ScalarType::Bool => Some(self.type_lowerer.ty_bool),
-                ScalarType::SignedInt { width: 32 } => Some(self.type_lowerer.ty_i32),
-                ScalarType::SignedInt { width: 64 } => Some(self.type_lowerer.ty_i64),
-                ScalarType::Float { width: 32 } => Some(self.type_lowerer.ty_f32),
-                ScalarType::Float { width: 64 } => Some(self.type_lowerer.ty_f64),
-                _ => None,
+                ScalarType::Bool => Ok(self.type_lowerer.ty_bool),
+                ScalarType::SignedInt { width: 32 } => Ok(self.type_lowerer.ty_i32),
+                ScalarType::SignedInt { width: 64 } => Ok(self.type_lowerer.ty_i64),
+                ScalarType::Float { width: 32 } => Ok(self.type_lowerer.ty_f32),
+                ScalarType::Float { width: 64 } => Ok(self.type_lowerer.ty_f64),
+                _ => Err(LowerError::MissingType {
+                    node: expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                }),
             };
         }
 
         // for non-scalar types, check the type cache
-        let type_id = self.dir_type_for_expression(expression_id)?;
+        let node = expression_id
+            .into_global_any(self.module_id)
+            .into_anchored(Some(self.profile));
+        let type_id = self
+            .dir_type_for_expression(expression_id)
+            .ok_or(LowerError::MissingType { node })?;
 
         // direct cache lookup first
         if let Some(&mir_type) = self.type_lowerer.type_cache.get(&type_id) {
-            return Some(mir_type);
+            return Ok(mir_type);
         }
 
         // handle primitive string directly
@@ -44,17 +53,26 @@ impl FunctionContext<'_> {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
             }
         ) {
-            return self.type_lowerer.string_type();
+            return self
+                .type_lowerer
+                .string_type()
+                .ok_or(LowerError::MissingType { node });
         }
 
-        // if type is a reference, follow it to the instance type
-        if let dir::Type::Reference { symbol, .. } = dir_type
-            && let Some(instance_type_id) = self.types.get_instance_type_id(*symbol)
-        {
-            return self.type_lowerer.type_cache.get(&instance_type_id).copied();
+        // map nominal references to lowered MIR types
+        if let dir::Type::Reference { symbol, .. } = dir_type {
+            if symbol.ty() == dir::SymbolType::Class {
+                return Err(LowerError::MissingType { node });
+            }
+
+            if let Some(instance_type_id) = self.types.get_instance_type_id(*symbol)
+                && let Some(&mir_type) = self.type_lowerer.type_cache.get(&instance_type_id)
+            {
+                return Ok(mir_type);
+            }
         }
 
-        None
+        Err(LowerError::MissingType { node })
     }
 
     /// Resolve the scalar type for a typed expression.

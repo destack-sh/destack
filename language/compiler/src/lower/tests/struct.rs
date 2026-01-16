@@ -1,6 +1,6 @@
 use destack_vm::Value;
 
-use crate::TestProgram;
+use crate::{TaskPhase, TestProgram};
 
 /// Lower struct construction and field access.
 #[test]
@@ -28,6 +28,247 @@ function sumFields(a: number, b: number): number {
         "sumFields",
         &[Value::float64(3.0), Value::float64(4.0)],
         Value::float64(7.0),
+    );
+}
+
+/// Lower struct construction with `new`.
+#[test]
+fn test_struct_construction_with_new() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point { x: number, y: number }
+
+function sumFieldsNew(a: number, b: number): number {
+    let p: Point = new Point(a, b);
+    return p.x + p.y;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "sumFieldsNew",
+        &[Value::float64(5.0), Value::float64(6.0)],
+        Value::float64(11.0),
+    );
+}
+
+/// Lower struct construction to value initialization in MIR.
+#[test]
+fn test_struct_new_mir() {
+    // set up the test program
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point { x: int32, y: int32 }
+
+function sumPoint(a: int32, b: int32): int32 {
+    let p: Point = new Point(a, b);
+    return p.x + p.y;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+function @sumPoint(v0: i32, v1: i32) -> i32 {
+block0:
+    v2 = struct { x: i32, y: i32 } (v0, v1)
+    v3 = field.get v2, 0
+    v4 = field.get v2, 1
+    v5 = iadd v3, v4
+    return v5
+}
+        "#,
+    );
+
+    // assert the runtime output
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "sumPoint",
+        &[Value::int32(3), Value::int32(4)],
+        Value::int32(7),
+    );
+}
+
+/// Lower explicit struct constructors.
+#[test]
+fn test_struct_explicit_constructor() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+        return;
+    }
+}
+
+function sumFieldsExplicit(a: number, b: number): number {
+    let p: Point = new Point(a, b);
+    return p.x + p.y;
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "sumFieldsExplicit",
+        &[Value::float64(2.0), Value::float64(9.0)],
+        Value::float64(11.0),
+    );
+}
+
+/// Constructor return values should be rejected.
+#[test]
+fn test_struct_constructor_return_value_error() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+        return this;
+    }
+}
+
+function makePoint(a: number, b: number): Point {
+    return new Point(a, b);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile();
+    test.check_no_diagnostics_up_to_excluding_phase(TaskPhase::Lower);
+    test.check_has_diagnostic("EM200");
+}
+
+/// Constructors must initialize all fields before returning.
+#[test]
+fn test_struct_constructor_missing_field_error() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point {
+    x: number;
+    y: number;
+
+    constructor(x: number) {
+        this.x = x;
+    }
+}
+
+function makePoint(a: number): Point {
+    return new Point(a);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile();
+    test.check_no_diagnostics_up_to_excluding_phase(TaskPhase::Lower);
+    test.check_has_diagnostic("EM200");
+}
+
+/// Constructors cannot read fields before initialization.
+#[test]
+fn test_struct_constructor_read_before_init_error() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Point {
+    x: number;
+    y: number;
+
+    constructor(x: number, y: number) {
+        let previous = this.y;
+        this.x = x;
+        this.y = y + previous;
+    }
+}
+
+function makePoint(a: number, b: number): Point {
+    return new Point(a, b);
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile();
+    test.check_no_diagnostics_up_to_excluding_phase(TaskPhase::Lower);
+    test.check_has_diagnostic("EM200");
+}
+
+/// Lower struct method that returns a field via `this`.
+#[test]
+fn test_struct_method_returns_field() {
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct Box {
+    value: int32;
+
+    get(): int32 {
+        return this.value;
+    }
+}
+
+function readValue(value: int32): int32 {
+    let b: Box = Box { value: value };
+    return b.get();
+}
+"#,
+    );
+
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    test.assert_mir_function_output(
+        module_id,
+        "native",
+        "readValue",
+        &[Value::int32(7)],
+        Value::int32(7),
     );
 }
 

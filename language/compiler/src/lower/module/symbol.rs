@@ -1,0 +1,36 @@
+use destack_dir::{GlobalNodeIdAny, LocalSymbolId};
+
+use crate::{LowerError, LowerResult};
+
+use crate::lower::ModuleLowerer;
+
+impl ModuleLowerer<'_> {
+    /// Get the name of a symbol as a String.
+    pub(crate) fn get_symbol_name(&self, symbol_id: LocalSymbolId) -> Option<String> {
+        // read the symbol entry
+        let symbol = self.symbols.get_symbol(symbol_id);
+
+        // resolve the symbol name
+        symbol
+            .name()
+            .map(|name| self.compiler.program.strings.get(name).to_string())
+    }
+
+    /// Get the name of a symbol, returning an error if it has no name.
+    pub(crate) fn symbol_name(
+        &self,
+        symbol_id: LocalSymbolId,
+        node: GlobalNodeIdAny,
+    ) -> LowerResult<String> {
+        // resolve the symbol name
+        let name =
+            self.get_symbol_name(symbol_id)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: node.into_anchored(Some(self.profile)),
+                    message: "symbol must have a name".to_string(),
+                })?;
+
+        // return the resolved name
+        Ok(name)
+    }
+}

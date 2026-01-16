@@ -15,7 +15,7 @@ impl FunctionContext<'_> {
         field_name: StringId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the aggregate value
-        let (aggregate_value, aggregate_type) = self.lower_value_expression(left_id)?;
+        let (mut aggregate_value, aggregate_type) = self.lower_value_expression(left_id)?;
 
         // resolve field index through the type lowerer
         let field_index = self
@@ -33,14 +33,29 @@ impl FunctionContext<'_> {
                 message: "field not found in aggregate type".to_string(),
             })?;
 
+        // ensure constructor fields are initialized before read
+        if matches!(self.dir_tree.get(left_id), Expression::This) {
+            let node = expression_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+            self.ensure_constructor_field_initialized(node, field_index as u32, field_name)?;
+        }
+
+        // load through references before field access
+        let mut aggregate_type = aggregate_type;
+        loop {
+            let aggregate_mir_type = self.builder.tree().get(aggregate_type).clone();
+            match aggregate_mir_type {
+                mir::Type::Reference { pointee, .. } => {
+                    aggregate_value = self.builder.load(aggregate_value);
+                    aggregate_type = pointee;
+                }
+                _ => break,
+            }
+        }
+
         // get the result type
-        let result_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let result_type = self.mir_type_for_expression(expression_id)?;
 
         // emit field_get
         let value = self.builder.field_get(aggregate_value, field_index as u32);
@@ -59,13 +74,7 @@ impl FunctionContext<'_> {
         let (index_value, _index_type) = self.lower_value_expression(index_id)?;
 
         // get the result type (element type)
-        let result_type =
-            self.mir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                })?;
+        let result_type = self.mir_type_for_expression(expression_id)?;
 
         // emit element_get
         let value = self.builder.element_get(array_value, index_value);

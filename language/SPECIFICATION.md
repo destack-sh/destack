@@ -1349,11 +1349,12 @@ const t = typeOf(p);          // Type<Point>
 Runtime type identity (RTTI) is demand-driven.
 The compiler only emits RTTI for types that are used at runtime.
 Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
-Classes always carry a vtable pointer for dynamic dispatch and RTTI. Structs are pure data
-unless RTTI is required by usage. On JS targets, RTTI-enabled values use a hidden symbol
-property rather than a global WeakMap, preserving "plain object" semantics.
+Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
+Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
+Structs are pure data unless RTTI is required by usage.
+On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
 Native type tags are pointers to `TypeDescriptor` values rather than integer ids.
-Classes reach RTTI via vtable slot 0, while thin pointers without tags recover RTTI via GC metadata.
+Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
 
 ### Runtime Type Guards
 
@@ -1455,13 +1456,24 @@ Classes work like TypeScript—reference types with identity and prototype-based
 
 ```
 class MyClass {
-    field: int32
+    field: int32;
 
     constructor(value: int32) {
-        this.field = value
+        this.field = value;
     }
 }
 ```
+
+#### Constructors
+
+Classes and structs can declare a `constructor` method.
+If no constructor is declared, a default constructor exists.
+The default constructor takes positional arguments in field declaration order and assigns them to fields.
+Constructors cannot return a value.
+A bare `return` is allowed for early exit.
+Constructors must initialize all instance fields before returning.
+The `new` expression always invokes the constructor (explicit or default).
+Struct literals directly initialize fields without running constructors.
 
 Classes have **identity**: two instances are only `===` if they're the same object:
 
@@ -1992,10 +2004,10 @@ Constructors work like TypeScript:
 
 ```
 class Person {
-    name: string
-    
+    name: string;
+
     constructor(name: string) {
-        this.name = name
+        this.name = name;
     }
 }
 ```

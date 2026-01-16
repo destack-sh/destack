@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, DynamicKey, GlobalNodeId, LocalNodeId, Member};
+use destack_dir::{Declaration, GlobalNodeId, LocalNodeId, Member};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{FunctionContext, LocalBinding, LowerError, LowerResult, Terminates};
@@ -63,23 +63,36 @@ impl ModuleLowerer<'_> {
             } => {
                 let type_symbol = descriptor.symbol.into_global(self.module_id);
 
-                // lower the class type so it's cached
-                let class_mir_type =
-                    if let Some(instance_type_id) = self.types.get_instance_type_id(type_symbol) {
-                        Some(
-                            self.type_lowerer.lower_type(
-                                self.types,
-                                instance_type_id,
-                                self.module_id,
-                                declaration_id
-                                    .into_global_any(self.module_id)
-                                    .into_anchored(Some(self.profile)),
-                                &mut self.builder,
-                            )?,
-                        )
-                    } else {
-                        None
-                    };
+                // lower the nominal reference type for class methods
+                let anchor = declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile));
+                let instance_type_id =
+                    self.types
+                        .get_instance_type_id(type_symbol)
+                        .ok_or_else(|| LowerError::UnsupportedConstruct {
+                            node: anchor,
+                            message: "class missing instance type".to_string(),
+                        })?;
+                if !self.type_lowerer.type_cache.contains_key(&instance_type_id) {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: anchor,
+                        message: "class instance layout not predeclared".to_string(),
+                    });
+                }
+                let reference_type_id = self
+                    .nominal_reference_type_id_for_symbol(type_symbol)
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: anchor,
+                        message: "class missing nominal reference type".to_string(),
+                    })?;
+                let class_mir_type = Some(self.type_lowerer.lower_type(
+                    self.types,
+                    reference_type_id,
+                    self.module_id,
+                    anchor,
+                    &mut self.builder,
+                )?);
 
                 // lower methods
                 for member_id in members {
@@ -270,6 +283,7 @@ impl ModuleLowerer<'_> {
         this_type: Option<mir::LocalNodeId<mir::Type>>,
         parent_declaration_id: LocalNodeId<Declaration>,
     ) -> LowerResult<()> {
+        // require a method member
         let Member::Method {
             key,
             signature,
@@ -281,46 +295,95 @@ impl ModuleLowerer<'_> {
             return Ok(());
         };
 
-        // get method name from key
-        let method_name = match key {
-            Some(DynamicKey::Name(name)) => *name,
-            _ => {
+        // decide whether this method is a constructor
+        let is_constructor = matches!(
+            signature.mode,
+            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+        );
+
+        // resolve the method name
+        let name_str = if is_constructor {
+            // reject constructor keys
+            if key.is_some() {
                 return Err(LowerError::UnsupportedConstruct {
                     node: member_id
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
-                    message: "method must have a static name".to_string(),
+                    message: "constructor cannot have a name".to_string(),
                 });
             }
+
+            // resolve the nominal declaration descriptor
+            let declaration = self.dir_tree.get(parent_declaration_id);
+            let descriptor =
+                self.descriptor_for_declaration_or_error(parent_declaration_id, declaration)?;
+
+            // require a declaration name for constructor
+            let name = descriptor
+                .name
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: parent_declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor must have a declaration name".to_string(),
+                })?;
+
+            // format the constructor name
+            let type_name = self.compiler.program.strings.get(name.string()).to_string();
+            format!("{type_name}.constructor")
+        } else {
+            // resolve the static method key
+            let method_name = self.member_name_or_error(key.as_ref(), member_id)?;
+            self.compiler.program.strings.get(method_name).to_string()
         };
 
+        // resolve the method symbol
         let method_symbol = symbol.into_global(self.module_id);
-        let name_str = self.compiler.program.strings.get(method_name).to_string();
 
         // resolve return type from the method's inferred signature
         let member_node = member_id.into_global_any(self.module_id);
         let return_type = self.resolve_method_return_type(member_id, member_node)?;
 
-        // build parameter types: this + declared parameters
+        // initialize parameter types
         let mut parameter_types = Vec::new();
 
-        // add this parameter if we have a type for it
-        if let Some(this_ty) = this_type {
+        // capture this type for constructor initialization
+        let constructor_this_type = if is_constructor {
+            // require an instance type for constructors
+            Some(this_type.ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "constructor missing instance type".to_string(),
+                }
+            })?)
+        }
+        // skip constructor state for non constructors
+        else {
+            None
+        };
+
+        // add this parameter when lowering an instance method
+        if !is_constructor && let Some(this_ty) = this_type {
             parameter_types.push(this_ty);
         }
 
-        // add declared parameters
+        // lower declared parameter types
         for parameter_id in &signature.dynamic_parameters {
+            // resolve the parameter type id
             let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
-            let parameter_ty = self
+            let parameter_ty_id = self
                 .types
                 .get_declared_or_inferred_type_id(parameter_node)
                 .ok_or(LowerError::MissingType {
                     node: parameter_node.into_anchored(Some(self.profile)),
                 })?;
+
+            // lower the parameter type
             let parameter_ty = self.type_lowerer.lower_type(
                 self.types,
-                parameter_ty,
+                parameter_ty_id,
                 self.module_id,
                 parameter_node.into_anchored(Some(self.profile)),
                 &mut self.builder,
@@ -334,18 +397,22 @@ impl ModuleLowerer<'_> {
             .function(&name_str, &parameter_types, return_type);
         let function_id = builder.function_id();
 
-        // register by symbol for direct calls via Resolution
+        // register by symbol for direct calls via resolution
         self.functions_by_symbol.insert(method_symbol, function_id);
 
-        // create function lowerer
+        // collect function context dependencies
+        let program = &self.compiler.program;
+        let strings = &program.strings;
+
+        // create function context
         let mut function_ctx = FunctionContext::new(
             self.module_id,
             self.profile,
-            &self.compiler.program,
+            program,
             self.dir_tree,
             self.symbols,
             self.types,
-            &self.compiler.program.strings,
+            strings,
             &self.functions_by_symbol,
             &self.globals_by_symbol,
             &self.type_lowerer,
@@ -356,27 +423,56 @@ impl ModuleLowerer<'_> {
         let entry_block = function_ctx.builder.create_block();
         function_ctx.builder.switch_to_block(entry_block);
 
-        // add this parameter as first local (if present)
+        // initialize constructor state before parameter locals
+        if let Some(this_ty) = constructor_this_type {
+            // resolve the constructor anchor
+            let node = member_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+
+            // select the layout type
+            let layout_type = match function_ctx.builder.tree().get(this_ty) {
+                mir::Type::Reference { pointee, .. } => *pointee,
+                _ => this_ty,
+            };
+
+            // initialize constructor state
+            let layout = self
+                .type_lowerer
+                .layout_for_type_or_error(layout_type, node)?;
+            function_ctx.start_constructor(this_ty, layout.clone(), node)?;
+        }
+
+        // track parameter index for locals
         let mut param_index = 0;
-        if let Some(this_ty) = this_type {
+
+        // add this parameter as first local for instance methods
+        if let Some(this_ty) = this_type
+            && !is_constructor
+        {
             let this_variable = function_ctx.builder.create_variable(this_ty);
             let this_value = function_ctx.builder.function_parameter(param_index);
             function_ctx
                 .builder
                 .define_variable(this_variable, this_value);
 
-            // set this_binding for Expression::This lookup
+            // set this binding for Expression::This lookup
             function_ctx.this_binding = Some(LocalBinding {
                 variable: this_variable,
                 ty: this_ty,
             });
+
+            // advance the parameter index
             param_index += 1;
         }
 
         // add declared parameter locals
         for parameter_id in &signature.dynamic_parameters {
+            // resolve the parameter symbol
             let parameter = self.dir_tree.get(*parameter_id);
             let symbol_id = parameter.symbol().into_global(self.module_id);
+
+            // bind the parameter local
             let ty = parameter_types[param_index];
             let variable = function_ctx.builder.create_variable(ty);
             let value = function_ctx.builder.function_parameter(param_index);
@@ -384,16 +480,29 @@ impl ModuleLowerer<'_> {
             function_ctx
                 .locals_by_symbol
                 .insert(symbol_id, LocalBinding { variable, ty });
+
+            // advance the parameter index
             param_index += 1;
         }
 
-        // lower body
+        // lower the body when present
         if let Some(body_id) = body {
+            // lower the body and handle fallthrough
             let terminated = function_ctx.lower_body(*body_id)?;
             if terminated == Terminates::No {
-                if return_type == self.type_lowerer.ty_void {
+                // return constructed value when constructor falls through
+                if is_constructor {
+                    let node = member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile));
+                    function_ctx.return_constructor_value(node)?;
+                }
+                // return void when allowed
+                else if return_type == self.type_lowerer.ty_void {
                     function_ctx.builder.return_(None);
-                } else {
+                }
+                // error on missing terminator
+                else {
                     return Err(LowerError::UnsupportedConstruct {
                         node: parent_declaration_id
                             .into_global_any(self.module_id)
@@ -402,11 +511,22 @@ impl ModuleLowerer<'_> {
                     });
                 }
             }
-        } else {
+        }
+        // synthesize constructor return when body is missing
+        else if is_constructor {
+            let node = member_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+            function_ctx.return_constructor_value(node)?;
+        }
+        // synthesize void return when body is missing
+        else {
             function_ctx.builder.return_(None);
         }
 
+        // finish the function builder
         function_ctx.builder.finish();
+
         Ok(())
     }
 
