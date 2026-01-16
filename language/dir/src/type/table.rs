@@ -68,6 +68,8 @@ pub struct TypeTable {
     pub(crate) instance_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The value type by symbol id (the type when used as a value).
     pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
+    /// The target type id for alias symbols (the declared alias value type).
+    pub(crate) alias_target_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     // TODO #Architecture: move enum backing type into Type::Enum
     /// The backing type of enum symbols.
     pub(crate) enum_backing_type_by_symbol_id: IndexMap<GlobalSymbolId, EnumBackingType>,
@@ -135,6 +137,7 @@ impl TypeTable {
             // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
+            alias_target_type_by_symbol_id: IndexMap::new(),
             enum_backing_type_by_symbol_id: IndexMap::new(),
             // instances
             next_instance_id: 0,
@@ -499,6 +502,18 @@ impl TypeTable {
     /// Get the value type id for a symbol.
     pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.value_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Set the declared target type id for an alias symbol.
+    pub fn set_alias_target_type_id(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+        self.alias_target_type_by_symbol_id.insert(symbol_id, ty);
+    }
+
+    /// Get the declared target type id for an alias symbol.
+    pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+        self.alias_target_type_by_symbol_id
+            .get(&symbol_id)
+            .copied()
     }
 
     /// Set the enum backing type for a symbol.

@@ -22,12 +22,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CodegenJsResult<LocalNodeIdAny> {
-        // Resolve any alias chain to get the elaborated expression
+        // resolve any alias chain to get the elaborated expression
         let resolved = self.dir_tree.resolve_alias(expression_id.id);
         let expression_id = if resolved.ty == dir::NodeType::Expression {
             dir::LocalNodeId::new(resolved.id)
         } else {
-            // Alias points to a different node type - use original
+            // alias points to a different node type - use original
             expression_id
         };
 
