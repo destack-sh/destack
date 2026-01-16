@@ -13,3 +13,6 @@ pub use context::{
 pub use handle::CacheHandle;
 pub use options::CacheOptions;
 pub use registry::{CacheKey, CacheRegistry};
+
+#[cfg(test)]
+mod tests;
