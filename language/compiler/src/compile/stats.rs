@@ -27,69 +27,117 @@ pub struct PhaseStats {
     pub task_count: AtomicUsize,
 }
 
+/// Task statistics.
+#[derive(Debug, Default)]
+pub struct TaskStats {
+    /// Total tasks enqueued.
+    pub enqueued: AtomicUsize,
+    /// Tasks completed successfully.
+    pub completed: AtomicUsize,
+    /// Tasks that failed.
+    pub failed: AtomicUsize,
+    /// Tasks that yielded (waiting on dependencies).
+    pub yielded: AtomicUsize,
+}
+
+/// Module statistics.
+#[derive(Debug, Default)]
+pub struct ModuleStats {
+    /// Modules parsed (import phase).
+    pub parsed: AtomicUsize,
+    /// Modules bound (bind phase).
+    pub bound: AtomicUsize,
+    /// Modules resolved (resolve phase).
+    pub resolved: AtomicUsize,
+    /// Modules analyzed (analyze phase).
+    pub analyzed: AtomicUsize,
+    /// Modules elaborated (elaborate phase).
+    pub elaborated: AtomicUsize,
+    /// Modules generated (generate phase).
+    pub generated: AtomicUsize,
+    /// Modules linted (lint phase).
+    pub linted: AtomicUsize,
+    /// Modules executed (execute phase).
+    pub executed: AtomicUsize,
+    /// Modules lowered (lower phase).
+    pub lowered: AtomicUsize,
+    /// Modules verified (verify phase).
+    pub verified: AtomicUsize,
+    /// Modules optimized (optimize phase).
+    pub optimized: AtomicUsize,
+    /// Total lines of source code processed.
+    pub lines_processed: AtomicUsize,
+}
+
+/// MIR optimization statistics.
+#[derive(Debug, Default)]
+pub struct MirOptimizationStats {
+    /// Functions optimized.
+    pub functions_optimized: AtomicUsize,
+    /// MIR instructions before optimization.
+    pub instructions_before: AtomicUsize,
+    /// MIR instructions after optimization.
+    pub instructions_after: AtomicUsize,
+    /// MIR blocks before optimization.
+    pub blocks_before: AtomicUsize,
+    /// MIR blocks after optimization.
+    pub blocks_after: AtomicUsize,
+}
+
+/// Cache statistics.
+#[derive(Debug, Default)]
+pub struct CacheStats {
+    /// Cache hits for AST entries from memory.
+    pub ast_hits_memory: AtomicUsize,
+    /// Cache hits for AST entries from disk.
+    pub ast_hits_disk: AtomicUsize,
+    /// Cache misses for AST entries.
+    pub ast_misses: AtomicUsize,
+    /// Cache writes for AST entries to memory.
+    pub ast_writes_memory: AtomicUsize,
+    /// Cache writes for AST entries to disk.
+    pub ast_writes_disk: AtomicUsize,
+    /// Cache hits for DIR entries from memory.
+    pub dir_hits_memory: AtomicUsize,
+    /// Cache hits for DIR entries from disk.
+    pub dir_hits_disk: AtomicUsize,
+    /// Cache misses for DIR entries.
+    pub dir_misses: AtomicUsize,
+    /// Cache writes for DIR entries to memory.
+    pub dir_writes_memory: AtomicUsize,
+    /// Cache writes for DIR entries to disk.
+    pub dir_writes_disk: AtomicUsize,
+    /// Cache hits for MIR entries from memory.
+    pub mir_hits_memory: AtomicUsize,
+    /// Cache hits for MIR entries from disk.
+    pub mir_hits_disk: AtomicUsize,
+    /// Cache misses for MIR entries.
+    pub mir_misses: AtomicUsize,
+    /// Cache writes for MIR entries to memory.
+    pub mir_writes_memory: AtomicUsize,
+    /// Cache writes for MIR entries to disk.
+    pub mir_writes_disk: AtomicUsize,
+    /// Cache errors.
+    pub errors: AtomicUsize,
+}
+
 /// Statistics collected during compilation.
 #[derive(Debug)]
 pub struct CompilerStats {
     /// When compilation started.
     started_at: Mutex<Option<Instant>>,
-
-    // Task counts
-    /// Total tasks enqueued.
-    pub tasks_enqueued: AtomicUsize,
-    /// Tasks completed successfully.
-    pub tasks_completed: AtomicUsize,
-    /// Tasks that failed.
-    pub tasks_failed: AtomicUsize,
-    /// Tasks that yielded (waiting on dependencies).
-    pub tasks_yielded: AtomicUsize,
-
-    // Module counts per pass
-    /// Modules parsed (import phase).
-    pub modules_parsed: AtomicUsize,
-    /// Modules bound (bind phase).
-    pub modules_bound: AtomicUsize,
-    /// Modules resolved (resolve phase).
-    pub modules_resolved: AtomicUsize,
-    /// Modules analyzed (analyze phase).
-    pub modules_analyzed: AtomicUsize,
-    /// Modules elaborated (elaborate phase).
-    pub modules_elaborated: AtomicUsize,
-    /// Modules generated (generate phase).
-    pub modules_generated: AtomicUsize,
-    /// Modules linted (lint phase).
-    pub modules_linted: AtomicUsize,
-
-    // Middle-end counts
-    /// Modules executed (execute phase).
-    pub modules_executed: AtomicUsize,
-    /// Modules lowered (lower phase).
-    pub modules_lowered: AtomicUsize,
-    /// Modules verified (verify phase).
-    pub modules_verified: AtomicUsize,
-    /// Modules optimized (optimize phase).
-    pub modules_optimized: AtomicUsize,
-
-    // MIR optimization metrics
-    /// Functions optimized.
-    pub mir_functions_optimized: AtomicUsize,
-    /// MIR instructions before optimization.
-    pub mir_instructions_before: AtomicUsize,
-    /// MIR instructions after optimization.
-    pub mir_instructions_after: AtomicUsize,
-    /// MIR blocks before optimization.
-    pub mir_blocks_before: AtomicUsize,
-    /// MIR blocks after optimization.
-    pub mir_blocks_after: AtomicUsize,
-
-    // Size metrics
-    /// Total lines of source code processed.
-    pub lines_processed: AtomicUsize,
+    /// Task statistics.
+    pub tasks: TaskStats,
+    /// Module statistics.
+    pub modules: ModuleStats,
+    /// MIR optimization statistics.
+    pub mir: MirOptimizationStats,
+    /// Cache statistics.
+    pub cache: CacheStats,
     /// Per-package statistics.
     package_stats: DashMap<PackageId, PackageStats>,
     /// Per-phase timing statistics.
     phase_stats: DashMap<TaskPhase, PhaseStats>,
-
-    // Slow task tracking
     /// Number of slow tasks detected.
     pub slow_tasks: AtomicUsize,
 }
@@ -105,27 +153,10 @@ impl CompilerStats {
     pub fn new() -> Self {
         Self {
             started_at: Mutex::new(None),
-            tasks_enqueued: AtomicUsize::new(0),
-            tasks_completed: AtomicUsize::new(0),
-            tasks_failed: AtomicUsize::new(0),
-            tasks_yielded: AtomicUsize::new(0),
-            modules_parsed: AtomicUsize::new(0),
-            modules_bound: AtomicUsize::new(0),
-            modules_resolved: AtomicUsize::new(0),
-            modules_analyzed: AtomicUsize::new(0),
-            modules_elaborated: AtomicUsize::new(0),
-            modules_generated: AtomicUsize::new(0),
-            modules_linted: AtomicUsize::new(0),
-            modules_executed: AtomicUsize::new(0),
-            modules_lowered: AtomicUsize::new(0),
-            modules_verified: AtomicUsize::new(0),
-            modules_optimized: AtomicUsize::new(0),
-            mir_functions_optimized: AtomicUsize::new(0),
-            mir_instructions_before: AtomicUsize::new(0),
-            mir_instructions_after: AtomicUsize::new(0),
-            mir_blocks_before: AtomicUsize::new(0),
-            mir_blocks_after: AtomicUsize::new(0),
-            lines_processed: AtomicUsize::new(0),
+            tasks: TaskStats::default(),
+            modules: ModuleStats::default(),
+            mir: MirOptimizationStats::default(),
+            cache: CacheStats::default(),
             package_stats: DashMap::new(),
             phase_stats: DashMap::new(),
             slow_tasks: AtomicUsize::new(0),
@@ -148,37 +179,39 @@ impl CompilerStats {
     /// Record a task being enqueued.
     #[inline]
     pub fn record_enqueue(&self) {
-        self.tasks_enqueued.fetch_add(1, Ordering::Relaxed);
+        self.tasks.enqueued.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a task completing successfully.
     #[inline]
     pub fn record_complete(&self) {
-        self.tasks_completed.fetch_add(1, Ordering::Relaxed);
+        self.tasks.completed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a task failing.
     #[inline]
     pub fn record_fail(&self) {
-        self.tasks_failed.fetch_add(1, Ordering::Relaxed);
+        self.tasks.failed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a task yielding.
     #[inline]
     pub fn record_yield(&self) {
-        self.tasks_yielded.fetch_add(1, Ordering::Relaxed);
+        self.tasks.yielded.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being parsed.
     #[inline]
     pub fn record_parse(&self) {
-        self.modules_parsed.fetch_add(1, Ordering::Relaxed);
+        self.modules.parsed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record lines of source code processed for a package.
     #[inline]
     pub fn record_lines(&self, package_id: PackageId, count: usize) {
-        self.lines_processed.fetch_add(count, Ordering::Relaxed);
+        self.modules
+            .lines_processed
+            .fetch_add(count, Ordering::Relaxed);
 
         // update per-package stats
         self.package_stats
@@ -211,61 +244,61 @@ impl CompilerStats {
     /// Record a module being bound.
     #[inline]
     pub fn record_bind(&self) {
-        self.modules_bound.fetch_add(1, Ordering::Relaxed);
+        self.modules.bound.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being resolved.
     #[inline]
     pub fn record_resolve(&self) {
-        self.modules_resolved.fetch_add(1, Ordering::Relaxed);
+        self.modules.resolved.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being analyzed.
     #[inline]
     pub fn record_analyze(&self) {
-        self.modules_analyzed.fetch_add(1, Ordering::Relaxed);
+        self.modules.analyzed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being elaborated.
     #[inline]
     pub fn record_elaborate(&self) {
-        self.modules_elaborated.fetch_add(1, Ordering::Relaxed);
+        self.modules.elaborated.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being generated.
     #[inline]
     pub fn record_generate(&self) {
-        self.modules_generated.fetch_add(1, Ordering::Relaxed);
+        self.modules.generated.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being linted.
     #[inline]
     pub fn record_lint(&self) {
-        self.modules_linted.fetch_add(1, Ordering::Relaxed);
+        self.modules.linted.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being executed (comptime).
     #[inline]
     pub fn record_execute(&self) {
-        self.modules_executed.fetch_add(1, Ordering::Relaxed);
+        self.modules.executed.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being lowered to MIR.
     #[inline]
     pub fn record_lower(&self) {
-        self.modules_lowered.fetch_add(1, Ordering::Relaxed);
+        self.modules.lowered.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being verified.
     #[inline]
     pub fn record_verify(&self) {
-        self.modules_verified.fetch_add(1, Ordering::Relaxed);
+        self.modules.verified.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a module being optimized.
     #[inline]
     pub fn record_optimize(&self) {
-        self.modules_optimized.fetch_add(1, Ordering::Relaxed);
+        self.modules.optimized.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record MIR optimization metrics for a module.
@@ -278,15 +311,20 @@ impl CompilerStats {
         blocks_before: usize,
         blocks_after: usize,
     ) {
-        self.mir_functions_optimized
+        self.mir
+            .functions_optimized
             .fetch_add(functions, Ordering::Relaxed);
-        self.mir_instructions_before
+        self.mir
+            .instructions_before
             .fetch_add(instructions_before, Ordering::Relaxed);
-        self.mir_instructions_after
+        self.mir
+            .instructions_after
             .fetch_add(instructions_after, Ordering::Relaxed);
-        self.mir_blocks_before
+        self.mir
+            .blocks_before
             .fetch_add(blocks_before, Ordering::Relaxed);
-        self.mir_blocks_after
+        self.mir
+            .blocks_after
             .fetch_add(blocks_after, Ordering::Relaxed);
     }
 
@@ -294,6 +332,102 @@ impl CompilerStats {
     #[inline]
     pub fn record_slow_task(&self) {
         self.slow_tasks.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record an AST cache hit from memory.
+    #[inline]
+    pub fn record_cache_ast_hit_memory(&self) {
+        self.cache.ast_hits_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record an AST cache hit from disk.
+    #[inline]
+    pub fn record_cache_ast_hit_disk(&self) {
+        self.cache.ast_hits_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record an AST cache miss.
+    #[inline]
+    pub fn record_cache_ast_miss(&self) {
+        self.cache.ast_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record an AST cache write to memory.
+    #[inline]
+    pub fn record_cache_ast_write_memory(&self) {
+        self.cache.ast_writes_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record an AST cache write to disk.
+    #[inline]
+    pub fn record_cache_ast_write_disk(&self) {
+        self.cache.ast_writes_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DIR cache hit from memory.
+    #[inline]
+    pub fn record_cache_dir_hit_memory(&self) {
+        self.cache.dir_hits_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DIR cache hit from disk.
+    #[inline]
+    pub fn record_cache_dir_hit_disk(&self) {
+        self.cache.dir_hits_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DIR cache miss.
+    #[inline]
+    pub fn record_cache_dir_miss(&self) {
+        self.cache.dir_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DIR cache write to memory.
+    #[inline]
+    pub fn record_cache_dir_write_memory(&self) {
+        self.cache.dir_writes_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DIR cache write to disk.
+    #[inline]
+    pub fn record_cache_dir_write_disk(&self) {
+        self.cache.dir_writes_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a MIR cache hit from memory.
+    #[inline]
+    pub fn record_cache_mir_hit_memory(&self) {
+        self.cache.mir_hits_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a MIR cache hit from disk.
+    #[inline]
+    pub fn record_cache_mir_hit_disk(&self) {
+        self.cache.mir_hits_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a MIR cache miss.
+    #[inline]
+    pub fn record_cache_mir_miss(&self) {
+        self.cache.mir_misses.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a MIR cache write to memory.
+    #[inline]
+    pub fn record_cache_mir_write_memory(&self) {
+        self.cache.mir_writes_memory.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a MIR cache write to disk.
+    #[inline]
+    pub fn record_cache_mir_write_disk(&self) {
+        self.cache.mir_writes_disk.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a cache error.
+    #[inline]
+    pub fn record_cache_error(&self) {
+        self.cache.errors.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record time spent in a phase.
@@ -362,31 +496,55 @@ impl CompilerStats {
 
         StatsSnapshot {
             elapsed: self.elapsed(),
-            tasks_enqueued: self.tasks_enqueued.load(Ordering::Relaxed),
-            tasks_completed: self.tasks_completed.load(Ordering::Relaxed),
-            tasks_failed: self.tasks_failed.load(Ordering::Relaxed),
-            tasks_yielded: self.tasks_yielded.load(Ordering::Relaxed),
-            modules_parsed: self.modules_parsed.load(Ordering::Relaxed),
-            modules_bound: self.modules_bound.load(Ordering::Relaxed),
-            modules_resolved: self.modules_resolved.load(Ordering::Relaxed),
-            modules_analyzed: self.modules_analyzed.load(Ordering::Relaxed),
-            modules_elaborated: self.modules_elaborated.load(Ordering::Relaxed),
-            modules_generated: self.modules_generated.load(Ordering::Relaxed),
-            modules_linted: self.modules_linted.load(Ordering::Relaxed),
-            modules_executed: self.modules_executed.load(Ordering::Relaxed),
-            modules_lowered: self.modules_lowered.load(Ordering::Relaxed),
-            modules_verified: self.modules_verified.load(Ordering::Relaxed),
-            modules_optimized: self.modules_optimized.load(Ordering::Relaxed),
+            tasks: TaskStatsSnapshot {
+                enqueued: self.tasks.enqueued.load(Ordering::Relaxed),
+                completed: self.tasks.completed.load(Ordering::Relaxed),
+                failed: self.tasks.failed.load(Ordering::Relaxed),
+                yielded: self.tasks.yielded.load(Ordering::Relaxed),
+            },
+            modules: ModuleStatsSnapshot {
+                parsed: self.modules.parsed.load(Ordering::Relaxed),
+                bound: self.modules.bound.load(Ordering::Relaxed),
+                resolved: self.modules.resolved.load(Ordering::Relaxed),
+                analyzed: self.modules.analyzed.load(Ordering::Relaxed),
+                elaborated: self.modules.elaborated.load(Ordering::Relaxed),
+                generated: self.modules.generated.load(Ordering::Relaxed),
+                linted: self.modules.linted.load(Ordering::Relaxed),
+                executed: self.modules.executed.load(Ordering::Relaxed),
+                lowered: self.modules.lowered.load(Ordering::Relaxed),
+                verified: self.modules.verified.load(Ordering::Relaxed),
+                optimized: self.modules.optimized.load(Ordering::Relaxed),
+                lines_processed: self.modules.lines_processed.load(Ordering::Relaxed),
+            },
+            cache: CacheStatsSnapshot {
+                ast_hits_memory: self.cache.ast_hits_memory.load(Ordering::Relaxed),
+                ast_hits_disk: self.cache.ast_hits_disk.load(Ordering::Relaxed),
+                ast_misses: self.cache.ast_misses.load(Ordering::Relaxed),
+                ast_writes_memory: self.cache.ast_writes_memory.load(Ordering::Relaxed),
+                ast_writes_disk: self.cache.ast_writes_disk.load(Ordering::Relaxed),
+                dir_hits_memory: self.cache.dir_hits_memory.load(Ordering::Relaxed),
+                dir_hits_disk: self.cache.dir_hits_disk.load(Ordering::Relaxed),
+                dir_misses: self.cache.dir_misses.load(Ordering::Relaxed),
+                dir_writes_memory: self.cache.dir_writes_memory.load(Ordering::Relaxed),
+                dir_writes_disk: self.cache.dir_writes_disk.load(Ordering::Relaxed),
+                mir_hits_memory: self.cache.mir_hits_memory.load(Ordering::Relaxed),
+                mir_hits_disk: self.cache.mir_hits_disk.load(Ordering::Relaxed),
+                mir_misses: self.cache.mir_misses.load(Ordering::Relaxed),
+                mir_writes_memory: self.cache.mir_writes_memory.load(Ordering::Relaxed),
+                mir_writes_disk: self.cache.mir_writes_disk.load(Ordering::Relaxed),
+                errors: self.cache.errors.load(Ordering::Relaxed),
+            },
+            mir: MirOptimizationStatsSnapshot {
+                functions_optimized: self.mir.functions_optimized.load(Ordering::Relaxed),
+                instructions_before: self.mir.instructions_before.load(Ordering::Relaxed),
+                instructions_after: self.mir.instructions_after.load(Ordering::Relaxed),
+                blocks_before: self.mir.blocks_before.load(Ordering::Relaxed),
+                blocks_after: self.mir.blocks_after.load(Ordering::Relaxed),
+            },
             module_count,
-            lines_processed: self.lines_processed.load(Ordering::Relaxed),
             packages,
             phases,
             slow_tasks: self.slow_tasks.load(Ordering::Relaxed),
-            mir_functions_optimized: self.mir_functions_optimized.load(Ordering::Relaxed),
-            mir_instructions_before: self.mir_instructions_before.load(Ordering::Relaxed),
-            mir_instructions_after: self.mir_instructions_after.load(Ordering::Relaxed),
-            mir_blocks_before: self.mir_blocks_before.load(Ordering::Relaxed),
-            mir_blocks_after: self.mir_blocks_after.load(Ordering::Relaxed),
         }
     }
 }
@@ -417,67 +575,127 @@ pub struct PhaseStatsSnapshot {
     pub task_count: usize,
 }
 
+/// Snapshot of task statistics.
+#[derive(Debug, Clone)]
+pub struct TaskStatsSnapshot {
+    /// Total tasks enqueued.
+    pub enqueued: usize,
+    /// Tasks completed successfully.
+    pub completed: usize,
+    /// Tasks that failed.
+    pub failed: usize,
+    /// Tasks that yielded.
+    pub yielded: usize,
+}
+
+/// Snapshot of module statistics.
+#[derive(Debug, Clone)]
+pub struct ModuleStatsSnapshot {
+    /// Modules parsed.
+    pub parsed: usize,
+    /// Modules bound.
+    pub bound: usize,
+    /// Modules resolved.
+    pub resolved: usize,
+    /// Modules analyzed.
+    pub analyzed: usize,
+    /// Modules elaborated.
+    pub elaborated: usize,
+    /// Modules generated.
+    pub generated: usize,
+    /// Modules linted.
+    pub linted: usize,
+    /// Modules executed.
+    pub executed: usize,
+    /// Modules lowered.
+    pub lowered: usize,
+    /// Modules verified.
+    pub verified: usize,
+    /// Modules optimized.
+    pub optimized: usize,
+    /// Total lines of source code processed.
+    pub lines_processed: usize,
+}
+
+/// Snapshot of cache statistics.
+#[derive(Debug, Clone)]
+pub struct CacheStatsSnapshot {
+    /// Cache hits for AST entries from memory.
+    pub ast_hits_memory: usize,
+    /// Cache hits for AST entries from disk.
+    pub ast_hits_disk: usize,
+    /// Cache misses for AST entries.
+    pub ast_misses: usize,
+    /// Cache writes for AST entries to memory.
+    pub ast_writes_memory: usize,
+    /// Cache writes for AST entries to disk.
+    pub ast_writes_disk: usize,
+    /// Cache hits for DIR entries from memory.
+    pub dir_hits_memory: usize,
+    /// Cache hits for DIR entries from disk.
+    pub dir_hits_disk: usize,
+    /// Cache misses for DIR entries.
+    pub dir_misses: usize,
+    /// Cache writes for DIR entries to memory.
+    pub dir_writes_memory: usize,
+    /// Cache writes for DIR entries to disk.
+    pub dir_writes_disk: usize,
+    /// Cache hits for MIR entries from memory.
+    pub mir_hits_memory: usize,
+    /// Cache hits for MIR entries from disk.
+    pub mir_hits_disk: usize,
+    /// Cache misses for MIR entries.
+    pub mir_misses: usize,
+    /// Cache writes for MIR entries to memory.
+    pub mir_writes_memory: usize,
+    /// Cache writes for MIR entries to disk.
+    pub mir_writes_disk: usize,
+    /// Cache errors.
+    pub errors: usize,
+}
+
+/// Snapshot of MIR optimization statistics.
+#[derive(Debug, Clone)]
+pub struct MirOptimizationStatsSnapshot {
+    /// Functions optimized.
+    pub functions_optimized: usize,
+    /// MIR instructions before optimization.
+    pub instructions_before: usize,
+    /// MIR instructions after optimization.
+    pub instructions_after: usize,
+    /// MIR blocks before optimization.
+    pub blocks_before: usize,
+    /// MIR blocks after optimization.
+    pub blocks_after: usize,
+}
+
 /// A point-in-time snapshot of compiler statistics.
 #[derive(Debug, Clone)]
 pub struct StatsSnapshot {
     /// Time elapsed since compilation started.
     pub elapsed: Duration,
-    /// Total tasks enqueued.
-    pub tasks_enqueued: usize,
-    /// Tasks completed successfully.
-    pub tasks_completed: usize,
-    /// Tasks that failed.
-    pub tasks_failed: usize,
-    /// Tasks that yielded.
-    pub tasks_yielded: usize,
-    /// Modules parsed.
-    pub modules_parsed: usize,
-    /// Modules bound.
-    pub modules_bound: usize,
-    /// Modules resolved.
-    pub modules_resolved: usize,
-    /// Modules analyzed.
-    pub modules_analyzed: usize,
-    /// Modules elaborated.
-    pub modules_elaborated: usize,
-    /// Modules generated.
-    pub modules_generated: usize,
-    /// Modules linted.
-    pub modules_linted: usize,
-    /// Modules executed (comptime).
-    pub modules_executed: usize,
-    /// Modules lowered to MIR.
-    pub modules_lowered: usize,
-    /// Modules verified.
-    pub modules_verified: usize,
-    /// Modules optimized.
-    pub modules_optimized: usize,
+    /// Task statistics.
+    pub tasks: TaskStatsSnapshot,
+    /// Module statistics.
+    pub modules: ModuleStatsSnapshot,
+    /// Cache statistics.
+    pub cache: CacheStatsSnapshot,
+    /// MIR statistics.
+    pub mir: MirOptimizationStatsSnapshot,
     /// Total modules in program.
     pub module_count: usize,
-    /// Total lines of source code processed.
-    pub lines_processed: usize,
     /// Per-package statistics.
     pub packages: Vec<PackageStatsSnapshot>,
     /// Per-phase timing statistics.
     pub phases: Vec<PhaseStatsSnapshot>,
     /// Slow tasks detected.
     pub slow_tasks: usize,
-    /// MIR functions optimized.
-    pub mir_functions_optimized: usize,
-    /// MIR instructions before optimization.
-    pub mir_instructions_before: usize,
-    /// MIR instructions after optimization.
-    pub mir_instructions_after: usize,
-    /// MIR blocks before optimization.
-    pub mir_blocks_before: usize,
-    /// MIR blocks after optimization.
-    pub mir_blocks_after: usize,
 }
 
 impl StatsSnapshot {
     /// Whether compilation had any failures.
     pub fn has_failures(&self) -> bool {
-        self.tasks_failed > 0
+        self.tasks.failed > 0
     }
 
     /// Total modules processed.
@@ -486,7 +704,93 @@ impl StatsSnapshot {
         if self.module_count > 0 {
             self.module_count
         } else {
-            self.modules_parsed.max(self.modules_analyzed)
+            self.modules.parsed.max(self.modules.analyzed)
         }
     }
+
+    /// Aggregate cache totals across all IR kinds.
+    pub fn cache_totals(&self) -> CacheTotals {
+        // aggregate totals across cache kinds
+        let hits_memory =
+            self.cache.ast_hits_memory + self.cache.dir_hits_memory + self.cache.mir_hits_memory;
+        let hits_disk =
+            self.cache.ast_hits_disk + self.cache.dir_hits_disk + self.cache.mir_hits_disk;
+        let misses = self.cache.ast_misses + self.cache.dir_misses + self.cache.mir_misses;
+        let writes_memory = self.cache.ast_writes_memory
+            + self.cache.dir_writes_memory
+            + self.cache.mir_writes_memory;
+        let writes_disk =
+            self.cache.ast_writes_disk + self.cache.dir_writes_disk + self.cache.mir_writes_disk;
+
+        CacheTotals {
+            hits_memory,
+            hits_disk,
+            misses,
+            writes_memory,
+            writes_disk,
+            errors: self.cache.errors,
+        }
+    }
+
+    /// Return the cache hit rate across all IR kinds.
+    pub fn cache_hit_rate(&self) -> f32 {
+        let totals = self.cache_totals();
+        let hits = totals.hits_memory + totals.hits_disk;
+        let total = hits + totals.misses;
+        if total == 0 {
+            0.0
+        } else {
+            hits as f32 / total as f32
+        }
+    }
+
+    /// Return the cache hit rate for AST entries.
+    pub fn cache_hit_rate_ast(&self) -> f32 {
+        let hits = self.cache.ast_hits_memory + self.cache.ast_hits_disk;
+        let total = hits + self.cache.ast_misses;
+        if total == 0 {
+            0.0
+        } else {
+            hits as f32 / total as f32
+        }
+    }
+
+    /// Return the cache hit rate for DIR entries.
+    pub fn cache_hit_rate_dir(&self) -> f32 {
+        let hits = self.cache.dir_hits_memory + self.cache.dir_hits_disk;
+        let total = hits + self.cache.dir_misses;
+        if total == 0 {
+            0.0
+        } else {
+            hits as f32 / total as f32
+        }
+    }
+
+    /// Return the cache hit rate for MIR entries.
+    pub fn cache_hit_rate_mir(&self) -> f32 {
+        let hits = self.cache.mir_hits_memory + self.cache.mir_hits_disk;
+        let total = hits + self.cache.mir_misses;
+        if total == 0 {
+            0.0
+        } else {
+            hits as f32 / total as f32
+        }
+    }
+}
+
+/// Aggregated cache totals.
+#[derive(Debug, Clone, Copy)]
+pub struct CacheTotals {
+    /// Cache hits from memory.
+    pub hits_memory: usize,
+    /// Cache hits from disk.
+    pub hits_disk: usize,
+    /// Cache misses.
+    pub misses: usize,
+    /// Cache writes to memory.
+    pub writes_memory: usize,
+    /// Cache writes to disk.
+    pub writes_disk: usize,
+    /// Cache errors.
+    pub errors: usize,
 }

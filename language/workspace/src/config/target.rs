@@ -197,7 +197,7 @@ pub enum ShrinkLevel {
 }
 
 /// Relocation model for native codegen.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum RelocationModel {
     /// Static relocation model.
     Static,
@@ -229,7 +229,7 @@ impl RelocationModel {
 }
 
 /// Link mode for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LinkMode {
     /// Prefer static linking.
     Static,
@@ -258,7 +258,7 @@ impl LinkMode {
 }
 
 /// Debug info emission policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DebugInfoLevel {
     /// No debug info.
     #[default]
@@ -290,7 +290,7 @@ impl DebugInfoLevel {
 }
 
 /// Debug execution mode for VM/native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DebugMode {
     /// Choose mode based on target debug settings.
     #[default]
@@ -325,7 +325,7 @@ impl DebugMode {
 }
 
 /// OSR entry mode for native execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OsrMode {
     /// OSR disabled.
     Disabled,
@@ -357,7 +357,7 @@ impl OsrMode {
 }
 
 /// Safepoint insertion mode for native execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SafepointMode {
     /// Call sites, allocation points, and loop back-edges only.
     #[default]
@@ -386,7 +386,7 @@ impl SafepointMode {
 }
 
 /// Speculation mode for native optimization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SpeculationMode {
     /// Disable speculative optimizations.
     None,
@@ -418,7 +418,7 @@ impl SpeculationMode {
 }
 
 /// Profiling mode for tiering and optimization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ProfilingMode {
     /// Disable runtime profiling collection.
     None,
@@ -453,7 +453,7 @@ impl ProfilingMode {
 }
 
 /// Determinism policy for runtime scheduling and I/O.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DeterminismPolicy {
     /// Best-effort execution without determinism guarantees.
     #[default]
@@ -482,7 +482,7 @@ impl DeterminismPolicy {
 }
 
 /// Replay policy for external effects.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ReplayMode {
     /// Disable record/replay.
     #[default]
@@ -514,7 +514,7 @@ impl ReplayMode {
 }
 
 /// Trust policy for runtime execution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum TrustPolicy {
     /// Untrusted code with strict limits and validation.
     #[default]
@@ -546,7 +546,7 @@ impl TrustPolicy {
 }
 
 /// Sandbox policy for runtime isolation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum SandboxPolicy {
     /// In-process isolation with VM guardrails.
     #[default]
@@ -581,7 +581,7 @@ impl SandboxPolicy {
 }
 
 /// Symbol stripping policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum StripLevel {
     /// Keep all symbols.
     #[default]
@@ -613,7 +613,7 @@ impl StripLevel {
 }
 
 /// Panic policy for unrecoverable errors.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PanicPolicy {
     /// Abort immediately.
     #[default]
@@ -642,7 +642,7 @@ impl PanicPolicy {
 }
 
 /// Unwind info format for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum UnwindFormat {
     /// No unwind info.
     #[default]
@@ -674,7 +674,7 @@ impl UnwindFormat {
 }
 
 /// Integer overflow checking policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OverflowCheckPolicy {
     /// Always emit overflow checks.
     Always,
@@ -706,7 +706,7 @@ impl OverflowCheckPolicy {
 }
 
 /// Floating point math optimization policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum FloatMathPolicy {
     /// Strict IEEE semantics.
     #[default]
@@ -738,7 +738,7 @@ impl FloatMathPolicy {
 }
 
 /// Safety preset that configures runtime checks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SafetyPreset {
     /// Debug safety mode with checks always enabled.
     Debug,
@@ -800,7 +800,7 @@ impl SafetyPreset {
 }
 
 /// Runtime check policy bundle for safety presets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct RuntimeCheckPolicies {
     /// Overflow check policy.
     pub overflow: OverflowCheckPolicy,
@@ -815,7 +815,7 @@ pub struct RuntimeCheckPolicies {
 }
 
 /// Null check policy for reference operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum NullCheckPolicy {
     /// Always emit null checks.
     Always,
@@ -847,7 +847,7 @@ impl NullCheckPolicy {
 }
 
 /// Division check policy for divide and remainder operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DivisionCheckPolicy {
     /// Always emit division checks.
     Always,
@@ -879,7 +879,7 @@ impl DivisionCheckPolicy {
 }
 
 /// Shift range check policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum ShiftCheckPolicy {
     /// Always emit shift range checks.
     Always,
@@ -911,7 +911,7 @@ impl ShiftCheckPolicy {
 }
 
 /// Check failure behavior.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum CheckFailurePolicy {
     /// Trap immediately on a failed check.
     Trap,
@@ -943,7 +943,7 @@ impl CheckFailurePolicy {
 }
 
 /// Global allocator selection for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum Allocator {
     /// Use the platform default allocator.
     #[default]
@@ -1000,7 +1000,7 @@ impl From<ShrinkLevel> for u8 {
 }
 
 /// Bounds check policy for array and slice accesses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum BoundsCheckPolicy {
     /// Always emit bounds checks.
     Always,
@@ -1032,7 +1032,7 @@ impl BoundsCheckPolicy {
 }
 
 /// Borrow checking mode for ownership references.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BorrowMode {
     /// Hint mode with warnings only.
     Hint,
@@ -1234,7 +1234,7 @@ pub const DEFAULT_OUT_DIR: &str = "dist";
 ///
 /// Can be constructed from dsconfig.json or programmatically.
 /// This is the type used by compiler/codegen - independent of dsconfig parsing.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Hash, Default)]
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,

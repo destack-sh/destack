@@ -46,6 +46,20 @@ impl Compiler {
                 message: format!("target '{target_id}' not found for profile resolution"),
             })?;
 
+        // try to load MIR from cache
+        let cache_handle = self.cache_handle_for_module(module_id, Some(profile), Some(&target_id));
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_mir()
+        {
+            let module = self.program.modules.get(module_id);
+            let mut module = module.write();
+            let code = module.code_mut();
+            code.mirs.retain(|mir| mir.target != target_id);
+            code.mirs.push(ModuleMir::from_data(entry.payload));
+            tracing::trace!(?module_id, ?target_id, "lower.module.cache");
+            return Ok(());
+        }
+
         self.require_elaborate_module(module_id, profile)?;
         self.require_execute_module_patch(module_id, profile)?;
         if !self.is_code_module(module_id) {
@@ -113,6 +127,14 @@ impl Compiler {
         let mir = module.mir_mut(&target_id);
         *mir.tree.write() = mir_tree;
         mir.strings = mir_strings;
+
+        // write MIR to cache
+        if let Some(cache) = cache_handle.as_ref() {
+            let payload = module.mir(&target_id).to_data();
+            if let Err(error) = cache.write_mir(payload) {
+                tracing::debug!(?module_id, ?target_id, ?error, "lower.module.cache.write");
+            }
+        }
 
         Ok(())
     }

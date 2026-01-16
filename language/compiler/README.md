@@ -167,7 +167,10 @@ Dynamic evaluation is never available during comptime execution.
 
 Caching is layered to keep the straight line pipeline fast while avoiding recomputation.
 In-memory caches live on the `Program` and are keyed by module, profile, and target versions.
-On-disk caches are keyed by compiler version, dsconfig hash, target config hash, and profile key.
+On-disk caches are keyed by compiler version, file version, profile version, config hash, and target hash.
+Config hashes are derived from canonical dsconfig JSON with tooling-only sections excluded.
+Target hashes include the resolved target config and target id.
+Cache format mismatches are treated as cache misses and must not fail compilation.
 Cache eviction is policy driven and should not silently mask version mismatches.
 
 ## Environment Variables

@@ -36,6 +36,9 @@ impl Compiler {
             }
         }
 
+        // resolve cache handle
+        let cache_handle = self.cache_handle_for_module(module_id, Some(profile_id), None);
+
         // load the module and skip when the profile dir already exists
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
@@ -45,6 +48,16 @@ impl Compiler {
             .iter()
             .any(|dir| dir.profile_id == Some(profile_id))
         {
+            return Ok(());
+        }
+
+        // try to load profile DIR from cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_dir()
+        {
+            let dir = ModuleDir::from_data(entry.payload);
+            module.code_mut().dirs.push(dir);
+            tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
             return Ok(());
         }
 
@@ -83,6 +96,20 @@ impl Compiler {
         let mut symbols = dir.symbols.write();
         self.build_module_exports(&module, dir, &tree, &mut symbols);
         self.build_module_binding_exports(&module, dir, &tree, &mut symbols);
+
+        // write profile DIR to cache
+        if let Some(cache) = cache_handle.as_ref() {
+            let payload = module.dir(profile_id).to_data();
+            if let Err(error) = cache.write_dir(payload) {
+                tracing::debug!(
+                    ?module_id,
+                    ?profile_id,
+                    ?error,
+                    "resolve.module.cache.write"
+                );
+            }
+        }
+
         Ok(())
     }
 
@@ -92,11 +119,29 @@ impl Compiler {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ResolveResult<()> {
+        // resolve cache handle
+        let cache_handle = self.cache_handle_for_module(module_id, Some(profile_id), None);
+
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
 
         // skip if profile DIR already exists
         if module.dir_maybe(profile_id).is_some() {
+            return Ok(());
+        }
+
+        // try to load profile DIR from cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_dir()
+        {
+            let dir = ModuleDir::from_data(entry.payload);
+            match &mut module.content {
+                ModuleContent::Data { dirs, .. } => dirs.push(dir),
+                ModuleContent::Text { dirs, .. } => dirs.push(dir),
+                ModuleContent::Binary { dirs, .. } => dirs.push(dir),
+                ModuleContent::Code(_) | ModuleContent::Unloaded => {}
+            }
+            tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
             return Ok(());
         }
 
@@ -128,6 +173,14 @@ impl Compiler {
             ModuleContent::Text { dirs, .. } => dirs.push(dir),
             ModuleContent::Binary { dirs, .. } => dirs.push(dir),
             _ => {}
+        }
+
+        // write profile DIR to cache
+        if let Some(cache) = cache_handle.as_ref() {
+            let payload = module.dir(profile_id).to_data();
+            if let Err(error) = cache.write_dir(payload) {
+                tracing::debug!(?module_id, ?profile_id, ?error, "resolve.data.cache.write");
+            }
         }
 
         Ok(())

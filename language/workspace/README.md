@@ -52,9 +52,12 @@ Child packages inherit from parent `dsconfig.json` with "most restrictive wins" 
 
 The workspace owns the module graph and version tracking used for incremental compilation.
 File edits bump `FileVersion` and are propagated to `ModuleVersion`.
-Profile-specific module signatures are stored on the program and compared during analysis.
-Downstream modules are re analyzed only when imported signatures change.
+Module versions also advance when any imported module signature changes.
+Profile-specific module signatures are stored on the program after Analyze.
+Downstream modules are re analyzed only when the signatures they import change.
 Caching policies are part of dsconfig and are folded into cache keys.
+Cache keys include the module file version, profile version, canonical config hash, and target hash.
+Cache format mismatches are treated as cache misses and do not fail compilation.
 
 ### File Watching
 

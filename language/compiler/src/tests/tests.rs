@@ -19,8 +19,9 @@ use destack_source::{
     print_diagnostics, print_diff,
 };
 use destack_vm::{Isolate, IsolateOptions, Value};
-use destack_workspace::{Module, ProfileId, Program, Session, Target, TargetId};
+use destack_workspace::{CacheMode, Module, ProfileId, Program, Session, Target, TargetId};
 use parking_lot::RwLock;
+use serde_json::json;
 
 use crate::{
     AnalyzeTask, Compiler, CompilerOptions, ElaborateTask, ExecuteTask, ImportTask, LintTask,
@@ -322,6 +323,34 @@ impl TestProgram {
                 &format!(r#"{{ "compilerOptions": {{ {opts} }} }}"#),
             );
         }
+    }
+
+    /// Add a dsconfig.json to the memory filesystem.
+    pub fn add_dsconfig(&self, content: &str) {
+        self.add_file("dsconfig.json", content);
+    }
+
+    /// Set the cache mode for this test program.
+    pub fn with_cache_mode(self, mode: CacheMode, dir: Option<&str>) -> Self {
+        // map cache mode to json value
+        let mode_value = match mode {
+            CacheMode::Off => "off",
+            CacheMode::Memory => "memory",
+            CacheMode::Disk => "disk",
+        };
+
+        // build dsconfig json value
+        let dsconfig_value = if let Some(dir) = dir {
+            json!({ "cache": { "mode": mode_value, "dir": dir } })
+        } else {
+            json!({ "cache": { "mode": mode_value } })
+        };
+        let dsconfig = dsconfig_value.to_string();
+
+        // write dsconfig to memory fs
+        self.add_dsconfig(&dsconfig);
+
+        self
     }
 
     /// Add a file and register a blank module for it (no import/parsing yet).

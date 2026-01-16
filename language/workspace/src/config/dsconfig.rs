@@ -395,9 +395,9 @@ pub struct DsConfigCacheOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CacheMode {
     /// Disable caching.
+    #[default]
     Off,
     /// Use in-memory caching only.
-    #[default]
     Memory,
     /// Use on-disk caching.
     Disk,

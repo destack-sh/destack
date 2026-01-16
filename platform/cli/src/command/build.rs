@@ -2,8 +2,8 @@ use clap::Args;
 
 use crate::common::{
     CommandReport, CommandStats, CompilerMode, DiagnosticArgs, DiagnosticFormat, FormatOptions,
-    InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json,
-    format_diagnostics, print_report, report_error,
+    InputArgs, InputSource, ProgramArgs, ReportArgs, StatsSummary, TargetArgs,
+    collect_diagnostics_json, format_diagnostics, print_report, print_stats_summary, report_error,
 };
 use crate::console;
 use crate::pipeline::compile::{CompileRequest, prepare_compile};
@@ -130,6 +130,19 @@ pub fn run(args: &BuildArgs) -> i32 {
         &format_options,
         result.program.modules.len(),
     );
+
+    // print stats summary in text mode
+    let module_count = modules.len();
+    let profile_count = result.program.profiles.len();
+    let summary = StatsSummary {
+        verb: "Built",
+        modules: module_count,
+        profiles: profile_count,
+        targets: usize::from(!modules.is_empty()),
+        errors: format_result.error_count,
+        warnings: format_result.warning_count,
+    };
+    print_stats_summary(&summary, &result.stats, None);
 
     format_result.exit_code()
 }
