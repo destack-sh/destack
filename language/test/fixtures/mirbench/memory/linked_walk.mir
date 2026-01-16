@@ -1,22 +1,24 @@
 
-function @build_list(v0: i64, v1: ref<managed i64>) -> ref<managed i64> {
+type @Node = { value: i64, next: ref<raw addrspace(heap) mut @Node> }
+
+function @build_list(v0: i64, v1: ref<raw addrspace(heap) mut @Node>) -> ref<raw addrspace(heap) mut @Node> {
 
 // entry, init state
-block0(v0: i64, v1: ref<managed i64>):
+block0(v0: i64, v1: ref<raw addrspace(heap) mut @Node>):
     v2 = iconst 0i64
     v3 = icmp_eq v0, v2
     branch v3, block2, block1
 
 // return accumulated value
 block1:
-    v4 = iconst 2i64
-    v5 = managed.alloc_array i64, v4 -> ref<managed i64>
+    v4 = raw.alloc @Node -> ref<raw addrspace(heap) mut @Node>
+    v5 = field.addr v4, 0 -> ref<raw addrspace(heap) mut i64>
     store v5, v0
-    v6 = field.addr v5, 1 -> ref<borrowed i64>
+    v6 = field.addr v4, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
     store v6, v1
     v7 = iconst 1i64
     v8 = isub v0, v7
-    v9 = call @build_list(v8, v5)
+    v9 = call @build_list(v8, v4)
     return v9
 
 // return result
@@ -24,22 +26,23 @@ block2:
     return v1
 }
 
-function @walk_list(v0: ref<managed i64>, v1: i64) -> i64 {
+function @walk_list(v0: ref<raw addrspace(heap) mut @Node>, v1: i64) -> i64 {
 
 // entry, init state
-block0(v0: ref<managed i64>, v1: i64):
-    v2 = load v0 -> i64
-    v3 = iconst 0i64
-    v4 = icmp_eq v2, v3
-    branch v4, block2, block1
+block0(v0: ref<raw addrspace(heap) mut @Node>, v1: i64):
+    v2 = field.addr v0, 0 -> ref<raw addrspace(heap) mut i64>
+    v3 = load v2 -> i64
+    v4 = iconst 0i64
+    v5 = icmp_eq v3, v4
+    branch v5, block2, block1
 
 // return accumulated value
 block1:
-    v5 = iadd v1, v2
-    v6 = field.addr v0, 1 -> ref<borrowed i64>
-    v7 = load v6 -> i64
-    v8 = call @walk_list(v7, v5)
-    return v8
+    v6 = iadd v1, v3
+    v7 = field.addr v0, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
+    v8 = load v7 -> ref<raw addrspace(heap) mut @Node>
+    v9 = call @walk_list(v8, v6)
+    return v9
 
 // return result
 block2:
@@ -47,14 +50,19 @@ block2:
 }
 
 function @linked_walk(v0: i64) -> i64 {
+local0: ref<raw addrspace(heap) mut @Node>
 
 // entry, init allocations, call helper
 block0(v0: i64):
-    v1 = iconst 2i64
-    v2 = managed.alloc_array i64, v1 -> ref<managed i64>
-    v3 = iconst 0i64
-    store v2, v3
-    v4 = call @build_list(v0, v2)
-    v5 = call @walk_list(v4, v3)
-    return v5
+    v1 = raw.alloc @Node -> ref<raw addrspace(heap) mut @Node>
+    v2 = iconst 0i64
+    local.set local0, v1
+    v3 = local.get local0
+    v4 = field.addr v1, 0 -> ref<raw addrspace(heap) mut i64>
+    store v4, v2
+    v5 = field.addr v1, 1 -> ref<raw addrspace(heap) mut ref<raw addrspace(heap) mut @Node>>
+    store v5, v3
+    v6 = call @build_list(v0, v1)
+    v7 = call @walk_list(v6, v2)
+    return v7
 }
