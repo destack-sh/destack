@@ -8,7 +8,7 @@
 //! - Structs are aligned to their most-aligned field
 //! - Struct fields are placed at the next aligned offset
 //! - Arrays are aligned to their element type
-//! - Tuples are laid out like anonymous structs
+//! - Tuples are laid out like struct layouts
 
 use destack_mir as mir;
 

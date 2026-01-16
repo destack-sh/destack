@@ -62,15 +62,15 @@ Regex literals work exactly like JavaScript/TypeScript:
 Array and object literals work like TypeScript:
 
 ```
-[1, 2, 3]            // array
-{ a: 1, b: 2 }       // anonymous struct/object
+[1, 2, 3];             // array
+{ a: 1, b: 2 };        // anonymous object literal
 ```
 
 Destack adds tuple and typed struct literals:
 
 ```
-(1, 2, 3)            // tuple
-Point { x: 1, y: 2 } // typed struct literal
+(1, 2, 3);             // tuple
+Point { x: 1, y: 2 };  // typed struct literal
 ```
 
 ### Range Literals
@@ -434,11 +434,14 @@ configured bounds check failure (`boundsChecks` and `checkFailure`).
 
 ### References and Values
 
-By default, any `T` behaves like in TypeScript (with value primitives and reference objects).
+By default, a plain `T` follows the semantics of its type.
+Structs and primitives are values.
+Classes and structural object types are managed references.
+Type aliases inherit the semantics of their underlying type.
 Destack additionally supports explicit ownership control:
 
 ```
-T            // automatic (TypeScript behavior, implicitly GC managed)
+T            // type default (value or managed reference)
 &T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
 ^T           // ownership transfer (caller gives up ownership)
@@ -470,17 +473,20 @@ Raw pointers are separate from ownership modifiers:
 
 | Modifier | Meaning | After `foo(x)` | Who cleans up? |
 |----------|---------|----------------|----------------|
-| `T` | GC managed (implicit) | `x` still valid | GC |
+| `T` | Type default (value or managed reference) | `x` still valid | Type default |
 | `&T` | Borrow (read) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
 | `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
 
+Managed reference types are collected by the GC.
+Value types only drop when owned or used with `using`.
+
 **Use after move:**
 
 ```
-const node = AstNode { ... }
-consume(^node)    // ownership transferred
-print(node.value) // ERROR: use after ownership transfer
+const node = AstNode { ... };
+consume(^node);    // ownership transferred
+print(node.value); // error: use after ownership transfer
 ```
 
 Using a value after ownership transfer is an error (suppressible to warning).
@@ -493,9 +499,9 @@ even if the lexical scope continues.
 
 ```
 function process() {
-    const data = ^LargeData { ... }  // we own this
-    doWork(&data)                     // borrow it
-    log("done")                       // data can be dropped before this line
+    const data = ^LargeData { ... };  // we own this
+    doWork(&data);                     // borrow it
+    log("done");                       // data can be dropped before this line
 }
 ```
 
@@ -516,10 +522,11 @@ Ownership modifiers determine allocation strategy:
 
 | Modifier | Allocation | Drop Instruction | Semantics |
 |----------|------------|------------------|-----------|
-| `T` | `managed.alloc` | none | GC handles cleanup |
-| `^T` | `raw.alloc` | `raw.drop` | dispose + deallocate |
+| `T` | type default | none | value or managed reference |
+| `^T` | owned storage | `raw.drop` | dispose + deallocate |
 | `&T` | none | none | borrows existing memory |
 
+Owned allocations use `raw.alloc` by default.
 The `raw.drop` instruction performs **drop glue**:
 1. Drop owned fields in reverse declaration order (LIFO)
 2. Call `Symbol.dispose` if the type implements `Drop`
@@ -547,20 +554,20 @@ The VM may provide deterministic host side models for non generic address spaces
 **Nested ownership:**
 
 Ownership is at the usage site, not the definition site.
-Structs can contain `^T` fields regardless of how the struct itself is allocated:
+Structs can contain `^T` fields regardless of how the struct itself is stored:
 
 ```
-struct Container { data: ^Data }
+struct Container { data: ^Data; }
 
-const managed: Container = ...        // GC managed container
-const owned: ^Container = ...         // manually owned container
+const value: Container = ...;          // value semantics container
+const owned: ^Container = ...;         // owned container
 ```
 
 When the container is `^Container`:
 - Drop is deterministic
 - Fields drop in reverse declaration order, then the container
 
-When the container is `Container` (managed):
+When the container is boxed into managed storage:
 - Drop is nondeterministic (GC finalizer)
 - A warning is emitted in strict mode for `^T` fields in managed types
 
@@ -586,6 +593,7 @@ sum(items.as_slice());
 
 Ownership conversions are explicit, except for borrows inserted at reference boundaries.
 Implicit ownership conversions only create borrows and never transfer ownership.
+Struct boxing at reference boundaries is a value to reference conversion, not an ownership conversion.
 
 Implicit conversions:
 - `T` → `&T` or `&mut T` when a reference is required and the value is addressable
@@ -1452,7 +1460,8 @@ Extending a nominal interface produces a nominal interface (nominality is inheri
 
 ### Class
 
-Classes work like TypeScript—reference types with identity and prototype-based inheritance:
+Classes work like TypeScript.
+Classes are reference types with identity and prototype-based inheritance:
 
 ```
 class MyClass {
@@ -1473,6 +1482,10 @@ Constructors cannot return a value.
 A bare `return` is allowed for early exit.
 Constructors must initialize all instance fields before returning.
 The `new` expression always invokes the constructor (explicit or default).
+For class types, `new` allocates a managed instance and runs the constructor.
+For struct types, `new` constructs a value and does not imply managed allocation.
+In struct constructors, `this` is the value under construction, not a managed reference.
+Assignments to `this` fields initialize the value payload directly.
 Struct literals directly initialize fields without running constructors.
 
 Classes have **identity**: two instances are only `===` if they're the same object:
@@ -1480,22 +1493,24 @@ Classes have **identity**: two instances are only `===` if they're the same obje
 ```
 const a = new MyClass(1);
 const b = new MyClass(1);
-a == b    // false: different instances (unless Equal implemented)
-a === b   // false: different instances
-a === a   // true: same instance
+a == b;    // false: different instances (unless Equal implemented)
+a === b;   // false: different instances
+a === a;   // true: same instance
 ```
 
 This is the key difference from structs—see the comparison table below.
 
 ### Struct
 
-Destack adds `struct` for nominal object types with fixed layout.
-Structs are simpler than classes: no reference identity, no inheritance, just data with a name.
+Destack adds `struct` for nominal value types with fixed layout.
+Structs have no reference identity and no inheritance.
+Structs are data with a name.
+Struct declarations require a name and cannot be anonymous.
 
 ```
 struct Point {
-    x: float32
-    y: float32
+    x: float32;
+    y: float32;
 }
 ```
 
@@ -1505,19 +1520,24 @@ struct Point {
 |---|---|---|
 | Reference identity | ❌ No (`===` is error) | ✅ Yes (`===` compares pointers) |
 | Inheritance | ❌ No (use embedding) | ✅ Yes (`extends`) |
-| Default passing | Reference | Reference |
+| Default passing | Value | Reference |
+| Default storage | Inline | Managed reference |
 | JS output | Plain object | ES6 class |
+
+Structural object types (`type X = { ... }` and inline `{ ... }`) are reference types with identity.
+Type aliases inherit the semantics of the underlying type.
+Struct values can be boxed when a reference type is required.
 
 #### Equality and Identity
 
-Structs have no reference identity—two structs with the same properties are equal by value.
+Structs have no reference identity, so two structs with the same properties are equal by value.
 Structs auto-derive `Equal` (field-by-field comparison) by default:
 
 ```
 const p1 = Point { x: 1, y: 2 };
 const p2 = Point { x: 1, y: 2 };
-p1 == p2   // true: same fields = equal (auto-derived Equal)
-p1 === p2  // error: === requires reference identity, structs have none
+p1 == p2;   // true: same fields = equal (auto-derived Equal)
+p1 === p2;  // error: === requires reference identity, structs have none
 ```
 
 Since structs have no reference identity, `===` and `!==` are compile errors on struct types.
@@ -1526,12 +1546,26 @@ Use `==` for value comparison.
 #### Construction
 
 Structs are nominal, so they must be explicitly constructed:
+Tooling may lint `new` on structs in favor of `Point { ... }`.
 
 ```
-let p: Point = Point { x: 1, y: 2 }  // ok: explicit construction
-let p: Point = new Point(1, 2)       // ok: constructor syntax
-let p: Point = { x: 1, y: 2 }        // error: object literal is not Point
+let p: Point = Point { x: 1, y: 2 };  // ok: explicit construction
+let p: Point = new Point(1, 2);       // ok: constructor syntax
+let p: Point = { x: 1, y: 2 };        // error: object literal is not Point
 ```
+
+#### Reference Boundaries
+
+Struct values are boxed when a reference type is required.
+Boxing allocates managed storage and copies the value.
+Boxing is compiler inserted and does not introduce a surface `Box<T>` type.
+Boxing does not change the struct type or make `===` valid.
+Unboxing copies the value out of the box.
+Mutations through a boxed reference only affect that boxed instance.
+Repeated boxing of the same value produces distinct reference identities.
+Reference contexts include object types, interfaces, class types, `any`, and `unknown`.
+When a generic `T` flows into a reference context, value type instantiations are boxed.
+Escape analysis may still allocate struct values on the heap without changing semantics.
 
 #### Pattern Matching
 
@@ -1539,9 +1573,9 @@ Struct patterns require the type name (unlike newtypes which auto-unwrap):
 
 ```
 match (point) {
-    Point { x: 0, y: 0 } => "origin"
-    Point { x, y } => `at ${x}, ${y}`
-    { x, y } => ...  // error: structural pattern on nominal type
+    Point { x: 0, y: 0 } => "origin";
+    Point { x, y } => `at ${x}, ${y}`;
+    { x, y } => ...;  // error: structural pattern on nominal type
 }
 ```
 
@@ -1551,20 +1585,22 @@ Structs can `implements` interfaces but cannot `extends` (use embedding instead)
 
 ```
 struct Point implements Drawable {
-    x: float32
-    y: float32
+    x: float32;
+    y: float32;
     draw(): void { ... }
 }
 
-struct Transform { position: Vec3, rotation: Quat }
+struct Transform { position: Vec3; rotation: Quat; }
 struct Player {
-    ...Transform    // embeds Transform's fields (composition)
-    health: int
+    ...Transform;    // embeds Transform's fields (composition)
+    health: int;
 }
 ```
 
-At runtime in JS, a struct is just a plain object—its nominal type is erased.
-Ownership (`&T`, `^T`) is orthogonal: you can explicitly reference or copy either structs or classes.
+At runtime in JS, a struct is a plain object.
+Its nominal type is erased.
+Ownership (`&T`, `^T`) is orthogonal to identity semantics.
+You can explicitly reference or copy either structs or classes.
 
 #### Associated Types
 

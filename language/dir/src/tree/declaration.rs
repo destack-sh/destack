@@ -65,7 +65,7 @@ pub enum Declaration {
         static_parameters: Option<Vec<LocalNodeId<Parameter>>>,
         value: LocalNodeId<Expression>,
     },
-    /// Struct declaration: nominal object type with value semantics and fixed layout.
+    /// Struct declaration: nominal value type with fixed layout.
     Struct {
         descriptor: DeclarationDescriptor,
         generics: Generics,

@@ -500,6 +500,10 @@ Dispatch tables describe vtables and itabs with slot ordering and targets.
 Dispatch tables are stored in `NodeTree.type_table.dispatch_tables`.
 Type descriptors link types to runtime metadata globals when needed.
 Field maps provide name to field lookups for property access specialization.
+Struct layouts describe value payloads with no identity semantics.
+Class instance types are represented as `ref<managed @Payload>` where `@Payload` is the class field layout.
+Dispatch metadata is stored out of line, and polymorphic classes include a vtable pointer in the payload layout when dynamic dispatch remains.
+Boxing a value is represented as `managed.alloc` of the payload layout followed by `store` of the value.
 
 ### Type Aliases
 

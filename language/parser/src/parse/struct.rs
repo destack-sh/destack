@@ -13,34 +13,31 @@ impl Parser {
     ///
     /// The parser accepts `extends` for both, but structs cannot semantically
     /// use extends (use embedding instead). This is validated in the analyze phase.
+    /// Struct declarations require a name.
     ///
     /// Struct examples:
     /// ```
-    /// struct {} // empty anonymous struct
-    ///
-    /// struct { a: int32, b: boolean }
-    ///
     /// struct Bar {
-    ///     myField: int32
-    ///     myOtherField: boolean
-    /// }
+    ///     myField: int32;
+    ///     myOtherField: boolean;
+    /// };
     ///
     /// struct Foo<T> implements Drawable { // structs can implement interfaces
-    ///     myField: int32
-    ///     myOtherField: T
+    ///     myField: int32;
+    ///     myOtherField: T;
     ///
-    ///     ...Bar              // embedding for composition
-    ///     static x: int32 = 7 // constant
+    ///     ...Bar;              // embedding for composition
+    ///     static x: int32 = 7; // constant
     ///
     ///     myFunc() { }
-    /// }
+    /// };
     /// ```
     ///
     /// Class examples:
     /// ```
     /// class Foo extends Bar { // classes can extend
-    ///     myField: int32
-    /// }
+    ///     myField: int32;
+    /// };
     /// ```
     pub fn eat_struct_or_class(
         &mut self,
@@ -57,8 +54,10 @@ impl Parser {
         let name_span = if let Some((name, span)) = self.eat_name_maybe_with_span()? {
             descriptor = descriptor.with_name(name);
             Some(span)
-        } else {
+        } else if is_class {
             None
+        } else {
+            return Err(ParseError::expected(self.peek()?.span, TokenType::Identifier));
         };
 
         // optional static parameters: < ... >
@@ -127,50 +126,25 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, BindingKind, Declaration, DeclarationDescriptor, DeclarationKind,
-        Expression, IntType, Key, Member, Mutability, Name, Parameter, ScalarLiteral, TypeLiteral,
-        Visibility, WhereClause,
+        Expression, IntType, Key, Member, Name, Parameter, ScalarLiteral, TypeLiteral, Visibility,
+        WhereClause,
     };
 
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
-    fn test_parse_struct_anonymous() {
+    fn test_parse_struct_requires_name() {
         let mut test = TestParser::new(
             r###"
-struct { public x: int32, readonly y: boolean
-}
+struct { public x: int32, readonly y: boolean }
 "###,
         );
         let mut parser = test.prepare();
         parser.eat_newline().unwrap();
 
-        // struct { x: int32, y: boolean }
         let start = parser.mark();
-        let struct_id = parser
-            .eat_struct_or_class(start, DeclarationDescriptor::default())
-            .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct { descriptor, generics, members, .. } => {
-            assert_eq!(descriptor.kind, DeclarationKind::Definition);
-            assert!(descriptor.name.is_none());
-            assert!(generics.is_empty());
-            assert_eq!(members.len(), 2);
-
-            // public x: int32
-            assert_node!(parser.tree, members[0], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
-                assert!(modifiers.mutability.is_none());
-                assert_eq!(*modifiers.visibility.as_ref().unwrap(), Visibility::Public);
-                assert_string!(parser, *name, "x");
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true })));
-            });
-
-            // readonly y: boolean
-            assert_node!(parser.tree, members[1], Member::Field { modifiers: Some(modifiers), key: Some(Key::Name(Name::Identifier(name))), value: Some(ty), default: None, .. } => {
-                assert_eq!(modifiers.mutability.unwrap(), Mutability::Immutable);
-                assert!(modifiers.visibility.is_none());
-                assert_string!(parser, *name, "y");
-                assert_node!(parser.tree, *ty, Expression::TypeLiteral(TypeLiteral::Boolean));
-            });
-        });
+        let result = parser.eat_struct_or_class(start, DeclarationDescriptor::default());
+        assert!(result.is_err());
     }
 
     #[test]

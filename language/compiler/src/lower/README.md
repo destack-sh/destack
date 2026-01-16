@@ -189,13 +189,21 @@ Layout categories are Lower metadata, not MIR:
 | Pointer | address | pointer-sized | heap-managed or external |
 | Tuple | ordered fields | packed/offset fields | homogeneous is still tuple |
 | Struct | named fields | packed/offset fields | nominal, value semantics |
-| Class | instance fields | pointer + optional vtable | reference semantics |
+| Class | instance fields | managed reference to payload layout | reference semantics |
 | Array/Slice | element + length | header + data | policy: inline vs heap |
 | Function | signature | pointer or fat pointer | closure captures add env ptr |
 | Tagged Union | tag + payload | inline or boxed | tag value + payload layout |
 | Untagged Union | set of layouts | external discrimination | RTTI or caller-provided tag |
 | Interface | dispatch surface | itab/vtable + data | separate dispatch layout |
 | Intersection | composed view | no new storage | layout = primary + itabs |
+
+### Structs, Classes, and Boxing
+
+Struct layouts describe value payloads with field offsets.
+Class instance types are represented as `ref<managed @Payload>` where `@Payload` is the class field layout.
+Dispatch metadata is attached out of line in type metadata, and polymorphic classes include a vtable pointer in the payload layout when virtual dispatch remains.
+Lower inserts boxing when a struct value is used in a reference typed context, which is modeled as `managed.alloc` plus a `store` of the value.
+The `new` expression constructs a value for structs and allocates a managed reference for classes.
 
 ### Union Strategy
 
@@ -1273,8 +1281,9 @@ Borrowing an array object does not imply a slice view.
 
 ### Structs and Classes
 
-Both structs and classes are **reference types by default** in Destack (like all TypeScript objects).
-Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference semantics on either.
+Structs are value types with no identity, while classes are reference types with identity.
+Structural object types are reference types even when written as type aliases.
+Ownership modifiers (`^T`, `&T`) describe ownership and borrowing without changing identity semantics.
 
 | Aspect | struct | class |
 |--------|--------|-------|
@@ -1284,6 +1293,8 @@ Ownership modifiers (`^T`, `&T`) are orthogonal and can force value or reference
 | Extends | No | Yes |
 | Implements | Yes | Yes |
 | Virtual | None (all calls static) | Methods virtual by default |
+| Default passing | Value | Reference |
+| Default storage | Inline | Managed reference |
 
 **Virtual method dispatch for classes:**
 - All class methods are virtual by default (like TypeScript/JavaScript prototype methods)
@@ -1298,12 +1309,14 @@ The `final` keyword on methods or classes is an API contract ("you may not overr
 For whole-program compilation, the optimizer already knows what's overridden.
 `final` matters for libraries where downstream users could extend classes.
 
-Both lower to `Type::Struct` with computed property offsets. The key difference is **reference identity**: classes have it (two instances with same data are still different objects), structs don't (two structs with same data are equal). Both can have **type identity** (RTTI) when needed for `instanceof`, `T.is`, or `typeOf`.
+Struct layouts are value payloads with computed property offsets.
+Class instance types are managed references to payload layouts, and the payload includes a vtable pointer when dynamic dispatch remains.
+Both can carry type identity metadata for `instanceof`, `T.is`, or `typeOf` when needed.
 
 #### RTTI and Type Tags
 
 RTTI (runtime type identity) is unified via `TypeDescriptor` pointers.
-Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
+Polymorphic classes include a vtable pointer in the payload layout when virtual dispatch remains.
 Vtable slot 0 points at the `TypeDescriptor` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
 Thin-pointer checks on structs recover `TypeDescriptor` from GC metadata when needed.
@@ -1405,11 +1418,11 @@ Tradeoffs:
 - Predictable object layouts and smaller per object overhead
 - Thin pointer RTTI queries require a metadata lookup
 
-**Explicit value semantics:**
-Use `^T` to force value/copy semantics:
+**Explicit ownership:**
+Use `^T` to require a single owner and enable drop semantics:
 ```ds
-function process(point: ^Point) {    // ^Point = value type, point is copied
-    // modifications don't affect caller
+function process(point: ^Point) {    // ownership transferred into the callee
+    // modifications don't affect the caller
 }
 ```
 
@@ -2076,7 +2089,8 @@ else { const x = __foo; ... }
 
 Memory allocation and ownership at the MIR level.
 TypeScript/JavaScript uses garbage collection with no explicit memory management.
-Destack preserves this simplicity by default (GC managed heap allocation), but enables opt in control for performance critical code.
+Destack preserves this simplicity by default for reference types, and value types are inline unless boxed.
+It enables opt in control for performance critical code.
 The **GC** implementation is assumed abstractly as "managed allocate" and TS compatible, we assume potential pauses and add some barriers.
 
 ### Allocation Modes
@@ -2112,7 +2126,7 @@ See [INTRINSICS.md](INTRINSICS.md#garbage-collection) for details.
 
 **Roots:** Each function has a stack map describing which slots contain managed references.
 The GC uses these to find roots during collection.
-Managed allocations do not include per object headers.
+Managed allocations do not include implicit headers, and any vtable pointer is part of the payload layout.
 The allocator side tables store mark bits, size class, and the TypeDescriptor pointer used for scanning.
 
 GC implementation details are target-specific and live in the runtime/codegen layers.
@@ -2236,29 +2250,36 @@ The GC handles cleanup, with finalizers for any `^T` fields (nondeterministic).
 
 ### Ownership
 
-Destack aims to cover the "managedness" spectrum from TS to Go to Rust: implicit GC by default, explicit ownership when needed.
+Destack aims to cover the "managedness" spectrum from TS to Go to Rust: managed references by default for reference types, explicit ownership when needed.
 Most code just uses the default, and that should still be plenty fast thanks to real AOT compilation and fixed layouts (more like Go, Java, C#).
 Performance critical code adds these ownership modifiers for manual control.
 
 **Explicit Ownership:**
 
-To preserve TypeScript semantics, a plain type `T` always follows the same rules as TypeScript (objects are GC managed references, primitives are values).
+By default, a plain type `T` follows its type semantics.
+Structs and primitives are values.
+Classes and structural object types are managed references.
+Type aliases inherit the semantics of their underlying type.
 
 | Modifier | Semantics | After `foo(x)` | Who cleans up? |
 |----------|-----------|----------------|----------------|
-| `T` | GC managed (implicit) | `x` still valid | GC |
+| `T` | Type default (value or managed reference) | `x` still valid | Type default |
 | `&T` | Borrow (read only) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
 | `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
 | `^mut T` | Ownership transfer (mutable) | `x` **invalid** | New owner (or GC fallback) |
 
-For the default (`T`), the compiler optimizes automatically:
-- Small values are passed by copy (registers)
-- Large values are GC managed references
-- Escape analysis promotes heap to stack when safe
+Managed reference types are collected by the GC.
+Value types only drop when owned or used with `using`.
 
-`T` is not owned by anyone, it is implicitly GC managed and freed whenever all references to it are gone.
-Many people can hold and mutate `T` as long as they like.
+For the default (`T`), the compiler optimizes automatically:
+- Small value types are passed by copy
+- Large value types may be passed indirectly or boxed when required
+- Reference types are passed as references
+- Escape analysis promotes managed allocations to stack when safe
+
+Reference types are GC managed by default and can be shared freely.
+Value types are copied by default and are not implicitly shared.
 `^T` is for when there should only be one owner.
 Accordingly, when calling a function with `^T`, the caller gives up ownership of the value to the callee.
 After the transfer, the original binding is invalid:
@@ -2389,9 +2410,11 @@ The Optimize phase decides whether to actually inline based on:
 `@inline("never")` prevents inlining (useful for debugging, code size).
 
 **Move Semantics:**
-By default, Destack uses TypeScript semantics: objects are GC-managed references.
+By default, Destack follows TypeScript semantics for reference types.
+Classes and structural object types are GC-managed references.
 Assignment shares references; variables remain valid after being passed to functions.
-Move semantics only apply with explicit `^T` value types.
+Value types are copied unless moved with `^T`.
+Move semantics only apply with explicit `^T` ownership.
 
 ### Stack Safety
 

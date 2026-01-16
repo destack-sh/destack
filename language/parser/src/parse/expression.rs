@@ -1118,7 +1118,7 @@ impl Parser {
                     self.get_span_from(start),
                 )
             }
-            // anonymous struct literal
+            // object literal
             else if token_type == TokenType::OpenBrace && !self.options.in_statement_position {
                 // prefer mapped types in type positions
                 if self.options.in_type {
@@ -2375,9 +2375,9 @@ const shapes = (
         });
     }
 
-    /// Parse an anonymous struct literal in parenthesis.
+    /// Parse an object literal in parenthesis.
     #[test]
-    fn test_parse_anonymous_struct_literal_in_parenthesis() {
+    fn test_parse_object_literal_in_parenthesis() {
         let mut test = TestParser::new("({ x: 1, y })");
         let mut parser = test.prepare();
         let expr_id = parser.eat_expression().unwrap();
