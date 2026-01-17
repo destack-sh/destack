@@ -20,6 +20,7 @@ path = "src/main.rs"
 destack_ast = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
+destack_daemon = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_lsp_server = { path = "server" }
