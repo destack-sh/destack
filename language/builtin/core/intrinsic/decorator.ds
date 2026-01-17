@@ -127,6 +127,22 @@ export newtype inline = ();
 /// ```
 export newtype noinline = ();
 
+/// Specify the representation for a declaration.
+///
+/// ```
+/// @repr(uint8)
+/// enum Color { Red = 1, Green = 2 }
+/// ```
+export newtype repr = (unknown,);
+
+/// Specify the layout policy for an aggregate declaration.
+///
+/// ```
+/// @layout("C")
+/// struct Point { x: int32, y: int32 }
+/// ```
+export newtype layout = (unknown,);
+
 /// Loop unroll hint for the optimizer.
 ///
 /// Suggests that a loop should be unrolled. Can optionally specify
