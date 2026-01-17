@@ -8,7 +8,7 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Asynchrony, BinaryOperator, Declaration, Expression, Extension, ExtensionKind,
+    Asynchrony, BinaryOperator, Declaration, EnumBackingType, Expression, Extension, ExtensionKind,
     FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
     Mutability, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
     StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator,
@@ -1114,21 +1114,34 @@ impl Compiler {
         match operator {
             TypeBinaryOperator::Cast => {
                 // type assertion: `x as T`
-                // check if cast is valid (types overlap: at least one direction is assignable)
                 // allow explicit raw pointer casts
-                let allow_pointer_cast = matches!(
-                    (types.get_type(left_ty_id), types.get_type(right_ty_id)),
-                    (Type::PointerOf { .. }, Type::PointerOf { .. })
-                ) || matches!(
-                    (types.get_type(left_ty_id), types.get_type(right_ty_id)),
-                    (
-                        Type::TypeLiteral {
-                            value: TypeLiteral::Null | TypeLiteral::Undefined,
-                        },
-                        Type::PointerOf { .. }
-                    )
-                );
+                let allow_pointer_cast = {
+                    let left_ty = types.get_type(left_ty_id);
+                    let right_ty = types.get_type(right_ty_id);
 
+                    matches!(
+                        (left_ty, right_ty),
+                        (Type::PointerOf { .. }, Type::PointerOf { .. })
+                    ) || matches!(
+                        (left_ty, right_ty),
+                        (
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Null | TypeLiteral::Undefined,
+                            },
+                            Type::PointerOf { .. }
+                        )
+                    )
+                };
+
+                // allow explicit enum backing casts
+                let allow_enum_cast = {
+                    let left_ty = types.get_type(left_ty_id);
+                    let right_ty = types.get_type(right_ty_id);
+
+                    self.is_enum_backing_cast(left_ty, right_ty, types)
+                };
+
+                // check if cast is valid (types overlap: at least one direction is assignable)
                 let left_to_right = self.is_type_assignable(
                     module,
                     profile,
@@ -1151,7 +1164,10 @@ impl Compiler {
                 // reject unsafe type assertions when configured
                 if options.no_unsafe_type_assertions && matches!(module.source, ModuleSource::User)
                 {
+                    // read the source type
                     let left_ty = types.get_type(left_ty_id);
+
+                    // check for any or unknown assertions
                     let is_any_or_unknown = matches!(
                         left_ty,
                         Type::TypeLiteral {
@@ -1170,7 +1186,9 @@ impl Compiler {
                     }
                 }
 
+                // report invalid casts when types do not overlap
                 if !allow_pointer_cast
+                    && !allow_enum_cast
                     && left_to_right == Assignability::NotAssignable
                     && right_to_left == Assignability::NotAssignable
                 {
@@ -3980,6 +3998,62 @@ impl Compiler {
             Type::Intersection { elements } => elements
                 .iter()
                 .any(|element_id| self.type_is_function_like(*element_id, types)),
+            _ => false,
+        }
+    }
+
+    /// Return the enum backing type for a reference type.
+    fn enum_backing_type_for_type(&self, ty: &Type, types: &TypeTable) -> Option<EnumBackingType> {
+        match ty {
+            // read backing types directly from enum references
+            Type::Reference { symbol, .. } => types.get_enum_backing_type(*symbol),
+            // unwrap value containers to reach enum references
+            Type::Value { value } => {
+                let inner_ty = types.get_type(*value);
+                self.enum_backing_type_for_type(inner_ty, types)
+            }
+            // scan intersections for a matching enum reference
+            Type::Intersection { elements } => elements.iter().find_map(|element_id| {
+                let element_ty = types.get_type(*element_id);
+                self.enum_backing_type_for_type(element_ty, types)
+            }),
+            _ => None,
+        }
+    }
+
+    /// Return true when the target type matches the enum backing type.
+    fn enum_backing_type_matches(&self, backing: EnumBackingType, target: &Type) -> bool {
+        // match integer or string targets
+        match backing {
+            EnumBackingType::Int(_) => matches!(
+                target,
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Int(_))
+                } | Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
+                }
+            ),
+            EnumBackingType::String => matches!(
+                target,
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String)
+                } | Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
+                }
+            ),
+        }
+    }
+
+    /// Return true when an enum cast targets its backing type.
+    fn is_enum_backing_cast(&self, left_ty: &Type, right_ty: &Type, types: &TypeTable) -> bool {
+        // read backing types
+        let left_backing = self.enum_backing_type_for_type(left_ty, types);
+        let right_backing = self.enum_backing_type_for_type(right_ty, types);
+
+        // compare backing types against the other side
+        match (left_backing, right_backing) {
+            (Some(backing), None) => self.enum_backing_type_matches(backing, right_ty),
+            (None, Some(backing)) => self.enum_backing_type_matches(backing, left_ty),
             _ => false,
         }
     }

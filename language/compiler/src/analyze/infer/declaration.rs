@@ -7,7 +7,7 @@ use destack_dir::{
     DependencyMode, DynamicKey, EnumBackingType, EnumField, Expression, FunctionCardinality,
     FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
     IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, NodeTree, Parameter,
-    PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
+    Pattern, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeLiteral, TypeTable,
     WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -1417,6 +1417,18 @@ impl Compiler {
             None
         };
 
+        // assign direct binding value types from declared or inferred types
+        if let Pattern::Binding {
+            symbol, pattern, ..
+        } = tree.get(*pattern)
+            && pattern.is_none()
+        {
+            let binding_ty_id = declared_ty_id.or(inferred_ty_id);
+            if let Some(binding_ty_id) = binding_ty_id {
+                types.set_value_type(symbol.into_global(module.id), binding_ty_id);
+            }
+        }
+
         // enforce explicit ownership when implicit managed values are disabled
         if let (Some(inferred_ty_id), Some(value_id)) = (inferred_ty_id, value) {
             if let Some(declared_ty_id) = declared_ty_id {
@@ -1494,6 +1506,16 @@ impl Compiler {
             infer,
             ctx,
         )?;
+
+        // ensure direct bindings always record a value type
+        if let Some(binding_ty_id) = binding_ty_id
+            && let Pattern::Binding { symbol, .. } = tree.get(*pattern)
+        {
+            let binding_symbol = symbol.into_global(module.id);
+            if types.get_value_type_id(binding_symbol).is_none() {
+                types.set_value_type(binding_symbol, binding_ty_id);
+            }
+        }
 
         Ok(())
     }

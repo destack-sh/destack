@@ -539,7 +539,7 @@ impl Program {
     }
 
     /// Build compiler options for a target, applying derived restrictions.
-    fn compiler_options_for_target(
+    pub fn compiler_options_for_target(
         target: &Target,
         compiler_options: &DsConfigCompilerOptions,
     ) -> DsConfigCompilerOptions {
@@ -558,7 +558,7 @@ impl Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{OutputFormat, Platform, Runtime};
+    use crate::{BorrowMode, OutputFormat, Platform, Runtime};
 
     #[test]
     fn test_profile_key_for_target_appends_types() {
@@ -610,7 +610,7 @@ mod tests {
         compiler_options.strict_property_initialization = false;
         compiler_options.use_unknown_in_catch_variables = false;
 
-        // enforce strict mode for native output
+        // enforce soundness defaults for native output
         let target = Target {
             output: OutputFormat::Native,
             ..Target::default()
@@ -638,5 +638,21 @@ mod tests {
         assert!(options.no_fallthrough_cases_in_switch);
         assert!(!options.allow_unreachable_code);
         assert!(!options.allow_unused_labels);
+
+        // verify soundness defaults are set
+        assert!(options.no_any);
+        assert!(options.no_unknown);
+        assert!(options.no_imprecise_primitives);
+        assert!(options.no_implicit_conversions);
+        assert!(options.no_unsafe_type_assertions);
+        assert!(options.no_implicit_managed);
+        assert!(options.no_managed);
+        assert!(options.no_dynamic_evaluation);
+        assert!(options.no_dynamic_import);
+        assert!(options.no_proxy);
+        assert!(options.no_dynamic_shapes);
+        assert!(options.no_exceptions);
+        assert!(options.no_global_this);
+        assert_eq!(options.borrow_mode, BorrowMode::Strict);
     }
 }

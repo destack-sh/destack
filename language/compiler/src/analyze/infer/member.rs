@@ -3,8 +3,8 @@ use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, StaticArgument, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral,
-    TypeTable,
+    LocalTypeId, NodeTree, NodeType, StaticArgument, StaticKey, SymbolTable, SymbolType, Type,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::{HashMap, HashSet};
@@ -76,6 +76,44 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
+        // resolve the member key for lookup
+        let member_key = StaticKey::Name(member_name);
+
+        // handle enum field access early to preserve nominal enum types
+        if let Some(enum_symbol) = self
+            .enum_symbol_for_receiver_symbol(module, left_id, ctx.profile, tree, symbols)
+            .or_else(|| self.enum_symbol_for_type(&left_ty, types))
+        {
+            let enum_field_symbol = self.enum_field_symbol_for_member_key(
+                module,
+                enum_symbol,
+                &member_key,
+                ctx.profile,
+                tree,
+                symbols,
+            )?;
+            if let Some(enum_field_symbol) = enum_field_symbol {
+                let enum_reference = Type::Reference {
+                    symbol: enum_symbol,
+                    static_arguments: None,
+                };
+                let enum_reference_id = types.insert_type_from(enum_reference, expression_id);
+                let resolution = MemberResolution::Static {
+                    symbol: enum_field_symbol,
+                };
+                self.record_member_resolution(
+                    expression_id.into_global_any(module.id),
+                    Some(left_ty_id),
+                    &resolution,
+                    None,
+                    None,
+                    true,
+                    types,
+                );
+                return Ok(enum_reference_id);
+            }
+        }
+
         // ensure instance types are available for reference receivers
         self.ensure_reference_instance_types_for_type(
             module,
@@ -98,7 +136,6 @@ impl Compiler {
         )?;
 
         // resolve member dispatch for the left type
-        let member_key = StaticKey::Name(member_name);
         let member_resolution = self.resolve_member_symbol(
             module,
             &left_ty,
@@ -124,6 +161,20 @@ impl Compiler {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
         };
+
+        // resolve enum field member symbol
+        let member_symbol = self.resolve_enum_field_member_symbol(
+            module,
+            left_id,
+            &member_key,
+            member_symbol,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+        )?;
+        let enum_field_value_ty_id =
+            self.enum_field_value_type_for_symbol(module, symbols, member_symbol, types);
 
         // resolve extension substitutions for member symbols
         let extension_context = if let Some(member_symbol) = member_symbol {
@@ -162,7 +213,9 @@ impl Compiler {
             &mut member_type_visited,
         )?;
         let has_member = member_ty_id.is_some();
-        let resolved_member_ty_id = if let Some(member_ty_id) = member_ty_id {
+        let resolved_member_ty_id = if let Some(enum_field_value_ty_id) = enum_field_value_ty_id {
+            enum_field_value_ty_id
+        } else if let Some(member_ty_id) = member_ty_id {
             let member_ty_id = if !substitutions.is_empty() {
                 let mut cache = HashMap::new();
                 self.substitute_static_parameters(member_ty_id, &substitutions, types, &mut cache)
@@ -491,6 +544,200 @@ impl Compiler {
         Ok(resolved_member_ty_id)
     }
 
+    /// Resolve the enum symbol that owns an enum field symbol.
+    fn enum_symbol_for_enum_field_symbol(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        member_symbol: GlobalSymbolId,
+    ) -> Option<GlobalSymbolId> {
+        // resolve the enum field symbol entry
+        let (is_enum_field, scope_owner) = if member_symbol.module_id == module.id {
+            let member_entry = symbols.get_symbol(member_symbol.local_id);
+            let scope = symbols.get_scope_by_symbol(member_symbol.local_id);
+            let is_enum_field = member_entry
+                .primary_declaration
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
+            (is_enum_field, scope.owner_id?)
+        } else {
+            let remote_module = self.program.modules.get(member_symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_symbols = remote_module.dir_base().symbols.read();
+            let member_entry = remote_symbols.get_symbol(member_symbol.local_id);
+            let scope = remote_symbols.get_scope_by_symbol(member_symbol.local_id);
+            let is_enum_field = member_entry
+                .primary_declaration
+                .is_some_and(|declaration| declaration.local_id.ty == NodeType::EnumField);
+            (is_enum_field, scope.owner_id?)
+        };
+
+        // ensure the symbol is an enum field
+        if !is_enum_field {
+            return None;
+        }
+
+        // ensure the owning symbol is an enum
+        if scope_owner.ty != SymbolType::Enum {
+            return None;
+        }
+
+        Some(scope_owner.into_global(member_symbol.module_id))
+    }
+
+    /// Resolve enum field member symbols when the receiver is an enum reference.
+    fn resolve_enum_field_member_symbol(
+        &self,
+        module: &Module,
+        left_id: LocalNodeId<Expression>,
+        member_key: &StaticKey,
+        member_symbol: Option<GlobalSymbolId>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // keep already resolved member symbols
+        if member_symbol.is_some() {
+            return Ok(member_symbol);
+        }
+
+        // only direct enum references can resolve enum field symbols
+        let Some(left_symbol) =
+            self.reference_symbol_for_expression(module, left_id, profile, tree, symbols)
+        else {
+            return Ok(None);
+        };
+        if left_symbol.ty() != SymbolType::Enum {
+            return Ok(None);
+        }
+
+        // resolve the member symbol from the enum declaration
+        let mut visited = Vec::new();
+        self.resolve_member_symbol_for_symbol(
+            module,
+            left_symbol,
+            member_key,
+            profile,
+            tree,
+            symbols,
+            types,
+            &mut visited,
+        )
+    }
+
+    /// Resolve the value type for an enum field symbol when possible.
+    fn enum_field_value_type_for_symbol(
+        &self,
+        module: &Module,
+        symbols: &SymbolTable,
+        member_symbol: Option<GlobalSymbolId>,
+        types: &TypeTable,
+    ) -> Option<LocalTypeId> {
+        let member_symbol = member_symbol?;
+        self.enum_symbol_for_enum_field_symbol(module, symbols, member_symbol)?;
+        types.get_value_type_id(member_symbol)
+    }
+
+    /// Resolve enum symbols from a receiver expression when it is a direct reference.
+    fn enum_symbol_for_receiver_symbol(
+        &self,
+        module: &Module,
+        left_id: LocalNodeId<Expression>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        let left_symbol =
+            self.reference_symbol_for_expression(module, left_id, profile, tree, symbols)?;
+        if left_symbol.ty() == SymbolType::Enum {
+            Some(left_symbol)
+        } else {
+            None
+        }
+    }
+
+    /// Resolve an enum field symbol matching a member key.
+    fn enum_field_symbol_for_member_key(
+        &self,
+        module: &Module,
+        enum_symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // resolve local declarations when possible
+        if enum_symbol.module_id == module.id {
+            return Ok(self.enum_field_symbol_for_member_key_in_tree(
+                enum_symbol,
+                member_key,
+                tree,
+                symbols,
+            ));
+        }
+
+        // ensure remote declarations are available
+        self.require_analyze_module_declare(enum_symbol.module_id, profile)
+            .map_err(AnalyzeError::from)?;
+
+        // load remote module data for enum field scanning
+        let remote_module = self.program.modules.get(enum_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+
+        Ok(self.enum_field_symbol_for_member_key_in_tree(
+            enum_symbol,
+            member_key,
+            &remote_tree,
+            &remote_symbols,
+        ))
+    }
+
+    /// Resolve enum declarations for a matching field key.
+    fn enum_field_symbol_for_member_key_in_tree(
+        &self,
+        enum_symbol: GlobalSymbolId,
+        member_key: &StaticKey,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // ensure we are scanning an enum symbol
+        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+        if symbol_entry.ty != SymbolType::Enum {
+            return None;
+        }
+
+        // collect the enum declarations for the symbol
+        let mut declaration_ids = Vec::new();
+        if let Some(primary_declaration) = symbol_entry.primary_declaration {
+            declaration_ids.push(primary_declaration);
+        }
+        if let Some(secondary_declarations) = symbol_entry.secondary_declarations.as_deref() {
+            declaration_ids.extend(secondary_declarations.iter().copied());
+        }
+
+        // scan enum fields for a matching key
+        for declaration_id in declaration_ids {
+            let Ok(declaration_id) = declaration_id.try_into_local_typed::<Declaration>() else {
+                continue;
+            };
+            let Declaration::Enum { fields, .. } = tree.get(declaration_id) else {
+                continue;
+            };
+            for field_id in fields {
+                let field = tree.get(*field_id);
+                let field_key = StaticKey::Name(field.name);
+                if field_key.matches(member_key) {
+                    return Some(field.symbol.into_global(enum_symbol.module_id));
+                }
+            }
+        }
+
+        None
+    }
+
     /// Resolve extension arguments and substitutions for a member lookup.
     pub(super) fn resolve_extension_member_context(
         &self,
@@ -711,7 +958,7 @@ impl Compiler {
             }
 
             let extension_id = owner_id.with_type(owner_entry.ty);
-            return Some(GlobalSymbolId::new(module.id, extension_id));
+            return Some(extension_id.into_global(module.id));
         }
 
         // load the remote symbol table when the member is foreign
@@ -728,7 +975,7 @@ impl Compiler {
         }
 
         let extension_id = owner_id.with_type(owner_entry.ty);
-        Some(GlobalSymbolId::new(remote_module.id, extension_id))
+        Some(extension_id.into_global(remote_module.id))
     }
 
     /// Resolve member symbols for a receiver type when nominal dispatch is possible.

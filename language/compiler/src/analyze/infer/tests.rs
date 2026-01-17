@@ -2,102 +2,251 @@ use crate::{
     AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
 };
+use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, Declaration, Expression, ExtensionKind, FlowEdgeKind, FlowGraphBuilder,
-    GlobalSymbolId, IfCondition, InferTable, LocalTypeId, NodeTree, Pattern, PrimitiveType,
-    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, TypeUnaryOperator,
+    BinaryOperator, Declaration, Declarator, Expression, ExtensionKind, FlowEdgeKind,
+    FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferTable, IntType,
+    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
 
-/// Add, analyze, and check a module in one step.
-fn analyze_module_with_source(test: &TestProgram, name: &str, source: &str) -> ModuleId {
-    // register the module
-    let module_id = test.add_module(name, source);
-
-    // analyze and check diagnostics
-    test.analyze_module_and_check_clean(module_id);
-
-    module_id
-}
-
-/// Load roots, tree, and types by cloning the module dir tables.
-fn load_tree_types(
-    test: &TestProgram,
+/// Cached view of module tables for tests.
+struct TestModuleView<'a> {
+    /// The owning test program.
+    test: &'a TestProgram,
+    /// The module id under test.
     module_id: ModuleId,
-) -> (
-    Vec<destack_dir::LocalNodeId<Expression>>,
-    NodeTree,
-    TypeTable,
-) {
-    // load module state
-    let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
-
-    // clone module dir data
-    let roots = dir.roots.clone();
-    let tree = dir.tree.read().clone();
-    let types = dir.types.read().clone();
-
-    (roots, tree, types)
+    /// The module root expressions.
+    roots: Vec<LocalNodeId<Expression>>,
+    /// The module node tree.
+    tree: NodeTree,
+    /// The module symbol table.
+    symbols: SymbolTable,
+    /// The module type table.
+    types: TypeTable,
 }
 
-/// Load roots, tree, symbols, and types by cloning the module dir tables.
-fn load_tree_symbols_types(
-    test: &TestProgram,
-    module_id: ModuleId,
-) -> (
-    Vec<destack_dir::LocalNodeId<Expression>>,
-    NodeTree,
-    SymbolTable,
-    TypeTable,
-) {
-    // load module state
-    let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
+impl TestProgram {
+    /// Add, analyze, and check a module in one step.
+    fn analyze_module_with_source(&self, name: &str, source: &str) -> ModuleId {
+        // register the module
+        let module_id = self.add_module(name, source);
 
-    // clone module dir data
-    let roots = dir.roots.clone();
-    let tree = dir.tree.read().clone();
-    let symbols = dir.symbols.read().clone();
-    let types = dir.types.read().clone();
+        // analyze and check diagnostics
+        self.analyze_module_and_check_clean(module_id);
 
-    (roots, tree, symbols, types)
+        module_id
+    }
+
+    /// Resolve a canonical symbol id for a module path.
+    fn canonical_symbol_for_path(&self, module_uri: &str, path: &str) -> GlobalSymbolId {
+        // resolve the module symbol
+        let symbol = self
+            .resolve_to_symbol(module_uri, path)
+            .unwrap_or_else(|| panic!("expected symbol for {module_uri}:{path}"));
+
+        // resolve the module state
+        let module = self.module(module_uri);
+        let module = module.read();
+        let profile = self.default_profile_id(module.id);
+        let symbols = module.dir(profile).symbols.read();
+
+        // resolve the canonical symbol id
+        self.compiler
+            .canonical_symbol_id(&module, &symbols, profile, symbol)
+    }
+
+    /// Create a cached module view for tests.
+    fn view(&self, module_id: ModuleId) -> TestModuleView<'_> {
+        // load module state
+        let profile = self.default_profile_id(module_id);
+        let module = self.program.modules.get(module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+
+        // clone module dir data
+        let roots = dir.roots.clone();
+        let tree = dir.tree.read().clone();
+        let symbols = dir.symbols.read().clone();
+        let types = dir.types.read().clone();
+
+        TestModuleView {
+            test: self,
+            module_id,
+            roots,
+            tree,
+            symbols,
+            types,
+        }
+    }
 }
 
-/// Load types by cloning the module dir table.
-fn load_types(test: &TestProgram, module_id: ModuleId) -> TypeTable {
-    // load module state
-    let profile = test.default_profile_id(module_id);
-    let module = test.program.modules.get(module_id);
-    let module = module.read();
-    let dir = module.dir(profile);
+impl<'a> TestModuleView<'a> {
+    /// Read the roots for this view.
+    fn roots(&self) -> &[LocalNodeId<Expression>] {
+        &self.roots
+    }
 
-    // clone type table
-    dir.types.read().clone()
-}
+    /// Read the node tree for this view.
+    fn tree(&self) -> &NodeTree {
+        &self.tree
+    }
 
-/// Resolve a canonical symbol id for a module path.
-fn canonical_symbol_for_path(test: &TestProgram, module_uri: &str, path: &str) -> GlobalSymbolId {
-    // resolve the module symbol
-    let symbol = test
-        .resolve_to_symbol(module_uri, path)
-        .unwrap_or_else(|| panic!("expected symbol for {module_uri}:{path}"));
+    /// Read the symbol table for this view.
+    fn symbols(&self) -> &SymbolTable {
+        &self.symbols
+    }
 
-    // resolve the module state
-    let module = test.module(module_uri);
-    let module = module.read();
-    let profile = test.default_profile_id(module.id);
-    let symbols = module.dir(profile).symbols.read();
+    /// Read the type table for this view.
+    fn types(&self) -> &TypeTable {
+        &self.types
+    }
 
-    // resolve the canonical symbol id
-    test.compiler
-        .canonical_symbol_id(&module, &symbols, profile, symbol)
+    /// Resolve the default profile id for this module.
+    fn profile_id(&self) -> destack_workspace::ProfileId {
+        self.test.default_profile_id(self.module_id)
+    }
+
+    /// Resolve the root expression for the view.
+    fn root_expression_id(&self, index: usize) -> LocalNodeId<Expression> {
+        root_expression_id(&self.roots, &self.tree, index)
+    }
+
+    /// Resolve an inferred type for a local expression.
+    fn expect_inferred_type(&self, expression_id: LocalNodeId<Expression>) -> &Type {
+        // resolve inferred type
+        self.types
+            .get_inferred_type(expression_id.into_global_any(self.module_id))
+            .expect("expected inferred type")
+    }
+
+    /// Resolve an inferred type id for a local expression.
+    fn expect_inferred_type_id(&self, expression_id: LocalNodeId<Expression>) -> LocalTypeId {
+        // resolve inferred type id
+        self.types
+            .get_inferred_type_id(expression_id.into_global_any(self.module_id))
+            .expect("expected inferred type id")
+    }
+
+    /// Resolve the declarator for a binding name.
+    fn expect_let_declarator(&self, name: StringId) -> LocalNodeId<Declarator> {
+        expect_let_declarator_by_name(&self.roots, &self.tree, name)
+    }
+
+    /// Resolve a binding symbol for a let declarator by name.
+    fn expect_binding_symbol(&self, name: StringId) -> GlobalSymbolId {
+        // resolve the declarator
+        let declarator_id = self.expect_let_declarator(name);
+        let declarator = self.tree.get(declarator_id);
+
+        // extract the binding symbol
+        match self.tree.get(declarator.pattern) {
+            Pattern::Binding {
+                symbol, pattern, ..
+            } => {
+                assert!(pattern.is_none());
+                symbol.into_global(self.module_id)
+            }
+            other => panic!("expected binding pattern, got {other:?}"),
+        }
+    }
+
+    /// Resolve the initializer value for a let declarator by name.
+    fn expect_initializer(&self, name: StringId) -> LocalNodeId<Expression> {
+        // resolve the declarator
+        let declarator_id = self.expect_let_declarator(name);
+        let declarator = self.tree.get(declarator_id);
+
+        // return the initializer
+        declarator
+            .value
+            .unwrap_or_else(|| panic!("expected initializer for {name:?}"))
+    }
+
+    /// Resolve the enum field symbol for a member name.
+    fn expect_enum_field_symbol(&self, name: StringId) -> GlobalSymbolId {
+        // scan enum declarations for the field
+        for declaration_id in self.tree.iter_node_ids_of_type::<Declaration>() {
+            let Declaration::Enum { fields, .. } = self.tree.get(declaration_id) else {
+                continue;
+            };
+            for field_id in fields {
+                let field = self.tree.get(*field_id);
+                if field.name == name {
+                    return field.symbol.into_global(self.module_id);
+                }
+            }
+        }
+
+        panic!("expected enum field for {name:?}");
+    }
+
+    /// Read a declared type id for a node.
+    fn expect_declared_type_id(&self, node_id: GlobalNodeIdAny) -> LocalTypeId {
+        self.types
+            .get_declared_type_id(node_id)
+            .expect("expected declared type id")
+    }
+
+    /// Read a value type id for a symbol.
+    fn expect_value_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
+        self.types
+            .get_value_type_id(symbol)
+            .expect("expected value type id")
+    }
+
+    /// Read an instance type id for a symbol.
+    fn expect_instance_type_id(&self, symbol: GlobalSymbolId) -> LocalTypeId {
+        self.types
+            .get_instance_type_id(symbol)
+            .expect("expected instance type id")
+    }
+
+    /// Resolve a member expression into its receiver and member key.
+    fn expect_member_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> (LocalNodeId<Expression>, StringId) {
+        match self.tree.get(expression_id) {
+            Expression::Member { left, name, .. } => (*left, *name),
+            other => panic!("expected member expression, got {other:?}"),
+        }
+    }
+
+    /// Resolve a reference symbol from a reference expression.
+    fn expect_reference_symbol(&self, expression_id: LocalNodeId<Expression>) -> GlobalSymbolId {
+        match self.tree.get(expression_id) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+            other => panic!("expected reference expression, got {other:?}"),
+        }
+    }
+
+    /// Collect the first object field list available for a type.
+    fn object_fields_for_type(&self, ty_id: LocalTypeId) -> Vec<TypeField> {
+        // prefer direct object types
+        match self.types.get_type(ty_id) {
+            Type::Object { fields, .. } => {
+                return fields.to_vec();
+            }
+            _ => {}
+        }
+
+        // scan intersection elements for an object type
+        if let Type::Intersection { elements } = self.types.get_type(ty_id) {
+            for element_id in elements {
+                if let Type::Object { fields, .. } = self.types.get_type(*element_id) {
+                    return fields.to_vec();
+                }
+            }
+        }
+
+        panic!("expected object fields for type");
+    }
 }
 
 /// Collect extension kinds for a target symbol.
@@ -117,45 +266,21 @@ fn extension_kinds_for_target(
         .collect()
 }
 
-/// Read an inferred type for a local expression.
-fn expect_inferred_type(
-    types: &TypeTable,
-    module_id: ModuleId,
-    expression_id: destack_dir::LocalNodeId<Expression>,
-) -> &Type {
-    // resolve inferred type
-    types
-        .get_inferred_type(expression_id.into_global_any(module_id))
-        .expect("expected inferred type")
-}
-
-/// Read an inferred type id for a local expression.
-fn expect_inferred_type_id(
-    types: &TypeTable,
-    module_id: ModuleId,
-    expression_id: destack_dir::LocalNodeId<Expression>,
-) -> LocalTypeId {
-    // resolve inferred type id
-    types
-        .get_inferred_type_id(expression_id.into_global_any(module_id))
-        .expect("expected inferred type id")
-}
-
 /// Analyze number literal.
 #[test]
 fn test_analyze_number_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = analyze_module_with_source(&test, "test.ds", "42");
+    let module_id = test.analyze_module_with_source("test.ds", "42");
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
+    let expression_id = view.root_expression_id(0);
 
     // read inferred type
-    let ty = expect_inferred_type(&types, module_id, expression_id);
+    let ty = view.expect_inferred_type(expression_id);
 
     // integer literals now have literal types, not widened primitive types
     assert_eq!(
@@ -171,16 +296,16 @@ fn test_analyze_number_literal() {
 fn test_analyze_string_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = analyze_module_with_source(&test, "test.ds", r#""hello""#);
+    let module_id = test.analyze_module_with_source("test.ds", r#""hello""#);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
+    let expression_id = view.root_expression_id(0);
 
     // read inferred type
-    let ty = expect_inferred_type(&types, module_id, expression_id);
+    let ty = view.expect_inferred_type(expression_id);
 
     // string literal has literal type (e.g., "hello" has type "hello")
     assert!(matches!(
@@ -196,16 +321,16 @@ fn test_analyze_string_literal() {
 fn test_analyze_boolean_literal() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = analyze_module_with_source(&test, "test.ds", "true");
+    let module_id = test.analyze_module_with_source("test.ds", "true");
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
+    let expression_id = view.root_expression_id(0);
 
     // read inferred type
-    let ty = expect_inferred_type(&types, module_id, expression_id);
+    let ty = view.expect_inferred_type(expression_id);
 
     // boolean literal has literal type (e.g., true has type true)
     assert_eq!(
@@ -213,6 +338,169 @@ fn test_analyze_boolean_literal() {
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
         }
+    );
+}
+
+/// Analyze enum member shapes.
+#[test]
+fn test_analyze_enum_member_shapes() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active = 1
+    Inactive = 2
+
+    isActive(): boolean {
+        true
+    }
+
+    static Default = Status.Active;
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+
+    // resolve enum symbol and load module types
+    let enum_symbol = test.canonical_symbol_for_path("test.ds", "Status");
+    let view = test.view(module_id);
+
+    // check instance shape for instance methods
+    let instance_id = view.expect_instance_type_id(enum_symbol);
+    let instance_ty = view.types().get_type(instance_id);
+    let Type::Object { fields, .. } = instance_ty else {
+        panic!("expected enum instance object type, found {instance_ty:?}");
+    };
+    let is_active_key = StaticKey::Name(test.program.strings.intern("isActive"));
+    assert!(
+        fields.iter().any(|field| field.key.matches(&is_active_key)),
+        "expected isActive in enum instance fields, found {fields:?}",
+    );
+
+    // check value shape for static fields
+    let value_id = view.expect_value_type_id(enum_symbol);
+    let mut shape = crate::analyze::common::ObjectShape::default();
+    let mut extras = Vec::new();
+    let mut visited = Vec::new();
+    test.compiler.collect_value_shape_from_type(
+        value_id,
+        view.types(),
+        &mut shape,
+        &mut extras,
+        &mut visited,
+    );
+    let default_key = StaticKey::Name(test.program.strings.intern("Default"));
+    assert!(
+        shape
+            .fields
+            .iter()
+            .any(|field| field.key.matches(&default_key)),
+        "expected Default in enum value fields, found {:?}",
+        shape.fields,
+    );
+}
+
+/// Enum values are not implicitly assignable to backing types.
+#[test]
+fn test_analyze_enum_backing_assignability() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active = 1
+}
+
+const status = Status.Active;
+const raw: int32 = status;
+"#;
+    // allow expected diagnostics from invalid assignments
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+
+    // load typed module data
+    let view = test.view(module_id);
+    let options = test.compiler.analyze_context_options_for_module(module_id);
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let profile = view.profile_id();
+
+    // resolve the binding symbols
+    let status_name = test.program.strings.intern("status");
+    let raw_name = test.program.strings.intern("raw");
+    let status_symbol = view.expect_binding_symbol(status_name);
+    let raw_declarator_id = view.expect_let_declarator(raw_name);
+    let status_initializer_id = view.expect_initializer(status_name);
+
+    // read declared and inferred types
+    let raw_declared_id =
+        view.expect_declared_type_id(raw_declarator_id.into_global_any(module_id));
+    let status_value_id = view.expect_value_type_id(status_symbol);
+    let enum_symbol = test.canonical_symbol_for_path("test.ds", "Status");
+    let enum_value_id = view.expect_value_type_id(enum_symbol);
+
+    // ensure the enum value type is resolved
+    match view.types().get_type(enum_value_id) {
+        Type::InferVar { .. } => {
+            panic!("unexpected enum value type inferred as infer var");
+        }
+        _ => {}
+    }
+
+    // resolve the enum field value type
+    let active_name = test.program.strings.intern("Active");
+    let enum_field_symbol = view.expect_enum_field_symbol(active_name);
+    let enum_field_value_id = view.expect_value_type_id(enum_field_symbol);
+    match view.types().get_type(enum_field_value_id) {
+        Type::Reference { symbol, .. } => {
+            assert_eq!(
+                *symbol, enum_symbol,
+                "expected enum field value to be nominal enum type",
+            );
+        }
+        other => panic!("expected enum field value reference, got {other:?}"),
+    }
+
+    // confirm the inferred member type is nominal
+    match view.types().get_type(status_value_id) {
+        Type::Reference { symbol, .. } => {
+            assert_eq!(
+                *symbol, enum_symbol,
+                "expected Status.Active to infer nominal enum type",
+            );
+        }
+        other => panic!("expected Status.Active to infer enum reference, got {other:?}"),
+    }
+
+    // confirm the initializer resolves to a member on Status
+    let (left_id, member_name) = view.expect_member_expression(status_initializer_id);
+    assert_eq!(member_name, active_name);
+
+    let left_symbol = view.expect_reference_symbol(left_id);
+    let left_symbol =
+        test.compiler
+            .canonical_symbol_id(&module, view.symbols(), profile, left_symbol);
+    assert_eq!(left_symbol, enum_symbol);
+
+    // validate assignability
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
+    let assignability = test.compiler.is_type_assignable(
+        &module,
+        profile,
+        &symbols,
+        raw_declared_id,
+        status_value_id,
+        &mut types,
+        &options,
+    );
+    assert_eq!(
+        assignability,
+        crate::analyze::infer::assign::Assignability::NotAssignable,
+        "expected enum value to be non-assignable to backing type, target={:?}, source={:?}",
+        view.types().get_type(raw_declared_id),
+        view.types().get_type(status_value_id),
     );
 }
 
@@ -255,11 +543,11 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     test.analyze_module_and_check_clean(main_id);
 
     // load module data for inspection
+    let view = test.view(main_id);
     let module = test.program.modules.get(main_id);
     let module = module.read();
-    let profile = test.default_profile_id(main_id);
+    let profile = view.profile_id();
     let dir = module.dir(profile);
-    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, main_id);
     let thing_name = test.program.strings.intern("thing");
     let global_key = StaticKey::Name(test.program.strings.intern("GlobalThing"));
     let global_group = test
@@ -281,7 +569,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     }
 
     // locate the bound symbol for thing in the module scope
-    let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+    let namespace_scope = view.symbols().get_scope_by_id(dir.namespace_scope);
     let thing_symbol = namespace_scope
         .named_symbols
         .iter()
@@ -291,7 +579,7 @@ const thing: GlobalThing = { value: 1, label: "ok" };
         })
         .expect("missing symbol for thing")
         .into_global(main_id);
-    let thing_entry = symbols.get_symbol(thing_symbol.local_id);
+    let thing_entry = view.symbols().get_symbol(thing_symbol.local_id);
     assert!(
         thing_entry.target_symbol.is_none(),
         "unexpected target_symbol on thing binding",
@@ -302,14 +590,15 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     );
     let canonical_symbol =
         test.compiler
-            .canonical_symbol_id(&module, &symbols, profile, thing_symbol);
+            .canonical_symbol_id(&module, view.symbols(), profile, thing_symbol);
     assert_eq!(canonical_symbol, thing_symbol);
 
     // assert the binding uses a nominal reference type
-    let value_ty_id = types
+    let value_ty_id = view
+        .types()
         .get_value_type_id(thing_symbol)
         .expect("missing value type for thing");
-    let value_ty = types.get_type(value_ty_id);
+    let value_ty = view.types().get_type(value_ty_id);
     let Type::Reference {
         symbol: global_thing,
         ..
@@ -320,10 +609,11 @@ const thing: GlobalThing = { value: 1, label: "ok" };
     assert_eq!(global_thing.ty(), SymbolType::Interface);
 
     // assert the merged instance type includes both fields
-    let instance_ty_id = types
+    let instance_ty_id = view
+        .types()
         .get_instance_type_id(*global_thing)
         .expect("missing instance type for GlobalThing");
-    let instance_ty = types.get_type(instance_ty_id);
+    let instance_ty = view.types().get_type(instance_ty_id);
     let Type::Object { fields, .. } = instance_ty else {
         panic!("expected object instance type for GlobalThing");
     };
@@ -344,13 +634,13 @@ fn test_analyze_binary_number_operation() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
+    let expression_id = view.root_expression_id(0);
 
     // read inferred type
-    let ty = expect_inferred_type(&types, module_id, expression_id);
+    let ty = view.expect_inferred_type(expression_id);
 
     // constant folding: 1 + 2 evaluates to literal type 3
     assert_eq!(
@@ -382,10 +672,11 @@ if (value != null) {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the if expression
-    let (_, if_expression) = tree
+    let (_, if_expression) = view
+        .tree()
         .iter_nodes_of_type::<Expression>()
         .find(|(_, expression)| matches!(expression, Expression::If { .. }))
         .expect("expected if expression");
@@ -397,9 +688,9 @@ if (value != null) {
     };
 
     // locate the narrowed declaration in the then block
-    let then_expression_id = match tree.get(*then_expression) {
+    let then_expression_id = match view.tree().get(*then_expression) {
         Expression::Block { block } => {
-            let block = tree.get(*block);
+            let block = view.tree().get(*block);
             *block
                 .expressions
                 .first()
@@ -409,29 +700,29 @@ if (value != null) {
         _ => *then_expression,
     };
 
-    let then_expression_id = match tree.get(then_expression_id) {
+    let then_expression_id = match view.tree().get(then_expression_id) {
         Expression::Statement { statement } => *statement,
         _ => then_expression_id,
     };
 
-    let Expression::Let { declarators, .. } = tree.get(then_expression_id) else {
+    let Expression::Let { declarators, .. } = view.tree().get(then_expression_id) else {
         panic!("expected let expression");
     };
 
     let declarator_id = declarators.first().expect("expected declarator");
-    let declarator = tree.get(*declarator_id);
+    let declarator = view.tree().get(*declarator_id);
     let value_expression_id = declarator
         .value
         .expect("expected value expression in declarator");
 
     // assert nullish types are stripped in the then branch
-    let left_type_id = expect_inferred_type_id(&types, module_id, value_expression_id);
-    let left_type = types.get_type(left_type_id);
+    let left_type_id = view.expect_inferred_type_id(value_expression_id);
+    let left_type = view.types().get_type(left_type_id);
 
     let is_nullish = match left_type {
         Type::Union { elements } => elements.iter().any(|element_id| {
             matches!(
-                types.get_type(*element_id),
+                view.types().get_type(*element_id),
                 Type::TypeLiteral {
                     value: TypeLiteral::Null | TypeLiteral::Undefined
                 }
@@ -457,13 +748,13 @@ fn test_analyze_binary_number_comparison() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
+    let expression_id = view.root_expression_id(0);
 
     // read inferred type
-    let ty = expect_inferred_type(&types, module_id, expression_id);
+    let ty = view.expect_inferred_type(expression_id);
 
     // constant folding: 1 < 2 evaluates to literal true
     assert_eq!(
@@ -485,21 +776,21 @@ fn test_analyze_let_expression_infer_type() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the let expression
-    let let_expr_id = root_expression_id(&roots, &tree, 0);
+    let let_expr_id = view.root_expression_id(0);
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
     // no declared type
     assert!(
-        types
+        view.types()
             .get_declared_type(let_expr_id.into_global_any(module_id))
             .is_none()
     );
 
     // value_type[x] = literal 42
-    let x_ty = types.get_value_type(x_symbol).unwrap();
+    let x_ty = view.types().get_value_type(x_symbol).unwrap();
     assert_eq!(
         *x_ty,
         Type::TypeLiteral {
@@ -508,7 +799,7 @@ fn test_analyze_let_expression_infer_type() {
     );
 
     // instance_type[x] = undefined
-    assert!(types.get_instance_type(x_symbol).is_none());
+    assert!(view.types().get_instance_type(x_symbol).is_none());
 }
 
 /// Analyze let expression declare type.
@@ -522,11 +813,11 @@ fn test_analyze_let_expression_declare_type() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
-    let let_expression = tree.get(expression_id);
+    let expression_id = view.root_expression_id(0);
+    let let_expression = view.tree().get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
     };
@@ -534,7 +825,8 @@ fn test_analyze_let_expression_declare_type() {
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
 
     // declared_type[declarator] = string
-    let declared = types
+    let declared = view
+        .types()
         .get_declared_type(declarator_id.into_global(module_id).into())
         .unwrap();
     assert_eq!(
@@ -545,7 +837,7 @@ fn test_analyze_let_expression_declare_type() {
     );
 
     // value_type[x] = string
-    let x_ty = types.get_value_type(x_symbol).unwrap();
+    let x_ty = view.types().get_value_type(x_symbol).unwrap();
     assert_eq!(
         *x_ty,
         Type::TypeLiteral {
@@ -554,7 +846,7 @@ fn test_analyze_let_expression_declare_type() {
     );
 
     // instance_type[x] = undefined
-    assert!(types.get_instance_type(x_symbol).is_none());
+    assert!(view.types().get_instance_type(x_symbol).is_none());
 }
 
 /// Analyze let expression infer tuple type with pattern.
@@ -573,7 +865,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve binding symbols
     let x_symbol = test.resolve_to_symbol("test.ds", "x").unwrap();
@@ -582,10 +874,10 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     let z_symbol = test.resolve_to_symbol("test.ds", "z").unwrap();
 
     // value_type[x] = literal 123
-    let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+    let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
     assert_type!(
-        types,
+        view.types(),
         x_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(123))
@@ -593,9 +885,9 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     );
 
     // value_type[y] = literal 'abc'
-    let y_ty_id = types.get_value_type_id(y_symbol).unwrap();
+    let y_ty_id = view.types().get_value_type_id(y_symbol).unwrap();
     assert_type!(
-        types,
+        view.types(),
         y_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
@@ -603,18 +895,18 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
     );
 
     // value_type[rest] = (true,)
-    let rest_ty_id = types.get_value_type_id(rest_symbol).unwrap();
-    assert_type!(types, rest_ty_id, Type::Tuple { elements } => {
+    let rest_ty_id = view.types().get_value_type_id(rest_symbol).unwrap();
+    assert_type!(view.types(), rest_ty_id, Type::Tuple { elements } => {
         assert_eq!(elements.len(), 1);
-        assert_type!(types, elements[0].ty, Type::TypeLiteral {
+        assert_type!(view.types(), elements[0].ty, Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
         });
     });
 
     // value_type[z] = literal 456
-    let z_ty_id = types.get_value_type_id(z_symbol).unwrap();
+    let z_ty_id = view.types().get_value_type_id(z_symbol).unwrap();
     assert_type!(
-        types,
+        view.types(),
         z_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(456))
@@ -645,14 +937,14 @@ let x = value;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // x should have literal type 42 (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
-    let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+    let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
     assert_type!(
-        types,
+        view.types(),
         x_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(42))
@@ -683,20 +975,20 @@ let x = items;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // x should have an array element union from the imported literal values
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
-    let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+    let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
-    assert_type!(types, x_ty_id, Type::Array { element: Some(element_id) } => {
-        assert_type!(types, *element_id, Type::Union { elements } => {
+    assert_type!(view.types(), x_ty_id, Type::Array { element: Some(element_id) } => {
+        assert_type!(view.types(), *element_id, Type::Union { elements } => {
             // union has three literal elements
             assert_eq!(elements.len(), 3);
 
             // each element stays a literal integer
             for element_id in elements {
-                assert_type!(types, *element_id, Type::TypeLiteral {
+                assert_type!(view.types(), *element_id, Type::TypeLiteral {
                     value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
                 });
             }
@@ -727,14 +1019,14 @@ let x = greeting;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // x should have literal string type (imported from lib.ds)
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
-    let x_ty_id = types.get_value_type_id(x_symbol).unwrap();
+    let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
     assert_type!(
-        types,
+        view.types(),
         x_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
@@ -770,14 +1062,14 @@ let value = boxed.value;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // value should be number from the declared field type
     let value_symbol = test.resolve_to_symbol("main.ds", "value").unwrap();
-    let value_ty_id = types.get_value_type_id(value_symbol).unwrap();
+    let value_ty_id = view.types().get_value_type_id(value_symbol).unwrap();
 
     assert_type!(
-        types,
+        view.types(),
         value_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -811,14 +1103,14 @@ export let a: number = b;
     test.analyze_module_and_check_clean(a_module_id);
 
     // load typed module data
-    let types = load_types(&test, b_module_id);
+    let view = test.view(b_module_id);
 
     // b should pick up the declared number type from a
     let b_symbol = test.resolve_to_symbol("b.ds", "b").unwrap();
-    let b_ty_id = types.get_value_type_id(b_symbol).unwrap();
+    let b_ty_id = view.types().get_value_type_id(b_symbol).unwrap();
 
     assert_type!(
-        types,
+        view.types(),
         b_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -831,8 +1123,7 @@ export let a: number = b;
 fn test_analyze_export_chain_surface_inference() {
     // arrange test module
     let test = TestProgram::memory_sequential();
-    let module_id = analyze_module_with_source(
-        &test,
+    let module_id = test.analyze_module_with_source(
         "test.ds",
         r#"
 export let a = 1;
@@ -841,17 +1132,17 @@ export let b = a;
     );
 
     // load typed module data
-    let (roots, tree, _symbols, types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate exported declarators
     let a_name = test.program.strings.intern("a");
     let b_name = test.program.strings.intern("b");
-    let a_declarator_id = expect_let_declarator_by_name(&roots, &tree, a_name);
-    let b_declarator_id = expect_let_declarator_by_name(&roots, &tree, b_name);
+    let a_declarator_id = view.expect_let_declarator(a_name);
+    let b_declarator_id = view.expect_let_declarator(b_name);
 
     // resolve binding symbols
-    let a_pattern = tree.get(tree.get(a_declarator_id).pattern);
-    let b_pattern = tree.get(tree.get(b_declarator_id).pattern);
+    let a_pattern = view.tree().get(view.tree().get(a_declarator_id).pattern);
+    let b_pattern = view.tree().get(view.tree().get(b_declarator_id).pattern);
     let Pattern::Binding {
         symbol: a_symbol, ..
     } = a_pattern
@@ -866,23 +1157,25 @@ export let b = a;
     };
 
     // read value types
-    let a_ty_id = types
+    let a_ty_id = view
+        .types()
         .get_value_type_id(a_symbol.into_global(module_id))
         .expect("expected a type");
-    let b_ty_id = types
+    let b_ty_id = view
+        .types()
         .get_value_type_id(b_symbol.into_global(module_id))
         .expect("expected b type");
 
     // both exports resolve to the literal number type
     assert_type!(
-        types,
+        view.types(),
         a_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
         }
     );
     assert_type!(
-        types,
+        view.types(),
         b_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
@@ -974,16 +1267,17 @@ let result = builder.combine(other);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve symbols
     let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
     let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
-    let result_ty_id = types
+    let result_ty_id = view
+        .types()
         .get_value_type_id(result_symbol)
         .expect("expected result type");
 
-    assert_type!(types, result_ty_id, Type::Reference { symbol, .. } => {
+    assert_type!(view.types(), result_ty_id, Type::Reference { symbol, .. } => {
         assert_eq!(*symbol, builder_symbol);
     });
 }
@@ -1013,19 +1307,20 @@ let boxed = builder.box();
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve symbols
     let box_symbol = test.resolve_to_symbol("test.ds", "Box").unwrap();
     let builder_symbol = test.resolve_to_symbol("test.ds", "Builder").unwrap();
     let boxed_symbol = test.resolve_to_symbol("test.ds", "boxed").unwrap();
-    let boxed_ty_id = types
+    let boxed_ty_id = view
+        .types()
         .get_value_type_id(boxed_symbol)
         .expect("expected boxed type");
 
-    let boxed_ty = types.get_type(boxed_ty_id).clone();
+    let boxed_ty = view.types().get_type(boxed_ty_id).clone();
     let (boxed_symbol, boxed_arguments) = match boxed_ty {
-        Type::Value { value } => match types.get_type(value).clone() {
+        Type::Value { value } => match view.types().get_type(value).clone() {
             Type::Reference {
                 symbol,
                 static_arguments,
@@ -1048,10 +1343,10 @@ let boxed = builder.box();
     let StaticExpression::Type { ty } = value else {
         panic!("expected static type argument");
     };
-    let inner_ty = types.get_type(*ty).clone();
+    let inner_ty = view.types().get_type(*ty).clone();
     let builder_reference = match inner_ty {
         Type::Reference { symbol, .. } => symbol,
-        Type::Value { value } => match types.get_type(value).clone() {
+        Type::Value { value } => match view.types().get_type(value).clone() {
             Type::Reference { symbol, .. } => symbol,
             other => panic!("expected builder reference type, got {other:?}"),
         },
@@ -1095,13 +1390,13 @@ let distance = origin.distance(origin);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve the canonical target symbol
-    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
+    let point_symbol = test.canonical_symbol_for_path("test.ds", "Point");
 
     // verify extension kinds
-    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
     assert_eq!(extension_kinds.len(), 2);
     assert!(
         extension_kinds
@@ -1112,22 +1407,24 @@ let distance = origin.distance(origin);
     // verify extension method return types
     let magnitude_symbol = test.resolve_to_symbol("test.ds", "magnitude").unwrap();
     let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
-    let magnitude_ty_id = types
+    let magnitude_ty_id = view
+        .types()
         .get_value_type_id(magnitude_symbol)
         .expect("expected magnitude type");
-    let distance_ty_id = types
+    let distance_ty_id = view
+        .types()
         .get_value_type_id(distance_symbol)
         .expect("expected distance type");
 
     assert_type!(
-        types,
+        view.types(),
         magnitude_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         }
     );
     assert_type!(
-        types,
+        view.types(),
         distance_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1177,15 +1474,15 @@ let origin = Point { x: 0, y: 0 };
     test.analyze_module_and_check_clean(consumer_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
-    let consumer_types = load_types(&test, consumer_id);
+    let view = test.view(module_id);
+    let consumer_view = test.view(consumer_id);
 
     // resolve the canonical target symbol
-    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
-    let consumer_point_symbol = canonical_symbol_for_path(&test, "consumer.ds", "Point");
+    let point_symbol = test.canonical_symbol_for_path("test.ds", "Point");
+    let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the defining module
-    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -1194,16 +1491,17 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not leak into other modules
-    let consumer_kinds = extension_kinds_for_target(&consumer_types, consumer_point_symbol);
+    let consumer_kinds = extension_kinds_for_target(consumer_view.types(), consumer_point_symbol);
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type
     let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
-    let distance_ty_id = types
+    let distance_ty_id = view
+        .types()
         .get_value_type_id(distance_symbol)
         .expect("expected distance type");
     assert_type!(
-        types,
+        view.types(),
         distance_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1261,15 +1559,15 @@ let origin = Point { x: 0, y: 0 };
     test.analyze_module_and_check_clean(consumer_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
-    let consumer_types = load_types(&test, consumer_id);
+    let view = test.view(module_id);
+    let consumer_view = test.view(consumer_id);
 
     // resolve the canonical target symbol
-    let point_symbol = canonical_symbol_for_path(&test, "test.ds", "Point");
-    let consumer_point_symbol = canonical_symbol_for_path(&test, "consumer.ds", "Point");
+    let point_symbol = test.canonical_symbol_for_path("test.ds", "Point");
+    let consumer_point_symbol = test.canonical_symbol_for_path("consumer.ds", "Point");
 
     // verify extension kinds in the importing module
-    let extension_kinds = extension_kinds_for_target(&types, point_symbol);
+    let extension_kinds = extension_kinds_for_target(view.types(), point_symbol);
     assert!(!extension_kinds.is_empty());
     assert!(
         extension_kinds
@@ -1278,16 +1576,17 @@ let origin = Point { x: 0, y: 0 };
     );
 
     // verify extension does not appear without an import
-    let consumer_kinds = extension_kinds_for_target(&consumer_types, consumer_point_symbol);
+    let consumer_kinds = extension_kinds_for_target(consumer_view.types(), consumer_point_symbol);
     assert!(consumer_kinds.is_empty());
 
     // verify extension method return type
     let distance_symbol = test.resolve_to_symbol("test.ds", "distance").unwrap();
-    let distance_ty_id = types
+    let distance_ty_id = view
+        .types()
         .get_value_type_id(distance_symbol)
         .expect("expected distance type");
     assert_type!(
-        types,
+        view.types(),
         distance_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1315,32 +1614,33 @@ add(1, 2)
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the function type
     let fn_symbol = test.expect_first_function_symbol(module_id);
-    let fn_ty_id = types
+    let fn_ty_id = view
+        .types()
         .get_value_type_id(fn_symbol)
         .expect("expected function type");
 
     // function type uses literal argument types and a number return type
-    assert_type!(types, fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
         // two parameters inferred from call arguments
         assert_eq!(dynamic_parameters.len(), 2);
 
         // first parameter matches literal 1
-        assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
         });
 
         // second parameter matches literal 2
-        assert_type!(types, dynamic_parameters[1], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[1], Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(2))
         });
 
         // return type is number from arithmetic
         let return_type = return_type.expect("expected return type");
-        assert_type!(types, return_type, Type::TypeLiteral {
+        assert_type!(view.types(), return_type, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });
@@ -1364,27 +1664,28 @@ function greet(name = "hi") {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the function type
     let fn_symbol = test.expect_first_function_symbol(module_id);
-    let fn_ty_id = types
+    let fn_ty_id = view
+        .types()
         .get_value_type_id(fn_symbol)
         .expect("expected function type");
 
     // function type uses default value literal and returns a string
-    assert_type!(types, fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), fn_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
         // one parameter inferred from default value
         assert_eq!(dynamic_parameters.len(), 1);
 
         // parameter uses the default string literal type
-        assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
         });
 
         // return type follows the parameter type
         let return_type = return_type.expect("expected return type");
-        assert_type!(types, return_type, Type::TypeLiteral {
+        assert_type!(view.types(), return_type, Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_))
         });
     });
@@ -1409,15 +1710,15 @@ identity<number>(1);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the call expression
-    let call_expression_id = root_expression_id(&roots, &tree, 1);
-    let call_ty_id = expect_inferred_type_id(&types, module_id, call_expression_id);
+    let call_expression_id = view.root_expression_id(1);
+    let call_ty_id = view.expect_inferred_type_id(call_expression_id);
 
     // call expression uses explicit number type argument
     assert_type!(
-        types,
+        view.types(),
         call_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1444,22 +1745,22 @@ let one = identity(1);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the initializer expression
-    let expression_id = root_expression_id(&roots, &tree, 1);
-    let let_expression = tree.get(expression_id);
+    let expression_id = view.root_expression_id(1);
+    let let_expression = view.tree().get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
     };
     let declarator_id = declarators.first().unwrap();
-    let declarator = tree.get(*declarator_id);
+    let declarator = view.tree().get(*declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
-    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
+    let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // identity returns the literal type of the inferred argument
     assert_type!(
-        types,
+        view.types(),
         value_ty_id,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
@@ -1486,32 +1787,32 @@ let as_number = identity<number>;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the initializer expression
-    let expression_id = root_expression_id(&roots, &tree, 1);
-    let let_expression = tree.get(expression_id);
+    let expression_id = view.root_expression_id(1);
+    let let_expression = view.tree().get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
     };
     let declarator_id = declarators.first().unwrap();
-    let declarator = tree.get(*declarator_id);
+    let declarator = view.tree().get(*declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
-    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
+    let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // specialized function reference uses number parameter and return type
-    assert_type!(types, value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
         // single parameter is number
         assert_eq!(dynamic_parameters.len(), 1);
 
         // parameter uses the explicit number type argument
-        assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // return type matches the parameter
         let return_type = return_type.expect("expected return type");
-        assert_type!(types, return_type, Type::TypeLiteral {
+        assert_type!(view.types(), return_type, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });
@@ -1539,18 +1840,19 @@ let value: Box<number> = makeBox();
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the type annotation
     let declarator_id = test.expect_first_let_declarator(module_id);
-    let declarator = tree.get(declarator_id);
+    let declarator = view.tree().get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
     // resolve the instance
-    let instance_id = types
+    let instance_id = view
+        .types()
         .get_instance_for_node(type_expression_id.into_global_any(module_id))
         .expect("expected instance");
-    let instance = types.get_instance(instance_id);
+    let instance = view.types().get_instance(instance_id);
 
     let box_symbol = test.resolve_to_symbol("test.ds", "Box").unwrap();
 
@@ -1563,7 +1865,7 @@ let value: Box<number> = makeBox();
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1598,18 +1900,19 @@ let buffer: Buffer<string> = makeBuffer();
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the type annotation
     let declarator_id = test.expect_first_let_declarator(module_id);
-    let declarator = tree.get(declarator_id);
+    let declarator = view.tree().get(declarator_id);
     let type_expression_id = declarator.ty.expect("expected type annotation");
 
     // resolve the instance
-    let instance_id = types
+    let instance_id = view
+        .types()
         .get_instance_for_node(type_expression_id.into_global_any(module_id))
         .expect("expected instance");
-    let instance = types.get_instance(instance_id);
+    let instance = view.types().get_instance(instance_id);
 
     let buffer_symbol = test.resolve_to_symbol("test.ds", "Buffer").unwrap();
 
@@ -1622,7 +1925,7 @@ let buffer: Buffer<string> = makeBuffer();
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::String)
@@ -1670,22 +1973,23 @@ let boxed: Box<Node> = value;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let profile = test.default_profile_id(module_id);
-    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
+    let profile = view.profile_id();
 
     // locate declarators by name
     let value_name = test.program.strings.intern("value");
     let boxed_name = test.program.strings.intern("boxed");
-    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
-    let boxed_declarator_id = expect_let_declarator_by_name(&roots, &tree, boxed_name);
+    let value_declarator_id = view.expect_let_declarator(value_name);
+    let boxed_declarator_id = view.expect_let_declarator(boxed_name);
 
     // inspect instance arguments for Use<Node>
-    let value_declarator = tree.get(value_declarator_id);
+    let value_declarator = view.tree().get(value_declarator_id);
     let value_type_expression_id = value_declarator.ty.expect("expected value type annotation");
-    let use_instance_id = types
+    let use_instance_id = view
+        .types()
         .get_instance_for_node(value_type_expression_id.into_global_any(module_id))
         .expect("expected Use instance");
-    let use_instance = types.get_instance(use_instance_id);
+    let use_instance = view.types().get_instance(use_instance_id);
     let use_symbol = test.resolve_to_symbol("test.ds", "Use").unwrap();
     let node_symbol = test.resolve_to_symbol("test.ds", "Node").unwrap();
 
@@ -1696,7 +2000,7 @@ let boxed: Box<Node> = value;
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::Reference {
                         symbol,
@@ -1713,10 +2017,12 @@ let boxed: Box<Node> = value;
     }
 
     // verify Use<Node> is assignable to Box<Node>
-    let value_type_id = types
+    let value_type_id = view
+        .types()
         .get_declared_type_id(value_declarator_id.into_global(module_id).into())
         .expect("expected value declared type");
-    let boxed_type_id = types
+    let boxed_type_id = view
+        .types()
         .get_declared_type_id(boxed_declarator_id.into_global(module_id).into())
         .expect("expected boxed declared type");
 
@@ -1724,6 +2030,8 @@ let boxed: Box<Node> = value;
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
     let assignable = test.compiler.is_type_assignable(
         &module,
         profile,
@@ -1759,22 +2067,23 @@ let number_value: number = value;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let profile = test.default_profile_id(module_id);
-    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
+    let profile = view.profile_id();
 
     // locate declarators by name
     let value_name = test.program.strings.intern("value");
     let number_value_name = test.program.strings.intern("number_value");
-    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
-    let number_declarator_id = expect_let_declarator_by_name(&roots, &tree, number_value_name);
+    let value_declarator_id = view.expect_let_declarator(value_name);
+    let number_declarator_id = view.expect_let_declarator(number_value_name);
 
     // inspect instance arguments for Pick<"foo">
-    let value_declarator = tree.get(value_declarator_id);
+    let value_declarator = view.tree().get(value_declarator_id);
     let value_type_expression_id = value_declarator.ty.expect("expected value type annotation");
-    let pick_instance_id = types
+    let pick_instance_id = view
+        .types()
         .get_instance_for_node(value_type_expression_id.into_global_any(module_id))
         .expect("expected Pick instance");
-    let pick_instance = types.get_instance(pick_instance_id);
+    let pick_instance = view.types().get_instance(pick_instance_id);
     let pick_symbol = test.resolve_to_symbol("test.ds", "Pick").unwrap();
     let foo_name = test.program.strings.intern("foo");
 
@@ -1788,7 +2097,7 @@ let number_value: number = value;
             }
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(name))
@@ -1803,10 +2112,12 @@ let number_value: number = value;
     }
 
     // verify Pick<"foo"> is assignable to number
-    let value_type_id = types
+    let value_type_id = view
+        .types()
         .get_declared_type_id(value_declarator_id.into_global(module_id).into())
         .expect("expected value declared type");
-    let number_type_id = types
+    let number_type_id = view
+        .types()
         .get_declared_type_id(number_declarator_id.into_global(module_id).into())
         .expect("expected number_value declared type");
 
@@ -1814,6 +2125,8 @@ let number_value: number = value;
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
     let assignable = test.compiler.is_type_assignable(
         &module,
         profile,
@@ -1845,25 +2158,29 @@ let ok: boolean = value;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let profile = test.default_profile_id(module_id);
-    let (roots, tree, symbols, mut types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
+    let profile = view.profile_id();
 
     // locate declarators by name
     let value_name = test.program.strings.intern("value");
     let ok_name = test.program.strings.intern("ok");
-    let value_declarator_id = expect_let_declarator_by_name(&roots, &tree, value_name);
-    let ok_declarator_id = expect_let_declarator_by_name(&roots, &tree, ok_name);
+    let value_declarator_id = view.expect_let_declarator(value_name);
+    let ok_declarator_id = view.expect_let_declarator(ok_name);
 
     // compare assignability using the module profile
-    let value_type_id = types
+    let value_type_id = view
+        .types()
         .get_declared_type_id(value_declarator_id.into_global(module_id).into())
         .expect("expected value declared type");
-    let ok_type_id = types
+    let ok_type_id = view
+        .types()
         .get_declared_type_id(ok_declarator_id.into_global(module_id).into())
         .expect("expected ok declared type");
     let module = test.program.modules.get(module_id);
     let module = module.read();
     let options = test.compiler.analyze_context_options_for_module(module.id);
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
     let assignable = test.compiler.is_type_assignable(
         &module,
         profile,
@@ -1898,18 +2215,19 @@ let result = getContainer().map<string>(1);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the initializer expression
     let declarator_id = test.expect_first_let_declarator(module_id);
-    let declarator = tree.get(declarator_id);
+    let declarator = view.tree().get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 
     // resolve the member instance
-    let instance_id = types
+    let instance_id = view
+        .types()
         .get_instance_for_node(value_id.into_global_any(module_id))
         .expect("expected instance");
-    let instance = types.get_instance(instance_id);
+    let instance = view.types().get_instance(instance_id);
 
     // resolve the member symbol
     let map_name = test.program.strings.intern("map");
@@ -1925,7 +2243,7 @@ let result = getContainer().map<string>(1);
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -1942,7 +2260,7 @@ let result = getContainer().map<string>(1);
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::String)
@@ -1978,18 +2296,19 @@ mapper(1);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the member expression initializer
     let declarator_id = test.expect_first_let_declarator(module_id);
-    let declarator = tree.get(declarator_id);
+    let declarator = view.tree().get(declarator_id);
     let value_id = declarator.value.expect("expected initializer value");
 
     // resolve the member instance
-    let instance_id = types
+    let instance_id = view
+        .types()
         .get_instance_for_node(value_id.into_global_any(module_id))
         .expect("expected instance");
-    let instance = types.get_instance(instance_id);
+    let instance = view.types().get_instance(instance_id);
 
     // resolve the member symbol
     let map_name = test.program.strings.intern("map");
@@ -2005,7 +2324,7 @@ mapper(1);
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::Number)
@@ -2022,7 +2341,7 @@ mapper(1);
         StaticArgument::Evaluated { value, .. } => match value {
             StaticExpression::Type { ty } => {
                 assert_type!(
-                    types,
+                    view.types(),
                     *ty,
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::String)
@@ -2058,17 +2377,18 @@ let result = wrap(1);
     let result_symbol = test.resolve_to_symbol("test.ds", "result").unwrap();
 
     // load typed module data
-    let types = load_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve the result type
-    let result_ty_id = types
+    let result_ty_id = view
+        .types()
         .get_value_type_id(result_symbol)
         .expect("expected result type");
     let box_symbol = test.resolve_to_symbol("test.ds", "Box").unwrap();
 
     // result type is Box with a literal type argument
     assert_type!(
-        types,
+        view.types(),
         result_ty_id,
         Type::Reference {
             symbol,
@@ -2086,7 +2406,7 @@ let result = wrap(1);
                 StaticArgument::Evaluated { value, .. } => match value {
                     StaticExpression::Type { ty } => {
                         assert_type!(
-                            types,
+                            view.types(),
                             *ty,
                             Type::TypeLiteral {
                                 value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(1))
@@ -2117,37 +2437,37 @@ const add: (a: number, b: number) => number = (a, b) => a + b;
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
-    let let_expression = tree.get(expression_id);
+    let expression_id = view.root_expression_id(0);
+    let let_expression = view.tree().get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
     };
     let declarator_id = declarators.first().unwrap();
-    let declarator = tree.get(*declarator_id);
+    let declarator = view.tree().get(*declarator_id);
     let value_id = declarator.value.expect("expected function value");
-    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
+    let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // contextual annotation yields number, number to number
-    assert_type!(types, value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), value_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
         // two parameters inherited from annotation
         assert_eq!(dynamic_parameters.len(), 2);
 
         // first parameter is number
-        assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // second parameter is number
-        assert_type!(types, dynamic_parameters[1], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[1], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // return type is number
         let return_type = return_type.expect("expected return type");
-        assert_type!(types, return_type, Type::TypeLiteral {
+        assert_type!(view.types(), return_type, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });
@@ -2172,11 +2492,11 @@ apply((a) => a + 1);
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the call expression
-    let call_expression_id = root_expression_id(&roots, &tree, 1);
-    let call_expression = tree.get(call_expression_id);
+    let call_expression_id = view.root_expression_id(1);
+    let call_expression = view.tree().get(call_expression_id);
     let Expression::Call {
         dynamic_arguments, ..
     } = call_expression
@@ -2186,23 +2506,23 @@ apply((a) => a + 1);
 
     // resolve the argument type
     let argument_id = dynamic_arguments.first().expect("expected argument");
-    let argument = tree.get(*argument_id);
+    let argument = view.tree().get(*argument_id);
     let argument_value_id = argument.value();
-    let argument_ty_id = expect_inferred_type_id(&types, module_id, argument_value_id);
+    let argument_ty_id = view.expect_inferred_type_id(argument_value_id);
 
     // contextual argument yields number to number function type
-    assert_type!(types, argument_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
+    assert_type!(view.types(), argument_ty_id, Type::Function { dynamic_parameters, return_type, .. } => {
         // one parameter inherited from argument context
         assert_eq!(dynamic_parameters.len(), 1);
 
         // parameter is number
-        assert_type!(types, dynamic_parameters[0], Type::TypeLiteral {
+        assert_type!(view.types(), dynamic_parameters[0], Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
 
         // return type is number
         let return_type = return_type.expect("expected return type");
-        assert_type!(types, return_type, Type::TypeLiteral {
+        assert_type!(view.types(), return_type, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });
@@ -2224,22 +2544,22 @@ const numbers: number[] = [1, 2];
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (roots, tree, types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // select the root expression
-    let expression_id = root_expression_id(&roots, &tree, 0);
-    let let_expression = tree.get(expression_id);
+    let expression_id = view.root_expression_id(0);
+    let let_expression = view.tree().get(expression_id);
     let Expression::Let { declarators, .. } = let_expression else {
         panic!("expected let expression");
     };
     let declarator_id = declarators.first().unwrap();
-    let declarator = tree.get(*declarator_id);
+    let declarator = view.tree().get(*declarator_id);
     let value_id = declarator.value.expect("expected array value");
-    let value_ty_id = expect_inferred_type_id(&types, module_id, value_id);
+    let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // array element type is number from number[] context
-    assert_type!(types, value_ty_id, Type::Array { element: Some(element_id) } => {
-        assert_type!(types, *element_id, Type::TypeLiteral {
+    assert_type!(view.types(), value_ty_id, Type::Array { element: Some(element_id) } => {
+        assert_type!(view.types(), *element_id, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });
     });
@@ -2255,32 +2575,33 @@ fn test_analyze_type_mapped_parameter_scope() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve the mapped type symbol
     let map_symbol = test
         .resolve_to_symbol("test.ds", "Map")
         .expect("expected Map symbol");
-    let map_instance_id = types
+    let map_instance_id = view
+        .types()
         .get_instance_type_id(map_symbol)
         .expect("expected Map instance type");
 
-    assert_type!(types, map_instance_id, Type::Mapped { parameter, value, .. } => {
+    assert_type!(view.types(), map_instance_id, Type::Mapped { parameter, value, .. } => {
         assert_string!(test.program, parameter.name, "K");
-        assert_type!(types, parameter.constraint, Type::Unary { operator: TypeUnaryOperator::Keyof, right } => {
-            assert_type!(types, *right, Type::Reference { symbol, static_arguments } => {
+        assert_type!(view.types(), parameter.constraint, Type::Unary { operator: TypeUnaryOperator::Keyof, right } => {
+            assert_type!(view.types(), *right, Type::Reference { symbol, static_arguments } => {
                 assert!(static_arguments.is_none());
-                let symbol = symbols.get_symbol(symbol.into_local());
+                let symbol = view.symbols().get_symbol(symbol.into_local());
                 assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
             });
         });
-        assert_type!(types, *value, Type::Index { left, index } => {
-            assert_type!(types, *left, Type::Reference { symbol, .. } => {
-                let symbol = symbols.get_symbol(symbol.into_local());
+        assert_type!(view.types(), *value, Type::Index { left, index } => {
+            assert_type!(view.types(), *left, Type::Reference { symbol, .. } => {
+                let symbol = view.symbols().get_symbol(symbol.into_local());
                 assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
             });
-            assert_type!(types, *index, Type::Reference { symbol, .. } => {
-                let symbol = symbols.get_symbol(symbol.into_local());
+            assert_type!(view.types(), *index, Type::Reference { symbol, .. } => {
+                let symbol = view.symbols().get_symbol(symbol.into_local());
                 assert_eq!(symbol.kind, SymbolKind::Local);
                 assert_string!(test.program, symbol.name().expect("expected symbol name"), "K");
             });
@@ -2298,31 +2619,32 @@ fn test_analyze_type_infer_scope() {
     test.analyze_module_and_check_clean(module_id);
 
     // load typed module data
-    let (_roots, _tree, symbols, types) = load_tree_symbols_types(&test, module_id);
+    let view = test.view(module_id);
 
     // resolve the conditional type symbol
     let foo_symbol = test
         .resolve_to_symbol("test.ds", "Foo")
         .expect("expected Foo symbol");
-    let foo_instance_id = types
+    let foo_instance_id = view
+        .types()
         .get_instance_type_id(foo_symbol)
         .expect("expected Foo instance type");
 
-    assert_type!(types, foo_instance_id, Type::Conditional { left, right, then_type, else_type } => {
-        assert_type!(types, *left, Type::Reference { symbol, .. } => {
-            let symbol = symbols.get_symbol(symbol.into_local());
+    assert_type!(view.types(), foo_instance_id, Type::Conditional { left, right, then_type, else_type } => {
+        assert_type!(view.types(), *left, Type::Reference { symbol, .. } => {
+            let symbol = view.symbols().get_symbol(symbol.into_local());
             assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");
         });
-        assert_type!(types, *right, Type::Infer { name, constraint } => {
+        assert_type!(view.types(), *right, Type::Infer { name, constraint } => {
             assert_string!(test.program, *name, "U");
             assert!(constraint.is_none());
         });
-        assert_type!(types, *then_type, Type::Reference { symbol, .. } => {
-            let symbol = symbols.get_symbol(symbol.into_local());
+        assert_type!(view.types(), *then_type, Type::Reference { symbol, .. } => {
+            let symbol = view.symbols().get_symbol(symbol.into_local());
             assert_eq!(symbol.kind, SymbolKind::Local);
             assert_string!(test.program, symbol.name().expect("expected symbol name"), "U");
         });
-        assert_type!(types, *else_type, Type::TypeLiteral { value: TypeLiteral::Never });
+        assert_type!(view.types(), *else_type, Type::TypeLiteral { value: TypeLiteral::Never });
     });
 }
 
@@ -2340,14 +2662,15 @@ fn test_build_flow_graph_if_expression() {
     test.analyze_module_and_check_clean(module_id);
 
     // load tree data
-    let (roots, tree, _types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the if expression
-    let if_expression_id = roots
+    let if_expression_id = view
+        .roots()
         .iter()
-        .find_map(|root_id| match tree.get(*root_id) {
+        .find_map(|root_id| match view.tree().get(*root_id) {
             Expression::If { .. } => Some(*root_id),
-            Expression::Statement { statement } => match tree.get(*statement) {
+            Expression::Statement { statement } => match view.tree().get(*statement) {
                 Expression::If { .. } => Some(*statement),
                 _ => None,
             },
@@ -2356,7 +2679,7 @@ fn test_build_flow_graph_if_expression() {
         .expect("expected if expression");
 
     // build the flow graph
-    let graph = FlowGraphBuilder::new(module_id, &tree).build(if_expression_id);
+    let graph = FlowGraphBuilder::new(module_id, view.tree()).build(if_expression_id);
 
     let mut has_true_edge = false;
     let mut has_false_edge = false;
@@ -2532,20 +2855,21 @@ fn test_build_flow_graph_for_loop() {
     test.analyze_module_and_check_clean(module_id);
 
     // load tree data
-    let (roots, tree, _types) = load_tree_types(&test, module_id);
+    let view = test.view(module_id);
 
     // locate the first function body
-    let function_body_id = roots
+    let function_body_id = view
+        .roots()
         .iter()
-        .find_map(|root_id| match tree.get(*root_id) {
-            Expression::Declaration { declaration } => match tree.get(*declaration) {
+        .find_map(|root_id| match view.tree().get(*root_id) {
+            Expression::Declaration { declaration } => match view.tree().get(*declaration) {
                 Declaration::Function {
                     body: Some(body), ..
                 } => Some(*body),
                 _ => None,
             },
-            Expression::Statement { statement } => match tree.get(*statement) {
-                Expression::Declaration { declaration } => match tree.get(*declaration) {
+            Expression::Statement { statement } => match view.tree().get(*statement) {
+                Expression::Declaration { declaration } => match view.tree().get(*declaration) {
                     Declaration::Function {
                         body: Some(body), ..
                     } => Some(*body),
@@ -2558,7 +2882,7 @@ fn test_build_flow_graph_for_loop() {
         .expect("expected function body");
 
     // build the flow graph
-    let graph = FlowGraphBuilder::new(module_id, &tree).build(function_body_id);
+    let graph = FlowGraphBuilder::new(module_id, view.tree()).build(function_body_id);
 
     let mut has_true_edge = false;
     let mut has_false_edge = false;
@@ -2580,4 +2904,100 @@ fn test_build_flow_graph_for_loop() {
     assert!(has_true_edge);
     assert!(has_false_edge);
     assert!(has_back_edge);
+}
+
+/// Enum field values should be inferred as nominal enum types.
+#[test]
+fn test_analyze_enum_field_nominal_type() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.analyze_module_with_source(
+        "test.ds",
+        r#"
+enum Status {
+    Active = 1
+}
+
+const status = Status.Active;
+"#,
+    );
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // confirm the initializer is a member expression
+    let status_name = test.program.strings.intern("status");
+    let status_symbol = view.expect_binding_symbol(status_name);
+    let value_id = view.expect_initializer(status_name);
+    let (left_id, member_name) = view.expect_member_expression(value_id);
+    let _left_symbol = view.expect_reference_symbol(left_id);
+    let active_name = test.program.strings.intern("Active");
+    assert_eq!(member_name, active_name);
+
+    // resolve the enum value type
+    let enum_symbol = test.canonical_symbol_for_path("test.ds", "Status");
+    let enum_module = test.module("test.ds");
+    let enum_module = enum_module.read();
+
+    // confirm the binding value type is the nominal enum reference
+    let status_symbol = test.compiler.canonical_symbol_id(
+        &enum_module,
+        view.symbols(),
+        view.profile_id(),
+        status_symbol,
+    );
+    let status_ty_id = view.expect_value_type_id(status_symbol);
+    assert_type!(
+        view.types(),
+        status_ty_id,
+        Type::Reference {
+            symbol,
+            static_arguments
+        } => {
+            assert_eq!(*symbol, enum_symbol);
+            assert!(static_arguments.is_none());
+        }
+    );
+    let enum_value_ty_id = view.expect_value_type_id(enum_symbol);
+
+    // collect the Active field type from the enum value object
+    let object_fields = view.object_fields_for_type(enum_value_ty_id);
+    let active_key = StaticKey::Name(test.program.strings.intern("Active"));
+    let active_field = object_fields
+        .iter()
+        .find(|field| field.key.matches(&active_key))
+        .expect("expected Active field");
+    assert_type!(
+        view.types(),
+        active_field.ty,
+        Type::Reference {
+            symbol,
+            static_arguments
+        } => {
+            assert_eq!(*symbol, enum_symbol);
+            assert!(static_arguments.is_none());
+        }
+    );
+    let active_field_ty = active_field.ty;
+
+    // confirm enums are not implicitly assignable to their backing type
+    let options = test.compiler.analyze_context_options_for_module(module_id);
+    let symbols = view.symbols().clone();
+    let mut types = view.types().clone();
+    let int32_ty_id = types.insert_type_from_any(
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Int32)),
+        },
+        value_id.into_any(),
+    );
+    let assignable = test.compiler.is_type_assignable(
+        &enum_module,
+        view.profile_id(),
+        &symbols,
+        int32_ty_id,
+        active_field_ty,
+        &mut types,
+        &options,
+    );
+    assert!(!assignable.is_assignable());
 }

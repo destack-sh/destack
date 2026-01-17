@@ -136,6 +136,27 @@ impl Compiler {
         let target = types.get_type(target_id).clone();
         let source = types.get_type(source_id).clone();
 
+        // prevent implicit enum backing coercions
+        if self.enum_symbol_for_type(&source, types).is_some()
+            && matches!(
+                target,
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(
+                        PrimitiveType::Number
+                            | PrimitiveType::Int(_)
+                            | PrimitiveType::Float(_)
+                            | PrimitiveType::String
+                    )
+                } | Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(
+                        ScalarLiteral::Integer(_) | ScalarLiteral::String(_)
+                    )
+                }
+            )
+        {
+            return Assignability::NotAssignable;
+        }
+
         // normalize conditional types that can be resolved in flow mode
         if matches!(target, Type::Conditional { .. }) {
             let normalized_target = self.normalize_type(

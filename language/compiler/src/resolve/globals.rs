@@ -314,15 +314,34 @@ impl Compiler {
             return Ok((target_id, target.clone()));
         }
 
-        // fall back to the first declared target
-        let Some((target_id, target)) = package.targets.iter().next() else {
+        // reject packages with no targets configured
+        if package.targets.is_empty() {
             return Err(ResolveError::InvalidTargetConfig {
                 package: package_id,
                 target: TargetId::new(package_id, "default"),
                 message: "package has no targets".to_string(),
             });
-        };
-        Ok((target_id.clone(), target.clone()))
+        }
+
+        // select the only configured target when there is exactly one
+        if package.targets.len() == 1 {
+            let (target_id, target) = package.targets.iter().next().expect("checked len");
+            return Ok((target_id.clone(), target.clone()));
+        }
+
+        // require an explicit default target when multiple targets exist
+        let mut target_names: Vec<String> = package
+            .targets
+            .keys()
+            .map(|target_id| target_id.name.clone())
+            .collect();
+        target_names.sort();
+        let available = target_names.join(", ");
+        Err(ResolveError::InvalidTargetConfig {
+            package: package_id,
+            target: TargetId::new(package_id, "default"),
+            message: format!("default target not specified; available targets: {available}"),
+        })
     }
 
     /// Map a target discovery issue into a resolve error.

@@ -1,4 +1,4 @@
-use destack_dir::{GlobalSymbolId, LocalTypeId, Type, TypeLiteral, TypeTable};
+use destack_dir::{GlobalSymbolId, LocalTypeId, SymbolType, Type, TypeLiteral, TypeTable};
 
 use crate::Compiler;
 
@@ -22,6 +22,26 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Resolve an enum symbol from a type when possible.
+    pub(crate) fn enum_symbol_for_type(
+        &self,
+        ty: &Type,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        match ty {
+            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Enum => Some(*symbol),
+            Type::Value { value } => {
+                let inner = types.get_type(*value);
+                self.enum_symbol_for_type(inner, types)
+            }
+            Type::Intersection { elements } => elements.iter().find_map(|element_id| {
+                let element_ty = types.get_type(*element_id);
+                self.enum_symbol_for_type(element_ty, types)
+            }),
+            _ => None,
+        }
     }
 
     /// Build a union type from two type ids.

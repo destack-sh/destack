@@ -700,6 +700,16 @@ impl DsConfigCompilerOptions {
         // strict TypeScript checks are required for native targets
         self.apply_strict_defaults();
 
+        // enforce soundness defaults for native targets
+        self.no_any = true;
+        self.no_unknown = true;
+        self.no_imprecise_primitives = true;
+        self.no_implicit_conversions = true;
+        self.no_unsafe_type_assertions = true;
+        self.no_implicit_managed = true;
+        self.no_managed = true;
+        self.borrow_mode = BorrowMode::Strict;
+
         // disable runtime features that native backends cannot support
         self.no_dynamic_evaluation = true;
         self.no_dynamic_import = true;

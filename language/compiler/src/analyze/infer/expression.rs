@@ -8,13 +8,13 @@ use crate::{
     FlowContext, InferContext,
 };
 use destack_dir::{
-    Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration,
+    Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration, Declarator,
     DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionKind,
     GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability, NodeTree, NodeType,
-    Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey, StringId,
-    SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind,
-    TypeLiteral, TypeTable,
+    LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability,
+    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey,
+    StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
+    TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -36,9 +36,141 @@ impl ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve a declared type for a direct binding symbol.
-    /// Direct bindings are pattern bindings without nested patterns and not pattern fields.
-    fn declared_type_for_direct_binding_symbol(
+    /// Resolve a direct binding declarator for a symbol.
+    fn direct_binding_declarator_for_symbol(
+        &self,
+        module: &Module,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<LocalNodeId<Declarator>> {
+        // only local bindings can use local declaration data
+        if symbol.module_id != module.id {
+            return None;
+        }
+
+        // read the primary declaration for the symbol
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let primary_declaration = symbol_entry.primary_declaration?;
+
+        // ensure the declaration is local to the module
+        if primary_declaration.module_id != module.id {
+            return None;
+        }
+
+        // require a direct binding for the primary declaration
+        if !self.primary_declaration_is_direct_binding(
+            primary_declaration.local_id,
+            symbol.local_id,
+            tree,
+        ) {
+            return None;
+        }
+
+        // walk up to find the declarator containing the binding
+        if let Some(declarator_id) =
+            self.declarator_parent_for_node(primary_declaration.local_id, tree)
+        {
+            return Some(declarator_id);
+        }
+
+        // scan let or using expressions for a matching direct binding
+        self.direct_binding_declarator_in_expression(
+            primary_declaration.local_id,
+            symbol.local_id,
+            tree,
+        )
+    }
+
+    /// Return true when the primary declaration is a direct binding.
+    fn primary_declaration_is_direct_binding(
+        &self,
+        declaration_id: LocalNodeIdAny,
+        symbol: LocalSymbolId,
+        tree: &NodeTree,
+    ) -> bool {
+        // accept direct binding patterns with no destructuring
+        if declaration_id.ty == NodeType::Pattern {
+            let pattern_id = declaration_id.into_typed::<Pattern>();
+            let Pattern::Binding {
+                symbol: binding_symbol,
+                pattern,
+                ..
+            } = tree.get(pattern_id)
+            else {
+                return false;
+            };
+
+            return *binding_symbol == symbol && pattern.is_none();
+        }
+
+        // reject pattern fields because they are not primary bindings
+        if declaration_id.ty == NodeType::PatternField {
+            return false;
+        }
+
+        true
+    }
+
+    /// Walk up the tree to find an enclosing declarator.
+    fn declarator_parent_for_node(
+        &self,
+        node_id: LocalNodeIdAny,
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<Declarator>> {
+        // climb parents until a declarator is found
+        let mut current = node_id;
+        loop {
+            if current.ty == NodeType::Declarator {
+                return Some(current.into_typed());
+            }
+            let parent = tree.get_parent(current.id)?;
+            current = parent;
+        }
+    }
+
+    /// Find a direct binding declarator inside a let or using expression.
+    fn direct_binding_declarator_in_expression(
+        &self,
+        declaration_id: LocalNodeIdAny,
+        symbol: LocalSymbolId,
+        tree: &NodeTree,
+    ) -> Option<LocalNodeId<Declarator>> {
+        // only expressions can contain declarator lists
+        if declaration_id.ty != NodeType::Expression {
+            return None;
+        }
+
+        // select declarator lists from let and using expressions
+        let expression_id = declaration_id.into_typed::<Expression>();
+        let declarators = match tree.get(expression_id) {
+            Expression::Let { declarators, .. } => declarators.as_slice(),
+            Expression::Using { declarators, .. } => declarators.as_slice(),
+            _ => return None,
+        };
+
+        // find a matching direct binding declarator
+        for declarator_id in declarators {
+            let declarator = tree.get(*declarator_id);
+            let Pattern::Binding {
+                symbol: binding_symbol,
+                pattern,
+                ..
+            } = tree.get(declarator.pattern)
+            else {
+                continue;
+            };
+
+            if *binding_symbol == symbol && pattern.is_none() {
+                return Some(*declarator_id);
+            }
+        }
+
+        None
+    }
+
+    /// Infer a direct binding value type when none is cached yet.
+    fn infer_direct_binding_value_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -46,65 +178,66 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &InferContext,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // only local bindings can use local declaration data
-        if symbol.module_id != module.id {
+        // only infer local bindings without cached value types
+        if symbol.module_id != module.id || types.get_value_type_id(symbol).is_some() {
             return Ok(None);
         }
 
-        // read the primary declaration for the symbol
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+        // resolve the declarator for the binding
+        let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(module, symbol, tree, symbols)
+        else {
             return Ok(None);
         };
 
-        // ensure the declaration is local to the module
-        if primary_declaration.module_id != module.id {
+        // reuse declared types when present
+        let declared_ty_id = types.get_declared_type_id(declarator_id.into_global_any(module.id));
+        if let Some(declared_ty_id) = declared_ty_id {
+            self.evaluate_type(module, profile, declared_ty_id, tree, symbols, types)?;
+            types.set_value_type(symbol, declared_ty_id);
+            return Ok(Some(declared_ty_id));
+        }
+
+        // infer from the initializer when available
+        let declarator = tree.get(declarator_id);
+        let Some(value_id) = declarator.value else {
             return Ok(None);
-        }
+        };
 
-        // only treat direct binding patterns as eligible for declared type reuse
-        if primary_declaration.local_id.ty == NodeType::Pattern {
-            let pattern_id = primary_declaration.into_local_typed();
-            let Pattern::Binding {
-                symbol: binding_symbol,
-                pattern,
-                ..
-            } = tree.get(pattern_id)
-            else {
-                return Ok(None);
-            };
+        // seed a placeholder to avoid recursion through self references
+        let scope = InferScope {
+            owner: symbol,
+            function_id: ctx
+                .in_function
+                .map(|function_id| function_id.into_global(module.id)),
+        };
+        let placeholder_ty_id = self.infer_var_type_for_symbol(
+            infer,
+            types,
+            symbol,
+            value_id.into_any(),
+            InferOrigin::Expression(value_id.into_global_any(module.id)),
+            scope,
+        );
+        types.set_value_type(symbol, placeholder_ty_id);
 
-            // confirm the binding symbol matches
-            if *binding_symbol != symbol.local_id {
-                return Ok(None);
-            }
+        // infer the initializer with the placeholder installed
+        let mut value_ctx = ctx.fork();
+        let inferred_ty_id = self.infer_expression(
+            module,
+            value_id,
+            tree,
+            symbols,
+            types,
+            infer,
+            &mut value_ctx,
+        )?;
+        types.set_value_type(symbol, inferred_ty_id);
 
-            // skip bindings with nested patterns
-            if pattern.is_some() {
-                return Ok(None);
-            }
-        } else if primary_declaration.local_id.ty == NodeType::PatternField {
-            // skip pattern fields, these are not primary bindings
-            return Ok(None);
-        }
-
-        // walk up to a declarator to read the declared type
-        let mut current = primary_declaration.local_id;
-        while let Some(parent) = tree.get_parent(current.id) {
-            if parent.ty == NodeType::Declarator {
-                let declared_ty_id = types.get_declared_type_id(parent.into_global(module.id));
-                let Some(declared_ty_id) = declared_ty_id else {
-                    return Ok(None);
-                };
-                self.evaluate_type(module, profile, declared_ty_id, tree, symbols, types)?;
-                return Ok(Some(declared_ty_id));
-            }
-
-            current = parent;
-        }
-
-        Ok(None)
+        Ok(Some(inferred_ty_id))
     }
 
     /// Infer an (expression) body with flow aware typing.
@@ -2279,16 +2412,17 @@ impl Compiler {
             narrowed_ty_id
         } else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
-        } else if let Some(declared_ty_id) = self.declared_type_for_direct_binding_symbol(
+        } else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
             module,
             ctx.profile,
             canonical_symbol,
             tree,
             symbols,
             types,
+            infer,
+            ctx,
         )? {
-            types.set_value_type(canonical_symbol, declared_ty_id);
-            declared_ty_id
+            inferred_ty_id
         } else if canonical_symbol.module_id != module.id {
             self.resolve_remote_symbol_value_type(
                 module,
@@ -3203,17 +3337,18 @@ impl Compiler {
         else if let Some(value_ty_id) = types.get_value_type_id(canonical_symbol) {
             value_ty_id
         }
-        // try to recover declared types for local bindings
-        else if let Some(declared_ty_id) = self.declared_type_for_direct_binding_symbol(
+        // infer value types for direct bindings when missing
+        else if let Some(inferred_ty_id) = self.infer_direct_binding_value_type(
             module,
             ctx.profile,
             canonical_symbol,
             tree,
             symbols,
             types,
+            infer,
+            ctx,
         )? {
-            types.set_value_type(canonical_symbol, declared_ty_id);
-            declared_ty_id
+            inferred_ty_id
         }
         // import remote symbol types as needed
         else if canonical_symbol.module_id != module.id {

@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_ast as ast;
 use destack_dir::{
     Asynchrony, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
-    FunctionSignature, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, TypeTable,
+    FunctionSignature, Generics, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeTree,
+    SymbolSpace, SymbolSpaceOrder, SymbolTable, TypeTable,
 };
 use destack_workspace::{Module, ModuleAst};
 
@@ -82,15 +82,40 @@ impl Compiler {
         let cardinality = self.bind_function_cardinality(signature.cardinality);
         let mode = signature.mode.map(|mode| self.bind_function_mode(mode));
         let kind = self.bind_function_kind(signature.kind);
-        let generics = signature.generics.as_ref().map(|generics| {
-            self.bind_generics(
-                module, ast, scope, generics, parent_id, tree, symbols, types,
-            )
-        });
+
+        // bind static parameters and defer where clauses until parameters are in scope
+        let mut static_parameters = None;
+        let mut where_clauses = None;
+        let mut ast_where_clauses = None;
+        if let Some(generics) = signature.generics.as_ref() {
+            static_parameters = generics
+                .static_parameters
+                .as_ref()
+                .map(|static_parameters| {
+                    static_parameters
+                        .iter()
+                        .map(|static_parameter| {
+                            self.bind_parameter(
+                                module,
+                                ast,
+                                scope,
+                                SymbolSpace::Type,
+                                *static_parameter,
+                                parent_id,
+                                tree,
+                                symbols,
+                                types,
+                            )
+                        })
+                        .collect()
+                });
+            ast_where_clauses = generics.where_clauses.as_ref();
+        }
 
         // refresh scope mark so static parameters are visible to later bindings
         let scope = (scope.0, symbols.get_scope_mark(scope.0));
 
+        // bind this and dynamic parameters
         let this_parameter = signature.this_parameter.map(|this_parameter| {
             self.bind_parameter(
                 module,
@@ -121,7 +146,11 @@ impl Compiler {
                 )
             })
             .collect();
+
+        // refresh scope mark so parameters are visible to return types and where clauses
         let scope = (scope.0, symbols.get_scope_mark(scope.0));
+
+        // bind the return type
         let return_type = signature.return_type.map(|return_type| {
             self.bind_expression(
                 module,
@@ -135,6 +164,37 @@ impl Compiler {
                 SymbolSpaceOrder::TypeThenValue,
             )
         });
+
+        // bind where clauses with parameter scope
+        if let Some(ast_where_clauses) = ast_where_clauses {
+            where_clauses = Some(
+                ast_where_clauses
+                    .iter()
+                    .map(|where_clause| {
+                        self.bind_where_clause(
+                            module,
+                            ast,
+                            scope,
+                            *where_clause,
+                            parent_id,
+                            tree,
+                            symbols,
+                            types,
+                        )
+                    })
+                    .collect(),
+            );
+        }
+
+        // assemble the generics payload once the where clauses are bound
+        let generics = if static_parameters.is_some() || where_clauses.is_some() {
+            Some(Generics {
+                static_parameters,
+                where_clauses,
+            })
+        } else {
+            None
+        };
         FunctionSignature {
             abstraction,
             asynchrony,
