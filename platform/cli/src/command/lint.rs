@@ -3,7 +3,7 @@ use clap::Args;
 use super::check::{self, Format, Progress};
 use crate::common::{
     CommandReport, DiagnosticArgs, InputArgs, ListEntry, ListPrinter, ListSpacing, ProgramArgs,
-    ReportArgs, ensure_no_watch_or_dev, list_payload, print_list_with, print_report,
+    ReportArgs, list_payload, print_list_with, print_report, report_error,
 };
 
 /// Arguments for the lint command.
@@ -69,11 +69,14 @@ pub struct LintArgs {
 /// Lint source files for style and correctness issues.
 /// This is an alias for `check` with linting enabled.
 pub fn run(args: &LintArgs) -> i32 {
-    if let Some(code) = ensure_no_watch_or_dev("lint", &args.program, &args.report) {
-        return code;
-    }
-
     if args.list_rules {
+        if args.program.watch {
+            return report_error(
+                "lint",
+                &args.report,
+                "--watch is not supported with --list-rules",
+            );
+        }
         return list_rules(args);
     }
 

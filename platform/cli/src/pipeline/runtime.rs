@@ -62,10 +62,12 @@ pub fn create_isolate(
     target_id: &TargetId,
     options: IsolateOptions,
 ) -> Result<Isolate, String> {
-    // pull the lowered mir from the module
+    // resolve lowered mir for the target
     let module = program.modules.get(module_id);
     let module = module.read();
-    let mir = module.mir(target_id);
+    let mir = module
+        .mir_maybe(target_id)
+        .ok_or_else(|| format!("missing MIR for target {target_id:?} (run requires lowering)"))?;
     let tree = mir.tree.read().clone();
     let strings = mir.strings.clone().into_immutable();
 

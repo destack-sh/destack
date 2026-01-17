@@ -1,8 +1,6 @@
 use clap::Args;
 
-use crate::common::{
-    CommandError, CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report,
-};
+use crate::common::{CommandError, CommandReport, ProgramArgs, ReportArgs, print_report};
 use crate::console;
 
 /// Arguments for the test command.
@@ -19,10 +17,6 @@ pub struct TestArgs {
 
 /// Run tests.
 pub fn run(args: &TestArgs) -> i32 {
-    if let Some(code) = ensure_no_watch_or_dev("test", &args.program, &args.report) {
-        return code;
-    }
-
     // emit json placeholder when requested
     if args.report.is_json() {
         let message = "test runner is not implemented yet";
