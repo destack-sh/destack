@@ -1,6 +1,7 @@
 # Descriptors
 
-> NOTE #Incomplete: implement/mdtest Type<T> descriptors
+> NOTE #Incomplete: runtime descriptor data is not fully wired up yet.
+> Basic mdtests cover type-as-value and `typeOf`.
 
 Runtime type information via `Type<T>`.
 

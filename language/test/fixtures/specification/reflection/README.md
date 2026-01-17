@@ -1,6 +1,7 @@
 # Reflection
 
-> NOTE #Incomplete: implement/mdtest runtime reflection
+> NOTE #Incomplete: runtime reflection coverage is partial.
+> Descriptor basics are covered under `descriptors/basic.md`.
 
 Types as first-class runtime values.
 

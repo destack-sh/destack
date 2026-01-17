@@ -226,3 +226,52 @@ interface Person {
 const person: Person = { name: "Ada" }
 person satisfies Named;
 ```
+
+## nominal interfaces
+
+### nominal interface requires explicit implements
+
+> Nominal interfaces are not satisfied structurally.
+
+```ds
+newtype interface Add<T> {
+    add(other: T): T
+}
+
+struct Vec2 {
+    x: float32
+    y: float32
+
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
+```
+
+- contains: not assignable
+
+### nominal interface accepts explicit implements
+
+> Nominal interfaces require an explicit implements clause.
+
+```ds
+newtype interface Add<T> {
+    add(other: T): T
+}
+
+struct Vec2 {
+    x: float32
+    y: float32
+}
+
+extension for Vec2 implements Add<Vec2> {
+    add(other: Vec2): Vec2 {
+        Vec2 { x: this.x + other.x, y: this.y + other.y }
+    }
+}
+
+const value: Add<Vec2> = Vec2 { x: 1, y: 2 };
+value.add(Vec2 { x: 2, y: 3 }) satisfies Vec2;
+```
