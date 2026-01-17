@@ -1,32 +1,9 @@
-# Loop Expression
+# Loop Expressions
 
-> NOTE #Incomplete: implement/mdtest loop expression
+Loop expressions evaluate to `void`.
 
-Infinite loop construct.
+## Files
 
-## Coverage
-
-- **Infinite loop**: `loop { ... }`
-- **Break**: Exit with `break`
-- **Break with value**: `break value` (loop as expression)
-- **Labeled loops**: `outer: loop { break outer }`
-
-## Example
-
-```ds
-loop {
-    const input = readInput();
-    if (input == "quit") {
-        break;
-    }
-    process(input);
-}
-
-// loop as expression
-const result = loop {
-    const value = compute();
-    if (value > threshold) {
-        break value;
-    }
-};
-```
+- `loop.md`: Loop expressions and labeled breaks
+- `while.md`: While expressions
+- `for.md`: For expressions

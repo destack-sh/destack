@@ -1,0 +1,38 @@
+# Tree Literals
+
+Tree literals use TSX syntax.
+
+## basic trees
+
+### tree literal is allowed
+
+> Tree literals are valid expressions.
+
+```ds
+declare const A: unknown;
+
+let node = <A/>;
+node;
+```
+
+### tree literal accepts attributes
+
+> Tree literals accept attribute arguments.
+
+```ds
+declare const A: unknown;
+
+let node = <A value={1} />;
+node;
+```
+
+### tree literal accepts children
+
+> Tree literals accept child expressions.
+
+```ds
+declare const A: unknown;
+
+let node = <A>{1}</A>;
+node;
+```

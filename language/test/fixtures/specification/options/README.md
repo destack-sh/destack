@@ -9,3 +9,4 @@ This directory groups option tests by behavior.
 - `lints.md`: Unused bindings and control flow diagnostics.
 - `types.md`: Type-safety and assertion restrictions.
 - `runtime.md`: Dynamic runtime feature restrictions.
+- `targets.md`: Target-specific defaults and restrictions.

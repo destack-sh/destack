@@ -1,7 +1,5 @@
 # Iterators
 
-> NOTE #Incomplete: mdtest iterators and for-of
-
 Iteration protocols and constructs.
 
 ## Coverage
@@ -14,4 +12,5 @@ Iteration protocols and constructs.
 
 ## Fixtures
 
+- `basic.md`
 - `strict-return.md`

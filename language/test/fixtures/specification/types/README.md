@@ -1,14 +1,14 @@
 # Types
 
 Type system extensions beyond standard TypeScript.
-
-Destack extends TypeScript's type system with precise primitives, nominal types,
-and readable constraints.
+Destack extends TypeScript's type system with precise primitives, nominal types, and readable constraints.
 
 ## Subdirectories
 
 | Directory | Description |
 |-----------|-------------|
+| `combinators/` | Union and intersection types |
+| `enums/` | Enum declarations and backing types |
 | `newtypes/` | Nominal (distinct) types |
 | `objects/` | Structural object types and interfaces |
 | `structs/` | Data-oriented object types |
@@ -18,19 +18,8 @@ and readable constraints.
 | `references/` | Reference and value type annotations |
 | `generics/` | Static parameter type references |
 
-## Example
+## Files
 
-```ds
-newtype UserId = int64;
-newtype OrderId = int64;
-// UserId and OrderId don't mix, even though both are int64
-
-struct Point { x: float32, y: float32 }
-
-type User = {
-    name: string.minLength(1).maxLength(100),
-    age: uint.max(150),
-}
-```
+- `overview.md`: Nominal types, structs, and refinements
 
 See [DESIGN.md](../../../../../DESIGN.md#types) for full documentation.
