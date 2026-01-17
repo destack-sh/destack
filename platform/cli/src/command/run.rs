@@ -1,14 +1,16 @@
 use clap::Args;
 use destack_compiler::OptimizeTask;
-use destack_runtime::platform::BindingRegistry;
+use destack_daemon::Daemon;
+use destack_runtime::platform::{BindingRegistry, HostIo};
 use destack_vm::Value;
 use destack_workspace::OptimizeLevel;
 use serde_json::json;
 
 use crate::common::{
     CommandError, CommandReport, CommandStats, CompilerContext, DiagnosticArgs, DiagnosticFormat,
-    FormatOptions, InputArgs, ProgramArgs, ReportArgs, TargetArgs, collect_diagnostics_json,
-    ensure_no_watch_or_dev, format_diagnostics, print_report, report_error, report_no_input,
+    FormatOptions, InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileJson,
+    WatchCompileReason, WatchReporter, collect_diagnostics_json, ensure_no_watch_or_dev,
+    format_diagnostics, print_report, report_error, report_no_input,
 };
 use crate::console;
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
@@ -17,7 +19,11 @@ use crate::pipeline::runtime::{
     isolate_options_for_target, process_args_for_source,
 };
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
-use crate::pipeline::target::{resolve_target_for_module, target_name_from_args};
+use crate::pipeline::target::{ResolvedTarget, resolve_target_for_module, target_name_from_args};
+use crate::pipeline::watch::{
+    WatchLoopAction, WatchLoopOptions, build_daemon_options, build_watch_loop_options,
+    print_watch_diagnostics, run_watch_loop, watch_error, watch_roots,
+};
 
 /// Arguments for the run command.
 #[derive(Args, Debug, Clone)]
@@ -83,6 +89,16 @@ pub(crate) struct RunRequest {
     pub mode: RunMode,
 }
 
+/// State for run watch mode.
+struct RunWatchState {
+    /// The resolved input sources.
+    sources: Vec<InputSource>,
+    /// The resolved entry module.
+    entry_module: destack_source::ModuleId,
+    /// The resolved target for the entry module.
+    resolved: ResolvedTarget,
+}
+
 /// Compile and run a source file or script.
 pub fn run(args: &RunArgs) -> i32 {
     run_with_request(RunRequest {
@@ -100,8 +116,14 @@ pub fn run(args: &RunArgs) -> i32 {
 
 /// Compile and run a source file or script with shared execution logic.
 pub(crate) fn run_with_request(request: RunRequest) -> i32 {
-    // reject unsupported watch or dev flags
     let command_name = request.command_name;
+
+    // run watch mode when requested
+    if request.program.watch {
+        return run_watch(&request);
+    }
+
+    // reject unsupported watch or dev flags
     if let Some(code) = ensure_no_watch_or_dev(command_name, &request.program, &request.report) {
         return code;
     }
@@ -264,6 +286,405 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
                 console::error(&format!("runtime error: {error}"));
             }
             1
+        }
+    }
+}
+
+/// Compile and run a source file in watch mode.
+fn run_watch(request: &RunRequest) -> i32 {
+    // run with default watch settings
+    run_watch_with_options(
+        request,
+        build_watch_loop_options(),
+        || {},
+        |_, _, _| {},
+        false,
+    )
+}
+
+/// Compile and run a source file in watch mode with injected options.
+pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
+    request: &RunRequest,
+    watch_loop_options: WatchLoopOptions,
+    on_start: StartFn,
+    on_compile: ObserveFn,
+    is_one_shot: bool,
+) -> i32
+where
+    StartFn: FnOnce(),
+    ObserveFn: FnMut(WatchCompileReason, bool, bool),
+{
+    run_watch_with_driver(
+        request,
+        watch_loop_options,
+        on_start,
+        on_compile,
+        compile_and_run,
+        is_one_shot,
+    )
+}
+
+/// Compile and run a source file in watch mode with an injected runner.
+pub(crate) fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
+    request: &RunRequest,
+    watch_loop_options: WatchLoopOptions,
+    on_start: StartFn,
+    mut on_compile: ObserveFn,
+    mut compile: CompileFn,
+    is_one_shot: bool,
+) -> i32
+where
+    StartFn: FnOnce(),
+    ObserveFn: FnMut(WatchCompileReason, bool, bool),
+    CompileFn: FnMut(
+        &RunRequest,
+        &CompilerContext,
+        &InputSource,
+        destack_source::ModuleId,
+        &ResolvedTarget,
+        &mut Option<WatchReporter>,
+        WatchCompileReason,
+        Option<u64>,
+        bool,
+        bool,
+    ) -> i32,
+{
+    let command_name = request.command_name;
+
+    // reject eval mode for watch
+    if matches!(request.mode, RunMode::Eval { .. }) {
+        return report_error(
+            command_name,
+            &request.report,
+            "--watch does not support --eval",
+        );
+    }
+
+    // reject watch mode for inline inputs
+    if request.input.stdin || !request.input.eval.is_empty() || !request.input.module.is_empty() {
+        return report_error(
+            command_name,
+            &request.report,
+            "--watch requires file or directory inputs",
+        );
+    }
+
+    // resolve the target name
+    let target_name = target_name_from_args(&request.target, "native");
+
+    // set up the compiler context
+    let context =
+        CompilerContext::for_run(&request.program, &request.diagnostics, target_name.clone());
+
+    // disallow scripts in watch mode
+    if matches!(request.mode, RunMode::Program)
+        && request.input.files.len() == 1
+        && request.input.eval.is_empty()
+        && request.input.module.is_empty()
+        && !request.input.stdin
+    {
+        let candidate = &request.input.files[0];
+        let candidate_path = if candidate.is_absolute() {
+            candidate.clone()
+        } else {
+            context.program.cwd.join(candidate)
+        };
+        if context.program.fs.metadata(&candidate_path).is_err() {
+            return report_error(
+                command_name,
+                &request.report,
+                "--watch does not support script commands",
+            );
+        }
+    }
+
+    // load sources and enforce a single entry module
+    let sources = match resolve_sources(&request.input, None, None) {
+        Ok(sources) => sources,
+        Err(ResolveSourcesError::NoInput) => {
+            return report_no_input(command_name, &request.report);
+        }
+        Err(ResolveSourcesError::Message(message)) => {
+            return report_error(command_name, &request.report, &message);
+        }
+    };
+    if sources.len() > 1 {
+        return report_error(
+            command_name,
+            &request.report,
+            "run expects a single entry module",
+        );
+    }
+
+    // resolve the entry module and target
+    let entry_source = sources[0].clone();
+    let entry_module = match context.resolve_source(&entry_source) {
+        Ok(module_id) => module_id,
+        Err(message) => {
+            return report_error(command_name, &request.report, &message);
+        }
+    };
+    let resolved = match resolve_target_for_module(
+        &context.program,
+        entry_module,
+        &target_name,
+        &request.target,
+    ) {
+        Ok(resolved) => resolved,
+        Err(message) => {
+            return report_error(command_name, &request.report, &message);
+        }
+    };
+
+    // prepare watch mode output
+    let mut reporter = if request.report.is_json() {
+        Some(WatchReporter::new(command_name))
+    } else {
+        None
+    };
+    let roots = watch_roots(&request.program, &context.session);
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_start(&roots);
+    }
+
+    // configure the daemon for incremental updates
+    let daemon_options =
+        build_daemon_options(&request.program, context.diagnostic_options.clone(), None);
+    let daemon = Daemon::with_options(context.session.clone(), daemon_options);
+
+    // set up shared watch state
+    let mut watch_state = RunWatchState {
+        sources,
+        entry_module,
+        resolved,
+    };
+
+    // run the initial compile and execute
+    let mut exit_code = compile(
+        request,
+        &context,
+        &entry_source,
+        watch_state.entry_module,
+        &watch_state.resolved,
+        &mut reporter,
+        WatchCompileReason::Startup,
+        None,
+        false,
+        false,
+    );
+
+    // run the watch loop for incremental updates
+    exit_code = run_watch_loop(
+        &daemon,
+        &context.session,
+        roots,
+        &mut reporter,
+        watch_loop_options,
+        &mut watch_state,
+        move |_| on_start(),
+        |state| {
+            // refresh sources when a rescan is requested
+            state.sources = match resolve_sources(&request.input, None, None) {
+                Ok(sources) => sources,
+                Err(ResolveSourcesError::NoInput) => {
+                    return Err(watch_error("no input files after rescan"));
+                }
+                Err(ResolveSourcesError::Message(message)) => {
+                    return Err(watch_error(&message));
+                }
+            };
+            if state.sources.len() != 1 {
+                return Err(watch_error("expected a single entry module"));
+            }
+
+            // resolve the updated entry module
+            let entry_source = state.sources[0].clone();
+            let next_entry_module = match context.resolve_source(&entry_source) {
+                Ok(module_id) => module_id,
+                Err(message) => {
+                    return Err(watch_error(&message));
+                }
+            };
+            state.entry_module = next_entry_module;
+
+            // resolve the updated target
+            state.resolved = match resolve_target_for_module(
+                &context.program,
+                state.entry_module,
+                &target_name,
+                &request.target,
+            ) {
+                Ok(resolved) => resolved,
+                Err(message) => {
+                    return Err(watch_error(&message));
+                }
+            };
+
+            Ok(())
+        },
+        |state, reporter, reason, batch_id, updated, requires_rescan| {
+            // recompile and rerun when updates occur
+            let next_exit_code = compile(
+                request,
+                &context,
+                &state.sources[0],
+                state.entry_module,
+                &state.resolved,
+                reporter,
+                reason,
+                Some(batch_id),
+                updated,
+                requires_rescan,
+            );
+
+            // record compile observation
+            on_compile(reason, updated, requires_rescan);
+
+            if is_one_shot {
+                return WatchLoopAction::stop_with(Some(next_exit_code));
+            }
+
+            WatchLoopAction::continue_with(Some(next_exit_code))
+        },
+        exit_code,
+    );
+
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_stop();
+    }
+
+    exit_code
+}
+
+/// Compile the entry module and run the program.
+#[allow(clippy::too_many_arguments)]
+fn compile_and_run(
+    request: &RunRequest,
+    context: &CompilerContext,
+    entry_source: &InputSource,
+    entry_module: destack_source::ModuleId,
+    resolved: &ResolvedTarget,
+    watch_reporter: &mut Option<WatchReporter>,
+    compile_reason: WatchCompileReason,
+    batch_id: Option<u64>,
+    updated: bool,
+    rescan: bool,
+) -> i32 {
+    // clear diagnostics before each compile
+    let _ = context.program.diagnostics.drain();
+
+    // enqueue lowering and optional optimization
+    context.enqueue_module(entry_module);
+    if should_optimize(&resolved.target) {
+        context.compiler.enqueue(OptimizeTask::OptimizeModule {
+            module: entry_module,
+            target: resolved.id.clone(),
+        });
+    }
+
+    // run the compiler and surface diagnostics
+    context.run_compile();
+    let exit_code = if let Some(reporter) = watch_reporter.as_mut() {
+        let diagnostics = context
+            .program
+            .diagnostics
+            .collect()
+            .map(&context.diagnostic_options);
+        let format_options = FormatOptions {
+            format: DiagnosticFormat::Json,
+            ..FormatOptions::default()
+        };
+        let (output, format_result) =
+            collect_diagnostics_json(&context.program.files, &diagnostics, &format_options);
+        let stats_snapshot = context
+            .compiler
+            .stats
+            .snapshot_with_program(context.program.modules.len(), Some(&context.program));
+        reporter.emit_compile(WatchCompileJson {
+            reason: compile_reason,
+            updated,
+            rescan,
+            batch_id,
+            diagnostics: Some(output),
+            exit_code: format_result.exit_code(),
+            stats: Some(CommandStats::from_snapshot(&stats_snapshot)),
+        });
+        format_result.exit_code()
+    } else {
+        let format_options = FormatOptions::default();
+        let result = print_watch_diagnostics(
+            &context.program,
+            &context.diagnostic_options,
+            &format_options,
+            context.program.modules.len(),
+            None,
+        );
+        result.exit_code()
+    };
+    if exit_code != 0 {
+        return exit_code;
+    }
+
+    // build the VM isolate for the lowered MIR
+    let mut isolate = match create_isolate(
+        &context.program,
+        entry_module,
+        &resolved.id,
+        isolate_options_for_target(&resolved.target),
+    ) {
+        Ok(isolate) => isolate,
+        Err(message) => {
+            if let Some(reporter) = watch_reporter.as_mut() {
+                reporter.emit_warning(&format!("watch: {message}"));
+                return 1;
+            }
+            return report_error(request.command_name, &request.report, &message);
+        }
+    };
+
+    // install platform bindings
+    let process_args = process_args_for_source(entry_source, &request.args);
+    let host = if watch_reporter.is_some() {
+        destack_runtime::platform::HostContext::new(process_args).with_io(HostIo::stderr_only())
+    } else {
+        destack_runtime::platform::HostContext::new(process_args)
+    };
+    let mut bindings = BindingRegistry::new();
+    bindings.set_policy(binding_policy_for_target(&resolved.target));
+    bindings.install_defaults(&mut isolate, &host);
+
+    // execute the entry function
+    match isolate.run_function_by_name(&request.entry, &[]) {
+        Ok(output) => {
+            let exit_code = exit_status_from_value(output.value);
+            if matches!(request.mode, RunMode::Program) && !is_exit_code_value(&output.value) {
+                if let Some(reporter) = watch_reporter.as_mut() {
+                    reporter
+                        .emit_warning("watch: non-integer return value, defaulting to exit code 0");
+                } else {
+                    console::warn("non-integer return value, defaulting to exit code 0");
+                }
+            }
+            if let RunMode::Eval { print: true } = request.mode {
+                console::print(&format_value_for_eval(&output.value));
+            }
+            if exit_code != 0 {
+                if let Some(reporter) = watch_reporter.as_mut() {
+                    reporter.emit_warning(&format!("watch: process exited with code {exit_code}"));
+                } else {
+                    console::warn(&format!("process exited with code {exit_code}"));
+                }
+            }
+            exit_code
+        }
+        Err(error) => {
+            if let Some(reporter) = watch_reporter.as_mut() {
+                reporter.emit_warning(&format!("watch: runtime error: {error}"));
+                1
+            } else {
+                console::error(&format!("runtime error: {error}"));
+                1
+            }
         }
     }
 }

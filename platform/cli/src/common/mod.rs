@@ -9,6 +9,7 @@ pub mod program;
 pub mod progress;
 pub mod report;
 pub mod tracing;
+pub mod watch;
 
 pub use compile::{CompileResult, CompilerContext, CompilerMode, print_no_input_help};
 pub use diagnostic::{DiagnosticArgs, print_diagnostics};
@@ -30,3 +31,4 @@ pub use report::{
     print_report, print_stats_summary, report_error, report_error_with, report_no_input,
 };
 pub use tracing::TracingArgs;
+pub use watch::{WatchCompileJson, WatchCompileReason, WatchReporter};

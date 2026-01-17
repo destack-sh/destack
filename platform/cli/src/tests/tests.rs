@@ -5,12 +5,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use destack_daemon::WatchPolicy;
 use destack_resolver::{ResolveOptions, Resolver};
-use destack_source::{FileSystem, MemoryFileSystem};
+use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use destack_workspace::Session;
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
+use crate::pipeline::watch::{WatchLoopOptions, build_watch_options};
 
 static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -162,6 +164,19 @@ pub(super) fn assert_exit(code: i32, expected: i32) {
 pub(super) fn assert_success(code: i32) {
     // assert command success
     assert_exit(code, 0);
+}
+
+/// Build watch loop options for tests.
+pub(super) fn watch_loop_options_for_test(watcher: MemoryFileWatcher) -> WatchLoopOptions {
+    // configure the memory watcher with a short coalesce window
+    WatchLoopOptions {
+        watcher: Arc::new(watcher),
+        options: build_watch_options(),
+        policy: WatchPolicy {
+            coalesce_window: std::time::Duration::from_millis(5),
+            max_batch_size: 32,
+        },
+    }
 }
 
 /// Merge compiler options into a base dsconfig payload.

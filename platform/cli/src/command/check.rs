@@ -1,15 +1,28 @@
 use clap::{Args, ValueEnum};
+use destack_compiler::CompilerEventHandler;
+use destack_daemon::Daemon;
 use destack_source::DiagnosticOptions;
 
 use crate::common::fix::{FixOptions, run_with_fixes};
 use crate::common::format::{DiagnosticFormat, FormatOptions, format_diagnostics_with_writer};
 use crate::common::{
-    CommandReport, CommandStats, CompilerMode, DiagnosticArgs, InputArgs, ProgramArgs,
-    ProgressMode, ProgressReporter, ReportArgs, StatsSummary, collect_diagnostics_json, is_tty,
-    print_report, print_stats_summary, report_error,
+    CommandReport, CommandStats, CompilerMode, DiagnosticArgs, InputArgs, InputSource, ProgramArgs,
+    ProgressMode, ProgressReporter, ReportArgs, StatsSummary, WatchCompileReason, WatchReporter,
+    collect_diagnostics_json, is_tty, print_report, print_stats_summary, report_error,
 };
 use crate::console;
 use crate::pipeline::compile::{CompileRequest, prepare_compile};
+use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
+use crate::pipeline::watch::{
+    WatchCompileContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
+    build_watch_loop_options, emit_watch_compile_report, run_watch_loop, watch_error, watch_roots,
+};
+
+/// State for check watch mode.
+struct CheckWatchState {
+    /// The resolved input sources.
+    sources: Vec<InputSource>,
+}
 
 /// Output format for diagnostics.
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -170,6 +183,29 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
         CompilerMode::Lint
     };
 
+    // build format options
+    let format_options = FormatOptions {
+        format: args.format.into(),
+        quiet: args.quiet,
+        max_warnings: args.max_warnings,
+        statistics: args.statistics,
+        suppress_diagnostics: args.no_diagnostics,
+    };
+
+    // run watch mode when requested
+    if args.program.watch {
+        let exit_code = run_watch(
+            args,
+            command_name,
+            mode,
+            event_handler,
+            &format_options,
+            progress_reporter.as_ref(),
+        );
+        finish_progress();
+        return exit_code;
+    }
+
     let setup = match prepare_compile(CompileRequest {
         command: command_name,
         input: &args.input,
@@ -198,14 +234,6 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
     // compile type checks and optional linting
     setup.context.run_compile();
 
-    // build format options
-    let format_options = FormatOptions {
-        format: args.format.into(),
-        quiet: args.quiet,
-        max_warnings: args.max_warnings,
-        statistics: args.statistics,
-        suppress_diagnostics: args.no_diagnostics,
-    };
     let line_writer = progress_reporter
         .as_ref()
         .map(|reporter| reporter.line_writer());
@@ -334,4 +362,225 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
 
     finish_progress();
     result.exit_code()
+}
+
+/// Run check in watch mode with incremental updates.
+fn run_watch(
+    args: &CheckArgs,
+    command_name: &str,
+    mode: CompilerMode,
+    event_handler: Option<CompilerEventHandler>,
+    format_options: &FormatOptions,
+    progress_reporter: Option<&ProgressReporter>,
+) -> i32 {
+    // run with default watch settings
+    run_watch_with_options(
+        args,
+        command_name,
+        mode,
+        event_handler,
+        format_options,
+        progress_reporter,
+        build_watch_loop_options(),
+        || {},
+        |_, _, _| {},
+        false,
+    )
+}
+
+/// Run check in watch mode with injected options.
+pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
+    args: &CheckArgs,
+    command_name: &str,
+    mode: CompilerMode,
+    event_handler: Option<CompilerEventHandler>,
+    format_options: &FormatOptions,
+    progress_reporter: Option<&ProgressReporter>,
+    watch_loop_options: WatchLoopOptions,
+    on_start: StartFn,
+    mut on_compile: ObserveFn,
+    is_one_shot: bool,
+) -> i32
+where
+    StartFn: FnOnce(),
+    ObserveFn: FnMut(WatchCompileReason, bool, bool),
+{
+    // reject unsupported combinations
+    if args.fix || args.diff {
+        return report_error(
+            command_name,
+            &args.report,
+            "--watch does not support --fix or --diff yet",
+        );
+    }
+
+    // reject watch mode for inline inputs
+    if args.input.stdin || !args.input.eval.is_empty() || !args.input.module.is_empty() {
+        return report_error(
+            command_name,
+            &args.report,
+            "--watch requires file or directory inputs",
+        );
+    }
+
+    // resolve sources for the initial compile
+    let sources = match resolve_sources(&args.input, Some(&args.program), None) {
+        Ok(sources) => sources,
+        Err(ResolveSourcesError::NoInput) => {
+            return report_error(command_name, &args.report, "no input files provided");
+        }
+        Err(ResolveSourcesError::Message(message)) => {
+            return report_error(command_name, &args.report, &message);
+        }
+    };
+
+    // create the compiler context
+    let context = crate::common::CompilerContext::new(
+        &args.program,
+        &args.diagnostics,
+        mode,
+        event_handler.clone(),
+    );
+
+    // prepare watch mode output
+    let json_format_options = FormatOptions {
+        format: DiagnosticFormat::Json,
+        ..format_options.clone()
+    };
+    let mut reporter = if args.report.is_json() {
+        Some(WatchReporter::new(command_name))
+    } else {
+        None
+    };
+    let roots = watch_roots(&args.program, &context.session);
+
+    // enqueue sources for compilation
+    let modules = match context.enqueue(&sources) {
+        Ok(modules) => modules,
+        Err(code) => return code,
+    };
+
+    // attach progress stats source when available
+    if let Some(progress_reporter) = progress_reporter {
+        progress_reporter.set_stats_source(
+            context.compiler.stats.clone(),
+            Some(context.program.clone()),
+        );
+    }
+
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_start(&roots);
+    }
+
+    // compile the initial state
+    context.run_compile();
+
+    // print diagnostics for the initial state
+    let line_writer = progress_reporter.map(|reporter| reporter.line_writer());
+    let stats_snapshot = reporter.as_ref().map(|_| {
+        context
+            .compiler
+            .stats
+            .snapshot_with_program(context.program.modules.len(), Some(&context.program))
+    });
+    let mut exit_code = emit_watch_compile_report(
+        &mut reporter,
+        WatchCompileContext {
+            program: &context.program,
+            diagnostic_options: &context.diagnostic_options,
+            format_options,
+            json_format_options: &json_format_options,
+            module_count: modules.len(),
+            line_writer: line_writer.as_ref(),
+        },
+        stats_snapshot,
+        WatchCompileReason::Startup,
+        false,
+        false,
+        None,
+    );
+
+    // configure the daemon for incremental updates
+    let daemon_options = build_daemon_options(
+        &args.program,
+        context.diagnostic_options.clone(),
+        event_handler,
+    );
+    let daemon = Daemon::with_options(context.session.clone(), daemon_options);
+
+    // set up shared watch state
+    let mut watch_state = CheckWatchState { sources };
+
+    // run the watch loop for incremental updates
+    exit_code = run_watch_loop(
+        &daemon,
+        &context.session,
+        roots,
+        &mut reporter,
+        watch_loop_options,
+        &mut watch_state,
+        move |_| on_start(),
+        |state| {
+            // refresh sources when a rescan is requested
+            state.sources = match resolve_sources(&args.input, Some(&args.program), None) {
+                Ok(sources) => sources,
+                Err(ResolveSourcesError::NoInput) => {
+                    return Err(watch_error("no input files after rescan"));
+                }
+                Err(ResolveSourcesError::Message(message)) => {
+                    return Err(watch_error(&message));
+                }
+            };
+
+            Ok(())
+        },
+        |state, reporter, reason, batch_id, updated, requires_rescan| {
+            // clear diagnostics before each compile
+            let _ = context.program.diagnostics.drain();
+            let _ = context.enqueue(&state.sources);
+
+            // compile the updated state
+            context.run_compile();
+
+            // report diagnostics for the updated state
+            let stats_snapshot = reporter.as_ref().map(|_| {
+                context
+                    .compiler
+                    .stats
+                    .snapshot_with_program(context.program.modules.len(), Some(&context.program))
+            });
+            let next_exit_code = emit_watch_compile_report(
+                reporter,
+                WatchCompileContext {
+                    program: &context.program,
+                    diagnostic_options: &context.diagnostic_options,
+                    format_options,
+                    json_format_options: &json_format_options,
+                    module_count: context.program.modules.len(),
+                    line_writer: line_writer.as_ref(),
+                },
+                stats_snapshot,
+                reason,
+                updated,
+                requires_rescan,
+                Some(batch_id),
+            );
+
+            // record compile observation
+            on_compile(reason, updated, requires_rescan);
+
+            if is_one_shot {
+                return WatchLoopAction::stop_with(Some(next_exit_code));
+            }
+
+            WatchLoopAction::continue_with(Some(next_exit_code))
+        },
+        exit_code,
+    );
+
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_stop();
+    }
+
+    exit_code
 }
