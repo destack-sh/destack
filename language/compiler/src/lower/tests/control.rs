@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower and execute fibonacci with recursion and if/else control flow.
 #[test]
 fn test_fibonacci() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -59,7 +59,7 @@ block3:
 /// Lower and execute a simple while loop.
 #[test]
 fn test_while_loop() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -91,7 +91,7 @@ function sumTo(n: number): number {
 /// Lower and execute a for loop.
 #[test]
 fn test_for_loop() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -121,7 +121,7 @@ function factorial(n: number): number {
 /// Lower and execute unlabeled break in a while loop.
 #[test]
 fn test_unlabeled_break() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -154,7 +154,7 @@ function findFirst(n: number): number {
 /// Lower and execute unlabeled continue in a for loop.
 #[test]
 fn test_unlabeled_continue() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -190,7 +190,7 @@ function sumSkipMiddle(n: number): number {
 /// Lower and execute ternary expression with boolean variable.
 #[test]
 fn test_ternary_expression() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -226,7 +226,7 @@ function abs(n: number): number {
 /// Lower and execute ternary with inline condition.
 #[test]
 fn test_ternary_inline_condition() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -259,7 +259,7 @@ function max(a: number, b: number): number {
 /// Lower and execute nested ternary expressions.
 #[test]
 fn test_nested_ternary() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -300,7 +300,7 @@ function sign(n: number): number {
 /// Lower nested loops with inner break.
 #[test]
 fn test_nested_loops() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -336,7 +336,7 @@ function nestedSum(rows: number, cols: number): number {
 /// Lower multiple functions that call each other.
 #[test]
 fn test_mutual_function_calls() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -370,7 +370,7 @@ function combine(x: number): number {
 /// Lower nested if-else chains.
 #[test]
 fn test_nested_if_else() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -430,7 +430,7 @@ function classify(x: number, y: number): number {
 /// Lower early return from loop.
 #[test]
 fn test_early_return_from_loop() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -462,7 +462,7 @@ function findFirst(target: number): number {
 /// Lower and execute a switch statement.
 #[test]
 fn test_switch_statement() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

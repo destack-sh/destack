@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower interface itab metadata for structs.
 #[test]
 fn test_struct_itab_metadata() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -52,7 +52,7 @@ struct Circle implements Drawable {
 #[test]
 fn test_lower_interface_reference_layout() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -106,7 +106,7 @@ struct Circle implements Drawable {
 /// Lower interface call metadata for interface dispatch.
 #[test]
 fn test_interface_call_metadata() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

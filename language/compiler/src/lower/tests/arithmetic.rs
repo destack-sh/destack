@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower and execute a simple add function.
 #[test]
 fn test_add() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -42,7 +42,7 @@ block0(v0: i32, v1: i32):
 /// Verify all integer arithmetic operators: add, sub, mul, div, rem.
 #[test]
 fn test_integer_arithmetic() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -73,7 +73,7 @@ function arithmetic(a: int32, b: int32): int32 {
 /// Verify unary negation for integers and floats.
 #[test]
 fn test_unary_negate() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -109,7 +109,7 @@ function floatNegate(a: number): number {
 /// Verify int64 arithmetic operations.
 #[test]
 fn test_int64_arithmetic() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -146,7 +146,7 @@ function mulInt64(a: int64, b: int64): int64 {
 /// Verify float32 arithmetic operations.
 #[test]
 fn test_float32_arithmetic() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -182,7 +182,7 @@ function mulFloat32(a: float32, b: float32): float32 {
 /// Verify mixed integer widths with explicit casts.
 #[test]
 fn test_integer_widening() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

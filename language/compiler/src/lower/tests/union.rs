@@ -6,7 +6,7 @@ use crate::TestProgram;
 #[test]
 fn test_lower_union_layout() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -68,7 +68,7 @@ function takeUnion(value: A | B): int32 {
 #[test]
 fn test_lower_union_upcast_mir() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -113,7 +113,7 @@ block0(v0: { value: i32 }):
 #[test]
 fn test_lower_union_downcast_mir() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -154,9 +154,9 @@ block0(v0: { @tag: u8, @payload: ref<managed void> }):
 
 /// Lower discriminant comparisons to tag checks.
 #[test]
-fn test_lower_union_discriminant_compare_mir() {
+fn test_lower_union_integer_discriminant() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -189,9 +189,8 @@ block0(v0: { @tag: u8, @payload: ref<managed void> }):
 
 /// Lower string discriminant comparisons to tag checks.
 #[test]
-#[ignore] // FUGU #Incomplete: native string type
-fn test_lower_union_discriminant_compare_string_mir() {
-    let test = TestProgram::memory_sequential();
+fn test_lower_union_string_discriminant() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
