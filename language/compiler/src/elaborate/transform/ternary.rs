@@ -1,14 +1,19 @@
-use destack_dir::{Expression, IfCondition, IfKind, LocalNodeId, NodeTree};
+use destack_dir::{Expression, IfCondition, IfKind, LocalNodeId, NodeTree, SymbolTable};
 
 use crate::{Compiler, ElaborateResult};
 
 impl Compiler {
     /// Transform simple if-else expressions to ternary expressions.
     /// Only transforms if both branches are simple (non-block) expressions.
-    pub(super) fn transform_if_to_ternary(&self, tree: &mut NodeTree) -> ElaborateResult<()> {
+    pub(super) fn transform_if_to_ternary(
+        &self,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+    ) -> ElaborateResult<()> {
         let if_ids: Vec<_> = tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
+            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
             .filter(|id| {
                 matches!(
                     tree.get(*id),

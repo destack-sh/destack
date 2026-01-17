@@ -30,12 +30,16 @@ impl Compiler {
     pub(super) fn transform_explicit_return(
         &self,
         tree: &mut NodeTree,
-        _symbols: &destack_dir::SymbolTable,
+        symbols: &destack_dir::SymbolTable,
         types: &mut TypeTable,
     ) -> ElaborateResult<()> {
         // collect function and method bodies to rewrite
         let mut body_ids = Vec::new();
         for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+            if !self.is_node_active(tree, symbols, declaration_id.into_any()) {
+                continue;
+            }
+
             let declaration = tree.get(declaration_id).clone();
 
             // function declarations

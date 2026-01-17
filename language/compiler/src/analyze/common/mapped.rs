@@ -1290,7 +1290,10 @@ impl Compiler {
             let tree = module.dir(profile).tree.read();
             let (_, scope, mark) = symbols.get_scope(expression_id, &tree);
             let key = StaticKey::Name(name);
-            if let Some(symbol_id) = scope.find_up_to(key, mark).or_else(|| scope.find(key)) {
+            if let Some(symbol_id) = symbols
+                .find_active_symbol_up_to(scope, key, mark)
+                .or_else(|| symbols.find_active_symbol(scope, key))
+            {
                 return Some(GlobalSymbolId::new(module.id, symbol_id));
             }
         }

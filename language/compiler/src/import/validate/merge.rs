@@ -57,12 +57,11 @@ impl Compiler {
 
         // collect candidate symbols from the scope
         let scope_view = symbols.get_scope_by_id(scope.0);
-        let candidate_ids: Vec<_> = scope_view
-            .named_symbols
-            .iter()
+        let candidate_ids: Vec<_> = symbols
+            .active_named_symbols(scope_view)
             .filter_map(|(candidate_key, symbol_id)| {
-                if *candidate_key == key {
-                    Some(*symbol_id)
+                if candidate_key == key {
+                    Some(symbol_id)
                 } else {
                     None
                 }

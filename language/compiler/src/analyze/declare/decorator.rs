@@ -4,8 +4,8 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Annotation, Argument, DeprecatedNotice, ExperimentalNotice, Expression, ExternBinding,
     GlobalSymbolId, IntrinsicBinding, LanguageItemBinding, LifetimeAnnotation, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, NodeTree, ScalarLiteral, SymbolDecorators, SymbolTable,
-    TagMarker, TaintMarker, UnrollHint, WellKnownDecorator,
+    LocalNodeIdAny, NodeTree, ScalarLiteral, SymbolDecorators, SymbolTable, TagMarker, TaintMarker,
+    UnrollHint, WellKnownDecorator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -24,10 +24,11 @@ impl Compiler {
         // map decorator marker symbols to well known ids
         let decorator_map = self.collect_well_known_decorators(profile);
 
-        // scan every symbol for decorator annotations
-        for symbol_index in 0..symbols.symbol_count() {
-            let symbol_id = LocalSymbolId::new(symbol_index);
+        // snapshot active symbol ids to allow mutation
+        let symbol_ids: Vec<_> = symbols.active_symbol_ids().collect();
 
+        // scan every symbol for decorator annotations
+        for symbol_id in symbol_ids {
             // gather declaration nodes to inspect
             let declaration_nodes = {
                 let symbol = symbols.get_symbol(symbol_id);

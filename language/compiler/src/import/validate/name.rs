@@ -30,20 +30,20 @@ impl Compiler {
         let dir = module.dir_base();
         let symbols = dir.symbols.read();
         for scope in symbols.scopes() {
-            for (key, symbol_id) in scope.named_symbols.iter() {
-                let symbol = symbols.get_symbol(*symbol_id);
+            for (key, symbol_id) in symbols.active_named_symbols(scope) {
+                let symbol = symbols.get_symbol(symbol_id);
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
 
                 // reserved identifiers are not allowed as binding names (except in builtins)
                 if let StaticKey::Name(name) = key
-                    && self.is_reserved_identifier(*name)
+                    && self.is_reserved_identifier(name)
                     && module.is_user()
                 {
                     self.error(ImportError::ReservedIdentifier {
                         node: primary_declaration.into_anchored(None),
-                        name: *name,
+                        name,
                     });
                 }
             }

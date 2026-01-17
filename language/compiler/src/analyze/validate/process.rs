@@ -52,16 +52,27 @@ impl Compiler {
 
         // validate declarations
         for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let symbol = symbols.get_symbol(declaration.symbol());
+            if !symbol.is_active() {
+                continue;
+            }
             self.validate_declaration(&module, profile, &types, id, declaration);
         }
 
         // validate parameters
         for (id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(&tree, &symbols, id.into_any()) {
+                continue;
+            }
             self.validate_parameter(&module, profile, &tree, id, parameter);
         }
 
         // validate members
         for (id, member) in tree.iter_nodes_of_type::<Member>() {
+            let symbol = symbols.get_symbol(member.symbol());
+            if !symbol.is_active() {
+                continue;
+            }
             self.validate_member(&module, profile, &tree, id, member);
         }
 

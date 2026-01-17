@@ -386,20 +386,21 @@ impl Compiler {
 
             // load the module tree and symbols
             self.require_import_module_validate(module_id)?;
+            self.require_resolve_module_prepare(module_id, profile_id)?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            let base_dir = module.dir(profile_id);
-            let tree = base_dir.tree.read();
-            let symbols = base_dir.symbols.read();
+            let dir = module.dir(profile_id);
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
             cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_augmentation_symbols(&module, base_dir, &symbols, &mut cache);
+            self.collect_global_augmentation_symbols(&module, dir, &symbols, &mut cache);
             if module.language_type.is_declaration() {
-                self.collect_export_namespace_globals(&module, &tree, &mut cache);
+                self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
             }
             if self.module_is_ambient_lib(&module) {
-                self.collect_namespace_scope_globals(&module, base_dir, &symbols, &mut cache);
+                self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
             }
         }
 
@@ -446,24 +447,25 @@ impl Compiler {
             }
 
             // load the module tree and symbols
+            self.require_resolve_module_prepare(module_id, profile_id)?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
-            let base_dir = module.dir_base();
-            let tree = base_dir.tree.read();
-            let symbols = base_dir.symbols.read();
+            let dir = module.dir(profile_id);
+            let tree = dir.tree.read();
+            let symbols = dir.symbols.read();
             cache.module_versions.insert(module_id, module.version);
 
             // collect global declarations from this module
-            self.collect_global_augmentation_symbols(&module, base_dir, &symbols, &mut cache);
+            self.collect_global_augmentation_symbols(&module, dir, &symbols, &mut cache);
             if module.language_type.is_declaration() {
-                self.collect_export_namespace_globals(&module, &tree, &mut cache);
+                self.collect_export_namespace_globals(&module, &tree, &symbols, &mut cache);
             }
             if self.module_is_ambient_lib(&module) {
-                self.collect_namespace_scope_globals(&module, base_dir, &symbols, &mut cache);
+                self.collect_namespace_scope_globals(&module, dir, &symbols, &mut cache);
             }
 
             // enqueue dependency targets for further discovery
-            let dependency_targets = self.collect_dependency_targets(module_id, &tree);
+            let dependency_targets = self.collect_dependency_targets(module_id, &tree, &symbols);
             for dependency in dependency_targets {
                 // skip module bindings before resolving file targets
                 if self
@@ -505,9 +507,9 @@ impl Compiler {
         cache: &mut GlobalSymbolTable,
     ) {
         let scope = symbols.get_scope_by_id(dir.global_augmentation_scope);
-        for (key, symbol_id) in &scope.named_symbols {
-            let symbol = symbols.get_symbol(*symbol_id);
-            cache.insert_symbol(*key, symbol.space, symbol_id.into_global(module.id));
+        for (key, symbol_id) in symbols.active_named_symbols(scope) {
+            let symbol = symbols.get_symbol(symbol_id);
+            cache.insert_symbol(key, symbol.space, symbol_id.into_global(module.id));
         }
     }
 
@@ -517,10 +519,14 @@ impl Compiler {
         &self,
         module: &Module,
         tree: &NodeTree,
+        symbols: &SymbolTable,
         cache: &mut GlobalSymbolTable,
     ) {
         let symbol_id = module.dir_base().namespace_symbol.into_global(module.id);
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
+                continue;
+            }
             let Expression::ExportNamespace { name } = tree.get(expression_id) else {
                 continue;
             };
@@ -538,9 +544,9 @@ impl Compiler {
         cache: &mut GlobalSymbolTable,
     ) {
         let scope = symbols.get_scope_by_id(dir.namespace_scope);
-        for (key, symbol_id) in &scope.named_symbols {
-            let symbol = symbols.get_symbol(*symbol_id);
-            cache.insert_symbol(*key, symbol.space, symbol_id.into_global(module.id));
+        for (key, symbol_id) in symbols.active_named_symbols(scope) {
+            let symbol = symbols.get_symbol(symbol_id);
+            cache.insert_symbol(key, symbol.space, symbol_id.into_global(module.id));
         }
     }
 
@@ -549,10 +555,14 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         tree: &NodeTree,
+        symbols: &SymbolTable,
     ) -> Vec<DependencyTarget> {
         // collect import and reexport targets
         let mut targets = Vec::new();
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
+                continue;
+            }
             match tree.get(expression_id) {
                 Expression::UnresolvedImport { target, kind, .. }
                 | Expression::UnresolvedReExport { target, kind, .. }

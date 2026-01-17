@@ -1,3 +1,4 @@
+mod active;
 mod declaration;
 mod dependency;
 mod discover;
@@ -9,6 +10,7 @@ mod loader;
 mod module;
 mod operator;
 mod process;
+mod r#static;
 mod symbol;
 mod target;
 mod r#type;

@@ -45,6 +45,10 @@ impl Compiler {
         // check declaration functions for missing returns
         if check_returns {
             for (id, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+                let symbol = symbols.get_symbol(declaration.symbol());
+                if !symbol.is_active() {
+                    continue;
+                }
                 let Declaration::Function {
                     body: Some(body), ..
                 } = declaration
@@ -63,6 +67,10 @@ impl Compiler {
 
             // check member methods for missing returns
             for (id, member) in tree.iter_nodes_of_type::<Member>() {
+                let symbol = symbols.get_symbol(member.symbol());
+                if !symbol.is_active() {
+                    continue;
+                }
                 let Member::Method {
                     signature,
                     body: Some(body),
@@ -71,7 +79,6 @@ impl Compiler {
                 else {
                     continue;
                 };
-                // skip constructors
                 if signature.mode == Some(FunctionMode::Constructor) {
                     continue;
                 }
@@ -88,6 +95,10 @@ impl Compiler {
 
         // check class-level strict options
         for (_, declaration) in tree.iter_nodes_of_type::<Declaration>() {
+            let symbol = symbols.get_symbol(declaration.symbol());
+            if !symbol.is_active() {
+                continue;
+            }
             let Declaration::Class {
                 descriptor,
                 members,
@@ -96,7 +107,6 @@ impl Compiler {
             else {
                 continue;
             };
-            // skip declaration-only classes
             if descriptor.kind == DeclarationKind::Declaration {
                 continue;
             }
@@ -894,6 +904,9 @@ impl Compiler {
     ) {
         // walk parameters in the module
         for (parameter_id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(tree, symbols, parameter_id.into_any()) {
+                continue;
+            }
             let symbol_id = parameter.symbol();
             if !self.symbol_is_value_binding(symbol_id, symbols) {
                 continue;
@@ -1032,7 +1045,10 @@ impl Compiler {
         let mut bindings = HashSet::new();
 
         // collect value-space parameter symbols
-        for (_, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+        for (parameter_id, parameter) in tree.iter_nodes_of_type::<Parameter>() {
+            if !self.is_node_active(tree, symbols, parameter_id.into_any()) {
+                continue;
+            }
             let symbol_id = parameter.symbol();
             if !self.symbol_is_value_binding(symbol_id, symbols) {
                 continue;

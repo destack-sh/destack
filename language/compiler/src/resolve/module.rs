@@ -95,6 +95,12 @@ impl Compiler {
         dir.import_meta = Some(import_meta);
         module.code_mut().dirs.push(dir);
 
+        // apply static if decorators before exports are built
+        {
+            let dir = module.dir_mut(profile_id);
+            self.apply_static_if_decorators(module_id, profile_id, dir)?;
+        }
+
         // build export table from bound declarations
         let dir = module.dir(profile_id);
         let tree = dir.tree.read();
@@ -214,6 +220,9 @@ impl Compiler {
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
             for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                    continue;
+                }
                 match tree.get(expression_id) {
                     Expression::UnresolvedImport { .. } | Expression::UnresolvedReExport { .. } => {
                         self.collect(
@@ -248,6 +257,9 @@ impl Compiler {
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
             for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+                if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                    continue;
+                }
                 self.collect(
                     &mut collector,
                     self.resolve_expression(
@@ -271,6 +283,9 @@ impl Compiler {
             let mut symbols = dir.symbols.write();
             let mut collector = TaskResultCollector::new();
             for declaration_id in tree.iter_node_ids_of_type::<Declaration>() {
+                if !self.is_node_active(&tree, &symbols, declaration_id.into_any()) {
+                    continue;
+                }
                 self.collect(
                     &mut collector,
                     self.resolve_declaration(&module, dir, declaration_id, &mut tree, &mut symbols),
@@ -465,15 +480,12 @@ impl Compiler {
     ) {
         // collect symbols declared in the binding scope
         let scope = symbols.get_scope_by_id(binding.scope);
-        let symbol_ids: Vec<LocalSymbolId> = scope
-            .named_symbols
-            .iter()
-            .map(|(_, symbol_id)| *symbol_id)
+        let symbol_ids: Vec<LocalSymbolId> = symbols
+            .active_named_symbols(scope)
+            .map(|(_, symbol_id)| symbol_id)
             .chain(
-                scope
-                    .anonymous_symbols
-                    .iter()
-                    .copied()
+                symbols
+                    .active_anonymous_symbols(scope)
                     .filter(|symbol_id| *symbol_id != binding.default_symbol),
             )
             .collect();
@@ -670,15 +682,12 @@ impl Compiler {
         // collect namespace symbols
         let scope = symbols.get_scope_by_id(binding.scope);
 
-        let symbol_ids: Vec<LocalSymbolId> = scope
-            .named_symbols
-            .iter()
-            .map(|(_, symbol_id)| *symbol_id)
+        let symbol_ids: Vec<LocalSymbolId> = symbols
+            .active_named_symbols(scope)
+            .map(|(_, symbol_id)| symbol_id)
             .chain(
-                scope
-                    .anonymous_symbols
-                    .iter()
-                    .copied()
+                symbols
+                    .active_anonymous_symbols(scope)
                     .filter(|symbol_id| *symbol_id != binding.default_symbol),
             )
             .collect();
@@ -739,8 +748,8 @@ impl Compiler {
                 let ns_symbol = symbols.get_symbol(ns_symbol_id);
                 let namespace_scope = symbols.get_scope_by_id(ns_symbol.scope.0);
 
-                for (key, symbol_id) in &namespace_scope.named_symbols {
-                    let symbol = symbols.get_symbol(*symbol_id);
+                for (key, symbol_id) in symbols.active_named_symbols(namespace_scope) {
+                    let symbol = symbols.get_symbol(symbol_id);
 
                     // determine export spaces (TypeValue expands to both Type and Value)
                     let spaces: [Option<SymbolSpace>; 2] = match symbol.space {
@@ -753,10 +762,10 @@ impl Compiler {
 
                     // insert exports for each space if not already present
                     for space in spaces.into_iter().flatten() {
-                        if !exports.contains_key(&(space, *key)) {
+                        if !exports.contains_key(&(space, key)) {
                             exports.insert(
-                                (space, *key),
-                                Export::local(module_id, *key, space, *symbol_id),
+                                (space, key),
+                                Export::local(module_id, key, space, symbol_id),
                             );
                         }
                     }
@@ -868,15 +877,12 @@ impl Compiler {
     ) {
         // collect namespace symbols
         let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
-        let symbol_ids: Vec<LocalSymbolId> = namespace_scope
-            .named_symbols
-            .iter()
-            .map(|(_, symbol_id)| *symbol_id)
+        let symbol_ids: Vec<LocalSymbolId> = symbols
+            .active_named_symbols(namespace_scope)
+            .map(|(_, symbol_id)| symbol_id)
             .chain(
-                namespace_scope
-                    .anonymous_symbols
-                    .iter()
-                    .copied()
+                symbols
+                    .active_anonymous_symbols(namespace_scope)
                     .filter(|symbol_id| *symbol_id != dir.default_symbol),
             )
             .collect();
@@ -1271,15 +1277,12 @@ impl Compiler {
     ) {
         // collect namespace symbols
         let scope = symbols.get_scope_by_id(dir.namespace_scope);
-        let symbol_ids: Vec<LocalSymbolId> = scope
-            .named_symbols
-            .iter()
-            .map(|(_, symbol_id)| *symbol_id)
+        let symbol_ids: Vec<LocalSymbolId> = symbols
+            .active_named_symbols(scope)
+            .map(|(_, symbol_id)| symbol_id)
             .chain(
-                scope
-                    .anonymous_symbols
-                    .iter()
-                    .copied()
+                symbols
+                    .active_anonymous_symbols(scope)
                     .filter(|symbol_id| *symbol_id != dir.default_symbol),
             )
             .collect();
@@ -1465,8 +1468,8 @@ impl Compiler {
 
         // collect symbols that have target_symbol but no canonical_symbol
         // (only include symbols with primary_declaration, others are internal or incomplete)
-        let symbols_to_resolve: Vec<_> = (0..symbols.symbol_count())
-            .map(LocalSymbolId::new)
+        let symbols_to_resolve: Vec<_> = symbols
+            .active_symbol_ids()
             .filter_map(|id| {
                 let symbol = symbols.get_symbol(id);
                 if symbol.target_symbol.is_some()

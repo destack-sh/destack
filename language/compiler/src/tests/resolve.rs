@@ -75,7 +75,7 @@ impl TestProgram {
         let mut scope = scope;
         loop {
             // find symbol in current scope
-            if let Some(symbol_id) = scope.0.find_up_to(key, scope.1) {
+            if let Some(symbol_id) = symbols.find_active_symbol_up_to(scope.0, key, scope.1) {
                 return Some(symbol_id.into_global(symbols.module_id));
             }
             // go to parent scope
@@ -105,7 +105,7 @@ impl TestProgram {
         for segment in path_segments {
             let segment_id = self.program.strings.intern(segment);
             let key = StaticKey::Name(segment_id);
-            if let Some(next_symbol_id) = scope.find(key) {
+            if let Some(next_symbol_id) = symbols.find_active_symbol(scope, key) {
                 current_symbol_id = next_symbol_id;
                 symbol = symbols.get_symbol(current_symbol_id);
                 scope = symbols.get_scope_by_id(symbol.scope.0);

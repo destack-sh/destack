@@ -193,10 +193,10 @@ fn complete_members(
             let scope = symbols.get_scope_by_id(owned_scope_id);
 
             // add all named symbols in the scope as member completions
-            for (key, member_id) in &scope.named_symbols {
+            for (key, member_id) in symbols.active_named_symbols(scope) {
                 if let destack_dir::StaticKey::Name(name_id) = key {
-                    let member_symbol = symbols.get_symbol(*member_id);
-                    let name = ctx.ast.strings.get(*name_id).to_string();
+                    let member_symbol = symbols.get_symbol(member_id);
+                    let name = ctx.ast.strings.get(name_id).to_string();
                     let kind = CompletionKind::from(member_symbol.ty);
 
                     let mut completion = Completion::new(name, kind).with_sort_order(10);
@@ -357,9 +357,9 @@ fn complete_values(
         while let Some(sid) = current_scope_id {
             let scope = symbols.get_scope_by_id(sid);
 
-            for (key, symbol_id) in &scope.named_symbols {
+            for (key, symbol_id) in symbols.active_named_symbols(scope) {
                 if let dir::StaticKey::Name(name_id) = key {
-                    let symbol = symbols.get_symbol(*symbol_id);
+                    let symbol = symbols.get_symbol(symbol_id);
 
                     // only include value symbols
                     if symbol.space != dir::SymbolSpace::Value
@@ -368,7 +368,7 @@ fn complete_values(
                         continue;
                     }
 
-                    let name = ctx.ast.strings.get(*name_id).to_string();
+                    let name = ctx.ast.strings.get(name_id).to_string();
 
                     // filter by prefix
                     if !prefix.is_empty()
@@ -387,6 +387,9 @@ fn complete_values(
     } else {
         // no scope, add all module-level symbols
         for symbol in symbols.symbols() {
+            if !symbol.is_active() {
+                continue;
+            }
             let Some(string_id) = symbol.name() else {
                 continue;
             };

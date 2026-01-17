@@ -23,10 +23,9 @@ impl Compiler {
         let mut seen_extensions = HashSet::new();
 
         // scan module symbols for remote targets and extensions
-        for symbol_index in 0..symbols.symbol_count() {
-            let local_symbol = LocalSymbolId::new(symbol_index);
+        for local_symbol in symbols.active_symbol_ids() {
             let symbol_entry = symbols.get_symbol(local_symbol);
-            let symbol_id = LocalSymbolId::new_typed(symbol_index, symbol_entry.ty);
+            let symbol_id = LocalSymbolId::new_typed(local_symbol.id, symbol_entry.ty);
             let global_symbol = symbol_id.into_global(module.id);
 
             // resolve canonical ids for imported symbols

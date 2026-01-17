@@ -7,6 +7,7 @@
 mod analyze;
 mod cache;
 mod compile;
+mod r#static;
 mod elaborate;
 mod emit;
 mod execute;
@@ -22,6 +23,7 @@ mod unbind;
 pub use analyze::*;
 pub use cache::*;
 pub use compile::*;
+pub(crate) use r#static::*;
 pub use elaborate::*;
 pub use emit::*;
 pub use execute::*;

@@ -301,6 +301,11 @@ impl Compiler {
     ) -> ElaborateResult<()> {
         // walk all expressions to find nested casts
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            // skip inactive expressions
+            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
+                continue;
+            }
+
             let Expression::Cast {
                 value,
                 target_type,

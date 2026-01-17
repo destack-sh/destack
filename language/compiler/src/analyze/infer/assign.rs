@@ -2256,11 +2256,10 @@ mod tests {
         symbol_type: SymbolType,
     ) -> GlobalSymbolId {
         // scan for a matching symbol
-        for symbol_index in 0..symbols.symbol_count() {
-            let local_id = LocalSymbolId::new(symbol_index);
+        for local_id in symbols.active_symbol_ids() {
             let symbol = symbols.get_symbol(local_id);
             if symbol.ty == symbol_type && symbol.key == Some(StaticKey::Name(name)) {
-                return LocalSymbolId::new_typed(symbol_index, symbol.ty)
+                return LocalSymbolId::new_typed(local_id.id, symbol.ty)
                     .into_global(symbols.module_id);
             }
         }

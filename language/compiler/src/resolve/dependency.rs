@@ -1270,18 +1270,18 @@ impl Compiler {
         // prefer namespace symbols for class or namespace merges
         let scope = symbols.get_scope_by_id(scope_id);
         let mut fallback = None;
-        for (candidate_key, symbol_id) in &scope.named_symbols {
-            if *candidate_key != key {
+        for (candidate_key, symbol_id) in symbols.active_named_symbols(scope) {
+            if candidate_key != key {
                 continue;
             }
 
-            let symbol = symbols.get_symbol(*symbol_id);
+            let symbol = symbols.get_symbol(symbol_id);
             if symbol.kind == destack_dir::SymbolKind::Namespace {
-                return Some(*symbol_id);
+                return Some(symbol_id);
             }
 
             if fallback.is_none() {
-                fallback = Some(*symbol_id);
+                fallback = Some(symbol_id);
             }
         }
 
@@ -1392,9 +1392,9 @@ impl Compiler {
             let scope = symbols.get_scope_by_id(scope_id);
 
             // look for a namespace symbol with the same name in the same scope
-            for (k, sym_id) in &scope.named_symbols {
-                if *k == symbol_key {
-                    let other_symbol = symbols.get_symbol(*sym_id);
+            for (candidate_key, sym_id) in symbols.active_named_symbols(scope) {
+                if candidate_key == symbol_key {
+                    let other_symbol = symbols.get_symbol(sym_id);
                     if other_symbol.kind == destack_dir::SymbolKind::Namespace {
                         // found a merged namespace, look in its scope
                         let (ns_scope_id, _) = other_symbol.scope;

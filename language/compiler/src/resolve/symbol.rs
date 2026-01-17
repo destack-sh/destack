@@ -128,6 +128,9 @@ impl Compiler {
                 continue;
             }
             let symbol = symbols.get_symbol(*symbol_id);
+            if !symbol.is_active() {
+                continue;
+            }
             match symbol.space {
                 SymbolSpace::Type => {
                     if type_symbol.is_none() {
@@ -1188,11 +1191,11 @@ impl Compiler {
         let mut scope = scope;
         loop {
             // search for label symbol in current scope
-            for (candidate_key, symbol_id) in scope.1.named_symbols.iter() {
-                if *candidate_key == key {
-                    let symbol = symbols.get_symbol(*symbol_id);
+            for (candidate_key, symbol_id) in symbols.active_named_symbols(scope.1) {
+                if candidate_key == key {
+                    let symbol = symbols.get_symbol(symbol_id);
                     if symbol.space == SymbolSpace::Label {
-                        return Ok(*symbol_id);
+                        return Ok(symbol_id);
                     }
                 }
             }

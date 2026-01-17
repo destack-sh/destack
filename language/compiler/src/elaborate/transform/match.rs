@@ -29,12 +29,13 @@ impl Compiler {
     pub(super) fn transform_match(
         &self,
         tree: &mut NodeTree,
-        _symbols: &destack_dir::SymbolTable,
+        symbols: &destack_dir::SymbolTable,
         _types: &destack_dir::TypeTable,
     ) -> ElaborateResult<()> {
         let match_ids: Vec<_> = tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
+            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
             .filter(|id| {
                 matches!(
                     tree.get(*id),

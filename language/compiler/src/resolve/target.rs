@@ -224,7 +224,7 @@ value;
         // locate the imported symbol
         let name_id = test.program.strings.intern("value");
         let scope = symbols.get_scope_by_id(dir.namespace_scope);
-        let Some(symbol_id) = scope.find(StaticKey::Name(name_id)) else {
+        let Some(symbol_id) = symbols.find_active_symbol(scope, StaticKey::Name(name_id)) else {
             panic!("expected import binding for value");
         };
         let symbol = symbols.get_symbol(symbol_id);
