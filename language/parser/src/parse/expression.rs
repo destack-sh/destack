@@ -402,6 +402,32 @@ impl Parser {
         }
     }
 
+    /// Peek a private member access using `.#`.
+    #[inline]
+    fn peek_private_member(&self) -> ParseResult<u8> {
+        // immediate private member access
+        if self.peek_token(TokenType::Dot).is_ok()
+            && self.peek_next_token(TokenType::Hash).is_ok()
+            && self.peek_next_next_token(TokenType::Identifier).is_ok()
+        {
+            Ok(3)
+        }
+        // private member access across newline
+        else if self.peek_token(TokenType::Newline).is_ok()
+            && self.peek_next_token(TokenType::Dot).is_ok()
+            && self.peek_next_next_token(TokenType::Hash).is_ok()
+            && self
+                .peek_next_next_next_token(TokenType::Identifier)
+                .is_ok()
+        {
+            Ok(4)
+        }
+        // nothing
+        else {
+            Err(ParseError::unexpected(self.peek()?.span))
+        }
+    }
+
     /// Eat an expression that might be paranthesized (skip the parenthesis if present).
     pub fn eat_expression_parenthesized_maybe(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
@@ -1424,6 +1450,35 @@ impl Parser {
                     },
                     self.get_span_from(start),
                 );
+            }
+            // private member (also works across newline)
+            else if let Ok(distance) = self.peek_private_member() {
+                self.bump_by(distance - 1); // keep the identifier
+                let (name, name_span) = self.eat_identifier_with_span()?;
+                // speculatively unwrap postfix static parameterisation with `<`
+                //  (might also be just a comparison operator)
+                let static_arguments = if self.peek_token(TokenType::LessThan).is_ok() {
+                    let speculative_start = self.mark();
+                    let speculative_start_idx = self.tree.next_id();
+                    match self.eat_static_arguments() {
+                        Ok(static_arguments) => Some(static_arguments),
+                        Err(_) => {
+                            self.restore(speculative_start, speculative_start_idx);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
+                left_expression_id = self.tree.insert(
+                    Expression::Member {
+                        left: left_expression_id,
+                        name,
+                        static_arguments,
+                    },
+                    self.get_span_from(start),
+                );
+                self.tree.set_main_span(left_expression_id, name_span);
             }
             // member (also works across newline)
             else if let Ok(distance) = self.peek_member(TokenType::Identifier) {
