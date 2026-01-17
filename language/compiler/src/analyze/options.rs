@@ -1,11 +1,10 @@
 use destack_dir::SymbolDecorators;
-use destack_source::ModuleId;
-use destack_workspace::{DsConfigCompilerOptions, TsCompilerOptions};
+use destack_source::{File, FileType, ModuleId, TargetId, Uri};
+use destack_workspace::{DsConfigCompilerOptions, Module, TsCompilerOptions};
 
 use std::sync::Arc;
 
 use crate::{AnalyzeError, Compiler};
-use destack_source::{File, FileType, Uri};
 use destack_workspace::DsConfig;
 
 /// "TS++" semantic options used during analysis.
@@ -227,6 +226,37 @@ impl From<&TsCompilerOptions> for AnalyzeOptions {
 }
 
 impl Compiler {
+    /// Apply target-derived restrictions to compiler options when available.
+    fn compiler_options_for_module_target(
+        &self,
+        module: &Module,
+        options: DsConfigCompilerOptions,
+    ) -> DsConfigCompilerOptions {
+        // use target-specific options when a dsconfig target is present
+        let package = self.program.packages.get(module.package_id);
+        let package = package.read();
+        let Some(dsconfig) = package.dsconfig.as_ref() else {
+            return options;
+        };
+
+        // select a target when we have an explicit default (or a single target)
+        let target = if let Some(name) = dsconfig.options.default_target.as_ref() {
+            let target_id = TargetId::new(package.id, name);
+            package.targets.get(&target_id).cloned()
+        } else if package.targets.len() == 1 {
+            package.targets.values().next().cloned()
+        } else {
+            None
+        };
+
+        // skip target-derived restrictions when no default target is selected
+        let Some(target) = target else {
+            return options;
+        };
+
+        destack_workspace::Program::compiler_options_for_target(&target, &options)
+    }
+
     /// Get the effective TS-compatible semantic options for a module.
     pub(crate) fn analyze_context_options_for_module(&self, module_id: ModuleId) -> AnalyzeOptions {
         let module = self.program.modules.get(module_id);
@@ -245,6 +275,7 @@ impl Compiler {
                 .program
                 .with_dsconfig_options(&module, |ds| ds.compiler.clone())
             {
+                let options = self.compiler_options_for_module_target(&module, options);
                 return AnalyzeOptions::from(&options);
             }
 
@@ -255,6 +286,7 @@ impl Compiler {
             .program
             .with_dsconfig_options(&module, |ds| ds.compiler.clone())
         {
+            let options = self.compiler_options_for_module_target(&module, options);
             return AnalyzeOptions::from(&options);
         }
 

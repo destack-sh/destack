@@ -513,6 +513,15 @@ Explicit ownership operators (`^T`, `&T`, `*T`) satisfy the requirement for both
 `noManaged` forbids GC-managed defaults and allocations.
 Explicit ownership operators remain valid and use raw allocation.
 
+Native and WASM outputs force strict defaults plus soundness defaults regardless of configuration.
+The soundness defaults enforce:
+- noAny and noUnknown.
+- noImprecisePrimitives.
+- noImplicitConversions and noUnsafeTypeAssertions.
+- noImplicitManaged and noManaged.
+- borrowMode = strict.
+- noDynamicEvaluation, noDynamicImport, noProxy, noDynamicShapes, noExceptions, and noGlobalThis.
+
 **Use after move:**
 
 ```
@@ -1710,7 +1719,11 @@ extension<T> for Container<T> implements Iterable<T> {
 
 ### Enum
 
-Enums work like TypeScript:
+Enums conceptually follow TypeScript, but remain strictly nominal types.
+Enum values do _not_ implicitly coerce to their backing type.
+Explicit casts are required to convert between enums and their backing types.
+The backing type is inferred from member values and is either an integer or string type.
+When member values are omitted, the backing type defaults to the configured integer width.
 
 ```
 enum Status {

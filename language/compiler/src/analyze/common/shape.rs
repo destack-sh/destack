@@ -149,7 +149,7 @@ impl Compiler {
         // only structured nominal symbols support instance merging
         matches!(
             symbol.ty,
-            SymbolType::Interface | SymbolType::Class | SymbolType::Struct
+            SymbolType::Interface | SymbolType::Class | SymbolType::Struct | SymbolType::Enum
         )
     }
 

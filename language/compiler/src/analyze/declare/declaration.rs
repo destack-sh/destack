@@ -276,8 +276,7 @@ impl Compiler {
             } => {
                 // resolve declaration merge state
                 let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
-                    || symbol_entry.origin.is_global_augmentation();
+                let allow_merge = module.language_type.is_declaration();
                 let is_primary = symbol_entry
                     .primary_declaration
                     .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
@@ -490,8 +489,17 @@ impl Compiler {
                 generics,
                 heritage,
                 fields,
+                members,
                 ..
             } => {
+                // resolve declaration merge state
+                let symbol_entry = symbols.get_symbol(descriptor.symbol);
+                let allow_merge = module.language_type.supports_declaration_merging()
+                    || symbol_entry.origin.is_global_augmentation();
+                let is_primary = symbol_entry
+                    .primary_declaration
+                    .is_some_and(|primary| primary == declaration_id.into_global_any(module.id));
+
                 // declare generics and heritage
                 self.declare_generics(module, profile, generics, tree, symbols, types)?;
                 self.declare_heritage(
@@ -504,52 +512,86 @@ impl Compiler {
                     types,
                 )?;
 
-                // register the nominal instance type
-                let enum_symbol = descriptor.symbol.into_global(module.id);
-                let instance_ty = Type::Reference {
-                    symbol: enum_symbol,
+                // prepare the nominal reference for enum values
+                let symbol = descriptor.symbol.into_global(module.id);
+                let nominal_reference = Type::Reference {
+                    symbol,
                     static_arguments: None,
                 };
-                let instance_ty_id = types.insert_type_from(instance_ty, declaration_id);
-                types.set_instance_type(enum_symbol, instance_ty_id);
+                let nominal_reference_id =
+                    types.insert_type_from(nominal_reference, declaration_id);
+
+                // build instance and value shapes from members
+                let shapes = self.declare_member_shapes(
+                    module,
+                    profile,
+                    members,
+                    Some(nominal_reference_id),
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let instance_shape = shapes.instance;
+                let mut value_shape = shapes.value;
+
+                // merge instance shapes for merged declarations
+                self.merge_instance_shape_into_merge_group(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &instance_shape,
+                    symbols,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations once per primary declaration
+                if allow_merge && is_primary {
+                    self.merge_global_instance_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
 
                 // build value fields for enum members
-                let mut value_fields = Vec::new();
                 for field_id in fields {
                     let field = tree.get(*field_id);
                     let field_symbol = field.symbol.into_global(module.id);
-                    types.set_value_type(field_symbol, instance_ty_id);
+                    types.set_value_type(field_symbol, nominal_reference_id);
 
-                    value_fields.push(TypeField {
+                    value_shape.fields.push(TypeField {
                         key: StaticKey::Name(field.name),
-                        ty: instance_ty_id,
+                        ty: nominal_reference_id,
                         is_optional: false,
                         is_readonly: true,
                     });
                 }
 
-                // merge enum fields with existing value type when present
-                let mut merged_fields = Vec::new();
-                let symbol_entry = symbols.get_symbol(descriptor.symbol);
-                let allow_merge = module.language_type.supports_declaration_merging()
-                    || symbol_entry.origin.is_global_augmentation();
-                if allow_merge
-                    && let Some(existing_id) = types.get_value_type_id(enum_symbol)
-                    && let Type::Object { fields, .. } = types.get_type(existing_id)
-                {
-                    merged_fields.extend_from_slice(fields);
-                }
-                merged_fields.extend(value_fields);
-
                 // register the enum value type
-                let value_ty = Type::Object {
-                    fields: merged_fields,
-                    call_signatures: Vec::new(),
-                    construct_signatures: Vec::new(),
-                    index_signatures: Vec::new(),
-                };
-                let value_ty_id = types.insert_type_from(value_ty, declaration_id);
-                types.set_value_type(enum_symbol, value_ty_id);
+                self.merge_value_shape_into_symbol(
+                    module,
+                    declaration_id,
+                    descriptor.symbol,
+                    &value_shape,
+                    types,
+                    allow_merge,
+                );
+
+                // merge global augmentations for the value shape
+                if allow_merge && is_primary {
+                    self.merge_global_value_shape_for_symbol(
+                        module,
+                        declaration_id,
+                        descriptor.symbol,
+                        symbols,
+                        types,
+                        profile,
+                    )?;
+                }
 
                 Ok(())
             }
