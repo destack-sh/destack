@@ -909,11 +909,152 @@ pub fn terminator_arguments_for_successor_checked(
     }
 }
 
+/// Collect all SSA values used by a block.
+pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::Value> {
+    // prepare the use list
+    let mut uses = Vec::new();
+
+    // collect uses from instructions
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id);
+        uses.extend(instruction.uses());
+        if let Some(arguments) = instruction.argument_slice() {
+            uses.extend(tree.get_arguments(arguments).iter().copied());
+        }
+    }
+
+    // collect uses from the terminator
+    match &block.terminator {
+        mir::Terminator::Jump { arguments, .. } => {
+            // record jump arguments
+            uses.extend(arguments.iter().copied());
+        }
+        mir::Terminator::Branch {
+            condition,
+            then_arguments,
+            else_arguments,
+            ..
+        } => {
+            // record branch condition and arguments
+            uses.push(*condition);
+            uses.extend(then_arguments.iter().copied());
+            uses.extend(else_arguments.iter().copied());
+        }
+        mir::Terminator::Check {
+            condition,
+            success,
+            failure,
+            ..
+        } => {
+            // record check condition and arguments
+            uses.push(*condition);
+            uses.extend(success.arguments.iter().copied());
+            uses.extend(failure.arguments.iter().copied());
+        }
+        mir::Terminator::Switch {
+            value,
+            default_arguments,
+            cases,
+            ..
+        } => {
+            // record switch condition and arguments
+            uses.push(*value);
+            uses.extend(default_arguments.iter().copied());
+            for case in cases {
+                uses.extend(case.arguments.iter().copied());
+            }
+        }
+        mir::Terminator::Yield {
+            value,
+            resume_arguments,
+            ..
+        } => {
+            // record yield value and resume arguments
+            uses.push(*value);
+            uses.extend(resume_arguments.iter().copied());
+        }
+        mir::Terminator::Return { value } => {
+            // record return value
+            if let Some(value) = value {
+                uses.push(*value);
+            }
+        }
+        mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallIndirect { .. } => {}
+    }
+
+    uses
+}
+
+/// Return true when all block uses are available in a predecessor.
+pub fn block_uses_available_in_predecessor(
+    block_id: mir::LocalNodeId<mir::Block>,
+    block: &mir::Block,
+    tree: &mir::NodeTree,
+    predecessor: mir::LocalNodeId<mir::Block>,
+    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    domtree: &DominatorTree,
+) -> bool {
+    // collect block parameter values
+    let mut param_values: HashSet<mir::Value> = HashSet::new();
+
+    for param in &block.parameters {
+        param_values.insert(param.value);
+    }
+
+    // ensure all uses are defined before the predecessor
+    let uses = collect_block_uses(block, tree);
+    for value in uses {
+        // skip values provided by block parameters
+        if param_values.contains(&value) {
+            continue;
+        }
+
+        // require a known definition
+        let Some(def_block) = value_def_blocks.get(&value) else {
+            return false;
+        };
+
+        // skip values defined inside the block
+        if *def_block == block_id {
+            continue;
+        }
+
+        // require dominance at the predecessor
+        if !domtree.dominates(*def_block, predecessor) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Return true when block parameters are used outside the block.
+pub fn block_parameters_used_outside_block(
+    block: &mir::Block,
+    use_blocks: &HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
+    block_id: mir::LocalNodeId<mir::Block>,
+) -> bool {
+    // detect parameter uses outside of the defining block
+    for param in &block.parameters {
+        let Some(uses) = use_blocks.get(&param.value) else {
+            continue;
+        };
+
+        if uses.iter().any(|use_block| *use_block != block_id) {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Thread jumps through empty or passthrough blocks.
 ///
 /// If a block has no instructions and either has no parameters or just forwards
 /// them, predecessors can bypass it. For jump terminators, we resolve chains
-/// (A->B->C becomes A->C).
+/// (A to B to C becomes A to C).
 ///
 /// Returns true if any changes were made.
 pub fn function_thread_jumps(function: &mir::Function, tree: &mut mir::NodeTree) -> bool {

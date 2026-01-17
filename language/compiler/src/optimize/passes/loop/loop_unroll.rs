@@ -9,7 +9,8 @@ use crate::optimize::analyses::{
 use crate::optimize::common::{
     BlockParamForwarding, CallsiteHotness, block_execution_counts, block_hotness_from_counts,
     build_use_def_maps, build_value_definition_map, clone_loop_blocks, constant_from_global,
-    instruction_map, terminator_arguments_for_successor, terminator_remap,
+    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
+    terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -242,6 +243,15 @@ enum UnrollMode {
     },
 }
 
+/// Per loop unroll and jam plan.
+#[derive(Debug, Clone, Copy)]
+struct JamPlan {
+    /// Unroll factor for the outer loop.
+    factor: u64,
+    /// Remainder iterations to peel before jamming.
+    remainder: u64,
+}
+
 /// Per loop unroll limits derived from profile data.
 #[derive(Debug, Clone, Copy)]
 struct UnrollLimits {
@@ -281,6 +291,8 @@ struct JamCandidate {
     outer_header: mir::LocalNodeId<mir::Block>,
     /// Outer loop latch block.
     outer_latch: mir::LocalNodeId<mir::Block>,
+    /// All blocks in the outer loop.
+    outer_blocks: HashSet<mir::LocalNodeId<mir::Block>>,
     /// Inner loop header block.
     inner_header: mir::LocalNodeId<mir::Block>,
     /// Inner loop latch block.
@@ -499,7 +511,7 @@ fn run_loop_unroll_and_jam(
         let children = build_loop_children_map(&loops);
 
         // pick the first viable candidate for unroll and jam
-        let mut selected: Option<(JamCandidate, u64)> = None;
+        let mut selected: Option<(JamCandidate, JamPlan)> = None;
         let mut loop_indices: Vec<usize> = (0..loops.num_loops()).collect();
         loop_indices.sort_by_key(|index| loops.loops()[*index].depth);
 
@@ -543,22 +555,25 @@ fn run_loop_unroll_and_jam(
                 continue;
             };
 
-            let Some(factor) = select_jam_factor(&candidate, &limits, tree) else {
+            let allow_remainder = find_jam_preheader(&candidate, &cfg, &domtree, tree).is_some();
+            let Some(plan) = select_jam_plan(&candidate, &limits, tree, allow_remainder) else {
                 continue;
             };
 
-            selected = Some((candidate, factor));
+            selected = Some((candidate, plan));
             break;
         }
 
         // exit when no eligible loops remain
-        let Some((candidate, factor)) = selected else {
+        let Some((candidate, plan)) = selected else {
             break;
         };
 
         // apply transformation
         function.recompute_next_value_id(tree);
-        if !unroll_and_jam_loop(function, tree, ctx, &candidate, factor, &ownership) {
+        if !unroll_and_jam_loop(
+            function, tree, ctx, &candidate, plan, &cfg, &domtree, &ownership,
+        ) {
             break;
         }
 
@@ -1001,6 +1016,7 @@ fn find_jam_candidate(
     Some(JamCandidate {
         outer_header,
         outer_latch,
+        outer_blocks: outer.blocks.clone(),
         inner_header,
         inner_latch,
         outer_induction: outer_guard.induction,
@@ -1485,12 +1501,13 @@ fn value_depends_on(
     false
 }
 
-/// Select an unroll and jam factor for the outer loop.
-fn select_jam_factor(
+/// Select an unroll and jam plan for the outer loop.
+fn select_jam_plan(
     candidate: &JamCandidate,
     limits: &UnrollLimits,
     tree: &mir::NodeTree,
-) -> Option<u64> {
+    allow_remainder: bool,
+) -> Option<JamPlan> {
     // compute the inner body size
     let inner_body_size = tree.get(candidate.inner_latch).instructions.len();
     if inner_body_size == 0 {
@@ -1508,11 +1525,19 @@ fn select_jam_factor(
         return None;
     }
 
-    // TODO #Incomplete: handle remainder iterations for unroll and jam
-    // require exact divisibility to avoid a remainder loop
+    // allow remainders when peeling is supported
+    if allow_remainder {
+        let remainder = candidate.outer_trip_count % factor;
+        return Some(JamPlan { factor, remainder });
+    }
+
+    // require exact divisibility when peeling is unavailable
     while factor >= 2 {
         if candidate.outer_trip_count.is_multiple_of(factor) {
-            return Some(factor);
+            return Some(JamPlan {
+                factor,
+                remainder: 0,
+            });
         }
 
         factor -= 1;
@@ -1522,17 +1547,29 @@ fn select_jam_factor(
 }
 
 /// Apply loop unroll and jam for the candidate.
+// allow extra arguments to keep loop state explicit
+#[allow(clippy::too_many_arguments)]
 fn unroll_and_jam_loop(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
-    factor: u64,
+    plan: JamPlan,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
     ownership: &OwnershipAnalysis,
 ) -> bool {
     // reject degenerate factors
-    if factor < 2 {
+    if plan.factor < 2 {
         return false;
+    }
+
+    // peel remainder iterations before unroll and jam
+    if plan.remainder > 0 {
+        let peeled = peel_jam_remainder(function, tree, candidate, cfg, domtree, plan.remainder);
+        if !peeled {
+            return false;
+        }
     }
 
     // locate the inner update instruction
@@ -1542,7 +1579,7 @@ fn unroll_and_jam_loop(
     };
 
     // update the outer latch induction step
-    if !rewrite_outer_latch_step(function, tree, ctx, candidate, factor, ownership) {
+    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor, ownership) {
         return false;
     }
 
@@ -1552,11 +1589,123 @@ fn unroll_and_jam_loop(
         tree,
         ctx,
         candidate,
-        factor,
+        plan.factor,
         &update_info,
         ownership,
     ) {
         return false;
+    }
+
+    true
+}
+
+/// Locate the outer loop preheader for unroll and jam.
+fn find_jam_preheader(
+    candidate: &JamCandidate,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+    tree: &mir::NodeTree,
+) -> Option<(mir::LocalNodeId<mir::Block>, Vec<mir::Value>)> {
+    // collect predecessors outside the loop
+    let mut outside_preds: Vec<_> = cfg
+        .predecessors(candidate.outer_header)
+        .iter()
+        .copied()
+        .filter(|pred| !candidate.outer_blocks.contains(pred))
+        .collect();
+
+    // require a single outside predecessor
+    if outside_preds.len() != 1 {
+        return None;
+    }
+    let preheader = outside_preds.pop()?;
+
+    // ensure the preheader dominates the header
+    if !domtree.dominates(preheader, candidate.outer_header) {
+        return None;
+    }
+
+    // require a direct jump to the header
+    let preheader_block = tree.get(preheader);
+    let arguments = match &preheader_block.terminator {
+        mir::Terminator::Jump { target, arguments } if *target == candidate.outer_header => {
+            arguments.clone()
+        }
+        _ => return None,
+    };
+
+    Some((preheader, arguments))
+}
+
+/// Peel remainder iterations before unroll and jam.
+fn peel_jam_remainder(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    candidate: &JamCandidate,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+    remainder: u64,
+) -> bool {
+    // find a preheader outside of the loop
+    let Some((preheader, preheader_args)) = find_jam_preheader(candidate, cfg, domtree, tree)
+    else {
+        return false;
+    };
+
+    // clone iterations for the remainder
+    let mut peeled_iterations = Vec::new();
+    for _ in 0..remainder {
+        // clone loop blocks and values
+        let (block_map, value_map) = clone_loop_blocks(&candidate.outer_blocks, function, tree);
+
+        // remap cloned terminators
+        for &cloned_id in block_map.values() {
+            let mut block = tree.get(cloned_id).clone();
+            terminator_remap(&mut block.terminator, &block_map, &value_map);
+            tree.replace(cloned_id, block);
+        }
+
+        // insert cloned blocks into the function
+        let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
+        cloned_blocks.sort();
+        for block_id in cloned_blocks {
+            function.blocks.push(block_id);
+        }
+
+        // record peeled header and latch
+        peeled_iterations.push(UnrollIteration {
+            header: block_map[&candidate.outer_header],
+            latch: block_map[&candidate.outer_latch],
+        });
+    }
+
+    // redirect the preheader to the first peeled header
+    let Some(first_iteration) = peeled_iterations.first() else {
+        return true;
+    };
+    let mut preheader_block = tree.get(preheader).clone();
+    preheader_block.terminator = mir::Terminator::Jump {
+        target: first_iteration.header,
+        arguments: preheader_args,
+    };
+    tree.replace(preheader, preheader_block);
+
+    // chain peeled iterations together
+    for (index, iteration) in peeled_iterations.iter().enumerate() {
+        let is_last = index + 1 == peeled_iterations.len();
+        let next_header = if is_last {
+            candidate.outer_header
+        } else {
+            peeled_iterations[index + 1].header
+        };
+
+        let mut latch_block = tree.get(iteration.latch).clone();
+        let updated = rewrite_latch_to_jump(&mut latch_block, iteration.header, next_header);
+        if !updated {
+            return false;
+        }
+
+        tree.replace(iteration.latch, latch_block);
     }
 
     true
@@ -1568,6 +1717,8 @@ struct InnerUpdateInfo {
     update_instruction: mir::LocalNodeId<mir::Instruction>,
     /// Body instructions before the update.
     body_instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
+    /// Instructions after the update that can stay in the latch.
+    trailing_instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
 }
 
 /// Find the inner loop induction update instruction information.
@@ -1590,20 +1741,63 @@ fn inner_update_info(
         .iter()
         .position(|&id| id == update_instruction)?;
 
-    // require the update to be last in the block
-    if update_index + 1 != latch_block.instructions.len() {
-        // TODO #Incomplete: allow inner updates with trailing invariants
+    // split body and trailing instructions
+    let body_instructions = latch_block.instructions[..update_index].to_vec();
+    let trailing_instructions = latch_block.instructions[update_index + 1..].to_vec();
+    if body_instructions.is_empty() {
         return None;
     }
 
-    let body_instructions = latch_block.instructions[..update_index].to_vec();
-    if body_instructions.is_empty() {
-        return None;
+    if !trailing_instructions.is_empty() {
+        // reject trailing instructions that depend on outer induction values
+        for instruction_id in &trailing_instructions {
+            let instruction = tree.get(*instruction_id);
+            if !instruction_is_speculatable(instruction) {
+                return None;
+            }
+
+            for value in instruction.uses() {
+                if candidate.outer_equivalents.contains(&value) {
+                    return None;
+                }
+
+                if value_depends_on(
+                    value,
+                    candidate.outer_induction,
+                    Some(candidate.inner_outer_param),
+                    def_map,
+                    tree,
+                    &mut HashSet::new(),
+                ) {
+                    return None;
+                }
+            }
+
+            if let Some(arguments) = instruction.argument_slice() {
+                for &value in tree.get_arguments(arguments) {
+                    if candidate.outer_equivalents.contains(&value) {
+                        return None;
+                    }
+
+                    if value_depends_on(
+                        value,
+                        candidate.outer_induction,
+                        Some(candidate.inner_outer_param),
+                        def_map,
+                        tree,
+                        &mut HashSet::new(),
+                    ) {
+                        return None;
+                    }
+                }
+            }
+        }
     }
 
     Some(InnerUpdateInfo {
         update_instruction,
         body_instructions,
+        trailing_instructions,
     })
 }
 
@@ -1760,6 +1954,7 @@ fn jam_inner_body(
     }
 
     new_instructions.push(update_info.update_instruction);
+    new_instructions.extend(update_info.trailing_instructions.iter().copied());
 
     let mut latch_block = tree.get(candidate.inner_latch).clone();
     latch_block.instructions = new_instructions;
@@ -1870,22 +2065,38 @@ fn unroll_limits_for_loop(
     // classify loop hotness from the header count
     let header_count = block_counts.get(&header).copied().unwrap_or(0);
     let hotness = block_hotness_from_counts(header_count, entry_count, policy);
-
-    match hotness {
-        CallsiteHotness::Cold => None,
-        CallsiteHotness::Hot => Some(UnrollLimits {
-            max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS.saturating_mul(2),
-            max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR.saturating_mul(2),
-            max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT.saturating_mul(2),
-            max_body_instructions: unroll_threshold.saturating_mul(2),
-        }),
-        CallsiteHotness::Unknown => Some(UnrollLimits {
-            max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS,
-            max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR,
-            max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT,
-            max_body_instructions: unroll_threshold,
-        }),
+    if matches!(hotness, CallsiteHotness::Cold) {
+        return None;
     }
+
+    // estimate average iterations from header and entry counts
+    let avg_iterations = if entry_count > 0 {
+        (header_count / entry_count).max(1)
+    } else {
+        1
+    };
+
+    let iteration_boost: u64 = match avg_iterations {
+        0..=3 => 1,
+        4..=7 => 2,
+        8..=15 => 3,
+        _ => 4,
+    };
+
+    let hotness_boost: u64 = if matches!(hotness, CallsiteHotness::Hot) {
+        2
+    } else {
+        1
+    };
+
+    let scale = iteration_boost.saturating_mul(hotness_boost);
+
+    Some(UnrollLimits {
+        max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS.saturating_mul(scale),
+        max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR.saturating_mul(scale),
+        max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT.saturating_mul(scale),
+        max_body_instructions: unroll_threshold.saturating_mul(scale as usize),
+    })
 }
 
 /// Select unroll mode based on trip count and thresholds.
@@ -3132,9 +3343,82 @@ block7:
         program.assert_output(&baseline);
     }
 
-    /// Loops with non divisible trip counts are not jammed.
+    /// Trailing invariant updates after the inner step are preserved.
     #[test]
-    fn test_unroll_and_jam_skips_remainder_trip_count() {
+    fn test_unroll_and_jam_allows_trailing_invariants() {
+        let input = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 2u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v14 = iadd v12, v4
+    v15 = iadd v14, v4
+    jump block3(v11, v14)
+block5(v16: u32):
+    v17 = iadd v16, v4
+    jump block1(v17)
+block6:
+    return
+}"#;
+
+        let expected = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 2u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v20 = iconst 1u32
+    v21 = iadd v8, v20
+    v22 = element.addr v0, v12 -> ref<borrowed u32>
+    store v22, v21
+    v14 = iadd v12, v4
+    v15 = iadd v14, v4
+    jump block3(v11, v14)
+block5(v16: u32):
+    v17 = iadd v16, v4
+    v18 = iconst 2u32
+    v19 = iadd v16, v18
+    jump block1(v19)
+block6:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnrollAndJam);
+        program.assert_output(expected);
+    }
+
+    /// Loops with non divisible trip counts are jammed by peeling.
+    #[test]
+    fn test_unroll_and_jam_peels_remainder_trip_count() {
         let input = r#"function @test(v0: [u32; 8]) -> void {
 block0(v0: [u32; 8]):
     v1 = iconst 0u32
@@ -3162,12 +3446,68 @@ block5(v15: u32):
 block7:
     return
 }"#;
+        let expected = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 5u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block7(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v31 = iconst 1u32
+    v32 = iadd v8, v31
+    v33 = element.addr v0, v12 -> ref<borrowed u32>
+    store v33, v32
+    v34 = iconst 2u32
+    v35 = iadd v8, v34
+    v36 = element.addr v0, v12 -> ref<borrowed u32>
+    store v36, v35
+    v37 = iconst 3u32
+    v38 = iadd v8, v37
+    v39 = element.addr v0, v12 -> ref<borrowed u32>
+    store v39, v38
+    v14 = iadd v12, v4
+    jump block3(v11, v14)
+block5(v15: u32):
+    v16 = iadd v15, v4
+    v29 = iconst 4u32
+    v30 = iadd v15, v29
+    jump block1(v30)
+block6:
+    return
+block7(v17: u32):
+    v18 = icmp_ult v17, v2
+    branch v18, block8, block6
+block8:
+    v19 = iconst 0u32
+    jump block9(v17, v19)
+block9(v20: u32, v21: u32):
+    v22 = icmp_ult v21, v3
+    branch v22, block10(v20, v21), block11(v20)
+block10(v23: u32, v24: u32):
+    v25 = element.addr v0, v24 -> ref<borrowed u32>
+    store v25, v23
+    v26 = iadd v24, v4
+    jump block9(v23, v26)
+block11(v27: u32):
+    v28 = iadd v27, v4
+    jump block1(v28)
+}"#;
 
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
-        let baseline = program.format();
-
         program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(&baseline);
+        program.assert_output(expected);
     }
 }

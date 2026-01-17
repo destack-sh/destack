@@ -6,6 +6,9 @@ use destack_mir as mir;
 use crate::optimize::analyses::{
     ConstantPropagation, DominatorTree, LoopAnalysis, RangeAnalysis, RangeMap, ValueRange,
 };
+use crate::optimize::common::{
+    block_parameters_used_outside_block, block_uses_available_in_predecessor,
+};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_dominated_blocks,
     bool_from_range, build_use_def_maps, build_value_instruction_map, build_value_use_counts,
@@ -31,7 +34,7 @@ const MAX_TAIL_DUP_PREDECESSORS: usize = 4;
 const TAIL_DUP_HOT_EDGE_RATIO: f64 = 0.70;
 /// Ratio of total edge count required to duplicate the hottest edge.
 const TAIL_DUP_MIN_EDGE_RATIO: f64 = 0.20;
-/// Maximum rounds of CFG simplification before re-analysis.
+/// Maximum rounds of CFG simplification before reanalysis.
 const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
 declare_pass! {
@@ -47,7 +50,7 @@ declare_pass! {
     /// 7. Tail duplication: duplicates small jump targets into jump predecessors
     /// 8. Block merging: merges blocks with single predecessor/successor
     /// 9. Unreachable block elimination: removes blocks not reachable from entry
-    /// 10. Critical edge splitting: splits edges from multi-successor blocks into multi-predecessor blocks
+    /// 10. Critical edge splitting: splits edges from multi successor blocks into multi predecessor blocks
     ///
     /// The pass iterates to a bounded fixed point.
     ///
@@ -131,7 +134,7 @@ fn run_simplify_cfg(
     // track whether any changes were made
     let mut changed = false;
 
-    // keep track of profile-guided tail duplication targets
+    // keep track of profile guided tail duplication targets
     let mut profiled_tail_dup_targets: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
     // run until fixed point or iteration cap
@@ -154,7 +157,7 @@ fn run_simplify_cfg(
         };
 
         // phase 1: branch folding
-        // converts `branch always_true, A, B` -> `jump A`
+        // converts `branch always_true, A, B` to `jump A`
         let mut changed_this_round =
             fold_branches(function, tree, &constants, &ranges, &loop_blocks);
 
@@ -2207,7 +2210,7 @@ fn tail_duplicate_blocks(
     let mut changed = false;
 
     for block_id in block_ids {
-        // skip blocks already handled by profile-guided duplication
+        // skip blocks already handled by profile guided duplication
         if profile.is_some() && profiled_targets.contains(&block_id) {
             continue;
         }
@@ -2367,48 +2370,6 @@ fn tail_duplicate_blocks(
 }
 
 /// Return true when all block uses are available at a predecessor.
-fn block_uses_available_in_predecessor(
-    block_id: mir::LocalNodeId<mir::Block>,
-    block: &mir::Block,
-    tree: &mir::NodeTree,
-    predecessor: mir::LocalNodeId<mir::Block>,
-    value_def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    domtree: &DominatorTree,
-) -> bool {
-    // collect block parameter values
-    let mut param_values: HashSet<mir::Value> = HashSet::new();
-
-    for param in &block.parameters {
-        param_values.insert(param.value);
-    }
-
-    // ensure all uses are defined before the predecessor
-    let uses = collect_block_uses(block, tree);
-    for value in uses {
-        // skip values provided by block parameters
-        if param_values.contains(&value) {
-            continue;
-        }
-
-        // require a known definition
-        let Some(def_block) = value_def_blocks.get(&value) else {
-            return false;
-        };
-
-        // skip values defined inside the block
-        if *def_block == block_id {
-            continue;
-        }
-
-        // require dominance at the predecessor
-        if !domtree.dominates(*def_block, predecessor) {
-            return false;
-        }
-    }
-
-    true
-}
-
 /// Return true when all values are available in the given block.
 fn values_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
@@ -2431,83 +2392,6 @@ fn values_available_in_block(
 }
 
 /// Collect all SSA values used by a block.
-fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::Value> {
-    // prepare the use list
-    let mut uses = Vec::new();
-
-    // collect uses from instructions
-    for &instruction_id in &block.instructions {
-        let instruction = tree.get(instruction_id);
-        uses.extend(instruction.uses());
-        if let Some(arguments) = instruction.argument_slice() {
-            uses.extend(tree.get_arguments(arguments).iter().copied());
-        }
-    }
-
-    // collect uses from the terminator
-    match &block.terminator {
-        mir::Terminator::Jump { arguments, .. } => {
-            // record jump arguments
-            uses.extend(arguments.iter().copied());
-        }
-        mir::Terminator::Branch {
-            condition,
-            then_arguments,
-            else_arguments,
-            ..
-        } => {
-            // record branch condition and arguments
-            uses.push(*condition);
-            uses.extend(then_arguments.iter().copied());
-            uses.extend(else_arguments.iter().copied());
-        }
-        mir::Terminator::Check {
-            condition,
-            success,
-            failure,
-            ..
-        } => {
-            // record check condition and arguments
-            uses.push(*condition);
-            uses.extend(success.arguments.iter().copied());
-            uses.extend(failure.arguments.iter().copied());
-        }
-        mir::Terminator::Switch {
-            value,
-            default_arguments,
-            cases,
-            ..
-        } => {
-            // record switch condition and arguments
-            uses.push(*value);
-            uses.extend(default_arguments.iter().copied());
-            for case in cases {
-                uses.extend(case.arguments.iter().copied());
-            }
-        }
-        mir::Terminator::Yield {
-            value,
-            resume_arguments,
-            ..
-        } => {
-            // record yield value and resume arguments
-            uses.push(*value);
-            uses.extend(resume_arguments.iter().copied());
-        }
-        mir::Terminator::Return { value } => {
-            // record return value
-            if let Some(value) = value {
-                uses.push(*value);
-            }
-        }
-        mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallIndirect { .. } => {}
-    }
-
-    uses
-}
-
 /// Select jump predecessors to duplicate using profile guidance when available.
 fn select_tail_dup_predecessors(
     block_id: mir::LocalNodeId<mir::Block>,
@@ -3002,25 +2886,6 @@ fn merge_blocks(
 }
 
 /// Return true when block parameters are used outside the block.
-fn block_parameters_used_outside_block(
-    block: &mir::Block,
-    use_blocks: &HashMap<mir::Value, Vec<mir::LocalNodeId<mir::Block>>>,
-    block_id: mir::LocalNodeId<mir::Block>,
-) -> bool {
-    // detect parameter uses outside of the defining block
-    for param in &block.parameters {
-        let Some(uses) = use_blocks.get(&param.value) else {
-            continue;
-        };
-
-        if uses.iter().any(|use_block| *use_block != block_id) {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Eliminate blocks not reachable from the entry block.
 /// Returns true if any blocks were removed.
 fn eliminate_unreachable_blocks(
@@ -3266,7 +3131,7 @@ block0:
         program.assert_output(expected);
     }
 
-    /// Branch on non-constant condition is preserved.
+    /// Branch on non constant condition is preserved.
     #[test]
     fn test_preserve_non_constant_branch() {
         // v0 is a parameter, not a constant
@@ -3348,7 +3213,7 @@ block0:
         program.assert_output(expected);
     }
 
-    /// Loop back-edges keep loop blocks reachable.
+    /// Loop back edges keep loop blocks reachable.
     #[test]
     fn test_preserve_loop_structure() {
         let input = r#"function @test() -> i32 {
@@ -3372,7 +3237,7 @@ block3:
         program.assert_unchanged(input);
     }
 
-    /// Single-block functions with no branches are unchanged.
+    /// Single block functions with no branches are unchanged.
     #[test]
     fn test_preserve_single_block() {
         let input = r#"function @test() -> i32 {
@@ -3389,7 +3254,7 @@ block0:
     /// Nested constant branches all fold, making intermediate blocks unreachable.
     #[test]
     fn test_fold_nested_constant_branches() {
-        // v0=true -> block1, v1=false -> block4, block2 and block3 become unreachable
+        // v0=true to block1, v1=false to block4, block2 and block3 become unreachable
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst true
@@ -3420,7 +3285,7 @@ block0:
         program.assert_output(expected);
     }
 
-    /// Diamond CFG with non-constant condition is preserved.
+    /// Diamond CFG with non constant condition is preserved.
     #[test]
     fn test_preserve_diamond_cfg() {
         let input = r#"function @test(v0: bool) -> i32 {
@@ -3846,7 +3711,7 @@ block2(v3: i32):
         program.assert_output(expected);
     }
 
-    /// Profile-guided tail duplication duplicates only the hot edge.
+    /// Profile guided tail duplication duplicates only the hot edge.
     #[test]
     fn test_tail_duplicate_profile_hot_edge() {
         // base cfg with two jump predecessors into a shared tail block
@@ -3947,7 +3812,7 @@ block3(v4: i32):
         program.assert_output(expected);
     }
 
-    /// Range-based branch folding collapses branches on bounded conditions.
+    /// Range based branch folding collapses branches on bounded conditions.
     #[test]
     fn test_fold_range_branch_select() {
         let input = r#"function @test(v0: bool) -> i32 {
@@ -3982,7 +3847,7 @@ block0(v0: bool):
         program.assert_output(expected);
     }
 
-    /// Range-based switch folding prunes impossible cases.
+    /// Range based switch folding prunes impossible cases.
     #[test]
     fn test_prune_switch_cases_by_range() {
         let input = r#"function @test(v0: bool) -> i32 {
