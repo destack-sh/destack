@@ -3,15 +3,18 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
+use crate::optimize::analyses::{
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
+};
 use crate::optimize::common::{
-    SuccessorArguments, instruction_map, terminator_arguments_for_successor_checked,
-    terminator_remap,
+    CallsiteHotness, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
+    bool_from_range, build_value_definition_map, clone_loop_blocks, instruction_is_speculatable,
+    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
-    /// Move loop-invariant conditionals outside of loops by duplicating the loop.
+    /// Move loop invariant conditionals outside of loops by duplicating the loop.
     ///
     /// This eliminates the branch inside the loop, improving branch prediction
     /// and enabling further optimizations on each specialized copy.
@@ -47,10 +50,11 @@ declare_pass! {
     /// ```
     ///
     /// Restrictions:
-    /// - Only unswitches branches with loop-invariant conditions
-    /// - Only unswitches small loops to avoid excessive code growth
-    /// - Limits unswitching to a small number of disjoint loops per run
-    /// - Requires canonical loop form from LoopSimplify
+    /// 1) Only unswitches branches with loop invariant conditions.
+    /// 2) Only unswitches small loops to avoid excessive code growth.
+    /// 3) Limits unswitching to a small number of disjoint loops per run.
+    /// 4) Avoids cold unswitching when profile data is present.
+    /// 5) Requires canonical loop form from LoopSimplify.
     #[pass(id = "loop-unswitch")]
     pub LoopUnswitch,
     "Loop unswitching for invariant conditionals"
@@ -58,10 +62,14 @@ declare_pass! {
 
 /// Maximum number of instructions in a loop to consider for unswitching.
 const MAX_LOOP_SIZE: usize = 50;
+/// Maximum loop size for hot loops when profile data is present.
+const MAX_LOOP_SIZE_HOT: usize = 200;
+/// Maximum loop size for cold loops when profile data is present.
+const MAX_LOOP_SIZE_COLD: usize = 30;
 /// Maximum number of unswitch operations per function invocation.
 const MAX_UNSWITCHES_PER_FUNCTION: usize = 2;
-
-// NOTE #Incomplete: add block frequency cost modeling for unswitch selection
+/// Minimum branch execution count for unswitching with profiles.
+const MIN_BRANCH_COUNT_FOR_UNSWITCH: u64 = 16;
 
 impl FunctionPass for LoopUnswitch {
     /// Run loop unswitching on a function.
@@ -113,14 +121,19 @@ fn run_loop_unswitch(
     // iterate unswitch attempts within the limit
     while unswitched < MAX_UNSWITCHES_PER_FUNCTION {
         // refresh analyses after each transform
-        let (loops, domtree, cfg) = {
+        let (loops, domtree, cfg, ranges) = {
             let analyses = ctx.function_analyses(function, tree);
             (
                 analyses.get::<LoopAnalysis>().clone(),
                 analyses.get::<DominatorTree>().clone(),
                 analyses.get::<ControlFlowGraph>().clone(),
+                analyses.get::<RangeAnalysis>().clone(),
             )
         };
+
+        // compute profile driven heuristics
+        let heuristics =
+            UnswitchHeuristics::new(function, tree, ctx.profile(), ctx.inline_hotness_policy());
 
         // stop when there are no loops to process
         if loops.num_loops() == 0 {
@@ -140,7 +153,9 @@ fn run_loop_unswitch(
             }
 
             // capture the first loop that can be unswitched
-            if let Some(c) = find_unswitchable_loop(lp, function, tree, &cfg, &domtree) {
+            if let Some(c) =
+                find_unswitchable_loop(lp, function, tree, &cfg, &domtree, &ranges, &heuristics)
+            {
                 candidate = Some(c);
                 break;
             }
@@ -204,6 +219,8 @@ struct UnswitchCandidate {
     branch_block: mir::LocalNodeId<mir::Block>,
     /// The invariant condition value.
     condition: mir::Value,
+    /// Instruction to hoist into the preheader when needed.
+    hoisted_condition: Option<HoistedCondition>,
     /// The "then" successor of the branch.
     then_target: mir::LocalNodeId<mir::Block>,
     /// Arguments passed to then_target.
@@ -220,6 +237,87 @@ struct UnswitchCandidate {
     preheader_to_header_args: Vec<mir::Value>,
 }
 
+#[derive(Debug, Clone)]
+struct HoistedCondition {
+    /// The instruction defining the condition.
+    instruction: mir::Instruction,
+    /// The original destination value.
+    destination: mir::Value,
+    /// Remapping for invariant operands.
+    value_map: HashMap<mir::Value, mir::Value>,
+}
+
+/// Profile driven heuristics for unswitch selection.
+struct UnswitchHeuristics<'a> {
+    /// Execution counts for blocks in the function.
+    block_counts: HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    /// Entry count for the function.
+    entry_count: u64,
+    /// Hotness thresholds to apply.
+    hotness_policy: &'a crate::optimize::common::CallsiteHotnessPolicy,
+}
+
+impl<'a> UnswitchHeuristics<'a> {
+    /// Create heuristics from profile data.
+    fn new(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        profile: Option<&mir::ProfileTable>,
+        hotness_policy: &'a crate::optimize::common::CallsiteHotnessPolicy,
+    ) -> Self {
+        // compute block counts from profile data
+        let block_counts = block_execution_counts(function, tree, profile, hotness_policy);
+        let entry_count = function
+            .entry
+            .and_then(|entry| block_counts.get(&entry).copied())
+            .unwrap_or(0);
+
+        Self {
+            block_counts,
+            entry_count,
+            hotness_policy,
+        }
+    }
+
+    /// Return true when profile data is available.
+    fn has_profile(&self) -> bool {
+        !self.block_counts.is_empty()
+    }
+
+    /// Return the hotness for a block when profile data is available.
+    fn block_hotness(&self, block: mir::LocalNodeId<mir::Block>) -> CallsiteHotness {
+        let Some(count) = self.block_counts.get(&block).copied() else {
+            return CallsiteHotness::Unknown;
+        };
+
+        block_hotness_from_counts(count, self.entry_count, self.hotness_policy)
+    }
+
+    /// Return the loop size limit for a header block.
+    fn loop_size_limit(&self, header: mir::LocalNodeId<mir::Block>) -> usize {
+        if !self.has_profile() {
+            return MAX_LOOP_SIZE;
+        }
+
+        match self.block_hotness(header) {
+            CallsiteHotness::Hot => MAX_LOOP_SIZE_HOT,
+            CallsiteHotness::Cold => MAX_LOOP_SIZE_COLD,
+            CallsiteHotness::Unknown => MAX_LOOP_SIZE,
+        }
+    }
+
+    /// Return true when the branch block is too cold to unswitch.
+    fn branch_is_too_cold(&self, branch: mir::LocalNodeId<mir::Block>) -> bool {
+        if !self.has_profile() {
+            return false;
+        }
+
+        let count = self.block_counts.get(&branch).copied().unwrap_or(0);
+        count < MIN_BRANCH_COUNT_FOR_UNSWITCH
+            || matches!(self.block_hotness(branch), CallsiteHotness::Cold)
+    }
+}
+
 /// Check if a loop can be unswitched.
 fn find_unswitchable_loop(
     lp: &Loop,
@@ -227,6 +325,8 @@ fn find_unswitchable_loop(
     tree: &mir::NodeTree,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
+    ranges: &RangeAnalysis,
+    heuristics: &UnswitchHeuristics<'_>,
 ) -> Option<UnswitchCandidate> {
     // need a preheader
     let preheader = domtree.immediate_dominator(lp.header)?;
@@ -242,7 +342,8 @@ fn find_unswitchable_loop(
         .iter()
         .map(|&b| tree.get(b).instructions.len())
         .sum();
-    if loop_size > MAX_LOOP_SIZE {
+    let loop_size_limit = heuristics.loop_size_limit(header);
+    if loop_size > loop_size_limit {
         return None;
     }
 
@@ -254,9 +355,21 @@ fn find_unswitchable_loop(
     };
 
     // collect invariant values (defined outside the loop)
-    let invariant_values = collect_invariant_values(lp, function, tree);
-    let header_param_rewrites =
-        collect_header_param_rewrites(lp, tree, cfg, &invariant_values, &preheader_to_header_args);
+    let base_invariant_values = collect_base_invariant_values(lp, function, tree);
+    let header_param_rewrites = collect_header_param_rewrites(
+        lp,
+        tree,
+        cfg,
+        &base_invariant_values,
+        &preheader_to_header_args,
+    );
+
+    let mut preheader_values = base_invariant_values.clone();
+    for arg in header_param_rewrites.values() {
+        preheader_values.insert(*arg);
+    }
+
+    let value_definitions = build_value_definition_map(function, tree);
 
     // scan all loop blocks for an invariant branch (prefer header first for stability)
     let mut sorted_blocks: Vec<_> = lp.blocks.iter().copied().collect();
@@ -303,12 +416,26 @@ fn find_unswitchable_loop(
                 _ => continue,
             };
 
-        // condition must be loop-invariant (after header parameter rewrite)
+        // condition must be loop invariant after header parameter rewrite
         let condition_value = header_param_rewrites
             .get(&condition)
             .copied()
             .unwrap_or(condition);
-        if !invariant_values.contains(&condition_value) {
+        let hoisted_condition = if preheader_values.contains(&condition_value) {
+            None
+        } else {
+            try_hoist_invariant_condition(
+                condition,
+                &value_definitions,
+                &header_param_rewrites,
+                &preheader_values,
+                tree,
+            )
+        };
+        if !preheader_values.contains(&condition_value) && hoisted_condition.is_none() {
+            continue;
+        }
+        if bool_from_range(ranges.entry(block_id).get(condition_value)).is_some() {
             continue;
         }
         let check_kind =
@@ -317,7 +444,7 @@ fn find_unswitchable_loop(
             && !kind
                 .uses()
                 .iter()
-                .all(|value| invariant_values.contains(value))
+                .all(|value| preheader_values.contains(value))
         {
             continue;
         }
@@ -334,11 +461,16 @@ fn find_unswitchable_loop(
             continue;
         }
 
+        if heuristics.branch_is_too_cold(block_id) {
+            continue;
+        }
+
         return Some(UnswitchCandidate {
             preheader,
             header,
             branch_block: block_id,
             condition: condition_value,
+            hoisted_condition,
             then_target,
             then_arguments,
             else_target,
@@ -352,8 +484,8 @@ fn find_unswitchable_loop(
     None
 }
 
-/// Collect all values that are invariant (defined outside the loop).
-fn collect_invariant_values(
+/// Collect values defined outside the loop.
+fn collect_base_invariant_values(
     lp: &Loop,
     function: &mir::Function,
     tree: &mir::NodeTree,
@@ -385,6 +517,44 @@ fn collect_invariant_values(
     }
 
     invariant
+}
+
+/// Hoist a loop invariant condition into the preheader when possible.
+fn try_hoist_invariant_condition(
+    condition: mir::Value,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    header_param_rewrites: &HashMap<mir::Value, mir::Value>,
+    invariant_values: &HashSet<mir::Value>,
+    tree: &mir::NodeTree,
+) -> Option<HoistedCondition> {
+    // resolve the instruction defining the condition
+    let instruction_id = value_definitions.get(&condition)?;
+    let instruction = tree.get(*instruction_id);
+    if !instruction_is_speculatable(instruction) {
+        return None;
+    }
+
+    // seed the value map with header rewrites
+    let mut value_map = HashMap::new();
+    for (from, to) in header_param_rewrites {
+        value_map.insert(*from, *to);
+    }
+
+    // require all operands to be invariant under rewrite
+    let all_invariant = instruction.uses().iter().all(|value| {
+        let mapped = header_param_rewrites.get(value).copied().unwrap_or(*value);
+        invariant_values.contains(&mapped)
+    });
+    if !all_invariant {
+        return None;
+    }
+
+    // capture the hoistable instruction
+    Some(HoistedCondition {
+        instruction: instruction.clone(),
+        destination: condition,
+        value_map,
+    })
 }
 
 /// Collect invariant header parameter rewrites based on preheader arguments.
@@ -558,9 +728,23 @@ fn unswitch_loop(
 
     // modify preheader: branch based on condition
     let mut preheader = tree.get(candidate.preheader).clone();
+    let condition_value = if let Some(hoisted) = &candidate.hoisted_condition {
+        // hoist invariant condition into the preheader
+        let mut value_map = hoisted.value_map.clone();
+        let new_value = function.next_value();
+        value_map.insert(hoisted.destination, new_value);
+        let local_map = HashMap::new();
+        let hoisted_inst =
+            instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
+        let hoisted_id = tree.insert(hoisted_inst);
+        preheader.instructions.push(hoisted_id);
+        new_value
+    } else {
+        candidate.condition
+    };
     preheader.terminator = if let Some(constraint) = candidate.check_kind.clone() {
         mir::Terminator::Check {
-            condition: candidate.condition,
+            condition: condition_value,
             constraint,
             success: mir::CheckTarget {
                 target: candidate.header,
@@ -573,7 +757,7 @@ fn unswitch_loop(
         }
     } else {
         mir::Terminator::Branch {
-            condition: candidate.condition,
+            condition: condition_value,
             then_target: candidate.header,
             then_arguments: candidate.preheader_to_header_args.clone(),
             else_target: cloned_header,
@@ -601,84 +785,6 @@ fn unswitch_loop(
     }
 }
 
-/// Clone all blocks in the loop, creating fresh block IDs and value IDs.
-fn clone_loop_blocks(
-    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
-    function: &mut mir::Function,
-    tree: &mut mir::NodeTree,
-) -> (
-    HashMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
-    HashMap<mir::Value, mir::Value>,
-) {
-    let mut block_map = HashMap::new();
-    let mut value_map = HashMap::new();
-
-    // sort blocks for deterministic output
-    let mut sorted_blocks: Vec<_> = loop_blocks.iter().copied().collect();
-    sorted_blocks.sort();
-
-    // first pass: allocate new values and create placeholder blocks
-    for block_id in &sorted_blocks {
-        let block_id = *block_id;
-        let original = tree.get(block_id);
-
-        // create new block parameters with fresh values
-        let new_params: Vec<mir::TypedValue> = original
-            .parameters
-            .iter()
-            .map(|param| {
-                let new_value = function.next_value();
-                value_map.insert(param.value, new_value);
-                mir::TypedValue {
-                    value: new_value,
-                    ty: param.ty,
-                }
-            })
-            .collect();
-
-        // allocate fresh values for instruction destinations
-        for &instruction_id in &original.instructions {
-            let instruction = tree.get(instruction_id);
-            if let Some(destination) = instruction.destination() {
-                let new_value = function.next_value();
-                value_map.insert(destination, new_value);
-            }
-        }
-
-        // create block with cloned terminator (will be remapped later)
-        let new_block = mir::Block {
-            parameters: new_params,
-            instructions: Vec::new(),
-            terminator: original.terminator.clone(),
-        };
-        let new_block_id = tree.insert(new_block);
-        block_map.insert(block_id, new_block_id);
-    }
-
-    // second pass: clone instructions with remapped values
-    for &block_id in &sorted_blocks {
-        let new_block_id = block_map[&block_id];
-
-        // collect instruction IDs to avoid borrowing tree during iteration
-        let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
-
-        let mut new_instructions = Vec::new();
-        for instruction_id in instruction_ids {
-            let original_instruction = tree.get(instruction_id).clone();
-            let new_instruction = instruction_map(&original_instruction, &value_map, tree);
-            let new_instruction_id = tree.insert(new_instruction);
-            new_instructions.push(new_instruction_id);
-        }
-
-        // update block with cloned instructions
-        let mut new_block = tree.get(new_block_id).clone();
-        new_block.instructions = new_instructions;
-        tree.replace(new_block_id, new_block);
-    }
-
-    (block_map, value_map)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -701,9 +807,9 @@ block4:
     return
 }"#;
         // after unswitching on v0:
-        // - preheader branches on v0
-        // - then branch: original loop with header jumping to block2 path
-        // - else branch: cloned loop with header jumping to block3 path
+        // preheader branches on v0
+        // then branch is the original loop with header jumping to block2 path
+        // else branch is the cloned loop with header jumping to block3 path
         let expected = r#"function @test(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     branch v0, block1, block6
@@ -816,7 +922,7 @@ block3:
     return
 }"#;
         // branch is in block2 (not header), but v0 is invariant
-        // so we unswitch on the non-header branch
+        // unswitch on the non header branch
         let expected = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block4
@@ -879,7 +985,7 @@ block3:
         program.assert_output(&before);
     }
 
-    /// Non-header branch is unswitched when header branch has same targets.
+    /// Non header branch is unswitched when header branch has same targets.
     #[test]
     fn test_unswitch_skips_same_targets_finds_other() {
         let input = r#"function @test(v0: bool) -> void {
@@ -1023,6 +1129,80 @@ block5:
         program.assert_output(expected);
     }
 
+    /// Loop checks with invariant condition are unswitched.
+    #[test]
+    fn test_unswitch_check_terminator() {
+        let input = r#"function @test(v0: bool, v1: u32, v2: [u8; 8]) -> void {
+block0(v0: bool, v1: u32, v2: [u8; 8]):
+    jump block1(v1)
+block1(v3: u32):
+    check v0, bounds.unsigned v3, v1, v2, block2, block3
+block2:
+    jump block1(v3)
+block3:
+    return
+}"#;
+
+        let expected = r#"function @test(v0: bool, v1: u32, v2: [u8; 8]) -> void {
+block0(v0: bool, v1: u32, v2: [u8; 8]):
+    check v0, bounds.unsigned v1, v1, v2, block1(v1), block4(v1)
+block1(v3: u32):
+    jump block2
+block2:
+    jump block1(v3)
+block3:
+    return
+block4(v4: u32):
+    jump block3
+block5:
+    jump block4(v4)
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnswitch);
+        program.assert_output(expected);
+    }
+
+    /// Loop conditions computed in the header can be hoisted to the preheader.
+    #[test]
+    fn test_unswitch_hoists_header_condition() {
+        let input = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    jump block1
+block1:
+    v1 = select v0, v0, v0
+    branch v1, block2, block3
+block2:
+    jump block1
+block3:
+    return
+}"#;
+
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    v3 = select v0, v0, v0
+    branch v3, block1, block4
+block1:
+    v1 = select v0, v0, v0
+    jump block2
+block2:
+    jump block1
+block3:
+    return
+block4:
+    v2 = select v0, v0, v0
+    jump block3
+block5:
+    jump block4
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnswitch);
+        program.assert_output(expected);
+    }
+
     /// Loop exceeding size limit is preserved.
     #[test]
     fn test_preserve_large_loop() {
@@ -1070,7 +1250,7 @@ block4:
 block5:
     return
 }"#;
-        // inner loop (block2-block3) is unswitched on v0
+        // inner loop block2 to block3 is unswitched on v0
         // the outer loop may also unswitch in a subsequent iteration
         let expected = r#"function @test(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
@@ -1100,5 +1280,68 @@ block10:
         program.run_pass(&LoopSimplify);
         program.run_pass(&LoopUnswitch);
         program.assert_output(expected);
+    }
+
+    /// Constant conditions are not unswitched.
+    #[test]
+    fn test_unswitch_skips_constant_condition() {
+        let input = r#"function @test() -> void {
+block0:
+    v0 = iconst true
+    jump block1
+block1:
+    branch v0, block2, block3
+block2:
+    jump block1
+block3:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnswitch);
+        program.assert_output(input);
+    }
+
+    /// Cold branches are not unswitched when profile data is available.
+    #[test]
+    fn test_unswitch_skips_cold_branch_with_profile() {
+        let input = r#"function @test(v0: bool) -> void {
+block0(v0: bool):
+    jump block1
+block1:
+    branch v0, block2, block3
+block2:
+    jump block1
+block3:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+
+        let function_id = program.entry_function_id();
+        let entry_block = program.entry_block_id(function_id);
+        let header_block = match &program.tree.get(entry_block).terminator {
+            mir::Terminator::Jump { target, .. } => *target,
+            _ => panic!("missing loop header jump"),
+        };
+
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        profile.blocks.insert(
+            entry_block,
+            mir::BlockProfile {
+                execution_count: mir::ProfileCount::new(100, mir::ProfileConfidence::Precise),
+            },
+        );
+        profile.blocks.insert(
+            header_block,
+            mir::BlockProfile {
+                execution_count: mir::ProfileCount::new(1, mir::ProfileConfidence::Precise),
+            },
+        );
+
+        program.run_pass_with_profile(&LoopUnswitch, profile);
+        program.assert_output(input);
     }
 }

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::optimize::analyses::{MemoryAccess, MemorySSA};
 use crate::optimize::common::terminator_substitute_uses;
 use destack_mir as mir;
 use mir::Instruction;
@@ -180,6 +181,69 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::StackAlloc { .. }
             | Instruction::StackDrop { .. }
     )
+}
+
+/// Check if an instruction is a read only memory access under MemorySSA.
+pub fn instruction_is_read_only_access(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    memory_ssa: &MemorySSA,
+) -> bool {
+    // load memory accesses for this instruction
+    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+        return false;
+    };
+
+    // require read only effects across all accesses
+    let mut reads = false;
+    for access_id in accesses {
+        // read the access effect
+        let effect = match memory_ssa.access(*access_id) {
+            MemoryAccess::Use(use_access) => &use_access.effect,
+            MemoryAccess::Def(def_access) => &def_access.effect,
+            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => continue,
+        };
+
+        // reject write or ordered accesses
+        if effect.writes || effect.is_volatile || effect.is_barrier {
+            return false;
+        }
+
+        // record any read access
+        reads |= effect.reads;
+    }
+
+    reads
+}
+
+/// Check if a read only instruction can be moved before other memory operations.
+pub fn instruction_allows_read_only_motion(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    instruction: &Instruction,
+    tree: &mir::NodeTree,
+) -> bool {
+    // accept non call instructions
+    let is_call = matches!(
+        instruction,
+        Instruction::Call { .. } | Instruction::CallIndirect { .. }
+    );
+    if !is_call {
+        return true;
+    }
+
+    // require call metadata to be present
+    let Some(metadata) = tree.call_table.call_metadata(instruction_id) else {
+        return false;
+    };
+
+    // require non effecting call behavior
+    let Some(behavior) = metadata.behavior.as_ref() else {
+        return false;
+    };
+    if behavior.convergent || behavior.noreturn || behavior.allocates || behavior.frees {
+        return false;
+    }
+
+    true
 }
 
 /// Collect all values that are used by instructions or terminators in a function.

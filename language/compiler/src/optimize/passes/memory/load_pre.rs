@@ -9,7 +9,8 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     EdgeSplitPolicy, SuccessorArguments, append_successor_arguments, build_use_def_maps,
-    ensure_edge_block, instruction_has_side_effects, instruction_is_speculatable,
+    ensure_edge_block, instruction_allows_read_only_motion, instruction_has_side_effects,
+    instruction_is_read_only_access, instruction_is_speculatable,
     terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{
@@ -367,69 +368,6 @@ fn load_can_move_to_entry(
     true
 }
 
-/// Return true when an instruction is a read only memory access.
-fn instruction_is_read_only_access(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-    memory_ssa: &MemorySSA,
-) -> bool {
-    // load memory accesses for this instruction
-    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
-        return false;
-    };
-
-    // require read only effects across all accesses
-    let mut reads = false;
-    for access_id in accesses {
-        // read the access effect
-        let effect = match memory_ssa.access(*access_id) {
-            MemoryAccess::Use(use_access) => &use_access.effect,
-            MemoryAccess::Def(def_access) => &def_access.effect,
-            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => continue,
-        };
-
-        // reject write or ordered accesses
-        if effect.writes || effect.is_volatile || effect.is_barrier {
-            return false;
-        }
-
-        // record any read access
-        reads |= effect.reads;
-    }
-
-    reads
-}
-
-/// Return true when a read only instruction can be moved before a load.
-fn instruction_allows_read_only_motion(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-    instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
-) -> bool {
-    // reject calls without explicit behavior metadata
-    let is_call = matches!(
-        instruction,
-        mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
-    );
-    if !is_call {
-        return true;
-    }
-
-    // require call metadata to be present
-    let Some(metadata) = tree.call_table.call_metadata(instruction_id) else {
-        return false;
-    };
-
-    // require non effecting call behavior
-    let Some(behavior) = metadata.behavior.as_ref() else {
-        return false;
-    };
-    if behavior.convergent || behavior.noreturn || behavior.allocates || behavior.frees {
-        return false;
-    }
-
-    true
-}
-
 /// Collect edge insertions for each predecessor of the load block.
 // allow many arguments to keep the edge selection explicit
 #[allow(clippy::too_many_arguments)]
@@ -723,6 +661,67 @@ block3:
         let mut program = TestProgram::new(input);
         program.run_pass(&LoadPre);
         program.assert_output(input);
+    }
+
+    /// Read only calls do not block load PRE.
+    #[test]
+    fn test_load_pre_allows_read_only_call() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    branch v0, block1, block2
+block1:
+    v2 = iconst 1i32
+    store v1, v2
+    jump block3
+block2:
+    v3 = iconst 2i32
+    store v1, v3
+    jump block3
+block3:
+    call @read_only()
+    v4 = load v1 -> i32
+    return v4
+}
+extern function @read_only() -> void"#;
+
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    branch v0, block1, block2
+block1:
+    v2 = iconst 1i32
+    store v1, v2
+    v6 = load v1 -> i32
+    jump block3(v6)
+block2:
+    v3 = iconst 2i32
+    store v1, v3
+    v7 = load v1 -> i32
+    jump block3(v7)
+block3(v5: i32):
+    call @read_only()
+    return v5
+}
+extern function @read_only() -> void"#;
+
+        let mut program = TestProgram::new(input);
+        let function_id = program.function_id_by_name("test");
+        let function = program.tree.get(function_id);
+        let join_block = function.blocks[3];
+        let call_inst = program.instructions_in_block(join_block)[0];
+        let callee_id = program.function_id_by_name("read_only");
+        let signature = program.tree.get(callee_id).return_type;
+        let call_metadata = mir::CallMetadata::direct(callee_id, signature)
+            .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY))
+            .with_behavior(mir::CallBehavior::none());
+        program
+            .tree
+            .call_table
+            .insert_call_metadata(call_inst, call_metadata);
+
+        program.run_pass(&LoadPre);
+        program.assert_output(expected);
     }
 
     /// Volatile loads are not moved.

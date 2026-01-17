@@ -18,17 +18,17 @@ declare_pass! {
     /// Forward stored values to subsequent loads.
     ///
     /// This pass performs three optimizations:
-    /// 1. **Store-to-load forwarding**: When a store is followed by a load from the same
-    ///    location (with no intervening clobbers), replace the load with the stored value.
-    /// 2. **Load-to-load forwarding**: When the same location is loaded twice with no
-    ///    intervening clobbers, replace the second load with the first load's result.
-    /// 3. **Cross-block forwarding**: Forward values across basic blocks when the store
-    ///    or load dominates the use with no intervening clobbers.
+    /// 1) **Store to load forwarding**: When a store is followed by a load from the same
+    /// location (with no intervening clobbers), replace the load with the stored value.
+    /// 2) **Load to load forwarding**: When the same location is loaded twice with no
+    /// intervening clobbers, replace the second load with the first load's result.
+    /// 3) **Cross block forwarding**: Forward values across basic blocks when the store
+    /// or load dominates the use with no intervening clobbers.
     ///
     /// The pass handles:
-    /// - Volatile and atomic operations (act as memory barriers)
-    /// - Calls and intrinsics that may clobber memory
-    /// - Aliasing through field and element access
+    /// 1) Volatile and atomic operations that act as memory barriers.
+    /// 2) Calls and intrinsics that may clobber memory.
+    /// 3) Aliasing through field and element access.
     ///
     /// ```mir
     /// function @before() -> i32 {
@@ -37,7 +37,7 @@ declare_pass! {
     ///     v1 = iconst 42i32
     ///     store v0, v1
     ///     v2 = load v0       // forwarded from store
-    ///     v3 = load v0       // forwarded from store (load-load)
+    ///     v3 = load v0       // forwarded from store load to load
     ///     v4 = iadd v2, v3
     ///     return v4
     /// }
@@ -132,7 +132,7 @@ impl FunctionPass for LoadStoreForward {
     }
 }
 
-/// Core load-store forwarding logic. Returns true if changes were made.
+/// Core load store forwarding logic. Returns true if changes were made.
 #[allow(clippy::too_many_arguments)]
 fn run_load_store_forward(
     entry: mir::LocalNodeId<mir::Block>,
@@ -469,9 +469,9 @@ fn process_block(
 
                 // compute the clobbering access for this read
                 let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
-                if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+                let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
-                }
+                };
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
@@ -522,9 +522,9 @@ fn process_block(
 
                 // compute the clobbering access for this read
                 let clobber = memory_ssa.clobbering_access_for_use(use_access_id, aa, tree);
-                if matches!(memory_ssa.access(clobber), MemoryAccess::Phi(_)) {
+                let Some(clobber) = resolve_trivial_clobber(memory_ssa, clobber) else {
                     continue;
-                }
+                };
 
                 // forward from an existing value when possible
                 if let Some(existing) = available.get(clobber, &use_access.effect, aa, tree)
@@ -597,6 +597,34 @@ fn use_access_id(
     }
 
     None
+}
+
+/// Resolve trivial memory phi nodes to a single clobbering access.
+fn resolve_trivial_clobber(
+    memory_ssa: &MemorySSA,
+    access: MemoryAccessId,
+) -> Option<MemoryAccessId> {
+    let mut current = access;
+    let mut visited = HashSet::new();
+
+    loop {
+        if !visited.insert(current) {
+            return None;
+        }
+
+        let MemoryAccess::Phi(phi) = memory_ssa.access(current) else {
+            return Some(current);
+        };
+
+        let mut incoming = phi.incoming.iter().map(|(_, access_id)| *access_id);
+        let first = incoming.next()?;
+        if incoming.all(|access_id| access_id == first) {
+            current = first;
+            continue;
+        }
+
+        return None;
+    }
 }
 
 /// Check if an intrinsic acts as a memory barrier.
@@ -723,7 +751,87 @@ block0:
         program.assert_output(expected);
     }
 
-    /// Store to non-aliasing pointer does not kill available store.
+    /// Trivial memory phis forward through a merge.
+    #[test]
+    fn test_forward_through_trivial_memory_phi() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = iconst 7i32
+    v2 = iconst true
+    store v0, v1
+    branch v2, block1, block2
+block1:
+    jump block3
+block2:
+    jump block3
+block3:
+    v3 = load v0 -> i32
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = iconst 7i32
+    v2 = iconst true
+    store v0, v1
+    branch v2, block1, block2
+block1:
+    jump block3
+block2:
+    jump block3
+block3:
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Trivial memory phis with multiple incoming edges are forwarded.
+    #[test]
+    fn test_forward_through_triple_memory_phi() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = iconst 7i32
+    v2 = iconst 0u32
+    store v0, v1
+    switch v2, block1, 0 => block2, 1 => block3
+block1:
+    jump block4
+block2:
+    jump block4
+block3:
+    jump block4
+block4:
+    v3 = load v0 -> i32
+    return v3
+}"#;
+        let expected = r#"function @test() -> i32 {
+block0:
+    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1 = iconst 7i32
+    v2 = iconst 0u32
+    store v0, v1
+    switch v2, block1, 0 => block2, 1 => block3
+block1:
+    jump block4
+block2:
+    jump block4
+block3:
+    jump block4
+block4:
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoadStoreForward);
+        program.assert_output(expected);
+    }
+
+    /// Store to non aliasing pointer does not kill available store.
     #[test]
     fn test_forward_through_non_aliasing_store() {
         let input = r#"function @test() -> i32 {

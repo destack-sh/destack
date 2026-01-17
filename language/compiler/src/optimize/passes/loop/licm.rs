@@ -7,7 +7,10 @@ use crate::optimize::analyses::{
     AliasAnalysis, ConstantPropagation, DominatorTree, Loop, LoopAnalysis, MemoryAccess,
     MemoryAccessId, MemoryAccessLocation, MemorySSA, RangeAnalysis, ValueRange,
 };
-use crate::optimize::common::{build_instruction_block_map, instruction_is_speculatable};
+use crate::optimize::common::{
+    build_instruction_block_map, instruction_allows_read_only_motion,
+    instruction_is_read_only_access, instruction_is_speculatable,
+};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -494,6 +497,22 @@ fn instruction_is_hoistable(
         );
     }
 
+    // handle other read only memory operations
+    if instruction_is_read_only_access(instruction_id, memory_ssa) {
+        if !instruction_allows_read_only_motion(instruction_id, instruction, tree) {
+            return false;
+        }
+
+        return read_only_access_is_hoistable(
+            instruction_id,
+            loop_blocks,
+            tree,
+            alias,
+            memory_ssa,
+            instruction_blocks,
+        );
+    }
+
     // handle divisions with explicit safety checks
     match instruction {
         mir::Instruction::Binary {
@@ -575,10 +594,10 @@ fn load_is_hoistable(
     }
 }
 
-/// Check if any def in the loop may clobber the access.
+/// Return true when any def in the loop may clobber a use access.
 fn loop_clobbers_access(
-    load_id: mir::LocalNodeId<mir::Instruction>,
-    load_access: MemoryAccessId,
+    origin_instruction: mir::LocalNodeId<mir::Instruction>,
+    use_access: MemoryAccessId,
     loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
     tree: &mir::NodeTree,
     memory_ssa: &MemorySSA,
@@ -589,7 +608,7 @@ fn loop_clobbers_access(
         let block = tree.get(*block_id);
 
         for &instruction_id in &block.instructions {
-            if instruction_id == load_id {
+            if instruction_id == origin_instruction {
                 continue;
             }
 
@@ -598,7 +617,7 @@ fn loop_clobbers_access(
             };
 
             for access_id in accesses {
-                if memory_ssa.def_clobbers_access(*access_id, load_access, alias, tree) {
+                if memory_ssa.def_clobbers_access(*access_id, use_access, alias, tree) {
                     return true;
                 }
             }
@@ -606,6 +625,73 @@ fn loop_clobbers_access(
     }
 
     false
+}
+
+/// Return true when a loop invariant read only access is not clobbered in the loop.
+fn read_only_access_is_hoistable(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    loop_blocks: &HashSet<mir::LocalNodeId<mir::Block>>,
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+    memory_ssa: &MemorySSA,
+    instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
+) -> bool {
+    // read memory ssa access for the instruction
+    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+        return false;
+    };
+
+    // collect use accesses
+    let mut use_accesses = Vec::new();
+    for access_id in accesses {
+        match memory_ssa.access(*access_id) {
+            MemoryAccess::Use(use_access) => {
+                if use_access.effect.is_volatile || use_access.effect.is_barrier {
+                    return false;
+                }
+                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                    return false;
+                }
+                use_accesses.push(*access_id);
+            }
+            MemoryAccess::Def(_) => return false,
+            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => {}
+        }
+    }
+
+    if use_accesses.is_empty() {
+        return false;
+    }
+
+    // require no clobbers in the loop
+    for use_access in &use_accesses {
+        if loop_clobbers_access(
+            instruction_id,
+            *use_access,
+            loop_blocks,
+            tree,
+            memory_ssa,
+            alias,
+        ) {
+            return false;
+        }
+
+        let clobber = memory_ssa.clobbering_access_for_use(*use_access, alias, tree);
+        match memory_ssa.access(clobber) {
+            MemoryAccess::LiveOnEntry => {}
+            MemoryAccess::Def(def_access) => {
+                let Some(block_id) = instruction_blocks.get(&def_access.instruction) else {
+                    return false;
+                };
+                if loop_blocks.contains(block_id) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+    }
+
+    true
 }
 
 /// Return true when a division or remainder cannot trap in the loop.
@@ -981,6 +1067,39 @@ block3:
 block4:
     return v4
 }"#;
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&Licm);
+        program.assert_output(expected);
+    }
+
+    /// Read only intrinsics are hoisted when invariant.
+    #[test]
+    fn test_hoist_read_only_intrinsic() {
+        let input = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2 = iconst 4i64
+    jump block1
+block1:
+    v3 = intrinsic.memcmp(v1, v1, v2)
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+
+        let expected = r#"function @test(v0: bool) -> i32 {
+block0(v0: bool):
+    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2 = iconst 4i64
+    v3 = intrinsic.memcmp(v1, v1, v2)
+    jump block1
+block1:
+    branch v0, block1, block2
+block2:
+    return v3
+}"#;
+
         let mut program = TestProgram::new(input);
         program.run_pass(&LoopSimplify);
         program.run_pass(&Licm);
