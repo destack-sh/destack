@@ -123,12 +123,16 @@ struct MemoryAccessQuery {
 impl MemoryAccessQuery {
     /// Create a query from a full access effect.
     fn from_effect(effect: &MemoryAccessEffect) -> Self {
+        // canonicalize alias scopes for cache stability
+        let alias_scopes = canonicalize_alias_scopes(effect.alias_scopes.clone());
+        let noalias_scopes = canonicalize_alias_scopes(effect.noalias_scopes.clone());
+
         Self {
             location: effect.location.clone(),
             location_set: effect.location_set,
             address_spaces: effect.address_spaces.clone(),
-            alias_scopes: effect.alias_scopes.clone(),
-            noalias_scopes: effect.noalias_scopes.clone(),
+            alias_scopes,
+            noalias_scopes,
             tbaa_tag: effect.tbaa_tag,
         }
     }
@@ -152,6 +156,14 @@ fn location_set_for_location(location: &MemoryAccessLocation) -> mir::MemoryLoca
         MemoryAccessLocation::Local(_) => mir::MemoryLocationSet::STACK,
         _ => mir::MemoryLocationSet::ANY,
     }
+}
+
+/// Canonicalize alias scope lists for stable comparisons.
+fn canonicalize_alias_scopes(mut scopes: Vec<mir::AliasScopeId>) -> Vec<mir::AliasScopeId> {
+    // sort scopes by id and drop duplicates
+    scopes.sort_by_key(|scope| scope.index());
+    scopes.dedup();
+    scopes
 }
 
 impl MemoryAccessEffect {
@@ -434,6 +446,18 @@ impl MemorySSA {
         instruction: mir::LocalNodeId<mir::Instruction>,
     ) -> Option<&[MemoryAccessId]> {
         self.instruction_access.get(&instruction).map(Vec::as_slice)
+    }
+
+    /// Return the first memory use access for an instruction.
+    pub fn first_use_access(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+    ) -> Option<MemoryAccessId> {
+        let accesses = self.accesses_for_instruction(instruction)?;
+        accesses
+            .iter()
+            .copied()
+            .find(|access_id| matches!(self.access(*access_id), MemoryAccess::Use(_)))
     }
 
     /// Return the memory phi for a block if present.
@@ -989,8 +1013,8 @@ impl<'a> MemoryAccessCollector<'a> {
         effect.location_set = location_set;
         effect.address_spaces = address_spaces;
 
-        effect.alias_scopes = access.alias_scopes.clone();
-        effect.noalias_scopes = access.noalias_scopes.clone();
+        effect.alias_scopes = canonicalize_alias_scopes(access.alias_scopes.clone());
+        effect.noalias_scopes = canonicalize_alias_scopes(access.noalias_scopes.clone());
         effect.tbaa_tag = access.tbaa_tag;
         effect
     }
@@ -1228,8 +1252,9 @@ impl<'a> MemoryAccessCollector<'a> {
                 effect.address_spaces =
                     self.merge_address_spaces(pointer_spaces, effects.address_spaces.as_ref());
 
-                effect.alias_scopes = arg_metadata.alias_scopes.clone();
-                effect.noalias_scopes = arg_metadata.noalias_scopes.clone();
+                effect.alias_scopes = canonicalize_alias_scopes(arg_metadata.alias_scopes.clone());
+                effect.noalias_scopes =
+                    canonicalize_alias_scopes(arg_metadata.noalias_scopes.clone());
                 effect.tbaa_tag = arg_metadata.tbaa_tag;
 
                 // record the access effect
@@ -2629,6 +2654,122 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         // clobber should see the overlapping tbaa store
         let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
         assert_eq!(clobber, store_access);
+    }
+
+    /// Alias scopes can disambiguate memory accesses.
+    #[test]
+    fn test_memory_ssa_alias_scopes_disambiguate() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    v1 = iconst 1i32
+    store v0, v1
+    v2 = load v0 -> i32
+    return v2
+}"#,
+        );
+
+        let function_id = program.first_function_id();
+        let instructions = program.entry_instructions(function_id);
+        let store_inst = instructions[1];
+        let load_inst = instructions[2];
+
+        let scope = program.create_alias_scope();
+
+        program.insert_pointer_access(
+            store_inst,
+            mir::MemoryAccessKind::Write,
+            mir::Value::new(0),
+            Some(4),
+            vec![scope],
+            Vec::new(),
+            None,
+        );
+
+        program.insert_pointer_access(
+            load_inst,
+            mir::MemoryAccessKind::Read,
+            mir::Value::new(0),
+            Some(4),
+            Vec::new(),
+            vec![scope],
+            None,
+        );
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        let load_access = memory_ssa
+            .access_for_instruction(load_inst)
+            .expect("missing load access");
+
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, memory_ssa.live_on_entry());
+    }
+
+    /// Address spaces can disambiguate memory accesses.
+    #[test]
+    fn test_memory_ssa_address_space_disambiguate() {
+        let mut program = TestProgram::new(
+            r#"function @test(v0: ref<raw i32>) -> i32 {
+block0(v0: ref<raw i32>):
+    v1 = iconst 1i32
+    store v0, v1
+    v2 = load v0 -> i32
+    return v2
+}"#,
+        );
+
+        let function_id = program.first_function_id();
+        let instructions = program.entry_instructions(function_id);
+        let store_inst = instructions[1];
+        let load_inst = instructions[2];
+
+        let store_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Write,
+            target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: Some(mir::AddressSpace::Stack),
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+        let load_access = mir::MemoryAccessMetadata {
+            kind: mir::MemoryAccessKind::Read,
+            target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
+            size: Some(4),
+            alignment: None,
+            is_volatile: false,
+            is_invariant: false,
+            is_non_temporal: false,
+            ordering: None,
+            address_space: Some(mir::AddressSpace::Global),
+            alias_scopes: Vec::new(),
+            noalias_scopes: Vec::new(),
+            tbaa_tag: None,
+        };
+
+        program.insert_memory_accesses(store_inst, vec![store_access]);
+        program.insert_memory_accesses(load_inst, vec![load_access]);
+
+        let function = program.tree.get(function_id);
+        let analyses = program.function_analyses(function);
+        let memory_ssa = analyses.get::<MemorySSA>();
+        let alias = analyses.get::<AliasAnalysis>();
+
+        let load_access = memory_ssa
+            .access_for_instruction(load_inst)
+            .expect("missing load access");
+
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        assert_eq!(clobber, memory_ssa.live_on_entry());
     }
 
     /// MemorySSA respects explicit metadata over instruction semantics.

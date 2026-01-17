@@ -612,7 +612,7 @@ fn process_block(
         // forward redundant loads
         if let mir::Instruction::Load { destination, .. } = instruction {
             // resolve the memory ssa use access
-            let Some(use_access_id) = load_use_access_id(memory_ssa, instruction_id) else {
+            let Some(use_access_id) = memory_ssa.first_use_access(instruction_id) else {
                 continue;
             };
 
@@ -701,22 +701,6 @@ fn process_block(
             value_table.insert(key, destination);
         }
     }
-}
-
-/// Return the first MemorySSA use access for a load instruction.
-fn load_use_access_id(
-    memory_ssa: &MemorySSA,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-) -> Option<MemoryAccessId> {
-    // find the first use access for the instruction
-    let accesses = memory_ssa.accesses_for_instruction(instruction_id)?;
-    for &access_id in accesses {
-        if matches!(memory_ssa.access(access_id), MemoryAccess::Use(_)) {
-            return Some(access_id);
-        }
-    }
-
-    None
 }
 
 /// Convert an integer constant into an array index when possible.

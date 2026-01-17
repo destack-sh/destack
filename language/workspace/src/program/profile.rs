@@ -240,6 +240,8 @@ impl From<&DsConfigCompilerOptions> for ProfileFlags {
 #[allow(clippy::too_many_arguments)]
 impl ProfileKey {
     /// Create a profile key with normalized library entries.
+    // allow many arguments to keep profile components explicit
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         output: OutputFormat,
         runtime: Runtime,

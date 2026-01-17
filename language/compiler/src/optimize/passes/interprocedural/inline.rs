@@ -5,9 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::CallGraphScc;
 use crate::optimize::common::{
-    CallsiteHotness, CallsiteHotnessPolicy, build_value_definition_map, callsite_hotness,
-    constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
-    scaled_profile_count, terminator_remap, terminator_substitute_uses,
+    CallsiteHotness, CallsiteHotnessPolicy, block_execution_counts, block_hotness_from_counts,
+    build_value_definition_map, callsite_hotness, constant_for_value, instruction_map_with_locals,
+    instruction_substitute_uses_in_tree, scaled_profile_count, terminator_remap,
+    terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
@@ -289,6 +290,8 @@ struct InlineCandidate {
 }
 
 /// Find the next inline candidate in a function.
+// allow many arguments to keep the inline heuristics explicit
+#[allow(clippy::too_many_arguments)]
 fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
@@ -346,10 +349,10 @@ fn find_inline_site(
                 continue;
             }
 
-            if let Some(best_candidate) = best.as_ref() {
-                if candidate.score <= best_candidate.score {
-                    continue;
-                }
+            if let Some(best_candidate) = best.as_ref()
+                && candidate.score <= best_candidate.score
+            {
+                continue;
             }
 
             best = Some(candidate);
@@ -360,6 +363,8 @@ fn find_inline_site(
 }
 
 /// Evaluate a callsite and return an inline candidate when profitable.
+// allow many arguments to keep the inline heuristics explicit
+#[allow(clippy::too_many_arguments)]
 fn inline_candidate(
     tree: &mir::NodeTree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -375,7 +380,7 @@ fn inline_candidate(
     site: InlineSite,
 ) -> Option<InlineCandidate> {
     let block_count = block_counts.get(&site.block_id).copied().unwrap_or(0);
-    let Some(score) = inline_score(
+    let score = inline_score(
         tree,
         caller_id,
         callee_id,
@@ -388,9 +393,7 @@ fn inline_candidate(
         value_definitions,
         block_count,
         &site.arguments,
-    ) else {
-        return None;
-    };
+    )?;
 
     Some(InlineCandidate {
         site,
@@ -422,6 +425,8 @@ fn scale_inline_limit(limit: usize, scale_percent: u64) -> usize {
 }
 
 /// Compute inline costs and benefits for a callsite.
+// allow many arguments to keep the inline heuristics explicit
+#[allow(clippy::too_many_arguments)]
 fn inline_score(
     tree: &mir::NodeTree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -441,14 +446,18 @@ fn inline_score(
     let entry_count = profile
         .and_then(|profile| {
             profile.function_profile(caller_id).map(|function_profile| {
-                scaled_profile_count(function_profile.entry_count, profile.source, hotness_policy)
+                scaled_profile_count(
+                    function_profile.entry_count,
+                    profile.source,
+                    &hotness_policy.scaling_policy(),
+                )
             })
         })
         .unwrap_or(0);
 
     if profile.is_some() {
         if callsite_profile.is_none() {
-            let block_hotness = hotness_from_block_count(block_count, entry_count, hotness_policy);
+            let block_hotness = block_hotness_from_counts(block_count, entry_count, hotness_policy);
             hotness = match block_hotness {
                 CallsiteHotness::Unknown => {
                     if hotness_policy.missing_callsite_is_cold {
@@ -460,7 +469,7 @@ fn inline_score(
                 _ => block_hotness,
             };
         } else if matches!(hotness, CallsiteHotness::Unknown) {
-            hotness = hotness_from_block_count(block_count, entry_count, hotness_policy);
+            hotness = block_hotness_from_counts(block_count, entry_count, hotness_policy);
         }
     }
 
@@ -562,6 +571,8 @@ fn resolve_inline_target(
 }
 
 /// Check if a call should be inlined.
+// allow many arguments to keep the inline heuristics explicit
+#[allow(clippy::too_many_arguments)]
 fn should_inline(
     tree: &mir::NodeTree,
     caller_id: mir::LocalNodeId<mir::Function>,
@@ -1136,7 +1147,11 @@ fn inline_budget_for_function(
         );
     };
 
-    let entry_count = scaled_profile_count(function_profile.entry_count, profile.source, policy);
+    let entry_count = scaled_profile_count(
+        function_profile.entry_count,
+        profile.source,
+        &policy.scaling_policy(),
+    );
     if entry_count == 0 {
         return scale_inline_budget(
             INLINE_BUDGET_BASE,
@@ -1153,6 +1168,8 @@ fn inline_budget_for_function(
 }
 
 /// Compute the inline benefit for a callsite.
+// allow many arguments to keep the inline heuristics explicit
+#[allow(clippy::too_many_arguments)]
 fn inline_benefit(
     profile: Option<&mir::ProfileTable>,
     callsite_id: mir::LocalNodeId<mir::Instruction>,
@@ -1185,7 +1202,11 @@ fn inline_benefit(
             profile
                 .callsite_profile(callsite_id)
                 .map(|callsite_profile| {
-                    scaled_profile_count(callsite_profile.total_count, profile.source, policy)
+                    scaled_profile_count(
+                        callsite_profile.total_count,
+                        profile.source,
+                        &policy.scaling_policy(),
+                    )
                 })
         })
         .unwrap_or(0);
@@ -1217,168 +1238,6 @@ fn inline_benefit(
     benefit.saturating_mul(multiplier)
 }
 
-/// Derive hotness from block execution counts.
-fn hotness_from_block_count(
-    block_count: u64,
-    entry_count: u64,
-    policy: &CallsiteHotnessPolicy,
-) -> CallsiteHotness {
-    if block_count == 0 {
-        return CallsiteHotness::Unknown;
-    }
-
-    if block_count >= policy.hot_count {
-        return CallsiteHotness::Hot;
-    }
-    if block_count <= policy.cold_count {
-        return CallsiteHotness::Cold;
-    }
-
-    if entry_count == 0 {
-        return CallsiteHotness::Unknown;
-    }
-
-    let ratio = block_count as f64 / entry_count as f64;
-    if ratio >= policy.hot_ratio {
-        return CallsiteHotness::Hot;
-    }
-    if ratio <= policy.cold_ratio {
-        return CallsiteHotness::Cold;
-    }
-
-    CallsiteHotness::Unknown
-}
-
-/// Compute execution counts for blocks using profile data.
-fn block_execution_counts(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-    profile: Option<&mir::ProfileTable>,
-    policy: &CallsiteHotnessPolicy,
-) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
-    let Some(profile) = profile else {
-        return HashMap::new();
-    };
-
-    let mut counts = HashMap::new();
-    for &block_id in &function.blocks {
-        if let Some(block_profile) = profile.block_profile(block_id) {
-            let count = scaled_profile_count(block_profile.execution_count, profile.source, policy);
-            if count > 0 {
-                counts.insert(block_id, count);
-            }
-        }
-    }
-
-    let incoming = incoming_edge_counts(function, tree, profile, policy);
-    for &block_id in &function.blocks {
-        if counts.contains_key(&block_id) {
-            continue;
-        }
-        if let Some(count) = incoming.get(&block_id) {
-            if *count > 0 {
-                counts.insert(block_id, *count);
-            }
-        }
-    }
-
-    counts
-}
-
-/// Compute block entry counts from edge profiles.
-fn incoming_edge_counts(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-    profile: &mir::ProfileTable,
-    policy: &CallsiteHotnessPolicy,
-) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
-    let mut counts = HashMap::new();
-    for &block_id in &function.blocks {
-        let terminator = &tree.get(block_id).terminator;
-        let edges = terminator_edges(block_id, terminator);
-        for (edge_key, target) in edges {
-            let Some(edge_profile) = profile.edge_profile(&edge_key) else {
-                continue;
-            };
-            let count = scaled_profile_count(edge_profile.count, profile.source, policy);
-            if count == 0 {
-                continue;
-            }
-            let entry = counts.entry(target).or_insert(0u64);
-            *entry = (*entry).saturating_add(count);
-        }
-    }
-
-    counts
-}
-
-/// Enumerate edges for a terminator.
-fn terminator_edges(
-    source: mir::LocalNodeId<mir::Block>,
-    terminator: &mir::Terminator,
-) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
-    match terminator {
-        mir::Terminator::Jump { target, .. } => {
-            vec![(
-                mir::EdgeKey::new(source, mir::EdgeKind::Jump, *target),
-                *target,
-            )]
-        }
-        mir::Terminator::Branch {
-            then_target,
-            else_target,
-            ..
-        } => vec![
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, *then_target),
-                *then_target,
-            ),
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, *else_target),
-                *else_target,
-            ),
-        ],
-        mir::Terminator::Check {
-            success, failure, ..
-        } => vec![
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, success.target),
-                success.target,
-            ),
-            (
-                mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, failure.target),
-                failure.target,
-            ),
-        ],
-        mir::Terminator::Switch { default, cases, .. } => {
-            let mut edges = Vec::with_capacity(cases.len() + 1);
-            edges.push((
-                mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, *default),
-                *default,
-            ));
-            for case in cases {
-                edges.push((
-                    mir::EdgeKey::new(
-                        source,
-                        mir::EdgeKind::SwitchCase { value: case.value },
-                        case.target,
-                    ),
-                    case.target,
-                ));
-            }
-            edges
-        }
-        mir::Terminator::Yield { resume, .. } => vec![(
-            mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, *resume),
-            *resume,
-        )],
-        mir::Terminator::Return { .. }
-        | mir::Terminator::Unreachable
-        | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
-    }
-}
-
 /// Compute the inline budget for a module.
 fn inline_budget_for_module(
     tree: &mir::NodeTree,
@@ -1402,7 +1261,7 @@ fn inline_budget_for_module(
         total_entry = total_entry.saturating_add(scaled_profile_count(
             function_profile.entry_count,
             profile.source,
-            policy,
+            &policy.scaling_policy(),
         ));
     }
 
@@ -1439,7 +1298,11 @@ fn inline_scc_budgets(
                 profile
                     .function_profile(function_id)
                     .map(|function_profile| {
-                        scaled_profile_count(function_profile.entry_count, profile.source, policy)
+                        scaled_profile_count(
+                            function_profile.entry_count,
+                            profile.source,
+                            &policy.scaling_policy(),
+                        )
                     })
             })
             .unwrap_or(0);
@@ -1835,8 +1698,8 @@ block2(v8: i32):
     #[test]
     fn test_inline_hotness_from_block_profile() {
         let policy = CallsiteHotnessPolicy::inline_default();
-        let hot = hotness_from_block_count(100, 100, &policy);
-        let cold = hotness_from_block_count(1, 100, &policy);
+        let hot = block_hotness_from_counts(100, 100, &policy);
+        let cold = block_hotness_from_counts(1, 100, &policy);
 
         assert_eq!(hot, CallsiteHotness::Hot);
         assert_eq!(cold, CallsiteHotness::Cold);

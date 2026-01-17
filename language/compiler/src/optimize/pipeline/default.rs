@@ -1,13 +1,13 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
-    ArgumentSpecialize, BorrowCheck, BoundsCheckEliminate, CodeHoisting, ConstantFold,
+    ArgumentSpecialize, BorrowCheck, BoundsCheckEliminate, CfgLayout, CodeHoisting, ConstantFold,
     CopyPropagate, CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadStoreEliminate,
     DropInsert, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
     InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
-    InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadStoreForward, LocalCse,
+    InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse,
     LoopBoundsCheckEliminate, LoopDelete, LoopIdiomRecognize, LoopPeel, LoopRotate, LoopSimplify,
-    LoopStrengthReduce, LoopUnroll, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck,
-    Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
+    LoopStrengthReduce, LoopUnroll, LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg,
+    MemCse, MoveCheck, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
     SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim, ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
@@ -120,6 +120,7 @@ fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 /// Return memory optimization passes.
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
     vec![
+        Box::new(LoadPre),
         Box::new(LoadStoreForward),
         Box::new(MemCse),
         Box::new(DeadStoreEliminate),
@@ -141,6 +142,7 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     if aggressive {
         passes.push(Box::new(LoopUnswitch));
         passes.push(Box::new(LoopUnroll));
+        passes.push(Box::new(LoopUnrollAndJam));
     }
     passes.push(Box::new(LoopDelete));
     passes
@@ -223,6 +225,7 @@ fn o2_pipeline() -> super::module::CompositePipeline {
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
         .function_passes(cleanup())
+        .function_passes(vec![Box::new(CfgLayout)])
         .build()
 }
 
@@ -266,6 +269,7 @@ fn o3_pipeline() -> super::module::CompositePipeline {
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
         .function_passes(cleanup())
+        .function_passes(vec![Box::new(CfgLayout)])
         .build()
 }
 
@@ -309,5 +313,6 @@ fn o4_pipeline() -> super::module::CompositePipeline {
         .module_pass(TailCallElim)
         .function_passes(vec![Box::new(Sink)])
         .function_passes(cleanup())
+        .function_passes(vec![Box::new(CfgLayout)])
         .build()
 }

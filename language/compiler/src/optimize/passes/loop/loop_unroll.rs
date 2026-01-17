@@ -4,11 +4,12 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, ScalarEvolution, Scev,
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, OwnershipAnalysis, ScalarEvolution, Scev,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, clone_loop_blocks, constant_from_global,
-    terminator_arguments_for_successor, terminator_remap,
+    BlockParamForwarding, CallsiteHotness, block_execution_counts, block_hotness_from_counts,
+    build_use_def_maps, build_value_definition_map, clone_loop_blocks, constant_from_global,
+    instruction_map, terminator_arguments_for_successor, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -70,6 +71,79 @@ declare_pass! {
     "Unroll loops with constant trip counts"
 }
 
+declare_pass! {
+    /// Unroll and jam perfectly nested loops.
+    ///
+    /// The outer loop is unrolled and the inner loop body is duplicated so that
+    /// each inner iteration executes multiple outer iterations.
+    ///
+    /// ```mir
+    /// function @before(v0: u32, v1: u32, v2: [u32; 8]) -> void {
+    /// block0(v0: u32, v1: u32, v2: [u32; 8]):
+    ///     v3 = iconst 0u32
+    ///     v4 = iconst 1u32
+    ///     jump block1(v3)
+    /// block1(v5: u32):
+    ///     v6 = icmp_ult v5, v0
+    ///     branch v6, block2, block6
+    /// block2:
+    ///     v7 = iconst 0u32
+    ///     jump block3(v5, v7)
+    /// block3(v8: u32, v9: u32):
+    ///     v10 = icmp_ult v9, v1
+    ///     branch v10, block4(v8, v9), block5(v8)
+    /// block4(v11: u32, v12: u32):
+    ///     v13 = element.addr v2, v12 -> ref<borrowed u32>
+    ///     store v13, v11
+    ///     v14 = iadd v12, v4
+    ///     jump block3(v11, v14)
+    /// block5(v15: u32):
+    ///     v16 = iadd v15, v4
+    ///     jump block1(v16)
+    /// block6:
+    ///     return
+    /// }
+    /// ```
+    /// becomes (with factor = 2):
+    /// ```mir
+    /// function @after(v0: u32, v1: u32, v2: [u32; 8]) -> void {
+    /// block0(v0: u32, v1: u32, v2: [u32; 8]):
+    ///     v3 = iconst 0u32
+    ///     v4 = iconst 1u32
+    ///     jump block1(v3)
+    /// block1(v5: u32):
+    ///     v6 = icmp_ult v5, v0
+    ///     branch v6, block2, block6
+    /// block2:
+    ///     v7 = iconst 0u32
+    ///     jump block3(v5, v7)
+    /// block3(v8: u32, v9: u32):
+    ///     v10 = icmp_ult v9, v1
+    ///     branch v10, block4(v8, v9), block5(v8)
+    /// block4(v11: u32, v12: u32):
+    ///     v13 = element.addr v2, v12 -> ref<borrowed u32>
+    ///     store v13, v11
+    ///     v14 = iconst 1u32
+    ///     v15 = iadd v11, v14
+    ///     v16 = element.addr v2, v12 -> ref<borrowed u32>
+    ///     store v16, v15
+    ///     v17 = iadd v12, v4
+    ///     jump block3(v11, v17)
+    /// block5(v18: u32):
+    ///     v19 = iconst 2u32
+    ///     v20 = iadd v18, v19
+    ///     jump block1(v20)
+    /// block6:
+    ///     return
+    /// }
+    /// ```
+    ///
+    /// Requires perfectly nested loops with a constant outer trip count.
+    #[pass(id = "loop-unroll-jam")]
+    pub LoopUnrollAndJam,
+    "Unroll and jam perfectly nested loops"
+}
+
 /// Maximum iterations to fully unroll.
 const MAX_FULL_UNROLL_ITERATIONS: u64 = 8;
 /// Maximum unroll factor for partial unrolling.
@@ -78,6 +152,8 @@ const MAX_PARTIAL_UNROLL_FACTOR: u64 = 4;
 const MAX_PARTIAL_UNROLL_TRIP_COUNT: u64 = 64;
 /// Maximum number of loops to unroll per pass invocation.
 const MAX_UNROLL_LOOPS_PER_FUNCTION: usize = 8;
+/// Maximum number of loops to unroll and jam per pass invocation.
+const MAX_JAM_LOOPS_PER_FUNCTION: usize = 4;
 
 impl FunctionPass for LoopUnroll {
     /// Run loop unrolling on the function.
@@ -114,6 +190,41 @@ impl FunctionPass for LoopUnroll {
     }
 }
 
+impl FunctionPass for LoopUnrollAndJam {
+    /// Run loop unroll and jam on the function.
+    fn run(
+        &self,
+        function: &mut mir::Function,
+        tree: &mut mir::NodeTree,
+        ctx: &PipelineContext<'_>,
+    ) -> AnalysisPreservation {
+        // skip imported functions
+        if function.entry.is_none() {
+            return AnalysisPreservation::all();
+        }
+
+        // run loop unroll and jam
+        let changed = run_loop_unroll_and_jam(function, tree, ctx);
+
+        // invalidate analyses on change
+        if changed {
+            AnalysisPreservation::none()
+        } else {
+            AnalysisPreservation::all()
+        }
+    }
+
+    /// Return the pass name.
+    fn name(&self) -> &'static str {
+        "LoopUnrollAndJam"
+    }
+
+    /// Return the pass id.
+    fn id(&self) -> &'static str {
+        "loop-unroll-jam"
+    }
+}
+
 /// Unroll strategy selection.
 #[derive(Debug, Clone, Copy)]
 enum UnrollMode {
@@ -129,6 +240,19 @@ enum UnrollMode {
         /// Remainder iterations peeled before the loop.
         remainder: u64,
     },
+}
+
+/// Per loop unroll limits derived from profile data.
+#[derive(Debug, Clone, Copy)]
+struct UnrollLimits {
+    /// Maximum iterations to fully unroll.
+    max_full_unroll_iterations: u64,
+    /// Maximum unroll factor for partial unrolling.
+    max_partial_unroll_factor: u64,
+    /// Maximum trip count to consider for partial unrolling.
+    max_partial_unroll_trip_count: u64,
+    /// Maximum body size to consider for unrolling.
+    max_body_instructions: usize,
 }
 
 /// Candidate loop data for unrolling.
@@ -148,6 +272,35 @@ struct UnrollCandidate {
     guard_at_latch: bool,
     /// Trip count for the loop.
     trip_count: u64,
+}
+
+/// Candidate loop data for unroll and jam.
+#[derive(Debug, Clone)]
+struct JamCandidate {
+    /// Outer loop header block.
+    outer_header: mir::LocalNodeId<mir::Block>,
+    /// Outer loop latch block.
+    outer_latch: mir::LocalNodeId<mir::Block>,
+    /// Inner loop header block.
+    inner_header: mir::LocalNodeId<mir::Block>,
+    /// Inner loop latch block.
+    inner_latch: mir::LocalNodeId<mir::Block>,
+    /// Outer induction value.
+    outer_induction: mir::Value,
+    /// Index of the outer induction parameter in the header.
+    outer_param_index: usize,
+    /// Outer latch parameter that carries the induction.
+    outer_latch_param: mir::Value,
+    /// Outer loop step value.
+    outer_step: i128,
+    /// Outer loop trip count.
+    outer_trip_count: u64,
+    /// Index of the inner induction parameter in the header.
+    inner_param_index: usize,
+    /// Inner header parameter that carries the outer induction.
+    inner_outer_param: mir::Value,
+    /// Values in the inner loop equivalent to the outer induction.
+    outer_equivalents: Vec<mir::Value>,
 }
 
 /// Comparison semantics for the loop guard.
@@ -196,6 +349,17 @@ fn run_loop_unroll(
         return false;
     }
 
+    // collect profile data for hotness decisions
+    let hotness_policy = ctx.inline_hotness_policy();
+    let block_counts = match ctx.profile() {
+        Some(profile) => block_execution_counts(function, tree, Some(profile), hotness_policy),
+        None => HashMap::new(),
+    };
+    let entry_count = function
+        .entry
+        .and_then(|entry| block_counts.get(&entry).copied())
+        .unwrap_or(0);
+
     // track loop unrolling progress in this pass
     let mut changed = false;
     let mut unrolled_headers = HashSet::new();
@@ -232,6 +396,16 @@ fn run_loop_unroll(
                 continue;
             }
 
+            let Some(limits) = unroll_limits_for_loop(
+                lp.header,
+                &block_counts,
+                entry_count,
+                hotness_policy,
+                unroll_threshold,
+            ) else {
+                continue;
+            };
+
             let Some(candidate) = find_unroll_candidate(
                 lp,
                 loop_index,
@@ -239,12 +413,12 @@ fn run_loop_unroll(
                 tree,
                 &scev,
                 &forwarding,
-                unroll_threshold,
+                limits.max_body_instructions,
             ) else {
                 continue;
             };
 
-            let Some(mode) = select_unroll_mode(&candidate, tree) else {
+            let Some(mode) = select_unroll_mode(&candidate, &limits) else {
                 continue;
             };
 
@@ -268,6 +442,131 @@ fn run_loop_unroll(
         changed = true;
         iterations += 1;
         if iterations >= MAX_UNROLL_LOOPS_PER_FUNCTION {
+            break;
+        }
+    }
+
+    changed
+}
+
+/// Run loop unroll and jam and return true when changes were made.
+fn run_loop_unroll_and_jam(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+) -> bool {
+    // read the unroll threshold from the pipeline options
+    let unroll_threshold = ctx.unroll_threshold();
+
+    if unroll_threshold == 0 {
+        return false;
+    }
+
+    // collect profile data for hotness decisions
+    let hotness_policy = ctx.inline_hotness_policy();
+    let block_counts = match ctx.profile() {
+        Some(profile) => block_execution_counts(function, tree, Some(profile), hotness_policy),
+        None => HashMap::new(),
+    };
+    let entry_count = function
+        .entry
+        .and_then(|entry| block_counts.get(&entry).copied())
+        .unwrap_or(0);
+
+    // track loop unroll and jam progress in this pass
+    let mut changed = false;
+    let mut jammed_headers = HashSet::new();
+    let mut iterations = 0usize;
+
+    loop {
+        // gather analyses
+        let analyses = ctx.function_analyses(function, tree);
+        let loops = analyses.get::<LoopAnalysis>().clone();
+        let cfg = analyses.get::<ControlFlowGraph>().clone();
+        let scev = analyses.get::<ScalarEvolution>().clone();
+        let domtree = analyses.get::<DominatorTree>().clone();
+        let ownership = analyses.get::<OwnershipAnalysis>().clone();
+
+        // bail out when no loops exist
+        if loops.num_loops() == 0 {
+            break;
+        }
+
+        // build forwarding to normalize values
+        let forwarding = BlockParamForwarding::build(function, tree, &cfg);
+
+        // build loop child mappings
+        let children = build_loop_children_map(&loops);
+
+        // pick the first viable candidate for unroll and jam
+        let mut selected: Option<(JamCandidate, u64)> = None;
+        let mut loop_indices: Vec<usize> = (0..loops.num_loops()).collect();
+        loop_indices.sort_by_key(|index| loops.loops()[*index].depth);
+
+        for outer_index in loop_indices {
+            let outer = &loops.loops()[outer_index];
+            if jammed_headers.contains(&outer.header) {
+                continue;
+            }
+
+            let inner_index = if children[outer_index].len() == 1 {
+                children[outer_index][0]
+            } else {
+                let Some(nested) = nearest_nested_loop(&loops, outer_index) else {
+                    continue;
+                };
+                nested
+            };
+            let inner = &loops.loops()[inner_index];
+
+            let Some(limits) = unroll_limits_for_loop(
+                outer.header,
+                &block_counts,
+                entry_count,
+                hotness_policy,
+                unroll_threshold,
+            ) else {
+                continue;
+            };
+
+            let Some(candidate) = find_jam_candidate(
+                outer_index,
+                outer,
+                inner,
+                function,
+                tree,
+                &cfg,
+                &domtree,
+                &scev,
+                &forwarding,
+            ) else {
+                continue;
+            };
+
+            let Some(factor) = select_jam_factor(&candidate, &limits, tree) else {
+                continue;
+            };
+
+            selected = Some((candidate, factor));
+            break;
+        }
+
+        // exit when no eligible loops remain
+        let Some((candidate, factor)) = selected else {
+            break;
+        };
+
+        // apply transformation
+        function.recompute_next_value_id(tree);
+        if !unroll_and_jam_loop(function, tree, ctx, &candidate, factor, &ownership) {
+            break;
+        }
+
+        // record the successful unroll and jam and guard the iteration count
+        jammed_headers.insert(candidate.outer_header);
+        changed = true;
+        iterations += 1;
+        if iterations >= MAX_JAM_LOOPS_PER_FUNCTION {
             break;
         }
     }
@@ -386,22 +685,1225 @@ fn find_unroll_candidate(
     })
 }
 
+/// Build a map from loop indices to their child loop indices.
+fn build_loop_children_map(loops: &LoopAnalysis) -> Vec<Vec<usize>> {
+    // initialize child lists
+    let mut children = vec![Vec::new(); loops.num_loops()];
+
+    // record parent relationships
+    for (index, lp) in loops.loops().iter().enumerate() {
+        if let Some(parent) = lp.parent {
+            children[parent].push(index);
+        }
+    }
+
+    children
+}
+
+/// Find the nearest nested loop index when parent links are missing.
+fn nearest_nested_loop(loops: &LoopAnalysis, outer_index: usize) -> Option<usize> {
+    // collect nested loop candidates
+    let outer = &loops.loops()[outer_index];
+    let mut candidates: Vec<(usize, u32)> = Vec::new();
+
+    for (index, lp) in loops.loops().iter().enumerate() {
+        // skip the outer loop
+        if index == outer_index {
+            continue;
+        }
+
+        // record loops fully contained in the outer loop
+        if lp.blocks.iter().all(|block| outer.blocks.contains(block)) {
+            candidates.push((index, lp.depth));
+        }
+    }
+
+    // require at least one nested candidate
+    if candidates.is_empty() {
+        return None;
+    }
+
+    // select the shallowest nested loop
+    candidates.sort_by_key(|(_, depth)| *depth);
+    let min_depth = candidates[0].1;
+    let mut nested = candidates
+        .into_iter()
+        .filter(|(_, depth)| *depth == min_depth)
+        .map(|(index, _)| index);
+
+    // reject ambiguous nesting
+    let first = nested.next()?;
+    if nested.next().is_some() {
+        return None;
+    }
+
+    Some(first)
+}
+
+/// Find a perfectly nested loop candidate for unroll and jam.
+// allow many arguments to keep loop selection explicit
+#[allow(clippy::too_many_arguments)]
+fn find_jam_candidate(
+    outer_index: usize,
+    outer: &Loop,
+    inner: &Loop,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    cfg: &ControlFlowGraph,
+    domtree: &DominatorTree,
+    scev: &ScalarEvolution,
+    forwarding: &BlockParamForwarding,
+) -> Option<JamCandidate> {
+    // require single latch and exit on both loops
+    if !outer.has_single_latch() || !outer.has_single_exit() {
+        return None;
+    }
+    if !inner.has_single_latch() || !inner.has_single_exit() {
+        return None;
+    }
+
+    // require the inner loop exit to match the outer latch
+    let outer_latch = outer.latches[0];
+    let inner_exit = inner.exit_blocks.first().copied()?;
+    if inner_exit != outer_latch {
+        return None;
+    }
+
+    // require a header guard on the outer loop
+    if outer.exiting_blocks.len() != 1 || outer.exiting_blocks[0] != outer.header {
+        return None;
+    }
+
+    // require a header guard on the inner loop
+    if inner.exiting_blocks.len() != 1 || inner.exiting_blocks[0] != inner.header {
+        return None;
+    }
+
+    // require a minimal inner loop body (header and latch only)
+    if inner.blocks.len() != 2 {
+        return None;
+    }
+
+    // identify the outer guard and exit blocks
+    let outer_header = outer.header;
+    let outer_block = tree.get(outer_header);
+    let (outer_condition, outer_in_loop_is_then, outer_in_loop_target) =
+        match outer_block.terminator {
+            mir::Terminator::Branch {
+                condition,
+                then_target,
+                else_target,
+                ..
+            } => {
+                let then_in_loop = outer.blocks.contains(&then_target);
+                let else_in_loop = outer.blocks.contains(&else_target);
+                if then_in_loop == else_in_loop {
+                    return None;
+                }
+
+                if then_in_loop {
+                    (condition, true, then_target)
+                } else {
+                    (condition, false, else_target)
+                }
+            }
+            _ => return None,
+        };
+
+    // resolve the inner preheader if needed
+    let inner_header = inner.header;
+    let inner_preheader = if outer_in_loop_target == inner_header {
+        None
+    } else {
+        let preheader_block = tree.get(outer_in_loop_target);
+        match preheader_block.terminator {
+            mir::Terminator::Jump { target, .. } if target == inner_header => {
+                Some(outer_in_loop_target)
+            }
+            _ => return None,
+        }
+    };
+
+    // require the outer loop to be perfectly nested
+    if !outer_is_perfectly_nested(outer, inner, inner_preheader) {
+        return None;
+    }
+
+    // require the outer latch to jump back to the header
+    let latch_block = tree.get(outer_latch);
+    match latch_block.terminator {
+        mir::Terminator::Jump { target, .. } if target == outer_header => {}
+        _ => return None,
+    }
+
+    // require the inner latch to jump back to the header
+    let inner_latch = inner.latches[0];
+    let inner_latch_block = tree.get(inner_latch);
+    match inner_latch_block.terminator {
+        mir::Terminator::Jump { target, .. } if target == inner_header => {}
+        _ => return None,
+    }
+
+    // extract guard comparisons
+    let outer_guard = guard_from_condition(
+        outer_condition,
+        outer_in_loop_is_then,
+        function,
+        tree,
+        forwarding,
+    )?;
+    let inner_block = tree.get(inner_header);
+    let (inner_condition, inner_in_loop_is_then) = match inner_block.terminator {
+        mir::Terminator::Branch {
+            condition,
+            then_target,
+            else_target,
+            ..
+        } => {
+            let then_in_loop = inner.blocks.contains(&then_target);
+            let else_in_loop = inner.blocks.contains(&else_target);
+            if then_in_loop == else_in_loop {
+                return None;
+            }
+
+            let exit_target = if then_in_loop {
+                else_target
+            } else {
+                then_target
+            };
+            if exit_target != inner_exit {
+                return None;
+            }
+
+            (condition, then_in_loop)
+        }
+        _ => return None,
+    };
+    let inner_guard = guard_from_condition(
+        inner_condition,
+        inner_in_loop_is_then,
+        function,
+        tree,
+        forwarding,
+    )?;
+
+    // require increasing strict guards for both loops
+    if outer_guard.direction != GuardDirection::Increasing || !outer_guard.is_strict {
+        return None;
+    }
+    if inner_guard.direction != GuardDirection::Increasing || !inner_guard.is_strict {
+        return None;
+    }
+
+    // locate induction parameter indices
+    let outer_param_index = block_param_index(tree.get(outer_header), outer_guard.induction)?;
+    let inner_param_index = block_param_index(tree.get(inner_header), inner_guard.induction)?;
+
+    // locate the inner header parameter that carries the outer induction
+    let entry_block = inner_preheader.unwrap_or(outer_header);
+    let entry_args =
+        terminator_arguments_for_successor(&tree.get(entry_block).terminator, inner_header);
+    let outer_entry_index = entry_args
+        .iter()
+        .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(outer_guard.induction))?;
+    let inner_outer_param = tree
+        .get(inner_header)
+        .parameters
+        .get(outer_entry_index)?
+        .value;
+
+    // locate the outer latch parameter carrying the induction
+    let exit_args =
+        terminator_arguments_for_successor(&tree.get(inner_header).terminator, inner_exit);
+    let outer_latch_index = exit_args
+        .iter()
+        .position(|&arg| forwarding.resolve(arg) == forwarding.resolve(inner_outer_param))?;
+    let outer_latch_param = tree
+        .get(inner_exit)
+        .parameters
+        .get(outer_latch_index)?
+        .value;
+
+    // compute outer step from scev or latch
+    let outer_step = outer_step_for_guard(outer_index, outer_guard.induction, scev)
+        .or_else(|| {
+            outer_step_from_latch(
+                outer_header,
+                outer_latch,
+                outer_param_index,
+                outer_guard.induction,
+                function,
+                tree,
+                forwarding,
+            )
+        })
+        .or_else(|| {
+            outer_step_from_latch(
+                outer_header,
+                outer_latch,
+                outer_param_index,
+                outer_latch_param,
+                function,
+                tree,
+                forwarding,
+            )
+        })?;
+    if outer_step <= 0 {
+        return None;
+    }
+
+    // compute outer trip count from scev or header arguments
+    let mut trip_count =
+        trip_count_for_guard(&outer_guard, outer_index, scev, forwarding, function, tree)
+            .unwrap_or(0);
+    if trip_count == 0
+        && let Some(fallback) = trip_count_from_header(
+            &outer_guard,
+            outer,
+            outer_header,
+            outer_param_index,
+            outer_step,
+            cfg,
+            function,
+            tree,
+            forwarding,
+        )
+    {
+        trip_count = fallback;
+    }
+    if trip_count == 0 {
+        return None;
+    }
+
+    // collect inner loop values equivalent to the outer induction
+    let outer_equivalents = outer_equivalent_values(
+        inner,
+        tree,
+        forwarding,
+        outer_guard.induction,
+        inner_outer_param,
+    );
+
+    // reject loops with outer dependent derived values in the inner body
+    if !inner_body_is_jammable(
+        outer,
+        inner,
+        inner_guard.induction,
+        inner_outer_param,
+        outer_guard.induction,
+        function,
+        tree,
+        domtree,
+    ) {
+        return None;
+    }
+
+    Some(JamCandidate {
+        outer_header,
+        outer_latch,
+        inner_header,
+        inner_latch,
+        outer_induction: outer_guard.induction,
+        outer_param_index,
+        outer_latch_param,
+        outer_step,
+        outer_trip_count: trip_count,
+        inner_param_index,
+        inner_outer_param,
+        outer_equivalents,
+    })
+}
+
+/// Check whether the outer loop body is perfectly nested around the inner loop.
+fn outer_is_perfectly_nested(
+    outer: &Loop,
+    inner: &Loop,
+    inner_preheader: Option<mir::LocalNodeId<mir::Block>>,
+) -> bool {
+    // collect outer blocks not in the inner loop
+    let mut extras: HashSet<_> = outer
+        .blocks
+        .iter()
+        .copied()
+        .filter(|block| !inner.blocks.contains(block))
+        .collect();
+
+    // drop the optional inner preheader from the extras
+    if let Some(preheader) = inner_preheader {
+        extras.remove(&preheader);
+    }
+
+    // drop the outer header and latch from the extras
+    extras.remove(&outer.header);
+    if let Some(latch) = outer.latches.first() {
+        extras.remove(latch);
+    }
+
+    extras.is_empty()
+}
+
+/// Return the parameter index for a given block parameter value.
+fn block_param_index(block: &mir::Block, value: mir::Value) -> Option<usize> {
+    // locate the matching parameter
+    block
+        .parameters
+        .iter()
+        .position(|param| param.value == value)
+}
+
+/// Collect inner loop values that forward to the outer induction.
+fn outer_equivalent_values(
+    inner: &Loop,
+    tree: &mir::NodeTree,
+    forwarding: &BlockParamForwarding,
+    outer_induction: mir::Value,
+    inner_outer_param: mir::Value,
+) -> Vec<mir::Value> {
+    // resolve canonical forwarding roots
+    let outer_root = forwarding.resolve(outer_induction);
+    let inner_root = forwarding.resolve(inner_outer_param);
+    let mut values = HashSet::new();
+
+    // collect forwarded parameters in the inner loop
+    for &block_id in &inner.blocks {
+        let block = tree.get(block_id);
+        for param in &block.parameters {
+            let resolved = forwarding.resolve(param.value);
+            if resolved == outer_root || resolved == inner_root {
+                values.insert(param.value);
+            }
+        }
+    }
+
+    // seed the explicit induction values
+    values.insert(outer_induction);
+    values.insert(inner_outer_param);
+
+    // return stable ordering for deterministic output
+    let mut ordered: Vec<_> = values.into_iter().collect();
+    ordered.sort();
+    ordered
+}
+
+/// Find a value type from function and block parameters.
+fn value_type_from_params(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    value: mir::Value,
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    // check function parameters
+    for param in &function.parameters {
+        if param.value == value {
+            return Some(param.ty);
+        }
+    }
+
+    // check block parameters
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for param in &block.parameters {
+            if param.value == value {
+                return Some(param.ty);
+            }
+        }
+    }
+
+    // no type available
+    None
+}
+
+/// Return the outer loop step for the induction value.
+fn outer_step_for_guard(
+    loop_index: usize,
+    induction: mir::Value,
+    scev: &ScalarEvolution,
+) -> Option<i128> {
+    // read the scalar evolution recurrence
+    let scev_expr = scev.scev_for_value_in_loop(loop_index, induction)?;
+    let (start, step) = match scev_expr {
+        Scev::AddRec { start, step, .. } => (start.as_ref(), step.as_ref()),
+        _ => return None,
+    };
+
+    // extract the constant step
+    let _ = start;
+    scev_constant(step).and_then(constant_to_i128)
+}
+
+/// Resolve the induction step by inspecting the latch update.
+fn outer_step_from_latch(
+    header: mir::LocalNodeId<mir::Block>,
+    latch: mir::LocalNodeId<mir::Block>,
+    param_index: usize,
+    induction: mir::Value,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    forwarding: &BlockParamForwarding,
+) -> Option<i128> {
+    // read the latch argument for the induction parameter
+    let latch_block = tree.get(latch);
+    let args = terminator_arguments_for_successor(&latch_block.terminator, header);
+    let update_value = *args.get(param_index)?;
+    let update_value = forwarding.resolve(update_value);
+    let induction = forwarding.resolve(induction);
+
+    // require an updated induction value
+    if update_value == induction {
+        return None;
+    }
+
+    // locate the defining instruction
+    let definitions = ValueDefinitions::build(function, tree);
+    let instruction_id = definitions.definition_for(update_value)?;
+    let instruction = tree.get(instruction_id);
+
+    // decode the step from a simple add or sub
+    let (operator, left, right) = match instruction {
+        mir::Instruction::Binary {
+            operator,
+            left,
+            right,
+            ..
+        } => (*operator, *left, *right),
+        _ => return None,
+    };
+
+    let left = forwarding.resolve(left);
+    let right = forwarding.resolve(right);
+
+    match operator {
+        mir::BinaryOperator::Add if left == induction => {
+            constant_value_for(right, function, tree, forwarding)
+                .and_then(|constant| constant_to_i128(&constant))
+        }
+        mir::BinaryOperator::Add if right == induction => {
+            constant_value_for(left, function, tree, forwarding)
+                .and_then(|constant| constant_to_i128(&constant))
+        }
+        mir::BinaryOperator::Subtract if left == induction => {
+            constant_value_for(right, function, tree, forwarding)
+                .and_then(|constant| constant_to_i128(&constant))
+                .map(|value| -value)
+        }
+        _ => None,
+    }
+}
+
+/// Resolve a trip count using the loop header arguments.
+// allow many arguments to keep trip count extraction explicit
+#[allow(clippy::too_many_arguments)]
+fn trip_count_from_header(
+    guard: &GuardComparison,
+    outer: &Loop,
+    header: mir::LocalNodeId<mir::Block>,
+    param_index: usize,
+    step: i128,
+    cfg: &ControlFlowGraph,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    forwarding: &BlockParamForwarding,
+) -> Option<u64> {
+    // find the unique predecessor outside the loop
+    let mut outside_preds = cfg
+        .predecessors(header)
+        .iter()
+        .copied()
+        .filter(|pred| !outer.blocks.contains(pred));
+    let entry_pred = outside_preds.next()?;
+    if outside_preds.next().is_some() {
+        return None;
+    }
+
+    // read the starting induction argument
+    let args = terminator_arguments_for_successor(&tree.get(entry_pred).terminator, header);
+    let start_value = *args.get(param_index)?;
+    let start_const = constant_value_for(start_value, function, tree, forwarding)?;
+    let bound_const = constant_value_for(guard.bound, function, tree, forwarding)?;
+
+    if guard.is_signed {
+        let start = constant_to_i128(&start_const)?;
+        let bound = constant_to_i128(&bound_const)?;
+        trip_count_signed(start, bound, step, guard.is_strict, guard.direction)
+    } else {
+        let start = constant_to_u128(&start_const)?;
+        let bound = constant_to_u128(&bound_const)?;
+        let step = u128::try_from(step).ok()?;
+        trip_count_unsigned(start, bound, step, guard.is_strict)
+    }
+}
+
+/// Check if the inner loop body can be safely jammed.
+// allow many arguments to keep jamming checks explicit
+#[allow(clippy::too_many_arguments)]
+fn inner_body_is_jammable(
+    outer: &Loop,
+    inner: &Loop,
+    inner_induction: mir::Value,
+    inner_outer_param: mir::Value,
+    outer_induction: mir::Value,
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    domtree: &DominatorTree,
+) -> bool {
+    // gather definition maps for dependency checks
+    let def_maps = build_use_def_maps(function, tree);
+    let def_map = build_value_definition_map(function, tree);
+
+    // cache outer block parameters for dependency checks
+    let outer_block_params: HashSet<_> = outer
+        .blocks
+        .iter()
+        .filter(|block_id| !inner.blocks.contains(block_id))
+        .flat_map(|block_id| {
+            tree.get(*block_id)
+                .parameters
+                .iter()
+                .map(|param| param.value)
+        })
+        .collect();
+
+    // locate the outer induction definition block
+    let outer_def_block = match def_maps.def_block.get(&outer_induction) {
+        Some(block) => *block,
+        None => return false,
+    };
+
+    // reject when the induction does not dominate the inner header
+    if !domtree.dominates(outer_def_block, inner.header) {
+        return false;
+    }
+
+    // scan inner loop blocks for unsafe outer dependencies
+    for &block_id in &inner.blocks {
+        let block = tree.get(block_id);
+
+        // check instruction uses
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if !inner_uses_are_safe(
+                &instruction.uses(),
+                inner,
+                Some(inner_induction),
+                Some(inner_outer_param),
+                &outer_block_params,
+                &def_maps.def_block,
+                &def_map,
+                outer_induction,
+                tree,
+            ) {
+                return false;
+            }
+
+            // check externalized arguments
+            if let Some(args) = instruction.argument_slice() {
+                let arguments = tree.get_arguments(args);
+                if !inner_uses_are_safe(
+                    arguments,
+                    inner,
+                    Some(inner_induction),
+                    Some(inner_outer_param),
+                    &outer_block_params,
+                    &def_maps.def_block,
+                    &def_map,
+                    outer_induction,
+                    tree,
+                ) {
+                    return false;
+                }
+            }
+        }
+
+        // check terminator uses
+        if !inner_uses_are_safe(
+            &block.terminator.uses(),
+            inner,
+            Some(inner_induction),
+            Some(inner_outer_param),
+            &outer_block_params,
+            &def_maps.def_block,
+            &def_map,
+            outer_induction,
+            tree,
+        ) {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Check whether a set of uses is safe for jamming.
+// allow many arguments to keep dependency checks explicit
+#[allow(clippy::too_many_arguments)]
+fn inner_uses_are_safe(
+    uses: &[mir::Value],
+    inner: &Loop,
+    inner_induction: Option<mir::Value>,
+    inner_outer_param: Option<mir::Value>,
+    outer_block_params: &HashSet<mir::Value>,
+    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    outer_induction: mir::Value,
+    tree: &mir::NodeTree,
+) -> bool {
+    // cache header parameters for non induction checks
+    let header_params: Vec<_> = tree
+        .get(inner.header)
+        .parameters
+        .iter()
+        .map(|param| param.value)
+        .collect();
+
+    // scan each used value for unsafe dependencies
+    for &value in uses {
+        // allow direct outer induction uses
+        if value == outer_induction {
+            continue;
+        }
+
+        // reject outer block parameters that are not explicitly allowed
+        if outer_block_params.contains(&value) {
+            if let Some(inner_induction) = inner_induction
+                && value == inner_induction
+            {
+                continue;
+            }
+
+            if let Some(inner_outer_param) = inner_outer_param
+                && value == inner_outer_param
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        // reject extra header parameters
+        if header_params.contains(&value) {
+            if let Some(inner_induction) = inner_induction
+                && value == inner_induction
+            {
+                continue;
+            }
+
+            if let Some(inner_outer_param) = inner_outer_param
+                && value == inner_outer_param
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        // reject values derived from the outer induction
+        if value_depends_on(
+            value,
+            outer_induction,
+            inner_outer_param,
+            def_map,
+            tree,
+            &mut HashSet::new(),
+        ) {
+            return false;
+        }
+
+        // allow values defined within the inner loop
+        if def_blocks
+            .get(&value)
+            .is_some_and(|block| inner.blocks.contains(block))
+        {
+            continue;
+        }
+    }
+
+    true
+}
+
+/// Return true if a value depends on the outer induction value.
+fn value_depends_on(
+    value: mir::Value,
+    outer_induction: mir::Value,
+    inner_outer_param: Option<mir::Value>,
+    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    visiting: &mut HashSet<mir::Value>,
+) -> bool {
+    // treat the outer induction as a dependency root
+    if value == outer_induction {
+        return true;
+    }
+
+    // treat the inner outer parameter as a dependency root
+    if let Some(inner_outer_param) = inner_outer_param
+        && value == inner_outer_param
+    {
+        return true;
+    }
+
+    // avoid cycles
+    if !visiting.insert(value) {
+        return false;
+    }
+
+    // stop at values without defining instructions
+    let Some(&instruction_id) = def_map.get(&value) else {
+        return false;
+    };
+
+    let instruction = tree.get(instruction_id);
+
+    // check instruction operands
+    for use_value in instruction.uses() {
+        if value_depends_on(
+            use_value,
+            outer_induction,
+            inner_outer_param,
+            def_map,
+            tree,
+            visiting,
+        ) {
+            return true;
+        }
+    }
+
+    // check externalized arguments
+    if let Some(args) = instruction.argument_slice() {
+        for &arg in tree.get_arguments(args) {
+            if value_depends_on(
+                arg,
+                outer_induction,
+                inner_outer_param,
+                def_map,
+                tree,
+                visiting,
+            ) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Select an unroll and jam factor for the outer loop.
+fn select_jam_factor(
+    candidate: &JamCandidate,
+    limits: &UnrollLimits,
+    tree: &mir::NodeTree,
+) -> Option<u64> {
+    // compute the inner body size
+    let inner_body_size = tree.get(candidate.inner_latch).instructions.len();
+    if inner_body_size == 0 {
+        return None;
+    }
+
+    // cap factor by body size growth
+    let max_factor_by_size = (limits.max_body_instructions / inner_body_size).max(1) as u64;
+    let mut factor = limits
+        .max_partial_unroll_factor
+        .min(candidate.outer_trip_count)
+        .min(max_factor_by_size);
+
+    if factor < 2 {
+        return None;
+    }
+
+    // TODO #Incomplete: handle remainder iterations for unroll and jam
+    // require exact divisibility to avoid a remainder loop
+    while factor >= 2 {
+        if candidate.outer_trip_count.is_multiple_of(factor) {
+            return Some(factor);
+        }
+
+        factor -= 1;
+    }
+
+    None
+}
+
+/// Apply loop unroll and jam for the candidate.
+fn unroll_and_jam_loop(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    candidate: &JamCandidate,
+    factor: u64,
+    ownership: &OwnershipAnalysis,
+) -> bool {
+    // reject degenerate factors
+    if factor < 2 {
+        return false;
+    }
+
+    // locate the inner update instruction
+    let def_map = build_value_definition_map(function, tree);
+    let Some(update_info) = inner_update_info(candidate, tree, &def_map) else {
+        return false;
+    };
+
+    // update the outer latch induction step
+    if !rewrite_outer_latch_step(function, tree, ctx, candidate, factor, ownership) {
+        return false;
+    }
+
+    // duplicate the inner loop body for the unrolled outer iterations
+    if !jam_inner_body(
+        function,
+        tree,
+        ctx,
+        candidate,
+        factor,
+        &update_info,
+        ownership,
+    ) {
+        return false;
+    }
+
+    true
+}
+
+/// Metadata about the inner loop update instruction.
+struct InnerUpdateInfo {
+    /// The update instruction id.
+    update_instruction: mir::LocalNodeId<mir::Instruction>,
+    /// Body instructions before the update.
+    body_instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
+}
+
+/// Find the inner loop induction update instruction information.
+fn inner_update_info(
+    candidate: &JamCandidate,
+    tree: &mir::NodeTree,
+    def_map: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> Option<InnerUpdateInfo> {
+    // find the update value passed to the header
+    let latch_block = tree.get(candidate.inner_latch);
+    let update_value =
+        terminator_arguments_for_successor(&latch_block.terminator, candidate.inner_header)
+            .get(candidate.inner_param_index)
+            .copied()?;
+
+    // locate the defining instruction
+    let update_instruction = *def_map.get(&update_value)?;
+    let update_index = latch_block
+        .instructions
+        .iter()
+        .position(|&id| id == update_instruction)?;
+
+    // require the update to be last in the block
+    if update_index + 1 != latch_block.instructions.len() {
+        // TODO #Incomplete: allow inner updates with trailing invariants
+        return None;
+    }
+
+    let body_instructions = latch_block.instructions[..update_index].to_vec();
+    if body_instructions.is_empty() {
+        return None;
+    }
+
+    Some(InnerUpdateInfo {
+        update_instruction,
+        body_instructions,
+    })
+}
+
+/// Rewrite the outer latch to advance by the unroll factor.
+fn rewrite_outer_latch_step(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    candidate: &JamCandidate,
+    factor: u64,
+    ownership: &OwnershipAnalysis,
+) -> bool {
+    // resolve the outer induction type
+    let outer_type = match ownership
+        .value_type(candidate.outer_induction)
+        .or_else(|| value_type_from_params(function, tree, candidate.outer_induction))
+    {
+        Some(ty) => ty,
+        None => return false,
+    };
+
+    let pointer_width_bits = ctx.type_context().pointer_width_bits;
+    let scaled_constant = match scaled_step_constant(
+        candidate.outer_step,
+        factor,
+        outer_type,
+        tree,
+        pointer_width_bits,
+    ) {
+        Some(constant) => constant,
+        None => return false,
+    };
+
+    let mut latch_block = tree.get(candidate.outer_latch).clone();
+
+    // read the current induction value from the latch arguments
+    let mut arguments = match &latch_block.terminator {
+        mir::Terminator::Jump { target, arguments } if *target == candidate.outer_header => {
+            arguments.clone()
+        }
+        _ => return false,
+    };
+    if candidate.outer_param_index >= arguments.len() {
+        return false;
+    }
+    let current_value = candidate.outer_latch_param;
+
+    // build the scaled induction update
+    let const_value = function.next_value();
+    let const_instruction = mir::Instruction::Const {
+        destination: const_value,
+        value: scaled_constant,
+    };
+    let const_id = tree.insert(const_instruction);
+
+    let updated_value = function.next_value();
+    let add_instruction = mir::Instruction::Binary {
+        destination: updated_value,
+        operator: mir::BinaryOperator::Add,
+        left: current_value,
+        right: const_value,
+    };
+    let add_id = tree.insert(add_instruction);
+
+    // append the update before the terminator
+    latch_block.instructions.push(const_id);
+    latch_block.instructions.push(add_id);
+
+    arguments[candidate.outer_param_index] = updated_value;
+
+    latch_block.terminator = mir::Terminator::Jump {
+        target: candidate.outer_header,
+        arguments,
+    };
+
+    tree.replace(candidate.outer_latch, latch_block);
+
+    true
+}
+
+/// Duplicate the inner loop body for the unrolled outer iterations.
+fn jam_inner_body(
+    function: &mut mir::Function,
+    tree: &mut mir::NodeTree,
+    ctx: &PipelineContext<'_>,
+    candidate: &JamCandidate,
+    factor: u64,
+    update_info: &InnerUpdateInfo,
+    ownership: &OwnershipAnalysis,
+) -> bool {
+    // resolve the outer induction type
+    let outer_type = match ownership
+        .value_type(candidate.outer_induction)
+        .or_else(|| value_type_from_params(function, tree, candidate.outer_induction))
+    {
+        Some(ty) => ty,
+        None => return false,
+    };
+
+    let pointer_width_bits = ctx.type_context().pointer_width_bits;
+    let mut new_instructions = Vec::new();
+    new_instructions.extend(update_info.body_instructions.iter().copied());
+
+    for offset in 1..factor {
+        // materialize the outer induction value for this unrolled iteration
+        let step_constant = match scaled_step_constant(
+            candidate.outer_step,
+            offset,
+            outer_type,
+            tree,
+            pointer_width_bits,
+        ) {
+            Some(constant) => constant,
+            None => return false,
+        };
+
+        let offset_const_value = function.next_value();
+        let offset_const_instruction = mir::Instruction::Const {
+            destination: offset_const_value,
+            value: step_constant,
+        };
+        let offset_const_id = tree.insert(offset_const_instruction);
+        new_instructions.push(offset_const_id);
+
+        let offset_value = function.next_value();
+        let offset_add_instruction = mir::Instruction::Binary {
+            destination: offset_value,
+            operator: mir::BinaryOperator::Add,
+            left: candidate.inner_outer_param,
+            right: offset_const_value,
+        };
+        let offset_add_id = tree.insert(offset_add_instruction);
+        new_instructions.push(offset_add_id);
+
+        // clone body instructions with remapped values
+        let mut value_map = HashMap::new();
+        for &value in &candidate.outer_equivalents {
+            value_map.insert(value, offset_value);
+        }
+
+        for &instruction_id in &update_info.body_instructions {
+            let instruction = tree.get(instruction_id).clone();
+
+            if let Some(destination) = instruction.destination() {
+                let new_value = function.next_value();
+                value_map.insert(destination, new_value);
+            }
+
+            let cloned = instruction_map(&instruction, &value_map, tree);
+            let cloned_id = tree.insert(cloned);
+            clone_instruction_metadata(tree, instruction_id, cloned_id, &value_map);
+            new_instructions.push(cloned_id);
+        }
+    }
+
+    new_instructions.push(update_info.update_instruction);
+
+    let mut latch_block = tree.get(candidate.inner_latch).clone();
+    latch_block.instructions = new_instructions;
+    tree.replace(candidate.inner_latch, latch_block);
+
+    true
+}
+
+/// Create a scaled induction step constant for the given type.
+fn scaled_step_constant(
+    step: i128,
+    factor: u64,
+    type_id: mir::LocalNodeId<mir::Type>,
+    tree: &mir::NodeTree,
+    pointer_width_bits: u16,
+) -> Option<mir::Constant> {
+    let scaled = step.checked_mul(factor as i128)?;
+
+    match tree.get(type_id) {
+        mir::Type::Int { width, signed } => {
+            let width = *width;
+            if *signed {
+                let value = i64::try_from(scaled).ok()?;
+                Some(mir::Constant::Int {
+                    value,
+                    width: width as u8,
+                    is_signed: true,
+                })
+            } else {
+                let value = u64::try_from(scaled).ok()?;
+                Some(mir::Constant::UInt {
+                    value,
+                    width: width as u8,
+                })
+            }
+        }
+        mir::Type::Isize => {
+            let value = i64::try_from(scaled).ok()?;
+            Some(mir::Constant::Int {
+                value,
+                width: pointer_width_bits as u8,
+                is_signed: true,
+            })
+        }
+        mir::Type::Usize => {
+            let value = u64::try_from(scaled).ok()?;
+            Some(mir::Constant::UInt {
+                value,
+                width: pointer_width_bits as u8,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// Clone instruction metadata when present.
+fn clone_instruction_metadata(
+    tree: &mut mir::NodeTree,
+    original: mir::LocalNodeId<mir::Instruction>,
+    cloned: mir::LocalNodeId<mir::Instruction>,
+    value_map: &HashMap<mir::Value, mir::Value>,
+) {
+    if let Some(accesses) = tree.memory_table.memory_accesses(original) {
+        let mut cloned_accesses = accesses.to_vec();
+        for access in &mut cloned_accesses {
+            if let mir::MemoryAccessTarget::Pointer(value) = access.target
+                && let Some(&remapped) = value_map.get(&value)
+            {
+                access.target = mir::MemoryAccessTarget::Pointer(remapped);
+            }
+        }
+
+        tree.memory_table
+            .insert_memory_accesses(cloned, cloned_accesses);
+    }
+
+    if let Some(metadata) = tree.call_table.call_metadata(original) {
+        let mut cloned_metadata = metadata.clone();
+        if let Some(receiver) = cloned_metadata.receiver
+            && let Some(&remapped) = value_map.get(&receiver)
+        {
+            cloned_metadata.receiver = Some(remapped);
+        }
+
+        tree.call_table
+            .insert_call_metadata(cloned, cloned_metadata);
+    }
+}
+
+/// Compute unroll limits based on block hotness.
+fn unroll_limits_for_loop(
+    header: mir::LocalNodeId<mir::Block>,
+    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    entry_count: u64,
+    policy: &crate::optimize::common::CallsiteHotnessPolicy,
+    unroll_threshold: usize,
+) -> Option<UnrollLimits> {
+    // default to base limits when no profile data exists
+    if block_counts.is_empty() {
+        return Some(UnrollLimits {
+            max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS,
+            max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR,
+            max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT,
+            max_body_instructions: unroll_threshold,
+        });
+    }
+
+    // classify loop hotness from the header count
+    let header_count = block_counts.get(&header).copied().unwrap_or(0);
+    let hotness = block_hotness_from_counts(header_count, entry_count, policy);
+
+    match hotness {
+        CallsiteHotness::Cold => None,
+        CallsiteHotness::Hot => Some(UnrollLimits {
+            max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS.saturating_mul(2),
+            max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR.saturating_mul(2),
+            max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT.saturating_mul(2),
+            max_body_instructions: unroll_threshold.saturating_mul(2),
+        }),
+        CallsiteHotness::Unknown => Some(UnrollLimits {
+            max_full_unroll_iterations: MAX_FULL_UNROLL_ITERATIONS,
+            max_partial_unroll_factor: MAX_PARTIAL_UNROLL_FACTOR,
+            max_partial_unroll_trip_count: MAX_PARTIAL_UNROLL_TRIP_COUNT,
+            max_body_instructions: unroll_threshold,
+        }),
+    }
+}
+
 /// Select unroll mode based on trip count and thresholds.
-fn select_unroll_mode(candidate: &UnrollCandidate, _tree: &mir::NodeTree) -> Option<UnrollMode> {
+fn select_unroll_mode(candidate: &UnrollCandidate, limits: &UnrollLimits) -> Option<UnrollMode> {
     // allow full unroll when the trip count is small
-    if candidate.trip_count <= MAX_FULL_UNROLL_ITERATIONS {
+    if candidate.trip_count <= limits.max_full_unroll_iterations {
         return Some(UnrollMode::Full {
             trip_count: candidate.trip_count,
         });
     }
 
     // reject partial unroll for large trip counts
-    if candidate.trip_count > MAX_PARTIAL_UNROLL_TRIP_COUNT {
+    if candidate.trip_count > limits.max_partial_unroll_trip_count {
         return None;
     }
 
     // choose a factor based on trip count
-    let factor = MAX_PARTIAL_UNROLL_FACTOR.min(candidate.trip_count);
+    let factor = limits.max_partial_unroll_factor.min(candidate.trip_count);
     if factor < 2 {
         return None;
     }
@@ -1114,8 +2616,10 @@ fn guard_exit_arguments(
 
 #[cfg(test)]
 mod tests {
+    use destack_mir as mir;
+
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::passes::{LoopSimplify, LoopUnroll};
+    use crate::optimize::passes::{LoopSimplify, LoopUnroll, LoopUnrollAndJam};
 
     /// Fully unroll a loop with a small constant trip count.
     #[test]
@@ -1440,5 +2944,230 @@ block5(v10: i32):
         program.run_pass(&LoopSimplify);
         program.run_pass(&LoopUnroll);
         program.assert_output(input);
+    }
+
+    /// Cold profile blocks disable unrolling.
+    #[test]
+    fn test_unroll_skips_cold_profile() {
+        let input = r#"function @test() -> i32 {
+block0:
+    v0 = iconst 0i32
+    v1 = iconst 3i32
+    v2 = iconst 1i32
+    jump block1(v0)
+block1(v3: i32):
+    v4 = icmp_slt v3, v1
+    branch v4, block2(v3), block3(v3)
+block2(v5: i32):
+    v6 = iadd v5, v2
+    jump block1(v6)
+block3(v7: i32):
+    return v7
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+
+        let function_id = program.entry_function_id();
+        let function = program.tree.get(function_id);
+        let entry = function.entry.unwrap();
+        let header = function.blocks[1];
+
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        program.record_block_profile(&mut profile, entry, 100);
+        program.record_block_profile(&mut profile, header, 1);
+
+        program.run_pass_with_profile(&LoopUnroll, profile);
+        program.assert_output(input);
+    }
+
+    /// Unroll and jam a perfectly nested loop.
+    #[test]
+    fn test_unroll_and_jam_nested_loop() {
+        let input = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 2u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v14 = iadd v12, v4
+    jump block3(v11, v14)
+block5(v15: u32):
+    v16 = iadd v15, v4
+    jump block1(v16)
+block6:
+    return
+}"#;
+
+        let expected = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 2u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block6
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v19 = iconst 1u32
+    v20 = iadd v8, v19
+    v21 = element.addr v0, v12 -> ref<borrowed u32>
+    store v21, v20
+    v14 = iadd v12, v4
+    jump block3(v11, v14)
+block5(v15: u32):
+    v16 = iadd v15, v4
+    v17 = iconst 2u32
+    v18 = iadd v15, v17
+    jump block1(v18)
+block6:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        program.run_pass(&LoopUnrollAndJam);
+        program.assert_output(expected);
+    }
+
+    /// Outer derived values block unroll and jam.
+    #[test]
+    fn test_unroll_and_jam_skips_outer_dependency() {
+        let input = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 4u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block7
+block2:
+    v7 = iconst 0u32
+    v8 = iadd v5, v4
+    jump block3(v5, v7, v8)
+block3(v9: u32, v10: u32, v11: u32):
+    v12 = icmp_ult v10, v3
+    branch v12, block4(v9, v10, v11), block5(v9)
+block4(v13: u32, v14: u32, v15: u32):
+    v16 = element.addr v0, v15 -> ref<borrowed u32>
+    store v16, v13
+    v17 = iadd v14, v4
+    jump block3(v13, v17, v15)
+block5(v18: u32):
+    v19 = iadd v18, v4
+    jump block1(v19)
+block7:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        let baseline = program.format();
+
+        program.run_pass(&LoopUnrollAndJam);
+        program.assert_output(&baseline);
+    }
+
+    /// Inner update instructions must be last for unroll and jam.
+    #[test]
+    fn test_unroll_and_jam_skips_inner_update_not_last() {
+        let input = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 4u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block7
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v14 = iadd v12, v4
+    v15 = iadd v11, v4
+    jump block3(v15, v14)
+block5(v16: u32):
+    v17 = iadd v16, v4
+    jump block1(v17)
+block7:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        let baseline = program.format();
+
+        program.run_pass(&LoopUnrollAndJam);
+        program.assert_output(&baseline);
+    }
+
+    /// Loops with non divisible trip counts are not jammed.
+    #[test]
+    fn test_unroll_and_jam_skips_remainder_trip_count() {
+        let input = r#"function @test(v0: [u32; 8]) -> void {
+block0(v0: [u32; 8]):
+    v1 = iconst 0u32
+    v2 = iconst 5u32
+    v3 = iconst 2u32
+    v4 = iconst 1u32
+    jump block1(v1)
+block1(v5: u32):
+    v6 = icmp_ult v5, v2
+    branch v6, block2, block7
+block2:
+    v7 = iconst 0u32
+    jump block3(v5, v7)
+block3(v8: u32, v9: u32):
+    v10 = icmp_ult v9, v3
+    branch v10, block4(v8, v9), block5(v8)
+block4(v11: u32, v12: u32):
+    v13 = element.addr v0, v12 -> ref<borrowed u32>
+    store v13, v11
+    v14 = iadd v12, v4
+    jump block3(v11, v14)
+block5(v15: u32):
+    v16 = iadd v15, v4
+    jump block1(v16)
+block7:
+    return
+}"#;
+
+        let mut program = TestProgram::new(input);
+        program.run_pass(&LoopSimplify);
+        let baseline = program.format();
+
+        program.run_pass(&LoopUnrollAndJam);
+        program.assert_output(&baseline);
     }
 }
