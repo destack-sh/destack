@@ -12,4 +12,6 @@ Type inference for literal expressions.
 - **Object literals**: Property inference, nested objects
 - **Tuple literals**: Heterogeneous, nested, contextual
 - **Template literals**: Interpolation, tagged templates
+- **Regex literals**: String-like regex literals
 - **Symbol values**: `Symbol()` construction
+- **Tree literals**: TSX syntax for tree expressions
