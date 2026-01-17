@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Lower class construction with `new`.
 #[test]
 fn test_class_construction_with_new() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -38,7 +38,7 @@ function sumFieldsClass(a: number, b: number): number {
 #[test]
 fn test_class_new_mir() {
     // set up the test program
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -91,7 +91,7 @@ block0(v0: i32):
 /// Lower explicit class constructors.
 #[test]
 fn test_class_explicit_constructor() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -129,7 +129,7 @@ function sumFieldsClassExplicit(a: number, b: number): number {
 /// Lower class method that returns a field via `this`.
 #[test]
 fn test_class_method_returns_field() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -164,7 +164,7 @@ function readValueClass(value: int32): int32 {
 /// Lower class method with parameters.
 #[test]
 fn test_class_method_with_parameters() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -199,7 +199,7 @@ function computeClass(base: int32, delta: int32): int32 {
 /// Lower class vtable metadata with override reuse.
 #[test]
 fn test_class_vtable_metadata() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

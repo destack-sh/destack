@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Verify bitwise AND, OR, and XOR operators.
 #[test]
 fn test_bitwise_and_or_xor() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -55,7 +55,7 @@ function bitwiseXor(a: int32, b: int32): int32 {
 /// Verify left and right shift operators.
 #[test]
 fn test_shifts() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -102,7 +102,7 @@ function shiftRight(a: int32, b: int32): int32 {
 /// Verify bitwise NOT operator.
 #[test]
 fn test_bitwise_not() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

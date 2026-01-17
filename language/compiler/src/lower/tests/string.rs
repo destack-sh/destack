@@ -3,8 +3,7 @@ use crate::TestProgram;
 /// Lower string literals into MIR and preserve UTF8 contents.
 #[test]
 fn test_string_literal_lowering() {
-    let test =
-        TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["native"]);
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"

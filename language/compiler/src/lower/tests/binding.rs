@@ -5,7 +5,7 @@ use crate::TestProgram;
 /// Verify module-level const declarations are lowered correctly.
 #[test]
 fn test_module_const() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -34,7 +34,7 @@ function getCircumference(radius: number): number {
 /// Verify let bindings and reassignments produce correct SSA form.
 #[test]
 fn test_let_and_assign() {
-    let test = TestProgram::memory_sequential();
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
         r#"
