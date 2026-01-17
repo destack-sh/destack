@@ -17,7 +17,7 @@ pub enum TargetDiscovery {
 }
 
 /// Output format for a build target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum OutputFormat {
     /// JavaScript (.js).
     #[default]

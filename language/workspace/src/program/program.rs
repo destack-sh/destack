@@ -461,6 +461,7 @@ impl Program {
         profile_config: Option<&ProfileConfig>,
     ) -> ProfileKey {
         let compiler_options = Self::compiler_options_for_target(target, compiler_options);
+        let output = target.output;
         let runtime = profile_config
             .and_then(|profile| profile.runtime)
             .unwrap_or(target.runtime);
@@ -534,7 +535,7 @@ impl Program {
         let flags = ProfileFlags::from(&compiler_options);
         let (_, _, _, test) = ProfileEnv::mode_from_snapshot(&env, debug);
 
-        ProfileKey::new(runtime, platform, libs, debug, test, env, flags)
+        ProfileKey::new(output, runtime, platform, libs, debug, test, env, flags)
     }
 
     /// Build compiler options for a target, applying derived restrictions.

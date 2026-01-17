@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use destack_source::Uri;
 use serde::{Deserialize, Serialize};
 
-use crate::{Platform, ProfileEnv, Runtime};
+use crate::{OutputFormat, Platform, ProfileEnv, Runtime};
 
 /// Metadata about the current module and build configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,6 +20,8 @@ pub struct ImportMeta {
     pub dir: Option<PathBuf>,
     /// The directory containing the current module.
     pub dirname: Option<PathBuf>,
+    /// The output format being compiled.
+    pub output: OutputFormat,
     /// The target platform (OS) being compiled for.
     pub platform: Platform,
     /// The runtime environment that will execute the code.

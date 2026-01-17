@@ -931,8 +931,40 @@ Destack uses two related but separate "evaluate during compile time" mechanisms:
   by running MIR in the VM interpreter. The result is substituted back into the program
   as a constant and any comptime-controlled branches are eliminated.
 
-Static execution must not depend on full comptime execution. This avoids dependency cycles
-between type resolution and code evaluation.
+Static execution must not depend on full comptime execution.
+This avoids dependency cycles between type resolution and code evaluation.
+
+### Static If Decorators
+
+The `@if(...)` decorator gates declarations and declaration members based on a static expression.
+The condition must evaluate to a boolean using static execution.
+The condition must not depend on static parameters.
+Non-static conditions are a compile-time error.
+When the condition is false, the annotated item is omitted from the symbol table for the active profile.
+Multiple `@if` decorators are combined with logical AND.
+The decorator is allowed on module declarations, class and struct members, interface members, and enum fields.
+
+```
+enum Os {
+    @if(import.meta.platform == "windows")
+    Windows,
+    @if(import.meta.platform == "macos")
+    Mac,
+}
+```
+
+Use `if (comptime ...)` inside bodies for specialization that depends on static parameters.
+
+### Import Meta
+
+`import.meta` exposes per-profile metadata during static and comptime evaluation.
+The values are fixed for the profile and are not runtime dependent.
+`import.meta.output` is one of `js`, `ts`, `wasm`, or `native`.
+`import.meta.runtime` is one of `browser`, `node`, `deno`, `bun`, `worker`, `wasm-js`, `wasm-wasi`, `native-hosted`, `native-freestanding`, or `native-embedded`.
+`import.meta.platform` is one of `web`, `windows`, `macos`, `linux`, `ios`, `android`, `wasi`, `bare-metal`, or `universal`.
+`import.meta.debug` is true in debug builds.
+`import.meta.test` is true in test builds.
+`import.meta.env` exposes profile-selected environment variables as a string map.
 
 ### Comptime Expressions
 

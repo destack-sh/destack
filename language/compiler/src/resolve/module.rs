@@ -82,6 +82,7 @@ impl Compiler {
             filename: path.clone(),
             dir: dir.clone(),
             dirname: dir.clone(),
+            output: profile.key.output,
             platform: profile.key.platform,
             runtime: profile.key.runtime,
             debug: profile.key.debug,
