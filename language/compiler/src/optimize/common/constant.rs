@@ -6,6 +6,8 @@ use destack_mir::{
     UnaryOperator,
 };
 
+use super::{instruction_substitute_uses_in_tree, terminator_substitute_uses};
+
 /// Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstantType {
@@ -19,6 +21,19 @@ pub enum ConstantType {
     Char,
     /// String constant type.
     String,
+}
+
+/// Lookup interface for constant maps.
+pub trait ConstantLookup {
+    /// Return the constant value for a MIR value when known.
+    fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant>;
+}
+
+impl ConstantLookup for HashMap<mir::Value, mir::Constant> {
+    /// Return the constant value for a MIR value when known.
+    fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        self.get(&value)
+    }
 }
 
 /// Return the constant type for a MIR constant.
@@ -90,6 +105,119 @@ pub fn constant_for_value(
         mir::Instruction::GlobalConst { global, .. } => constant_from_global(*global, tree),
         _ => None,
     }
+}
+
+/// Resolve constant arguments for a parameter list.
+pub fn constant_arguments_for_parameters(
+    arguments: &[mir::Value],
+    parameters: &[mir::TypedValue],
+    constants: &impl ConstantLookup,
+    pointer_width_bits: u16,
+    tree: &mir::NodeTree,
+) -> Option<Vec<Option<mir::Constant>>> {
+    // ensure argument and parameter counts match
+    if arguments.len() != parameters.len() {
+        return None;
+    }
+
+    // collect constant arguments in order
+    let mut resolved = Vec::with_capacity(arguments.len());
+    for (argument, parameter) in arguments.iter().zip(parameters.iter()) {
+        let constant = constants.get_constant(*argument).and_then(|constant| {
+            let constant_type = constant_type_of(constant);
+            if constant_matches_type(constant_type, parameter.ty, pointer_width_bits, tree) {
+                Some(constant.clone())
+            } else {
+                None
+            }
+        });
+        resolved.push(constant);
+    }
+
+    Some(resolved)
+}
+
+/// Apply constant parameters inside a function body.
+pub fn apply_constant_parameters(
+    function_id: mir::LocalNodeId<mir::Function>,
+    constants: &[Option<mir::Constant>],
+    tree: &mut mir::NodeTree,
+) -> bool {
+    // prepare the substitution map and new instructions
+    let mut substitutions: HashMap<mir::Value, mir::Value> = HashMap::new();
+    let mut new_instructions = Vec::new();
+
+    // allocate new constants at the entry block
+    let mut function = tree.get(function_id).clone();
+    function.recompute_next_value_id(tree);
+
+    let entry_id = function.entry.expect("defined function has entry block");
+    let parameters = function.parameters.clone();
+
+    for (param, constant) in parameters.iter().zip(constants.iter()) {
+        // skip non constant parameters
+        let Some(constant) = constant else {
+            continue;
+        };
+
+        // allocate a new constant value
+        let destination = function.next_value();
+        substitutions.insert(param.value, destination);
+        new_instructions.push((destination, constant.clone()));
+    }
+
+    // write back the updated value counter
+    if !new_instructions.is_empty() {
+        *tree.get_mut(function_id) = function.clone();
+    }
+
+    // insert constant instructions before the entry block body
+    if !new_instructions.is_empty() {
+        let mut new_instruction_ids = Vec::new();
+
+        for (destination, constant) in &new_instructions {
+            let instruction_id = tree.insert(mir::Instruction::Const {
+                destination: *destination,
+                value: constant.clone(),
+            });
+            new_instruction_ids.push(instruction_id);
+        }
+
+        // insert constants at the entry block
+        let entry = tree.get_mut(entry_id);
+        entry
+            .instructions
+            .splice(0..0, new_instruction_ids.iter().copied());
+    }
+
+    // stop if no substitutions were created
+    if substitutions.is_empty() {
+        return false;
+    }
+
+    // substitute uses across all blocks
+    let function = tree.get(function_id).clone();
+    for block_id in function.blocks {
+        let instruction_ids = tree.get(block_id).instructions.clone();
+
+        // rewrite instruction operands
+        for instruction_id in instruction_ids {
+            let instruction = tree.get(instruction_id).clone();
+            let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
+            if instruction != updated {
+                *tree.get_mut(instruction_id) = updated;
+            }
+        }
+
+        // rewrite terminator operands
+        let block = tree.get_mut(block_id);
+        let updated = terminator_substitute_uses(&block.terminator, &substitutions);
+        if block.terminator != updated {
+            block.terminator = updated;
+        }
+    }
+
+    true
 }
 
 /// Check whether a type matches the builtin string layout.

@@ -215,12 +215,15 @@ Cross-function optimizations that require module-level analysis.
 | `dead-function-eliminate` | DeadFunctionEliminate | module | O2 | ✓ | callgraph | Remove functions that are never called |
 | `dead-arg-eliminate` | DeadArgEliminate | module | O2 | ✓ | — | Remove unused function arguments |
 | `ip-constant-prop` | InterproceduralConstantPropagation | module | O2 | ✓ | — | Propagate constant arguments across call sites |
+| `ip-sccp` | InterproceduralSccp | module | O2 | ✓ | constant-prop | Propagate constants across call edges and prune dead paths |
+| `argument-specialize` | ArgumentSpecialize | module | O3 | ✓ | callgraph, constant-prop, profile | Clone callees for constant argument call sites |
 | `argument-promote` | ArgumentPromotion | module | O3 | | callgraph, alias | Pass struct fields as separate arguments |
 | `global-dead-code-eliminate` | GlobalDeadCodeEliminate | module | O2 | ✓ | — | Remove unused globals and their initializers |
 | `merge-functions` | MergeFunctions | module | O3 | | — | Merge identical function bodies |
 | `partial-inline` | PartialInline | module | O3 | | callgraph, loops | Inline only the hot path of a function |
 | `constant-merge` | ConstantMerge | module | O2 | | — | Deduplicate identical constants across module |
 | `global-opt` | GlobalOpt | module | O2 | ✓ | — | Convert never-written globals to immutable and fold constant loads |
+| `ip-dce-cleanup` | InterproceduralDceCleanup | module | O2 | ✓ | callgraph, cfg | Prune dead globals and functions after IPO |
 | `function-attrs` | FunctionAttrs | module | O2 | ✓ | callgraph | Infer memory effects and call behavior for functions and callsites |
 | `hot-cold-split` | HotColdSplit | module | O3 | | callgraph, loops | Split functions into hot and cold regions for better code layout |
 | `pgo-inline` | ProfileGuidedInline | module | O2 | | callgraph, profile | Inline based on callsite hotness and value profiles |

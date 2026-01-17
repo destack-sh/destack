@@ -58,7 +58,7 @@ impl ModulePass for GlobalDeadCodeEliminate {
 }
 
 /// Run global dead code elimination over the module.
-fn run_global_dead_code_eliminate(tree: &mut mir::NodeTree) -> bool {
+pub(crate) fn run_global_dead_code_eliminate(tree: &mut mir::NodeTree) -> bool {
     // collect globals referenced by instructions
     let used_globals = collect_used_globals(tree);
 

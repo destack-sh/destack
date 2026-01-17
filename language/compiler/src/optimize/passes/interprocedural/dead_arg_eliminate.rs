@@ -3,7 +3,10 @@ use std::collections::{HashMap, HashSet};
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::common::{SignatureKey, build_use_def_maps};
+use crate::optimize::common::{
+    ParameterRemap, SignatureKey, build_signature_type, build_use_def_maps,
+    required_parameter_indices,
+};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
@@ -225,27 +228,24 @@ fn apply_parameter_removals(
             .collect()
     };
 
-    // prepare removal indices for index remapping
-    let mut removal_indices: Vec<usize> = unused.to_vec();
-    removal_indices.sort_unstable();
-    let removal_set: HashSet<usize> = removal_indices.iter().copied().collect();
+    // prepare removal remapping data
+    let remap = ParameterRemap::new(unused);
 
     // update function parameters and attributes
     let entry_id = {
         let function = tree.get_mut(function_id);
-        function.parameters = filter_by_index(&function.parameters, &removal_set);
-        function.parameter_attributes =
-            filter_by_index(&function.parameter_attributes, &removal_set);
-        function.return_lifetime =
-            remap_return_lifetime(&function.return_lifetime, &removal_indices)
-                .unwrap_or(mir::Lifetime::Inferred);
-        function.alloc_size = remap_alloc_size(function.alloc_size, &removal_indices);
+        function.parameters = remap.filter_by_index(&function.parameters);
+        function.parameter_attributes = remap.filter_by_index(&function.parameter_attributes);
+        function.return_lifetime = remap
+            .remap_return_lifetime(&function.return_lifetime)
+            .unwrap_or(mir::Lifetime::Inferred);
+        function.alloc_size = remap.remap_alloc_size(function.alloc_size);
         function.entry.expect("defined function has entry block")
     };
 
     // update entry block parameters to match the new signature
     let entry = tree.get_mut(entry_id);
-    entry.parameters = filter_by_index(&entry.parameters, &removal_set);
+    entry.parameters = remap.filter_by_index(&entry.parameters);
 
     // update debug info for removed parameters
     update_debug_for_removed_parameters(function_id, &removed_values, tree);
@@ -258,10 +258,8 @@ fn update_call_sites(
     unused: &[usize],
     tree: &mut mir::NodeTree,
 ) {
-    // prepare removal indices for index remapping
-    let mut removal_indices: Vec<usize> = unused.to_vec();
-    removal_indices.sort_unstable();
-    let removal_set: HashSet<usize> = removal_indices.iter().copied().collect();
+    // prepare removal remapping data
+    let remap = ParameterRemap::new(unused);
 
     // prepare a signature type for updated call metadata
     let mut signature_type: Option<mir::LocalNodeId<mir::Type>> = None;
@@ -270,7 +268,6 @@ fn update_call_sites(
     for site in call_sites {
         match *site {
             DirectCallSite::Instruction(instruction_id) => {
-                let mut arguments = Vec::new();
                 let (destination, function, slice) = match tree.get(instruction_id) {
                     mir::Instruction::Call {
                         destination,
@@ -281,11 +278,7 @@ fn update_call_sites(
                 };
 
                 // filter the argument list
-                for (index, arg) in tree.get_arguments(slice).iter().copied().enumerate() {
-                    if !removal_set.contains(&index) {
-                        arguments.push(arg);
-                    }
-                }
+                let arguments = remap.filter_by_index(tree.get_arguments(slice));
 
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_arguments(&arguments);
@@ -305,9 +298,8 @@ fn update_call_sites(
                         .call_metadata_mut(instruction_id)
                         .expect("call metadata vanished");
                     metadata.signature = signature_type;
-                    metadata.argument_metadata =
-                        filter_by_index(&metadata.argument_metadata, &removal_set);
-                    metadata.alloc_size = remap_alloc_size(metadata.alloc_size, &removal_indices);
+                    metadata.argument_metadata = remap.filter_by_index(&metadata.argument_metadata);
+                    metadata.alloc_size = remap.remap_alloc_size(metadata.alloc_size);
                 }
             }
             DirectCallSite::TailCall(block_id) => {
@@ -321,12 +313,7 @@ fn update_call_sites(
                 };
 
                 // filter the argument list
-                let mut new_arguments = Vec::new();
-                for (index, arg) in arguments.iter().copied().enumerate() {
-                    if !removal_set.contains(&index) {
-                        new_arguments.push(arg);
-                    }
-                }
+                let new_arguments = remap.filter_by_index(arguments);
 
                 block.terminator = mir::Terminator::TailCall {
                     function: *function,
@@ -335,123 +322,6 @@ fn update_call_sites(
             }
         }
     }
-}
-
-/// Build a function pointer signature type for a function.
-fn build_signature_type(
-    function_id: mir::LocalNodeId<mir::Function>,
-    tree: &mut mir::NodeTree,
-) -> mir::LocalNodeId<mir::Type> {
-    // collect parameter types from the function signature
-    let function = tree.get(function_id);
-    let parameters = function.parameters.iter().map(|param| param.ty).collect();
-
-    // insert a new function pointer type
-
-    tree.insert(mir::Type::FunctionPointer {
-        parameters,
-        result: function.return_type,
-    })
-}
-
-/// Filter a list by index using the removal set.
-fn filter_by_index<T: Clone>(items: &[T], removal_set: &HashSet<usize>) -> Vec<T> {
-    // build the filtered list
-    let mut filtered = Vec::with_capacity(items.len().saturating_sub(removal_set.len()));
-    for (index, item) in items.iter().enumerate() {
-        if !removal_set.contains(&index) {
-            filtered.push(item.clone());
-        }
-    }
-
-    filtered
-}
-
-/// Collect parameter indices that must be preserved by metadata.
-fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
-    // gather required indices from metadata
-    let mut required = HashSet::new();
-
-    // include explicit return lifetime parameters
-    if let mir::Lifetime::Parameters(indices) = &function.return_lifetime {
-        for index in indices {
-            required.insert(*index as usize);
-        }
-    }
-
-    // include allocation size indices
-    if let Some(alloc_size) = function.alloc_size {
-        required.insert(alloc_size.element_size_index as usize);
-        if let Some(count_index) = alloc_size.element_count_index {
-            required.insert(count_index as usize);
-        }
-    }
-
-    required
-}
-
-/// Remap a parameter index after removals.
-fn remap_parameter_index(index: u32, removals: &[usize]) -> Option<u32> {
-    // convert the index to usize for comparisons
-    let index = index as usize;
-
-    // reject indices that were removed
-    if removals.binary_search(&index).is_ok() {
-        return None;
-    }
-
-    // compute the shift from earlier removals
-    let shift = removals
-        .iter()
-        .take_while(|removed| **removed < index)
-        .count();
-
-    Some((index - shift) as u32)
-}
-
-/// Remap return lifetime parameter indices after removals.
-fn remap_return_lifetime(lifetime: &mir::Lifetime, removals: &[usize]) -> Option<mir::Lifetime> {
-    // only remap explicit parameter lifetimes
-    let mir::Lifetime::Parameters(indices) = lifetime else {
-        return Some(lifetime.clone());
-    };
-
-    // translate each index through the removal map
-    let mut remapped = Vec::new();
-    for index in indices {
-        let Some(remapped_index) = remap_parameter_index(*index, removals) else {
-            continue;
-        };
-
-        remapped.push(remapped_index);
-    }
-
-    // drop lifetimes that no longer reference parameters
-    if remapped.is_empty() {
-        return None;
-    }
-
-    Some(mir::Lifetime::Parameters(remapped))
-}
-
-/// Remap allocation size parameter indices after removals.
-fn remap_alloc_size(
-    alloc_size: Option<mir::AllocSize>,
-    removals: &[usize],
-) -> Option<mir::AllocSize> {
-    // read the existing allocation size metadata
-    let alloc_size = alloc_size?;
-
-    // remap the required element size index
-    let element_size_index = remap_parameter_index(alloc_size.element_size_index, removals)?;
-
-    // remap the optional element count index
-    let element_count_index = match alloc_size.element_count_index {
-        Some(index) => Some(remap_parameter_index(index, removals)?),
-        None => None,
-    };
-
-    Some(mir::AllocSize::new(element_size_index, element_count_index))
 }
 
 /// Update debug info for removed parameter values.
