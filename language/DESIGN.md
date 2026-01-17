@@ -1057,9 +1057,10 @@ Advanced TS type constructs (conditional types, mapped types, template literal t
 - The `this` parameter is type-only and does not count toward call arity, but still carries normal parameter modifiers (mutability, ownership, etc.)
 
 Comptime bridges TS types and Destack semantics:
-- `comptime` can evaluate expressions that depend on `import.meta` profile data
-- Type relations like `T extends U` can be used as compile-time predicates, enabling `comptime if` style gating
-- The `type` operator provides an explicit way to treat types as values in comptime contexts when disambiguation is needed
+- `comptime` can evaluate expressions that depend on `import.meta` profile data.
+- Type relations like `T extends U` can be used as compile-time predicates.
+- The `type` operator provides an explicit way to treat types as values in comptime contexts.
+- `@if` gates declarations and members using static expressions like `import.meta`.
 
 ### What We Don't Support
 

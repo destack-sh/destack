@@ -9,6 +9,9 @@ export type Platform = "web"
     | "bare-metal"
     | "universal";
 
+/// The output format for the build.
+export type Output = "js" | "ts" | "wasm" | "native";
+
 /// The runtime environment that will execute the code.
 export type Runtime = "browser"
     | "node"
@@ -51,6 +54,8 @@ export interface ImportMeta {
     readonly dir: string | undefined,
     /// Alias of `dir`.
     readonly dirname: string | undefined,
+    /// The output format being compiled.
+    readonly output: Output,
     /// The target platform (OS) being compiled for.
     readonly platform: Platform,
     /// The runtime environment that will execute the code.

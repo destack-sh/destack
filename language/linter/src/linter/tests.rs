@@ -11,8 +11,8 @@ use destack_source::{
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
 };
 use destack_workspace::{
-    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, Platform, ProfileFlags, ProfileId,
-    ProfileKey, Program, Runtime, Session,
+    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, OutputFormat, Platform, ProfileFlags,
+    ProfileId, ProfileKey, Program, Runtime, Session,
 };
 
 use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRequirement, LintRunner};
@@ -81,6 +81,7 @@ impl TestProgram {
 
         // profile
         let profile_key = ProfileKey::new(
+            OutputFormat::Js,
             Runtime::Browser,
             Platform::Web,
             libs,

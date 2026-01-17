@@ -544,8 +544,8 @@ mod tests {
     };
 
     use crate::{
-        DsConfig, EnvSnapshot, Loader, Module, ModuleDir, ModuleSource, Package, PackageKind,
-        Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType,
+        DsConfig, EnvSnapshot, Loader, Module, ModuleDir, ModuleSource, OutputFormat, Package,
+        PackageKind, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -662,6 +662,7 @@ mod tests {
         );
 
         let profile_key = ProfileKey::new(
+            OutputFormat::Js,
             Runtime::Node,
             Platform::Web,
             Vec::new(),
