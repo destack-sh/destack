@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Annotation, BinaryOperator, Block, Declaration, Expression, LocalNodeId, LocalNodeIdAny,
-    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, TypeLiteral,
-    walk_any,
+    NodeTree, NodeType, NodeVisitor, NodeVisitorOptions, ScalarLiteral, SymbolTable, Type,
+    TypeLiteral, TypeTable, walk_any,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ImportMeta, OutputFormat, Platform, ProfileEnv, ProfileId, Runtime};
@@ -81,9 +81,10 @@ impl Compiler {
             return Ok(());
         };
 
-        // acquire the tree and symbols for this dir
+        // acquire the tree, symbols, and types for this dir
         let mut tree = dir.tree.write();
         let mut symbols = dir.symbols.write();
+        let types = dir.types.read();
 
         // validate decorator placement before applying filters
         self.validate_static_if_placement(module_id, profile_id, &tree)?;
@@ -161,7 +162,7 @@ impl Compiler {
 
             // deactivate declarations that are gated out
             if matches!(condition, Some(false)) {
-                self.deactivate_declaration(&mut tree, &mut symbols, declaration_id);
+                self.deactivate_declaration(&mut tree, &mut symbols, &types, declaration_id);
                 continue;
             }
 
@@ -171,6 +172,7 @@ impl Compiler {
                 profile_id,
                 &mut tree,
                 &mut symbols,
+                &types,
                 declaration_id,
                 import_meta,
             )?;
@@ -233,13 +235,13 @@ impl Compiler {
                 };
 
                 // mark the expression node as inactive
-                self.mark_inactive_subtree(&mut tree, expression_id.into_any());
+                self.mark_inactive_subtree(&mut tree, &types, expression_id.into_any());
 
                 removed_expressions.insert(expression_id.id);
 
                 // deactivate declarations gated out at the expression level
                 if let Some(declaration_id) = declaration_id {
-                    self.deactivate_declaration(&mut tree, &mut symbols, declaration_id);
+                    self.deactivate_declaration(&mut tree, &mut symbols, &types, declaration_id);
                 }
             }
         }
@@ -294,7 +296,7 @@ impl Compiler {
         }
 
         // skip resolving static if annotations in later passes
-        self.mark_static_if_annotations_inactive(&mut tree);
+        self.mark_static_if_annotations_inactive(&mut tree, &types);
 
         Ok(())
     }
@@ -357,7 +359,7 @@ impl Compiler {
     }
 
     /// Mark static if annotations inactive after they are processed.
-    fn mark_static_if_annotations_inactive(&self, tree: &mut NodeTree) {
+    fn mark_static_if_annotations_inactive(&self, tree: &mut NodeTree, types: &TypeTable) {
         // cache the decorator identifier
         let if_name = self.program.strings.intern("if");
 
@@ -382,26 +384,61 @@ impl Compiler {
                 continue;
             }
 
-            self.mark_inactive_subtree(tree, annotation_id.into_any());
+            self.mark_inactive_subtree(tree, types, annotation_id.into_any());
         }
     }
 
     /// Mark a subtree and its annotations inactive.
-    fn mark_inactive_subtree(&self, tree: &mut NodeTree, root: LocalNodeIdAny) {
+    fn mark_inactive_subtree(&self, tree: &mut NodeTree, types: &TypeTable, root: LocalNodeIdAny) {
         // collect nodes in the main subtree
         let mut collector = InactiveNodeCollector::default();
-        collector.collect(tree, root);
-        let main_nodes = std::mem::take(&mut collector.nodes);
+        let mut inactive_ids = HashSet::new();
+        let mut worklist = vec![root];
+
+        // visit subtree nodes and related type expressions
+        while let Some(current) = worklist.pop() {
+            // skip nodes that are already inactive
+            if inactive_ids.contains(&current.id) {
+                continue;
+            }
+
+            // collect nodes from the subtree
+            collector.collect(tree, current);
+
+            // queue related unevaluated type expressions
+            for node_id in collector.nodes.iter().copied() {
+                // skip nodes already in the inactive set
+                if !inactive_ids.insert(node_id.id) {
+                    continue;
+                }
+
+                // gather declared and signature type references
+                let global_node_id = node_id.into_global(tree.module_id);
+                let declared_type = types.get_declared_type_id(global_node_id);
+                let signature_type = types.get_signature_type_for_node(global_node_id);
+
+                // enqueue unevaluated type expressions
+                for type_id in [declared_type, signature_type].into_iter().flatten() {
+                    let ty = types.get_type(type_id);
+
+                    // push unevaluated nodes onto the worklist
+                    if let Type::Unevaluated(expression_id) = ty {
+                        worklist.push((*expression_id).into());
+                    }
+                }
+            }
+        }
 
         // mark nodes in the main subtree
-        for node_id in &main_nodes {
-            tree.mark_inactive(*node_id);
+        for node_id in inactive_ids.iter().copied() {
+            let node_type = tree.get_node_type(node_id);
+            tree.mark_inactive(LocalNodeIdAny::new(node_id, node_type));
         }
 
         // collect annotation roots attached to the subtree
         let mut annotation_roots = Vec::new();
-        for node_id in &main_nodes {
-            let annotations = tree.get_annotations(node_id.id);
+        for node_id in inactive_ids.iter().copied() {
+            let annotations = tree.get_annotations(node_id);
             for annotation_id in annotations {
                 annotation_roots.push(annotation_id.into_any());
             }
@@ -423,6 +460,7 @@ impl Compiler {
         profile_id: ProfileId,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &TypeTable,
         declaration_id: LocalNodeId<Declaration>,
         import_meta: &ImportMeta,
     ) -> ResolveResult<()> {
@@ -473,7 +511,7 @@ impl Compiler {
                 symbol.is_active = false;
 
                 // mark the member subtree inactive
-                self.mark_inactive_subtree(tree, member_id.into_any());
+                self.mark_inactive_subtree(tree, types, member_id.into_any());
                 continue;
             }
 
@@ -509,7 +547,7 @@ impl Compiler {
                 symbol.is_active = false;
 
                 // mark the enum field subtree inactive
-                self.mark_inactive_subtree(tree, field_id.into_any());
+                self.mark_inactive_subtree(tree, types, field_id.into_any());
                 continue;
             }
 
@@ -541,6 +579,7 @@ impl Compiler {
         &self,
         tree: &mut NodeTree,
         symbols: &mut SymbolTable,
+        types: &TypeTable,
         declaration_id: LocalNodeId<Declaration>,
     ) {
         // collect declaration ids for later updates
@@ -560,7 +599,7 @@ impl Compiler {
         symbol.is_active = false;
 
         // mark the declaration subtree inactive
-        self.mark_inactive_subtree(tree, declaration_id.into_any());
+        self.mark_inactive_subtree(tree, types, declaration_id.into_any());
 
         // deactivate member symbols
         if let Some(members) = members {
@@ -1203,6 +1242,8 @@ fn runtime_name(runtime: Runtime) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use destack_dir::{FunctionMode, Member};
+
     use crate::tests::TestProgram;
 
     /// Gate declarations based on static if conditions.
@@ -1378,5 +1419,76 @@ const value = missing_symbol();
         // resolve the module
         test.resolve_module(module_id);
         test.compile_check_clean();
+    }
+
+    /// Attach static if decorators to accessor members.
+    #[test]
+    fn test_static_if_attaches_to_accessor_members() {
+        // build the test program
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+class Box {
+    @if(import.meta.output == "js" && import.meta.output == "native")
+    get value(): MissingType {
+        return missingSymbol;
+    }
+
+    @if(import.meta.output == "js" && import.meta.output == "native")
+    set value(next: MissingType) {
+        missingSymbol;
+    }
+}
+"#,
+        );
+
+        // resolve the module
+        test.resolve_module(module_id);
+        test.compile();
+
+        // locate accessor members in the dir
+        test.with_dir_read(
+            module_id,
+            |_module, _profile, _dir, tree, _symbols, _types| {
+                // initialize accessor ids
+                let mut getter_id = None;
+                let mut setter_id = None;
+
+                // scan members for accessor nodes
+                for member_id in tree.iter_node_ids_of_type::<Member>() {
+                    let Member::Method { signature, .. } = tree.get(member_id) else {
+                        continue;
+                    };
+                    // record getter and setter members
+                    match signature.mode {
+                        Some(FunctionMode::Getter) => getter_id = Some(member_id),
+                        Some(FunctionMode::Setter) => setter_id = Some(member_id),
+                        _ => {}
+                    }
+                }
+
+                // confirm both accessors were parsed
+                let getter_id = getter_id.expect("expected getter member");
+                let setter_id = setter_id.expect("expected setter member");
+
+                // confirm @if annotations were attached
+                assert!(
+                    tree.has_annotations(getter_id.id),
+                    "expected getter annotations"
+                );
+                assert!(
+                    tree.has_annotations(setter_id.id),
+                    "expected setter annotations"
+                );
+
+                // confirm accessors were gated out
+                assert!(tree.is_inactive(getter_id.id), "expected getter inactive");
+                assert!(tree.is_inactive(setter_id.id), "expected setter inactive");
+            },
+        );
+
+        // confirm no diagnostics after gating
+        test.check_clean();
     }
 }

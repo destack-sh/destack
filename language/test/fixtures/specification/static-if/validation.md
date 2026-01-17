@@ -47,3 +47,38 @@ const value = 1;
 ```
 
 - contains: static if requires exactly one argument
+
+### static if rejects parameter placement
+
+> Static if decorators are not allowed on parameters.
+
+```ds
+function demo(@if(true) value: number): void { }
+```
+
+- contains: static if is only allowed on declarations, members, enum fields, or statements
+
+### static if rejects type literal properties
+
+> Static if decorators are not allowed on type literal properties.
+
+```ds
+type Box = {
+    @if(true)
+    value: number;
+};
+```
+
+- contains: static if is only allowed on declarations, members, enum fields, or statements
+
+### static if rejects argument placement
+
+> Static if decorators are not allowed on call arguments.
+
+```ds
+function call(value: number): void { }
+
+call(@if(true) 1);
+```
+
+- contains: static if is only allowed on declarations, members, enum fields, or statements

@@ -10,4 +10,6 @@ Each file focuses on a specific syntactic surface for static if.
 - `class.md`: Static if gating for class members.
 - `struct.md`: Static if gating for struct members.
 - `enum.md`: Static if gating for enum fields.
+- `interface.md`: Static if gating for interface members.
+- `extension.md`: Static if gating for extension members.
 - `validation.md`: Validation errors for static if usage.

@@ -15,3 +15,18 @@ enum Status {
     Visible = 1,
 }
 ```
+
+### static if keeps enum fields when true
+
+> Enum fields gated by true static if conditions remain available.
+
+```ds
+enum Status {
+    @if(true)
+    Active = 1,
+    Inactive = 2,
+}
+
+const active = Status.Active;
+active satisfies Status;
+```

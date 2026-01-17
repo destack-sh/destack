@@ -7,7 +7,6 @@
 mod analyze;
 mod cache;
 mod compile;
-mod r#static;
 mod elaborate;
 mod emit;
 mod execute;
@@ -18,12 +17,12 @@ mod lint;
 mod lower;
 mod optimize;
 mod resolve;
+mod r#static;
 mod unbind;
 
 pub use analyze::*;
 pub use cache::*;
 pub use compile::*;
-pub(crate) use r#static::*;
 pub use elaborate::*;
 pub use emit::*;
 pub use execute::*;
@@ -34,6 +33,7 @@ pub use lint::*;
 pub use lower::*;
 pub use optimize::*;
 pub use resolve::*;
+pub(crate) use r#static::*;
 pub use unbind::*;
 
 #[cfg(test)]
