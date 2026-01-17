@@ -22,6 +22,22 @@ const value: string = "ok";
 
 - contains: typescript modules are disabled
 
+### allowTs allows TypeScript modules when true
+
+> TypeScript modules are allowed when allowTs is true.
+
+```ts:main.ts
+const value: string = "ok";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowTs": true } }
+```
+
 ## allowJs
 
 ### allowJs rejects JavaScript modules when false
@@ -41,6 +57,22 @@ const value = "ok";
 ```
 
 - contains: javascript modules are disabled
+
+### allowJs allows JavaScript modules when true
+
+> JavaScript modules are allowed when allowJs is true.
+
+```js:main.js
+const value = "ok";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowJs": true } }
+```
 
 ## checkTs
 
@@ -151,3 +183,25 @@ declare const value;
 ```
 
 - contains: implicit any
+
+## alwaysStrict
+
+### alwaysStrict does not permit duplicate parameters
+
+> Duplicate parameter names are always rejected in Destack scripts.
+
+```ts:main.cts
+function dup(value: number, value: number) {
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
+```
+
+- contains: duplicate identifier

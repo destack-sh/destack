@@ -40,6 +40,8 @@ pub struct InferContext {
     pub is_generator: bool,
     /// Whether we're in an abstract class/struct (abstract methods allowed).
     pub in_abstract_class: bool,
+    /// The enclosing nominal class/struct symbol, if any.
+    pub in_nominal_symbol: Option<GlobalSymbolId>,
     /// Track nested try frames for error propagation.
     pub try_stack: Vec<TryContextFrame>,
     /// Flow context for the current function body.
@@ -97,6 +99,7 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            in_nominal_symbol: None,
             try_stack: Vec::new(),
             flow: None,
             is_surface_inference: false,
@@ -121,6 +124,7 @@ impl InferContext {
             is_async: self.is_async,
             is_generator: self.is_generator,
             in_abstract_class: self.in_abstract_class,
+            in_nominal_symbol: self.in_nominal_symbol,
             try_stack: self.try_stack.clone(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
@@ -145,6 +149,7 @@ impl InferContext {
             is_async: false,
             is_generator: false,
             in_abstract_class: false,
+            in_nominal_symbol: self.in_nominal_symbol,
             try_stack: Vec::new(),
             flow: self.flow.clone(),
             is_surface_inference: self.is_surface_inference,
@@ -242,6 +247,12 @@ impl InferContext {
     /// Set abstract class context conditionally.
     pub fn in_abstract_class_maybe(mut self, is_abstract: bool) -> Self {
         self.in_abstract_class = is_abstract;
+        self
+    }
+
+    /// Set class or struct context conditionally.
+    pub fn in_nominal_symbol_maybe(mut self, symbol: Option<GlobalSymbolId>) -> Self {
+        self.in_nominal_symbol = symbol;
         self
     }
 

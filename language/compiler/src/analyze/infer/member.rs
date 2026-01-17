@@ -2,10 +2,11 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext}
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Argument, Declaration, Expression, GlobalSymbolId, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, NodeTree, NodeType, StaticArgument, StaticKey, SymbolTable, SymbolType, Type,
-    TypeLiteral, TypeTable,
+    Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
+    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, Visibility,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
 use std::collections::{HashMap, HashSet};
 
@@ -40,6 +41,26 @@ pub(super) struct ExtensionMemberContext {
     pub(super) arguments: Vec<StaticArgument>,
     /// The substitutions for extension type parameters.
     pub(super) substitutions: HashMap<GlobalSymbolId, LocalTypeId>,
+}
+
+/// Select which members are visible during lookup.
+#[derive(Debug, Copy, Clone)]
+pub(super) enum MemberLookupMode {
+    /// Look up instance members only.
+    Instance,
+    /// Look up static members only.
+    Value,
+    /// Look up members without filtering.
+    Any,
+}
+
+/// Visibility metadata for a member symbol.
+#[derive(Debug, Clone)]
+struct MemberVisibilityContext {
+    /// The visibility of the member symbol.
+    visibility: Visibility,
+    /// The owner symbol of the member symbol.
+    owner_symbol: GlobalSymbolId,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -136,8 +157,9 @@ impl Compiler {
         )?;
 
         // resolve member dispatch for the left type
-        let member_resolution = self.resolve_member_symbol(
+        let member_resolution = self.resolve_member_symbol_for_receiver(
             module,
+            left_id,
             &left_ty,
             &member_key,
             ctx.profile,
@@ -161,6 +183,40 @@ impl Compiler {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
         };
+
+        // enforce member visibility for resolved symbols
+        match &member_resolution {
+            MemberResolution::Dynamic { candidates } => {
+                for candidate in candidates {
+                    self.check_member_visibility(
+                        module,
+                        expression_id,
+                        candidate.symbol,
+                        candidate.receiver_ty_id,
+                        ctx.profile,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    );
+                }
+            }
+            _ => {
+                if let Some(member_symbol) = member_symbol {
+                    self.check_member_visibility(
+                        module,
+                        expression_id,
+                        member_symbol,
+                        left_ty_id,
+                        ctx.profile,
+                        tree,
+                        symbols,
+                        types,
+                        ctx,
+                    );
+                }
+            }
+        }
 
         // resolve enum field member symbol
         let member_symbol = self.resolve_enum_field_member_symbol(
@@ -201,6 +257,16 @@ impl Compiler {
             }
         }
 
+        // decide how to filter member lookups for this receiver
+        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
+            module,
+            left_id,
+            &left_ty,
+            ctx.profile,
+            tree,
+            symbols,
+        );
+
         // infer the member type
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
@@ -209,6 +275,7 @@ impl Compiler {
             expression_id.into_any(),
             &left_ty,
             &member_key,
+            lookup_mode,
             types,
             &mut member_type_visited,
         )?;
@@ -617,6 +684,7 @@ impl Compiler {
             module,
             left_symbol,
             member_key,
+            MemberLookupMode::Value,
             profile,
             tree,
             symbols,
@@ -978,6 +1046,186 @@ impl Compiler {
         Some(extension_id.into_global(remote_module.id))
     }
 
+    /// Resolve the visibility context for a member symbol.
+    fn member_visibility_context_for_symbol(
+        &self,
+        module: &Module,
+        member_symbol: GlobalSymbolId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<MemberVisibilityContext> {
+        // fast path for local symbols
+        if member_symbol.module_id == module.id {
+            return self.member_visibility_context_for_symbol_in_tree(
+                module.id,
+                member_symbol,
+                tree,
+                symbols,
+            );
+        }
+
+        // load remote trees for foreign symbols
+        let remote_module = self.program.modules.get(member_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_tree = remote_dir.tree.read();
+        let remote_symbols = remote_dir.symbols.read();
+
+        self.member_visibility_context_for_symbol_in_tree(
+            remote_module.id,
+            member_symbol,
+            &remote_tree,
+            &remote_symbols,
+        )
+    }
+
+    /// Resolve the visibility context for a member symbol inside a known tree.
+    fn member_visibility_context_for_symbol_in_tree(
+        &self,
+        module_id: ModuleId,
+        member_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<MemberVisibilityContext> {
+        // resolve the member symbol entry
+        let member_entry = symbols.get_symbol(member_symbol.local_id);
+        let member_node = member_entry.primary_declaration?;
+        let member_local = member_node.local_id;
+        if member_local.ty != NodeType::Member {
+            return None;
+        }
+
+        // resolve the owning declaration symbol
+        let scope = symbols.get_scope_by_id(member_entry.scope.0);
+        let owner_id = scope.owner_id?;
+        let owner_entry = symbols.get_symbol(owner_id);
+        if !matches!(owner_entry.ty, SymbolType::Class | SymbolType::Struct) {
+            return None;
+        }
+
+        let owner_symbol = owner_id.with_type(owner_entry.ty).into_global(module_id);
+        let member_id = member_local.into_typed::<Member>();
+        let member = tree.get(member_id);
+
+        // extract visibility from modifiers
+        let modifiers = match member {
+            Member::Type { modifiers, .. }
+            | Member::Field { modifiers, .. }
+            | Member::Method { modifiers, .. }
+            | Member::Embed { modifiers, .. }
+            | Member::StaticBlock { modifiers, .. }
+            | Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
+        };
+        let visibility = modifiers
+            .and_then(|modifier| modifier.visibility)
+            .unwrap_or(Visibility::Public);
+
+        Some(MemberVisibilityContext {
+            visibility,
+            owner_symbol,
+        })
+    }
+
+    /// Enforce visibility for a resolved member symbol.
+    fn check_member_visibility(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        member_symbol: GlobalSymbolId,
+        receiver_ty_id: LocalTypeId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+        ctx: &InferContext,
+    ) {
+        let Some(context) = self.member_visibility_context_for_symbol(
+            module,
+            member_symbol,
+            profile,
+            tree,
+            symbols,
+        ) else {
+            return;
+        };
+
+        // public members are always accessible
+        if context.visibility == Visibility::Public {
+            return;
+        }
+
+        // require a class/struct context for private and protected access
+        let Some(current_class) = ctx.in_nominal_symbol else {
+            self.error(AnalyzeError::InaccessibleSymbol {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                visibility: context.visibility,
+                symbol: member_symbol,
+            });
+            return;
+        };
+
+        // private members require the declaring class
+        if context.visibility == Visibility::Private && current_class != context.owner_symbol {
+            self.error(AnalyzeError::InaccessibleSymbol {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                visibility: context.visibility,
+                symbol: member_symbol,
+            });
+            return;
+        }
+
+        // protected members require a subclass context
+        if context.visibility == Visibility::Protected
+            && current_class != context.owner_symbol
+            && !self.is_type_lineage_assignable(current_class, context.owner_symbol, types)
+        {
+            self.error(AnalyzeError::InaccessibleSymbol {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                visibility: context.visibility,
+                symbol: member_symbol,
+            });
+            return;
+        }
+
+        // protected members must be accessed through the current class lineage
+        if context.visibility == Visibility::Protected {
+            let receiver_symbol = self.receiver_symbol_for_visibility(receiver_ty_id, types);
+            if let Some(receiver_symbol) = receiver_symbol
+                && receiver_symbol != current_class
+                && !self.is_type_lineage_assignable(receiver_symbol, current_class, types)
+            {
+                self.error(AnalyzeError::InaccessibleSymbol {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    visibility: context.visibility,
+                    symbol: member_symbol,
+                });
+            }
+        }
+    }
+
+    /// Resolve a nominal symbol for visibility checks from a receiver type.
+    fn receiver_symbol_for_visibility(
+        &self,
+        receiver_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<GlobalSymbolId> {
+        // resolve nominal symbols for reference-like receiver types
+        match types.get_type(receiver_ty_id) {
+            Type::Reference { symbol, .. } => Some(*symbol),
+            Type::Value { value } => types.get_type(*value).symbol(),
+            _ => None,
+        }
+    }
+
     /// Resolve member symbols for a receiver type when nominal dispatch is possible.
     pub(super) fn resolve_member_symbol(
         &self,
@@ -1034,6 +1282,7 @@ impl Compiler {
                                 module,
                                 instance_symbol,
                                 member_key,
+                                MemberLookupMode::Instance,
                                 profile,
                                 tree,
                                 symbols,
@@ -1085,6 +1334,124 @@ impl Compiler {
         Ok(resolution)
     }
 
+    /// Resolve member symbols using the receiver expression when available.
+    pub(super) fn resolve_member_symbol_for_receiver(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        receiver_ty: &Type,
+        member_key: &StaticKey,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<MemberResolution> {
+        // prefer static-only lookup for direct class values
+        if let Some(class_symbol) =
+            self.class_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+        {
+            let mut visited = Vec::new();
+            let member_symbol = self.resolve_member_symbol_for_symbol(
+                module,
+                class_symbol,
+                member_key,
+                MemberLookupMode::Value,
+                profile,
+                tree,
+                symbols,
+                types,
+                &mut visited,
+            )?;
+            return Ok(member_symbol
+                .map(|symbol| MemberResolution::Static { symbol })
+                .unwrap_or(MemberResolution::None));
+        }
+
+        // fall back to regular member lookup
+        self.resolve_member_symbol(
+            module,
+            receiver_ty,
+            member_key,
+            profile,
+            tree,
+            symbols,
+            types,
+        )
+    }
+
+    /// Select the lookup mode for a receiver expression.
+    pub(super) fn member_lookup_mode_for_receiver_expression(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        receiver_ty: &Type,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> MemberLookupMode {
+        // class values only expose static members
+        if self
+            .class_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+            .is_some()
+        {
+            return MemberLookupMode::Value;
+        }
+
+        // instance receivers should never surface static members
+        if matches!(receiver_ty, Type::Reference { .. }) {
+            return MemberLookupMode::Instance;
+        }
+
+        // fall back to unfiltered lookup for non-instance receivers
+        MemberLookupMode::Any
+    }
+
+    /// Return a class symbol when the expression refers to a class value.
+    fn class_value_symbol_for_expression(
+        &self,
+        module: &Module,
+        receiver_id: LocalNodeId<Expression>,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Option<GlobalSymbolId> {
+        // peel parenthesized receivers to their core symbol
+        let receiver_id = self.unwrap_parenthesized_expression(receiver_id, tree);
+
+        // resolve the direct reference symbol for the receiver
+        let symbol =
+            self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)?;
+
+        // keep only class symbols in value space
+        if symbol.ty() != SymbolType::Class {
+            return None;
+        }
+        let space = self.infer_symbol_space_for_global(module, profile, symbol, symbols);
+        if matches!(space, SymbolSpace::Value | SymbolSpace::TypeValue) {
+            Some(symbol)
+        } else {
+            None
+        }
+    }
+
+    /// Resolve the symbol space for a global symbol.
+    fn infer_symbol_space_for_global(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> SymbolSpace {
+        if symbol.module_id == module.id {
+            return symbols.get_symbol(symbol.local_id).space;
+        }
+
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        remote_symbols.get_symbol(symbol.local_id).space
+    }
+
     /// Return true when the expression is rooted at import.meta.
     fn is_import_meta_chain(
         &self,
@@ -1115,6 +1482,13 @@ impl Compiler {
         visited: &mut Vec<GlobalSymbolId>,
         allow_implicit: bool,
     ) -> AnalyzeResult<Option<GlobalSymbolId>> {
+        // pick a lookup mode based on the receiver type
+        let lookup_mode = if matches!(receiver_ty, Type::Reference { .. }) {
+            MemberLookupMode::Instance
+        } else {
+            MemberLookupMode::Any
+        };
+
         let resolved = match receiver_ty {
             Type::Value { .. } => {
                 let Some(type_symbol) = self.get_language_symbol(LanguageSymbol::Type) else {
@@ -1124,6 +1498,7 @@ impl Compiler {
                     module,
                     type_symbol,
                     member_key,
+                    lookup_mode,
                     profile,
                     tree,
                     symbols,
@@ -1154,7 +1529,15 @@ impl Compiler {
                 resolved
             }
             Type::Reference { symbol, .. } => self.resolve_member_symbol_for_symbol(
-                module, *symbol, member_key, profile, tree, symbols, types, visited,
+                module,
+                *symbol,
+                member_key,
+                lookup_mode,
+                profile,
+                tree,
+                symbols,
+                types,
+                visited,
             )?,
             _ => None,
         };
@@ -1171,7 +1554,15 @@ impl Compiler {
             return Ok(None);
         };
         self.resolve_member_symbol_for_symbol(
-            module, symbol, member_key, profile, tree, symbols, types, visited,
+            module,
+            symbol,
+            member_key,
+            lookup_mode,
+            profile,
+            tree,
+            symbols,
+            types,
+            visited,
         )
     }
 
@@ -1181,6 +1572,7 @@ impl Compiler {
         module: &Module,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1200,6 +1592,7 @@ impl Compiler {
                 module,
                 symbol,
                 member_key,
+                lookup_mode,
                 profile,
                 tree,
                 symbols,
@@ -1230,6 +1623,7 @@ impl Compiler {
             module,
             symbol,
             member_key,
+            lookup_mode,
             profile,
             &remote_tree,
             &remote_symbols,
@@ -1246,6 +1640,7 @@ impl Compiler {
         module: &Module,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -1261,6 +1656,7 @@ impl Compiler {
             profile,
             symbol,
             member_key,
+            lookup_mode,
             tree,
             symbols,
             types,
@@ -1281,6 +1677,7 @@ impl Compiler {
                         module,
                         group_symbol.into_global(symbol.module_id),
                         member_key,
+                        lookup_mode,
                         profile,
                         tree,
                         symbols,
@@ -1323,6 +1720,7 @@ impl Compiler {
                             module,
                             merge_symbol,
                             member_key,
+                            lookup_mode,
                             profile,
                             tree,
                             symbols,
@@ -1341,7 +1739,15 @@ impl Compiler {
             // follow extends first
             if let Some(extends) = lineage.extends
                 && let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
-                    module, extends, member_key, profile, tree, symbols, types, visited,
+                    module,
+                    extends,
+                    member_key,
+                    lookup_mode,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
                 )?
             {
                 return Ok(Some(member_symbol));
@@ -1353,6 +1759,7 @@ impl Compiler {
                     module,
                     *implements,
                     member_key,
+                    lookup_mode,
                     profile,
                     tree,
                     symbols,
@@ -1366,7 +1773,15 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
-                    module, *embedded, member_key, profile, tree, symbols, types, visited,
+                    module,
+                    *embedded,
+                    member_key,
+                    lookup_mode,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
                 )? {
                     return Ok(Some(member_symbol));
                 }
@@ -1389,6 +1804,7 @@ impl Compiler {
                     profile,
                     extension.symbol,
                     member_key,
+                    lookup_mode,
                     tree,
                     symbols,
                     types,
@@ -1409,6 +1825,7 @@ impl Compiler {
         profile: ProfileId,
         extension_symbol: GlobalSymbolId,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -1420,6 +1837,7 @@ impl Compiler {
                 profile,
                 extension_symbol,
                 member_key,
+                lookup_mode,
                 tree,
                 symbols,
                 types,
@@ -1443,6 +1861,7 @@ impl Compiler {
             profile,
             extension_symbol,
             member_key,
+            lookup_mode,
             &remote_tree,
             &remote_symbols,
             &remote_types,
@@ -1456,6 +1875,7 @@ impl Compiler {
         profile: ProfileId,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &TypeTable,
@@ -1482,18 +1902,25 @@ impl Compiler {
                 fields, members, ..
             } = declaration
             {
-                // check enum fields before methods
-                for field_id in fields {
-                    let field = tree.get(*field_id);
-                    let field_key = StaticKey::Name(field.name);
-                    if field_key.matches(member_key) {
-                        return Some(field.symbol.into_global(module_id));
+                // only expose enum fields through value lookups
+                if matches!(lookup_mode, MemberLookupMode::Value | MemberLookupMode::Any) {
+                    for field_id in fields {
+                        let field = tree.get(*field_id);
+                        let field_key = StaticKey::Name(field.name);
+                        if field_key.matches(member_key) {
+                            return Some(field.symbol.into_global(module_id));
+                        }
                     }
                 }
 
                 // check enum methods and members
                 for member_id in members {
                     let member = tree.get(*member_id);
+                    // honor static versus instance lookup modes
+                    if !self.member_visible_for_lookup(member, lookup_mode) {
+                        continue;
+                    }
+
                     let static_key = member.key().and_then(|key| {
                         self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
                     });
@@ -1515,6 +1942,11 @@ impl Compiler {
 
             for member_id in members {
                 let member = tree.get(*member_id);
+                // honor static versus instance lookup modes
+                if !self.member_visible_for_lookup(member, lookup_mode) {
+                    continue;
+                }
+
                 let static_key = member.key().and_then(|key| {
                     self.static_key_from_dynamic_key(profile, *key, tree, symbols, types)
                 });
@@ -1528,5 +1960,38 @@ impl Compiler {
         }
 
         None
+    }
+
+    /// Return true when a member matches the requested lookup mode.
+    fn member_visible_for_lookup(&self, member: &Member, lookup_mode: MemberLookupMode) -> bool {
+        // resolve modifiers from the member node
+        let modifiers = match member {
+            Member::Type { modifiers, .. } => modifiers.as_ref(),
+            Member::Field { modifiers, .. } => modifiers.as_ref(),
+            Member::Method { modifiers, .. } => modifiers.as_ref(),
+            Member::Embed { modifiers, .. } => modifiers.as_ref(),
+            Member::StaticBlock { modifiers, .. } => modifiers.as_ref(),
+            Member::ComptimeBlock { modifiers, .. } => modifiers.as_ref(),
+        };
+
+        // filter by anchor for the lookup mode
+        self.modifiers_visible_for_lookup(modifiers, lookup_mode)
+    }
+
+    /// Return true when modifiers allow access for a lookup mode.
+    fn modifiers_visible_for_lookup(
+        &self,
+        modifiers: Option<&BindingModifier>,
+        lookup_mode: MemberLookupMode,
+    ) -> bool {
+        // normalize the binding anchor for comparison
+        let anchor = modifiers.and_then(|modifiers| modifiers.anchor);
+
+        // match anchors to the requested lookup mode
+        match lookup_mode {
+            MemberLookupMode::Any => true,
+            MemberLookupMode::Instance => !matches!(anchor, Some(BindingAnchor::Static)),
+            MemberLookupMode::Value => matches!(anchor, Some(BindingAnchor::Static)),
+        }
     }
 }

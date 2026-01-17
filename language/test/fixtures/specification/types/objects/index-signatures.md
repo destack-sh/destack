@@ -183,6 +183,25 @@ let value = bag.missing
 
 - contains: only available via index signature
 
+### noPropertyAccessFromIndexSignature allows dot access when false
+
+```ds:main.ds
+interface Bag {
+    [key: string]: number
+}
+
+const bag: Bag = { a: 1 }
+let value = bag.missing
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noPropertyAccessFromIndexSignature": false } }
+```
+
 ### dot access from index signature is allowed by default
 
 ```ts:main.ts

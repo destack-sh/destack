@@ -13,3 +13,10 @@ Class declarations and members.
 - **Static members**: Static properties and methods
 
 Classes in Destack work exactly like TypeScript classes.
+
+## Files
+
+- `constructor.md`: Property initialization rules.
+- `members.md`: Instance and static fields and methods.
+- `overrides.md`: Override checking and diagnostics.
+- `visibility.md`: Access modifiers and visibility rules.

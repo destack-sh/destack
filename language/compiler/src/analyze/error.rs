@@ -162,6 +162,10 @@ pub enum AnalyzeError {
     #[error(code = "EA209", message = "import.meta is only available in modules")]
     InvalidImportMeta { node: AnchoredGlobalNodeId },
 
+    /// Invalid instanceof target.
+    #[error(code = "EA210", message = "instanceof requires a class type")]
+    InvalidInstanceOfTarget { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------
@@ -254,6 +258,13 @@ pub enum AnalyzeError {
     /// Runtime features are disabled.
     #[error(code = "EA819", message = "runtime features are disabled")]
     RuntimeDisabled { node: AnchoredGlobalNodeId },
+
+    /// Strict mode forbids delete of unqualified bindings.
+    #[error(
+        code = "EA821",
+        message = "delete target must be a property in strict mode"
+    )]
+    InvalidStrictDelete { node: AnchoredGlobalNodeId },
 
     /// Invalid continue.
     #[error(code = "EA301", message = "invalid continue to '{label}'")]

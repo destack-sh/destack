@@ -5,6 +5,7 @@ Type inference for literal expressions.
 ## Coverage
 
 - **String literals**: Single/double quoted, empty strings
+- **Character literals**: Single-quoted character values
 - **Numeric literals**: Integers, floats, hex, octal, binary
 - **Boolean literals**: `true`, `false`
 - **Bigint literals**: `42n`

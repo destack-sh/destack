@@ -254,18 +254,19 @@ Booleans work unchanged.
 
 #### Numerics
 
-TypeScript uses `number` for all numerics.
-Destack supports that too, and adds more precise integer types:
+TypeScript uses `number` for all numerics, which Destack aliases to `float64`.
 
+Destack further adds more precise integer types:
 - `int8`, `int16`, `int32`, `int64`, `int128` (signed)
 - `uint8`, `uint16`, `uint32`, `uint64`, `uint128` (unsigned)
-- `int` / `uint` - aliases for `int64` / `uint64`
+- `isize`, `usize` - pointer-sized integers
+- `int` / `uint` - default integer width for the current compiler configuration (default 32-bit)
 - Arbitrary width integers: `int3`, `uint17`, etc.
 
 Destack also supports specifying `float` explicitly:
-- `float64` 
-- `float` - alias for `float64`
-- `number` - alias for `float64` (TypeScript compatibility)
+- `float32`, `float64`, and arbitrary widths like `float16` and `float128`
+- `float` - default float width for the current compiler configuration (default 64-bit)
+- `number` - JS-compatible numeric supertype that accepts precise ints/floats
 
 Unlike TypeScript's single `number` type, Destack's precise integers behave like real machine integers:
 they have defined overflow semantics (wrapping, saturating, or trapping), proper bitwise operations.
@@ -276,6 +277,9 @@ they have defined overflow semantics (wrapping, saturating, or trapping), proper
 In addition `string`, Destack supports a single `character`:
 - `string` - UTF-8 string (same as TypeScript)
 - `character` - single Unicode codepoint
+
+Character and string are distinct types.
+No implicit widening between them is performed.
 
 ### Type Aliases and Newtypes
 
@@ -1442,6 +1446,7 @@ Classes reach RTTI via vtable slot 0 when present, while thin pointers without t
 Type descriptors expose `T.is(value)` for runtime type checks.
 The `x is T` operator is syntactic sugar for `T.is(x)` when RTTI is required.
 The `instanceof` operator checks class identity and is only defined for class types.
+Constructable signatures do not make a non-class type a valid `instanceof` target.
 For structural or non-class types, use `x is T` instead.
 
 ### Decorator Metadata

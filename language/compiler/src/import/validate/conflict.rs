@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    LocalSymbolId, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolType,
+    LocalSymbolId, NodeTree, NodeType, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace,
+    SymbolType,
 };
 use destack_workspace::Module;
 
@@ -17,7 +18,9 @@ impl Compiler {
             .unwrap_or(!module.language_type.is_destack());
 
         // cross check all named symbols in all scopes in the module
+        let tree = module.dir_base().tree.read();
         let symbols = module.dir_base().symbols.read();
+
         for scope in symbols.scopes() {
             // group symbols by name and category to avoid O(n^2) scans
             let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
@@ -46,10 +49,13 @@ impl Compiler {
                         continue;
                     }
 
-                    // local conflicts are allowed unless configured otherwise (no_redeclared_locals)
+                    // local conflicts are allowed unless configured otherwise, parameters always conflict
+                    // (parameter bindings are "local", but conflicts are errors, even with no_redeclare_locals)
                     if symbol.kind == SymbolKind::Local
                         && other_symbol.kind == SymbolKind::Local
                         && !no_redeclare_locals
+                        && !self.is_parameter_binding(&tree, symbol)
+                        && !self.is_parameter_binding(&tree, other_symbol)
                     {
                         continue;
                     }
@@ -79,6 +85,27 @@ impl Compiler {
                 entry.entry(category).or_insert(symbol_id);
             }
         }
+    }
+
+    /// Return true if the symbol is bound to a parameter node.
+    fn is_parameter_binding(&self, tree: &NodeTree, symbol: &Symbol) -> bool {
+        // require a primary declaration node
+        let Some(primary) = symbol.primary_declaration else {
+            return false;
+        };
+
+        // walk parents to find parameter bindings
+        let mut current = Some(primary.local_id);
+        while let Some(current_id) = current {
+            // stop once a parameter node is found
+            if matches!(current_id.ty, NodeType::Parameter) {
+                return true;
+            }
+
+            current = tree.get_parent(current_id.id);
+        }
+
+        false
     }
 }
 

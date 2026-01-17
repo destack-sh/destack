@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
+use super::member::MemberLookupMode;
 
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind, Compiler,
@@ -749,6 +750,27 @@ impl Compiler {
 
             // delete operation: void
             Expression::Delete { value } => {
+                // enforce strict mode delete restrictions on bindings
+                let enforce_strict_mode =
+                    module.source_type.is_module() || ctx.options.always_strict;
+                if enforce_strict_mode && matches!(module.source, ModuleSource::User) {
+                    let target_id = self.unwrap_parenthesized_expression(*value, tree);
+
+                    // forbid delete on binding references in strict mode
+                    if matches!(
+                        tree.get(target_id),
+                        Expression::LocalReference { .. }
+                            | Expression::ModuleReference { .. }
+                            | Expression::GlobalReference { .. }
+                    ) {
+                        self.error(AnalyzeError::InvalidStrictDelete {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
+                    }
+                }
+
                 // reject delete in dynamic shape restricted mode
                 if ctx.options.no_dynamic_shapes && matches!(module.source, ModuleSource::User) {
                     self.error(AnalyzeError::DynamicShapesDisabled {
@@ -3099,6 +3121,7 @@ impl Compiler {
             field_id.into_any(),
             &receiver_ty,
             &field_key,
+            MemberLookupMode::Any,
             types,
             &mut visited,
         )?;

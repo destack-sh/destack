@@ -121,10 +121,13 @@ impl Compiler {
                     declaration_id,
                 ));
 
+                // prepare struct member context
+                let mut ctx = ctx.fork().in_nominal_symbol_maybe(Some(symbol));
+
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
                     self.infer_member(
-                        module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
+                        module, *member_id, tree, symbols, types, infer, &mut ctx, this_ty_id,
                     )?;
                 }
             }
@@ -148,10 +151,6 @@ impl Compiler {
                     ctx,
                 )?;
 
-                // prepare abstract context
-                let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
-                let mut ctx = ctx.fork().in_abstract_class_maybe(is_abstract);
-
                 // resolve the nominal type for `this`
                 let symbol = descriptor.symbol.into_global(module.id);
                 let this_ty_id = Some(types.insert_type_from(
@@ -161,6 +160,13 @@ impl Compiler {
                     },
                     declaration_id,
                 ));
+
+                // prepare abstract context
+                let is_abstract = descriptor.abstraction == DeclarationAbstraction::Abstract;
+                let mut ctx = ctx
+                    .fork()
+                    .in_abstract_class_maybe(is_abstract)
+                    .in_nominal_symbol_maybe(Some(symbol));
 
                 // infer member bodies without mutating instance shapes
                 for member_id in members {

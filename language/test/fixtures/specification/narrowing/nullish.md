@@ -168,3 +168,35 @@ if (null !== value) {
     value satisfies null;
 }
 ```
+
+## strictNullChecks false
+
+### strictNullChecks false still narrows explicit null unions
+
+```ds:dsconfig.json
+{ "compilerOptions": { "strictNullChecks": false } }
+```
+
+```ds
+const value: string | null = null;
+if (value != null) {
+    value satisfies string;
+} else {
+    value satisfies null;
+}
+```
+
+### strictNullChecks false still narrows explicit undefined unions
+
+```ds:dsconfig.json
+{ "compilerOptions": { "strictNullChecks": false } }
+```
+
+```ds
+const value: string | undefined = undefined;
+if (value !== undefined) {
+    value satisfies string;
+} else {
+    value satisfies undefined;
+}
+```

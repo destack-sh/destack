@@ -265,3 +265,23 @@ function redeclared(): int32 {
 ```ds:dsconfig.json
 { "compilerOptions": { "noRedeclaredLocals": false } }
 ```
+
+### noRedeclaredLocals allows shadowing with reuse
+
+> Rebinding names can use the previous binding when noRedeclaredLocals is false.
+
+```ds:main.ds
+function shadowed(): int32 {
+    let value = 1;
+    let value = value + 2;
+    return value;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRedeclaredLocals": false } }
+```

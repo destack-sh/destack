@@ -114,6 +114,37 @@ cast;
 - contains: unsafe type assertions are disabled
 - contains: cannot cast type int32 to boolean
 
+### native targets enforce noManaged
+
+> Native targets forbid managed allocations even when compiler options disable it.
+
+```ds:main.ds
+class Box {
+    value: int32 = 0;
+}
+
+let value = new Box();
+value;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{
+  "compilerOptions": {
+    "noManaged": false
+  },
+  "targets": {
+    "native": { "output": "native" }
+  },
+  "defaultTarget": "native"
+}
+```
+
+- contains: managed memory is disabled
+
 ## wasm targets
 
 ### wasm targets enforce noAny

@@ -9,8 +9,8 @@ use crate::{
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,
-    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, Type, TypeField,
-    TypeLiteral, TypeTable, UnaryOperator,
+    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type,
+    TypeField, TypeLiteral, TypeTable, UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -175,6 +175,23 @@ impl Compiler {
         let left_ty = types.get_type(left_ty_id).clone();
         let right_ty = types.get_type(right_ty_id).clone();
         let options = ctx.options;
+
+        // enforce class-only instanceof targets
+        if matches!(operator, BinaryOperator::InstanceOf)
+            && matches!(module.source, ModuleSource::User)
+        {
+            let target_symbol =
+                self.reference_symbol_for_expression(module, right_id, ctx.profile, tree, symbols);
+            let is_class_target =
+                target_symbol.is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
+            if !is_class_target {
+                self.error(AnalyzeError::InvalidInstanceOfTarget {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                });
+            }
+        }
 
         // track referential equality violations to avoid follow-up overload errors
         let mut referential_equality_violation = false;
