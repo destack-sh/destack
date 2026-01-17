@@ -392,6 +392,15 @@ impl Module {
         }
     }
 
+    /// Get the MIR for a target if it exists.
+    #[inline]
+    pub fn mir_maybe(&self, target: &TargetId) -> Option<&ModuleMir> {
+        match &self.content {
+            ModuleContent::Code(code) => code.mirs.iter().find(|mir| &mir.target == target),
+            _ => None,
+        }
+    }
+
     /// Get the MIR for a target.
     ///
     /// # Panics

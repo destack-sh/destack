@@ -1,4 +1,3 @@
-pub mod core;
 pub mod native;
 pub mod vm;
 
