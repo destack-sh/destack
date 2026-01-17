@@ -30,9 +30,12 @@ function takeUnion(value: A | B): int32 {
     test.compile_check_clean();
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
+        // build the expected union metadata name
+        let union_metadata_name = "test/test:takeUnion#parameter:value#union";
+
         // find the union struct type
         let union_type = test
-            .find_struct_type_by_metadata_prefix(tree, strings, &format!("@union:{module_id}:"))
+            .find_type_by_metadata_name(tree, strings, &union_metadata_name)
             .expect("missing union layout type");
 
         // resolve the tag and payload field types

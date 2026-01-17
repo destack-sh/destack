@@ -361,12 +361,13 @@ impl Compiler {
             .and_then(|path| resolver.load_dsconfig(&path).ok());
 
         // create and insert synthetic package
+        let package_name = self.synthetic_package_name(directory);
         let package = Package {
             id: package_id,
             kind: PackageKind::Synthetic,
             uri: Uri::from_path(directory),
             path: Some(directory.to_path_buf()),
-            name: None,
+            name: Some(package_name),
             version: None,
             manifest: None,
             dsconfig,
@@ -376,6 +377,15 @@ impl Compiler {
         self.program.packages.insert(package);
 
         (package_id, Some(directory.to_path_buf()))
+    }
+
+    /// Build a synthetic package name from a directory.
+    fn synthetic_package_name(&self, directory: &Path) -> String {
+        let name = directory
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("synthetic");
+        format!("<{name}>")
     }
 }
 

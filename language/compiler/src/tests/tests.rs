@@ -171,6 +171,14 @@ impl TestProgram {
             TestFileSystem::Physical { root_directory, .. } => root_directory.clone(),
         };
 
+        // seed a default package name for in memory tests
+        if let TestFileSystem::Memory { fs } = &fs {
+            fs.add_file("package.json", br#"{ "name": "test" }"#)
+                .unwrap_or_else(|_| {
+                    panic!("failed to add package.json to memory file system");
+                });
+        }
+
         let session = Arc::new(Session::new(root_directory.clone()).with_fs(fs.fs()));
         let program = session.add_root(root_directory);
 
