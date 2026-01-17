@@ -8,6 +8,10 @@ Tests for the `any` type.
 
 > Any type accepts number values.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 const value: any = 42;
 value satisfies any;
@@ -17,6 +21,10 @@ value satisfies any;
 
 > Any type accepts string values.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 const value: any = "hello";
 value satisfies any;
@@ -25,6 +33,10 @@ value satisfies any;
 ### object to any
 
 > Any type accepts object values.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds
 const value: any = { a: 1 };
@@ -37,6 +49,10 @@ value satisfies any;
 
 > Any is assignable to number (unsafe but allowed).
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 const anyValue: any = 42;
 const numberValue: number = anyValue;
@@ -46,6 +62,10 @@ numberValue satisfies number;
 ### any to string
 
 > Any is assignable to string (unsafe but allowed).
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds
 const anyValue: any = "hello";
@@ -59,6 +79,10 @@ stringValue satisfies string;
 
 > Accessing a member on `any` produces `any`.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 const value: any = { nested: { value: 1 } };
 const result = value.nested.value;
@@ -68,6 +92,10 @@ result satisfies any;
 ### index access yields any
 
 > Indexing into `any` produces `any`.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds
 const value: any = { a: 1 };

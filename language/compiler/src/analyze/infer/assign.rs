@@ -3862,14 +3862,14 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
         test.check_has_diagnostics(&["EA101"]);
     }
 
-    /// Anything should be assignable to any.
+    /// `any` is disabled in strict mode by default.
     #[test]
-    fn test_type_check_let_any_accepts_all() {
+    fn test_type_check_let_any_disabled_in_strict() {
         let test = TestProgram::memory_sequential();
         let module_id = test.add_module("test.ds", "let x: any = 42;");
         test.analyze_module(module_id);
         test.compile();
-        test.check_clean();
+        test.check_has_diagnostics(&["EA804"]);
     }
 
     /// Function call with compatible argument types.

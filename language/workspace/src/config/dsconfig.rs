@@ -625,7 +625,7 @@ impl Default for DsConfigCompilerOptions {
             no_property_access_from_index_signature: true,
 
             // Destack-specific checking (all off by default, opt-in)
-            no_any: false,
+            no_any: strict,
             no_unknown: false,
             no_imprecise_primitives: false,
             no_implicit_conversions: false,
@@ -681,6 +681,7 @@ impl DsConfigCompilerOptions {
         self.use_unknown_in_catch_variables = true;
 
         // enable stricter checking defaults beyond the TS strict umbrella
+        self.no_any = true;
         self.no_implicit_returns = true;
         self.no_implicit_override = true;
         self.exact_optional_property_types = true;
@@ -702,7 +703,6 @@ impl DsConfigCompilerOptions {
 
         // enforce soundness defaults for native targets
         self.no_any = true;
-        self.no_unknown = true;
         self.no_imprecise_primitives = true;
         self.no_implicit_conversions = true;
         self.no_unsafe_type_assertions = true;
@@ -2383,7 +2383,7 @@ impl From<&CompilerOptionsJson> for DsConfigCompilerOptions {
                 .unwrap_or(true),
 
             // Destack-specific checking
-            no_any: json.no_any.unwrap_or(false),
+            no_any: json.no_any.unwrap_or(strict),
             no_unknown: json.no_unknown.unwrap_or(false),
             no_imprecise_primitives: json.no_imprecise_primitives.unwrap_or(false),
             no_implicit_conversions: json.no_implicit_conversions.unwrap_or(false),

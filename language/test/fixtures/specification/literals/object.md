@@ -99,6 +99,10 @@ value satisfies { a: number, b: string, c: boolean };
 
 > Any spreads preserve the any type.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 const value: any = { a: 1 };
 const merged = { ...value, b: "two" };

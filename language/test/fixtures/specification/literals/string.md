@@ -65,6 +65,9 @@ x satisfies number;
 
 > String literals expose String prototype members.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds libs=es5
 const value = "hello";

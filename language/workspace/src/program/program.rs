@@ -641,7 +641,6 @@ mod tests {
 
         // verify soundness defaults are set
         assert!(options.no_any);
-        assert!(options.no_unknown);
         assert!(options.no_imprecise_primitives);
         assert!(options.no_implicit_conversions);
         assert!(options.no_unsafe_type_assertions);

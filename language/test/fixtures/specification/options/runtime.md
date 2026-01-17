@@ -41,7 +41,7 @@ let value = Function(["return 1"]);
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noDynamicEvaluation": true } }
+{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
 - contains: dynamic evaluation is disabled
@@ -63,7 +63,7 @@ let proxy = new Proxy(target, handler);
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noProxy": true } }
+{ "compilerOptions": { "noAny": false, "noProxy": true } }
 ```
 
 - contains: proxy usage is disabled
@@ -85,7 +85,7 @@ Object.defineProperty(target, "x", descriptor);
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noDynamicShapes": true } }
+{ "compilerOptions": { "noAny": false, "noDynamicShapes": true } }
 ```
 
 - contains: dynamic shape mutation is disabled

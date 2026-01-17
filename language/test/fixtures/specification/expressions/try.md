@@ -107,7 +107,7 @@ value satisfies int;
 > Catch variables default to any when disabled.
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "useUnknownInCatchVariables": false } }
+{ "compilerOptions": { "noAny": false, "useUnknownInCatchVariables": false } }
 ```
 
 ```ds:package.json

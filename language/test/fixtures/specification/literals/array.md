@@ -96,6 +96,9 @@ let value: number = values[0];
 
 > Arrays expose filter with typed results.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds libs=es5
 const values = [1, 2, 3];
@@ -107,6 +110,9 @@ filtered satisfies number[];
 
 > Arrays expose findIndex.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds libs=es2015
 const values = [1, 2, 3];

@@ -85,33 +85,6 @@ value;
 
 - contains: type 1 is not assignable
 
-### native targets enforce noUnknown
-
-> Native targets forbid `unknown` even when compiler options disable it.
-
-```ds:main.ds
-let value: unknown = 1;
-value;
-```
-
-```ds:package.json
-{ "name": "spec" }
-```
-
-```ds:dsconfig.json
-{
-  "compilerOptions": {
-    "noUnknown": false
-  },
-  "targets": {
-    "native": { "output": "native" }
-  },
-  "defaultTarget": "native"
-}
-```
-
-- contains: unknown type is disabled
-
 ### native targets enforce noUnsafeTypeAssertions
 
 > Native targets reject unsafe assertions even when disabled.
