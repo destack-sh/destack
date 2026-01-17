@@ -11,6 +11,9 @@ impl ModuleLowerer<'_> {
         // record layout metadata for lowered types
         self.lower_layout_metadata()?;
 
+        // assign deterministic metadata names for anonymous types
+        self.assign_anonymous_metadata_names()?;
+
         // generate class vtables
         self.lower_vtables()?;
 

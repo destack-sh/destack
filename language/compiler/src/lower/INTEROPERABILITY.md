@@ -15,9 +15,10 @@ There are other projects that attempt AOT compilation for JavaScript (with varyi
 
 ### Exception Handling
 
-**On native targets, `throw` aborts the process.** There is no stack unwinding, no catching.
-This is caught by the compiler, and misusing `throw` is a compile error.
-Instead, Destack supports `try/catch` and `?` propagation for explicit `Result`-based error handling.
+**On native targets, `throw` aborts the process.**.
+There is no stack unwinding, no catching, and misusing `throw` is a compile error.
+Instead of classical exceptions, Destack supports `try/catch` and `?` propagation for explicit `Result`-based error handling.
+
 The divergence on exception handling is the most significant semantic difference between Destack and traditional JavaScript/TypeScript:
 
 ```ts
@@ -28,10 +29,16 @@ try {
     console.log("caught")  // executes
 }
 
-// On native Destack: process aborts at throw, catch never runs
+// on native Destack: process aborts at throw, catch never runs
+try {
+    throw new Error("oops")
+} catch (e) {
+    console.log("abort")  // does not execute!
+}
 ```
 
-Instead, use `Result<T, E>` with the `?` operator for recoverable errors:
+Instead, use `Result<T, E>` with the `?` operator for recoverable errors
+(or any other type implementing `Try`):
 
 ```ds
 function readConfig(): Result<Config, Error> {
@@ -54,7 +61,8 @@ try {
 For JS targets, `throw` works normally for compatibility.
 You can still take advantage of Destack's many other features while keeping exceptions around at no extra cost (other than the pre-existing code smell).
 
-Exceptions don't cross FFI boundaries. If calling JS that throws (via WASM), wrap it on the JS side to return a Result-like object.
+Exceptions don't cross FFI boundaries. 
+If calling JS that throws (via WASM), wrap it on the JS side to return a Result-like object.
 See [FFI Error Handling](#ffi-error-handling) for more details.
 
 ### Forbidden Features
@@ -259,13 +267,13 @@ cache[id] = user   // dynamic property access
 cache.get          // undefined (it's not a Map)
 ```
 
-For native targets, objects have fixed layouts, so Destack aliases `Record<K, V>` to `Map<K, V>`:
+For native targets, objects have fixed layouts, so Destack's native libs alias `Record<K, V>` to `Map<K, V>`:
 
 ```ds
 // source code (works on both targets!)
 const cache: Record<string, User> = {};
-cache[id] = user;   // desugars to cache.indexSet(id, user)
-const u = cache[id];  // desugars to cache.index(id)
+cache[id] = user;     // reifies to cache.indexSet(id, user)
+const u = cache[id];  // reifies to cache.index(id)
 ```
 
 This works transparently because `Map<K, V>` implements `Index<K, V>` and `IndexSet<K, V>`.

@@ -187,9 +187,9 @@ impl TestProgram {
         None
     }
 
-    /// Find a struct type with a matching type metadata name.
+    /// Find a type with a matching type metadata name.
     #[allow(dead_code)]
-    pub(crate) fn find_struct_type_by_metadata_name(
+    pub(crate) fn find_type_by_metadata_name(
         &self,
         tree: &mir::NodeTree,
         strings: &ImmutableStringPool,
@@ -205,34 +205,7 @@ impl TestProgram {
                 continue;
             }
 
-            if matches!(tree.get(*ty), mir::Type::Struct { .. }) {
-                return Some(*ty);
-            }
-        }
-
-        None
-    }
-
-    /// Find a struct type with a metadata name that starts with the prefix.
-    pub(crate) fn find_struct_type_by_metadata_prefix(
-        &self,
-        tree: &mir::NodeTree,
-        strings: &ImmutableStringPool,
-        prefix: &str,
-    ) -> Option<mir::LocalNodeId<mir::Type>> {
-        // scan metadata entries for a matching prefix
-        for (ty, metadata) in &tree.type_table.type_metadata_by_id {
-            let Some(name_id) = metadata.name else {
-                continue;
-            };
-
-            if !strings.get(name_id).starts_with(prefix) {
-                continue;
-            }
-
-            if matches!(tree.get(*ty), mir::Type::Struct { .. }) {
-                return Some(*ty);
-            }
+            return Some(*ty);
         }
 
         None
@@ -286,16 +259,6 @@ impl TestProgram {
         }
 
         None
-    }
-
-    /// Build the deterministic metadata name for a union type.
-    #[allow(dead_code)]
-    pub(crate) fn union_metadata_name(
-        &self,
-        module_id: ModuleId,
-        type_id: dir::LocalTypeId,
-    ) -> String {
-        format!("@union:{module_id}:{}", type_id.0)
     }
 
     /// Find a struct type by source name.

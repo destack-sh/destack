@@ -186,16 +186,6 @@ impl TypeLowerer {
         self.layout_cache.insert(mir_type, layout.clone());
         self.type_cache.insert(type_id, mir_type);
 
-        // attach a deterministic debug name for tooling/tests
-        let name = builder.intern(&format!("@union:{module_id}:{}", type_id.0));
-        let metadata = builder
-            .tree_mut()
-            .type_table
-            .type_metadata_by_id
-            .entry(mir_type)
-            .or_default();
-        metadata.name = Some(name);
-
         // resolve tag and payload field indices
         let tag_field_index =
             layout
