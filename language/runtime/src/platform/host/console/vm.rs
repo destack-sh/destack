@@ -1,55 +1,51 @@
 use destack_vm::{ExternalContext, Value, ValueTag};
 
 use crate::platform::bindings::BindingDescriptor;
-use crate::platform::host::HostResult;
+use crate::platform::host::{HostContext, HostResult, IoStream};
 use crate::{binding, binding_set};
-
-use super::core::{ConsoleStream, emit_console_line};
 
 binding_set!(
     pub CONSOLE_VM_BINDINGS,
     "console",
-    |registry, isolate, _host| {
+    |registry, isolate, host| {
         // register console handlers
+        let host_stdout = host.clone();
         binding!(
             registry,
             isolate,
             BindingDescriptor::external_recordable("destack.console.log"),
-            fn console_log(context: &mut ExternalContext<'_>, args: &[Value]) -> HostResult<Value> {
-                write_console_line(context, args, ConsoleStream::Stdout)
+            move |context: &mut ExternalContext<'_>, args: &[Value]| -> HostResult<Value> {
+                write_console_line(&host_stdout, context, args, IoStream::Stdout)
             }
         );
+
+        let host_info = host.clone();
         binding!(
             registry,
             isolate,
             BindingDescriptor::external_recordable("destack.console.info"),
-            fn console_info(
-                context: &mut ExternalContext<'_>,
-                args: &[Value],
-            ) -> HostResult<Value> {
-                write_console_line(context, args, ConsoleStream::Stdout)
+            move |context: &mut ExternalContext<'_>, args: &[Value]| -> HostResult<Value> {
+                write_console_line(&host_info, context, args, IoStream::Stdout)
             }
         );
+
+        let host_warn = host.clone();
         binding!(
             registry,
             isolate,
             BindingDescriptor::external_recordable("destack.console.warn"),
-            fn console_warn(
-                context: &mut ExternalContext<'_>,
-                args: &[Value],
-            ) -> HostResult<Value> {
-                write_console_line(context, args, ConsoleStream::Stderr)
+            move |context: &mut ExternalContext<'_>, args: &[Value]| -> HostResult<Value> {
+                write_console_line(&host_warn, context, args, IoStream::Stderr)
             }
         );
+
+        let host_error = host.clone();
         binding!(
             registry,
             isolate,
             BindingDescriptor::external_recordable("destack.console.error"),
-            fn console_error(
-                context: &mut ExternalContext<'_>,
-                args: &[Value],
-            ) -> HostResult<Value> {
-                write_console_line(context, args, ConsoleStream::Stderr)
+            move |context: &mut ExternalContext<'_>, args: &[Value]| -> HostResult<Value> {
+                write_console_line(&host_error, context, args, IoStream::Stderr)
             }
         );
     }
@@ -57,15 +53,16 @@ binding_set!(
 
 /// Write a console line to the host stream.
 fn write_console_line(
+    host: &HostContext,
     context: &mut ExternalContext<'_>,
     args: &[Value],
-    stream: ConsoleStream,
+    stream: IoStream,
 ) -> HostResult<Value> {
     // format the line payload
     let line = format_values(context, args);
 
     // emit the formatted line
-    emit_console_line(&line, stream)?;
+    host.io().write_line(stream, &line)?;
 
     Ok(Value::VOID)
 }

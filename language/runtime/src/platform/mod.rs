@@ -10,7 +10,7 @@ pub mod resources;
 
 pub use bindings::{BindingPolicy, BindingRegistry, BindingSet, DeterminismPolicy, ReplayMode};
 pub use clock::Clock;
-pub use host::HostContext;
+pub use host::{HostContext, HostIo, IoStream, LineSink};
 pub use random::Random;
 pub use resources::Resources;
 

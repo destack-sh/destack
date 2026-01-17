@@ -2,7 +2,7 @@ use crate::native_binding_set;
 use crate::platform::bindings::{BindingDescriptor, NativeBinding};
 use crate::platform::host::{HostStatus, HostStringRef, with_host_call_context};
 
-use super::core::{ConsoleStream, emit_console_line};
+use crate::platform::host::IoStream;
 
 native_binding_set!(
     pub CONSOLE_NATIVE_BINDINGS,
@@ -32,7 +32,7 @@ native_binding_set!(
 pub unsafe extern "C" fn destack_console_log(value: HostStringRef) -> HostStatus {
     write_console_line(
         value,
-        ConsoleStream::Stdout,
+        IoStream::Stdout,
         BindingDescriptor::external_recordable("destack.console.log"),
     )
 }
@@ -42,7 +42,7 @@ pub unsafe extern "C" fn destack_console_log(value: HostStringRef) -> HostStatus
 pub unsafe extern "C" fn destack_console_info(value: HostStringRef) -> HostStatus {
     write_console_line(
         value,
-        ConsoleStream::Stdout,
+        IoStream::Stdout,
         BindingDescriptor::external_recordable("destack.console.info"),
     )
 }
@@ -52,7 +52,7 @@ pub unsafe extern "C" fn destack_console_info(value: HostStringRef) -> HostStatu
 pub unsafe extern "C" fn destack_console_warn(value: HostStringRef) -> HostStatus {
     write_console_line(
         value,
-        ConsoleStream::Stderr,
+        IoStream::Stderr,
         BindingDescriptor::external_recordable("destack.console.warn"),
     )
 }
@@ -62,7 +62,7 @@ pub unsafe extern "C" fn destack_console_warn(value: HostStringRef) -> HostStatu
 pub unsafe extern "C" fn destack_console_error(value: HostStringRef) -> HostStatus {
     write_console_line(
         value,
-        ConsoleStream::Stderr,
+        IoStream::Stderr,
         BindingDescriptor::external_recordable("destack.console.error"),
     )
 }
@@ -70,7 +70,7 @@ pub unsafe extern "C" fn destack_console_error(value: HostStringRef) -> HostStat
 /// Write a console line through the host context.
 fn write_console_line(
     value: HostStringRef,
-    stream: ConsoleStream,
+    stream: IoStream,
     spec: BindingDescriptor,
 ) -> HostStatus {
     // resolve policy and host context
@@ -79,7 +79,7 @@ fn write_console_line(
 
         // decode the line payload
         let line = unsafe { value.as_str()? };
-        emit_console_line(line, stream)
+        context.host().io().write_line(stream, line)
     });
 
     HostStatus::from_result(result)
