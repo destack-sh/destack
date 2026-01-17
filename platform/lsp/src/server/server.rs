@@ -3,7 +3,7 @@ use std::sync::{Arc, OnceLock};
 
 use dashmap::DashMap;
 use destack_ast::NodeParentIndex;
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
+use destack_daemon::Daemon;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
@@ -50,6 +50,7 @@ pub struct DestackLanguageServer {
     pub(super) client: Client,
     overlay_fs: Arc<OverlayFileSystem>,
     session: OnceLock<Arc<Session>>,
+    daemon: OnceLock<Arc<Daemon>>,
     open_documents: DashMap<String, OpenDocument>,
 }
 
@@ -62,47 +63,46 @@ impl DestackLanguageServer {
             client,
             overlay_fs,
             session: OnceLock::new(),
+            daemon: OnceLock::new(),
             open_documents: DashMap::new(),
         }
     }
 
     /// Get the session (must be called after initialize).
+    #[inline]
     fn session(&self) -> &Arc<Session> {
         self.session.get().expect("session not initialized")
     }
 
+    /// Get the daemon (must be called after initialize).
+    #[inline]
+    fn daemon(&self) -> &Arc<Daemon> {
+        self.daemon.get().expect("daemon not initialized")
+    }
+
     /// Invalidate a module at the given path and publish diagnostics.
-    ///
-    /// FUGU #Broken: incremental "recompilation" (currently recompiles entire module)
-    async fn invalidate_and_publish(&self, uri: &lsp::Uri, path: &std::path::Path) {
-        let session = self.session().clone();
-        let program = session.find_program_for_path(path);
-
-        // create compiler with existing session
-        let compiler = Compiler::new(session.clone(), program.clone(), CompilerOptions::default());
-
-        // resolve path to module and enqueue analysis
-        let Ok(module_id) = compiler.resolve_path_to_module(&path.to_path_buf()) else {
-            return;
+    async fn invalidate_and_publish(
+        &self,
+        uri: &lsp::Uri,
+        path: &std::path::Path,
+        content: String,
+    ) {
+        // apply the virtual file update through the daemon
+        let update = match self.daemon().update_virtual_file(path, content) {
+            Ok(update) => update,
+            Err(error) => {
+                tracing::debug!(?error, "lsp.invalidate.file");
+                return;
+            }
         };
-        let profile = program.default_profile_id_for_module(module_id);
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-            module: module_id,
-            profile,
-        });
-        compiler.compile();
 
         // collect diagnostics for this file
-        let module = session.modules.get(module_id);
-        let file_id = module.read().file_id;
-        let file = session.files.get(file_id);
-
-        let diagnostics: Vec<lsp::Diagnostic> = program
+        let session = self.session().clone();
+        let file = session.files.get(update.file_id);
+        let diagnostics: Vec<lsp::Diagnostic> = update
             .diagnostics
-            .iter()
             .into_iter()
-            .filter(|d| d.file_id == file_id)
-            .map(|d| diagnostic_to_lsp_diagnostic(&d, &file))
+            .map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file))
             .collect();
 
         // publish diagnostics
@@ -137,7 +137,11 @@ impl LanguageServer for DestackLanguageServer {
         // create session with overlay filesystem
         let session = Arc::new(Session::new(cwd.clone()).with_fs(self.overlay_fs.clone()));
         session.add_root(cwd);
-        let _ = self.session.set(session);
+        let _ = self.session.set(session.clone());
+
+        // create daemon for the session
+        let daemon = Arc::new(Daemon::new(session));
+        let _ = self.daemon.set(daemon);
 
         // build file operation filters for workspace notifications
         let file_operation_filters: Vec<lsp::FileOperationFilter> = TRACKED_FILE_TYPES
@@ -285,7 +289,7 @@ impl LanguageServer for DestackLanguageServer {
         // register module with inline content
         let uri = Uri::from_path(&path);
         let program = session.find_program_for_path(&path);
-        let module_id = program.register_inline_module(uri, content, FileType::Destack);
+        let module_id = program.register_inline_module(uri, content.clone(), FileType::Destack);
 
         // track open document
         let module = session.modules.get(module_id);
@@ -294,7 +298,7 @@ impl LanguageServer for DestackLanguageServer {
             .insert(uri_str, OpenDocument { file_id });
 
         // invalidate and publish diagnostics
-        self.invalidate_and_publish(&params.text_document.uri, &path)
+        self.invalidate_and_publish(&params.text_document.uri, &path, content)
             .await;
     }
 
@@ -303,6 +307,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(change) = params.content_changes.into_iter().next() else {
             return;
         };
+        let content = change.text;
         let Some(path) = params
             .text_document
             .uri
@@ -313,10 +318,10 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         // update overlay with new content
-        self.overlay_fs.set_overlay(&path, change.text);
+        self.overlay_fs.set_overlay(&path, content.clone());
 
         // invalidate and publish diagnostics
-        self.invalidate_and_publish(&params.text_document.uri, &path)
+        self.invalidate_and_publish(&params.text_document.uri, &path, content)
             .await;
     }
 
