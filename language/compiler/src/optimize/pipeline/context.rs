@@ -113,7 +113,7 @@ pub struct PipelineOptions {
     pub inline_hotness_policy: CallsiteHotnessPolicy,
     /// Callsite hotness thresholds for argument specialization.
     pub specialize_hotness_policy: CallsiteHotnessPolicy,
-    /// Inline size and budget scaling for this optimization level.
+    /// Inline budget scaling for this optimization level.
     pub inline_budget_scale_percent: u64,
 }
 

@@ -204,6 +204,7 @@ Local and global optimizations within a single function.
 | `guard-eliminate` | GuardEliminate | function | O2 | ✓ | cfg, range | Remove redundant guard and check terminators |
 | `value-range-prop` | ValueRangePropagation | function | O2 | ✓ | range | Fold values proven constant by range analysis |
 | `path-clone` | PathClone | function | O3 | | cfg, domtree, profile | Clone hot paths to expose constants and simplify control flow |
+| `cfg-layout` | CfgLayout | function | O2 | ✓ | cfg, profile | Layout blocks for fallthrough and cache locality |
 
 ### Interprocedural (I)
 
@@ -230,7 +231,6 @@ Cross-function optimizations that require module-level analysis.
 | `indirect-call-promotion` | IndirectCallPromotion | module | O3 | | callgraph, profile | Promote hot indirect calls to direct with fallback |
 | `pgo-devirtualize` | ProfileGuidedDevirtualize | function | O3 | | type-flow, profile | Speculative devirtualization guarded by profiles |
 | `function-specialize-pgo` | FunctionSpecializePGO | module | O3 | | callgraph, profile | Specialize hot callsites with constant arguments |
-| `block-placement` | BlockPlacement | module | O2 | | cfg, block-freq | Layout blocks for fallthrough and cache locality |
 
 ### Memory (M)
 
@@ -240,6 +240,7 @@ Optimizations for memory allocation and access patterns.
 |----|------|-------|-------|------|----------|-------------|
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | cfg, domtree | Promote stack allocations to SSA values |
 | `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | constant-propagation | Break aggregates into individual scalar values |
+| `load-pre` | LoadPre | function | O2 | ✓ | cfg, domtree, memory-ssa | Insert edge loads to eliminate redundant join loads |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias, memory-ssa | Forward stored values to subsequent loads |
 | `mem-cse` | MemCse | function | O2 | ✓ | alias, memory-ssa | Remove redundant stores that write identical values |
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias, memory-ssa | Remove stores that are overwritten before being read |
@@ -264,7 +265,7 @@ Loop-specific transformations.
 | `loop-peel` | LoopPeel | function | O3 | ✓ | loops, cfg, domtree | Peel iterations to simplify guards and expose invariants |
 | `loop-versioning` | LoopVersioning | function | O3 | ✓ | loops, cfg, scalar-evolution | Create fast path loops guarded by assumptions |
 | `loop-idiom` | LoopIdiomRecognize | function | O2 | ✓ | loops, cfg, scalar-evolution, ownership | Recognize memset style loops |
-| `unroll-and-jam` | LoopUnrollAndJam | function | O3 | | loops, scalar-evolution | Unroll outer loops and jam inner loops |
+| `unroll-and-jam` | LoopUnrollAndJam | function | O3 | ✓ | loops, cfg, domtree, scalar-evolution, ownership | Unroll outer loops and jam inner loops |
 | `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
 | `loop-distribute` | LoopDistribute | function | O3 | | dependence | Split loops to enable partial vectorization |

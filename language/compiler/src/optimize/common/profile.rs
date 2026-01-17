@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use destack_mir as mir;
 
 /// Policy thresholds for classifying callsites by profile data.
@@ -83,6 +85,41 @@ impl CallsiteHotnessPolicy {
             ..self
         }
     }
+
+    /// Return the scaling policy for profile counts.
+    pub const fn scaling_policy(&self) -> ProfileScalingPolicy {
+        ProfileScalingPolicy {
+            estimated_divisor: self.estimated_divisor,
+            synthetic_divisor: self.synthetic_divisor,
+        }
+    }
+}
+
+/// Scaling factors for profile counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProfileScalingPolicy {
+    /// Divisor for estimated counts.
+    pub estimated_divisor: u64,
+    /// Divisor for synthetic counts.
+    pub synthetic_divisor: u64,
+}
+
+impl ProfileScalingPolicy {
+    /// Create a new scaling policy.
+    pub const fn new(estimated_divisor: u64, synthetic_divisor: u64) -> Self {
+        Self {
+            estimated_divisor,
+            synthetic_divisor,
+        }
+    }
+
+    /// Default scaling policy.
+    pub const fn default() -> Self {
+        Self {
+            estimated_divisor: 2,
+            synthetic_divisor: 4,
+        }
+    }
 }
 
 /// Hotness classification for a callsite under profile data.
@@ -118,14 +155,21 @@ pub fn callsite_hotness(
     };
 
     // scale the callsite count for confidence and sampling
-    let total_count = scaled_profile_count(callsite_profile.total_count, profile.source, policy);
+    let total_count = scaled_profile_count(
+        callsite_profile.total_count,
+        profile.source,
+        &policy.scaling_policy(),
+    );
     if total_count == 0 {
         return CallsiteHotness::Cold;
     }
 
     // treat high unknown ratios as cold
-    let unknown_count =
-        scaled_profile_count(callsite_profile.unknown_count, profile.source, policy);
+    let unknown_count = scaled_profile_count(
+        callsite_profile.unknown_count,
+        profile.source,
+        &policy.scaling_policy(),
+    );
     let unknown_ratio = unknown_count as f64 / total_count as f64;
     if unknown_ratio > policy.unknown_ratio_max {
         return CallsiteHotness::Cold;
@@ -151,7 +195,11 @@ pub fn callsite_hotness(
     };
 
     // reject zero entry counts
-    let entry_count = scaled_profile_count(function_profile.entry_count, profile.source, policy);
+    let entry_count = scaled_profile_count(
+        function_profile.entry_count,
+        profile.source,
+        &policy.scaling_policy(),
+    );
     if entry_count == 0 {
         return CallsiteHotness::Cold;
     }
@@ -173,7 +221,7 @@ pub fn callsite_hotness(
 pub fn scaled_profile_count(
     count: mir::ProfileCount,
     source: mir::ProfileSource,
-    policy: &CallsiteHotnessPolicy,
+    policy: &ProfileScalingPolicy,
 ) -> u64 {
     // apply sampling period when needed
     let mut value = count.value;
@@ -182,10 +230,207 @@ pub fn scaled_profile_count(
     }
 
     // downscale based on confidence
-    match count.confidence {
+    let scaled = match count.confidence {
         mir::ProfileConfidence::Precise => value,
         mir::ProfileConfidence::Estimated => value / policy.estimated_divisor.max(1),
         mir::ProfileConfidence::Synthetic => value / policy.synthetic_divisor.max(1),
+    };
+
+    // keep non zero signal when sampling confidence is low
+    if value > 0 && scaled == 0 {
+        return 1;
+    }
+
+    scaled
+}
+
+/// Derive hotness from block execution counts.
+pub fn block_hotness_from_counts(
+    block_count: u64,
+    entry_count: u64,
+    policy: &CallsiteHotnessPolicy,
+) -> CallsiteHotness {
+    // guard against missing counts
+    if block_count == 0 {
+        return CallsiteHotness::Unknown;
+    }
+
+    // classify by absolute counts
+    if block_count >= policy.hot_count {
+        return CallsiteHotness::Hot;
+    }
+    if block_count <= policy.cold_count {
+        return CallsiteHotness::Cold;
+    }
+
+    // fall back to ratio based classification
+    if entry_count == 0 {
+        return CallsiteHotness::Unknown;
+    }
+
+    // compare ratios against thresholds
+    let ratio = block_count as f64 / entry_count as f64;
+    if ratio >= policy.hot_ratio {
+        return CallsiteHotness::Hot;
+    }
+    if ratio <= policy.cold_ratio {
+        return CallsiteHotness::Cold;
+    }
+
+    CallsiteHotness::Unknown
+}
+
+/// Compute execution counts for blocks using profile data.
+pub fn block_execution_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    profile: Option<&mir::ProfileTable>,
+    policy: &CallsiteHotnessPolicy,
+) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
+    // return early without profiles
+    let Some(profile) = profile else {
+        return HashMap::new();
+    };
+
+    // seed counts from block profiles
+    let scale = policy.scaling_policy();
+    let mut counts = HashMap::new();
+    for &block_id in &function.blocks {
+        // read block profile counts when present
+        let count = if let Some(block_profile) = profile.block_profile(block_id) {
+            scaled_profile_count(block_profile.execution_count, profile.source, &scale)
+        } else {
+            0
+        };
+
+        // keep only non zero counts
+        if count > 0 {
+            counts.insert(block_id, count);
+        }
+    }
+
+    // fill in missing counts from incoming edges
+    let incoming = incoming_edge_counts(function, tree, profile, &scale);
+    for &block_id in &function.blocks {
+        // skip blocks that already have counts
+        if counts.contains_key(&block_id) {
+            continue;
+        }
+
+        // use incoming edge totals when available
+        let Some(count) = incoming.get(&block_id) else {
+            continue;
+        };
+        if *count > 0 {
+            counts.insert(block_id, *count);
+        }
+    }
+
+    counts
+}
+
+/// Compute block entry counts from edge profiles.
+fn incoming_edge_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    profile: &mir::ProfileTable,
+    scale: &ProfileScalingPolicy,
+) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
+    // accumulate incoming counts per block
+    let mut counts = HashMap::new();
+
+    // scan blocks for profiled edges
+    for &block_id in &function.blocks {
+        // read the terminator edges for this block
+        let terminator = &tree.get(block_id).terminator;
+        let edges = terminator_edges(block_id, terminator);
+
+        // accumulate edge counts for each successor
+        for (edge_key, target) in edges {
+            // skip when no edge profile exists
+            let Some(edge_profile) = profile.edge_profile(&edge_key) else {
+                continue;
+            };
+
+            // accumulate scaled edge counts
+            let count = scaled_profile_count(edge_profile.count, profile.source, scale);
+            if count == 0 {
+                continue;
+            }
+
+            // add to the incoming total
+            let entry = counts.entry(target).or_insert(0u64);
+            *entry = (*entry).saturating_add(count);
+        }
+    }
+
+    counts
+}
+
+/// Enumerate edges for a terminator.
+pub fn terminator_edges(
+    source: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
+    match terminator {
+        mir::Terminator::Jump { target, .. } => {
+            vec![(
+                mir::EdgeKey::new(source, mir::EdgeKind::Jump, *target),
+                *target,
+            )]
+        }
+        mir::Terminator::Branch {
+            then_target,
+            else_target,
+            ..
+        } => vec![
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, *then_target),
+                *then_target,
+            ),
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, *else_target),
+                *else_target,
+            ),
+        ],
+        mir::Terminator::Check {
+            success, failure, ..
+        } => vec![
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, success.target),
+                success.target,
+            ),
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, failure.target),
+                failure.target,
+            ),
+        ],
+        mir::Terminator::Switch { default, cases, .. } => {
+            let mut edges = Vec::with_capacity(cases.len() + 1);
+            edges.push((
+                mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, *default),
+                *default,
+            ));
+            for case in cases {
+                edges.push((
+                    mir::EdgeKey::new(
+                        source,
+                        mir::EdgeKind::SwitchCase { value: case.value },
+                        case.target,
+                    ),
+                    case.target,
+                ));
+            }
+            edges
+        }
+        mir::Terminator::Yield { resume, .. } => vec![(
+            mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, *resume),
+            *resume,
+        )],
+        mir::Terminator::Return { .. }
+        | mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
     }
 }
 
@@ -295,5 +540,15 @@ mod tests {
 
         let hotness = callsite_hotness(Some(&profile), caller, callsite, &policy);
         assert_eq!(hotness, CallsiteHotness::Unknown);
+    }
+
+    /// Estimated counts retain a non zero signal after scaling.
+    #[test]
+    fn test_scaled_profile_count_clamps_non_zero() {
+        let policy = ProfileScalingPolicy::new(10, 10);
+        let count = mir::ProfileCount::new(1, mir::ProfileConfidence::Estimated);
+
+        let scaled = scaled_profile_count(count, mir::ProfileSource::Instrumentation, &policy);
+        assert_eq!(scaled, 1);
     }
 }

@@ -523,7 +523,6 @@ impl TestProgram {
         };
 
         // return the targets
-
         (*then_target, *else_target)
     }
 
@@ -539,7 +538,6 @@ impl TestProgram {
         };
 
         // return the target
-
         *target
     }
 
@@ -583,10 +581,30 @@ impl TestProgram {
         block: mir::LocalNodeId<mir::Block>,
         count: u64,
     ) {
+        // record the block execution count
         profile.blocks.insert(
             block,
             mir::BlockProfile {
                 execution_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+            },
+        );
+    }
+
+    /// Record a control flow edge profile count.
+    pub(crate) fn record_edge_profile(
+        &self,
+        profile: &mut mir::ProfileTable,
+        source: mir::LocalNodeId<mir::Block>,
+        kind: mir::EdgeKind,
+        target: mir::LocalNodeId<mir::Block>,
+        count: u64,
+    ) {
+        // record the edge execution count
+        let edge = mir::EdgeKey::new(source, kind, target);
+        profile.edges.insert(
+            edge,
+            mir::EdgeProfile {
+                count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
             },
         );
     }

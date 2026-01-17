@@ -1,3 +1,4 @@
+mod cfg_layout;
 mod code_hoisting;
 mod constant_fold;
 mod copy_propagate;
@@ -17,6 +18,7 @@ mod sink;
 mod tail_call_elim;
 mod value_range_prop;
 
+pub use cfg_layout::*;
 pub use code_hoisting::*;
 pub use constant_fold::*;
 pub use copy_propagate::*;
