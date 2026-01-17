@@ -25,6 +25,7 @@ destack_workspace = { workspace = true }
 
 # general
 crossbeam-deque = { workspace = true }
+crossbeam-channel = { workspace = true }
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
