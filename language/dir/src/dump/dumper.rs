@@ -2164,9 +2164,9 @@ impl<'a> Dumper<'a> {
             .end();
         self.with_depth(|dumper| {
             // symbols
-            for (_key, symbol_id) in scope.named_symbols.iter() {
-                let symbol = symbols.get_symbol(*symbol_id);
-                dumper.visit_symbol(tree, symbols, *symbol_id, symbol);
+            for (_key, symbol_id) in symbols.active_named_symbols(scope) {
+                let symbol = symbols.get_symbol(symbol_id);
+                dumper.visit_symbol(tree, symbols, symbol_id, symbol);
             }
             // children
             for child_id in scope.children.iter() {

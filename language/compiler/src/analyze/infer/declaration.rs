@@ -533,7 +533,9 @@ impl Compiler {
                 if let Some(this_ty_id) = this_ty_id {
                     let this_name = self.program.strings.intern("this");
                     let (_scope_id, scope, _mark) = symbols.get_scope(member_id, tree);
-                    if let Some(this_symbol) = scope.find(StaticKey::Name(this_name)) {
+                    if let Some(this_symbol) =
+                        symbols.find_active_symbol(scope, StaticKey::Name(this_name))
+                    {
                         types.set_value_type(this_symbol.into_global(module.id), this_ty_id);
                     }
                 }

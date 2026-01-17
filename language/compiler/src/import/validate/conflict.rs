@@ -22,15 +22,15 @@ impl Compiler {
             // group symbols by name and category to avoid O(n^2) scans
             let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
                 HashMap::new();
-            for (key, symbol_id) in scope.named_symbols.iter() {
-                let symbol = symbols.get_symbol(*symbol_id);
+            for (key, symbol_id) in symbols.active_named_symbols(scope) {
+                let symbol = symbols.get_symbol(symbol_id);
                 let Some(primary_declaration) = symbol.primary_declaration else {
                     continue;
                 };
                 let category = SymbolCategory::from(symbol);
-                let entry = buckets.entry(*key).or_default();
+                let entry = buckets.entry(key).or_default();
                 for other_symbol_id in entry.values() {
-                    if *other_symbol_id == *symbol_id {
+                    if *other_symbol_id == symbol_id {
                         continue;
                     }
                     let other_symbol = symbols.get_symbol(*other_symbol_id);
@@ -63,20 +63,20 @@ impl Compiler {
                             node: primary_declaration.into_anchored(None),
                             other_node: other_primary_declaration.into_anchored(None),
                             module: module.id,
-                            name: Some(*key),
+                            name: Some(key),
                         }
                     } else {
                         ImportError::ConflictingBinding {
                             node: primary_declaration.into_anchored(None),
                             other_node: other_primary_declaration.into_anchored(None),
                             scope: symbol.scope.0.into_global(module.id),
-                            name: Some(*key),
+                            name: Some(key),
                         }
                     };
                     self.error(error);
                     break;
                 }
-                entry.entry(category).or_insert(*symbol_id);
+                entry.entry(category).or_insert(symbol_id);
             }
         }
     }

@@ -41,6 +41,10 @@ impl Compiler {
         // collect member expressions used as call or new callees
         let mut member_callees: HashSet<u32> = HashSet::new();
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                continue;
+            }
+
             let (Expression::Call { left, .. } | Expression::New { left, .. }) =
                 tree.get(expression_id)
             else {
@@ -62,6 +66,10 @@ impl Compiler {
 
         // reify expression nodes
         for expression_id in tree.iter_node_ids_of_type::<Expression>() {
+            if !self.is_node_active(&tree, &symbols, expression_id.into_any()) {
+                continue;
+            }
+
             self.reify_expression(
                 module_id,
                 profile,
@@ -75,7 +83,7 @@ impl Compiler {
         }
 
         // normalize return if expressions introduced during reify
-        self.transform_normalize_value_expressions(&mut tree, module_id)?;
+        self.transform_normalize_value_expressions(&mut tree, &symbols, module_id)?;
 
         // collapse redundant nested casts
         self.normalize_redundant_casts(

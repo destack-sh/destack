@@ -17,6 +17,7 @@ impl Compiler {
         let if_ids: Vec<_> = tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
+            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
             .filter(|id| {
                 matches!(
                     tree.get(*id),
@@ -116,12 +117,12 @@ impl Compiler {
             }
 
             // fall back to any symbol in the root scope
-            if let Some((_, symbol_id)) = scope.named_symbols.first() {
-                return Ok(*symbol_id);
+            if let Some((_, symbol_id)) = symbols.active_named_symbols(scope).next() {
+                return Ok(symbol_id);
             }
 
-            if let Some(symbol_id) = scope.anonymous_symbols.first() {
-                return Ok(*symbol_id);
+            if let Some(symbol_id) = symbols.active_anonymous_symbols(scope).next() {
+                return Ok(symbol_id);
             }
 
             // surface a graceful error when no symbol exists

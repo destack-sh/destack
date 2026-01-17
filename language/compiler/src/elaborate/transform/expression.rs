@@ -33,12 +33,12 @@ impl Compiler {
 
         // 0. split multi-declarators into individual lets
         if self.options.elaborate_split_declarators {
-            self.transform_split_declarators(&mut tree)?;
+            self.transform_split_declarators(&mut tree, &symbols)?;
         }
 
         // 1. unwrap single-expression blocks in SOURCE if/else
         // this must happen BEFORE match transform so match-generated blocks stay
-        self.unwrap_single_expression_blocks(&mut tree)?;
+        self.unwrap_single_expression_blocks(&mut tree, &symbols)?;
 
         // 2. lower if let expressions into match
         self.transform_if_let(&mut tree, &symbols, &types)?;
@@ -48,7 +48,7 @@ impl Compiler {
 
         // 4. ternary optimization (only for source if/else that were unwrapped)
         if self.options.elaborate_with_ternary {
-            self.transform_if_to_ternary(&mut tree)?;
+            self.transform_if_to_ternary(&mut tree, &symbols)?;
         }
 
         // 5. implicit returns → explicit return statements
@@ -57,10 +57,10 @@ impl Compiler {
         }
 
         // 6. drop parenthesized expressions
-        self.transform_drop_parenthesized(&mut tree)?;
+        self.transform_drop_parenthesized(&mut tree, &symbols)?;
 
         // 7. normalize value expressions into statement form
-        self.transform_normalize_value_expressions(&mut tree, module_id)?;
+        self.transform_normalize_value_expressions(&mut tree, &symbols, module_id)?;
 
         Ok(())
     }

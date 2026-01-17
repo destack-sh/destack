@@ -8,9 +8,9 @@ use destack_dir::{
     BindingOperator, Declaration, Dumper, DumperOptions, DynamicKey, Export, ExportKind,
     Expression, FunctionAbstraction, FunctionCardinality, FunctionKind, FunctionMode,
     FunctionSignature, Generics, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntrinsicType,
-    LocalSymbolId, LocalTypeId, Mutability, NodeType, NodeVisitor, Parameter, Path, PrimitiveType,
-    Property, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty, Symbol,
-    SymbolKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Timing, Type, TypeBinaryOperator,
+    LocalTypeId, Mutability, NodeType, NodeVisitor, Parameter, Path, PrimitiveType, Property,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticKey, StaticProperty, Symbol, SymbolKey,
+    SymbolKind, SymbolSpace, SymbolTable, SymbolType, Timing, Type, TypeBinaryOperator,
     TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedModifiers,
     TypeMappedParameter, TypeModifier, TypePredicateSubject, TypeTable, TypeUnaryOperator,
     VarianceBound, WhereClause,
@@ -254,7 +254,7 @@ impl Compiler {
         // gather augmentation symbols
         let mut augmentations = Vec::new();
         let mut augmentation_signatures = IndexMap::new();
-        for symbol_id in (0..symbols.symbol_count()).map(LocalSymbolId::new) {
+        for symbol_id in symbols.active_symbol_ids() {
             let symbol = symbols.get_symbol(symbol_id);
             if !symbol.origin.is_global_augmentation() {
                 continue;

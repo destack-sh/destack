@@ -4,7 +4,6 @@ mod error;
 mod infer;
 mod options;
 mod process;
-mod r#static;
 mod validate;
 mod warning;
 

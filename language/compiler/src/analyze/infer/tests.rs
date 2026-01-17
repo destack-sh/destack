@@ -570,11 +570,11 @@ const thing: GlobalThing = { value: 1, label: "ok" };
 
     // locate the bound symbol for thing in the module scope
     let namespace_scope = view.symbols().get_scope_by_id(dir.namespace_scope);
-    let thing_symbol = namespace_scope
-        .named_symbols
-        .iter()
+    let thing_symbol = view
+        .symbols()
+        .active_named_symbols(namespace_scope)
         .find_map(|(key, symbol_id)| match key {
-            StaticKey::Name(name_id) if *name_id == thing_name => Some(*symbol_id),
+            StaticKey::Name(name_id) if name_id == thing_name => Some(symbol_id),
             _ => None,
         })
         .expect("missing symbol for thing")

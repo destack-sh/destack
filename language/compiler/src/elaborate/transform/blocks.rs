@@ -1,4 +1,4 @@
-use destack_dir::{Expression, LocalNodeId, NodeTree};
+use destack_dir::{Expression, LocalNodeId, NodeTree, SymbolTable};
 
 use crate::{Compiler, ElaborateResult};
 
@@ -8,10 +8,12 @@ impl Compiler {
     pub(super) fn unwrap_single_expression_blocks(
         &self,
         tree: &mut NodeTree,
+        symbols: &SymbolTable,
     ) -> ElaborateResult<()> {
         let if_ids: Vec<_> = tree
             .iter_node_ids_of_type::<Expression>()
             .into_iter()
+            .filter(|id| self.is_node_active(tree, symbols, id.into_any()))
             .filter(|id| matches!(tree.get(*id), Expression::If { .. }))
             .collect();
 
@@ -50,10 +52,18 @@ impl Compiler {
     }
 
     /// Drop parenthesized expressions from canonical DIR.
-    pub(super) fn transform_drop_parenthesized(&self, tree: &mut NodeTree) -> ElaborateResult<()> {
+    pub(super) fn transform_drop_parenthesized(
+        &self,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+    ) -> ElaborateResult<()> {
         let expression_ids: Vec<_> = tree.iter_node_ids_of_type::<Expression>();
-
         for expression_id in expression_ids {
+            // skip inactive expressions
+            if !self.is_node_active(tree, symbols, expression_id.into_any()) {
+                continue;
+            }
+
             let Expression::Parenthesized { expression } = tree.get(expression_id).clone() else {
                 continue;
             };

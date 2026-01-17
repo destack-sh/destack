@@ -1,6 +1,6 @@
 use destack_dir::{
     Asynchrony, Block, DeclarationDescriptor, Expression, LocalNodeId, Mutability, NodeTree,
-    NodeType,
+    NodeType, SymbolTable,
 };
 
 use crate::{Compiler, ElaborateResult};
@@ -17,11 +17,18 @@ impl Compiler {
     /// let a = 1;
     /// let b = 2;
     /// ```
-    pub(super) fn transform_split_declarators(&self, tree: &mut NodeTree) -> ElaborateResult<()> {
+    pub(super) fn transform_split_declarators(
+        &self,
+        tree: &mut NodeTree,
+        symbols: &SymbolTable,
+    ) -> ElaborateResult<()> {
         // collect all blocks that need transformation
         let block_ids: Vec<_> = tree.iter_node_ids_of_type::<Block>();
 
         for block_id in block_ids {
+            if !self.is_node_active(tree, symbols, block_id.into_any()) {
+                continue;
+            }
             self.split_declarators_in_block(block_id, tree)?;
         }
 

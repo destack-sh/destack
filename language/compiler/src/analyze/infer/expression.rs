@@ -2333,7 +2333,9 @@ impl Compiler {
         let this_name = self.program.strings.intern("this");
         let mut scope = symbols.get_scope(expression_id, tree);
         loop {
-            if let Some(symbol_id) = scope.1.find_up_to(StaticKey::Name(this_name), scope.2) {
+            if let Some(symbol_id) =
+                symbols.find_active_symbol_up_to(scope.1, StaticKey::Name(this_name), scope.2)
+            {
                 return Some(symbol_id.into_global(module.id));
             }
             let (parent_scope_id, parent_mark) = scope.1.parent?;
@@ -2359,13 +2361,15 @@ impl Compiler {
 
         loop {
             // scan for a value or type value symbol with the requested name
-            let limit = scope.2.0 as usize;
-            for (candidate_key, symbol_id) in scope.1.named_symbols.iter().take(limit).rev() {
-                if *candidate_key != key {
+            let mut candidates = symbols
+                .active_named_symbols_up_to(scope.1, scope.2)
+                .collect::<Vec<_>>();
+            for (candidate_key, symbol_id) in candidates.drain(..).rev() {
+                if candidate_key != key {
                     continue;
                 }
 
-                let symbol = symbols.get_symbol(*symbol_id);
+                let symbol = symbols.get_symbol(symbol_id);
                 if matches!(symbol.space, SymbolSpace::Value | SymbolSpace::TypeValue) {
                     return Some(symbol_id.into_global(module.id));
                 }

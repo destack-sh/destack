@@ -1,90 +1,11 @@
-use crate::Compiler;
-use destack_dir::{
-    BinaryOperator, Expression, LocalNodeId, NodeTree, ScalarLiteral, StaticExpression,
-    UnaryOperator,
-};
-
-impl Compiler {
-    /// Evaluate an expression into a static value expression.
-    pub(crate) fn evaluate_static_expression_value(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-        tree: &NodeTree,
-    ) -> Option<StaticExpression> {
-        let expression = tree.get(expression_id);
-        match expression {
-            Expression::ScalarLiteral { value } => Some(StaticExpression::ScalarLiteral {
-                value: value.clone(),
-            }),
-            Expression::TypeLiteral { value } => Some(StaticExpression::TypeLiteral {
-                value: value.clone(),
-            }),
-            Expression::Type { value } => Some(StaticExpression::Type { ty: *value }),
-            Expression::Parenthesized { expression } => {
-                self.evaluate_static_expression_value(*expression, tree)
-            }
-            Expression::Unary { operator, right } => {
-                let right_value = self.evaluate_static_expression_value(*right, tree)?;
-                let StaticExpression::ScalarLiteral { value } = right_value else {
-                    return None;
-                };
-                let value = evaluate_unary_scalar(*operator, &value)?;
-                Some(StaticExpression::ScalarLiteral { value })
-            }
-            Expression::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let left_value = self.evaluate_static_expression_value(*left, tree)?;
-                let right_value = self.evaluate_static_expression_value(*right, tree)?;
-                let StaticExpression::ScalarLiteral { value: left_value } = left_value else {
-                    return None;
-                };
-                let StaticExpression::ScalarLiteral { value: right_value } = right_value else {
-                    return None;
-                };
-                let value = evaluate_binary_scalar(*operator, &left_value, &right_value)?;
-                Some(StaticExpression::ScalarLiteral { value })
-            }
-            Expression::RangeExpression {
-                start,
-                end,
-                is_inclusive,
-            } => {
-                let start_value = self.evaluate_static_expression_value(*start, tree)?;
-                let end_value = self.evaluate_static_expression_value(*end, tree)?;
-                Some(StaticExpression::RangeExpression {
-                    start: Box::new(start_value),
-                    end: Box::new(end_value),
-                    is_inclusive: *is_inclusive,
-                })
-            }
-            Expression::ArrayExpression { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-                for element_id in elements {
-                    let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value(element.value(), tree)?;
-                    values.push(value);
-                }
-                Some(StaticExpression::ArrayExpression { elements: values })
-            }
-            Expression::TupleExpression { elements } => {
-                let mut values = Vec::with_capacity(elements.len());
-                for element_id in elements {
-                    let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value(element.value(), tree)?;
-                    values.push(value);
-                }
-                Some(StaticExpression::TupleExpression { elements: values })
-            }
-            _ => None,
-        }
-    }
-}
+use destack_dir::{BinaryOperator, ScalarLiteral, UnaryOperator};
 
 /// Evaluate a unary operator on scalar literals.
-fn evaluate_unary_scalar(operator: UnaryOperator, right: &ScalarLiteral) -> Option<ScalarLiteral> {
+pub(crate) fn evaluate_unary_scalar(
+    operator: UnaryOperator,
+    right: &ScalarLiteral,
+) -> Option<ScalarLiteral> {
+    // dispatch unary operator behavior
     match operator {
         UnaryOperator::Not => match right {
             ScalarLiteral::Boolean(value) => Some(ScalarLiteral::Boolean(!value)),
@@ -112,11 +33,12 @@ fn evaluate_unary_scalar(operator: UnaryOperator, right: &ScalarLiteral) -> Opti
 }
 
 /// Evaluate a binary operator on scalar literals.
-fn evaluate_binary_scalar(
+pub(crate) fn evaluate_binary_scalar(
     operator: BinaryOperator,
     left: &ScalarLiteral,
     right: &ScalarLiteral,
 ) -> Option<ScalarLiteral> {
+    // dispatch binary operator behavior
     match operator {
         BinaryOperator::Add => evaluate_numeric_binary(left, right, |a, b| a + b, |a, b| a + b),
         BinaryOperator::Subtract => {
@@ -177,6 +99,7 @@ fn evaluate_numeric_binary(
     int_op: fn(i64, i64) -> i64,
     float_op: fn(f64, f64) -> f64,
 ) -> Option<ScalarLiteral> {
+    // dispatch numeric literal combinations
     match (left, right) {
         (ScalarLiteral::Integer(a), ScalarLiteral::Integer(b)) => {
             Some(ScalarLiteral::Integer(int_op(*a, *b)))
@@ -197,12 +120,13 @@ fn evaluate_numeric_binary(
     }
 }
 
-/// Evaluate a binary operator on integer-like literals.
+/// Evaluate a binary operator on integer like literals.
 fn evaluate_integer_binary(
     left: &ScalarLiteral,
     right: &ScalarLiteral,
     op: fn(i64, i64) -> i64,
 ) -> Option<ScalarLiteral> {
+    // dispatch integer like literal combinations
     match (left, right) {
         (ScalarLiteral::Integer(a), ScalarLiteral::Integer(b)) => {
             Some(ScalarLiteral::Integer(op(*a, *b)))
@@ -214,18 +138,20 @@ fn evaluate_integer_binary(
     }
 }
 
-/// Evaluate a shift operator on integer-like literals.
+/// Evaluate a shift operator on integer like literals.
 fn evaluate_shift_binary(
     left: &ScalarLiteral,
     right: &ScalarLiteral,
     op: fn(i64, u32) -> i64,
 ) -> Option<ScalarLiteral> {
+    // resolve the shift amount
     let shift = match right {
         ScalarLiteral::Integer(value) => (*value).try_into().ok(),
         ScalarLiteral::Bigint(value) => (*value).try_into().ok(),
         _ => None,
     }?;
 
+    // apply the shift to integer like values
     match left {
         ScalarLiteral::Integer(value) => Some(ScalarLiteral::Integer(op(*value, shift))),
         ScalarLiteral::Bigint(value) => Some(ScalarLiteral::Bigint(op(*value, shift))),
@@ -239,6 +165,7 @@ fn evaluate_compare_binary(
     right: &ScalarLiteral,
     op: fn(f64, f64) -> bool,
 ) -> Option<ScalarLiteral> {
+    // normalize operands to f64 for comparisons
     let (left, right) = match (left, right) {
         (ScalarLiteral::Integer(a), ScalarLiteral::Integer(b)) => (*a as f64, *b as f64),
         (ScalarLiteral::Bigint(a), ScalarLiteral::Bigint(b)) => (*a as f64, *b as f64),
@@ -248,5 +175,6 @@ fn evaluate_compare_binary(
         _ => return None,
     };
 
+    // evaluate the comparison
     Some(ScalarLiteral::Boolean(op(left, right)))
 }

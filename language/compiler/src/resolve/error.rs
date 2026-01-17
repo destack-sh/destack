@@ -132,4 +132,11 @@ pub enum ResolveError {
     /// Unsupported node.
     #[error(code = "ER900", message = "unsupported {node}")]
     UnsupportedConstruct { node: AnchoredGlobalNodeId },
+
+    /// Invalid static if decorator.
+    #[error(code = "ER901", message = "invalid static if: {message}")]
+    InvalidStaticIf {
+        node: AnchoredGlobalNodeId,
+        message: String,
+    },
 }

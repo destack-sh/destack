@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_source::ModuleId;
@@ -56,6 +56,8 @@ pub struct NodeTree {
     alias_node_id_by_node_id: HashMap<u32, u32>,
     /// The annotations attached to nodes.
     annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
+    /// The node ids explicitly marked inactive.
+    inactive_node_ids: HashSet<u32>,
 }
 
 impl Debug for NodeTree {
@@ -103,7 +105,18 @@ impl NodeTree {
             alias_node_id_by_source_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
             annotations_by_node_id: HashMap::new(),
+            inactive_node_ids: HashSet::new(),
         }
+    }
+
+    /// Mark a node id as inactive.
+    pub fn mark_inactive(&mut self, node_id: LocalNodeIdAny) {
+        self.inactive_node_ids.insert(node_id.id);
+    }
+
+    /// Check whether a node id is inactive.
+    pub fn is_inactive(&self, node_id: u32) -> bool {
+        self.inactive_node_ids.contains(&node_id)
     }
 
     /// Reserve a new node slot in the tree for a node lowered from an AST node.
@@ -352,17 +365,25 @@ impl NodeTree {
         self.scopes_by_node_id[node_id.id as usize]
     }
 
-    /// Append a doc to a node by its global id.
+    /// Append an annotation to a node by its global id.
     #[inline]
     pub fn append_annotation(
         &mut self,
         target_id: LocalNodeIdAny,
         annotation: LocalNodeId<Annotation>,
     ) {
+        // track annotations for the target node
         self.annotations_by_node_id
             .entry(target_id.id)
             .or_default()
             .push(annotation);
+
+        // attach the annotation to its target for parent lookups
+        if annotation.id != target_id.id
+            && let Some(parent_slot) = self.parent_id_by_node_id.get_mut(annotation.id as usize)
+        {
+            *parent_slot = Some(target_id.id);
+        }
     }
 
     /// Whether there are any annotations attached to a node.

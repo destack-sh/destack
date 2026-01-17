@@ -239,9 +239,18 @@ pub struct Symbol {
     pub canonical_symbol: Option<GlobalSymbolId>,
     /// Decorators applied to the symbol.
     pub decorators: SymbolDecorators,
+    /// Whether the symbol is active for the current profile.
+    #[serde(default)]
+    pub is_active: bool,
 }
 
 impl Symbol {
+    /// Check whether the symbol is active.
+    #[inline]
+    pub fn is_active(&self) -> bool {
+        self.is_active
+    }
+
     /// Get the name of the symbol.
     #[inline]
     pub fn name(&self) -> Option<StringId> {

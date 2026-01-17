@@ -1,6 +1,6 @@
 use destack_dir::{
     Block, DeclarationDescriptor, Declarator, Expression, IfCondition, IfKind, LocalNodeId,
-    Mutability, NodeTree, NodeType, Path,
+    Mutability, NodeTree, NodeType, Path, SymbolTable,
 };
 use destack_source::ModuleId;
 use smallvec::smallvec;
@@ -16,6 +16,7 @@ impl Compiler {
     pub(crate) fn transform_normalize_value_expressions(
         &self,
         tree: &mut NodeTree,
+        symbols: &SymbolTable,
         module_id: ModuleId,
     ) -> ElaborateResult<()> {
         // collect all block ids to process (we modify the tree, so collect first)
@@ -23,6 +24,9 @@ impl Compiler {
 
         // process each block
         for block_id in block_ids {
+            if !self.is_node_active(tree, symbols, block_id.into_any()) {
+                continue;
+            }
             self.normalize_block_expressions(block_id, tree, module_id)?;
         }
 
