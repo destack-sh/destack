@@ -128,7 +128,7 @@ impl Compiler {
         let profile = mir.profile.clone();
 
         // resolve pipeline options
-        let options = self.pipeline_options_for_module(&module_guard, &target_config);
+        let options = self.pipeline_options_for_module(&module_guard, &target_config, level);
 
         // count mir size before optimization
         let before = count_mir_size(&tree);
@@ -206,7 +206,7 @@ impl Compiler {
             // gather module references and options
             let module_ref = self.program.modules.get(module);
             let module_guard = module_ref.read();
-            let options = self.pipeline_options_for_module(&module_guard, &target_config);
+            let options = self.pipeline_options_for_module(&module_guard, &target_config, level);
             drop(module_guard);
 
             // track size before optimization
@@ -314,7 +314,7 @@ impl Compiler {
                 // gather module references and options
                 let module_ref = self.program.modules.get(module);
                 let module_guard = module_ref.read();
-                let options = self.pipeline_options_for_module(&module_guard, &target);
+                let options = self.pipeline_options_for_module(&module_guard, &target, level);
                 drop(module_guard);
 
                 // track size before optimization
@@ -423,7 +423,12 @@ impl Compiler {
     }
 
     /// Resolve pipeline options for a module and target.
-    fn pipeline_options_for_module(&self, module: &Module, target: &Target) -> PipelineOptions {
+    fn pipeline_options_for_module(
+        &self,
+        module: &Module,
+        target: &Target,
+        level: OptimizationLevel,
+    ) -> PipelineOptions {
         // resolve strict borrow mode from config
         let strict_borrow_mode = self
             .program
@@ -433,11 +438,45 @@ impl Compiler {
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);
 
+        // resolve unroll threshold
+        let unroll_threshold = target
+            .unroll_threshold
+            .unwrap_or_else(|| Self::unroll_threshold_for_level(level));
+        let unroll_threshold = unroll_threshold.min(usize::MAX as u64) as usize;
+
+        let inline_budget_scale_percent = target
+            .inline_budget_scale_percent
+            .unwrap_or_else(|| Self::inline_budget_scale_percent_for_level(level));
+
         PipelineOptions {
             strict_borrow_mode,
             float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },
+            unroll_threshold,
+            inline_budget_scale_percent,
             ..Default::default()
+        }
+    }
+
+    /// Resolve unroll threshold from an optimization level.
+    fn unroll_threshold_for_level(level: OptimizationLevel) -> u64 {
+        match level {
+            OptimizationLevel::O0 => 0,
+            OptimizationLevel::O1 => 0,
+            OptimizationLevel::O2 => 200,
+            OptimizationLevel::O3 => 300,
+            OptimizationLevel::O4 => 400,
+        }
+    }
+
+    /// Resolve inline budget scale percent from an optimization level.
+    fn inline_budget_scale_percent_for_level(level: OptimizationLevel) -> u64 {
+        match level {
+            OptimizationLevel::O0 => 50,
+            OptimizationLevel::O1 => 75,
+            OptimizationLevel::O2 => 100,
+            OptimizationLevel::O3 => 140,
+            OptimizationLevel::O4 => 180,
         }
     }
 

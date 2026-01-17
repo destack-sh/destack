@@ -8,8 +8,8 @@ use destack_workspace::{FloatMathPolicy, TargetId};
 use parking_lot::Mutex;
 
 use crate::optimize::{
-    DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem, PackageAnalyses,
-    PackageWorkset, ProgramAnalyses, ProgramWorkset,
+    CallsiteHotnessPolicy, DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem,
+    PackageAnalyses, PackageWorkset, ProgramAnalyses, ProgramWorkset,
 };
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -107,6 +107,14 @@ pub struct PipelineOptions {
     pub float_math: FloatMathPolicy,
     /// Type context for layout sensitive optimizations.
     pub type_context: TypeContext,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: usize,
+    /// Callsite hotness thresholds for inlining decisions.
+    pub inline_hotness_policy: CallsiteHotnessPolicy,
+    /// Callsite hotness thresholds for argument specialization.
+    pub specialize_hotness_policy: CallsiteHotnessPolicy,
+    /// Inline size and budget scaling for this optimization level.
+    pub inline_budget_scale_percent: u64,
 }
 
 impl Default for PipelineOptions {
@@ -116,6 +124,10 @@ impl Default for PipelineOptions {
             sroa_max_array_elements: 8,
             float_math: FloatMathPolicy::Strict,
             type_context: TypeContext::default(),
+            unroll_threshold: 200,
+            inline_hotness_policy: CallsiteHotnessPolicy::inline_default(),
+            specialize_hotness_policy: CallsiteHotnessPolicy::specialize_default(),
+            inline_budget_scale_percent: 100,
         }
     }
 }
@@ -124,6 +136,26 @@ impl PipelineOptions {
     /// Return the type context for this pipeline run.
     pub fn type_context(&self) -> TypeContext {
         self.type_context
+    }
+
+    /// Return the loop unroll threshold for this pipeline run.
+    pub fn unroll_threshold(&self) -> usize {
+        self.unroll_threshold
+    }
+
+    /// Return the callsite policy for inline decisions.
+    pub fn inline_hotness_policy(&self) -> &CallsiteHotnessPolicy {
+        &self.inline_hotness_policy
+    }
+
+    /// Return the callsite policy for specialization decisions.
+    pub fn specialize_hotness_policy(&self) -> &CallsiteHotnessPolicy {
+        &self.specialize_hotness_policy
+    }
+
+    /// Return the inline budget scale percent for this pipeline run.
+    pub fn inline_budget_scale_percent(&self) -> u64 {
+        self.inline_budget_scale_percent
     }
 }
 
@@ -219,6 +251,26 @@ impl<'a> PipelineContext<'a> {
     /// Return true when profile data is available.
     pub fn has_profile(&self) -> bool {
         self.profile.is_some()
+    }
+
+    /// Return the loop unroll threshold for this pipeline run.
+    pub fn unroll_threshold(&self) -> usize {
+        self.options.unroll_threshold()
+    }
+
+    /// Return the callsite policy for inline decisions.
+    pub fn inline_hotness_policy(&self) -> &CallsiteHotnessPolicy {
+        self.options.inline_hotness_policy()
+    }
+
+    /// Return the callsite policy for specialization decisions.
+    pub fn specialize_hotness_policy(&self) -> &CallsiteHotnessPolicy {
+        self.options.specialize_hotness_policy()
+    }
+
+    /// Return the inline budget scale percent for this pipeline run.
+    pub fn inline_budget_scale_percent(&self) -> u64 {
+        self.options.inline_budget_scale_percent()
     }
 
     /// Create module level analyses for a tree.

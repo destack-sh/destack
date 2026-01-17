@@ -1298,6 +1298,10 @@ pub struct Target {
     pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: Option<u64>,
+    /// Inline budget scaling in percent.
+    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
     /// Shrink level (code size reduction).
@@ -1772,6 +1776,18 @@ impl Target {
     /// Set the optimization level.
     pub fn with_optimize_level(mut self, level: OptimizeLevel) -> Self {
         self.optimize_level = level;
+        self
+    }
+
+    /// Set the loop unroll threshold.
+    pub fn with_unroll_threshold(mut self, unroll_threshold: u64) -> Self {
+        self.unroll_threshold = Some(unroll_threshold);
+        self
+    }
+
+    /// Set the inline budget scale percent.
+    pub fn with_inline_budget_scale_percent(mut self, inline_budget_scale_percent: u64) -> Self {
+        self.inline_budget_scale_percent = Some(inline_budget_scale_percent);
         self
     }
 

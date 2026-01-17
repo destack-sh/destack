@@ -1037,6 +1037,10 @@ pub struct DsConfigTargetOptions {
     pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: Option<u64>,
+    /// Inline budget scaling in percent.
+    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
     /// Shrink level (code size reduction).
@@ -1122,6 +1126,8 @@ impl Default for DsConfigTargetOptions {
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
+            unroll_threshold: None,
+            inline_budget_scale_percent: None,
             lto_mode: LtoMode::default(),
             shrink_level: ShrinkLevel::S0,
             float_math: FloatMathPolicy::default(),
@@ -1205,6 +1211,8 @@ impl DsConfigTargetOptions {
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
+            unroll_threshold: self.unroll_threshold,
+            inline_budget_scale_percent: self.inline_budget_scale_percent,
             lto_mode: self.lto_mode,
             shrink_level: self.shrink_level,
             float_math: self.float_math,
@@ -1318,6 +1326,8 @@ impl From<&DsConfigTargetJson> for DsConfigTargetOptions {
                 .optimize_level
                 .map(OptimizeLevel::from)
                 .unwrap_or_default(),
+            unroll_threshold: json.unroll_threshold,
+            inline_budget_scale_percent: json.inline_budget_scale_percent,
             lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
             shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
             float_math: json
@@ -2493,6 +2503,10 @@ pub struct DsConfigTargetJson {
     pub optimize: bool,
     /// Optimization level (0-4).
     pub optimize_level: Option<u8>,
+    /// Loop unroll threshold in instructions.
+    pub unroll_threshold: Option<u64>,
+    /// Inline budget scaling in percent.
+    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: Option<LtoModeJson>,
     /// Shrink level (0-3).
