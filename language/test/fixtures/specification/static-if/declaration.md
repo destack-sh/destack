@@ -15,6 +15,17 @@ const hidden = missingSymbol;
 const visible = 1;
 ```
 
+### static if keeps const declarations when true
+
+> Declarations gated by true static if conditions remain available.
+
+```ds
+@if(true)
+const value = 1;
+
+value satisfies number;
+```
+
 ### static if gates function declarations
 
 > Gated function declarations are removed before resolution.
@@ -30,6 +41,20 @@ function visible(): number {
 }
 ```
 
+### static if keeps function declarations when true
+
+> Function declarations gated by true static if conditions remain available.
+
+```ds
+@if(true)
+function add(left: number, right: number): number {
+    return left + right;
+}
+
+const total = add(1, 2);
+total satisfies number;
+```
+
 ### static if gates type aliases
 
 > Gated type aliases are removed before resolution.
@@ -39,6 +64,18 @@ function visible(): number {
 type Hidden = MissingType;
 
 type Visible = number;
+```
+
+### static if keeps type aliases when true
+
+> Type aliases gated by true static if conditions remain available.
+
+```ds
+@if(true)
+type Visible = number;
+
+declare const value: Visible;
+value satisfies number;
 ```
 
 ### static if combines multiple decorators

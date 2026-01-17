@@ -15,6 +15,17 @@ missingSymbol;
 const value = 1;
 ```
 
+### static if keeps module statements when true
+
+> Module statements gated by true static if conditions remain available.
+
+```ds
+@if(true)
+const value = 1;
+
+value satisfies number;
+```
+
 ### static if gates block statements
 
 > Block statements gated by static if are removed before resolution.
@@ -25,6 +36,21 @@ function demo(): number {
     missingSymbol;
 
     return 1;
+}
+```
+
+### static if keeps block statements when true
+
+> Block statements gated by true static if conditions remain available.
+
+```ds
+function demo(): number {
+    let value: number = 0;
+
+    @if(true)
+    value = 1;
+
+    return value;
 }
 ```
 

@@ -800,7 +800,7 @@ mod tests {
     use destack_ast::{
         Annotation, AnnotationPosition, BinaryOperator, Blank, Block, BlockFormat, Comment,
         CommentStyle, Declaration, DeclarationDescriptor, Declarator, Decorator, Doc, DocStyle,
-        Expression, Key, Member, Name, TypeKind,
+        Expression, FunctionMode, Key, Member, Name, TypeKind,
     };
 
     use crate::{TestParser, assert_node, assert_path, assert_string};
@@ -891,6 +891,59 @@ let y;
                 assert!(arguments.is_none());
             });
         });
+    }
+
+    /// Decorator annotations on accessors should attach to the member node.
+    #[test]
+    fn test_attach_decorator_to_accessor_member() {
+        // parse a class with decorator gated accessors
+        let input = r#"
+class Box {
+    @if(true)
+    get value(): int32 {
+        return 1;
+    }
+
+    @if(true)
+    set value(next: int32) {
+        let _ = next;
+    }
+}
+"#;
+        let mut test_parser = TestParser::new(input);
+        let mut parser = test_parser.prepare();
+        parser.parse();
+
+        // locate the getter and setter members
+        let mut getter_id = None;
+        let mut setter_id = None;
+        for member_id in parser.tree.get_nodes::<Member>() {
+            // skip non method members
+            let Member::Method { signature, .. } = parser.tree.get(member_id) else {
+                continue;
+            };
+
+            // record accessor members
+            match signature.mode {
+                Some(FunctionMode::Getter) => getter_id = Some(member_id),
+                Some(FunctionMode::Setter) => setter_id = Some(member_id),
+                _ => {}
+            }
+        }
+
+        // confirm both accessors were parsed
+        let getter_id = getter_id.expect("expected getter member");
+        let setter_id = setter_id.expect("expected setter member");
+
+        // confirm decorators were attached to accessor members
+        assert!(
+            !parser.tree.get_annotations(getter_id.id).is_empty(),
+            "expected getter annotations"
+        );
+        assert!(
+            !parser.tree.get_annotations(setter_id.id).is_empty(),
+            "expected setter annotations"
+        );
     }
 
     /// Decorator annotations on enum and its variants should be attached correctly.
