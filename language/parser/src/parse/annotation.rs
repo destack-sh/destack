@@ -22,26 +22,13 @@ impl Parser {
         // parse out all the side annotations
         while let Ok(token) = self.peek() {
             // @
-            if token.token.ty == TokenType::At
-                && let Ok(&next) = self.peek_next()
-            {
-                // speculatively parse the decorator
-                let speculative_start = (self.mark(), self.tree.next_id());
-                let decorator = self.with_recovery(
+            if token.token.ty == TokenType::At {
+                self.with_recovery(
                     self.mark(),
                     |parser| parser.eat_decorator().map(Some),
                     None,
                     TokenType::Newline,
                 );
-
-                // allow `@if(...)` if it's unambiguously an if without a following block
-                let next_span_str = self.get_span_str(next.span);
-                if decorator.is_some() && next_span_str == "if" && self.peek_block().is_ok() {
-                    // otherwise ignore this decorator, it's just a static if
-                    self.restore(speculative_start.0, speculative_start.1);
-                    self.bump();
-                    continue;
-                }
             }
             // keep going
             else {
