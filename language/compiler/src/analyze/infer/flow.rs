@@ -6,8 +6,8 @@ use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Expression, FlowEdge, FlowEdgeKind, FlowEnvironment, FlowGraph, FlowGuard,
     FlowTable, GlobalSymbolId, InferTable, LocalNodeId, LocalTypeId, NodeTree, Pattern,
-    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeBinaryOperator, TypeLiteral,
-    TypeTable, TypeUnaryOperator, UnaryOperator,
+    ScalarLiteral, StaticKey, SymbolTable, Type, TypeBinaryOperator, TypeLiteral, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -1158,9 +1158,6 @@ impl Compiler {
             types,
         )?;
         let target_type_id = self.unwrap_type_value(target_type_id, types);
-        if !self.guard_target_is_class(target_type_id, types) {
-            return Ok(None);
-        }
 
         // resolve the base type for the symbol
         let base_type_id = self.symbol_type_for_guard(
@@ -1293,14 +1290,6 @@ impl Compiler {
             Type::Value { value } => *value,
             _ => type_id,
         }
-    }
-
-    /// Check whether a guard target is a class type.
-    fn guard_target_is_class(&self, type_id: LocalTypeId, types: &TypeTable) -> bool {
-        types
-            .get_type(type_id)
-            .symbol()
-            .is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class)
     }
 
     /// Derive guard types for a symbol based on a target type.

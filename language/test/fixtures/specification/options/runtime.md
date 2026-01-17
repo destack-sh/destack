@@ -26,11 +26,65 @@ export const value = 1;
 
 - contains: dynamic imports are disabled
 
+### noDynamicImport allows dynamic imports when false
+
+> Dynamic import expressions are allowed when noDynamicImport is false.
+
+```ds:main.ds
+import("./example.ds");
+```
+
+```ds:example.ds
+export const value = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noDynamicImport": false } }
+```
+
 ## noDynamicEvaluation
 
 ### noDynamicEvaluation reports eval when true
 
 > Eval calls are rejected when noDynamicEvaluation is true.
+
+```ds:main.ds libs=es2020
+eval("1");
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
+```
+
+- contains: dynamic evaluation is disabled
+
+### noDynamicEvaluation allows eval when false
+
+> Eval calls are allowed when noDynamicEvaluation is false.
+
+```ds:main.ds libs=es2020
+eval("1");
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
+```
+
+### noDynamicEvaluation reports Function when true
+
+> Function constructors are rejected when noDynamicEvaluation is true.
 
 ```ds:main.ds libs=es2020
 let value = Function(["return 1"]);
@@ -45,6 +99,22 @@ let value = Function(["return 1"]);
 ```
 
 - contains: dynamic evaluation is disabled
+
+### noDynamicEvaluation allows Function when false
+
+> Function constructors are allowed when noDynamicEvaluation is false.
+
+```ds:main.ds libs=es2020
+let value = Function(["return 1"]);
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
+```
 
 ## noProxy
 
@@ -68,6 +138,24 @@ let proxy = new Proxy(target, handler);
 
 - contains: proxy usage is disabled
 
+### noProxy allows Proxy usage when false
+
+> Proxy construction is allowed when noProxy is false.
+
+```ds:main.ds libs=es2020
+declare const handler: ProxyHandler<object>;
+declare const target: object;
+let proxy = new Proxy(target, handler);
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noProxy": false } }
+```
+
 ## noDynamicShapes
 
 ### noDynamicShapes reports shape mutation when true
@@ -89,6 +177,60 @@ Object.defineProperty(target, "x", descriptor);
 ```
 
 - contains: dynamic shape mutation is disabled
+
+### noDynamicShapes allows shape mutation when false
+
+> Dynamic shape mutation is allowed when noDynamicShapes is false.
+
+```ds:main.ds libs=es2020
+declare const descriptor: PropertyDescriptor;
+let target = { value: 1 };
+Object.defineProperty(target, "x", descriptor);
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noDynamicShapes": false } }
+```
+
+### noDynamicShapes reports delete when true
+
+> Deleting properties is rejected when noDynamicShapes is true.
+
+```ds:main.ds
+let target = { value: 1 };
+delete target.value;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noDynamicShapes": true } }
+```
+
+- contains: dynamic shape mutation is disabled
+
+### noDynamicShapes allows delete when false
+
+> Deleting properties is allowed when noDynamicShapes is false.
+
+```ds:main.ds
+let target = { value: 1 };
+delete target.value;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noDynamicShapes": false } }
+```
 
 ## noManaged
 
@@ -156,6 +298,100 @@ async function run(): int32 {
 
 - contains: runtime features are disabled
 
+### noRuntime reports await when true
+
+> Await expressions are rejected when noRuntime is true.
+
+```ds:main.ds libs=es2020
+declare const promise: any;
+const value = await promise;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noRuntime": true } }
+```
+
+- contains: runtime features are disabled
+
+### noRuntime reports yield when true
+
+> Generator functions are rejected when noRuntime is true.
+
+```ds:main.ds
+function* generator(): int32 {
+    yield 1;
+    return 0;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRuntime": true } }
+```
+
+- contains: runtime features are disabled
+
+### noRuntime allows async functions when false
+
+> Async functions are allowed when noRuntime is false.
+
+```ds:main.ds
+async function run(): int32 {
+    return 1;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRuntime": false } }
+```
+
+### noRuntime allows await when false
+
+> Await expressions are allowed when noRuntime is false.
+
+```ds:main.ds libs=es2020
+declare const promise: any;
+const value = await promise;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noRuntime": false } }
+```
+
+### noRuntime allows yield when false
+
+> Generator functions are allowed when noRuntime is false.
+
+```ds:main.ds
+function* generator(): int32 {
+    yield 1;
+    return 0;
+}
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noRuntime": false } }
+```
+
 ## noComputedPropertyAccess
 
 ### noComputedPropertyAccess reports computed access when true
@@ -178,6 +414,24 @@ let out = target[key];
 
 - contains: computed property access is disabled
 
+### noComputedPropertyAccess allows computed access when false
+
+> Computed property access is allowed when noComputedPropertyAccess is false.
+
+```ds:main.ds
+let target: { [key: string]: int32 } = { value: 1 };
+let key = "value";
+let out = target[key];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noComputedPropertyAccess": false } }
+```
+
 ## noReferentialEquality
 
 ### noReferentialEquality reports object equality when true
@@ -199,6 +453,31 @@ let same = left == right;
 ```
 
 - contains: referential equality is disabled
+
+### noReferentialEquality allows object equality when false
+
+> Referential equality comparisons are allowed when noReferentialEquality is false.
+
+```ds:main.ds
+struct Measure { value: int }
+
+extension for Measure implements Equal<Measure> {
+    equal(other: Measure): boolean { return true }
+}
+
+let left = Measure { value: 1 };
+let right = Measure { value: 2 };
+let same = left == right;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noReferentialEquality": false } }
+```
+
 
 ## noImplicitDynamicDispatch
 
@@ -237,6 +516,39 @@ pet.speak();
 
 - contains: implicit dynamic dispatch is disabled
 
+### noImplicitDynamicDispatch allows union dispatch when false
+
+> Implicit dynamic dispatch is allowed when noImplicitDynamicDispatch is false.
+
+```ds:main.ds
+struct Cat {
+    name: string,
+
+    speak(): string {
+        "meow"
+    }
+}
+
+struct Dog {
+    name: string,
+
+    speak(): string {
+        "woof"
+    }
+}
+
+let pet: Cat | Dog = Cat { name: "Milo" };
+pet.speak();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitDynamicDispatch": false } }
+```
+
 ## noGlobalThis
 
 ### noGlobalThis reports globalThis access when true
@@ -258,3 +570,21 @@ let value = globalThis;
 ```
 
 - contains: globalThis access is disabled
+
+### noGlobalThis allows globalThis access when false
+
+> globalThis access is allowed when noGlobalThis is false.
+
+```ds:main.ds
+declare const globalThis: object;
+
+let value = globalThis;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noGlobalThis": false } }
+```

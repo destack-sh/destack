@@ -74,6 +74,22 @@ function example(value: number): number {
 }
 ```
 
+### noImplicitReturns allows missing returns when false
+
+> Missing return paths are allowed when noImplicitReturns is false.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitReturns": false } }
+```
+
+```ds
+function example(value: number): number | void {
+    if (value > 0) {
+        return value;
+    }
+}
+```
+
 ## noImplicitAny
 
 ### noImplicitAny rejects implicit parameter types

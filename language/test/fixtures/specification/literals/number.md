@@ -28,6 +28,30 @@ const x: number = -42;
 const x: number = 0;
 ```
 
+### hex literal
+
+> Hex literals are valid number literals.
+
+```ds
+const x: number = 0xff;
+```
+
+### octal literal
+
+> Octal literals are valid number literals.
+
+```ds
+const x: number = 0o17;
+```
+
+### binary literal
+
+> Binary literals are valid number literals.
+
+```ds
+const x: number = 0b1010;
+```
+
 ## Float Literals
 
 ### float literal

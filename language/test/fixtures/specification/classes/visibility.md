@@ -1,10 +1,8 @@
 # Class Visibility
 
-> NOTE #Incomplete: class visibility checks are not enforced yet.
-
 ## private fields
 
-### _private fields are inaccessible outside the class
+### private fields are inaccessible outside the class
 
 > Private members are only accessible inside the declaring class.
 
@@ -21,7 +19,7 @@ const out = counter.value;
 
 - contains: is private
 
-### _private shorthand fields are inaccessible outside the class
+### private shorthand fields are inaccessible outside the class
 
 > The `#field` shorthand is private.
 
@@ -40,31 +38,35 @@ const out = counter.#value;
 
 ## protected fields
 
-### _protected fields are accessible in subclasses
+### protected fields are accessible in subclasses
 
 > Protected members are accessible in subclasses.
 
 ```ds
 class Base {
-    protected value: int32 = 0
+    protected value: int32 = 0;
 }
 
 class Child extends Base {
-    get(): int32 { this.value }
+    get(): int32 { 
+        return this.value;
+    }
 }
 ```
 
-### _protected fields are inaccessible outside subclasses
+### protected fields are inaccessible outside subclasses
 
 > Protected members are not accessible from outside the class hierarchy.
 
 ```ds
 class Base {
-    protected value: int32 = 0
+    protected value: int32 = 0;
 }
 
 class Child extends Base {
-    get(): int32 { this.value }
+    get(): int32 { 
+        return this.value;
+    }
 }
 
 const child = new Child();

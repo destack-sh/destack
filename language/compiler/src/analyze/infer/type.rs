@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use super::member::MemberLookupMode;
 use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
@@ -1237,8 +1238,34 @@ impl Compiler {
                 // satisfies returns the original (left) type, not the asserted type
                 types.get_type(left_ty_id).clone()
             }
+            TypeBinaryOperator::Is | TypeBinaryOperator::InstanceOf => {
+                // unwrap type descriptor values to the underlying type
+                let target_ty_id = match types.get_type(right_ty_id) {
+                    Type::Value { value } => *value,
+                    _ => right_ty_id,
+                };
+
+                // enforce class-only instanceof targets
+                if matches!(operator, TypeBinaryOperator::InstanceOf) {
+                    let is_class_target = types
+                        .get_type(target_ty_id)
+                        .symbol()
+                        .is_some_and(|symbol| symbol.local_id.ty == SymbolType::Class);
+                    if !is_class_target {
+                        self.error(AnalyzeError::InvalidInstanceOfTarget {
+                            node: expression_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+                }
+
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                }
+            }
             _ => {
-                // NOTE #Incomplete: other type level binary operations (is, instanceof, extends, etc.)
+                // NOTE #Incomplete: other type level binary operations (extends, implements, etc.)
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 }
@@ -1284,6 +1311,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         receiver_ty: &Type,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -1307,6 +1335,7 @@ impl Compiler {
                     node_id,
                     &reference_ty,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )
@@ -1323,15 +1352,41 @@ impl Compiler {
                     node_id,
                     &reference_ty,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )
             }
 
-            // reference to a nominal type: look up in the declaration instance type and extensions
-            Type::Reference { symbol, .. } => self.infer_member_of_symbol(
-                module, profile, node_id, *symbol, member_key, types, visited,
-            ),
+            // reference to a nominal type: choose instance or value members based on lookup mode
+            Type::Reference { symbol, .. } => match lookup_mode {
+                MemberLookupMode::Instance | MemberLookupMode::Any => self.infer_member_of_symbol(
+                    module,
+                    profile,
+                    node_id,
+                    *symbol,
+                    member_key,
+                    lookup_mode,
+                    types,
+                    visited,
+                ),
+                MemberLookupMode::Value => {
+                    let Some(value_ty_id) = types.get_value_type_id(*symbol) else {
+                        return Ok(None);
+                    };
+                    let value_ty = types.get_type(value_ty_id).clone();
+                    self.infer_member_of_type(
+                        module,
+                        profile,
+                        node_id,
+                        &value_ty,
+                        member_key,
+                        lookup_mode,
+                        types,
+                        visited,
+                    )
+                }
+            },
 
             // array like types: fall back to well known Array members
             Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
@@ -1344,6 +1399,7 @@ impl Compiler {
                     node_id,
                     &reference_ty,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )
@@ -1357,7 +1413,14 @@ impl Compiler {
             | Type::PointerOf { right, .. } => {
                 let inner_ty = types.get_type(*right).clone();
                 self.infer_member_of_type(
-                    module, profile, node_id, &inner_ty, member_key, types, visited,
+                    module,
+                    profile,
+                    node_id,
+                    &inner_ty,
+                    member_key,
+                    lookup_mode,
+                    types,
+                    visited,
                 )
             }
 
@@ -1373,6 +1436,7 @@ impl Compiler {
                         node_id,
                         &element_ty,
                         member_key,
+                        lookup_mode,
                         types,
                         visited,
                     )? {
@@ -1414,6 +1478,7 @@ impl Compiler {
                         node_id,
                         &element_ty,
                         member_key,
+                        lookup_mode,
                         types,
                         visited,
                     )? {
@@ -1447,6 +1512,7 @@ impl Compiler {
                     node_id,
                     &reference_ty,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )
@@ -1462,6 +1528,7 @@ impl Compiler {
                     node_id,
                     &reference_ty,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )
@@ -1708,6 +1775,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         member_key: &StaticKey,
+        lookup_mode: MemberLookupMode,
         types: &mut TypeTable,
         visited: &mut Vec<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
@@ -1724,9 +1792,16 @@ impl Compiler {
         // step 1: look up in the type's own instance type
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
             let ty = types.get_type(ty_id).clone();
-            if let Some(member_ty) = self
-                .infer_member_of_type(module, profile, node_id, &ty, member_key, types, visited)?
-            {
+            if let Some(member_ty) = self.infer_member_of_type(
+                module,
+                profile,
+                node_id,
+                &ty,
+                member_key,
+                lookup_mode,
+                types,
+                visited,
+            )? {
                 return Ok(Some(member_ty));
             }
         }
@@ -1737,7 +1812,14 @@ impl Compiler {
             // check parent type (extends)
             if let Some(extends) = lineage.extends
                 && let Some(member_ty) = self.infer_member_of_symbol(
-                    module, profile, node_id, extends, member_key, types, visited,
+                    module,
+                    profile,
+                    node_id,
+                    extends,
+                    member_key,
+                    lookup_mode,
+                    types,
+                    visited,
                 )?
             {
                 return Ok(Some(member_ty));
@@ -1751,6 +1833,7 @@ impl Compiler {
                     node_id,
                     *implements,
                     member_key,
+                    lookup_mode,
                     types,
                     visited,
                 )? {
@@ -1761,7 +1844,14 @@ impl Compiler {
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_ty) = self.infer_member_of_symbol(
-                    module, profile, node_id, *embedded, member_key, types, visited,
+                    module,
+                    profile,
+                    node_id,
+                    *embedded,
+                    member_key,
+                    lookup_mode,
+                    types,
+                    visited,
                 )? {
                     return Ok(Some(member_ty));
                 }

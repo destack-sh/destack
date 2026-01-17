@@ -1,6 +1,6 @@
 # Precise Primitives
 
-> NOTE #Incomplete: implement/mdtest precise primitives
+> NOTE #Incomplete: precise primitive coverage is still partial
 
 Precise numeric types beyond TypeScript's `number`.
 
@@ -10,13 +10,15 @@ Precise numeric types beyond TypeScript's `number`.
 
 - **Signed**: `int8`, `int16`, `int32`, `int64`, `int128`
 - **Unsigned**: `uint8`, `uint16`, `uint32`, `uint64`, `uint128`
-- **Aliases**: `int` = `int64`, `uint` = `uint64`
+- **Pointer-sized**: `isize`, `usize`
+- **Defaults**: `int` and `uint` use the compiler's default integer width (default 32-bit).
 - **Arbitrary width**: `int3`, `uint17`, etc.
 
 ### Floats
 
-- **Sizes**: `float32`, `float64`
-- **Aliases**: `float` = `float64`, `number` = `float64`
+- **Sizes**: `float32`, `float64`, arbitrary widths (`float16`, `float128`, etc.)
+- **Defaults**: `float` uses the compiler's default float width (default 64-bit).
+- **Number**: `number` is the JS-compatible numeric supertype.
 
 ### Characters
 

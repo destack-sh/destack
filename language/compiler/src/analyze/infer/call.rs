@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use super::member::MemberResolution;
+use super::member::{MemberLookupMode, MemberResolution};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
@@ -668,6 +668,7 @@ impl Compiler {
                         module,
                         instance_symbol,
                         member_key,
+                        MemberLookupMode::Instance,
                         profile,
                         tree,
                         symbols,
@@ -726,6 +727,16 @@ impl Compiler {
                 None => inherited.arguments.clone(),
             };
 
+            // decide how to filter member lookups for this receiver
+            let lookup_mode = self.member_lookup_mode_for_receiver_expression(
+                module,
+                receiver_expression_id,
+                &element_ty,
+                profile,
+                tree,
+                symbols,
+            );
+
             // resolve the member type for this variant
             let mut member_type_visited = Vec::new();
             let member_ty_id = self.infer_member_of_type(
@@ -734,6 +745,7 @@ impl Compiler {
                 receiver_expression_id.into_any(),
                 &element_ty,
                 member_key,
+                lookup_mode,
                 types,
                 &mut member_type_visited,
             )?;
@@ -924,8 +936,9 @@ impl Compiler {
 
                 // resolve member dispatch for the receiver type
                 let member_key = StaticKey::Name(*name);
-                let member_resolution = self.resolve_member_symbol(
+                let member_resolution = self.resolve_member_symbol_for_receiver(
                     module,
+                    *receiver_id,
                     &receiver_ty,
                     &member_key,
                     ctx.profile,
@@ -1964,6 +1977,16 @@ impl Compiler {
             None => inherited.arguments.clone(),
         };
 
+        // decide how to filter member lookups for this receiver
+        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
+            module,
+            receiver_expression_id,
+            receiver_ty,
+            profile,
+            tree,
+            symbols,
+        );
+
         // infer the member type
         let mut member_type_visited = Vec::new();
         let member_ty_id = self.infer_member_of_type(
@@ -1972,6 +1995,7 @@ impl Compiler {
             receiver_expression_id.into_any(),
             receiver_ty,
             member_key,
+            lookup_mode,
             types,
             &mut member_type_visited,
         )?;

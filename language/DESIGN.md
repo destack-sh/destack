@@ -336,6 +336,10 @@ const id: uint64 = 12345;
 const balance: float32 = 100.50;
 ```
 
+Destack keeps `number` as the JS-compatible numeric supertype (aliased to `float64`).
+`int`/`uint` and `float` use the compiler's default widths (32-bit ints, 64-bit floats by default).
+Pointer-sized integers are spelled `isize` and `usize`.
+
 ### Newtypes
 
 Nominal wrappers that prevent mixing semantically different values:

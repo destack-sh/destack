@@ -65,6 +65,20 @@ if (value instanceof User) {
 }
 ```
 
+### instanceof rejects non-class targets
+
+```ds
+struct Point {
+    x: int32,
+    y: int32,
+}
+
+const value = Point { x: 1, y: 2 };
+const ok = value instanceof Point;
+```
+
+- contains: instanceof requires a class type
+
 ## In Guards
 
 ### in guard narrows to required key
@@ -97,4 +111,16 @@ if (value is Admin) {
 } else {
     value satisfies string;
 }
+```
+
+### is guard yields boolean
+
+```ds
+class Admin {
+    name: string = ""
+}
+
+const value: unknown = new Admin();
+const ok = value is Admin;
+ok satisfies boolean;
 ```

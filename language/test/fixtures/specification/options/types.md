@@ -22,6 +22,22 @@ let value: any = 1;
 
 - contains: any type is disabled
 
+### noAny allows any usage when false
+
+> Explicit any types are allowed when noAny is false.
+
+```ds:main.ds
+let value: any = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ### noAny reports inferred any in catch variables
 
 > Inferred any types are rejected when noAny is true.
@@ -86,6 +102,22 @@ try {
 
 - contains: unknown type is disabled
 
+### noUnknown allows unknown usage when false
+
+> Explicit unknown types are allowed when noUnknown is false.
+
+```ds:main.ds
+let value: unknown = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUnknown": false } }
+```
+
 ## noImprecisePrimitives
 
 ### noImprecisePrimitives reports number usage when true
@@ -124,6 +156,22 @@ let value = Number(1);
 
 - contains: imprecise primitive type is disabled
 
+### noImprecisePrimitives allows number usage when false
+
+> Imprecise numeric primitives are allowed when noImprecisePrimitives is false.
+
+```ds:main.ds
+let value: number = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": false } }
+```
+
 ## noImplicitConversions
 
 ### noImplicitConversions reports implicit numeric conversions when true
@@ -143,6 +191,22 @@ let value: float64 = 1;
 ```
 
 - contains: not assignable
+
+### noImplicitConversions allows implicit conversions when false
+
+> Implicit numeric conversions are allowed when noImplicitConversions is false.
+
+```ds:main.ds
+let value: float64 = 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitConversions": false } }
+```
 
 ## noUnsafeTypeAssertions
 
@@ -164,6 +228,40 @@ let cast = value as int32;
 ```
 
 - contains: unsafe type assertions are disabled
+
+### noUnsafeTypeAssertions allows safe assertions when true
+
+> Assignable assertions remain allowed when noUnsafeTypeAssertions is true.
+
+```ds:main.ds
+let value: int32 = 1;
+let cast = value as int32;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noUnsafeTypeAssertions": true } }
+```
+
+### noUnsafeTypeAssertions allows unsafe assertions when false
+
+> Unsafe type assertions are allowed when noUnsafeTypeAssertions is false.
+
+```ds:main.ds
+let value: any = 1;
+let cast = value as int32;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": false } }
+```
 
 ## noImplicitManaged
 
