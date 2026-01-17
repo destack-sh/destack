@@ -80,7 +80,7 @@ enum CallConstraint {
 }
 
 /// Run dead function elimination over the module.
-fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
+pub(crate) fn run_dead_function_eliminate(tree: &mut mir::NodeTree) -> bool {
     // build the module call graph
     let analyses = ModuleAnalyses::new(tree);
     let callgraph = analyses.get::<CallGraph>();

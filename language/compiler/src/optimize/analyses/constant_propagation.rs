@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use destack_mir as mir;
 
 use crate::optimize::common::{
-    SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
+    ConstantLookup, SuccessorArguments, constant_from_global, fold_binary, fold_cast, fold_unary,
     terminator_arguments_for_successor_checked,
 };
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
@@ -48,6 +48,13 @@ impl ConstantMap {
     }
 }
 
+impl ConstantLookup for ConstantMap {
+    /// Return the constant value for a MIR value when known.
+    fn get_constant(&self, value: mir::Value) -> Option<&mir::Constant> {
+        self.get(value)
+    }
+}
+
 impl Lattice for ConstantMap {
     /// Intersect constants that agree on both inputs.
     fn meet(&self, other: &Self) -> Self {
@@ -85,6 +92,17 @@ impl ConstantPropagation {
         cfg: &ControlFlowGraph,
         type_context: TypeContext,
     ) -> Self {
+        Self::build_with_entry_constants(function, tree, cfg, type_context, ConstantMap::new())
+    }
+
+    /// Build constant propagation with seeded entry constants.
+    fn build_with_entry_constants(
+        function: &mir::Function,
+        tree: &mir::NodeTree,
+        cfg: &ControlFlowGraph,
+        type_context: TypeContext,
+        entry_constants: ConstantMap,
+    ) -> Self {
         // entry block selection
         let entry = match function.entry {
             Some(entry) => entry,
@@ -101,7 +119,7 @@ impl ConstantPropagation {
         let mut block_exit: HashMap<mir::LocalNodeId<mir::Block>, ConstantMap> = HashMap::new();
 
         // seed entry state
-        block_entry.insert(entry, ConstantMap::new());
+        block_entry.insert(entry, entry_constants);
 
         // init worklist
         let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
@@ -222,6 +240,31 @@ impl ConstantPropagation {
     ) -> Option<&mir::Constant> {
         self.exit(block).get(value)
     }
+}
+
+/// Build constant propagation with constant parameters seeded at entry.
+pub fn constant_propagation_with_params(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    type_context: TypeContext,
+    param_constants: &HashMap<mir::Value, mir::Constant>,
+) -> ConstantPropagation {
+    // build a control flow graph for the function
+    let cfg = ControlFlowGraph::build(function, tree);
+
+    // seed entry constants from the provided parameter map
+    let mut entry_constants = ConstantMap::new();
+    for (value, constant) in param_constants {
+        entry_constants.insert(*value, constant.clone());
+    }
+
+    ConstantPropagation::build_with_entry_constants(
+        function,
+        tree,
+        &cfg,
+        type_context,
+        entry_constants,
+    )
 }
 
 impl Analysis for ConstantPropagation {

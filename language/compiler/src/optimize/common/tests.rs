@@ -536,6 +536,40 @@ impl TestProgram {
         );
     }
 
+    /// Record a function entry profile count.
+    pub(crate) fn record_function_profile(
+        &self,
+        profile: &mut mir::ProfileTable,
+        function: mir::LocalNodeId<mir::Function>,
+        count: u64,
+    ) {
+        // record the function entry count
+        profile.functions.insert(
+            function,
+            mir::FunctionProfile {
+                entry_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+            },
+        );
+    }
+
+    /// Record a callsite profile count.
+    pub(crate) fn record_callsite_profile(
+        &self,
+        profile: &mut mir::ProfileTable,
+        callsite: mir::LocalNodeId<mir::Instruction>,
+        count: u64,
+    ) {
+        // record the callsite profile count
+        profile.callsites.insert(
+            callsite,
+            mir::CallSiteProfile {
+                total_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+                targets: Vec::new(),
+                unknown_count: mir::ProfileCount::new(0, mir::ProfileConfidence::Precise),
+            },
+        );
+    }
+
     /// Apply a module pass to the program.
     pub(crate) fn run_module_pass<P: ModulePass + ?Sized>(&mut self, pass: &P) {
         let context = PipelineContext::new(
@@ -544,6 +578,27 @@ impl TestProgram {
             test_module_id(),
             test_target_id(),
             None,
+        );
+
+        pass.run(&mut self.tree, &context);
+
+        // collect diagnostics after pass completes
+        self.errors = context.take_errors();
+        self.warnings = context.take_warnings();
+    }
+
+    /// Apply a module pass with profile data.
+    pub(crate) fn run_module_pass_with_profile<P: ModulePass + ?Sized>(
+        &mut self,
+        pass: &P,
+        profile: mir::ProfileTable,
+    ) {
+        let context = PipelineContext::new(
+            &self.strings_pool,
+            PipelineOptions::default(),
+            test_module_id(),
+            test_target_id(),
+            Some(Arc::new(profile)),
         );
 
         pass.run(&mut self.tree, &context);

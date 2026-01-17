@@ -16,7 +16,7 @@ pub struct ControlFlowGraph {
 
 impl ControlFlowGraph {
     /// Build a control flow graph for a function.
-    fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
+    pub(crate) fn build(function: &mir::Function, tree: &mir::NodeTree) -> Self {
         let mut predecessors: HashMap<
             mir::LocalNodeId<mir::Block>,
             Vec<mir::LocalNodeId<mir::Block>>,

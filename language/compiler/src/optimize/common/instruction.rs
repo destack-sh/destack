@@ -1072,6 +1072,292 @@ pub fn instruction_map(
     }
 }
 
+/// Remap values and locals in an instruction.
+///
+/// This is similar to `instruction_map` but also remaps local ids.
+pub fn instruction_map_with_locals(
+    instruction: &mir::Instruction,
+    value_map: &HashMap<mir::Value, mir::Value>,
+    local_map: &HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
+    tree: &mut mir::NodeTree,
+) -> mir::Instruction {
+    // create a value remapper for simple value uses
+    let remap = |value: mir::Value| -> mir::Value { *value_map.get(&value).unwrap_or(&value) };
+
+    // remap argument slices into a new argument buffer entry
+    let mut remap_arguments = |slice: mir::ArgumentSlice| -> mir::ArgumentSlice {
+        let new_args: Vec<_> = tree
+            .get_arguments(slice)
+            .iter()
+            .map(|&value| remap(value))
+            .collect();
+        tree.add_arguments(&new_args)
+    };
+
+    // remap each instruction variant
+    match instruction {
+        mir::Instruction::Const { destination, value } => mir::Instruction::Const {
+            destination: remap(*destination),
+            value: value.clone(),
+        },
+        mir::Instruction::Binary {
+            destination,
+            operator,
+            left,
+            right,
+        } => mir::Instruction::Binary {
+            destination: remap(*destination),
+            operator: *operator,
+            left: remap(*left),
+            right: remap(*right),
+        },
+        mir::Instruction::Unary {
+            destination,
+            operator,
+            argument,
+        } => mir::Instruction::Unary {
+            destination: remap(*destination),
+            operator: *operator,
+            argument: remap(*argument),
+        },
+        mir::Instruction::Cast {
+            destination,
+            operator,
+            argument,
+            to_type,
+        } => mir::Instruction::Cast {
+            destination: remap(*destination),
+            operator: *operator,
+            argument: remap(*argument),
+            to_type: *to_type,
+        },
+        mir::Instruction::Select {
+            destination,
+            condition,
+            then_value,
+            else_value,
+        } => mir::Instruction::Select {
+            destination: remap(*destination),
+            condition: remap(*condition),
+            then_value: remap(*then_value),
+            else_value: remap(*else_value),
+        },
+        mir::Instruction::Load {
+            destination,
+            pointer,
+            result_type,
+        } => mir::Instruction::Load {
+            destination: remap(*destination),
+            pointer: remap(*pointer),
+            result_type: *result_type,
+        },
+        mir::Instruction::Store { pointer, value } => mir::Instruction::Store {
+            pointer: remap(*pointer),
+            value: remap(*value),
+        },
+        mir::Instruction::LocalGet { destination, local } => {
+            let local = local_map.get(local).copied().unwrap_or(*local);
+            mir::Instruction::LocalGet {
+                destination: remap(*destination),
+                local,
+            }
+        }
+        mir::Instruction::LocalSet { local, value } => {
+            let local = local_map.get(local).copied().unwrap_or(*local);
+            mir::Instruction::LocalSet {
+                local,
+                value: remap(*value),
+            }
+        }
+        mir::Instruction::Assume { condition } => mir::Instruction::Assume {
+            condition: remap(*condition),
+        },
+        mir::Instruction::GlobalAddr {
+            destination,
+            global,
+            result_type,
+        } => mir::Instruction::GlobalAddr {
+            destination: remap(*destination),
+            global: *global,
+            result_type: *result_type,
+        },
+        mir::Instruction::GlobalConst {
+            destination,
+            global,
+        } => mir::Instruction::GlobalConst {
+            destination: remap(*destination),
+            global: *global,
+        },
+        mir::Instruction::Struct {
+            destination,
+            ty,
+            fields,
+        } => mir::Instruction::Struct {
+            destination: remap(*destination),
+            ty: *ty,
+            fields: remap_arguments(*fields),
+        },
+        mir::Instruction::Tuple {
+            destination,
+            ty,
+            elements,
+        } => mir::Instruction::Tuple {
+            destination: remap(*destination),
+            ty: *ty,
+            elements: remap_arguments(*elements),
+        },
+        mir::Instruction::Array {
+            destination,
+            ty,
+            elements,
+        } => mir::Instruction::Array {
+            destination: remap(*destination),
+            ty: *ty,
+            elements: remap_arguments(*elements),
+        },
+        mir::Instruction::FieldGet {
+            destination,
+            aggregate,
+            index,
+        } => mir::Instruction::FieldGet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+        },
+        mir::Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index,
+            result_type,
+        } => mir::Instruction::FieldAddr {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+            result_type: *result_type,
+        },
+        mir::Instruction::FieldSet {
+            destination,
+            aggregate,
+            index,
+            value,
+        } => mir::Instruction::FieldSet {
+            destination: remap(*destination),
+            aggregate: remap(*aggregate),
+            index: *index,
+            value: remap(*value),
+        },
+        mir::Instruction::ElementGet {
+            destination,
+            array,
+            index,
+        } => mir::Instruction::ElementGet {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+        },
+        mir::Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+            result_type,
+        } => mir::Instruction::ElementAddr {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+            result_type: *result_type,
+        },
+        mir::Instruction::ElementSet {
+            destination,
+            array,
+            index,
+            value,
+        } => mir::Instruction::ElementSet {
+            destination: remap(*destination),
+            array: remap(*array),
+            index: remap(*index),
+            value: remap(*value),
+        },
+        mir::Instruction::ManagedAlloc {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::ManagedAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::ManagedAllocArray {
+            destination,
+            element,
+            length,
+            result_type,
+        } => mir::Instruction::ManagedAllocArray {
+            destination: remap(*destination),
+            element: *element,
+            length: remap(*length),
+            result_type: *result_type,
+        },
+        mir::Instruction::RawAlloc {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::RawAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
+            pointer: remap(*pointer),
+        },
+        mir::Instruction::RawDrop { value } => mir::Instruction::RawDrop {
+            value: remap(*value),
+        },
+        mir::Instruction::StackAlloc {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::StackAlloc {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::StackDrop { value } => mir::Instruction::StackDrop {
+            value: remap(*value),
+        },
+        mir::Instruction::Call {
+            destination,
+            function,
+            arguments,
+        } => mir::Instruction::Call {
+            destination: destination.map(remap),
+            function: *function,
+            arguments: remap_arguments(*arguments),
+        },
+        mir::Instruction::CallIndirect {
+            destination,
+            callee,
+            arguments,
+            signature,
+        } => mir::Instruction::CallIndirect {
+            destination: destination.map(remap),
+            callee: remap(*callee),
+            arguments: remap_arguments(*arguments),
+            signature: *signature,
+        },
+        mir::Instruction::Intrinsic {
+            destination,
+            intrinsic,
+            arguments,
+            ordering,
+        } => mir::Instruction::Intrinsic {
+            destination: destination.map(remap),
+            intrinsic: *intrinsic,
+            arguments: remap_arguments(*arguments),
+            ordering: *ordering,
+        },
+    }
+}
+
 /// Remap block targets and values in a terminator.
 ///
 /// Block targets are remapped according to `block_map`, and values are remapped
