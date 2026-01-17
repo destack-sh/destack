@@ -435,13 +435,12 @@ impl Parser {
     fn eat_expression_inner(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.mark();
 
-        // labelled statement (like `label: while(...)` or `label: { }`)
-        if self.options.in_statement_position
-            && self.peek_token(TokenType::Identifier).is_ok()
+        // labelled statement or expression (like `label: while(...)` or `label: loop {}`)
+        if self.peek_token(TokenType::Identifier).is_ok()
             && self.peek_next_token(TokenType::Colon).is_ok()
         {
-            let is_next_label_target = self.peek_next_next_token(TokenType::OpenBrace).is_ok()
-                || self.peek_next_next_keyword(Keyword::While).is_ok()
+            // label targets that are always expressions
+            let is_labelled_expression = self.peek_next_next_keyword(Keyword::While).is_ok()
                 || self.peek_next_next_keyword(Keyword::Do).is_ok()
                 || self.peek_next_next_keyword(Keyword::For).is_ok()
                 || self.peek_next_next_keyword(Keyword::Loop).is_ok()
@@ -449,7 +448,13 @@ impl Parser {
                 || self.peek_next_next_keyword(Keyword::Switch).is_ok()
                 || self.peek_next_next_keyword(Keyword::Try).is_ok()
                 || self.peek_next_next_keyword(Keyword::With).is_ok();
-            if is_next_label_target {
+
+            // labelled blocks are only allowed in statement position
+            let is_labelled_block = self.peek_next_next_token(TokenType::OpenBrace).is_ok();
+            let can_parse_label = (self.options.in_statement_position
+                && (is_labelled_expression || is_labelled_block))
+                || (!self.options.in_statement_position && is_labelled_expression);
+            if can_parse_label {
                 let label = self.eat_identifier()?;
                 self.eat_colon()?;
                 let body = self.eat_expression()?;
