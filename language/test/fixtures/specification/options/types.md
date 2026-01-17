@@ -101,7 +101,7 @@ let value: number = 1;
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noImprecisePrimitives": true } }
+{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
 - contains: imprecise primitive type is disabled
@@ -119,7 +119,7 @@ let value = Number(1);
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noImprecisePrimitives": true } }
+{ "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
 - contains: imprecise primitive type is disabled
@@ -160,7 +160,7 @@ let cast = value as int32;
 ```
 
 ```ds:dsconfig.json
-{ "compilerOptions": { "noUnsafeTypeAssertions": true } }
+{ "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": true } }
 ```
 
 - contains: unsafe type assertions are disabled

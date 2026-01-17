@@ -59,6 +59,10 @@ async function read(): Promise<number> {
 ### await preserves any values
 
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds libs=es2015.promise
 declare const value: any;
 

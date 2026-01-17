@@ -515,7 +515,7 @@ Explicit ownership operators remain valid and use raw allocation.
 
 Native and WASM outputs force strict defaults plus soundness defaults regardless of configuration.
 The soundness defaults enforce:
-- noAny and noUnknown.
+- noAny.
 - noImprecisePrimitives.
 - noImplicitConversions and noUnsafeTypeAssertions.
 - noImplicitManaged and noManaged.

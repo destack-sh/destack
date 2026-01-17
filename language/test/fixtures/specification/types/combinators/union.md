@@ -59,6 +59,10 @@ value satisfies string;
 
 > Any members collapse the union to any.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 type A = any | { a: number };
 const value: A = { a: 1 };

@@ -177,6 +177,9 @@ add satisfies (a: number, b: number) => number;
 
 > Function values expose Function prototype members.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds libs=es5
 const fn = (value: number): number => value + 1;

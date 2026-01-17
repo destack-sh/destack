@@ -40,6 +40,7 @@ const value: ReturnValue = 1;
 ```ds:dsconfig.json
 {
   "compilerOptions": {
+    "noAny": false,
     "strictBuiltinIteratorReturn": false,
     "lib": ["es5", "es2015.iterable"]
   }

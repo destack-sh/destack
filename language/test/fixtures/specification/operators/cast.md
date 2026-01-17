@@ -38,6 +38,10 @@ y satisfies 42;
 
 > Casting from any to any type is valid.
 
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
 ```ds
 declare const x: any;
 const y = x as number;
@@ -47,6 +51,10 @@ y satisfies number;
 ### specific to any
 
 > Casting any type to any is valid.
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
 ```ds
 const x: number = 42;
@@ -99,4 +107,3 @@ const obj = { x: 1, y: 2 };
 const obj2 = obj as { x: number };
 obj2 satisfies { x: number };
 ```
-
