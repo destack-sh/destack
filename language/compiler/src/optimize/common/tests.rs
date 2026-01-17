@@ -196,6 +196,30 @@ impl TestProgram {
         self.instructions_in_block(self.entry_block_id(function_id))
     }
 
+    /// Return call instruction ids in a function.
+    pub(crate) fn call_instructions_in_function(
+        &self,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
+        // scan instructions in order
+        let function = self.tree.get(function_id);
+        let mut call_ids = Vec::new();
+
+        for block_id in &function.blocks {
+            let block = self.tree.get(*block_id);
+            for instruction_id in &block.instructions {
+                if matches!(
+                    self.tree.get(*instruction_id),
+                    mir::Instruction::Call { .. }
+                ) {
+                    call_ids.push(*instruction_id);
+                }
+            }
+        }
+
+        call_ids
+    }
+
     /// Create a new alias scope.
     pub(crate) fn create_alias_scope(&mut self) -> mir::AliasScopeId {
         // create a new domain for the scope
@@ -548,6 +572,21 @@ impl TestProgram {
             function,
             mir::FunctionProfile {
                 entry_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
+            },
+        );
+    }
+
+    /// Record a block execution profile count.
+    pub(crate) fn record_block_profile(
+        &self,
+        profile: &mut mir::ProfileTable,
+        block: mir::LocalNodeId<mir::Block>,
+        count: u64,
+    ) {
+        profile.blocks.insert(
+            block,
+            mir::BlockProfile {
+                execution_count: mir::ProfileCount::new(count, mir::ProfileConfidence::Precise),
             },
         );
     }

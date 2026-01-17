@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::CallGraphScc;
 use crate::optimize::common::{
-    instruction_map_with_locals, instruction_substitute_uses_in_tree, terminator_remap,
-    terminator_substitute_uses,
+    CallsiteHotness, CallsiteHotnessPolicy, build_value_definition_map, callsite_hotness,
+    constant_for_value, instruction_map_with_locals, instruction_substitute_uses_in_tree,
+    scaled_profile_count, terminator_remap, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
@@ -82,12 +83,84 @@ const INLINE_MAX_LEAF_INSTRUCTIONS: usize = 96;
 const INLINE_MAX_FUNCTION_INSTRUCTIONS: usize = 2000;
 /// Maximum inline sites per function.
 const INLINE_MAX_SITES_PER_FUNCTION: usize = 16;
+/// Base inline budget for a caller.
+const INLINE_BUDGET_BASE: u64 = 1200;
+/// Entry count divisor for inline budget scaling.
+const INLINE_BUDGET_ENTRY_DIVISOR: u64 = 50;
+/// Maximum inline budget for a caller.
+const INLINE_BUDGET_MAX: u64 = 8000;
+/// Base inline budget for a module.
+const INLINE_MODULE_BUDGET_BASE: u64 = 40000;
+/// Entry count divisor for module budget scaling.
+const INLINE_MODULE_BUDGET_ENTRY_DIVISOR: u64 = 200;
+/// Maximum inline budget for a module.
+const INLINE_MODULE_BUDGET_MAX: u64 = 120000;
+/// Base inline budget for an SCC.
+const INLINE_SCC_BUDGET_BASE: u64 = 4000;
+/// Entry count divisor for SCC budget scaling.
+const INLINE_SCC_BUDGET_ENTRY_DIVISOR: u64 = 100;
+/// Maximum inline budget for an SCC.
+const INLINE_SCC_BUDGET_MAX: u64 = 24000;
+/// Maximum instructions for cold callsites.
+const INLINE_COLD_MAX_INSTRUCTIONS: usize = 8;
+/// Maximum blocks for cold callsites.
+const INLINE_COLD_MAX_BLOCKS: usize = 2;
+/// Maximum calls for cold callsites.
+const INLINE_COLD_MAX_CALLS: usize = 0;
+/// Maximum instructions for hot callsites.
+const INLINE_HOT_MAX_INSTRUCTIONS: usize = 96;
+/// Maximum blocks for hot callsites.
+const INLINE_HOT_MAX_BLOCKS: usize = 12;
+/// Maximum calls for hot callsites.
+const INLINE_HOT_MAX_CALLS: usize = 8;
+/// Base inline benefit for eliminating a call boundary.
+const INLINE_BENEFIT_CALL_OVERHEAD: u64 = 25;
+/// Benefit for each constant argument.
+const INLINE_BENEFIT_CONST_ARGUMENT: u64 = 6;
+/// Benefit for leaf callees.
+const INLINE_BENEFIT_LEAF: u64 = 10;
+/// Divider for turning callsite counts into benefit multipliers.
+const INLINE_BENEFIT_COUNT_DIVISOR: u64 = 50;
+/// Maximum multiplier from callsite counts.
+const INLINE_BENEFIT_COUNT_MAX_MULTIPLIER: u64 = 8;
+/// Extra score bias for hot callsites.
+const INLINE_HOT_SCORE_BONUS: i64 = 24;
+// cost weights approximate llvm and cranelift heuristics for small inliners
+/// Cost for a simple instruction.
+const INLINE_COST_SIMPLE: u64 = 1;
+/// Cost for a memory access instruction.
+const INLINE_COST_MEMORY: u64 = 4;
+/// Cost for an allocation instruction.
+const INLINE_COST_ALLOC: u64 = 25;
+/// Cost for a call instruction.
+const INLINE_COST_CALL: u64 = 25;
+/// Cost for an indirect call instruction.
+const INLINE_COST_CALL_INDIRECT: u64 = 40;
+/// Cost per block to account for control flow overhead.
+const INLINE_COST_BLOCK: u64 = 3;
+/// Always inline when cost is below this threshold.
+const INLINE_ALWAYS_INLINE_COST: u64 = 40;
 
 /// Inline pass main entry.
 fn run_inline(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
     // build analysis summaries for inlining
     let analyses = ModuleAnalyses::new(tree);
     let scc_map = analyses.get::<CallGraphScc>();
+    let hotness_policy = ctx.inline_hotness_policy();
+    let inline_budget_scale_percent = ctx.inline_budget_scale_percent();
+    let mut module_budget = inline_budget_for_module(
+        tree,
+        ctx.profile(),
+        hotness_policy,
+        inline_budget_scale_percent,
+    );
+    let mut scc_budgets = inline_scc_budgets(
+        tree,
+        &scc_map,
+        ctx.profile(),
+        hotness_policy,
+        inline_budget_scale_percent,
+    );
 
     // collect function ids for stable iteration
     let function_ids: Vec<_> = tree
@@ -112,6 +185,18 @@ fn run_inline(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
 
         // inline until no sites remain or budget is exhausted
         let mut inline_count = 0usize;
+        let mut inline_budget = inline_budget_for_function(
+            function_id,
+            ctx.profile(),
+            hotness_policy,
+            inline_budget_scale_percent,
+        );
+        let scc_id = scc_map.scc_id(function_id);
+        let mut scc_budget = scc_id
+            .and_then(|id| scc_budgets.get(&id).copied())
+            .unwrap_or(INLINE_SCC_BUDGET_BASE);
+        let block_counts = block_execution_counts(&function, tree, ctx.profile(), hotness_policy);
+
         // iterate inline sites until the budget is exhausted
         loop {
             // stop when the inline budget is exhausted
@@ -119,21 +204,48 @@ fn run_inline(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) -> bool {
                 break;
             }
 
+            // stop when no inline budget remains
+            if inline_budget == 0 || module_budget == 0 || scc_budget == 0 {
+                break;
+            }
+
+            // build value definitions for constant argument detection
+            let value_definitions = build_value_definition_map(&function, tree);
+            let available_budget = inline_budget.min(module_budget).min(scc_budget);
+
             // find the next candidate callsite
-            let site = find_inline_site(function_id, &function, tree, &scc_map);
+            let site = find_inline_site(
+                function_id,
+                &function,
+                tree,
+                &scc_map,
+                ctx.profile(),
+                hotness_policy,
+                inline_budget_scale_percent,
+                &value_definitions,
+                &block_counts,
+                available_budget,
+            );
             let Some(site) = site else {
                 break;
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(&mut function, tree, &site);
+            let did_inline = inline_callsite(&mut function, tree, &site.site);
             if !did_inline {
                 break;
             }
 
             // record a successful inline for this function
             inline_count += 1;
+            inline_budget = inline_budget.saturating_sub(site.cost);
+            module_budget = module_budget.saturating_sub(site.cost);
+            scc_budget = scc_budget.saturating_sub(site.cost);
             changed = true;
+        }
+
+        if let Some(scc_id) = scc_id {
+            scc_budgets.insert(scc_id, scc_budget);
         }
 
         // commit the updated function back into the tree
@@ -165,13 +277,32 @@ struct InlineSite {
     destination: Option<mir::Value>,
 }
 
+/// Inline candidate with scoring information.
+#[derive(Debug, Clone)]
+struct InlineCandidate {
+    /// The inline site to apply.
+    site: InlineSite,
+    /// Inline cost score.
+    cost: u64,
+    /// Inline benefit score.
+    score: i64,
+}
+
 /// Find the next inline candidate in a function.
 fn find_inline_site(
     function_id: mir::LocalNodeId<mir::Function>,
     function: &mir::Function,
     tree: &mir::NodeTree,
     scc_map: &CallGraphScc,
-) -> Option<InlineSite> {
+    profile: Option<&mir::ProfileTable>,
+    hotness_policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    inline_budget: u64,
+) -> Option<InlineCandidate> {
+    let mut best: Option<InlineCandidate> = None;
+
     // scan blocks in order for candidate callsites
     let block_ids = function.blocks.clone();
     for block_id in block_ids {
@@ -187,33 +318,208 @@ fn find_inline_site(
                 continue;
             };
 
-            // reject callsites that do not meet heuristic thresholds
-            let should_inline = should_inline(
+            let Some(candidate) = inline_candidate(
                 tree,
                 function_id,
-                function,
                 callee_id,
                 scc_map,
                 arguments.len(),
-            );
-            if !should_inline {
+                *instruction_id,
+                profile,
+                hotness_policy,
+                inline_budget_scale_percent,
+                value_definitions,
+                block_counts,
+                InlineSite {
+                    block_id,
+                    call_index: index,
+                    call_instruction_id: *instruction_id,
+                    callee_id,
+                    arguments,
+                    destination,
+                },
+            ) else {
+                continue;
+            };
+
+            if candidate.cost > inline_budget {
                 continue;
             }
 
-            // return the first viable inline site
-            return Some(InlineSite {
-                block_id,
-                call_index: index,
-                call_instruction_id: *instruction_id,
-                callee_id,
-                arguments,
-                destination,
-            });
+            if let Some(best_candidate) = best.as_ref() {
+                if candidate.score <= best_candidate.score {
+                    continue;
+                }
+            }
+
+            best = Some(candidate);
         }
     }
 
-    // no inline sites were found
-    None
+    best
+}
+
+/// Evaluate a callsite and return an inline candidate when profitable.
+fn inline_candidate(
+    tree: &mir::NodeTree,
+    caller_id: mir::LocalNodeId<mir::Function>,
+    callee_id: mir::LocalNodeId<mir::Function>,
+    scc_map: &CallGraphScc,
+    argument_count: usize,
+    callsite_id: mir::LocalNodeId<mir::Instruction>,
+    profile: Option<&mir::ProfileTable>,
+    hotness_policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
+    site: InlineSite,
+) -> Option<InlineCandidate> {
+    let block_count = block_counts.get(&site.block_id).copied().unwrap_or(0);
+    let Some(score) = inline_score(
+        tree,
+        caller_id,
+        callee_id,
+        scc_map,
+        argument_count,
+        callsite_id,
+        profile,
+        hotness_policy,
+        inline_budget_scale_percent,
+        value_definitions,
+        block_count,
+        &site.arguments,
+    ) else {
+        return None;
+    };
+
+    Some(InlineCandidate {
+        site,
+        cost: score.cost,
+        score: score.score,
+    })
+}
+
+/// Inline scoring metadata.
+#[derive(Debug, Clone, Copy)]
+struct InlineScore {
+    /// Inline cost score.
+    cost: u64,
+    /// Inline benefit score minus cost.
+    score: i64,
+}
+
+/// Scale inline size limits by an optimization level percent.
+fn scale_inline_limit(limit: usize, scale_percent: u64) -> usize {
+    if scale_percent == 0 {
+        return 0;
+    }
+
+    let scaled = (limit as u128)
+        .saturating_mul(scale_percent as u128)
+        .saturating_add(99)
+        .saturating_div(100);
+    scaled.min(usize::MAX as u128) as usize
+}
+
+/// Compute inline costs and benefits for a callsite.
+fn inline_score(
+    tree: &mir::NodeTree,
+    caller_id: mir::LocalNodeId<mir::Function>,
+    callee_id: mir::LocalNodeId<mir::Function>,
+    scc_map: &CallGraphScc,
+    argument_count: usize,
+    callsite_id: mir::LocalNodeId<mir::Instruction>,
+    profile: Option<&mir::ProfileTable>,
+    hotness_policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    block_count: u64,
+    arguments: &[mir::Value],
+) -> Option<InlineScore> {
+    let callsite_profile = profile.and_then(|profile| profile.callsite_profile(callsite_id));
+    let mut hotness = callsite_hotness(profile, caller_id, callsite_id, hotness_policy);
+    let entry_count = profile
+        .and_then(|profile| {
+            profile.function_profile(caller_id).map(|function_profile| {
+                scaled_profile_count(function_profile.entry_count, profile.source, hotness_policy)
+            })
+        })
+        .unwrap_or(0);
+
+    if profile.is_some() {
+        if callsite_profile.is_none() {
+            let block_hotness = hotness_from_block_count(block_count, entry_count, hotness_policy);
+            hotness = match block_hotness {
+                CallsiteHotness::Unknown => {
+                    if hotness_policy.missing_callsite_is_cold {
+                        CallsiteHotness::Cold
+                    } else {
+                        CallsiteHotness::Unknown
+                    }
+                }
+                _ => block_hotness,
+            };
+        } else if matches!(hotness, CallsiteHotness::Unknown) {
+            hotness = hotness_from_block_count(block_count, entry_count, hotness_policy);
+        }
+    }
+
+    // compute size metrics
+    let caller = tree.get(caller_id);
+    let caller_cost = function_cost_for(tree, caller);
+    let callee = tree.get(callee_id);
+    let callee_cost = function_cost_for(tree, callee);
+
+    // reject callsites that do not meet heuristic thresholds
+    let should_inline = should_inline(
+        tree,
+        caller_id,
+        callee_id,
+        scc_map,
+        argument_count,
+        &callee_cost,
+        &caller_cost,
+        hotness,
+        inline_budget_scale_percent,
+    );
+    if !should_inline {
+        return None;
+    }
+
+    if callee_cost.cost <= INLINE_ALWAYS_INLINE_COST {
+        return Some(InlineScore {
+            cost: callee_cost.cost,
+            score: 0,
+        });
+    }
+
+    // compute benefit score
+    let benefit = inline_benefit(
+        profile,
+        callsite_id,
+        hotness_policy,
+        hotness,
+        arguments,
+        value_definitions,
+        tree,
+        &callee_cost,
+        entry_count,
+        block_count,
+    );
+    let mut score = benefit as i64 - callee_cost.cost as i64;
+
+    if matches!(hotness, CallsiteHotness::Hot) {
+        score = score.saturating_add(INLINE_HOT_SCORE_BONUS);
+    }
+
+    if score < 0 {
+        return None;
+    }
+
+    Some(InlineScore {
+        cost: callee_cost.cost,
+        score,
+    })
 }
 
 /// Resolve a call instruction to a direct inline target.
@@ -259,10 +565,13 @@ fn resolve_inline_target(
 fn should_inline(
     tree: &mir::NodeTree,
     caller_id: mir::LocalNodeId<mir::Function>,
-    caller: &mir::Function,
     callee_id: mir::LocalNodeId<mir::Function>,
     scc_map: &CallGraphScc,
     argument_count: usize,
+    callee_size: &FunctionCost,
+    caller_size: &FunctionCost,
+    hotness: CallsiteHotness,
+    inline_budget_scale_percent: u64,
 ) -> bool {
     // load the callee metadata
     let callee = tree.get(callee_id);
@@ -285,18 +594,51 @@ fn should_inline(
     }
 
     // evaluate inline size thresholds
-    let callee_size = function_size_for(tree, callee);
-    let caller_size = function_size_for(tree, caller);
+    let max_function_instructions = scale_inline_limit(
+        INLINE_MAX_FUNCTION_INSTRUCTIONS,
+        inline_budget_scale_percent,
+    );
     let estimated = caller_size.instructions + callee_size.instructions;
-    if estimated > INLINE_MAX_FUNCTION_INSTRUCTIONS {
+    if estimated > max_function_instructions {
         return false;
     }
-    if callee_size.calls == 0 {
-        return callee_size.instructions <= INLINE_MAX_LEAF_INSTRUCTIONS;
+
+    // handle cold callsites with strict limits
+    if matches!(hotness, CallsiteHotness::Cold) {
+        let max_instructions =
+            scale_inline_limit(INLINE_COLD_MAX_INSTRUCTIONS, inline_budget_scale_percent);
+        let max_blocks = scale_inline_limit(INLINE_COLD_MAX_BLOCKS, inline_budget_scale_percent);
+        let max_calls = scale_inline_limit(INLINE_COLD_MAX_CALLS, inline_budget_scale_percent);
+        return callee_size.instructions <= max_instructions
+            && callee_size.blocks <= max_blocks
+            && callee_size.calls <= max_calls;
     }
-    callee_size.instructions <= INLINE_MAX_INSTRUCTIONS
-        && callee_size.blocks <= INLINE_MAX_BLOCKS
-        && callee_size.calls <= INLINE_MAX_CALLS
+
+    // select thresholds for hot or unknown callsites
+    let (max_instructions, max_blocks, max_calls) = if matches!(hotness, CallsiteHotness::Hot) {
+        (
+            scale_inline_limit(INLINE_HOT_MAX_INSTRUCTIONS, inline_budget_scale_percent),
+            scale_inline_limit(INLINE_HOT_MAX_BLOCKS, inline_budget_scale_percent),
+            scale_inline_limit(INLINE_HOT_MAX_CALLS, inline_budget_scale_percent),
+        )
+    } else {
+        (
+            scale_inline_limit(INLINE_MAX_INSTRUCTIONS, inline_budget_scale_percent),
+            scale_inline_limit(INLINE_MAX_BLOCKS, inline_budget_scale_percent),
+            scale_inline_limit(INLINE_MAX_CALLS, inline_budget_scale_percent),
+        )
+    };
+
+    if callee_size.calls == 0 {
+        let max_leaf =
+            scale_inline_limit(INLINE_MAX_LEAF_INSTRUCTIONS, inline_budget_scale_percent);
+        let limit = max_leaf.max(max_instructions);
+        return callee_size.instructions <= limit;
+    }
+
+    callee_size.instructions <= max_instructions
+        && callee_size.blocks <= max_blocks
+        && callee_size.calls <= max_calls
 }
 
 /// Inline a direct callsite into the caller.
@@ -700,50 +1042,487 @@ fn is_recursive_call(
     scc_map.is_recursive_scc(caller_scc)
 }
 
-/// Summary of function size for inlining decisions.
+/// Summary of function cost for inlining decisions.
 #[derive(Debug, Clone, Copy, Default)]
-struct FunctionSize {
+struct FunctionCost {
     /// Instruction count for the function.
     instructions: usize,
     /// Block count for the function.
     blocks: usize,
     /// Call count for the function.
     calls: usize,
+    /// Weighted inline cost.
+    cost: u64,
 }
 
-/// Compute the size summary for a single function.
-fn function_size_for(tree: &mir::NodeTree, function: &mir::Function) -> FunctionSize {
+/// Compute the cost summary for a single function.
+fn function_cost_for(tree: &mir::NodeTree, function: &mir::Function) -> FunctionCost {
     // count blocks, instructions, and callsites
-    let mut size = FunctionSize {
+    let mut cost = FunctionCost {
         blocks: function.blocks.len(),
-        ..FunctionSize::default()
+        cost: function.blocks.len() as u64 * INLINE_COST_BLOCK,
+        ..FunctionCost::default()
     };
 
     // scan all blocks for instruction and call counts
     for &block_id in &function.blocks {
         let block = tree.get(block_id);
-        size.instructions += block.instructions.len();
+        cost.instructions += block.instructions.len();
 
-        // count call instructions in the block
         for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            cost.cost = cost
+                .cost
+                .saturating_add(instruction_cost(instruction, tree));
+
             if matches!(
-                tree.get(instruction_id),
+                instruction,
                 mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
             ) {
-                size.calls += 1;
+                cost.calls += 1;
             }
         }
 
-        // count tail calls in the terminator
+        cost.cost = cost.cost.saturating_add(terminator_cost(&block.terminator));
+
         if matches!(
             block.terminator,
             mir::Terminator::TailCall { .. } | mir::Terminator::TailCallIndirect { .. }
         ) {
-            size.calls += 1;
+            cost.calls += 1;
         }
     }
 
-    size
+    cost
+}
+
+/// Compute the inline budget for a caller.
+fn scale_inline_budget(budget: u64, scale_percent: u64, max_budget: u64) -> u64 {
+    if scale_percent == 0 {
+        return 0;
+    }
+
+    let scaled = (budget as u128)
+        .saturating_mul(scale_percent as u128)
+        .saturating_add(99)
+        .saturating_div(100);
+    let scaled_max = (max_budget as u128)
+        .saturating_mul(scale_percent as u128)
+        .saturating_add(99)
+        .saturating_div(100);
+    let scaled = scaled.min(scaled_max);
+    scaled.min(u64::MAX as u128) as u64
+}
+
+/// Compute the inline budget for a caller.
+fn inline_budget_for_function(
+    function_id: mir::LocalNodeId<mir::Function>,
+    profile: Option<&mir::ProfileTable>,
+    policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+) -> u64 {
+    let Some(profile) = profile else {
+        return scale_inline_budget(
+            INLINE_BUDGET_BASE,
+            inline_budget_scale_percent,
+            INLINE_BUDGET_MAX,
+        );
+    };
+    let Some(function_profile) = profile.function_profile(function_id) else {
+        return scale_inline_budget(
+            INLINE_BUDGET_BASE,
+            inline_budget_scale_percent,
+            INLINE_BUDGET_MAX,
+        );
+    };
+
+    let entry_count = scaled_profile_count(function_profile.entry_count, profile.source, policy);
+    if entry_count == 0 {
+        return scale_inline_budget(
+            INLINE_BUDGET_BASE,
+            inline_budget_scale_percent,
+            INLINE_BUDGET_MAX,
+        );
+    }
+
+    let bonus = entry_count / INLINE_BUDGET_ENTRY_DIVISOR;
+    let budget = INLINE_BUDGET_BASE
+        .saturating_add(bonus)
+        .min(INLINE_BUDGET_MAX);
+    scale_inline_budget(budget, inline_budget_scale_percent, INLINE_BUDGET_MAX)
+}
+
+/// Compute the inline benefit for a callsite.
+fn inline_benefit(
+    profile: Option<&mir::ProfileTable>,
+    callsite_id: mir::LocalNodeId<mir::Instruction>,
+    policy: &CallsiteHotnessPolicy,
+    hotness: CallsiteHotness,
+    arguments: &[mir::Value],
+    value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    callee_cost: &FunctionCost,
+    entry_count: u64,
+    block_count: u64,
+) -> u64 {
+    let mut benefit = INLINE_BENEFIT_CALL_OVERHEAD;
+
+    let mut const_count = 0u64;
+    for argument in arguments {
+        if constant_for_value(*argument, value_definitions, tree).is_some() {
+            const_count += 1;
+        }
+    }
+
+    benefit = benefit.saturating_add(const_count * INLINE_BENEFIT_CONST_ARGUMENT);
+
+    if callee_cost.calls == 0 {
+        benefit = benefit.saturating_add(INLINE_BENEFIT_LEAF);
+    }
+
+    let callsite_count = profile
+        .and_then(|profile| {
+            profile
+                .callsite_profile(callsite_id)
+                .map(|callsite_profile| {
+                    scaled_profile_count(callsite_profile.total_count, profile.source, policy)
+                })
+        })
+        .unwrap_or(0);
+    let callsite_count = if callsite_count == 0 {
+        block_count
+    } else {
+        callsite_count
+    };
+
+    let count_multiplier = if callsite_count == 0 {
+        1
+    } else {
+        let raw = callsite_count / INLINE_BENEFIT_COUNT_DIVISOR;
+        raw.clamp(1, INLINE_BENEFIT_COUNT_MAX_MULTIPLIER)
+    };
+    let ratio_multiplier = if entry_count == 0 {
+        1
+    } else {
+        let ratio_percent = callsite_count.saturating_mul(100) / entry_count.max(1);
+        let raw = ratio_percent / 10;
+        raw.clamp(1, INLINE_BENEFIT_COUNT_MAX_MULTIPLIER)
+    };
+    let mut multiplier = count_multiplier.max(ratio_multiplier);
+
+    if matches!(hotness, CallsiteHotness::Hot) {
+        multiplier = (multiplier * 2).min(INLINE_BENEFIT_COUNT_MAX_MULTIPLIER);
+    }
+
+    benefit.saturating_mul(multiplier)
+}
+
+/// Derive hotness from block execution counts.
+fn hotness_from_block_count(
+    block_count: u64,
+    entry_count: u64,
+    policy: &CallsiteHotnessPolicy,
+) -> CallsiteHotness {
+    if block_count == 0 {
+        return CallsiteHotness::Unknown;
+    }
+
+    if block_count >= policy.hot_count {
+        return CallsiteHotness::Hot;
+    }
+    if block_count <= policy.cold_count {
+        return CallsiteHotness::Cold;
+    }
+
+    if entry_count == 0 {
+        return CallsiteHotness::Unknown;
+    }
+
+    let ratio = block_count as f64 / entry_count as f64;
+    if ratio >= policy.hot_ratio {
+        return CallsiteHotness::Hot;
+    }
+    if ratio <= policy.cold_ratio {
+        return CallsiteHotness::Cold;
+    }
+
+    CallsiteHotness::Unknown
+}
+
+/// Compute execution counts for blocks using profile data.
+fn block_execution_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    profile: Option<&mir::ProfileTable>,
+    policy: &CallsiteHotnessPolicy,
+) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
+    let Some(profile) = profile else {
+        return HashMap::new();
+    };
+
+    let mut counts = HashMap::new();
+    for &block_id in &function.blocks {
+        if let Some(block_profile) = profile.block_profile(block_id) {
+            let count = scaled_profile_count(block_profile.execution_count, profile.source, policy);
+            if count > 0 {
+                counts.insert(block_id, count);
+            }
+        }
+    }
+
+    let incoming = incoming_edge_counts(function, tree, profile, policy);
+    for &block_id in &function.blocks {
+        if counts.contains_key(&block_id) {
+            continue;
+        }
+        if let Some(count) = incoming.get(&block_id) {
+            if *count > 0 {
+                counts.insert(block_id, *count);
+            }
+        }
+    }
+
+    counts
+}
+
+/// Compute block entry counts from edge profiles.
+fn incoming_edge_counts(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    profile: &mir::ProfileTable,
+    policy: &CallsiteHotnessPolicy,
+) -> HashMap<mir::LocalNodeId<mir::Block>, u64> {
+    let mut counts = HashMap::new();
+    for &block_id in &function.blocks {
+        let terminator = &tree.get(block_id).terminator;
+        let edges = terminator_edges(block_id, terminator);
+        for (edge_key, target) in edges {
+            let Some(edge_profile) = profile.edge_profile(&edge_key) else {
+                continue;
+            };
+            let count = scaled_profile_count(edge_profile.count, profile.source, policy);
+            if count == 0 {
+                continue;
+            }
+            let entry = counts.entry(target).or_insert(0u64);
+            *entry = (*entry).saturating_add(count);
+        }
+    }
+
+    counts
+}
+
+/// Enumerate edges for a terminator.
+fn terminator_edges(
+    source: mir::LocalNodeId<mir::Block>,
+    terminator: &mir::Terminator,
+) -> Vec<(mir::EdgeKey, mir::LocalNodeId<mir::Block>)> {
+    match terminator {
+        mir::Terminator::Jump { target, .. } => {
+            vec![(
+                mir::EdgeKey::new(source, mir::EdgeKind::Jump, *target),
+                *target,
+            )]
+        }
+        mir::Terminator::Branch {
+            then_target,
+            else_target,
+            ..
+        } => vec![
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::BranchThen, *then_target),
+                *then_target,
+            ),
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::BranchElse, *else_target),
+                *else_target,
+            ),
+        ],
+        mir::Terminator::Check {
+            success, failure, ..
+        } => vec![
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CheckSuccess, success.target),
+                success.target,
+            ),
+            (
+                mir::EdgeKey::new(source, mir::EdgeKind::CheckFailure, failure.target),
+                failure.target,
+            ),
+        ],
+        mir::Terminator::Switch { default, cases, .. } => {
+            let mut edges = Vec::with_capacity(cases.len() + 1);
+            edges.push((
+                mir::EdgeKey::new(source, mir::EdgeKind::SwitchDefault, *default),
+                *default,
+            ));
+            for case in cases {
+                edges.push((
+                    mir::EdgeKey::new(
+                        source,
+                        mir::EdgeKind::SwitchCase { value: case.value },
+                        case.target,
+                    ),
+                    case.target,
+                ));
+            }
+            edges
+        }
+        mir::Terminator::Yield { resume, .. } => vec![(
+            mir::EdgeKey::new(source, mir::EdgeKind::YieldResume, *resume),
+            *resume,
+        )],
+        mir::Terminator::Return { .. }
+        | mir::Terminator::Unreachable
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
+    }
+}
+
+/// Compute the inline budget for a module.
+fn inline_budget_for_module(
+    tree: &mir::NodeTree,
+    profile: Option<&mir::ProfileTable>,
+    policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+) -> u64 {
+    let Some(profile) = profile else {
+        return scale_inline_budget(
+            INLINE_MODULE_BUDGET_BASE,
+            inline_budget_scale_percent,
+            INLINE_MODULE_BUDGET_MAX,
+        );
+    };
+
+    let mut total_entry = 0u64;
+    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+        let Some(function_profile) = profile.function_profile(function_id) else {
+            continue;
+        };
+        total_entry = total_entry.saturating_add(scaled_profile_count(
+            function_profile.entry_count,
+            profile.source,
+            policy,
+        ));
+    }
+
+    let bonus = total_entry / INLINE_MODULE_BUDGET_ENTRY_DIVISOR;
+    let budget = INLINE_MODULE_BUDGET_BASE
+        .saturating_add(bonus)
+        .min(INLINE_MODULE_BUDGET_MAX);
+    scale_inline_budget(
+        budget,
+        inline_budget_scale_percent,
+        INLINE_MODULE_BUDGET_MAX,
+    )
+}
+
+/// Compute inline budgets per SCC.
+fn inline_scc_budgets(
+    tree: &mir::NodeTree,
+    scc_map: &CallGraphScc,
+    profile: Option<&mir::ProfileTable>,
+    policy: &CallsiteHotnessPolicy,
+    inline_budget_scale_percent: u64,
+) -> HashMap<usize, u64> {
+    let mut scc_entry_counts: HashMap<usize, u64> = HashMap::new();
+    let mut scc_ids = HashSet::new();
+
+    for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+        let Some(scc_id) = scc_map.scc_id(function_id) else {
+            continue;
+        };
+        scc_ids.insert(scc_id);
+
+        let entry = profile
+            .and_then(|profile| {
+                profile
+                    .function_profile(function_id)
+                    .map(|function_profile| {
+                        scaled_profile_count(function_profile.entry_count, profile.source, policy)
+                    })
+            })
+            .unwrap_or(0);
+        let total = scc_entry_counts.entry(scc_id).or_insert(0);
+        *total = total.saturating_add(entry);
+    }
+
+    let mut budgets = HashMap::new();
+    for scc_id in scc_ids {
+        let entry_count = scc_entry_counts.get(&scc_id).copied().unwrap_or(0);
+        let bonus = entry_count / INLINE_SCC_BUDGET_ENTRY_DIVISOR;
+        let budget = INLINE_SCC_BUDGET_BASE
+            .saturating_add(bonus)
+            .min(INLINE_SCC_BUDGET_MAX);
+        let budget =
+            scale_inline_budget(budget, inline_budget_scale_percent, INLINE_SCC_BUDGET_MAX);
+        budgets.insert(scc_id, budget);
+    }
+
+    budgets
+}
+
+/// Compute the cost for a single instruction.
+fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64 {
+    match instruction {
+        mir::Instruction::Const { .. }
+        | mir::Instruction::Binary { .. }
+        | mir::Instruction::Unary { .. }
+        | mir::Instruction::Cast { .. }
+        | mir::Instruction::Select { .. }
+        | mir::Instruction::LocalGet { .. }
+        | mir::Instruction::LocalSet { .. }
+        | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::GlobalConst { .. }
+        | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
+        mir::Instruction::Load { .. } | mir::Instruction::Store { .. } => INLINE_COST_MEMORY,
+        mir::Instruction::FieldGet { .. }
+        | mir::Instruction::FieldAddr { .. }
+        | mir::Instruction::FieldSet { .. }
+        | mir::Instruction::ElementGet { .. }
+        | mir::Instruction::ElementAddr { .. }
+        | mir::Instruction::ElementSet { .. } => INLINE_COST_SIMPLE + 1,
+        mir::Instruction::Struct { fields, .. } => {
+            INLINE_COST_SIMPLE + tree.get_arguments(*fields).len() as u64
+        }
+        mir::Instruction::Tuple { elements, .. } => {
+            INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
+        }
+        mir::Instruction::Array { elements, .. } => {
+            INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
+        }
+        mir::Instruction::Call { .. } => INLINE_COST_CALL,
+        mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
+        mir::Instruction::ManagedAlloc { .. }
+        | mir::Instruction::ManagedAllocArray { .. }
+        | mir::Instruction::RawAlloc { .. }
+        | mir::Instruction::RawFree { .. }
+        | mir::Instruction::RawDrop { .. }
+        | mir::Instruction::StackAlloc { .. }
+        | mir::Instruction::StackDrop { .. } => INLINE_COST_ALLOC,
+        mir::Instruction::Intrinsic { intrinsic, .. } => {
+            if intrinsic.has_memory_effects() {
+                INLINE_COST_MEMORY + 2
+            } else {
+                INLINE_COST_SIMPLE + 1
+            }
+        }
+    }
+}
+
+/// Compute the cost of a terminator.
+fn terminator_cost(terminator: &mir::Terminator) -> u64 {
+    match terminator {
+        mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
+        mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
+        mir::Terminator::Branch { .. }
+        | mir::Terminator::Check { .. }
+        | mir::Terminator::Switch { .. }
+        | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
+        mir::Terminator::Unreachable => 0,
+        mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
+        mir::Terminator::TailCallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
+    }
 }
 
 #[cfg(test)]
@@ -913,6 +1692,182 @@ block2:
         let mut program = TestProgram::new(input);
         program.run_module_pass(&Inline);
         program.assert_output(expected);
+    }
+
+    /// Cold callsites avoid inlining under profile guidance.
+    #[test]
+    fn test_inline_skips_cold_callsite() {
+        let input = r#"function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    v2 = iadd v1, v0
+    v3 = iadd v2, v0
+    v4 = iadd v3, v0
+    v5 = iadd v4, v0
+    v6 = iadd v5, v0
+    v7 = iadd v6, v0
+    v8 = iadd v7, v0
+    v9 = iadd v8, v0
+    return v9
+}
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = call @callee(v0)
+    return v1
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let caller_id = program.function_id_by_name("caller");
+        let (call_id, _) = program.first_call_in_entry(caller_id);
+
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        program.record_function_profile(&mut profile, caller_id, 100);
+        program.record_callsite_profile(&mut profile, call_id, 5);
+
+        program.run_module_pass_with_profile(&Inline, profile);
+        program.assert_output(input);
+    }
+
+    /// Hot callsites enable larger inlines under profile guidance.
+    #[test]
+    fn test_inline_uses_hot_callsite() {
+        let input = r#"function @helper(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    v2 = iadd v1, v0
+    v3 = iadd v2, v0
+    v4 = iadd v3, v0
+    v5 = iadd v4, v0
+    v6 = iadd v5, v0
+    v7 = iadd v6, v0
+    v8 = iadd v7, v0
+    v9 = iadd v8, v0
+    return v9
+}
+function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = call @helper(v0)
+    v2 = call @helper(v1)
+    v3 = call @helper(v2)
+    v4 = call @helper(v3)
+    v5 = call @helper(v4)
+    return v5
+}
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = call @callee(v0)
+    return v1
+}"#;
+
+        let expected = r#"function @helper(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = iadd v0, v0
+    v2 = iadd v1, v0
+    v3 = iadd v2, v0
+    v4 = iadd v3, v0
+    v5 = iadd v4, v0
+    v6 = iadd v5, v0
+    v7 = iadd v6, v0
+    v8 = iadd v7, v0
+    v9 = iadd v8, v0
+    return v9
+}
+function @callee(v0: i32) -> i32 {
+block0(v0: i32):
+    v1 = call @helper(v0)
+    v2 = call @helper(v1)
+    v3 = call @helper(v2)
+    v4 = call @helper(v3)
+    v5 = call @helper(v4)
+    return v5
+}
+function @caller(v0: i32) -> i32 {
+block0(v0: i32):
+    jump block1(v0)
+block1(v2: i32):
+    v3 = call @helper(v2)
+    v4 = call @helper(v3)
+    v5 = call @helper(v4)
+    v6 = call @helper(v5)
+    v7 = call @helper(v6)
+    jump block2(v7)
+block2(v8: i32):
+    return v8
+}"#;
+
+        let mut program = TestProgram::new(input);
+        let caller_id = program.function_id_by_name("caller");
+        let callee_id = program.function_id_by_name("callee");
+        let (call_id, _) = program.first_call_in_entry(caller_id);
+
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        program.record_function_profile(&mut profile, caller_id, 100);
+        program.record_callsite_profile(&mut profile, call_id, 200);
+        for call_id in program.call_instructions_in_function(callee_id) {
+            program.record_callsite_profile(&mut profile, call_id, 1);
+        }
+
+        program.run_module_pass_with_profile(&Inline, profile);
+        program.assert_output(expected);
+    }
+
+    /// Inline budgets scale with profile entry counts.
+    #[test]
+    fn test_inline_budget_scales_with_profile() {
+        let policy = CallsiteHotnessPolicy::inline_default();
+        let function_id = mir::LocalNodeId::<mir::Function>::new(1);
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        profile.functions.insert(
+            function_id,
+            mir::FunctionProfile {
+                entry_count: mir::ProfileCount::new(500, mir::ProfileConfidence::Precise),
+            },
+        );
+
+        let base = inline_budget_for_function(function_id, None, &policy, 100);
+        let scaled = inline_budget_for_function(function_id, Some(&profile), &policy, 100);
+
+        assert!(scaled > base);
+        assert!(scaled <= INLINE_BUDGET_MAX);
+    }
+
+    /// Block profiles can classify hotness for missing callsite data.
+    #[test]
+    fn test_inline_hotness_from_block_profile() {
+        let policy = CallsiteHotnessPolicy::inline_default();
+        let hot = hotness_from_block_count(100, 100, &policy);
+        let cold = hotness_from_block_count(1, 100, &policy);
+
+        assert_eq!(hot, CallsiteHotness::Hot);
+        assert_eq!(cold, CallsiteHotness::Cold);
+    }
+
+    /// Block execution counts fall back to edge profiles when missing.
+    #[test]
+    fn test_inline_block_counts_use_edges() {
+        let policy = CallsiteHotnessPolicy::inline_default();
+        let input = r#"function @test() -> void {
+block0:
+    jump block1
+block1:
+    return
+}"#;
+
+        let program = TestProgram::new(input);
+        let function_id = program.function_id_by_name("test");
+        let block0 = program.entry_block_id(function_id);
+        let block1 = {
+            let function = program.tree.get(function_id);
+            *function.blocks.get(1).expect("missing block1")
+        };
+
+        let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
+        program.record_jump_edge_profile(&mut profile, block0, block1, 42);
+
+        let function = program.tree.get(function_id);
+        let counts = block_execution_counts(function, &program.tree, Some(&profile), &policy);
+
+        assert_eq!(counts.get(&block1), Some(&42));
     }
 
     /// Inline replaces multiple returns with a continuation.

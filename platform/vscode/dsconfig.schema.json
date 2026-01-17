@@ -1588,6 +1588,24 @@
           "minimum": 0,
           "maximum": 255
         },
+        "unrollThreshold": {
+          "description": "Loop unroll threshold in instructions.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "inlineBudgetScalePercent": {
+          "description": "Inline budget scaling in percent.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "ltoMode": {
           "description": "Link time optimization mode.",
           "anyOf": [

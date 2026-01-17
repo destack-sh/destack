@@ -7,18 +7,14 @@ use crate::optimize::analyses::{
     CallGraphScc, ConstantPropagation, constant_propagation_with_params,
 };
 use crate::optimize::common::{
-    ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
-    constant_arguments_for_parameters, required_parameter_indices,
+    CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
+    callsite_hotness, constant_arguments_for_parameters, required_parameter_indices,
 };
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, ModulePass, PipelineContext};
 
-/// Minimum callsite count to treat a call as hot.
-const MIN_SPECIALIZE_CALL_COUNT: u64 = 20;
-/// Minimum callsite ratio to treat a call as hot.
-const MIN_SPECIALIZE_RATIO: f64 = 0.20;
 /// Maximum specializations per function.
 const MAX_SPECIALIZE_PER_FUNCTION: usize = 4;
 /// Maximum specializations per module.
@@ -166,6 +162,7 @@ fn run_argument_specialize(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) 
         HashMap::new();
     let mut specialization_counts: HashMap<mir::LocalNodeId<mir::Function>, usize> = HashMap::new();
     let mut total_specializations = 0usize;
+    let hotness_policy = ctx.specialize_hotness_policy();
 
     // process callsites for specialization
     for callsite in &call_data.callsites {
@@ -191,7 +188,13 @@ fn run_argument_specialize(tree: &mut mir::NodeTree, ctx: &PipelineContext<'_>) 
         }
 
         // skip cold callsites when profile data is present
-        if !callsite_is_hot(callsite, ctx.profile()) {
+        let hotness = callsite_hotness(
+            ctx.profile(),
+            callsite.caller,
+            callsite.call_instruction,
+            hotness_policy,
+        );
+        if matches!(hotness, CallsiteHotness::Cold) {
             continue;
         }
 
@@ -391,37 +394,6 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
         mir::Constant::Char { value } => ConstantKey::Char(*value),
         mir::Constant::String { value } => ConstantKey::String(value.clone()),
     }
-}
-
-/// Decide whether a callsite is hot enough to specialize.
-fn callsite_is_hot(callsite: &DirectCallSite, profile: Option<&mir::ProfileTable>) -> bool {
-    // allow specialization without profile data
-    let Some(profile) = profile else {
-        return true;
-    };
-
-    // read the callsite profile
-    let Some(callsite_profile) = profile.callsite_profile(callsite.call_instruction) else {
-        return false;
-    };
-
-    // accept highly executed callsites
-    let total_count = callsite_profile.total_count.value;
-    if total_count >= MIN_SPECIALIZE_CALL_COUNT {
-        return true;
-    }
-
-    // compare callsite frequency against entry count when available
-    let Some(function_profile) = profile.function_profile(callsite.caller) else {
-        return false;
-    };
-
-    if function_profile.entry_count.value == 0 {
-        return false;
-    }
-
-    let ratio = total_count as f64 / function_profile.entry_count.value as f64;
-    ratio >= MIN_SPECIALIZE_RATIO
 }
 
 /// Specialize a callee by cloning and substituting constants.

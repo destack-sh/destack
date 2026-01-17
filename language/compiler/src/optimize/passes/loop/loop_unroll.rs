@@ -76,8 +76,6 @@ const MAX_FULL_UNROLL_ITERATIONS: u64 = 8;
 const MAX_PARTIAL_UNROLL_FACTOR: u64 = 4;
 /// Maximum trip count to consider for partial unrolling.
 const MAX_PARTIAL_UNROLL_TRIP_COUNT: u64 = 64;
-/// Maximum total instructions to duplicate when unrolling.
-const MAX_UNROLL_BODY_INSTRUCTIONS: usize = 200;
 /// Maximum number of loops to unroll per pass invocation.
 const MAX_UNROLL_LOOPS_PER_FUNCTION: usize = 8;
 
@@ -191,6 +189,13 @@ fn run_loop_unroll(
     tree: &mut mir::NodeTree,
     ctx: &PipelineContext<'_>,
 ) -> bool {
+    // read the unroll threshold from the pipeline options
+    let unroll_threshold = ctx.unroll_threshold();
+
+    if unroll_threshold == 0 {
+        return false;
+    }
+
     // track loop unrolling progress in this pass
     let mut changed = false;
     let mut unrolled_headers = HashSet::new();
@@ -227,9 +232,15 @@ fn run_loop_unroll(
                 continue;
             }
 
-            let Some(candidate) =
-                find_unroll_candidate(lp, loop_index, function, tree, &scev, &forwarding)
-            else {
+            let Some(candidate) = find_unroll_candidate(
+                lp,
+                loop_index,
+                function,
+                tree,
+                &scev,
+                &forwarding,
+                unroll_threshold,
+            ) else {
                 continue;
             };
 
@@ -272,6 +283,7 @@ fn find_unroll_candidate(
     tree: &mir::NodeTree,
     scev: &ScalarEvolution,
     forwarding: &BlockParamForwarding,
+    unroll_threshold: usize,
 ) -> Option<UnrollCandidate> {
     // require a single latch and a single exit edge
     if !lp.has_single_latch() {
@@ -292,7 +304,7 @@ fn find_unroll_candidate(
         .iter()
         .map(|block_id| tree.get(*block_id).instructions.len())
         .sum();
-    if loop_size > MAX_UNROLL_BODY_INSTRUCTIONS {
+    if loop_size > unroll_threshold {
         return None;
     }
 
