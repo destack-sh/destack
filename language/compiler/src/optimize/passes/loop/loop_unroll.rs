@@ -8,9 +8,9 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     BlockParamForwarding, CallsiteHotness, block_execution_counts, block_hotness_from_counts,
-    build_use_def_maps, build_value_definition_map, clone_loop_blocks, constant_from_global,
-    instruction_is_speculatable, instruction_map, terminator_arguments_for_successor,
-    terminator_remap,
+    build_use_def_maps, build_value_definition_map, clone_instruction_metadata, clone_loop_blocks,
+    constant_from_global, instruction_is_speculatable, instruction_map,
+    terminator_arguments_for_successor, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -2010,40 +2010,6 @@ fn scaled_step_constant(
     }
 }
 
-/// Clone instruction metadata when present.
-fn clone_instruction_metadata(
-    tree: &mut mir::NodeTree,
-    original: mir::LocalNodeId<mir::Instruction>,
-    cloned: mir::LocalNodeId<mir::Instruction>,
-    value_map: &HashMap<mir::Value, mir::Value>,
-) {
-    if let Some(accesses) = tree.memory_table.memory_accesses(original) {
-        let mut cloned_accesses = accesses.to_vec();
-        for access in &mut cloned_accesses {
-            if let mir::MemoryAccessTarget::Pointer(value) = access.target
-                && let Some(&remapped) = value_map.get(&value)
-            {
-                access.target = mir::MemoryAccessTarget::Pointer(remapped);
-            }
-        }
-
-        tree.memory_table
-            .insert_memory_accesses(cloned, cloned_accesses);
-    }
-
-    if let Some(metadata) = tree.call_table.call_metadata(original) {
-        let mut cloned_metadata = metadata.clone();
-        if let Some(receiver) = cloned_metadata.receiver
-            && let Some(&remapped) = value_map.get(&receiver)
-        {
-            cloned_metadata.receiver = Some(remapped);
-        }
-
-        tree.call_table
-            .insert_call_metadata(cloned, cloned_metadata);
-    }
-}
-
 /// Compute unroll limits based on block hotness.
 fn unroll_limits_for_loop(
     header: mir::LocalNodeId<mir::Block>,
@@ -2655,7 +2621,6 @@ fn constant_to_u128(constant: &mir::Constant) -> Option<u128> {
 
 /// Return the ceil division for a non negative signed span and positive step.
 #[allow(clippy::manual_div_ceil)]
-/// Return the ceil division for a non negative signed span and positive step.
 fn div_ceil_signed(span: i128, step: i128) -> i128 {
     // validate preconditions
     debug_assert!(span >= 0);
@@ -2669,7 +2634,6 @@ fn div_ceil_signed(span: i128, step: i128) -> i128 {
 
 /// Return the ceil division for a non negative unsigned span and positive step.
 #[allow(clippy::manual_div_ceil)]
-/// Return the ceil division for a non negative unsigned span and positive step.
 fn div_ceil_unsigned(span: u128, step: u128) -> u128 {
     // validate preconditions
     debug_assert!(step > 0);

@@ -68,6 +68,7 @@ impl NodeVisitor for InactiveNodeCollector {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Apply static if decorators to the profile dir.
     pub(super) fn apply_static_if_decorators(

@@ -747,6 +747,42 @@ pub fn build_value_use_counts(
     counts
 }
 
+/// Clone instruction metadata while remapping value references.
+pub fn clone_instruction_metadata(
+    tree: &mut mir::NodeTree,
+    original: mir::LocalNodeId<mir::Instruction>,
+    cloned: mir::LocalNodeId<mir::Instruction>,
+    value_map: &HashMap<mir::Value, mir::Value>,
+) {
+    // clone memory access metadata
+    if let Some(accesses) = tree.memory_table.memory_accesses(original) {
+        let mut cloned_accesses = accesses.to_vec();
+        for access in &mut cloned_accesses {
+            if let mir::MemoryAccessTarget::Pointer(value) = access.target
+                && let Some(&remapped) = value_map.get(&value)
+            {
+                access.target = mir::MemoryAccessTarget::Pointer(remapped);
+            }
+        }
+
+        tree.memory_table
+            .insert_memory_accesses(cloned, cloned_accesses);
+    }
+
+    // clone callsite metadata
+    if let Some(metadata) = tree.call_table.call_metadata(original) {
+        let mut cloned_metadata = metadata.clone();
+        if let Some(receiver) = cloned_metadata.receiver
+            && let Some(&remapped) = value_map.get(&receiver)
+        {
+            cloned_metadata.receiver = Some(remapped);
+        }
+
+        tree.call_table
+            .insert_call_metadata(cloned, cloned_metadata);
+    }
+}
+
 /// Definition metadata for instructions.
 #[derive(Debug, Clone)]
 pub struct InstructionRef {
@@ -773,6 +809,35 @@ pub fn build_value_definition_map(
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
                 map.insert(destination, instruction_id);
+            }
+        }
+    }
+
+    map
+}
+
+/// Build a map from values to their defining blocks.
+pub fn build_value_definition_blocks(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+) -> HashMap<mir::Value, mir::LocalNodeId<mir::Block>> {
+    // collect definition blocks
+    let mut map = HashMap::new();
+
+    // scan blocks for definitions
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+
+        // record block parameters as definitions
+        for param in &block.parameters {
+            map.insert(param.value, block_id);
+        }
+
+        // record instruction definitions
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
+            if let Some(destination) = instruction.destination() {
+                map.insert(destination, block_id);
             }
         }
     }
