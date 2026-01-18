@@ -7,6 +7,9 @@ pub mod server;
 pub use query::*;
 pub use server::DestackLanguageServer;
 
+#[cfg(test)]
+pub mod tests;
+
 use destack_lsp_server::{LspService, Server};
 
 /// Run the language server over stdio.
