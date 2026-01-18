@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// Unique identifier for profiles.
 ///
 /// A profile represents a semantic configuration (comptime world) that determines
@@ -62,4 +64,31 @@ impl ProfileVersion {
         Self(self.0 + 1)
     }
 }
-use serde::{Deserialize, Serialize};
+
+/// A profile id and version captured together.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ProfileStamp {
+    /// The profile id.
+    pub id: ProfileId,
+    /// The profile version.
+    pub version: ProfileVersion,
+}
+
+impl std::fmt::Debug for ProfileStamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{id}@{version}", id = self.id, version = self.version)
+    }
+}
+
+impl std::fmt::Display for ProfileStamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{id}@{version}", id = self.id, version = self.version)
+    }
+}
+
+impl ProfileStamp {
+    /// Create a new ProfileStamp.
+    pub fn new(id: ProfileId, version: ProfileVersion) -> Self {
+        Self { id, version }
+    }
+}

@@ -2,57 +2,37 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Uri, fnv1a_32, fnv1a_64};
+use crate::{PackageId, fnv1a_32};
 
-/// Unique identifier for Packages.
-///
-/// PackageId is a stable hash based on the package's root path, making it
-/// deterministic across compiler runs on the same machine.
+/// Version of a module's compiled state (increments on recompilation).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct PackageId(pub u64);
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
+pub struct ModuleVersion(pub u64);
 
-impl std::fmt::Debug for PackageId {
+impl std::fmt::Debug for ModuleVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
+        write!(f, "v{}", self.0)
     }
 }
 
-impl std::fmt::Display for PackageId {
+impl std::fmt::Display for ModuleVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "#{:016x}", self.0)
+        write!(f, "v{}", self.0)
     }
 }
 
-impl PackageId {
-    /// Well-known ID for ephemeral packages (e.g., REPL, root module).
-    pub const EPHEMERAL: Self = Self(0);
+impl ModuleVersion {
+    /// Initial version.
+    pub const INITIAL: Self = Self(0);
 
-    /// Create a PackageId from a raw hash value.
-    pub fn new(id: u64) -> Self {
-        Self(id)
+    /// Create a new ModuleVersion.
+    pub fn new(version: u64) -> Self {
+        Self(version)
     }
 
-    /// Create a PackageId from a URI (deterministic).
-    pub fn from_uri(uri: &Uri) -> Self {
-        Self(fnv1a_64(uri.as_ref().as_bytes()))
-    }
-
-    /// Create a PackageId from a directory path (for physical packages).
-    pub fn from_path(path: &Path) -> Self {
-        let key = format!("physical:{}", path.to_string_lossy());
-        Self(fnv1a_64(key.as_bytes()))
-    }
-
-    /// Create a PackageId for a synthetic package (loose files in a directory).
-    pub fn from_synthetic_path(path: &Path) -> Self {
-        let key = format!("synthetic:{}", path.to_string_lossy());
-        Self(fnv1a_64(key.as_bytes()))
-    }
-
-    /// Get the raw id value.
-    pub fn raw(&self) -> u64 {
-        self.0
+    /// Increment the version, returning the new value.
+    pub fn next(self) -> Self {
+        Self(self.0 + 1)
     }
 }
 
@@ -139,34 +119,30 @@ impl ModuleId {
     }
 }
 
-/// Version of a module's compiled state (increments on recompilation).
-#[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
-pub struct ModuleVersion(pub u64);
+/// A module id and version captured together.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ModuleStamp {
+    /// The module id.
+    pub id: ModuleId,
+    /// The module version.
+    pub version: ModuleVersion,
+}
 
-impl std::fmt::Debug for ModuleVersion {
+impl std::fmt::Debug for ModuleStamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
+        write!(f, "{id}@{version}", id = self.id, version = self.version)
     }
 }
 
-impl std::fmt::Display for ModuleVersion {
+impl std::fmt::Display for ModuleStamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "v{}", self.0)
+        write!(f, "{id}@{version}", id = self.id, version = self.version)
     }
 }
 
-impl ModuleVersion {
-    /// Initial version.
-    pub const INITIAL: Self = Self(0);
-
-    /// Create a new ModuleVersion.
-    pub fn new(version: u64) -> Self {
-        Self(version)
-    }
-
-    /// Increment the version, returning the new value.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
+impl ModuleStamp {
+    /// Create a new ModuleStamp.
+    pub fn new(id: ModuleId, version: ModuleVersion) -> Self {
+        Self { id, version }
     }
 }
