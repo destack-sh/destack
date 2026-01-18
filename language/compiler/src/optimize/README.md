@@ -241,8 +241,10 @@ Optimizations for memory allocation and access patterns.
 | `mem2reg` | Mem2Reg | function | O1 | ✓ | cfg, domtree | Promote stack allocations to SSA values |
 | `sroa` | ScalarReplacementOfAggregates | function | O1 | ✓ | constant-propagation | Break aggregates into individual scalar values |
 | `load-pre` | LoadPre | function | O2 | ✓ | cfg, domtree, memory-ssa | Insert edge loads to eliminate redundant join loads |
+| `store-pre` | StorePre | function | O2 | ✓ | cfg, domtree, memory-ssa | Insert edge stores to remove redundant join stores |
 | `load-store-forward` | LoadStoreForwarding | function | O2 | ✓ | domtree, alias, memory-ssa | Forward stored values to subsequent loads |
 | `mem-cse` | MemCse | function | O2 | ✓ | alias, memory-ssa | Remove redundant stores that write identical values |
+| `store-sink` | StoreSink | function | O2 | ✓ | cfg, memory-ssa | Sink stores to successor edges that use them |
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias, memory-ssa | Remove stores that are overwritten before being read |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
 | `gc-write-barrier-elide` | GcWriteBarrierElide | function | O2 | | alias, effect, escape | Remove redundant GC write barriers |
@@ -266,9 +268,9 @@ Loop-specific transformations.
 | `loop-versioning` | LoopVersioning | function | O3 | ✓ | loops, cfg, scalar-evolution | Create fast path loops guarded by assumptions |
 | `loop-idiom` | LoopIdiomRecognize | function | O2 | ✓ | loops, cfg, scalar-evolution, ownership | Recognize memset style loops |
 | `unroll-and-jam` | LoopUnrollAndJam | function | O3 | ✓ | loops, cfg, domtree, scalar-evolution, ownership | Unroll outer loops and jam inner loops |
-| `loop-fusion` | LoopFusion | function | O3 | | dependence | Merge adjacent loops with same bounds |
-| `loop-interchange` | LoopInterchange | function | O3 | | dependence | Swap loop nesting order for cache locality |
-| `loop-distribute` | LoopDistribute | function | O3 | | dependence | Split loops to enable partial vectorization |
+| `loop-fusion` | LoopFusion | function | O3 | ✓ | loops, cfg, domtree, memory-ssa, alias, constant-propagation | Merge adjacent loops with the same bounds |
+| `loop-interchange` | LoopInterchange | function | O3 | ✓ | loops, cfg, domtree, memory-ssa | Swap perfectly nested read only loops |
+| `loop-distribute` | LoopDistribute | function | O3 | ✓ | loops, cfg, domtree, memory-ssa, alias | Split loops into disjoint store groups |
 | `loop-vectorize` | LoopVectorize | function | O3 | | dependence | Vectorize loop iterations (SIMD) |
 | `slp-vectorize` | SlpVectorize | function | O3 | | alias | Vectorize straight-line code (superword parallelism) |
 

@@ -3,7 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::optimize::TypeContext;
-use crate::optimize::analyses::OwnershipAnalysis;
+use crate::optimize::analyses::{
+    AliasAnalysis, MemoryAccessEffect, MemoryAccessLocation, OwnershipAnalysis,
+};
 
 use super::TypeKey;
 
@@ -19,6 +21,15 @@ pub struct MemoryLocation {
     pub size: Option<u64>,
     /// Type being accessed, for TBAA.
     pub access_type: Option<TypeKey>,
+}
+
+/// Return true when a memory effect is trackable by optimizations.
+///
+/// Trackable effects have known locations and are not volatile or barriers.
+pub fn effect_is_trackable(effect: &MemoryAccessEffect) -> bool {
+    !effect.is_volatile
+        && !effect.is_barrier
+        && !matches!(effect.location, MemoryAccessLocation::Unknown)
 }
 
 /// Return the stack allocation base for a derived pointer value.
@@ -60,6 +71,226 @@ pub fn stack_alloc_base(
             }
             _ => return None,
         }
+    }
+}
+
+/// Collect stack allocations that do not escape the function.
+pub fn collect_non_escaping_stack_allocs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> HashSet<mir::Value> {
+    // collect stack allocation bases
+    let mut stack_allocs = HashSet::new();
+
+    // scan blocks for stack allocations
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
+            if let mir::Instruction::StackAlloc { destination, .. } = instruction {
+                stack_allocs.insert(*destination);
+            }
+        }
+    }
+
+    // collect escaping stack allocations
+    let mut escaping = HashSet::new();
+
+    // scan blocks for escaping uses
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
+            match instruction {
+                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
+                    // capture call metadata for escape checks
+                    let call_metadata = tree.call_table.call_metadata(instruction_id);
+
+                    // mark stack pointers passed to calls as escaping
+                    if let Some(arg_slice) = instruction.argument_slice() {
+                        let arguments = tree.get_arguments(arg_slice);
+
+                        for (index, &arg) in arguments.iter().enumerate() {
+                            if call_argument_escapes(call_metadata, index) {
+                                record_stack_escape(
+                                    arg,
+                                    definitions,
+                                    tree,
+                                    &stack_allocs,
+                                    &mut escaping,
+                                );
+                            }
+                        }
+                    }
+                }
+                mir::Instruction::Store { value, .. } => {
+                    // mark stored stack pointers as escaping
+                    record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                }
+                _ => {}
+            }
+        }
+
+        // scan terminators for escaping values
+        match &block.terminator {
+            mir::Terminator::Return { value: Some(value) } => {
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+            }
+            mir::Terminator::Jump { arguments, .. } => {
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Branch {
+                then_arguments,
+                else_arguments,
+                ..
+            } => {
+                for &arg in then_arguments.iter().chain(else_arguments.iter()) {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Switch {
+                cases,
+                default_arguments,
+                ..
+            } => {
+                for &arg in default_arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+                for case in cases {
+                    for &arg in &case.arguments {
+                        record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    }
+                }
+            }
+            mir::Terminator::Yield {
+                value,
+                resume_arguments,
+                ..
+            } => {
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                for &arg in resume_arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::TailCallIndirect {
+                callee, arguments, ..
+            } => {
+                record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Unreachable | mir::Terminator::Return { value: None } => {}
+        }
+    }
+
+    // retain only stack allocations that never escaped
+    stack_allocs
+        .difference(&escaping)
+        .copied()
+        .collect::<HashSet<_>>()
+}
+
+/// Report whether a call argument may escape.
+fn call_argument_escapes(call_metadata: Option<&mir::CallMetadata>, index: usize) -> bool {
+    // default to escaping when metadata is missing
+    let Some(metadata) = call_metadata else {
+        return true;
+    };
+
+    // default to escaping when argument metadata is missing
+    let Some(arg_metadata) = metadata.argument_metadata.get(index) else {
+        return true;
+    };
+
+    // treat no capture arguments as non escaping
+    !matches!(arg_metadata.attributes.capture, mir::CaptureKind::NoCapture)
+}
+
+/// Record a stack escape by walking derived values.
+fn record_stack_escape(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+) {
+    // record stack escapes by walking value definitions
+    let mut visited = HashSet::new();
+    record_stack_escape_value(
+        value,
+        definitions,
+        tree,
+        stack_allocs,
+        escaping,
+        &mut visited,
+    );
+}
+
+/// Record stack escapes from a value and its derived operands.
+fn record_stack_escape_value(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+    visited: &mut HashSet<mir::Value>,
+) {
+    // avoid repeating work for values
+    if !visited.insert(value) {
+        return;
+    }
+
+    // resolve the stack base and mark it as escaping
+    if let Some(base) = stack_alloc_base(value, definitions, tree) {
+        if stack_allocs.contains(&base) {
+            escaping.insert(base);
+        }
+        return;
+    }
+
+    // look through derived values
+    let Some(instruction_id) = definitions.get(&value) else {
+        return;
+    };
+    let instruction = tree.get(*instruction_id);
+    match instruction {
+        mir::Instruction::Struct { fields, .. } => {
+            let args = tree.get_arguments(*fields);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+            }
+        }
+        mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
+            let args = tree.get_arguments(*elements);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -120,6 +351,115 @@ pub fn alias_scopes_may_alias(
 
     // allow aliasing when no disambiguation applies
     true
+}
+
+/// Check whether two memory access effects describe the same location.
+pub fn effects_match_location(
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+    current: &MemoryAccessEffect,
+    previous: &MemoryAccessEffect,
+) -> bool {
+    // check alias scopes and noalias scopes
+    if !alias_scopes_may_alias(
+        &current.alias_scopes,
+        &current.noalias_scopes,
+        &previous.alias_scopes,
+        &previous.noalias_scopes,
+    ) {
+        return false;
+    }
+
+    // check location sets
+    if !location_sets_may_alias(current.location_set, previous.location_set) {
+        return false;
+    }
+
+    // check address spaces
+    if !address_spaces_may_alias(&current.address_spaces, &previous.address_spaces) {
+        return false;
+    }
+
+    // check tbaa disambiguation
+    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, current.tbaa_tag, previous.tbaa_tag) {
+        return false;
+    }
+
+    // compare concrete locations
+    match (&current.location, &previous.location) {
+        (MemoryAccessLocation::Local(local), MemoryAccessLocation::Local(other_local)) => {
+            local == other_local
+        }
+        (MemoryAccessLocation::Pointer(current_ptr), MemoryAccessLocation::Pointer(other_ptr)) => {
+            if !memory_locations_compatible(current_ptr, other_ptr) {
+                return false;
+            }
+
+            alias.alias(current_ptr, other_ptr).is_must_alias()
+        }
+        _ => false,
+    }
+}
+
+/// Check whether two access effects may alias.
+pub fn effects_may_alias(
+    tree: &mir::NodeTree,
+    alias: &AliasAnalysis,
+    left: &MemoryAccessEffect,
+    right: &MemoryAccessEffect,
+) -> bool {
+    // check alias scopes and noalias scopes
+    if !alias_scopes_may_alias(
+        &left.alias_scopes,
+        &left.noalias_scopes,
+        &right.alias_scopes,
+        &right.noalias_scopes,
+    ) {
+        return false;
+    }
+
+    // check location sets
+    if !location_sets_may_alias(left.location_set, right.location_set) {
+        return false;
+    }
+
+    // check address spaces
+    if !address_spaces_may_alias(&left.address_spaces, &right.address_spaces) {
+        return false;
+    }
+
+    // check tbaa disambiguation
+    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, left.tbaa_tag, right.tbaa_tag) {
+        return false;
+    }
+
+    // compare concrete locations
+    match (&left.location, &right.location) {
+        (MemoryAccessLocation::Unknown, _) | (_, MemoryAccessLocation::Unknown) => true,
+        (MemoryAccessLocation::Local(local), MemoryAccessLocation::Local(other)) => local == other,
+        (MemoryAccessLocation::Pointer(left_ptr), MemoryAccessLocation::Pointer(right_ptr)) => {
+            if !memory_locations_compatible(left_ptr, right_ptr) {
+                return false;
+            }
+
+            alias.alias(left_ptr, right_ptr).may_alias()
+        }
+        _ => false,
+    }
+}
+
+/// Return true when an instruction has ordered memory access metadata.
+pub fn instruction_has_atomic_ordering(
+    tree: &mir::NodeTree,
+    instruction: mir::LocalNodeId<mir::Instruction>,
+) -> bool {
+    // read access metadata for this instruction
+    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
+        return false;
+    };
+
+    // check for ordered accesses
+    accesses.iter().any(|access| access.ordering.is_some())
 }
 
 /// Check if two memory locations are compatible for value forwarding.

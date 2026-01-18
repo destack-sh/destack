@@ -5,10 +5,11 @@ use crate::optimize::passes::{
     DropInsert, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
     InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
     InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse,
-    LoopBoundsCheckEliminate, LoopDelete, LoopIdiomRecognize, LoopPeel, LoopRotate, LoopSimplify,
-    LoopStrengthReduce, LoopUnroll, LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg,
-    MemCse, MoveCheck, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
-    SparseConditionalConstantPropagation, Sroa, StackCheck, TailCallElim, ValueRangePropagation,
+    LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
+    LoopInterchange, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll,
+    LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck, Narrow,
+    PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
+    Sroa, StackCheck, StorePre, StoreSink, TailCallElim, ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -121,8 +122,10 @@ fn scalar_island_full(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
 fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
     vec![
         Box::new(LoadPre),
+        Box::new(StorePre),
         Box::new(LoadStoreForward),
         Box::new(MemCse),
+        Box::new(StoreSink),
         Box::new(DeadStoreEliminate),
     ]
 }
@@ -135,6 +138,9 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
         Box::new(LoopPeel),
         Box::new(InductionVariableSimplify),
         Box::new(LoopStrengthReduce),
+        Box::new(LoopInterchange),
+        Box::new(LoopDistribute),
+        Box::new(LoopFusion),
         Box::new(LoopVersioning),
         Box::new(LoopIdiomRecognize),
         Box::new(Licm),

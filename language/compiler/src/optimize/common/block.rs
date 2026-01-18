@@ -1030,6 +1030,50 @@ pub fn block_uses_available_in_predecessor(
     true
 }
 
+/// Resolve a block parameter value for a predecessor edge when needed.
+pub fn resolve_edge_value(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    predecessor: &mir::Block,
+    param_indices: &HashMap<mir::Value, usize>,
+) -> Option<mir::Value> {
+    // map block parameters to predecessor arguments
+    let Some(&param_index) = param_indices.get(&value) else {
+        return Some(value);
+    };
+
+    // read arguments for the predecessor edge
+    let args = match terminator_arguments_for_successor_checked(&predecessor.terminator, block_id) {
+        SuccessorArguments::Consistent(args) => args,
+        _ => return None,
+    };
+
+    // return the argument at the parameter index
+    args.get(param_index).copied()
+}
+
+/// Return true when a value is available in a block.
+pub fn value_available_in_block(
+    value: mir::Value,
+    block_id: mir::LocalNodeId<mir::Block>,
+    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
+    function_params: &HashSet<mir::Value>,
+    domtree: &DominatorTree,
+) -> bool {
+    // accept function parameters
+    if function_params.contains(&value) {
+        return true;
+    }
+
+    // require a definition block for the value
+    let Some(def_block) = def_blocks.get(&value) else {
+        return false;
+    };
+
+    // ensure the definition dominates the block
+    domtree.dominates(*def_block, block_id)
+}
+
 /// Return true when block parameters are used outside the block.
 pub fn block_parameters_used_outside_block(
     block: &mir::Block,
