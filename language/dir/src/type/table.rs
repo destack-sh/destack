@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, EnumBackingType, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage,
     LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
-    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, Type,
+    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, StaticParameterKind, Type,
 };
 
 /// Select a normalization cache.
@@ -54,6 +54,10 @@ pub struct TypeTable {
     pub(crate) static_parameter_constraint_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// Static parameter constraint resolution in progress.
     pub(crate) static_parameter_constraint_in_progress: HashSet<GlobalSymbolId>,
+    /// Cached static parameter kinds by symbol.
+    pub(crate) static_parameter_kind_by_symbol_id: IndexMap<GlobalSymbolId, StaticParameterKind>,
+    /// Static parameter kind inference in progress.
+    pub(crate) static_parameter_kind_in_progress: HashSet<GlobalSymbolId>,
 
     // node types
     /// The declared type by node id.
@@ -129,6 +133,8 @@ impl TypeTable {
             // static parameter constraints
             static_parameter_constraint_by_symbol_id: IndexMap::new(),
             static_parameter_constraint_in_progress: HashSet::new(),
+            static_parameter_kind_by_symbol_id: IndexMap::new(),
+            static_parameter_kind_in_progress: HashSet::new(),
 
             // node types
             declared_type_by_node_id: IndexMap::new(),
@@ -485,6 +491,46 @@ impl TypeTable {
         // check whether resolution is in progress
         self.static_parameter_constraint_in_progress
             .contains(&symbol_id)
+    }
+
+    /// Cache the inferred kind for a static parameter symbol.
+    pub fn set_static_parameter_kind(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        kind: StaticParameterKind,
+    ) {
+        // cache the inferred kind
+        self.static_parameter_kind_by_symbol_id
+            .insert(symbol_id, kind);
+    }
+
+    /// Get the cached static parameter kind for a symbol.
+    pub fn get_static_parameter_kind(
+        &self,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<StaticParameterKind> {
+        // fetch the cached kind
+        self.static_parameter_kind_by_symbol_id
+            .get(&symbol_id)
+            .copied()
+    }
+
+    /// Mark a static parameter kind as in progress.
+    pub fn mark_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        // record kind inference as in progress
+        self.static_parameter_kind_in_progress.insert(symbol_id);
+    }
+
+    /// Clear the in progress marker for a static parameter kind.
+    pub fn clear_static_parameter_kind_in_progress(&mut self, symbol_id: GlobalSymbolId) {
+        // clear the in progress marker
+        self.static_parameter_kind_in_progress.remove(&symbol_id);
+    }
+
+    /// Check whether a static parameter kind is in progress.
+    pub fn is_static_parameter_kind_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
+        // check whether inference is in progress
+        self.static_parameter_kind_in_progress.contains(&symbol_id)
     }
 
     /// Set the value type for a symbol (what type this symbol has when used as a value).

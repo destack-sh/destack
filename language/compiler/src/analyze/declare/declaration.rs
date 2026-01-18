@@ -1207,22 +1207,17 @@ impl Compiler {
                         is_readonly,
                     });
                 }
-                Member::Embed { modifiers, value, .. } => {
+                Member::Embed {
+                    modifiers, value, ..
+                } => {
                     // collect embedded fields from the target type
                     let is_static = Self::member_is_static(modifiers.as_ref());
                     let target_shape = Self::member_target_shape(&mut shapes, is_static);
-                    let embed_shape = self.embed_member_shape(
-                        module,
-                        profile,
-                        *value,
-                        tree,
-                        symbols,
-                        types,
-                    )?;
+                    let embed_shape =
+                        self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
                     target_shape.extend_from_shape(&embed_shape);
                 }
-                | Member::StaticBlock { .. }
-                | Member::ComptimeBlock { .. } => {}
+                Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => {}
             }
         }
 
@@ -1455,14 +1450,8 @@ impl Compiler {
             }
             Member::Embed { value, .. } => {
                 // collect embedded fields from the target type
-                let embed_shape = self.embed_member_shape(
-                    module,
-                    profile,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                )?;
+                let embed_shape =
+                    self.embed_member_shape(module, profile, *value, tree, symbols, types)?;
                 shape.extend_from_shape(&embed_shape);
 
                 Ok(shape)

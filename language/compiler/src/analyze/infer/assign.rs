@@ -1047,6 +1047,25 @@ impl Compiler {
                     ..
                 },
             ) => {
+                // allow structural assignability for type aliases
+                if (target_symbol.ty() == SymbolType::TypeAlias
+                    || source_symbol.ty() == SymbolType::TypeAlias)
+                    && let (Some(target_instance_id), Some(source_instance_id)) = (
+                        types.get_instance_type_id(target_symbol),
+                        types.get_instance_type_id(source_symbol),
+                    )
+                {
+                    return self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        target_instance_id,
+                        source_instance_id,
+                        types,
+                        options,
+                    );
+                }
+
                 // nominal check: same symbol or lineage
                 if target_symbol == source_symbol
                     || self.is_type_lineage_assignable(source_symbol, target_symbol, types)

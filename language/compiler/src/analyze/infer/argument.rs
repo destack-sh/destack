@@ -1,11 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
+use super::super::common::{StaticParameterReferencePosition, StaticParameterReferences};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin,
-    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, StaticParameter, StaticParameterKind, StaticProperty, StringId, SymbolTable,
-    SymbolType, Type, TypeElement, TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
+    Argument, Constraint, Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
+    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    StaticArgument, StaticExpression, StaticParameter, StaticParameterKind, StaticProperty,
+    StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeLiteral,
+    TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -338,8 +340,24 @@ impl Compiler {
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
+                // prefer static value evaluation, then static parameter references
                 if let Some(value) = self.evaluate_static_argument_as_value(node, tree) {
                     value
+                } else if let Some(StaticArgument::Evaluated { name, value }) = self
+                    .evaluate_static_argument_as_type(module, profile, node, tree, symbols, types)?
+                {
+                    // preserve static parameter references in value slots
+                    if let StaticExpression::Type { ty } = value
+                        && let Type::Reference { symbol, .. } = types.get_type(ty)
+                        && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+                    {
+                        StaticArgument::Evaluated {
+                            name,
+                            value: StaticExpression::Type { ty },
+                        }
+                    } else {
+                        StaticArgument::Unevaluated { node }
+                    }
                 } else {
                     StaticArgument::Unevaluated { node }
                 }
@@ -604,33 +622,8 @@ impl Compiler {
                 )
             });
 
-            // skip dependent arguments in declaration modules
+            // skip bound validation in declaration modules
             if module.language_type.is_declaration() {
-                let mut visited = HashSet::new();
-                if self.static_argument_contains_static_parameters(
-                    module,
-                    profile,
-                    resolved_static_argument,
-                    symbols,
-                    types,
-                    &mut visited,
-                ) {
-                    return Ok(Some(substitution_ty_id));
-                }
-            }
-
-            // skip non-concrete arguments in declaration modules
-            if module.language_type.is_declaration()
-                && !self.static_argument_is_concrete_type(resolved_static_argument, types)
-            {
-                return Ok(Some(substitution_ty_id));
-            }
-
-            // skip validation when declaration module types are not materialized yet
-            if module.language_type.is_declaration()
-                && let Type::Reference { symbol, .. } = types.get_type(substitution_ty_id)
-                && types.get_instance_type_id(*symbol).is_none()
-            {
                 return Ok(Some(substitution_ty_id));
             }
 
@@ -657,6 +650,22 @@ impl Compiler {
                     &mut cache,
                 )
             };
+
+            // skip validation when nested references are unresolved in declaration modules
+            if module.language_type.is_declaration() {
+                // guard against unresolved references in the argument type
+                let mut visited = HashSet::new();
+                if self.type_contains_unresolved_reference(substitution_ty_id, types, &mut visited)
+                {
+                    return Ok(Some(substitution_ty_id));
+                }
+
+                // guard against unresolved references in the expected bound
+                visited.clear();
+                if self.type_contains_unresolved_reference(expected_ty_id, types, &mut visited) {
+                    return Ok(Some(substitution_ty_id));
+                }
+            }
 
             // skip unresolved alias bounds in declaration modules
             if module.language_type.is_declaration()
@@ -810,6 +819,11 @@ impl Compiler {
             return Ok(Some(substitution_ty_id));
         }
 
+        // skip value validation in declaration modules
+        if module.language_type.is_declaration() {
+            return Ok(None);
+        }
+
         // validate value arguments against the declared type
         if static_parameter.kind == StaticParameterKind::Value
             && matches!(resolved_static_argument, StaticArgument::Unevaluated { .. })
@@ -903,92 +917,18 @@ impl Compiler {
             StaticProperty::Unevaluated { .. } => false,
             StaticProperty::Field { value, default, .. } => {
                 self.static_value_argument_is_static(value, types)
-                    && default.as_ref().is_none_or(|value| {
-                        self.static_value_argument_is_static(value, types)
-                    })
+                    && default
+                        .as_ref()
+                        .is_none_or(|value| self.static_value_argument_is_static(value, types))
             }
-            StaticProperty::Method { body, .. } => self.static_value_argument_is_static(body, types),
+            StaticProperty::Method { body, .. } => {
+                self.static_value_argument_is_static(body, types)
+            }
         }
-    }
-
-    /// Resolve the kind for a static parameter reference.
-    fn static_parameter_kind_for_reference(
-        &self,
-        force_type_parameters: bool,
-        referenced_symbols: &HashSet<GlobalSymbolId>,
-        symbol_id: GlobalSymbolId,
-        assigned_argument: Option<&StaticArgument>,
-        default_prefers_type: bool,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> StaticParameterKind {
-        // respect declaration forcing
-        if force_type_parameters {
-            return StaticParameterKind::Type;
-        }
-
-        // treat referenced parameters as type parameters
-        if referenced_symbols.contains(&symbol_id) {
-            return StaticParameterKind::Type;
-        }
-
-        // treat explicit type expressions as type arguments
-        if let Some(argument) = assigned_argument
-            && self.static_argument_prefers_type(argument)
-            && !self.static_argument_is_static_parameter_reference(
-                module, profile, symbols, types, argument,
-            )
-        {
-            return StaticParameterKind::Type;
-        }
-
-        // treat default type expressions as type arguments
-        if default_prefers_type {
-            return StaticParameterKind::Type;
-        }
-
-        StaticParameterKind::Value
-    }
-
-    /// Decide whether a static argument should be treated as a type argument.
-    fn static_argument_prefers_type(&self, argument: &StaticArgument) -> bool {
-        match argument {
-            StaticArgument::Evaluated { value, .. } => matches!(
-                value,
-                StaticExpression::Type { .. } | StaticExpression::TypeLiteral { .. }
-            ),
-            StaticArgument::Unevaluated { .. } => false,
-        }
-    }
-
-    /// Check whether a static argument is a reference to a static parameter.
-    fn static_argument_is_static_parameter_reference(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        argument: &StaticArgument,
-    ) -> bool {
-        let StaticArgument::Evaluated { value, .. } = argument else {
-            return false;
-        };
-
-        let StaticExpression::Type { ty } = value else {
-            return false;
-        };
-
-        let Type::Reference { symbol, .. } = types.get_type(*ty) else {
-            return false;
-        };
-
-        self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
     }
 
     /// Decide whether a default expression should be treated as a type argument.
-    fn static_default_expression_prefers_type(
+    pub(super) fn static_default_expression_prefers_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1034,12 +974,22 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
-        // treat static values as value defaults
-        if self
-            .evaluate_static_expression_value(default_expression, tree)
-            .is_some()
-        {
-            return Ok(false);
+        // treat value expressions as value defaults
+        if let Some(value) = self.evaluate_static_expression_value(default_expression, tree) {
+            match value {
+                StaticExpression::Type { .. } | StaticExpression::TypeLiteral { .. } => {
+                    return Ok(true);
+                }
+                StaticExpression::ScalarLiteral { .. }
+                | StaticExpression::RangeExpression { .. }
+                | StaticExpression::ArrayExpression { .. }
+                | StaticExpression::TupleExpression { .. }
+                | StaticExpression::ObjectExpression { .. }
+                | StaticExpression::Unevaluated { .. }
+                | StaticExpression::Declaration { .. } => {
+                    return Ok(false);
+                }
+            }
         }
 
         // treat resolvable type expressions as type defaults
@@ -1055,20 +1005,28 @@ impl Compiler {
         Ok(!matches!(resolved, Type::Unevaluated(_) | Type::Error))
     }
 
-    /// Collect reference symbols from a type id, evaluating it when needed.
+    /// Collect reference symbols from a type id.
     fn collect_reference_symbols_from_type_id(
         &self,
-        module: &Module,
-        profile: ProfileId,
+        _module: &Module,
+        _profile: ProfileId,
         ty_id: LocalTypeId,
         tree: &NodeTree,
-        symbols: &SymbolTable,
+        _symbols: &SymbolTable,
         types: &mut TypeTable,
         referenced_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<()> {
-        // evaluate instance types before collecting references
-        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
-            self.evaluate_type(module, profile, ty_id, tree, symbols, types)?;
+        // collect references directly from unevaluated expressions
+        if let Type::Unevaluated(expression_id) = types.get_type(ty_id) {
+            let mut references = StaticParameterReferences::default();
+            self.collect_static_parameter_references_from_expression(
+                tree,
+                *expression_id,
+                &mut references,
+                StaticParameterReferencePosition::Type,
+            );
+            referenced_symbols.extend(references.type_symbols);
+            return Ok(());
         }
 
         // collect referenced type symbols
@@ -1078,28 +1036,63 @@ impl Compiler {
         Ok(())
     }
 
+    /// Collect static parameter usage from a type declaration expression.
+    fn collect_reference_usage_from_declaration_expression(
+        &self,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        symbol: GlobalSymbolId,
+        references: &mut StaticParameterReferences,
+    ) -> AnalyzeResult<()> {
+        // resolve the primary declaration
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary_declaration) = symbol_entry.primary_declaration else {
+            return Ok(());
+        };
+        let Ok(declaration_id) = primary_declaration.local_id.try_into_typed::<Declaration>()
+        else {
+            return Ok(());
+        };
+
+        // collect usage from type alias expressions
+        let Declaration::Type { value, .. } = tree.get(declaration_id) else {
+            return Ok(());
+        };
+        self.collect_static_parameter_references_from_expression(
+            tree,
+            *value,
+            references,
+            StaticParameterReferencePosition::Type,
+        );
+
+        Ok(())
+    }
+
     /// Collect referenced static parameter symbols for a type reference.
     ///
     /// This is used to infer static parameter kinds when explicit annotations are absent.
     /// If a parameter is referenced in the instance or alias shape, treat it as a type
     /// parameter (e.g. defaults like `R = this`).
-    fn collect_static_parameter_reference_symbols(
+    pub(super) fn collect_static_parameter_reference_symbols(
         &self,
         module: &Module,
         profile: ProfileId,
+        node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         parameter_symbols: &[GlobalSymbolId],
-        has_explicit_arguments: bool,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<HashSet<GlobalSymbolId>> {
-        let mut referenced_symbols = HashSet::new();
+    ) -> AnalyzeResult<StaticParameterReferences> {
+        let mut references = StaticParameterReferences::default();
+
+        // ensure instance types are ready for reference collection
+        if types.get_instance_type_id(symbol).is_none() {
+            self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+        }
 
         // collect references from the instance type when possible
-        let mut used_reference_source = false;
         if let Some(ty_id) = types.get_instance_type_id(symbol) {
-            used_reference_source = true;
             self.collect_reference_symbols_from_type_id(
                 module,
                 profile,
@@ -1107,7 +1100,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                &mut referenced_symbols,
+                &mut references.type_symbols,
             )?;
         }
 
@@ -1115,7 +1108,6 @@ impl Compiler {
         if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype) {
             if symbol.module_id == module.id {
                 if let Some(alias_target_id) = types.get_alias_target_type_id(symbol) {
-                    used_reference_source = true;
                     self.collect_reference_symbols_from_type_id(
                         module,
                         profile,
@@ -1123,7 +1115,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        &mut referenced_symbols,
+                        &mut references.type_symbols,
                     )?;
                 }
             } else {
@@ -1133,7 +1125,6 @@ impl Compiler {
                 let remote_symbols = remote_module.dir(profile).symbols.read();
                 let mut remote_types = remote_module.dir(profile).types.write();
                 if let Some(alias_target_id) = remote_types.get_alias_target_type_id(symbol) {
-                    used_reference_source = true;
                     self.collect_reference_symbols_from_type_id(
                         &remote_module,
                         profile,
@@ -1141,190 +1132,232 @@ impl Compiler {
                         &remote_tree,
                         &remote_symbols,
                         &mut remote_types,
-                        &mut referenced_symbols,
+                        &mut references.type_symbols,
                     )?;
                 }
             }
         }
 
-        // fall back to type parameters when no reference data exists
-        if !used_reference_source && !has_explicit_arguments {
-            referenced_symbols.extend(parameter_symbols.iter().copied());
+        // collect usage from declaration expressions when possible
+        if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+            && references.type_symbols.is_empty()
+            && references.value_symbols.is_empty()
+        {
+            if symbol.module_id == module.id {
+                self.collect_reference_usage_from_declaration_expression(
+                    tree,
+                    symbols,
+                    symbol,
+                    &mut references,
+                )?;
+            } else {
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.read();
+                let remote_tree = remote_module.dir(profile).tree.read();
+                let remote_symbols = remote_module.dir(profile).symbols.read();
+                self.collect_reference_usage_from_declaration_expression(
+                    &remote_tree,
+                    &remote_symbols,
+                    symbol,
+                    &mut references,
+                )?;
+            }
         }
 
-        Ok(referenced_symbols)
+        // fall back to type parameters when no reference data exists
+        if references.type_symbols.is_empty() && references.value_symbols.is_empty() {
+            references
+                .type_symbols
+                .extend(parameter_symbols.iter().copied());
+        }
+
+        Ok(references)
     }
 
-    /// Check whether a static argument resolves to a concrete type.
-    fn static_argument_is_concrete_type(
+    /// Ensure extension static parameter kinds are aligned with target parameters.
+    pub(super) fn ensure_extension_static_parameter_kinds(
         &self,
-        argument: &StaticArgument,
-        types: &TypeTable,
-    ) -> bool {
-        // only evaluated arguments can be concrete
-        let StaticArgument::Evaluated { value, .. } = argument else {
-            return false;
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        extension_symbol: GlobalSymbolId,
+        extension_parameters: &[GlobalSymbolId],
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<bool> {
+        // skip when the extension has no parameters
+        if extension_parameters.is_empty() {
+            return Ok(true);
+        }
+
+        // resolve the extension target symbol in the owning module
+        let resolve_target_symbol = |_extension_module: &Module,
+                                     extension_tree: &NodeTree,
+                                     extension_symbols: &SymbolTable|
+         -> Option<GlobalSymbolId> {
+            let symbol_entry = extension_symbols.get_symbol(extension_symbol.local_id);
+            let declaration_id = symbol_entry
+                .primary_declaration?
+                .try_into_local_typed::<Declaration>()
+                .ok()?;
+            let declaration = extension_tree.get(declaration_id);
+            let Declaration::Extension { target_symbol, .. } = declaration else {
+                return None;
+            };
+            *target_symbol
         };
 
-        self.static_expression_is_concrete_type(value, types)
-    }
+        let target_symbol = if extension_symbol.module_id == module.id {
+            resolve_target_symbol(module, tree, symbols)
+        } else {
+            let remote_module = self.program.modules.get(extension_symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_tree = remote_module.dir(profile).tree.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
+            resolve_target_symbol(&remote_module, &remote_tree, &remote_symbols)
+        };
 
-    /// Check whether a static expression resolves to a concrete type.
-    fn static_expression_is_concrete_type(
-        &self,
-        value: &StaticExpression,
-        types: &TypeTable,
-    ) -> bool {
-        match value {
-            StaticExpression::Unevaluated { .. } => false,
-            StaticExpression::ScalarLiteral { .. } => true,
-            StaticExpression::TypeLiteral { value } => !matches!(value, TypeLiteral::Unknown),
-            StaticExpression::Type { ty } => self.type_is_concrete_type_argument(*ty, types),
-            StaticExpression::Declaration { .. } => false,
-            StaticExpression::RangeExpression { .. } => false,
-            StaticExpression::ArrayExpression { .. } => false,
-            StaticExpression::TupleExpression { .. } => false,
-            StaticExpression::ObjectExpression { .. } => false,
-        }
-    }
+        let Some(target_symbol) = target_symbol else {
+            return Ok(false);
+        };
 
-    /// Check whether a type id resolves to a concrete type argument.
-    fn type_is_concrete_type_argument(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
-        let mut visited = HashSet::new();
-        self.type_is_concrete_type_argument_inner(ty_id, types, &mut visited)
-    }
-
-    /// Check whether a type id resolves to a concrete type argument, with recursion control.
-    fn type_is_concrete_type_argument_inner(
-        &self,
-        ty_id: LocalTypeId,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        // avoid infinite recursion in self-referential types
-        if !visited.insert(ty_id) {
-            return true;
+        // resolve the target parameter list
+        let target_parameters =
+            self.collect_static_parameter_symbols(module, target_symbol, profile, tree, symbols);
+        let Some(target_parameters) = target_parameters else {
+            return Ok(false);
+        };
+        if target_parameters.is_empty() {
+            return Ok(false);
         }
 
-        match types.get_type(ty_id) {
-            Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            } => false,
-            Type::TypeLiteral { .. } => true,
-            Type::InferVar { .. } => false,
-            Type::Error => false,
-            Type::Unevaluated(_) => false,
-            Type::This => false,
-            Type::Value { value } => {
-                self.type_is_concrete_type_argument_inner(*value, types, visited)
+        // resolve the target argument mapping from the extension declaration
+        let target_mapping =
+            self.extension_target_argument_mapping(extension_symbol, extension_parameters, profile);
+        let Some(target_mapping) = target_mapping else {
+            return Ok(false);
+        };
+
+        // invert the target mapping for extension lookup
+        let mut extension_to_target = vec![None; extension_parameters.len()];
+        for (target_index, extension_index) in target_mapping.into_iter().enumerate() {
+            if extension_index >= extension_to_target.len()
+                || extension_to_target[extension_index].is_some()
+            {
+                return Ok(false);
             }
-            Type::Reference {
-                static_arguments, ..
-            } => static_arguments.as_ref().is_none_or(|arguments| {
-                arguments
-                    .iter()
-                    .all(|argument| self.static_argument_is_concrete_type(argument, types))
-            }),
-            Type::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                self.type_is_concrete_type_argument_inner(*left, types, visited)
-                    && self.type_is_concrete_type_argument_inner(*right, types, visited)
-                    && self.type_is_concrete_type_argument_inner(*then_type, types, visited)
-                    && self.type_is_concrete_type_argument_inner(*else_type, types, visited)
-            }
-            Type::Mapped {
-                parameter, value, ..
-            } => {
-                self.type_is_concrete_type_argument_inner(
-                    parameter.constraint,
+            extension_to_target[extension_index] = Some(target_index);
+        }
+
+        // ensure target parameter kinds are inferred
+        self.ensure_static_parameter_kinds_for_symbol(
+            module,
+            profile,
+            node_id,
+            target_symbol,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // map target parameter kinds onto extension parameters
+        for (extension_index, extension_symbol) in extension_parameters.iter().enumerate() {
+            let Some(target_index) = extension_to_target
+                .get(extension_index)
+                .and_then(|value| *value)
+            else {
+                continue;
+            };
+            let Some(target_parameter_symbol) = target_parameters.get(target_index) else {
+                continue;
+            };
+
+            let target_kind = types
+                .get_static_parameter_kind(*target_parameter_symbol)
+                .unwrap_or(StaticParameterKind::Type);
+            types.set_static_parameter_kind(*extension_symbol, target_kind);
+
+            // inherit value constraint types from target parameters
+            if types
+                .get_static_parameter_constraint_type(*extension_symbol)
+                .is_none()
+            {
+                if let Some(constraint_id) = self.static_parameter_constraint_type(
+                    module,
+                    profile,
+                    *target_parameter_symbol,
+                    node_id,
+                    symbols,
                     types,
-                    visited,
-                ) && parameter.key_remap.is_none_or(|key_remap| {
-                    self.type_is_concrete_type_argument_inner(key_remap, types, visited)
-                }) && self.type_is_concrete_type_argument_inner(*value, types, visited)
+                ) {
+                    types.set_static_parameter_constraint_type(*extension_symbol, constraint_id);
+                }
             }
-            Type::Index { left, index } => {
-                self.type_is_concrete_type_argument_inner(*left, types, visited)
-                    && self.type_is_concrete_type_argument_inner(*index, types, visited)
-            }
-            Type::TemplateLiteral { spans, .. } => spans.iter().all(|span| {
-                self.type_is_concrete_type_argument_inner(*span, types, visited)
-            }),
-            Type::Import {
-                static_arguments, ..
-            } => static_arguments.as_ref().is_none_or(|arguments| {
-                arguments
-                    .iter()
-                    .all(|argument| self.static_argument_is_concrete_type(argument, types))
-            }),
-            Type::Infer { .. } => false,
-            Type::Predicate { .. } => false,
-            Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
-            | Type::ValueOf { right, .. }
-            | Type::ReferenceOf { right, .. }
-            | Type::PointerOf { right, .. } => {
-                self.type_is_concrete_type_argument_inner(*right, types, visited)
-            }
-            Type::Binary { left, right, .. } => {
-                self.type_is_concrete_type_argument_inner(*left, types, visited)
-                    && self.type_is_concrete_type_argument_inner(*right, types, visited)
-            }
-            Type::ArraySized { element, .. } => {
-                self.type_is_concrete_type_argument_inner(*element, types, visited)
-            }
-            Type::Array { element } => element.is_some_and(|element| {
-                self.type_is_concrete_type_argument_inner(element, types, visited)
-            }),
-            Type::Tuple { elements } => elements.iter().all(|element| {
-                self.type_is_concrete_type_argument_inner(element.ty, types, visited)
-            }),
-            Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                fields.iter().all(|field| {
-                    self.type_is_concrete_type_argument_inner(field.ty, types, visited)
-                }) && call_signatures.iter().all(|signature| {
-                    self.type_is_concrete_type_argument_inner(*signature, types, visited)
-                }) && construct_signatures.iter().all(|signature| {
-                    self.type_is_concrete_type_argument_inner(*signature, types, visited)
-                }) && index_signatures.iter().all(|signature| {
-                    self.type_is_concrete_type_argument_inner(signature.key_type, types, visited)
-                        && self.type_is_concrete_type_argument_inner(
-                            signature.value_type,
-                            types,
-                            visited,
-                        )
-                })
-            }
-            Type::Function {
-                static_parameters,
-                this_parameter,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                static_parameters.iter().all(|parameter| {
-                    self.type_is_concrete_type_argument_inner(*parameter, types, visited)
-                }) && this_parameter.is_none_or(|parameter| {
-                    self.type_is_concrete_type_argument_inner(parameter, types, visited)
-                }) && dynamic_parameters.iter().all(|parameter| {
-                    self.type_is_concrete_type_argument_inner(*parameter, types, visited)
-                }) && return_type.is_none_or(|return_type| {
-                    self.type_is_concrete_type_argument_inner(return_type, types, visited)
-                })
-            }
-            Type::Union { elements } | Type::Intersection { elements } => elements.iter().all(
-                |element| self.type_is_concrete_type_argument_inner(*element, types, visited),
-            ),
         }
+
+        Ok(true)
+    }
+
+    /// Resolve the target argument mapping for an extension declaration.
+    pub(super) fn extension_target_argument_mapping(
+        &self,
+        extension_symbol: GlobalSymbolId,
+        extension_parameters: &[GlobalSymbolId],
+        profile: ProfileId,
+    ) -> Option<Vec<usize>> {
+        // load the extension declaration
+        let module = self.program.modules.get(extension_symbol.module_id);
+        let module = module.read();
+        let dir = module.dir(profile);
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+
+        let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
+        let declaration_id = symbol_entry
+            .primary_declaration?
+            .try_into_local_typed::<Declaration>()
+            .ok()?;
+        let declaration = tree.get(declaration_id);
+        let Declaration::Extension { target_type, .. } = declaration else {
+            return None;
+        };
+
+        // read the target type arguments
+        let target_expression = tree.get(*target_type);
+        let static_arguments = match target_expression {
+            Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            } => static_arguments.as_ref(),
+            _ => None,
+        }?;
+
+        // map target arguments to extension parameter indices
+        let mut mapping = Vec::with_capacity(static_arguments.len());
+        for argument_id in static_arguments {
+            let argument = tree.get(*argument_id);
+            let expression_id = argument.value();
+            let expression = tree.get(expression_id);
+            let target_symbol = match expression {
+                Expression::LocalReference { target_symbol, .. }
+                | Expression::ModuleReference { target_symbol, .. }
+                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+                _ => None,
+            }?;
+
+            let parameter_index = extension_parameters
+                .iter()
+                .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
+            mapping.push(parameter_index);
+        }
+
+        Some(mapping)
     }
 
     /// Resolve a static argument constraint for validation.
@@ -1502,14 +1535,18 @@ impl Compiler {
             return Ok(None);
         }
 
-        // prefer type parameters in declaration modules
-        let force_type_parameters = self.static_parameters_are_type_only(module, symbol);
+        // ensure static parameter kinds are inferred for the declaration
+        self.ensure_static_parameter_kinds_for_symbol(
+            module, profile, node_id, symbol, tree, symbols, types,
+        )?;
 
-        // gather static parameter metadata with provisional kinds
+        // gather static parameter metadata with cached kinds
         let mut static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = StaticParameterKind::Type;
+                let kind = types
+                    .get_static_parameter_kind(*symbol_id)
+                    .unwrap_or(StaticParameterKind::Type);
                 self.collect_static_parameter(
                     module, *symbol_id, kind, node_id, profile, tree, symbols, types,
                 )
@@ -1526,48 +1563,11 @@ impl Compiler {
             &static_parameters,
             tree,
         );
-        let has_explicit_arguments = assigned_arguments.iter().any(|arg| arg.is_some());
-
-        // collect referenced symbols from instance and alias types
-        let referenced_symbols = self.collect_static_parameter_reference_symbols(
-            module,
-            profile,
-            symbol,
-            &parameter_symbols,
-            has_explicit_arguments,
-            tree,
-            symbols,
-            types,
-        )?;
-
-        // resolve parameter kinds with explicit arguments
-        for (index, static_parameter) in static_parameters.iter_mut().enumerate() {
-            let assigned_argument = assigned_arguments.get(index).and_then(|arg| arg.as_ref());
-            let default_prefers_type = if assigned_argument.is_none()
-                && let Some(default_expression) = static_parameter.default_expression.as_ref()
-            {
-                self.static_default_expression_prefers_type(
-                    module,
-                    profile,
-                    default_expression,
-                    tree,
-                    symbols,
-                    types,
-                )?
-            } else {
-                false
-            };
-            static_parameter.kind = self.static_parameter_kind_for_reference(
-                force_type_parameters,
-                &referenced_symbols,
-                static_parameter.symbol,
-                assigned_argument,
-                default_prefers_type,
-                module,
-                profile,
-                symbols,
-                types,
-            );
+        // keep parameter kinds in sync with the cached inference
+        for static_parameter in static_parameters.iter_mut() {
+            if let Some(kind) = types.get_static_parameter_kind(static_parameter.symbol) {
+                static_parameter.kind = kind;
+            }
         }
 
         // resolve arguments with defaults and fallbacks
@@ -1767,33 +1767,13 @@ impl Compiler {
             return HashMap::new();
         }
 
-        // collect referenced symbols from the instance type
-        let mut referenced_symbols = HashSet::new();
-        let mut visited = HashSet::new();
-        if let Some(ty_id) = types.get_instance_type_id(symbol) {
-            self.collect_type_reference_symbols(
-                ty_id,
-                types,
-                &mut referenced_symbols,
-                &mut visited,
-            );
-        } else {
-            // fallback to type parameters when the instance type is not ready
-            referenced_symbols.extend(parameter_symbols.iter().copied());
-        }
-
-        // prefer type parameters in declaration modules
-        let force_type_parameters = self.static_parameters_are_type_only(module, symbol);
-
-        // collect static parameters with kinds
+        // collect static parameters with cached kinds
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = if force_type_parameters || referenced_symbols.contains(symbol_id) {
-                    StaticParameterKind::Type
-                } else {
-                    StaticParameterKind::Value
-                };
+                let kind = types
+                    .get_static_parameter_kind(*symbol_id)
+                    .unwrap_or(StaticParameterKind::Type);
                 self.collect_static_parameter(
                     module, *symbol_id, kind, source_id, profile, tree, symbols, types,
                 )

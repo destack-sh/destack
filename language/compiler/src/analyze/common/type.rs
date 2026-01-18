@@ -1,4 +1,9 @@
-use destack_dir::{GlobalSymbolId, LocalTypeId, SymbolType, Type, TypeLiteral, TypeTable};
+use std::collections::HashSet;
+
+use destack_dir::{
+    GlobalSymbolId, LocalTypeId, StaticArgument, StaticExpression, StaticProperty, SymbolType,
+    Type, TypeLiteral, TypeTable,
+};
 
 use crate::Compiler;
 
@@ -129,5 +134,205 @@ impl Compiler {
         // construct the union type
         let union = Type::Union { elements: filtered };
         types.insert_type_from_any(union, types.get_type_source(source_type_id))
+    }
+
+    /// Check whether a type contains references without resolved instance types.
+    pub(crate) fn type_contains_unresolved_reference(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // avoid infinite recursion in self-referential types
+        if !visited.insert(ty_id) {
+            return false;
+        }
+
+        match types.get_type(ty_id) {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                if types.get_instance_type_id(*symbol).is_none() {
+                    return true;
+                }
+
+                static_arguments.as_ref().is_some_and(|arguments| {
+                    arguments.iter().any(|argument| {
+                        self.static_argument_contains_unresolved_reference(argument, types, visited)
+                    })
+                })
+            }
+            Type::Value { value } => {
+                self.type_contains_unresolved_reference(*value, types, visited)
+            }
+            Type::Conditional {
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.type_contains_unresolved_reference(*left, types, visited)
+                    || self.type_contains_unresolved_reference(*right, types, visited)
+                    || self.type_contains_unresolved_reference(*then_type, types, visited)
+                    || self.type_contains_unresolved_reference(*else_type, types, visited)
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                self.type_contains_unresolved_reference(parameter.constraint, types, visited)
+                    || parameter.key_remap.is_some_and(|key_remap| {
+                        self.type_contains_unresolved_reference(key_remap, types, visited)
+                    })
+                    || self.type_contains_unresolved_reference(*value, types, visited)
+            }
+            Type::Index { left, index } => {
+                self.type_contains_unresolved_reference(*left, types, visited)
+                    || self.type_contains_unresolved_reference(*index, types, visited)
+            }
+            Type::TemplateLiteral { spans, .. } => spans
+                .iter()
+                .any(|span| self.type_contains_unresolved_reference(*span, types, visited)),
+            Type::Import {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_unresolved_reference(argument, types, visited)
+                })
+            }),
+            Type::Unary { right, .. }
+            | Type::Mutable { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
+                self.type_contains_unresolved_reference(*right, types, visited)
+            }
+            Type::Binary { left, right, .. } => {
+                self.type_contains_unresolved_reference(*left, types, visited)
+                    || self.type_contains_unresolved_reference(*right, types, visited)
+            }
+            Type::ArraySized { element, .. } => {
+                self.type_contains_unresolved_reference(*element, types, visited)
+            }
+            Type::Array { element } => element.is_some_and(|element| {
+                self.type_contains_unresolved_reference(element, types, visited)
+            }),
+            Type::Tuple { elements } => elements
+                .iter()
+                .any(|element| self.type_contains_unresolved_reference(element.ty, types, visited)),
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                fields
+                    .iter()
+                    .any(|field| self.type_contains_unresolved_reference(field.ty, types, visited))
+                    || call_signatures.iter().any(|signature| {
+                        self.type_contains_unresolved_reference(*signature, types, visited)
+                    })
+                    || construct_signatures.iter().any(|signature| {
+                        self.type_contains_unresolved_reference(*signature, types, visited)
+                    })
+                    || index_signatures.iter().any(|signature| {
+                        self.type_contains_unresolved_reference(signature.key_type, types, visited)
+                            || self.type_contains_unresolved_reference(
+                                signature.value_type,
+                                types,
+                                visited,
+                            )
+                    })
+            }
+            Type::Function {
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                static_parameters.iter().any(|parameter| {
+                    self.type_contains_unresolved_reference(*parameter, types, visited)
+                }) || this_parameter.is_some_and(|parameter| {
+                    self.type_contains_unresolved_reference(parameter, types, visited)
+                }) || dynamic_parameters.iter().any(|parameter| {
+                    self.type_contains_unresolved_reference(*parameter, types, visited)
+                }) || return_type.is_some_and(|return_type| {
+                    self.type_contains_unresolved_reference(return_type, types, visited)
+                })
+            }
+            Type::Union { elements } | Type::Intersection { elements } => elements
+                .iter()
+                .any(|element| self.type_contains_unresolved_reference(*element, types, visited)),
+            Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::Error
+            | Type::Unevaluated(_)
+            | Type::Infer { .. }
+            | Type::Predicate { .. }
+            | Type::This => false,
+        }
+    }
+
+    /// Check whether a static argument contains unresolved references.
+    pub(crate) fn static_argument_contains_unresolved_reference(
+        &self,
+        argument: &StaticArgument,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // inspect the argument payload
+        match argument {
+            StaticArgument::Unevaluated { .. } => false,
+            StaticArgument::Evaluated { value, .. } => {
+                self.static_expression_contains_unresolved_reference(value, types, visited)
+            }
+        }
+    }
+
+    /// Check whether a static expression contains unresolved references.
+    pub(crate) fn static_expression_contains_unresolved_reference(
+        &self,
+        expression: &StaticExpression,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // inspect the expression structure
+        match expression {
+            StaticExpression::Type { ty } => {
+                self.type_contains_unresolved_reference(*ty, types, visited)
+            }
+            StaticExpression::Declaration {
+                static_arguments, ..
+            } => static_arguments.as_ref().is_some_and(|arguments| {
+                arguments.iter().any(|argument| {
+                    self.static_argument_contains_unresolved_reference(argument, types, visited)
+                })
+            }),
+            StaticExpression::ArrayExpression { elements }
+            | StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
+                self.static_expression_contains_unresolved_reference(element, types, visited)
+            }),
+            StaticExpression::ObjectExpression { properties } => {
+                properties.iter().any(|property| match property {
+                    StaticProperty::Unevaluated { .. } => false,
+                    StaticProperty::Field { value, default, .. } => {
+                        self.static_expression_contains_unresolved_reference(value, types, visited)
+                            || default.as_ref().is_some_and(|default| {
+                                self.static_expression_contains_unresolved_reference(
+                                    default, types, visited,
+                                )
+                            })
+                    }
+                    StaticProperty::Method { body, .. } => {
+                        self.static_expression_contains_unresolved_reference(body, types, visited)
+                    }
+                })
+            }
+            StaticExpression::Unevaluated { .. }
+            | StaticExpression::ScalarLiteral { .. }
+            | StaticExpression::TypeLiteral { .. }
+            | StaticExpression::RangeExpression { .. } => false,
+        }
     }
 }

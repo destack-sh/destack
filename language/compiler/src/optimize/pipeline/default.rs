@@ -242,7 +242,10 @@ fn o2_pipeline() -> super::module::CompositePipeline {
         .repeat(2, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(false))
         // loop optimization
-        .repeat(2, FunctionToModuleAdaptor::new(loop_island_pre_fusion(false)))
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(loop_island_pre_fusion(false)),
+        )
         .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             2,
@@ -284,7 +287,10 @@ fn o3_pipeline() -> super::module::CompositePipeline {
         .repeat(3, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(true))
         // loop optimization (aggressive)
-        .repeat(2, FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)))
+        .repeat(
+            2,
+            FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)),
+        )
         .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             2,
@@ -329,7 +335,10 @@ fn o4_pipeline() -> super::module::CompositePipeline {
         .repeat(4, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(true))
         // loop optimization (aggressive)
-        .repeat(3, FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)))
+        .repeat(
+            3,
+            FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)),
+        )
         .repeat(3, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             3,

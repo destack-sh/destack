@@ -287,6 +287,91 @@ impl Compiler {
         Ok(Some(evaluated_arguments))
     }
 
+    /// Collect element types for a binary union or intersection expression.
+    /// (This is a faster and deterministic alternative for the elementwise combinators.)
+    fn collect_binary_type_elements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left: LocalNodeId<Expression>,
+        right: LocalNodeId<Expression>,
+        operator: BinaryOperator,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Vec<LocalTypeId>> {
+        // seed the work list right-to-left so left is processed first
+        let mut pending_expressions = Vec::new();
+        pending_expressions.push(right);
+        pending_expressions.push(left);
+
+        // walk the binary tree
+        let mut elements = Vec::new();
+        while let Some(expression_id) = pending_expressions.pop() {
+            let expression = tree.get(expression_id);
+
+            // unwrap parenthesized expressions
+            if let Expression::Parenthesized { expression } = expression {
+                pending_expressions.push(*expression);
+                continue;
+            }
+
+            // flatten nested union or intersection expressions
+            if let Expression::Binary {
+                left,
+                operator: nested_operator,
+                right,
+                ..
+            } = expression
+                && *nested_operator == operator
+            {
+                // push right first to preserve left-to-right order
+                pending_expressions.push(*right);
+                pending_expressions.push(*left);
+                continue;
+            }
+
+            // evaluate the leaf expression to a type id
+            let element_id = self.try_evaluate_expression_to_type(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                validate_static_argument_bounds,
+                enforce_implicit_managed,
+            )?;
+
+            // flatten nested union or intersection types
+            match (operator, types.get_type(element_id)) {
+                (
+                    BinaryOperator::ElementwiseOr,
+                    Type::Union {
+                        elements: union_elements,
+                    },
+                ) => {
+                    elements.extend_from_slice(union_elements);
+                }
+                (
+                    BinaryOperator::ElementwiseAnd,
+                    Type::Intersection {
+                        elements: intersection_elements,
+                    },
+                ) => {
+                    elements.extend_from_slice(intersection_elements);
+                }
+                _ => {
+                    elements.push(element_id);
+                }
+            }
+        }
+
+        Ok(elements)
+    }
+
     /// Evaluate an expression into a static value expression.
     #[allow(clippy::only_used_in_recursion)]
     fn evaluate_static_expression_value_for_type(
@@ -883,78 +968,39 @@ impl Compiler {
                 operator,
                 right,
                 ..
-            } => {
-                let left_id = self.try_evaluate_expression_to_type(
-                    module,
-                    profile,
-                    left,
-                    tree,
-                    symbols,
-                    types,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-                let right_id = self.try_evaluate_expression_to_type(
-                    module,
-                    profile,
-                    right,
-                    tree,
-                    symbols,
-                    types,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-
-                match operator {
-                    BinaryOperator::ElementwiseOr => {
-                        let mut elements = Vec::new();
-
-                        if let Type::Union {
-                            elements: union_elements,
-                        } = types.get_type(left_id)
-                        {
-                            elements.extend(union_elements.iter().copied());
-                        } else {
-                            elements.push(left_id);
-                        }
-
-                        if let Type::Union {
-                            elements: union_elements,
-                        } = types.get_type(right_id)
-                        {
-                            elements.extend(union_elements.iter().copied());
-                        } else {
-                            elements.push(right_id);
-                        }
-
-                        Type::Union { elements }
-                    }
-                    BinaryOperator::ElementwiseAnd => {
-                        let mut elements = Vec::new();
-
-                        if let Type::Intersection {
-                            elements: intersection_elements,
-                        } = types.get_type(left_id)
-                        {
-                            elements.extend(intersection_elements.iter().copied());
-                        } else {
-                            elements.push(left_id);
-                        }
-
-                        if let Type::Intersection {
-                            elements: intersection_elements,
-                        } = types.get_type(right_id)
-                        {
-                            elements.extend(intersection_elements.iter().copied());
-                        } else {
-                            elements.push(right_id);
-                        }
-
-                        Type::Intersection { elements }
-                    }
-                    _ => return Ok(None),
+            } => match operator {
+                BinaryOperator::ElementwiseOr => {
+                    let elements = self.collect_binary_type_elements(
+                        module,
+                        profile,
+                        left,
+                        right,
+                        operator,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Union { elements }
                 }
-            }
+                BinaryOperator::ElementwiseAnd => {
+                    let elements = self.collect_binary_type_elements(
+                        module,
+                        profile,
+                        left,
+                        right,
+                        operator,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Intersection { elements }
+                }
+                _ => return Ok(None),
+            },
 
             // references
             Expression::LocalReference {

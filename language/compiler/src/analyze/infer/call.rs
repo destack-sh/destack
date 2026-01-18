@@ -1760,37 +1760,52 @@ impl Compiler {
             })
             .collect::<Vec<_>>();
 
-        // collect referenced symbols from dynamic signature
-        let mut referenced_symbols = HashSet::new();
-        let mut visited = HashSet::new();
-        for ty_id in dynamic_parameters.iter().copied().chain(return_type) {
-            self.collect_type_reference_symbols(
-                ty_id,
-                types,
-                &mut referenced_symbols,
-                &mut visited,
-            );
+        // detect whether any static parameter kinds need inference
+        let mut needs_inference = false;
+        for symbol_id in static_parameter_symbols.iter().copied() {
+            if types.get_static_parameter_kind(symbol_id).is_none() {
+                needs_inference = true;
+                break;
+            }
         }
 
-        // prefer type parameters in declaration modules
-        let force_type_parameters = static_parameter_symbols
-            .iter()
-            .any(|symbol| self.static_parameters_are_type_only(module, *symbol));
+        // collect referenced symbols from the dynamic signature when needed
+        let mut referenced_symbols = HashSet::new();
+        if needs_inference {
+            let mut visited = HashSet::new();
+            for ty_id in dynamic_parameters.iter().copied().chain(return_type) {
+                self.collect_type_reference_symbols(
+                    ty_id,
+                    types,
+                    &mut referenced_symbols,
+                    &mut visited,
+                );
+            }
 
-        // collect static parameters
-        let static_parameters: Vec<_> = static_parameter_symbols
+            self.ensure_static_parameter_kinds_for_signature(
+                module,
+                profile,
+                node_id,
+                &static_parameter_symbols,
+                &referenced_symbols,
+                tree,
+                symbols,
+                types,
+            )?;
+        }
+
+        // collect static parameters with cached kinds
+        let static_parameters = static_parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = if force_type_parameters || referenced_symbols.contains(symbol_id) {
-                    StaticParameterKind::Type
-                } else {
-                    StaticParameterKind::Value
-                };
+                let kind = types
+                    .get_static_parameter_kind(*symbol_id)
+                    .unwrap_or(StaticParameterKind::Type);
                 self.collect_static_parameter(
                     module, *symbol_id, kind, node_id, profile, tree, symbols, types,
                 )
             })
-            .collect();
+            .collect::<Vec<_>>();
 
         // assign static arguments to static parameters
         let argument_ids = static_argument_ids.unwrap_or(&[]);
