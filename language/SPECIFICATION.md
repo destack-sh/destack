@@ -788,6 +788,9 @@ function myFunction(a: int, b: int) {
 myFunction(2, 3);
 ```
 
+Argument types are checked against the declared parameter types.
+Parameters with defaults are optional at the call site.
+
 ### Static Parameterisation ("Generics")
 
 Static parameters come in two kinds: type parameters and value parameters.
@@ -1111,6 +1114,12 @@ Comptime parameters enable:
 Comptime parameters still require **static expressions** as arguments. The call site may
 evaluate the function body via comptime execution, but the arguments themselves must be
 known during Analyze.
+
+### Comptime Conditions
+
+`if (comptime ...)` evaluates the condition as a static expression.
+Type relations like `T extends U` are valid inside comptime conditions.
+Both branches must type check even when the condition is statically known.
 
 ### Comptime Functions
 
