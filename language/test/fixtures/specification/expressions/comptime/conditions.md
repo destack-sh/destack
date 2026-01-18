@@ -20,3 +20,19 @@ const value: int32 = if (comptime true) { 1 } else { "nope" };
 ```
 
 - contains: is not assignable
+
+### comptime condition accepts type relations
+
+> Comptime conditions can use type relations like `T extends U`.
+
+```ds
+function choose<T>(value: T): number {
+    if (comptime T extends number) {
+        return 1;
+    }
+    return 2;
+}
+
+choose<number>(1) satisfies number;
+choose<string>("hi") satisfies number;
+```
