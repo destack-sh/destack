@@ -305,6 +305,9 @@ When a cast can fail at runtime, it must be checked.
 (Unchecked casts use the transmute intrinsic and bypass the `CastOperator`.)
 Reify replaces type-cast expressions with `Expression::Cast`.
 Explicit casts use `CastSource::Explicit` and inserted casts use `CastSource::Implicit`.
+Interface upcasts that change representation are always materialized as cast nodes.
+Union and nullable upcasts that allocate tags or payloads are always materialized as cast nodes.
+Contextual typing never suppresses representation changing casts.
 
 #### Insert casts at type boundaries
 
@@ -333,10 +336,11 @@ Reify makes this explicit.
 | T → T \| U | yes | union upcast |
 | T → T \| null \| undefined | yes | nullable upcast |
 | subtype → base | yes | instance upcast when assignable |
-| T[N] → T[] | yes | sized array to slice |
+| class/struct → interface | yes | instance upcast to interface layout |
 | T → object | yes | non-primitive to object |
 | T → any | yes | widen to any |
 | T → unknown | yes | widen to unknown |
+| interface → interface | yes | "rebuild" interface reference |
 
 ```ds
 // source
