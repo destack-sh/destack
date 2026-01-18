@@ -1,4 +1,4 @@
-# Extension Generics
+# Static Arguments for Extensions
 
 Tests for static parameters on extensions.
 

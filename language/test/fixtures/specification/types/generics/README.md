@@ -1,9 +1,10 @@
 # Type Generics
 
-Tests for static parameter instancing on type references.
+Tests for type operators and infer behavior in generic positions.
 
 ## Coverage
 
-- **Type parameters**: static arguments on aliases, structs, interfaces
-- **Type operators**: keyof, indexed access, mapped and conditional types
-- **Conditional infer**: infer bindings inside conditional types
+Coverage areas include:
+
+- Type operators like `keyof`, indexed access, mapped types, and conditional types.
+- Conditional `infer` bindings inside type operators.

@@ -323,6 +323,7 @@ Most non local constructs should be explicitly typed:
 
 Local inference is fully supported wherever convenient and unambiguous:
 - Static parameters may include types but are not required.
+- Static parameters default to type parameters unless a value constraint or value default is provided.
 - Lambdas may omit parameter and return types when a contextual type is available.
 - Local bindings may infer types from their initializer.
 - Object literal fields may omit annotations when the binding is typed or uses `satisfies`.

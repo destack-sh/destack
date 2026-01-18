@@ -1,15 +1,17 @@
-# Interface Generics
+# Static Arguments for Classes
 
-Tests for static parameters on interface type references.
+Tests for static parameters on class type references.
 
-## interfaces
+## classes
 
-### explicit static type arguments on interfaces
+### explicit static type arguments on classes
 
-> Interface type references accept explicit static type arguments.
+> Class type references accept explicit static type arguments.
 
 ```ds
-interface Box<T> { value: T }
+class Box<T> {
+    value?: T
+}
 
 declare function makeBox(): Box<number>;
 
@@ -17,12 +19,14 @@ let value: Box<number> = makeBox();
 value satisfies Box<number>;
 ```
 
-### static type argument mismatch on interfaces
+### static type argument mismatch on classes
 
 > Static type arguments must satisfy declared bounds.
 
 ```ds
-interface Box<T: number> { value: T }
+class Box<T: number> {
+    value?: T
+}
 
 declare function makeBox(): Box<number>;
 
@@ -31,12 +35,14 @@ let value: Box<string> = makeBox();
 
 - contains: type string is not assignable to type number
 
-### static value arguments on interfaces
+### static value arguments on classes
 
 > Static value arguments are checked against declared types.
 
 ```ds
-interface Buffer<T, N: number> { value: T }
+class Buffer<T, N: number> {
+    value?: T
+}
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -44,12 +50,14 @@ let buffer: Buffer<string, 4> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
 
-### static value argument mismatch on interfaces
+### static value argument mismatch on classes
 
 > Static value arguments must satisfy declared types.
 
 ```ds
-interface Buffer<T, N: number> { value: T }
+class Buffer<T, N: number> {
+    value?: T
+}
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -58,12 +66,14 @@ let buffer: Buffer<string, true> = makeBuffer();
 
 - contains: type true is not assignable to type number
 
-### default static type parameters on interfaces
+### default static type parameters on classes
 
 > Static type parameters fall back to defaults when omitted.
 
 ```ds
-interface Box<T = number> { value: T }
+class Box<T = number> {
+    value?: T
+}
 
 declare function makeBox(): Box;
 
@@ -71,12 +81,14 @@ let value: Box = makeBox();
 value satisfies Box<number>;
 ```
 
-### default static value arguments on interfaces
+### default static value arguments on classes
 
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-interface Buffer<T, N: number = 4> { value: T }
+class Buffer<T, N: number = 4> {
+    value?: T
+}
 
 declare function makeBuffer(): Buffer<string>;
 

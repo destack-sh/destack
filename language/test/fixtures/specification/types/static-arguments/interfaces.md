@@ -1,15 +1,15 @@
-# Struct Generics
+# Static Arguments for Interfaces
 
-Tests for static parameters on struct type references.
+Tests for static parameters on interface type references.
 
-## structs
+## interfaces
 
-### explicit static type arguments on structs
+### explicit static type arguments on interfaces
 
-> Struct type references accept explicit static type arguments.
+> Interface type references accept explicit static type arguments.
 
 ```ds
-struct Box<T> { value: T }
+interface Box<T> { value: T }
 
 declare function makeBox(): Box<number>;
 
@@ -17,12 +17,12 @@ let value: Box<number> = makeBox();
 value satisfies Box<number>;
 ```
 
-### static type argument mismatch on structs
+### static type argument mismatch on interfaces
 
 > Static type arguments must satisfy declared bounds.
 
 ```ds
-struct Box<T: number> { value: T }
+interface Box<T: number> { value: T }
 
 declare function makeBox(): Box<number>;
 
@@ -31,12 +31,12 @@ let value: Box<string> = makeBox();
 
 - contains: type string is not assignable to type number
 
-### static value arguments on structs
+### static value arguments on interfaces
 
 > Static value arguments are checked against declared types.
 
 ```ds
-struct Buffer<T, N: number> { value: T }
+interface Buffer<T, N: number> { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -44,12 +44,12 @@ let buffer: Buffer<string, 4> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
 
-### static value argument mismatch on structs
+### static value argument mismatch on interfaces
 
 > Static value arguments must satisfy declared types.
 
 ```ds
-struct Buffer<T, N: number> { value: T }
+interface Buffer<T, N: number> { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -58,12 +58,12 @@ let buffer: Buffer<string, true> = makeBuffer();
 
 - contains: type true is not assignable to type number
 
-### default static type parameters on structs
+### default static type parameters on interfaces
 
 > Static type parameters fall back to defaults when omitted.
 
 ```ds
-struct Box<T = number> { value: T }
+interface Box<T = number> { value: T }
 
 declare function makeBox(): Box;
 
@@ -71,12 +71,12 @@ let value: Box = makeBox();
 value satisfies Box<number>;
 ```
 
-### default static value arguments on structs
+### default static value arguments on interfaces
 
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-struct Buffer<T, N: number = 4> { value: T }
+interface Buffer<T, N: number = 4> { value: T }
 
 declare function makeBuffer(): Buffer<string>;
 

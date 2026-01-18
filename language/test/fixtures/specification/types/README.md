@@ -16,7 +16,8 @@ Destack extends TypeScript's type system with precise primitives, nominal types,
 | `where/` | Readable generic constraints |
 | `refinements/` | Constrained types with validation |
 | `references/` | Reference and value type annotations |
-| `generics/` | Static parameter type references |
+| `generics/` | Type operators and conditional inference |
+| `static-arguments/` | Static arguments for type and value parameters |
 
 ## Files
 
