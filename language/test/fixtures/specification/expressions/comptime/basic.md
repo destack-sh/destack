@@ -1,0 +1,33 @@
+# Comptime Basics
+
+## comptime expressions
+
+### comptime expression yields value type
+
+> Comptime expressions type check as the body type.
+
+```ds
+const value: int32 = comptime 1 + 2;
+value satisfies int32;
+```
+
+### comptime expression infers type from body
+
+> Comptime expressions infer types like normal expressions.
+
+```ds
+const value = comptime 1 + 2;
+value satisfies int;
+```
+
+### comptime block yields last expression type
+
+> Comptime blocks evaluate to the final expression.
+
+```ds
+const value: int32 = comptime {
+    let base = 3;
+    base + 2
+};
+value satisfies int32;
+```

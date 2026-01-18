@@ -1,6 +1,6 @@
 # Patterns
 
-Pattern syntax supports destructuring in bindings.
+Pattern syntax supports destructuring in bindings, including tagged struct patterns.
 
 ## Files
 

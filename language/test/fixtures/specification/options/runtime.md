@@ -454,6 +454,46 @@ let same = left == right;
 
 - contains: referential equality is disabled
 
+### noReferentialEquality reports strict equality when true
+
+> Strict referential equality comparisons are rejected when noReferentialEquality is true.
+
+```ds:main.ds
+let left = { value: 1 };
+let right = { value: 2 };
+let same = left === right;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noReferentialEquality": true } }
+```
+
+- contains: referential equality is disabled
+
+### noReferentialEquality reports strict inequality when true
+
+> Strict referential inequality comparisons are rejected when noReferentialEquality is true.
+
+```ds:main.ds
+let left = { value: 1 };
+let right = { value: 2 };
+let same = left !== right;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noReferentialEquality": true } }
+```
+
+- contains: referential equality is disabled
+
 ### noReferentialEquality allows object equality when false
 
 > Referential equality comparisons are allowed when noReferentialEquality is false.
