@@ -130,8 +130,8 @@ fn optimize_memory() -> Vec<Box<dyn FunctionPass>> {
     ]
 }
 
-/// Return loop optimization passes.
-fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
+/// Return loop optimization passes before fusion.
+fn optimize_loops_pre_fusion(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![
         Box::new(LoopSimplify),
         Box::new(LoopRotate),
@@ -140,7 +140,6 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
         Box::new(LoopStrengthReduce),
         Box::new(LoopInterchange),
         Box::new(LoopDistribute),
-        Box::new(LoopFusion),
         Box::new(LoopVersioning),
         Box::new(LoopIdiomRecognize),
         Box::new(Licm),
@@ -152,6 +151,30 @@ fn optimize_loops(aggressive: bool) -> Vec<Box<dyn FunctionPass>> {
     }
     passes.push(Box::new(LoopDelete));
     passes
+}
+
+/// Return loop optimization passes for fusion cleanup.
+fn optimize_loops_post_fusion() -> Vec<Box<dyn FunctionPass>> {
+    vec![
+        Box::new(LoopSimplify),
+        Box::new(LoopFusion),
+        Box::new(LoopDelete),
+    ]
+}
+
+/// Return a fixed point island for memory optimizations.
+fn memory_island() -> FunctionPipeline {
+    FunctionPipeline::new(optimize_memory())
+}
+
+/// Return a fixed point island for loop optimizations before fusion.
+fn loop_island_pre_fusion(aggressive: bool) -> FunctionPipeline {
+    FunctionPipeline::new(optimize_loops_pre_fusion(aggressive))
+}
+
+/// Return a fixed point island for loop fusion.
+fn loop_island_post_fusion() -> FunctionPipeline {
+    FunctionPipeline::new(optimize_loops_post_fusion())
 }
 
 /// Return type and bounds check optimizations.
@@ -216,10 +239,11 @@ fn o2_pipeline() -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(2, interprocedural_cleanup_pipeline())
         // memory optimization
-        .function_passes(optimize_memory())
+        .repeat(2, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(false))
         // loop optimization
-        .function_passes(optimize_loops(false))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_island_pre_fusion(false)))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             2,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(false))),
@@ -257,10 +281,11 @@ fn o3_pipeline() -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(3, interprocedural_cleanup_pipeline())
         // memory optimization
-        .function_passes(optimize_memory())
+        .repeat(3, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(true))
         // loop optimization (aggressive)
-        .function_passes(optimize_loops(true))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)))
+        .repeat(2, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             2,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),
@@ -301,10 +326,11 @@ fn o4_pipeline() -> super::module::CompositePipeline {
         .module_pass(GlobalOpt)
         .repeat(4, interprocedural_cleanup_pipeline())
         // memory optimization
-        .function_passes(optimize_memory())
+        .repeat(4, FunctionToModuleAdaptor::new(memory_island()))
         .function_passes(scalar_island_full(true))
         // loop optimization (aggressive)
-        .function_passes(optimize_loops(true))
+        .repeat(3, FunctionToModuleAdaptor::new(loop_island_pre_fusion(true)))
+        .repeat(3, FunctionToModuleAdaptor::new(loop_island_post_fusion()))
         .repeat(
             3,
             FunctionToModuleAdaptor::new(FunctionPipeline::new(scalar_island_full(true))),

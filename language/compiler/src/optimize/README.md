@@ -62,10 +62,11 @@ Profile guided transforms must treat missing profiles as cold and skip speculati
 ## Pipeline Policy
 
 Pipelines are built from fixed point islands to avoid pass thrashing.
-Scalar, memory, and loop islands are run with bounded iteration counts at O2 and above.
-Loop transforms that disturb canonical form re-run loop simplify before other loop passes.
-Conflicting transforms such as fusion and distribution do not run in the same iteration island.
-Interprocedural transforms run before function pipelines and feed their summaries forward.
+Scalar islands are iterated with bounded counts at O2 and above.
+Memory and loop passes run in bounded fixed point islands at O2 and above.
+Loop simplify runs at the start of each loop island to enforce canonical form.
+Potentially conflicting loop transforms run in separate islands.
+Interprocedural transforms run before late function level pipelines and feed summaries forward.
 
 ## Profitability Model
 
@@ -73,7 +74,7 @@ Aggressive transforms are gated by cost models rather than legality alone.
 Inlining, specialization, and cloning use size, hotness, and threshold based cost models.
 Loop transforms use trip count, body size, memory stride, and profile hotness to decide.
 Vectorization and unroll decisions use target widths and configurable thresholds.
-All heuristics are exposed via optimization configuration for tuning and regression control.
+Key heuristics are exposed via optimization configuration for tuning and regression control.
 
 ## Analyses
 
