@@ -9,7 +9,7 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     DecomposedPointer, PointerDecomposer, RangeRelation, build_value_definition_map,
-    range_relation, stack_alloc_base,
+    collect_non_escaping_stack_allocs, range_relation, stack_alloc_base,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -56,6 +56,7 @@ declare_pass! {
 }
 
 impl FunctionPass for DeadStoreEliminate {
+    /// Run dead store elimination on the function.
     fn run(
         &self,
         function: &mut mir::Function,
@@ -98,10 +99,12 @@ impl FunctionPass for DeadStoreEliminate {
         }
     }
 
+    /// Return the pass name.
     fn name(&self) -> &'static str {
         "DeadStoreEliminate"
     }
 
+    /// Return the pass id.
     fn id(&self) -> &'static str {
         "dse"
     }
@@ -201,25 +204,39 @@ fn run_dead_store_eliminate(
     true
 }
 
+/// Store candidate for dead store elimination.
 #[derive(Clone)]
 struct StoreCandidate {
+    /// Instruction that defines the store.
     instruction: mir::LocalNodeId<mir::Instruction>,
+    /// Memory SSA access id for the store.
     access: MemoryAccessId,
+    /// Block containing the instruction.
     block: mir::LocalNodeId<mir::Block>,
+    /// Instruction index within the block.
     index: usize,
+    /// Optional pointer for pointer locations.
     pointer: Option<mir::Value>,
+    /// Access location for the store.
     location: MemoryAccessLocation,
+    /// True when the store is volatile.
     is_volatile: bool,
+    /// True when the store is a barrier.
     is_barrier: bool,
 }
 
+/// Memory SSA def access location in a block.
 #[derive(Clone)]
 struct DefAccessInfo {
+    /// Memory SSA access id.
     access: MemoryAccessId,
+    /// Block containing the def.
     block: mir::LocalNodeId<mir::Block>,
+    /// Instruction index within the block.
     index: usize,
 }
 
+/// Collect store candidates with MemorySSA defs.
 fn collect_store_candidates(
     function: &mir::Function,
     tree: &mir::NodeTree,
@@ -253,20 +270,24 @@ fn collect_store_candidates(
                 continue;
             }
 
+            // read memory accesses for this instruction
             let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
                 continue;
             };
 
+            // record each MemorySSA def access
             for &access_id in accesses {
                 let MemoryAccess::Def(def_access) = memory_ssa.access(access_id) else {
                     continue;
                 };
 
+                // resolve pointer locations when available
                 let pointer = match &def_access.effect.location {
                     MemoryAccessLocation::Pointer(location) => Some(location.ptr),
                     _ => None,
                 };
 
+                // record the candidate store
                 stores.push(StoreCandidate {
                     instruction: instruction_id,
                     access: access_id,
@@ -284,6 +305,7 @@ fn collect_store_candidates(
     stores
 }
 
+/// Collect MemorySSA def accesses for the function.
 fn collect_def_accesses(
     function: &mir::Function,
     tree: &mir::NodeTree,
@@ -322,6 +344,7 @@ fn collect_def_accesses(
     defs
 }
 
+/// Collect def accesses that are needed by memory reads.
 fn collect_live_defs(
     function: &mir::Function,
     tree: &mir::NodeTree,
@@ -411,145 +434,6 @@ fn record_live_clobber(
     }
 }
 
-fn collect_non_escaping_stack_allocs(
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-) -> HashSet<mir::Value> {
-    // collect stack allocation bases
-    let mut stack_allocs = HashSet::new();
-
-    // scan blocks for stack allocations
-    for &block_id in &function.blocks {
-        // read the block
-        let block = tree.get(block_id);
-
-        // scan instructions in the block
-        for &instruction_id in &block.instructions {
-            // read the instruction
-            let instruction = tree.get(instruction_id);
-            if let mir::Instruction::StackAlloc { destination, .. } = instruction {
-                stack_allocs.insert(*destination);
-            }
-        }
-    }
-
-    // collect escaping stack allocations
-    let mut escaping = HashSet::new();
-
-    // scan blocks for escaping uses
-    for &block_id in &function.blocks {
-        // read the block
-        let block = tree.get(block_id);
-
-        // scan instructions in the block
-        for &instruction_id in &block.instructions {
-            // read the instruction
-            let instruction = tree.get(instruction_id);
-            match instruction {
-                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                    // capture call metadata for escape checks
-                    let call_metadata = tree.call_table.call_metadata(instruction_id);
-
-                    // mark stack pointers passed to calls as escaping
-                    if let Some(arg_slice) = instruction.argument_slice() {
-                        let arguments = tree.get_arguments(arg_slice);
-
-                        for (index, &arg) in arguments.iter().enumerate() {
-                            if call_argument_escapes(call_metadata, index) {
-                                record_stack_escape(
-                                    arg,
-                                    definitions,
-                                    tree,
-                                    &stack_allocs,
-                                    &mut escaping,
-                                );
-                            }
-                        }
-                    }
-                }
-                mir::Instruction::Store { value, .. } => {
-                    // mark stored stack pointers as escaping
-                    record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
-                }
-                _ => {}
-            }
-        }
-
-        // scan terminators for escaping values
-        match &block.terminator {
-            mir::Terminator::Return { value: Some(value) } => {
-                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
-            }
-            mir::Terminator::Jump { arguments, .. } => {
-                for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::Branch {
-                then_arguments,
-                else_arguments,
-                ..
-            } => {
-                for &arg in then_arguments.iter().chain(else_arguments.iter()) {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::Check {
-                success, failure, ..
-            } => {
-                for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::Switch {
-                cases,
-                default_arguments,
-                ..
-            } => {
-                for &arg in default_arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-                for case in cases {
-                    for &arg in &case.arguments {
-                        record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                    }
-                }
-            }
-            mir::Terminator::Yield {
-                value,
-                resume_arguments,
-                ..
-            } => {
-                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
-                for &arg in resume_arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::TailCall { arguments, .. } => {
-                for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::TailCallIndirect {
-                callee, arguments, ..
-            } => {
-                record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
-                for &arg in arguments {
-                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
-                }
-            }
-            mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => {}
-        }
-    }
-
-    // filter non escaping stack allocations
-    stack_allocs
-        .into_iter()
-        .filter(|alloc| !escaping.contains(alloc))
-        .collect()
-}
-
 /// Collect stack allocation bases that are read by any memory access.
 fn collect_stack_alloc_reads(
     function: &mir::Function,
@@ -592,86 +476,6 @@ fn collect_stack_alloc_reads(
     reads
 }
 
-/// Mark stack allocations that may escape through a value.
-fn record_stack_escape(
-    value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
-    stack_allocs: &HashSet<mir::Value>,
-    escaping: &mut HashSet<mir::Value>,
-) {
-    // visit values recursively to detect aggregate escapes
-    let mut visited = HashSet::new();
-    record_stack_escape_value(
-        value,
-        definitions,
-        tree,
-        stack_allocs,
-        escaping,
-        &mut visited,
-    );
-}
-
-/// Walk a value to find stack allocations that escape.
-fn record_stack_escape_value(
-    value: mir::Value,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
-    tree: &mir::NodeTree,
-    stack_allocs: &HashSet<mir::Value>,
-    escaping: &mut HashSet<mir::Value>,
-    visited: &mut HashSet<mir::Value>,
-) {
-    // stop on cycles
-    if !visited.insert(value) {
-        return;
-    }
-
-    // resolve the stack base and mark it as escaping
-    if let Some(base) = stack_alloc_base(value, definitions, tree) {
-        if stack_allocs.contains(&base) {
-            escaping.insert(base);
-        }
-        return;
-    }
-
-    // inspect aggregate construction for nested pointers
-    let Some(instruction_id) = definitions.get(&value) else {
-        return;
-    };
-    let instruction = tree.get(*instruction_id);
-    match instruction {
-        mir::Instruction::Struct { fields, .. } => {
-            let args = tree.get_arguments(*fields);
-            for &arg in args {
-                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
-            }
-        }
-        mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
-            let args = tree.get_arguments(*elements);
-            for &arg in args {
-                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Report whether a call argument may escape.
-fn call_argument_escapes(call_metadata: Option<&mir::CallMetadata>, index: usize) -> bool {
-    // default to escaping when metadata is missing
-    let Some(metadata) = call_metadata else {
-        return true;
-    };
-
-    // default to escaping when argument metadata is missing
-    let Some(arg_metadata) = metadata.argument_metadata.get(index) else {
-        return true;
-    };
-
-    // treat no capture arguments as non escaping
-    !matches!(arg_metadata.attributes.capture, mir::CaptureKind::NoCapture)
-}
-
 /// Return true when a store targets a non escaping stack allocation.
 fn store_is_non_escaping_stack(
     store: &StoreCandidate,
@@ -705,6 +509,7 @@ fn store_is_non_escaping_stack(
 /// Return true when a later clobbering def postdominates the store.
 // allow extra context parameters for clarity
 #[allow(clippy::too_many_arguments)]
+/// Return true when the store is postdominated by a clobbering access.
 fn store_is_postdominated_by_clobber(
     store: &StoreCandidate,
     def_accesses: &[DefAccessInfo],

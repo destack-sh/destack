@@ -9,8 +9,8 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     address_spaces_may_alias, alias_scopes_may_alias, apply_substitutions_in_function,
-    can_substitute_value, location_sets_may_alias, memory_locations_compatible,
-    resolve_substitution_chains, tbaa_tags_may_alias,
+    can_substitute_value, effect_is_trackable, location_sets_may_alias,
+    memory_locations_compatible, resolve_substitution_chains, tbaa_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -230,12 +230,12 @@ impl AvailableMemory {
         aa: &AliasAnalysis,
         tree: &mir::NodeTree,
     ) -> Option<mir::Value> {
-        let location = &use_effect.location;
-
-        // skip unknown locations
-        if matches!(location, MemoryAccessLocation::Unknown) {
+        // skip untrackable effects
+        if !effect_is_trackable(use_effect) {
             return None;
         }
+
+        let location = &use_effect.location;
 
         // search from innermost to outermost scope
         for scope in self.scopes.iter().rev() {
@@ -426,10 +426,8 @@ fn process_block(
                     continue;
                 };
 
-                // skip unknown or barrier accesses
-                if def_access.effect.is_barrier
-                    || matches!(def_access.effect.location, MemoryAccessLocation::Unknown)
-                {
+                // skip untrackable accesses
+                if !effect_is_trackable(&def_access.effect) {
                     continue;
                 }
 
@@ -457,13 +455,8 @@ fn process_block(
                     continue;
                 };
 
-                // skip volatile or barrier reads
-                if use_access.effect.is_volatile || use_access.effect.is_barrier {
-                    continue;
-                }
-
-                // skip unknown locations
-                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                // skip untrackable reads
+                if !effect_is_trackable(&use_access.effect) {
                     continue;
                 }
 
@@ -510,13 +503,8 @@ fn process_block(
                     continue;
                 };
 
-                // skip volatile or barrier reads
-                if use_access.effect.is_volatile || use_access.effect.is_barrier {
-                    continue;
-                }
-
-                // skip unknown locations
-                if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
+                // skip untrackable reads
+                if !effect_is_trackable(&use_access.effect) {
                     continue;
                 }
 
