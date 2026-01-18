@@ -228,14 +228,7 @@ impl Compiler {
     ) -> AnalyzeResult<ObjectShape> {
         // resolve the embed target type
         let embed_ty_id = self.try_evaluate_expression_to_type(
-            module,
-            profile,
-            value,
-            tree,
-            symbols,
-            types,
-            true,
-            true,
+            module, profile, value, tree, symbols, types, true, true,
         )?;
 
         // prefer instance types for nominal references

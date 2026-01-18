@@ -1895,7 +1895,6 @@ declare function makeBuffer(): Buffer<string>;
 let buffer: Buffer<string> = makeBuffer();
 "#,
     );
-
     // run analyze pipeline
     test.analyze_module_and_check_clean(module_id);
 

@@ -946,67 +946,6 @@ impl Compiler {
         mapped
     }
 
-    /// Resolve the target argument mapping for an extension declaration.
-    fn extension_target_argument_mapping(
-        &self,
-        extension_symbol: GlobalSymbolId,
-        extension_parameters: &[GlobalSymbolId],
-        profile: ProfileId,
-    ) -> Option<Vec<usize>> {
-        // load the extension declaration
-        let module = self.program.modules.get(extension_symbol.module_id);
-        let module = module.read();
-        let dir = module.dir(profile);
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-
-        let symbol_entry = symbols.get_symbol(extension_symbol.local_id);
-        let declaration_id = symbol_entry
-            .primary_declaration?
-            .try_into_local_typed::<Declaration>()
-            .ok()?;
-        let declaration = tree.get(declaration_id);
-        let Declaration::Extension { target_type, .. } = declaration else {
-            return None;
-        };
-
-        // read the target type arguments
-        let target_expression = tree.get(*target_type);
-        let static_arguments = match target_expression {
-            Expression::LocalReference {
-                static_arguments, ..
-            }
-            | Expression::ModuleReference {
-                static_arguments, ..
-            }
-            | Expression::GlobalReference {
-                static_arguments, ..
-            } => static_arguments.as_ref(),
-            _ => None,
-        }?;
-
-        // map target arguments to extension parameter indices
-        let mut mapping = Vec::with_capacity(static_arguments.len());
-        for argument_id in static_arguments {
-            let argument = tree.get(*argument_id);
-            let expression_id = argument.value();
-            let expression = tree.get(expression_id);
-            let target_symbol = match expression {
-                Expression::LocalReference { target_symbol, .. }
-                | Expression::ModuleReference { target_symbol, .. }
-                | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-                _ => None,
-            }?;
-
-            let parameter_index = extension_parameters
-                .iter()
-                .position(|parameter_symbol| *parameter_symbol == target_symbol)?;
-            mapping.push(parameter_index);
-        }
-
-        Some(mapping)
-    }
-
     /// Resolve the extension symbol that owns a member symbol.
     fn extension_symbol_for_member(
         &self,
