@@ -383,6 +383,7 @@ impl Compiler {
         let t: Task = task.clone().into();
         match self.queue.find_task_status(&t) {
             Some(TaskStatus::Complete) => Ok(()),
+            Some(TaskStatus::Skipped { .. }) => Ok(()),
             Some(TaskStatus::Failed { error }) => Err(TaskDependencyError::Failed {
                 dependency: TaskDependency::Complete {
                     anchor: DiagnosticAnchor::Global,

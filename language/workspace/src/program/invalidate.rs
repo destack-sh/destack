@@ -104,6 +104,10 @@ impl Program {
             // invalidate module caches and collect profiles
             let module_profiles = self.invalidate_module_source(module_id, file_version);
             profiles.extend(module_profiles);
+
+            // track packages for module source invalidation
+            let module = self.modules.get(module_id);
+            packages.insert(module.read().package_id);
         }
 
         // map file id to dsconfig invalidation
@@ -137,9 +141,20 @@ impl Program {
             graphs_dropped.extend(config_profiles);
         }
 
+        // ensure package invalidation tracks modules discovered by config updates
+        for module_id in &modules {
+            let module = self.modules.get(*module_id);
+            packages.insert(module.read().package_id);
+        }
+
         // fall back to unknown when no mappings matched
         if kinds.is_empty() {
             kinds.insert(InvalidationKind::Unknown);
+        }
+
+        // bump package versions for invalidated packages
+        for package_id in &packages {
+            let _ = self.packages.bump_version(*package_id);
         }
 
         // build the invalidation plan
@@ -540,7 +555,8 @@ mod tests {
     use indexmap::IndexMap;
 
     use destack_source::{
-        File, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId, PackageId, Uri,
+        File, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId, PackageId,
+        PackageVersion, Uri,
     };
 
     use crate::{
@@ -619,6 +635,7 @@ mod tests {
 
         let package_a = Package {
             id: package_a_id,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Physical,
             uri: Uri::from_path(&package_a_path),
             path: Some(package_a_path.clone()),
@@ -631,6 +648,7 @@ mod tests {
         };
         let package_b = Package {
             id: package_b_id,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Physical,
             uri: Uri::from_path(&package_b_path),
             path: Some(package_b_path.clone()),

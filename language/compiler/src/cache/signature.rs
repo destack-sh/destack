@@ -15,7 +15,7 @@ use destack_dir::{
     TypeMappedParameter, TypeModifier, TypePredicateSubject, TypeTable, TypeUnaryOperator,
     VarianceBound, WhereClause,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ModuleContent, ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation,
     ModuleSignatureBinding, ModuleSignatureExport, ModuleSignatureKey, ProfileId,
@@ -23,7 +23,7 @@ use destack_workspace::{
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
 
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeResult, Compiler};
 
 impl Compiler {
     /// Update and store the module signature for a profile.
@@ -31,7 +31,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> AnalyzeResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<AnalyzeError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
         // build the current signature
         let signature = self.build_module_signature(module_id, profile_id)?;
 
@@ -418,7 +428,12 @@ impl<'a> SignatureHasher<'a> {
 
     /// Map symbol space to a stable ordering rank.
     pub(super) fn symbol_space_rank(&self, space: SymbolSpace) -> u8 {
-        symbol_space_rank(space)
+        match space {
+            SymbolSpace::Type => 0,
+            SymbolSpace::Value => 1,
+            SymbolSpace::TypeValue => 2,
+            SymbolSpace::Label => 3,
+        }
     }
 
     /// Map export kind to a stable ordering rank.
@@ -1780,16 +1795,6 @@ impl<'a> SignatureHasher<'a> {
         type_id.hash(&mut hasher);
 
         hasher.finish()
-    }
-}
-
-/// Map symbol space to a stable ordering rank.
-fn symbol_space_rank(space: SymbolSpace) -> u8 {
-    match space {
-        SymbolSpace::Type => 0,
-        SymbolSpace::Value => 1,
-        SymbolSpace::TypeValue => 2,
-        SymbolSpace::Label => 3,
     }
 }
 

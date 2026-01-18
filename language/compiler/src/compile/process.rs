@@ -7,7 +7,7 @@ use crate::{
     AnalyzeError, Compiler, CompilerEvent, ElaborateError, EmitError, ExecuteError, GenerateError,
     ImportError, InternalError, LinkError, LintError, LowerError, OptimizeError, ResolveError,
     Task, TaskDebug, TaskDependency, TaskError, TaskHandle, TaskId, TaskOutcome, TaskPhase,
-    TaskStatus,
+    TaskSkipCheck, TaskStatus,
 };
 
 /// Maximum number of yields allowed per task before treating it as an (internal) bug.
@@ -91,7 +91,7 @@ impl Compiler {
         IN_WORKER_LOOP.set(false);
     }
 
-    /// Run a task and its dependencies until it is final (Complete or Error).
+    /// Run a task and its dependencies until it is final (Complete, Skipped, or Error).
     /// If the task would yield with no progress possible, converts to Error.
     ///
     /// # Panics
@@ -108,6 +108,9 @@ impl Compiler {
                 match status {
                     TaskStatus::Complete => {
                         return TaskOutcome::Complete;
+                    }
+                    TaskStatus::Skipped { reason } => {
+                        return TaskOutcome::Skipped { reason };
                     }
                     TaskStatus::Failed { error } => {
                         return TaskOutcome::Error { error };
@@ -188,8 +191,15 @@ impl Compiler {
         let event = format!("{}.{}.{}", task.phase().name(), task.name(), event_name);
         tracing::debug!(%event, %args, ?task_id);
 
+        // skip stale tasks before doing work
+        if let Some(reason) = task.skip_reason(self) {
+            let event = format!("{}.{}.skip", task.phase().name(), task.name());
+            tracing::debug!(%event, %args, ?task_id);
+            return TaskOutcome::Skipped { reason };
+        }
+
         // process
-        match task.clone() {
+        let outcome = match task.clone() {
             Task::Import(import_task) => self.process_import(import_task).into(),
             Task::Resolve(resolve_task) => self.process_resolve(resolve_task).into(),
             Task::Analyze(analyze_task) => self.process_analyze(analyze_task).into(),
@@ -201,7 +211,18 @@ impl Compiler {
             Task::Link(link_task) => self.process_link(link_task).into(),
             Task::Emit(emit_task) => self.process_emit(emit_task).into(),
             Task::Lint(lint_task) => self.process_lint(lint_task).into(),
+        };
+
+        // skip tasks that became stale during processing
+        if matches!(outcome, TaskOutcome::Complete)
+            && let Some(reason) = task.skip_reason(self)
+        {
+            let event = format!("{}.{}.skip", task.phase().name(), task.name());
+            tracing::debug!(%event, %args, ?task_id);
+            return TaskOutcome::Skipped { reason };
         }
+
+        outcome
     }
 
     /// Handle the outcome of a processed task.
@@ -239,6 +260,33 @@ impl Compiler {
                     task: handle.task.clone(),
                     phase: handle.phase(),
                     elapsed,
+                    description,
+                });
+            }
+            TaskOutcome::Skipped { reason } => {
+                let event = format!("{}.{}.skip", handle.phase().name(), handle.task.name());
+                tracing::debug!(%event, %description, ?task_id);
+                self.queue
+                    .set_status(task_id, TaskStatus::Skipped { reason: *reason });
+                self.stats.record_skip();
+                self.stats.record_phase_time(handle.phase(), elapsed);
+                self.wake_waiters(task_id);
+
+                // record per-package time from task anchor
+                let anchor = handle.task.anchor();
+                if let Some(module_id) = anchor.module_id() {
+                    let package_id = self.program.modules.get(module_id).read().package_id;
+                    self.stats.record_package_time(package_id, elapsed);
+                } else if let Some(package_id) = anchor.package_id() {
+                    self.stats.record_package_time(package_id, elapsed);
+                }
+
+                // emit task skipped event
+                self.emit_event(CompilerEvent::TaskSkipped {
+                    task_id,
+                    task: handle.task.clone(),
+                    phase: handle.phase(),
+                    reason: *reason,
                     description,
                 });
             }
@@ -425,7 +473,7 @@ impl Compiler {
             TaskDependency::Complete { task, .. } => {
                 matches!(
                     self.queue.find_task_status(task),
-                    Some(TaskStatus::Complete)
+                    Some(TaskStatus::Complete) | Some(TaskStatus::Skipped { .. })
                 )
             }
             TaskDependency::CompleteAll { dependencies } => dependencies

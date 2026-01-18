@@ -244,15 +244,16 @@ impl CacheRegistry {
         Ok(true)
     }
 
-    /// Validate a DIR cache entry against the context.
+    /// Validate a DIR cache entry against the context for a specific stage.
     pub(super) fn validate_dir_entry(
         &self,
         entry: &ModuleDirCacheEntry,
         context: &CacheContext,
         options: &CacheOptions,
+        cache_kind: CacheKind,
     ) -> Result<bool, CacheError> {
         // compare headers first
-        let expected = context.header(CacheKind::Dir, entry.header.module_id);
+        let expected = context.header(cache_kind, entry.header.module_id);
         if !self.header_matches(&expected, &entry.header) {
             return Ok(false);
         }
@@ -359,7 +360,10 @@ impl CacheRegistry {
         // pick the cache kind directory
         let kind_dir = match key.cache_kind {
             CacheKind::Ast => "ast",
-            CacheKind::Dir => "dir",
+            CacheKind::DirBase => "dir-base",
+            CacheKind::DirResolved => "dir-resolved",
+            CacheKind::DirAnalyzed => "dir-analyzed",
+            CacheKind::DirExecuted => "dir-executed",
             CacheKind::Mir => "mir",
         };
 
@@ -367,8 +371,14 @@ impl CacheRegistry {
         let package = format!("{:016x}", key.module_id.package_id.raw());
         let module = format!("{:08x}", key.module_id.local_id);
         let file_version = key.file_version.0;
-        let profile_id = key.profile_id.raw();
-        let profile_version = key.profile_version.0;
+        let profile_id = key
+            .profile_id
+            .map(|id| id.raw().to_string())
+            .unwrap_or_else(|| "*".to_string());
+        let profile_version = key
+            .profile_version
+            .map(|version| version.0.to_string())
+            .unwrap_or_else(|| "*".to_string());
         let file_name = format!(
             "{kind_dir}-f{file_version}-p{profile_id}-pv{profile_version}-s{source_hash:016x}-c{config_hash:016x}-t{target_hash:016x}-d{dependency_hash:016x}.bin",
             source_hash = key.source_hash,

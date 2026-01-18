@@ -354,6 +354,30 @@ impl Module {
         dirs.iter_mut().find(|dir| dir.profile_id == Some(profile))
     }
 
+    /// Insert or replace the DIR for a profile.
+    ///
+    /// # Panics
+    /// Panics if the module content is unloaded.
+    pub fn set_dir(&mut self, profile: ProfileId, dir: ModuleDir) {
+        // select the profile dir list for this module content
+        let dirs = match &mut self.content {
+            ModuleContent::Code(code) => &mut code.dirs,
+            ModuleContent::Data { dirs, .. } => dirs,
+            ModuleContent::Text { dirs, .. } => dirs,
+            ModuleContent::Binary { dirs, .. } => dirs,
+            ModuleContent::Unloaded => {
+                panic!("cannot set profile dir on unloaded module");
+            }
+        };
+
+        // replace or insert the profile dir
+        if let Some(existing) = dirs.iter_mut().find(|dir| dir.profile_id == Some(profile)) {
+            *existing = dir;
+        } else {
+            dirs.push(dir);
+        }
+    }
+
     /// Get the comptime results for a profile.
     ///
     /// # Panics

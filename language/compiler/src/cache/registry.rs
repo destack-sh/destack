@@ -20,10 +20,10 @@ pub struct CacheKey {
     pub module_id: ModuleId,
     /// The file version.
     pub file_version: FileVersion,
-    /// The profile id.
-    pub profile_id: ProfileId,
-    /// The profile version.
-    pub profile_version: ProfileVersion,
+    /// The profile id when applicable.
+    pub profile_id: Option<ProfileId>,
+    /// The profile version when applicable.
+    pub profile_version: Option<ProfileVersion>,
     /// The source hash.
     pub source_hash: u64,
     /// The config hash.
@@ -133,15 +133,16 @@ impl CacheRegistry {
         self.write_cache_entry(options, &key, &entry)
     }
 
-    /// Read a DIR cache entry if available.
-    pub fn read_dir_cache(
+    /// Read a base DIR cache entry if available.
+    pub fn read_dir_base_cache(
         &self,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_dir_cache_outcome(options, context, module_id)?;
+        let outcome =
+            self.read_dir_cache_outcome_with_kind(options, context, module_id, CacheKind::DirBase)?;
 
         // map cache outcome to response
         match outcome {
@@ -150,12 +151,123 @@ impl CacheRegistry {
         }
     }
 
-    /// Write a DIR cache entry.
-    pub fn write_dir_cache(
+    /// Write a base DIR cache entry.
+    pub fn write_dir_base_cache(
         &self,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
+        payload: ModuleDirData,
+    ) -> Result<(), CacheError> {
+        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirBase, payload)
+    }
+
+    /// Read a resolved DIR cache entry if available.
+    pub fn read_dir_resolved_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+    ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
+        // read entry outcome from cache
+        let outcome = self.read_dir_cache_outcome_with_kind(
+            options,
+            context,
+            module_id,
+            CacheKind::DirResolved,
+        )?;
+
+        // map cache outcome to response
+        match outcome {
+            CacheReadOutcome::Hit { entry, .. } => Ok(Some(entry)),
+            CacheReadOutcome::Miss | CacheReadOutcome::Error => Ok(None),
+        }
+    }
+
+    /// Write a resolved DIR cache entry.
+    pub fn write_dir_resolved_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+        payload: ModuleDirData,
+    ) -> Result<(), CacheError> {
+        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirResolved, payload)
+    }
+
+    /// Read an analyzed DIR cache entry if available.
+    pub fn read_dir_analyzed_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+    ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
+        // read entry outcome from cache
+        let outcome = self.read_dir_cache_outcome_with_kind(
+            options,
+            context,
+            module_id,
+            CacheKind::DirAnalyzed,
+        )?;
+
+        // map cache outcome to response
+        match outcome {
+            CacheReadOutcome::Hit { entry, .. } => Ok(Some(entry)),
+            CacheReadOutcome::Miss | CacheReadOutcome::Error => Ok(None),
+        }
+    }
+
+    /// Write an analyzed DIR cache entry.
+    pub fn write_dir_analyzed_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+        payload: ModuleDirData,
+    ) -> Result<(), CacheError> {
+        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirAnalyzed, payload)
+    }
+
+    /// Read an executed DIR cache entry if available.
+    pub fn read_dir_executed_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+    ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
+        // read entry outcome from cache
+        let outcome = self.read_dir_cache_outcome_with_kind(
+            options,
+            context,
+            module_id,
+            CacheKind::DirExecuted,
+        )?;
+
+        // map cache outcome to response
+        match outcome {
+            CacheReadOutcome::Hit { entry, .. } => Ok(Some(entry)),
+            CacheReadOutcome::Miss | CacheReadOutcome::Error => Ok(None),
+        }
+    }
+
+    /// Write an executed DIR cache entry.
+    pub fn write_dir_executed_cache(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+        payload: ModuleDirData,
+    ) -> Result<(), CacheError> {
+        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirExecuted, payload)
+    }
+
+    /// Write a DIR cache entry for a specific stage.
+    pub(super) fn write_dir_cache_with_kind(
+        &self,
+        options: &CacheOptions,
+        context: &CacheContext,
+        module_id: ModuleId,
+        cache_kind: CacheKind,
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
         // skip when cache is disabled
@@ -164,13 +276,13 @@ impl CacheRegistry {
         }
 
         // build the entry and store in memory
-        let header = context.header(CacheKind::Dir, module_id);
+        let header = context.header(cache_kind, module_id);
         let entry = if options.is_disk_enabled() {
             ModuleDirCacheEntry::new(header, payload)?
         } else {
             ModuleDirCacheEntry::new_unchecked(header, payload)
         };
-        let key = CacheKey::new(CacheKind::Dir, module_id, context);
+        let key = CacheKey::new(cache_kind, module_id, context);
         let size_bytes = self.entry_size_bytes(options, &entry)?;
         self.insert_memory_entry(
             &self.dir,
@@ -286,12 +398,13 @@ impl CacheRegistry {
         Ok(CacheReadOutcome::Miss)
     }
 
-    /// Read a DIR cache entry with its source.
-    pub(super) fn read_dir_cache_outcome(
+    /// Read a DIR cache entry with its source for a specific stage.
+    pub(super) fn read_dir_cache_outcome_with_kind(
         &self,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
+        cache_kind: CacheKind,
     ) -> Result<CacheReadOutcome<ModuleDirCacheEntry>, CacheError> {
         // skip when cache is disabled
         if !options.is_enabled() {
@@ -299,10 +412,10 @@ impl CacheRegistry {
         }
 
         // try in memory cache first
-        let key = CacheKey::new(CacheKind::Dir, module_id, context);
+        let key = CacheKey::new(cache_kind, module_id, context);
         if let Some(mut entry_ref) = self.dir.get_mut(&key) {
             let entry = entry_ref.entry.clone();
-            match self.validate_dir_entry(&entry, context, options) {
+            match self.validate_dir_entry(&entry, context, options, cache_kind) {
                 Ok(true) => {
                     entry_ref.touch();
                     return Ok(CacheReadOutcome::Hit {
@@ -339,7 +452,7 @@ impl CacheRegistry {
                 return Ok(CacheReadOutcome::Error);
             }
         };
-        match self.validate_dir_entry(&entry, context, options) {
+        match self.validate_dir_entry(&entry, context, options, cache_kind) {
             Ok(true) => {
                 if let Ok(size_bytes) = self.entry_size_bytes(options, &entry) {
                     self.insert_memory_entry(

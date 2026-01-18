@@ -1,8 +1,8 @@
-use crate::{Compiler, ExecuteResult, TaskDependencyError};
+use crate::{Compiler, ExecuteError, ExecuteResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_dir::GlobalNodeIdAny;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleStamp, ProfileStamp};
 use destack_workspace::ProfileId;
 
 /// Task to execute comptime code.
@@ -12,19 +12,19 @@ pub enum ExecuteTask {
     /// Prepare comptime state for a module.
     #[task(code = 1, trace = "module={module} profile={profile}")]
     ExecuteModulePrepare {
-        /// Identify the module to execute.
-        module: ModuleId,
-        /// Identify the profile to execute.
-        profile: ProfileId,
+        /// The module stamp to execute.
+        module: ModuleStamp,
+        /// The profile stamp to execute.
+        profile: ProfileStamp,
     },
 
     /// Execute comptime code for a module.
     #[task(code = 2, trace = "module={module} profile={profile}")]
     ExecuteModulePatch {
-        /// Identify the module to execute.
-        module: ModuleId,
-        /// Identify the profile to execute.
-        profile: ProfileId,
+        /// The module stamp to execute.
+        module: ModuleStamp,
+        /// The profile stamp to execute.
+        profile: ProfileStamp,
     },
 
     /// Execute comptime code for a specific expression.
@@ -33,10 +33,10 @@ pub enum ExecuteTask {
         trace = "module={module} profile={profile} expression={expression}"
     )]
     ExecuteExpression {
-        /// Identify the module to execute.
-        module: ModuleId,
-        /// Identify the profile to execute.
-        profile: ProfileId,
+        /// The module stamp to execute.
+        module: ModuleStamp,
+        /// The profile stamp to execute.
+        profile: ProfileStamp,
         /// Identify the comptime expression to execute.
         expression: GlobalNodeIdAny,
     },
@@ -47,11 +47,28 @@ impl Compiler {
     pub fn process_execute(&self, task: ExecuteTask) -> ExecuteResult<()> {
         match task {
             ExecuteTask::ExecuteModulePrepare { module, profile } => {
-                self.execute_module_prepare(module, profile)?;
+                self.ensure_module_profile_matches::<ExecuteError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.execute_module_prepare(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                )?;
             }
             ExecuteTask::ExecuteModulePatch { module, profile } => {
-                self.execute_module_patch(module, profile)?;
-                if self.is_code_module(module) {
+                self.ensure_module_profile_matches::<ExecuteError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.execute_module_patch(module.id, profile.id, module.version, profile.version)?;
+                if self.is_code_module(module.id) {
                     self.stats.record_execute();
                 }
             }
@@ -60,7 +77,19 @@ impl Compiler {
                 profile,
                 expression,
             } => {
-                self.execute_expression(module, profile, expression)?;
+                self.ensure_module_profile_matches::<ExecuteError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.execute_expression(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                    expression,
+                )?;
             }
         }
         Ok(())
@@ -72,6 +101,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ExecuteTask::ExecuteModulePrepare { module, profile })
     }
 
@@ -81,6 +112,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ExecuteTask::ExecuteModulePatch { module, profile })
     }
 
@@ -91,6 +124,8 @@ impl Compiler {
         profile: ProfileId,
         expression: GlobalNodeIdAny,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ExecuteTask::ExecuteExpression {
             module,
             profile,

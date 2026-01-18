@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{Compiler, CompilerOptions, EmitTask};
-use destack_source::{File, FileSystem, FileType, PhysicalFileSystem, Uri};
+use destack_source::{File, FileSystem, FileType, PackageStamp, PhysicalFileSystem, Uri};
 use destack_workspace::{DsConfig, Session, Target, TargetId};
 
 use crate::harness::{
@@ -146,10 +146,11 @@ fn run_codegen_case(test: &TestCase) -> TestResult {
     }
 
     // emit
+    let package_version = program.packages.version(package_id);
     for (target_name, _) in &targets {
         let target_id = TargetId::new(package_id, target_name);
         compiler.enqueue(EmitTask::EmitPackage {
-            package: package_id,
+            package: PackageStamp::new(package_id, package_version),
             target: target_id,
         });
     }

@@ -1,4 +1,4 @@
-use destack_source::{FileId, ModuleId, PackageId, Span};
+use destack_source::{FileId, ModuleId, ModuleStamp, PackageId, PackageStamp, Span};
 use destack_workspace::Program;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -188,6 +188,12 @@ impl From<ModuleId> for DiagnosticAnchor {
     }
 }
 
+impl From<ModuleStamp> for DiagnosticAnchor {
+    fn from(module: ModuleStamp) -> Self {
+        Self::Module(module.id)
+    }
+}
+
 impl From<FileId> for DiagnosticAnchor {
     fn from(file: FileId) -> Self {
         Self::File(file)
@@ -203,6 +209,12 @@ impl From<Span> for DiagnosticAnchor {
 impl From<PackageId> for DiagnosticAnchor {
     fn from(package: PackageId) -> Self {
         Self::Package(package)
+    }
+}
+
+impl From<PackageStamp> for DiagnosticAnchor {
+    fn from(package: PackageStamp) -> Self {
+        Self::Package(package.id)
     }
 }
 

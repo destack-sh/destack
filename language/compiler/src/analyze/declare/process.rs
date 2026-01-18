@@ -1,6 +1,8 @@
-use crate::{AnalyzeError, AnalyzeResult, Compiler, TaskDependencyError, TaskResultCollector};
+use crate::{
+    AnalyzeError, AnalyzeResult, AnalyzeTask, Compiler, TaskDependencyError, TaskResultCollector,
+};
 use destack_dir::{LocalTypeId, Type};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
 impl Compiler {
@@ -10,7 +12,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
-        use crate::AnalyzeTask;
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleDeclare { module, profile })
     }
 
@@ -19,7 +22,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> AnalyzeResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<AnalyzeError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         self.require_resolve_module_canonical(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());

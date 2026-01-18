@@ -49,6 +49,8 @@ pub struct ProgressState {
     pub tasks_completed: AtomicUsize,
     /// Number of tasks failed.
     pub tasks_failed: AtomicUsize,
+    /// Number of tasks skipped.
+    pub tasks_skipped: AtomicUsize,
     /// Currently active tasks by task_id.
     active_tasks: Mutex<HashMap<TaskId, ActiveTask>>,
     /// Optional stats source for incremental progress.
@@ -201,6 +203,15 @@ impl ProgressReporter {
             }
             CompilerEvent::TaskFailed { task_id, .. } => {
                 state.tasks_failed.fetch_add(1, Ordering::Relaxed);
+
+                if let Ok(mut active) = state.active_tasks.lock() {
+                    active.remove(task_id);
+                }
+
+                update_status(&status, &state, &label, detailed, started_at);
+            }
+            CompilerEvent::TaskSkipped { task_id, .. } => {
+                state.tasks_skipped.fetch_add(1, Ordering::Relaxed);
 
                 if let Ok(mut active) = state.active_tasks.lock() {
                     active.remove(task_id);

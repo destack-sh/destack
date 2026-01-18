@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::{FileType, PackageId, Uri};
@@ -21,6 +22,10 @@ pub enum EmitError {
     /// Yield dependency has failed.
     #[error(code = "EW001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EW002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
     // 1xx: Target issues

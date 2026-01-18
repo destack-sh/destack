@@ -9,6 +9,7 @@ mod process;
 mod queue;
 mod stats;
 mod task;
+mod version;
 mod warning;
 
 pub use anchor::*;

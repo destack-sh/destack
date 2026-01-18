@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::source_colorizer;
-use destack_source::{File, FileType, MemoryFileSystem, PrintOptions, Uri};
+use destack_source::{
+    File, FileType, MemoryFileSystem, ModuleStamp, PrintOptions, ProfileStamp, Uri,
+};
 use destack_workspace::{DsConfig, TargetId};
 
 use crate::harness::print::color;
@@ -169,9 +171,15 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     // run analysis
     let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
     compiler.options.load_libs = load_libs;
+    let module_version = program.modules.get(module_id).read().version;
+    let profile_version = program
+        .profiles
+        .get(profile)
+        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+        .version;
     compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-        module: module_id,
-        profile,
+        module: ModuleStamp::new(module_id, module_version),
+        profile: ProfileStamp::new(profile, profile_version),
     });
     compiler.compile();
     drop(compiler);

@@ -1,8 +1,8 @@
-use crate::{Compiler, EmitResult};
+use crate::{Compiler, EmitError, EmitResult};
 
 use destack_compiler_macros::DefineTask;
-use destack_source::{ModuleId, PackageId};
-use destack_workspace::TargetId;
+use destack_source::{ModuleStamp, PackageId, PackageStamp};
+use destack_workspace::{ProgramStamp, TargetId};
 
 /// Task to emit compiled output to disk.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -11,8 +11,10 @@ pub enum EmitTask {
     /// Emit a single module's output for a target.
     #[task(code = 1, trace = "module={module} target={target}")]
     EmitModule {
-        /// The module to emit.
-        module: ModuleId,
+        /// The module stamp to emit.
+        module: ModuleStamp,
+        /// The package stamp to emit.
+        package: PackageStamp,
         /// The target name.
         target: TargetId,
     },
@@ -20,7 +22,7 @@ pub enum EmitTask {
     #[task(code = 2, trace = "package={package} target={target}")]
     EmitPackage {
         /// The package to emit.
-        package: PackageId,
+        package: PackageStamp,
         /// The target name.
         target: TargetId,
     },
@@ -29,6 +31,8 @@ pub enum EmitTask {
     EmitProgram {
         /// The target name.
         target: TargetId,
+        /// Stamp of the current package versions.
+        program_stamp: ProgramStamp,
     },
 }
 
@@ -36,9 +40,30 @@ impl Compiler {
     /// Process an emit task.
     pub fn process_emit(&self, task: EmitTask) -> EmitResult<()> {
         match task {
-            EmitTask::EmitModule { module, target } => self.emit_module(module, &target),
-            EmitTask::EmitPackage { package, target } => self.emit_package(package, &target),
-            EmitTask::EmitProgram { target } => self.emit_program(&target),
+            EmitTask::EmitModule {
+                module,
+                package,
+                target,
+            } => {
+                self.ensure_module_version_matches::<EmitError>(module.id, module.version)?;
+                let module_package = self.program.modules.get(module.id).read().package_id;
+                if module_package != package.id {
+                    return Ok(());
+                }
+                self.ensure_package_version_matches::<EmitError>(package.id, package.version)?;
+                self.emit_module(module.id, &target)
+            }
+            EmitTask::EmitPackage { package, target } => {
+                self.ensure_package_version_matches::<EmitError>(package.id, package.version)?;
+                self.emit_package(package.id, &target)
+            }
+            EmitTask::EmitProgram {
+                target,
+                program_stamp,
+            } => {
+                self.ensure_program_stamp_matches::<EmitError>(program_stamp)?;
+                self.emit_program(&target)
+            }
         }
     }
 

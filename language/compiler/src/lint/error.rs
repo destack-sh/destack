@@ -1,5 +1,6 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_workspace::Program;
@@ -15,4 +16,8 @@ pub enum LintError {
     /// Yield dependency has failed.
     #[error(code = "EL001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EL002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 }

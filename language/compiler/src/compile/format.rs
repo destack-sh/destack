@@ -13,7 +13,7 @@ use destack_dir::{
     Visibility,
 };
 use destack_mir as mir;
-use destack_source::{FileType, ModuleId, PackageId, Uri};
+use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, ProfileStamp, Uri};
 use destack_workspace::{ProfileId, Program, TargetId};
 
 use destack_workspace::format::{format_global_type, format_symbol_name};
@@ -70,6 +70,13 @@ impl DiagnosticFormat for ModuleId {
     }
 }
 
+impl DiagnosticFormat for ModuleStamp {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        let module = self.id.diagnostic_fmt(program);
+        format!("{module}@{}", self.version)
+    }
+}
+
 impl DiagnosticFormat for PackageId {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let package = program.packages.get(*self);
@@ -81,6 +88,13 @@ impl DiagnosticFormat for PackageId {
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|| format!("<package:{}>", self.0))
         })
+    }
+}
+
+impl DiagnosticFormat for PackageStamp {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        let package = self.id.diagnostic_fmt(program);
+        format!("{package}@{}", self.version)
     }
 }
 
@@ -122,6 +136,13 @@ impl DiagnosticFormat for ProfileId {
         };
 
         format!("{runtime}{lib_summary}{flags}")
+    }
+}
+
+impl DiagnosticFormat for ProfileStamp {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        let profile = self.id.diagnostic_fmt(program);
+        format!("{profile}@{}", self.version)
     }
 }
 

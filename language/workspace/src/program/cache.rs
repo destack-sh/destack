@@ -67,10 +67,15 @@ impl ModuleDirCacheEntry {
         Self { header, payload }
     }
 
+    /// Validate the cache header for this entry with a specific kind.
+    pub fn validate_for_kind(&self, expected_kind: CacheKind) -> Result<(), CacheError> {
+        validate_header(&self.header, expected_kind)
+            .and_then(|_| validate_payload_hash(&self.header, &self.payload))
+    }
+
     /// Validate the cache header for this entry.
     pub fn validate(&self) -> Result<(), CacheError> {
-        validate_header(&self.header, CacheKind::Dir)
-            .and_then(|_| validate_payload_hash(&self.header, &self.payload))
+        self.validate_for_kind(CacheKind::DirResolved)
     }
 }
 
@@ -130,7 +135,7 @@ pub enum CacheError {
         /// The module id for the missing dependency data.
         module_id: ModuleId,
         /// The profile id for the missing dependency data.
-        profile_id: ProfileId,
+        profile_id: Option<ProfileId>,
         /// Description of the missing data.
         reason: String,
     },
@@ -180,9 +185,12 @@ impl fmt::Display for CacheError {
                 profile_id,
                 reason,
             } => {
+                let profile_display = profile_id
+                    .map(|profile_id| format!("{profile_id:?}"))
+                    .unwrap_or_else(|| "none".to_string());
                 write!(
                     f,
-                    "missing dependency data for {module_id:?} at {profile_id:?}: {reason}"
+                    "missing dependency data for {module_id:?} at {profile_display}: {reason}"
                 )
             }
         }
@@ -381,20 +389,98 @@ pub fn write_module_ast_cache(path: &Path, entry: &ModuleAstCacheEntry) -> Resul
 }
 
 /// Read and validate a module DIR cache entry from a path.
-pub fn read_module_dir_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
+pub fn read_module_dir_base_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
     // read cache entry
     let entry: ModuleDirCacheEntry = read_cache_entry(path)?;
 
     // validate cache entry
-    entry.validate()?;
+    entry.validate_for_kind(CacheKind::DirBase)?;
 
     Ok(entry)
 }
 
-/// Write a module DIR cache entry to a path after validation.
-pub fn write_module_dir_cache(path: &Path, entry: &ModuleDirCacheEntry) -> Result<(), CacheError> {
+/// Write a base DIR cache entry to a path after validation.
+pub fn write_module_dir_base_cache(
+    path: &Path,
+    entry: &ModuleDirCacheEntry,
+) -> Result<(), CacheError> {
     // validate cache entry
-    entry.validate()?;
+    entry.validate_for_kind(CacheKind::DirBase)?;
+
+    // write cache entry
+    write_cache_entry(path, entry)?;
+
+    Ok(())
+}
+
+/// Read and validate a resolved DIR cache entry from a path.
+pub fn read_module_dir_resolved_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
+    // read cache entry
+    let entry: ModuleDirCacheEntry = read_cache_entry(path)?;
+
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirResolved)?;
+
+    Ok(entry)
+}
+
+/// Write a resolved DIR cache entry to a path after validation.
+pub fn write_module_dir_resolved_cache(
+    path: &Path,
+    entry: &ModuleDirCacheEntry,
+) -> Result<(), CacheError> {
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirResolved)?;
+
+    // write cache entry
+    write_cache_entry(path, entry)?;
+
+    Ok(())
+}
+
+/// Read and validate an analyzed DIR cache entry from a path.
+pub fn read_module_dir_analyzed_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
+    // read cache entry
+    let entry: ModuleDirCacheEntry = read_cache_entry(path)?;
+
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirAnalyzed)?;
+
+    Ok(entry)
+}
+
+/// Write an analyzed DIR cache entry to a path after validation.
+pub fn write_module_dir_analyzed_cache(
+    path: &Path,
+    entry: &ModuleDirCacheEntry,
+) -> Result<(), CacheError> {
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirAnalyzed)?;
+
+    // write cache entry
+    write_cache_entry(path, entry)?;
+
+    Ok(())
+}
+
+/// Read and validate an executed DIR cache entry from a path.
+pub fn read_module_dir_executed_cache(path: &Path) -> Result<ModuleDirCacheEntry, CacheError> {
+    // read cache entry
+    let entry: ModuleDirCacheEntry = read_cache_entry(path)?;
+
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirExecuted)?;
+
+    Ok(entry)
+}
+
+/// Write an executed DIR cache entry to a path after validation.
+pub fn write_module_dir_executed_cache(
+    path: &Path,
+    entry: &ModuleDirCacheEntry,
+) -> Result<(), CacheError> {
+    // validate cache entry
+    entry.validate_for_kind(CacheKind::DirExecuted)?;
 
     // write cache entry
     write_cache_entry(path, entry)?;
@@ -448,13 +534,23 @@ mod tests {
     }
 
     fn test_header(kind: CacheKind) -> CacheHeader {
+        let profile_id = if kind.requires_profile() {
+            Some(ProfileId::new(1))
+        } else {
+            None
+        };
+        let profile_version = if kind.requires_profile() {
+            Some(ProfileVersion::new(1))
+        } else {
+            None
+        };
         CacheHeader::new(
             kind,
             "test".to_string(),
             ModuleId::EPHEMERAL,
             FileVersion::INITIAL,
-            ProfileId::new(0),
-            ProfileVersion::INITIAL,
+            profile_id,
+            profile_version,
             0,
             0,
             0,
@@ -484,21 +580,87 @@ mod tests {
     }
 
     #[test]
-    fn test_module_dir_cache_roundtrip() {
-        // roundtrip module dir cache entries through disk
+    fn test_module_dir_base_cache_roundtrip() {
+        // roundtrip module dir base cache entries through disk
         let module_dir = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
-        let entry =
-            ModuleDirCacheEntry::new(test_header(CacheKind::Dir), module_dir.to_data()).unwrap();
-        let path = temp_cache_path("dir");
+        let entry = ModuleDirCacheEntry::new(test_header(CacheKind::DirBase), module_dir.to_data())
+            .unwrap();
+        let path = temp_cache_path("dir-base");
 
-        write_module_dir_cache(&path, &entry).expect("write module dir cache");
-        let loaded = read_module_dir_cache(&path).expect("read module dir cache");
+        write_module_dir_base_cache(&path, &entry).expect("write module dir base cache");
+        let loaded = read_module_dir_base_cache(&path).expect("read module dir base cache");
 
         // assert essential header and payload fields
-        assert_eq!(loaded.header.cache_kind, CacheKind::Dir);
+        assert_eq!(loaded.header.cache_kind, CacheKind::DirBase);
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert!(loaded.payload.profile_id.is_none());
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_module_dir_resolved_cache_roundtrip() {
+        // roundtrip module dir resolved cache entries through disk
+        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
+        let entry =
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirResolved), module_dir.to_data())
+                .unwrap();
+        let path = temp_cache_path("dir-resolved");
+
+        write_module_dir_resolved_cache(&path, &entry).expect("write module dir resolved cache");
+        let loaded = read_module_dir_resolved_cache(&path).expect("read module dir resolved cache");
+
+        // assert essential header and payload fields
+        assert_eq!(loaded.header.cache_kind, CacheKind::DirResolved);
+        assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
+        assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
+        assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_module_dir_analyzed_cache_roundtrip() {
+        // roundtrip analyzed dir cache entries through disk
+        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
+        let entry =
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirAnalyzed), module_dir.to_data())
+                .unwrap();
+        let path = temp_cache_path("dir-analyzed");
+
+        write_module_dir_analyzed_cache(&path, &entry).expect("write analyzed dir cache");
+        let loaded = read_module_dir_analyzed_cache(&path).expect("read analyzed dir cache");
+
+        // assert essential header and payload fields
+        assert_eq!(loaded.header.cache_kind, CacheKind::DirAnalyzed);
+        assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
+        assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
+        assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_module_dir_executed_cache_roundtrip() {
+        // roundtrip executed dir cache entries through disk
+        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
+        let entry =
+            ModuleDirCacheEntry::new(test_header(CacheKind::DirExecuted), module_dir.to_data())
+                .unwrap();
+        let path = temp_cache_path("dir-executed");
+
+        write_module_dir_executed_cache(&path, &entry).expect("write executed dir cache");
+        let loaded = read_module_dir_executed_cache(&path).expect("read executed dir cache");
+
+        // assert essential header and payload fields
+        assert_eq!(loaded.header.cache_kind, CacheKind::DirExecuted);
+        assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
+        assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
+        assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
 
         let _ = std::fs::remove_file(path);
     }
@@ -541,7 +703,7 @@ mod tests {
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
         let mut entry =
             ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
-        entry.header.cache_kind = CacheKind::Dir;
+        entry.header.cache_kind = CacheKind::DirResolved;
 
         let result = entry.validate();
         assert!(matches!(result, Err(CacheError::InvalidCacheKind { .. })));

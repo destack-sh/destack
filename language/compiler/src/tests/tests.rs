@@ -17,7 +17,8 @@ use destack_mir as mir;
 use destack_mir::{MirFormatOptions, format_mir};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileSystem, FileType,
-    MemoryFileSystem, ModuleId, MultiSpan, PhysicalFileSystem, PrintOptions, Uri,
+    MemoryFileSystem, ModuleId, ModuleStamp, ModuleVersion, MultiSpan, PackageId, PackageStamp,
+    PackageVersion, PhysicalFileSystem, PrintOptions, ProfileStamp, ProfileVersion, Uri,
     print_diagnostics, print_diff,
 };
 use destack_vm::{Isolate, IsolateOptions, Value};
@@ -385,38 +386,87 @@ impl TestProgram {
         })
     }
 
+    /// Get the current module version.
+    pub fn module_version(&self, module_id: ModuleId) -> ModuleVersion {
+        let module = self.program.modules.get(module_id);
+        module.read().version
+    }
+
+    /// Get the current module stamp.
+    pub fn module_stamp(&self, module_id: ModuleId) -> ModuleStamp {
+        ModuleStamp::new(module_id, self.module_version(module_id))
+    }
+
+    /// Get the current profile version.
+    pub fn profile_version(&self, profile_id: ProfileId) -> ProfileVersion {
+        self.program
+            .profiles
+            .get(profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {profile_id:?}"))
+            .version
+    }
+
+    /// Get the current profile stamp.
+    pub fn profile_stamp(&self, profile_id: ProfileId) -> ProfileStamp {
+        ProfileStamp::new(profile_id, self.profile_version(profile_id))
+    }
+
+    /// Get the current package version.
+    pub fn package_version(&self, package_id: PackageId) -> PackageVersion {
+        self.program.packages.version(package_id)
+    }
+
+    /// Get the current package stamp.
+    pub fn package_stamp(&self, package_id: PackageId) -> PackageStamp {
+        PackageStamp::new(package_id, self.package_version(package_id))
+    }
+
     /// Enqueue Import task for a module.
     pub fn import_module(&self, module: ModuleId) {
-        self.enqueue(ImportTask::ImportModule { module });
+        self.enqueue(ImportTask::ImportModule {
+            module: self.module_stamp(module),
+        });
     }
 
     /// Enqueue Bind task for a module.
     pub fn bind_module(&self, module: ModuleId) {
-        self.enqueue(ImportTask::ImportModuleBind { module });
+        self.enqueue(ImportTask::ImportModuleBind {
+            module: self.module_stamp(module),
+        });
     }
 
     /// Enqueue Resolve task for a module.
     pub fn resolve_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ResolveTask::ResolveModule { module, profile });
+        self.enqueue(ResolveTask::ResolveModule {
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Enqueue ResolveBuiltins task.
     pub fn resolve_builtins(&self) {
         let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveBuiltins { profile });
+        self.enqueue(ResolveTask::ResolveBuiltins {
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Enqueue ResolveLibs task.
     pub fn resolve_libs(&self) {
         let profile = self.default_profile_id_for_root();
-        self.enqueue(ResolveTask::ResolveLibs { profile });
+        self.enqueue(ResolveTask::ResolveLibs {
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Enqueue Analyze task for a module.
     pub fn analyze_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+        self.enqueue(AnalyzeTask::AnalyzeModule {
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Analyze a module and check no diagnostics.
@@ -431,19 +481,28 @@ impl TestProgram {
     /// Enqueue Lint task for a module.
     pub fn lint_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(LintTask::LintModule { module, profile });
+        self.enqueue(LintTask::LintModule {
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Enqueue Elaborate task for a module.
     pub fn elaborate_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ElaborateTask::ElaborateModule { module, profile });
+        self.enqueue(ElaborateTask::ElaborateModule {
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Enqueue Execute task for a module.
     pub fn execute_module(&self, module: ModuleId) {
         let profile = self.default_profile_id(module);
-        self.enqueue(ExecuteTask::ExecuteModulePatch { module, profile });
+        self.enqueue(ExecuteTask::ExecuteModulePatch {
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
+        });
     }
 
     /// Add a build target to the package containing the given module.
@@ -460,6 +519,10 @@ impl TestProgram {
         let package = self.program.packages.get(package_id);
         let mut package = package.write();
         package.targets.insert(target_id, target_config);
+
+        // bump package version for target updates
+        drop(package);
+        let _ = self.program.packages.bump_version(package_id);
     }
 
     /// Enqueue Lower task for a module.
@@ -467,8 +530,13 @@ impl TestProgram {
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.read().package_id;
         let target_id = TargetId::new(package_id, target);
+        let profile = self
+            .program
+            .profile_id_for_target(module, &target_id)
+            .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
         self.enqueue(LowerTask::LowerModule {
-            module,
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
             target: target_id,
         });
     }
@@ -478,8 +546,13 @@ impl TestProgram {
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.read().package_id;
         let target_id = TargetId::new(package_id, target);
+        let profile = self
+            .program
+            .profile_id_for_target(module, &target_id)
+            .unwrap_or_else(|| panic!("missing profile for target '{target}'"));
         self.enqueue(crate::OptimizeTask::OptimizeModule {
-            module,
+            module: self.module_stamp(module),
+            profile: self.profile_stamp(profile),
             target: target_id,
         });
     }

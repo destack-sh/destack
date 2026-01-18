@@ -4,8 +4,10 @@ use std::str::FromStr;
 use crate::{Compiler, LowerError, LowerResult, ModuleLowerer, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
-use destack_source::{CacheKind, ModuleId};
-use destack_workspace::{ModuleMir, OutputFormat, Target, TargetId};
+use destack_source::{
+    CacheKind, ModuleId, ModuleStamp, ModuleVersion, ProfileStamp, ProfileVersion,
+};
+use destack_workspace::{ModuleMir, OutputFormat, ProfileId, Target, TargetId};
 use target_lexicon::Triple;
 
 /// Task to lower a DIR into MIR.
@@ -15,8 +17,10 @@ pub enum LowerTask {
     /// Lower a module into MIR.
     #[task(code = 1, trace = "module={module} target={target}")]
     LowerModule {
-        /// Identify the module to lower.
-        module: ModuleId,
+        /// The module stamp to lower.
+        module: ModuleStamp,
+        /// The profile stamp to lower.
+        profile: ProfileStamp,
         /// Identify the target backend for lowering.
         target: TargetId,
     },
@@ -26,9 +30,25 @@ impl Compiler {
     /// Process a lower task.
     pub fn process_lower(&self, task: LowerTask) -> LowerResult<()> {
         match task {
-            LowerTask::LowerModule { module, target } => {
-                self.lower_module(module, target)?;
-                if self.is_code_module(module) {
+            LowerTask::LowerModule {
+                module,
+                profile,
+                target,
+            } => {
+                self.ensure_module_profile_matches::<LowerError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.lower_module(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                    target,
+                )?;
+                if self.is_code_module(module.id) {
                     self.stats.record_lower();
                 }
             }
@@ -37,14 +57,24 @@ impl Compiler {
     }
 
     /// Lower a module.
-    fn lower_module(&self, module_id: ModuleId, target_id: TargetId) -> LowerResult<()> {
-        let profile = self
+    fn lower_module(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
+        target_id: TargetId,
+    ) -> LowerResult<()> {
+        let resolved_profile = self
             .program
             .profile_id_for_target(module_id, &target_id)
             .ok_or_else(|| LowerError::Internal {
                 module: module_id,
                 message: format!("target '{target_id}' not found for profile resolution"),
             })?;
+        if resolved_profile != profile {
+            return Ok(());
+        }
 
         // try to load MIR from cache
         let cache_handle = self.cache_handle_for_module(
@@ -56,8 +86,20 @@ impl Compiler {
         if let Some(cache) = cache_handle.as_ref()
             && let Ok(Some(entry)) = cache.read_mir()
         {
+            self.ensure_module_profile_matches::<LowerError>(
+                module_id,
+                module_version,
+                profile,
+                profile_version,
+            )?;
             let module = self.program.modules.get(module_id);
             let mut module = module.write();
+            self.ensure_module_profile_matches_guard::<LowerError>(
+                &module,
+                module_version,
+                profile,
+                profile_version,
+            )?;
             let code = module.code_mut();
             code.mirs.retain(|mir| mir.target != target_id);
             code.mirs.push(ModuleMir::from_data(entry.payload));
@@ -91,13 +133,24 @@ impl Compiler {
 
         // initialize MIR for this target
         {
+            self.ensure_module_profile_matches::<LowerError>(
+                module_id,
+                module_version,
+                profile,
+                profile_version,
+            )?;
             let mut module = module.write();
-            let version = module.version;
+            self.ensure_module_profile_matches_guard::<LowerError>(
+                &module,
+                module_version,
+                profile,
+                profile_version,
+            )?;
             // replace existing MIR for this target, if any
             let code = module.code_mut();
             code.mirs.retain(|mir| mir.target != target_id);
             code.mirs
-                .push(ModuleMir::new(module_id, version, target_id.clone()));
+                .push(ModuleMir::new(module_id, module_version, target_id.clone()));
         }
 
         // lower the module
@@ -127,14 +180,32 @@ impl Compiler {
 
         // update the module with the new lowered MIR
         // (#Cleanup: should we mutate the ModuleMir in place..?)
+        self.ensure_module_profile_matches::<LowerError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
+        self.ensure_module_profile_matches_guard::<LowerError>(
+            &module,
+            module_version,
+            profile,
+            profile_version,
+        )?;
         let mir = module.mir_mut(&target_id);
         *mir.tree.write() = mir_tree;
         mir.strings = mir_strings;
 
         // write MIR to cache
         if let Some(cache) = cache_handle.as_ref() {
+            self.ensure_module_profile_matches::<LowerError>(
+                module_id,
+                module_version,
+                profile,
+                profile_version,
+            )?;
             let payload = module.mir(&target_id).to_data();
             if let Err(error) = cache.write_mir(payload) {
                 tracing::debug!(?module_id, ?target_id, ?error, "lower.module.cache.write");
@@ -148,10 +219,14 @@ impl Compiler {
     pub fn require_lower_module(
         &self,
         module: ModuleId,
+        profile: ProfileId,
         target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(LowerTask::LowerModule {
             module,
+            profile,
             target: target.clone(),
         })
     }

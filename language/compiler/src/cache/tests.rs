@@ -1,16 +1,20 @@
 use std::collections::HashSet;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use destack_resolver::TypeScriptOptionsDiscovery;
 use destack_source::{
-    DiagnosticSeverity, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion,
+    CacheKind, DiagnosticSeverity, FileVersion, ModuleId, ModuleStamp, ModuleVersion, PackageId,
+    ProfileStamp,
 };
 use destack_workspace::{
-    CacheMode, CachePolicy, CacheScope, CacheValidate, FileUpdate, ModuleAst, ModuleGraphKey,
-    ModuleMir, ModuleSignatureKey, TargetId,
+    CacheMode, CachePolicy, CacheScope, CacheValidate, FileUpdate, ModuleAst, ModuleDir,
+    ModuleGraphKey, ModuleMir, ModuleSignatureKey, TargetId,
 };
+use indexmap::IndexMap;
 
 use crate::{
-    AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, TestFileSystem, TestProgram,
+    AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, ImportTask, TaskOutcome,
+    TaskStatus, TestFileSystem, TestProgram,
 };
 
 impl TestProgram {
@@ -26,9 +30,16 @@ impl TestProgram {
         // enqueue analyze tasks for the requested modules
         for module_id in modules {
             let profile = self.default_profile_id(*module_id);
+            let module_version = self.program.modules.get(*module_id).read().version;
+            let profile_version = self
+                .program
+                .profiles
+                .get(profile)
+                .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+                .version;
             compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-                module: *module_id,
-                profile,
+                module: ModuleStamp::new(*module_id, module_version),
+                profile: ProfileStamp::new(profile, profile_version),
             });
         }
 
@@ -74,6 +85,35 @@ impl TestProgram {
             )
             .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
     }
+}
+
+/// Skip tasks when module versions are stale.
+#[test]
+fn test_task_skips_stale_module_version() {
+    // set up a program and register a module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module("main.ts", "export const value = 1;");
+    let stale_version = test.module_version(module_id);
+
+    // invalidate the module to bump its version
+    let file_id = test.program.modules.get(module_id).read().file_id;
+    test.program
+        .invalidate_file(file_id, FileUpdate::Touch)
+        .unwrap_or_else(|error| panic!("failed to invalidate file: {error}"));
+
+    // run the task with the stale version
+    let task = ImportTask::ImportModuleParse {
+        module: ModuleStamp::new(module_id, stale_version),
+    };
+    let outcome = test.compiler.run_task(task.clone());
+
+    // assertion block
+    assert!(matches!(outcome, TaskOutcome::Skipped { .. }));
+    let status = test
+        .compiler
+        .get_status(task)
+        .unwrap_or_else(|| panic!("missing task status"));
+    assert!(matches!(status, TaskStatus::Skipped { .. }));
 }
 
 /// Signature changes invalidate dependent modules.
@@ -535,8 +575,8 @@ fn test_cache_roundtrip_disk() {
     let context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
@@ -581,8 +621,8 @@ fn test_cache_roundtrip_memory() {
     let context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
@@ -637,8 +677,8 @@ fn test_cache_miss_on_context_change() {
     let context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
@@ -655,8 +695,8 @@ fn test_cache_miss_on_context_change() {
     let mismatched_context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 10,
         config_hash: 2,
         target_hash: 3,
@@ -689,8 +729,8 @@ fn test_cache_miss_on_dependency_change() {
     let context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
@@ -707,8 +747,8 @@ fn test_cache_miss_on_dependency_change() {
     let mismatched_context = CacheContext {
         compiler_version: "test".to_string(),
         file_version: FileVersion::INITIAL,
-        profile_id: ProfileId::new(0),
-        profile_version: ProfileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
         source_hash: 1,
         config_hash: 2,
         target_hash: 3,
@@ -722,5 +762,288 @@ fn test_cache_miss_on_dependency_change() {
     assert!(
         entry.is_none(),
         "expected dependency hash mismatch to invalidate cache entry"
+    );
+}
+
+/// Cache entries are invalidated when file versions change.
+#[test]
+fn test_cache_miss_on_file_version_bump() {
+    // set up a cached module context
+    let test = TestProgram::memory_sequential().with_cache_mode(CacheMode::Memory, None);
+    let module_id = test.add_module("main.ts", "export const value = 1;");
+    test.compiler
+        .import_module_parse(module_id, test.module_version(module_id))
+        .unwrap_or_else(|error| panic!("failed to parse module: {error:?}"));
+    let context_before = test
+        .compiler
+        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    let options = CacheOptions {
+        mode: CacheMode::Memory,
+        dir: std::env::temp_dir(),
+        policy: CachePolicy::Lru,
+        validate: CacheValidate::Strict,
+        scope: CacheScope::Workspace,
+        max_size_mb: None,
+    };
+    let registry = CacheRegistry::new();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    registry
+        .write_ast_cache(&options, &context_before, module_id, payload)
+        .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
+
+    // update file content and rebuild cache context
+    test.replace_module_source(module_id, "export const value = 2;");
+    let context_after = test
+        .compiler
+        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    // assertion block
+    assert!(
+        context_after.file_version > context_before.file_version,
+        "expected file version to bump after source update"
+    );
+    assert_ne!(
+        context_after.source_hash, context_before.source_hash,
+        "expected source hash to change after source update"
+    );
+
+    // assertion block
+    let entry = registry
+        .read_ast_cache(&options, &context_after, module_id)
+        .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
+    assert!(
+        entry.is_none(),
+        "expected cache miss after file version change"
+    );
+}
+
+/// Cache entries are invalidated when tsconfig changes.
+#[test]
+fn test_cache_miss_on_tsconfig_change() {
+    // set up a cached module context with a tsconfig
+    let test = TestProgram::memory_sequential()
+        .with_options_mut(|options| {
+            options.import_resolve.tsconfig = Some(TypeScriptOptionsDiscovery::Automatic);
+        })
+        .with_cache_mode(CacheMode::Memory, None);
+    let root = test.program.cwd.clone();
+    let tsconfig_path = root.join("tsconfig.json");
+    let tsconfig_path_str = tsconfig_path.to_string_lossy().to_string();
+    test.add_file(
+        &tsconfig_path_str,
+        r#"{ "compilerOptions": { "strict": true } }"#,
+    );
+    let module_path = root.join("main.ts");
+    let module_path_str = module_path.to_string_lossy().to_string();
+    let module_id = test.add_module(&module_path_str, "export const value = 1;");
+    test.compiler
+        .import_module_parse(module_id, test.module_version(module_id))
+        .unwrap_or_else(|error| panic!("failed to parse module: {error:?}"));
+    let context_before = test
+        .compiler
+        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    let options = CacheOptions {
+        mode: CacheMode::Memory,
+        dir: std::env::temp_dir(),
+        policy: CachePolicy::Lru,
+        validate: CacheValidate::Strict,
+        scope: CacheScope::Workspace,
+        max_size_mb: None,
+    };
+    let registry = CacheRegistry::new();
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+    registry
+        .write_ast_cache(&options, &context_before, module_id, payload)
+        .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
+
+    // update tsconfig content
+    let tsconfig_id = test
+        .program
+        .modules
+        .get(module_id)
+        .read()
+        .tsconfig_id
+        .unwrap_or_else(|| panic!("expected tsconfig for {module_id:?}"));
+    let tsconfig = test.program.tsconfigs.get(tsconfig_id);
+    let tsconfig = tsconfig.read();
+    let tsconfig_file_id = tsconfig.file_id;
+    drop(tsconfig);
+    test.program
+        .invalidate_file(
+            tsconfig_file_id,
+            FileUpdate::Text {
+                content: r#"{ "compilerOptions": { "strict": false } }"#.to_string(),
+            },
+        )
+        .unwrap_or_else(|error| panic!("failed to invalidate tsconfig: {error}"));
+
+    let context_after = test
+        .compiler
+        .cache_context_for_module(module_id, None, None, CacheKind::Ast)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    // assertion block
+    assert_ne!(
+        context_after.config_hash, context_before.config_hash,
+        "expected config hash to change after tsconfig update"
+    );
+
+    // assertion block
+    let entry = registry
+        .read_ast_cache(&options, &context_after, module_id)
+        .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
+    assert!(entry.is_none(), "expected cache miss after tsconfig change");
+}
+
+/// Cache entries are invalidated when dir dependencies change.
+#[test]
+fn test_cache_miss_on_dir_dependency_change() {
+    // set up modules and cache a profile dir
+    let test = TestProgram::memory_sequential().with_cache_mode(CacheMode::Memory, None);
+    let module_a_id = test.add_module("a.ts", "export const value = 1;");
+    let module_b_id = test.add_module(
+        "b.ts",
+        r#"
+import { value } from "./a.ts";
+
+value;
+"#,
+    );
+    let profile_id = test.default_profile_id(module_b_id);
+    let profile_version = test.profile_version(profile_id);
+
+    // load module file content for cache context hashing
+    test.compiler
+        .import_module_parse(module_a_id, test.module_version(module_a_id))
+        .unwrap_or_else(|error| panic!("failed to parse module a: {error:?}"));
+    test.compiler
+        .import_module_parse(module_b_id, test.module_version(module_b_id))
+        .unwrap_or_else(|error| panic!("failed to parse module b: {error:?}"));
+
+    // seed module dirs for dependency validation
+    {
+        let module = test.program.modules.get(module_a_id);
+        let mut module = module.write();
+        let base = ModuleDir::new_base(module_a_id, module.version);
+        let dir = ModuleDir::from_base(&base, profile_id);
+        module.code_mut().dir_base = Some(base);
+        module.code_mut().dirs.push(dir);
+    }
+    {
+        let module = test.program.modules.get(module_b_id);
+        let mut module = module.write();
+        let base = ModuleDir::new_base(module_b_id, module.version);
+        let dir = ModuleDir::from_base(&base, profile_id);
+        module.code_mut().dir_base = Some(base);
+        module.code_mut().dirs.push(dir);
+    }
+
+    // seed module graph and signatures
+    let graph_key = ModuleGraphKey::new(profile_id);
+    let mut graph = destack_workspace::ModuleGraph::new(profile_id);
+    graph.update_module(module_a_id, test.module_version(module_a_id), Vec::new());
+    graph.update_module(
+        module_b_id,
+        test.module_version(module_b_id),
+        vec![module_a_id],
+    );
+    test.program.index.module_graphs.insert(graph_key, graph);
+
+    let signature_a = destack_workspace::ModuleSignature::new(
+        module_a_id,
+        profile_id,
+        test.module_version(module_a_id),
+        profile_version,
+        100,
+        Vec::new(),
+        None,
+        IndexMap::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    let signature_b = destack_workspace::ModuleSignature::new(
+        module_b_id,
+        profile_id,
+        test.module_version(module_b_id),
+        profile_version,
+        200,
+        Vec::new(),
+        None,
+        IndexMap::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    test.program.index.module_signatures.insert(
+        ModuleSignatureKey::new(module_a_id, profile_id),
+        signature_a,
+    );
+    test.program.index.module_signatures.insert(
+        ModuleSignatureKey::new(module_b_id, profile_id),
+        signature_b,
+    );
+    let context_before = test
+        .compiler
+        .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    let options = CacheOptions {
+        mode: CacheMode::Memory,
+        dir: std::env::temp_dir(),
+        policy: CachePolicy::Lru,
+        validate: CacheValidate::Strict,
+        scope: CacheScope::Workspace,
+        max_size_mb: None,
+    };
+    let registry = CacheRegistry::new();
+    let dir_payload = {
+        let module = test.program.modules.get(module_b_id);
+        let module = module.read();
+        module.dir(profile_id).to_data()
+    };
+    registry
+        .write_dir_resolved_cache(&options, &context_before, module_b_id, dir_payload)
+        .unwrap_or_else(|error| panic!("failed to write dir cache entry: {error}"));
+
+    // update dependency signature to simulate export change
+    let updated_signature = destack_workspace::ModuleSignature::new(
+        module_a_id,
+        profile_id,
+        test.module_version(module_a_id),
+        profile_version,
+        999,
+        Vec::new(),
+        None,
+        IndexMap::new(),
+        Vec::new(),
+        Vec::new(),
+    );
+    test.program.index.module_signatures.insert(
+        ModuleSignatureKey::new(module_a_id, profile_id),
+        updated_signature,
+    );
+
+    let context_after = test
+        .compiler
+        .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
+        .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
+
+    // assertion block
+    assert_ne!(
+        context_after.dependency_hash, context_before.dependency_hash,
+        "expected dependency hash to change after export update"
+    );
+
+    // assertion block
+    let entry = registry
+        .read_dir_resolved_cache(&options, &context_after, module_b_id)
+        .unwrap_or_else(|error| panic!("failed to read dir cache entry: {error}"));
+    assert!(
+        entry.is_none(),
+        "expected cache miss after dependency signature change"
     );
 }

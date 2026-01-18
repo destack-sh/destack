@@ -862,8 +862,11 @@ fn resolve_lib_dependency_name(name: &str, version_overrides: &HashMap<String, S
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use destack_builtin::{LIBS, LanguageSymbol, STD_LIB};
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
+    use destack_source::DiagnosticSeverity;
 
     use crate::{TaskPhase, TestProgram, assert_string};
 
@@ -984,7 +987,10 @@ mod tests {
                 .with_profile_libs(&[lib.name]);
             test.resolve_builtins();
             test.resolve_libs();
-            test.compile_check_clean();
+            // allow longer for full lib analysis
+            let timeout = Duration::from_secs(30);
+            test.compile_with_timeout(timeout);
+            test.check_no_diagnostic(DiagnosticSeverity::Note);
 
             let builtins = test.program.builtins.as_ref().unwrap();
             let lib_modules = builtins
@@ -997,7 +1003,8 @@ mod tests {
             for module_id in lib_modules {
                 test.analyze_module(module_id);
             }
-            test.compile_check_clean();
+            test.compile_with_timeout(timeout);
+            test.check_no_diagnostic(DiagnosticSeverity::Note);
         }
     }
 }

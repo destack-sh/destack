@@ -5,6 +5,7 @@ use destack_workspace::{Program, TargetId};
 
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 
 /// Errors during the optimize phase.
@@ -21,6 +22,10 @@ pub enum OptimizeError {
     /// Yield dependency has failed.
     #[error(code = "EO001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EO002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
     // 1xx: Target / setup

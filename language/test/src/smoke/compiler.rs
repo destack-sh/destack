@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_source::{FileSystem, MemoryFileSystem};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleStamp, ProfileStamp};
 use destack_workspace::Session;
 
 use crate::harness::{
@@ -73,9 +73,15 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
         }
     };
     let profile = program.default_profile_id_for_module(module_id);
+    let module_version = program.modules.get(module_id).read().version;
+    let profile_version = program
+        .profiles
+        .get(profile)
+        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+        .version;
     compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-        module: module_id,
-        profile,
+        module: ModuleStamp::new(module_id, module_version),
+        profile: ProfileStamp::new(profile, profile_version),
     });
     compiler.compile();
     drop(compiler);

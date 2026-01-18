@@ -65,7 +65,14 @@ impl Compiler {
         // generate all discovered modules
         let mut collector = TaskResultCollector::new();
         for module_id in modules {
-            let result = self.require_generate_module(module_id, target_id);
+            let profile_id = self
+                .program
+                .profile_id_for_target(module_id, target_id)
+                .ok_or_else(|| LinkError::Internal {
+                    package: package_id,
+                    message: format!("profile not found for target '{}'", target_id.name),
+                })?;
+            let result = self.require_generate_module(module_id, profile_id, target_id);
             collector.try_collect(result);
         }
 

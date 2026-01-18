@@ -10,7 +10,9 @@ use destack_builtin::{
 use destack_dir::{
     GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
 };
-use destack_source::{File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{
+    File, FileRegistry, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
+};
 use indexmap::IndexMap;
 
 use crate::{
@@ -253,6 +255,7 @@ impl Builtins {
         // create builtin package
         let package = Package {
             id: BUILTIN_PACKAGE_ID,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Builtin,
             uri: Uri::from_string("builtin://"),
             path: None,

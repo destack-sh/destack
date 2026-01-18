@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_source::{File, FileContent, FileId, PackageId, Uri};
+use destack_source::{File, FileContent, FileId, PackageId, PackageVersion, Uri};
 use indexmap::IndexMap;
 use parking_lot::RwLock;
 use serde::Deserialize;
@@ -28,6 +28,8 @@ pub enum PackageKind {
 pub struct Package {
     /// The id of the Package.
     pub id: PackageId,
+    /// The incremental package version.
+    pub package_version: PackageVersion,
     /// The kind of the Package.
     pub kind: PackageKind,
     /// The URI of the package.
@@ -251,6 +253,31 @@ impl PackageRegistry {
             .get(&id)
             .unwrap_or_else(|| panic!("package not found for id: {id:?}"))
             .clone()
+    }
+
+    /// Get the current package version.
+    ///
+    /// # Panics
+    /// Panics if the package is not found.
+    pub fn version(&self, id: PackageId) -> PackageVersion {
+        let package = self.get(id);
+        let package = package.read();
+        package.package_version
+    }
+
+    /// Bump the package version and return the new value.
+    ///
+    /// # Panics
+    /// Panics if the package is not found.
+    pub fn bump_version(&self, id: PackageId) -> PackageVersion {
+        let package = self.get(id);
+        let mut package = package.write();
+
+        // bump package version
+        let next_version = package.package_version.next();
+        package.package_version = next_version;
+
+        next_version
     }
 
     /// Get a package id by its URI.

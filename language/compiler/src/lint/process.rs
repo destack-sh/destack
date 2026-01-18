@@ -1,6 +1,8 @@
 use destack_compiler_macros::DefineTask;
 use destack_linter::{LintLevel, LintRunner};
-use destack_source::{ModuleId, PackageId};
+use destack_source::{
+    ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, ProfileStamp, ProfileVersion,
+};
 use destack_workspace::ProfileId;
 
 use crate::{Compiler, LintError, LintResult, TaskDependencyError, TaskResultCollector};
@@ -12,13 +14,13 @@ pub enum LintTask {
     /// Lint a module.
     #[task(code = 1, trace = "module={module} profile={profile}")]
     LintModule {
-        module: ModuleId,
-        profile: ProfileId,
+        module: ModuleStamp,
+        profile: ProfileStamp,
     },
 
     /// Lint a package
     #[task(code = 2, trace = "package={package}")]
-    LintPackage { package: PackageId },
+    LintPackage { package: PackageStamp },
 }
 
 impl Compiler {
@@ -26,12 +28,18 @@ impl Compiler {
     pub fn process_lint(&self, task: LintTask) -> LintResult<()> {
         match task {
             LintTask::LintModule { module, profile } => {
-                self.lint_module(module, profile)?;
-                if self.is_code_module(module) {
-                    self.stats.record_lint();
-                }
+                self.ensure_module_profile_matches::<LintError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.lint_module(module.id, profile.id, module.version, profile.version)?;
             }
-            LintTask::LintPackage { package } => self.lint_package(package)?,
+            LintTask::LintPackage { package } => {
+                self.ensure_package_version_matches::<LintError>(package.id, package.version)?;
+                self.lint_package(package.id)?;
+            }
         };
         Ok(())
     }
@@ -43,24 +51,39 @@ impl Compiler {
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(LintTask::LintModule {
-            module: module_id,
-            profile,
+            module: self.module_stamp(module_id),
+            profile: self.profile_stamp(profile),
         })
     }
 
     /// Ensure a package has been linted.
     pub fn require_lint_package(&self, package_id: PackageId) -> Result<(), TaskDependencyError> {
         self.do_require_task_internal_only(LintTask::LintPackage {
-            package: package_id,
+            package: self.package_stamp(package_id),
         })
     }
 
     /// Lint a module.
-    fn lint_module(&self, module_id: ModuleId, profile: ProfileId) -> LintResult<()> {
+    fn lint_module(
+        &self,
+        module_id: ModuleId,
+        profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
+    ) -> LintResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<LintError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         self.require_analyze_module(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
+        self.stats.record_lint();
 
         let options = self.program.get_linter_options(module_id);
         if !options.enabled {
@@ -86,7 +109,7 @@ impl Compiler {
             LintLevel::Dir,
         );
 
-        // #Incomplete: run comptime/user-defined lints?
+        // TODO #Incomplete: run comptime/user-defined lints?
 
         // collect diagnostics
         for diagnostic in ast_diagnostics.into_iter().chain(dir_diagnostics) {

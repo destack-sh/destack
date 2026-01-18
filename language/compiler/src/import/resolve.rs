@@ -1,15 +1,11 @@
-//! Module resolution: specifier/path/uri → ModuleId.
-//!
-//! These are synchronous operations that can be called at any time to get a ModuleId
-//! for a given specifier, path, or URI. They register a blank module if one doesn't
-//! exist yet, but don't load or parse the file.
-
 use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
-use destack_source::{File, FileType, FileVersion, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{
+    File, FileType, FileVersion, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
+};
 use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
 
 use crate::{Compiler, ImportError, ImportResult};
@@ -364,6 +360,7 @@ impl Compiler {
         let package_name = self.synthetic_package_name(directory);
         let package = Package {
             id: package_id,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Synthetic,
             uri: Uri::from_path(directory),
             path: Some(directory.to_path_buf()),

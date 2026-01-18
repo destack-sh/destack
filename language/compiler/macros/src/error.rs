@@ -303,6 +303,34 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         });
     }
 
+    let skipped_variant = variants.iter().find(|variant| variant.name == "Skipped");
+    let Some(skipped_variant) = skipped_variant else {
+        return Err(Error::new(
+            Span::call_site(),
+            "missing `Skipped { reason: TaskSkipReason }` variant",
+        ));
+    };
+    if skipped_variant.fields.len() != 1 {
+        return Err(Error::new(
+            skipped_variant.name.span(),
+            "`Skipped` must have a single `reason` field",
+        ));
+    }
+    if skipped_variant.fields[0].0 != "reason" {
+        return Err(Error::new(
+            skipped_variant.name.span(),
+            "`Skipped` must use `reason` as the field name",
+        ));
+    }
+    let reason_type = skipped_variant.fields[0].1.clone();
+    let reason_type_str = quote!(#reason_type).to_string();
+    if !reason_type_str.ends_with("TaskSkipReason") {
+        return Err(Error::new(
+            skipped_variant.name.span(),
+            "`Skipped` must use TaskSkipReason as the field type",
+        ));
+    }
+
     // generate code match arms
     let code_arms: Vec<TokenStream2> = variants
         .iter()
@@ -585,6 +613,21 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             #[inline]
             fn from(error: #enum_name) -> Self {
                 TaskError::#phase(error)
+            }
+        }
+
+        impl crate::TaskSkip for #enum_name {
+            fn skip_reason(&self) -> Option<crate::TaskSkipReason> {
+                match self {
+                    Self::Skipped { reason } => Some(*reason),
+                    _ => None,
+                }
+            }
+        }
+
+        impl crate::TaskSkipError for #enum_name {
+            fn skipped(reason: crate::TaskSkipReason) -> Self {
+                Self::Skipped { reason }
             }
         }
 

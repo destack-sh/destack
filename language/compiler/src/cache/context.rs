@@ -1,7 +1,3 @@
-use std::hash::{Hash, Hasher};
-
-use rustc_hash::FxHasher;
-
 use destack_source::{
     CacheHeader, CacheKind, FileContent, FileId, FileVersion, ModuleId, ProfileId, ProfileVersion,
     TargetId,
@@ -12,7 +8,8 @@ use destack_workspace::{
 
 use crate::compile::Compiler;
 
-use super::hash::{hash_bytes, hash_dsconfig_value};
+use super::hash::{DSCONFIG_CACHE_IGNORED_KEYS, hash_bytes, trim_json_object};
+use super::hasher::CacheHasher;
 use super::{CacheHandle, CacheOptions};
 
 /// Default cache directory name for workspace scoped caches.
@@ -31,10 +28,10 @@ pub struct CacheContext {
     pub compiler_version: String,
     /// The file version used when producing the cache.
     pub file_version: FileVersion,
-    /// The profile id for the cached payload.
-    pub profile_id: ProfileId,
-    /// The profile version used when producing the cache.
-    pub profile_version: ProfileVersion,
+    /// The profile id for the cached payload when applicable.
+    pub profile_id: Option<ProfileId>,
+    /// The profile version used when producing the cache when applicable.
+    pub profile_version: Option<ProfileVersion>,
     /// Hash of the normalized source contents.
     pub source_hash: u64,
     /// Hash of the effective compiler configuration.
@@ -126,11 +123,16 @@ impl Compiler {
         let file_id = module.file_id;
 
         // derive profile info
-        let (resolved_profile_id, profile_version) = if let Some(profile_id) = profile_id {
+        let (resolved_profile_id, profile_version) = if cache_kind.requires_profile() {
+            let profile_id = profile_id.ok_or(CacheError::MissingDependencyData {
+                module_id,
+                profile_id: None,
+                reason: "missing profile id for cache context".to_string(),
+            })?;
             let profile = self.program.profile(profile_id);
-            (profile_id, profile.version)
+            (Some(profile_id), Some(profile.version))
         } else {
-            (ProfileId::new(0), ProfileVersion::INITIAL)
+            (None, None)
         };
 
         // compute file and config hashes
@@ -207,7 +209,7 @@ impl Compiler {
     /// Compute the config hash for a cache context.
     fn cache_config_hash(&self, module_id: ModuleId, profile_id: Option<ProfileId>) -> u64 {
         // seed the config hash
-        let mut hasher = FxHasher::default();
+        let mut hasher = CacheHasher::new();
 
         // hash the dsconfig content if available
         let module = self.program.modules.get(module_id);
@@ -218,22 +220,45 @@ impl Compiler {
             let file = self.program.files.get(dsconfig.file_id);
             match &file.content {
                 FileContent::Json { value, .. } => {
-                    hash_dsconfig_value(value).hash(&mut hasher);
+                    let trimmed = trim_json_object(value, &DSCONFIG_CACHE_IGNORED_KEYS);
+                    hasher.hash_json_value(&trimmed);
                 }
                 FileContent::Text { content } => {
-                    hash_bytes(content.as_bytes()).hash(&mut hasher);
+                    hasher.hash_bytes(content.as_bytes());
                 }
                 FileContent::Binary { content } => {
-                    hash_bytes(content).hash(&mut hasher);
+                    hasher.hash_bytes(content);
                 }
                 FileContent::Unloaded => {}
             }
         }
 
+        // hash tsconfig content when present
+        if let Some(tsconfig_id) = module.tsconfig_id {
+            let tsconfig = self.program.tsconfigs.get(tsconfig_id);
+            let tsconfig = tsconfig.read();
+            let file = self.program.files.get(tsconfig.file_id);
+            match &file.content {
+                FileContent::Json { value, .. } => {
+                    hasher.hash_json_value(value);
+                }
+                FileContent::Text { content } => {
+                    hasher.hash_bytes(content.as_bytes());
+                }
+                FileContent::Binary { content } => {
+                    hasher.hash_bytes(content);
+                }
+                FileContent::Unloaded => {}
+            }
+        }
+
+        // hash compiler options that affect compilation
+        hasher.hash_compiler_options(&self.options);
+
         // hash the profile key if provided
         if let Some(profile_id) = profile_id {
             let profile = self.program.profile(profile_id);
-            profile.key.hash(&mut hasher);
+            hasher.hash_value(&profile.key);
         }
 
         // finish the config hash
@@ -243,9 +268,9 @@ impl Compiler {
     /// Compute the target hash for a cache context.
     fn cache_target_hash(&self, module_id: ModuleId, target_id: Option<&TargetId>) -> u64 {
         // hash the target id when present
-        let mut hasher = FxHasher::default();
+        let mut hasher = CacheHasher::new();
         if let Some(target_id) = target_id {
-            target_id.hash(&mut hasher);
+            hasher.hash_value(target_id);
 
             // hash the resolved target config when available
             let module = self.program.modules.get(module_id);
@@ -253,7 +278,7 @@ impl Compiler {
             let package = self.program.packages.get(module.package_id);
             let package = package.read();
             if let Some(target) = package.targets.get(target_id) {
-                target.hash(&mut hasher);
+                hasher.hash_value(target);
             }
         }
 
@@ -267,15 +292,15 @@ impl Compiler {
         profile_id: Option<ProfileId>,
         cache_kind: CacheKind,
     ) -> Result<u64, CacheError> {
-        // only include dependency signatures for mir caches
-        if cache_kind != CacheKind::Mir {
+        // only include dependency signatures for profile scoped caches
+        if !cache_kind.requires_profile() {
             return Ok(0);
         }
 
         // resolve the profile id for dependency tracking
         let profile_id = profile_id.ok_or(CacheError::MissingDependencyData {
             module_id,
-            profile_id: ProfileId::new(0),
+            profile_id: None,
             reason: "missing profile id for dependency tracking".to_string(),
         })?;
 
@@ -284,7 +309,7 @@ impl Compiler {
         let Some(graph) = self.program.index.module_graphs.get(&graph_key) else {
             return Err(CacheError::MissingDependencyData {
                 module_id,
-                profile_id,
+                profile_id: Some(profile_id),
                 reason: "module graph missing".to_string(),
             });
         };
@@ -297,14 +322,14 @@ impl Compiler {
         let Some(profile) = self.program.profiles.get(profile_id) else {
             return Err(CacheError::MissingDependencyData {
                 module_id,
-                profile_id,
+                profile_id: Some(profile_id),
                 reason: "missing profile data for dependency tracking".to_string(),
             });
         };
         let profile_version = profile.version;
 
         // hash dependency ids and signature hashes
-        let mut hasher = FxHasher::default();
+        let mut hasher = CacheHasher::new();
         for dependency in dependencies {
             let module = self.program.modules.get(dependency);
             let module = module.read();
@@ -312,7 +337,7 @@ impl Compiler {
             if module.dir_maybe(profile_id).is_none() {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
-                    profile_id,
+                    profile_id: Some(profile_id),
                     reason: format!("missing dir for dependency {dependency:?}"),
                 });
             }
@@ -322,7 +347,7 @@ impl Compiler {
             let Some(signature) = self.program.index.module_signatures.get(&signature_key) else {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
-                    profile_id,
+                    profile_id: Some(profile_id),
                     reason: format!("missing signature for dependency {dependency:?}"),
                 });
             };
@@ -330,19 +355,19 @@ impl Compiler {
             if signature.module_version != module_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
-                    profile_id,
+                    profile_id: Some(profile_id),
                     reason: format!("stale signature for dependency {dependency:?}"),
                 });
             }
             if signature.profile_version != profile_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
-                    profile_id,
+                    profile_id: Some(profile_id),
                     reason: format!("stale signature profile for dependency {dependency:?}"),
                 });
             }
-            dependency.hash(&mut hasher);
-            signature.hash.hash(&mut hasher);
+            hasher.hash_value(&dependency);
+            hasher.hash_value(&signature.hash);
         }
 
         Ok(hasher.finish())

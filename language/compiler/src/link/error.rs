@@ -1,5 +1,6 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_source::PackageId;
@@ -19,6 +20,10 @@ pub enum LinkError {
     /// Yield dependency has failed.
     #[error(code = "EK001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EK002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
     // 1xx: Target issues

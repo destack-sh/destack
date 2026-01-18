@@ -1,7 +1,7 @@
 use crate::{Compiler, ExecuteError, ExecuteResult, TaskResultCollector};
 
-use destack_source::ModuleId;
-use destack_workspace::{ComptimeOutput, ModuleComptime, ProfileId, TrustPolicy};
+use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
+use destack_workspace::{ComptimeOutput, ModuleComptime, ModuleDir, ProfileId, TrustPolicy};
 
 use super::{ComptimePatch, collect_comptime_dependencies};
 use {destack_dir as dir, destack_vm as vm};
@@ -12,17 +12,31 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ExecuteResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ExecuteError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
         // ensure DIR exists
         self.require_elaborate_module(module_id, profile_id)?;
         if !self.is_code_module(module_id) {
             return Ok(());
         }
 
-        let profile_version = self.program.profile(profile_id).version;
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
-        let module_version = module.version;
+        self.ensure_module_profile_matches_guard::<ExecuteError>(
+            &module,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
 
         // initialize or refresh module comptime entry
         let code = module.code_mut();
@@ -59,7 +73,45 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ExecuteResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ExecuteError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
+        // resolve cache handle
+        let cache_handle =
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirExecuted);
+
+        // try to load executed DIR from cache
+        if let Some(cache) = cache_handle.as_ref()
+            && let Ok(Some(entry)) = cache.read_dir_executed()
+        {
+            self.ensure_module_profile_matches::<ExecuteError>(
+                module_id,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
+            let dir = ModuleDir::from_data(entry.payload);
+            let module = self.program.modules.get(module_id);
+            let mut module = module.write();
+            self.ensure_module_profile_matches_guard::<ExecuteError>(
+                &module,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
+            module.set_dir(profile_id, dir);
+            tracing::trace!(?module_id, ?profile_id, "execute.module.cache");
+            return Ok(());
+        }
+
         // ensure module comptime state exists
         self.require_execute_module_prepare(module_id, profile_id)?;
         if !self.is_code_module(module_id) {
@@ -91,6 +143,8 @@ impl Compiler {
                 self.execute_expression(
                     module_id,
                     profile_id,
+                    module_version,
+                    profile_version,
                     expression_id.into_global(module_id),
                 ),
             );
@@ -124,12 +178,39 @@ impl Compiler {
 
         // patch comptime results into DIR
         if !patches.is_empty() {
+            self.ensure_module_profile_matches::<ExecuteError>(
+                module_id,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
             let module = self.program.modules.get(module_id);
             let module = module.read();
             let dir = module.dir(profile_id);
             let mut tree = dir.tree.write();
             for patch in patches {
                 self.apply_comptime_patch(module_id, profile_id, &mut tree, patch);
+            }
+        }
+
+        // write executed DIR to cache
+        if let Some(cache) = cache_handle.as_ref() {
+            self.ensure_module_profile_matches::<ExecuteError>(
+                module_id,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
+            let module = self.program.modules.get(module_id);
+            let module = module.read();
+            let payload = module.dir(profile_id).to_data();
+            if let Err(error) = cache.write_dir_executed(payload) {
+                tracing::debug!(
+                    ?module_id,
+                    ?profile_id,
+                    ?error,
+                    "execute.module.cache.write"
+                );
             }
         }
 
@@ -141,8 +222,18 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
         expression: dir::GlobalNodeIdAny,
     ) -> ExecuteResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ExecuteError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
         // ensure the expression belongs to the target module
         if module_id != expression.module_id {
             return Err(ExecuteError::UnsupportedConstruct {
@@ -238,6 +329,12 @@ impl Compiler {
         // store the output for later patching
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
+        self.ensure_module_profile_matches_guard::<ExecuteError>(
+            &module,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
         let entry = module.comptime_mut(profile_id);
         entry.results.insert(expression.local_id, result);
 

@@ -5,17 +5,33 @@ use crate::{FileVersion, ModuleId, ProfileId, ProfileVersion};
 /// Magic prefix for on disk cache headers.
 pub const CACHE_MAGIC: [u8; 4] = *b"DSCH";
 /// Cache header format version.
-pub const CACHE_FORMAT_VERSION: u32 = 2;
+pub const CACHE_FORMAT_VERSION: u32 = 3;
 
 /// Kind of cached payload stored after the header.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CacheKind {
     /// AST cache payload.
     Ast,
-    /// DIR cache payload.
-    Dir,
+    /// DIR cache payload after bind (profile-independent).
+    DirBase,
+    /// DIR cache payload after resolve (profile-specific).
+    DirResolved,
+    /// DIR cache payload after analysis.
+    DirAnalyzed,
+    /// DIR cache payload after comptime execution.
+    DirExecuted,
     /// MIR cache payload.
     Mir,
+}
+
+impl CacheKind {
+    /// Return true when this cache kind depends on a profile.
+    pub fn requires_profile(self) -> bool {
+        matches!(
+            self,
+            Self::DirResolved | Self::DirAnalyzed | Self::DirExecuted | Self::Mir
+        )
+    }
 }
 
 /// Common cache header for on disk compiler artifacts.
@@ -33,10 +49,10 @@ pub struct CacheHeader {
     pub module_id: ModuleId,
     /// The file version used when producing the cache.
     pub file_version: FileVersion,
-    /// The profile id for the cached payload.
-    pub profile_id: ProfileId,
-    /// The profile version used when producing the cache.
-    pub profile_version: ProfileVersion,
+    /// The profile id for the cached payload when applicable.
+    pub profile_id: Option<ProfileId>,
+    /// The profile version used when producing the cache when applicable.
+    pub profile_version: Option<ProfileVersion>,
     /// Hash of the normalized source contents.
     pub source_hash: u64,
     /// Hash of the effective compiler configuration.
@@ -57,8 +73,8 @@ impl CacheHeader {
         compiler_version: String,
         module_id: ModuleId,
         file_version: FileVersion,
-        profile_id: ProfileId,
-        profile_version: ProfileVersion,
+        profile_id: Option<ProfileId>,
+        profile_version: Option<ProfileVersion>,
         source_hash: u64,
         config_hash: u64,
         target_hash: u64,

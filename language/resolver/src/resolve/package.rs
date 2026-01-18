@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::{File, FileType, PackageId, PathExt, Uri};
+use destack_source::{File, FileType, PackageId, PackageVersion, PathExt, Uri};
 use destack_workspace::{ModuleSpecifier, Package, PackageKind, PackageManifest};
 
 use crate::{ResolveContext, ResolveError, Resolver};
@@ -80,6 +80,7 @@ impl Resolver {
         let package_id = PackageId::from_path(&package_config.directory);
         let package = Package {
             id: package_id,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Physical,
             uri: package_config.uri.clone(),
             path: Some(package_config.directory.clone()),

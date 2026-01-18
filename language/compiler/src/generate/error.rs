@@ -1,5 +1,6 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 use destack_compiler_macros::DefineError;
 use destack_dir::AnchoredGlobalNodeId;
@@ -20,6 +21,10 @@ pub enum GenerateError {
     /// Yield dependency has failed.
     #[error(code = "EG001", yield_failed)]
     UnsatisfiedDependency { dependency: TaskDependency },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EG002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
     // 1xx: Target / setup
