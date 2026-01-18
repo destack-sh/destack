@@ -9,8 +9,9 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     ValueEquivalence, address_spaces_may_alias, alias_scopes_may_alias,
-    build_instruction_block_map, build_value_definition_map, location_sets_may_alias,
-    memory_locations_compatible, tbaa_tags_may_alias,
+    build_instruction_block_map, build_value_definition_map, effect_is_trackable,
+    effects_match_location, instruction_has_atomic_ordering, location_sets_may_alias,
+    tbaa_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -233,13 +234,8 @@ fn collect_candidates(
                 continue;
             };
 
-            // skip volatile or barrier definitions
-            if def_access.effect.is_volatile || def_access.effect.is_barrier {
-                continue;
-            }
-
-            // skip unknown locations
-            if matches!(def_access.effect.location, MemoryAccessLocation::Unknown) {
+            // require trackable effects
+            if !effect_is_trackable(&def_access.effect) {
                 continue;
             }
 
@@ -326,8 +322,8 @@ fn candidate_is_redundant(
     tree: &mir::NodeTree,
     equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
-    // skip volatile or barrier candidates
-    if candidate.effect.is_volatile || candidate.effect.is_barrier {
+    // skip untrackable candidates
+    if !effect_is_trackable(&candidate.effect) {
         return false;
     }
 
@@ -344,13 +340,13 @@ fn candidate_is_redundant(
 
     // check redundancy against every incoming clobber
     for clobber_def in clobber_defs {
-        // skip volatile or barrier clobbers
-        if clobber_def.effect.is_volatile || clobber_def.effect.is_barrier {
+        // skip untrackable clobbers
+        if !effect_is_trackable(&clobber_def.effect) {
             return false;
         }
 
         // confirm both defs touch the same location
-        if !effects_match_location(&candidate.effect, &clobber_def.effect, alias, tree) {
+        if !effects_match_location(tree, alias, &candidate.effect, &clobber_def.effect) {
             return false;
         }
 
@@ -486,67 +482,6 @@ fn def_kinds_equivalent(
 }
 
 /// Return true when a memory access is atomically ordered.
-fn instruction_has_atomic_ordering(
-    tree: &mir::NodeTree,
-    instruction: mir::LocalNodeId<mir::Instruction>,
-) -> bool {
-    // read access metadata for this instruction
-    let Some(accesses) = tree.memory_table.memory_accesses(instruction) else {
-        return false;
-    };
-
-    // check for any ordered access
-    accesses.iter().any(|access| access.ordering.is_some())
-}
-
-/// Check whether two def effects refer to the same location.
-fn effects_match_location(
-    current: &MemoryAccessEffect,
-    previous: &MemoryAccessEffect,
-    alias: &AliasAnalysis,
-    tree: &mir::NodeTree,
-) -> bool {
-    // check alias scopes and noalias scopes
-    if !alias_scopes_may_alias(
-        &current.alias_scopes,
-        &current.noalias_scopes,
-        &previous.alias_scopes,
-        &previous.noalias_scopes,
-    ) {
-        return false;
-    }
-
-    // check location sets
-    if !location_sets_may_alias(current.location_set, previous.location_set) {
-        return false;
-    }
-
-    // check address spaces
-    if !address_spaces_may_alias(&current.address_spaces, &previous.address_spaces) {
-        return false;
-    }
-
-    // check tbaa disambiguation
-    if !tbaa_tags_may_alias(&tree.memory_table.tbaa, current.tbaa_tag, previous.tbaa_tag) {
-        return false;
-    }
-
-    // compare concrete locations
-    match (&current.location, &previous.location) {
-        (MemoryAccessLocation::Local(local), MemoryAccessLocation::Local(other_local)) => {
-            local == other_local
-        }
-        (MemoryAccessLocation::Pointer(current_ptr), MemoryAccessLocation::Pointer(other_ptr)) => {
-            if !memory_locations_compatible(current_ptr, other_ptr) {
-                return false;
-            }
-
-            alias.alias(current_ptr, other_ptr).is_must_alias()
-        }
-        _ => false,
-    }
-}
-
 /// Return the source memory access for a memcpy or memmove instruction.
 fn memop_source_access(
     memory_ssa: &MemorySSA,

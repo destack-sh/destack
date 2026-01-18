@@ -4,14 +4,13 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    AliasAnalysis, ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA,
+    AliasAnalysis, ControlFlowGraph, DominatorTree, MemoryAccess, MemoryAccessId, MemorySSA,
 };
 use crate::optimize::common::{
-    EdgeSplitPolicy, SuccessorArguments, append_successor_arguments, build_use_def_maps,
+    EdgeSplitPolicy, append_successor_arguments, build_use_def_maps, effect_is_trackable,
     ensure_edge_block, instruction_allows_read_only_motion, instruction_has_side_effects,
-    instruction_is_read_only_access, instruction_is_speculatable,
-    terminator_arguments_for_successor_checked,
+    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
+    value_available_in_block,
 };
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, apply_substitutions_in_function,
@@ -301,12 +300,8 @@ fn load_access_info(
     let MemoryAccess::Use(use_access) = memory_ssa.access(use_access_id) else {
         return None;
     };
-    if matches!(use_access.effect.location, MemoryAccessLocation::Unknown) {
-        return None;
-    }
-
-    // skip volatile or barrier loads
-    if use_access.effect.is_volatile || use_access.effect.is_barrier {
+    // require a trackable effect
+    if !effect_is_trackable(&use_access.effect) {
         return None;
     }
 
@@ -448,50 +443,6 @@ fn collect_edge_insertions(
     Some(insertions)
 }
 
-/// Resolve the edge value for a load pointer.
-fn resolve_edge_value(
-    value: mir::Value,
-    block_id: mir::LocalNodeId<mir::Block>,
-    predecessor: &mir::Block,
-    param_indices: &HashMap<mir::Value, usize>,
-) -> Option<mir::Value> {
-    // map block parameters to predecessor arguments
-    let Some(&param_index) = param_indices.get(&value) else {
-        return Some(value);
-    };
-
-    // read arguments for the predecessor edge
-    let args = match terminator_arguments_for_successor_checked(&predecessor.terminator, block_id) {
-        SuccessorArguments::Consistent(args) => args,
-        _ => return None,
-    };
-
-    // return the argument at the parameter index
-    args.get(param_index).copied()
-}
-
-/// Return true when a value is available in a block.
-fn value_available_in_block(
-    value: mir::Value,
-    block_id: mir::LocalNodeId<mir::Block>,
-    def_blocks: &HashMap<mir::Value, mir::LocalNodeId<mir::Block>>,
-    function_params: &HashSet<mir::Value>,
-    domtree: &DominatorTree,
-) -> bool {
-    // accept function parameters
-    if function_params.contains(&value) {
-        return true;
-    }
-
-    // require a definition block for the value
-    let Some(def_block) = def_blocks.get(&value) else {
-        return false;
-    };
-
-    // ensure the definition dominates the block
-    domtree.dominates(*def_block, block_id)
-}
-
 /// Find a reusable load value in a predecessor block.
 fn reusable_predecessor_load(
     predecessor: mir::LocalNodeId<mir::Block>,
@@ -530,8 +481,8 @@ fn reusable_predecessor_load(
             continue;
         };
 
-        // skip volatile or barrier loads
-        if use_access.effect.is_volatile || use_access.effect.is_barrier {
+        // skip untrackable effects
+        if !effect_is_trackable(&use_access.effect) {
             continue;
         }
 

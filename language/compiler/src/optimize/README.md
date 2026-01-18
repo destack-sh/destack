@@ -51,6 +51,30 @@ All memory accesses must have memory metadata for size and address space at mini
 Aggregate layouts required by layout-sensitive passes must be present in the type table.
 Pipelines that enable profile guided transforms require profile data to be available.
 
+## Pass Contracts
+
+Each pass states and enforces its own legality conditions.
+Loop transforms require canonical loop form with preheaders, a single latch, and dedicated exits.
+Passes that mutate control flow must preserve block parameter arity and keep SSA values consistent.
+Memory transforms must conservatively handle unknown call or memory metadata by skipping the transform.
+Profile guided transforms must treat missing profiles as cold and skip speculative rewrites.
+
+## Pipeline Policy
+
+Pipelines are built from fixed point islands to avoid pass thrashing.
+Scalar, memory, and loop islands are run with bounded iteration counts at O2 and above.
+Loop transforms that disturb canonical form re-run loop simplify before other loop passes.
+Conflicting transforms such as fusion and distribution do not run in the same iteration island.
+Interprocedural transforms run before function pipelines and feed their summaries forward.
+
+## Profitability Model
+
+Aggressive transforms are gated by cost models rather than legality alone.
+Inlining, specialization, and cloning use size, hotness, and threshold based cost models.
+Loop transforms use trip count, body size, memory stride, and profile hotness to decide.
+Vectorization and unroll decisions use target widths and configurable thresholds.
+All heuristics are exposed via optimization configuration for tuning and regression control.
+
 ## Analyses
 
 Analyses compute properties of the MIR without modifying it.
@@ -246,6 +270,7 @@ Optimizations for memory allocation and access patterns.
 | `mem-cse` | MemCse | function | O2 | ✓ | alias, memory-ssa | Remove redundant stores that write identical values |
 | `store-sink` | StoreSink | function | O2 | ✓ | cfg, memory-ssa | Sink stores to successor edges that use them |
 | `dse` | DeadStoreEliminate | function | O2 | ✓ | cfg, alias, memory-ssa | Remove stores that are overwritten before being read |
+| `memcpy-opt` | MemcpyOpt | function | O2 | | alias, memory-ssa, constant-propagation | Simplify and merge memcpy, memmove, and memset operations |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
 | `gc-write-barrier-elide` | GcWriteBarrierElide | function | O2 | | alias, effect, escape | Remove redundant GC write barriers |
 | `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, exception-flow, block-freq | Hoist loads speculatively when safe |
@@ -271,6 +296,11 @@ Loop-specific transformations.
 | `loop-fusion` | LoopFusion | function | O3 | ✓ | loops, cfg, domtree, memory-ssa, alias, constant-propagation | Merge adjacent loops with the same bounds |
 | `loop-interchange` | LoopInterchange | function | O3 | ✓ | loops, cfg, domtree, memory-ssa | Swap perfectly nested read only loops |
 | `loop-distribute` | LoopDistribute | function | O3 | ✓ | loops, cfg, domtree, memory-ssa, alias | Split loops into disjoint store groups |
+| `loop-tiling` | LoopTiling | function | O3 | | loops, scalar-evolution, loop-access, dependence | Tile loops (strip mine) for cache and vectorization |
+| `loop-collapse` | LoopCollapse | function | O3 | | loops, scalar-evolution, loop-access, dependence | Collapse perfectly nested loops into a single iteration space |
+| `loop-skew` | LoopSkew | function | O3 | | loops, scalar-evolution, dependence | Skew nested loops to satisfy dependence constraints |
+| `loop-prefetch` | LoopPrefetch | function | O3 | | loops, loop-access, alias, profile | Insert software prefetches for predictable strides |
+| `software-pipeline` | SoftwarePipelining | function | O3 | | loops, dependence, block-freq, profile | Schedule loop operations to overlap iterations |
 | `loop-vectorize` | LoopVectorize | function | O3 | | dependence | Vectorize loop iterations (SIMD) |
 | `slp-vectorize` | SlpVectorize | function | O3 | | alias | Vectorize straight-line code (superword parallelism) |
 
