@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, BinaryOperator, Block, CastOperator, CastSource, Declarator, EnumBackingType,
     Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, MatchCase, NodeTree, NodeType,
-    Resolution, SymbolTable, Type, TypeTable,
+    Resolution, ResolutionCandidate, SymbolTable, SymbolType, Type, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -54,7 +54,6 @@ impl Compiler {
             target_type_id,
             module,
         );
-
         // replace the expression with a cast node
         tree.replace(
             expression_id,
@@ -708,8 +707,32 @@ impl Compiler {
                     .into_anchored(Some(profile)),
             })?;
 
-        // skip when the types already match
-        if value_type_id == target_type_id {
+        // resolve unevaluated target types for cast classification
+        let target_type_id = self
+            .evaluate_unevaluated_type_id(module, profile, target_type_id, tree, symbols, types)
+            .map_err(|_| ElaborateError::UnsupportedConstruct {
+                node: types
+                    .get_type_source(target_type_id)
+                    .into_global(module_id)
+                    .into_anchored(Some(profile)),
+            })?;
+
+        // check casts that change representation despite matching type ids
+        let value_is_concrete = self.is_concrete_resolution(module_id, value_id, types)
+            || self.is_concrete_new_expression(tree, value_id)
+            || self.is_tagged_expression(tree, value_id);
+        let target_type = types.get_type(target_type_id);
+        let source_is_interface = self.is_interface_reference_type(types, value_type_id);
+        let target_is_interface = self.is_interface_reference_type(types, target_type_id);
+
+        // figure out if we need a representation change cast
+        let requires_interface_upcast = target_is_interface
+            && (!source_is_interface || value_is_concrete || value_type_id != target_type_id);
+        let requires_union_upcast = is_union_type(target_type) && value_is_concrete;
+        let requires_nullable_upcast = is_nullable_union(target_type, types) && value_is_concrete;
+        let requires_representation_cast =
+            requires_interface_upcast || requires_union_upcast || requires_nullable_upcast;
+        if value_type_id == target_type_id && !requires_representation_cast {
             return Ok(value_id);
         }
 
@@ -733,7 +756,7 @@ impl Compiler {
             types,
             &options,
         );
-        if to_target.is_assignable() && to_source.is_assignable() {
+        if !requires_representation_cast && to_target.is_assignable() && to_source.is_assignable() {
             return Ok(value_id);
         }
 
@@ -766,7 +789,7 @@ impl Compiler {
         }
 
         // classify the cast
-        let operator = self.cast_operator_for_types(
+        let mut operator = self.cast_operator_for_types(
             module_id,
             profile,
             symbols,
@@ -775,6 +798,15 @@ impl Compiler {
             target_type_id,
             module,
         );
+        if requires_interface_upcast && operator == CastOperator::Identity {
+            operator = CastOperator::InstanceUpcast;
+        }
+        if requires_union_upcast && operator == CastOperator::Identity {
+            operator = CastOperator::UnionUpcast;
+        }
+        if requires_nullable_upcast && operator == CastOperator::Identity {
+            operator = CastOperator::NullableUpcast;
+        }
 
         // skip redundant union and nullable upcasts
         if matches!(
@@ -808,7 +840,7 @@ impl Compiler {
         // skip numeric casts for scalar literals unless requested
         if !allow_literal_casts {
             let value_type = types.get_type(value_type_id);
-            if is_scalar_literal_type(value_type) && is_numeric_cast_operator(operator) {
+            if is_scalar_literal_type(value_type) && self.is_numeric_cast_operator(operator) {
                 return Ok(value_id);
             }
         }
@@ -997,7 +1029,7 @@ impl Compiler {
         }
 
         // handle enum casts
-        if let Some(operator) = enum_cast_operator(&source, &target, types) {
+        if let Some(operator) = self.enum_cast_operator(&source, &target, types) {
             return operator;
         }
 
@@ -1049,98 +1081,221 @@ impl Compiler {
         }
 
         // only numeric operators should be coerced here
-        is_numeric_binary_operator(operator)
+        self.is_numeric_binary_operator(operator)
     }
-}
 
-/// Check whether a cast operator is numeric.
-fn is_numeric_cast_operator(operator: CastOperator) -> bool {
-    matches!(
-        operator,
-        CastOperator::IntWiden
-            | CastOperator::IntNarrow
-            | CastOperator::IntSignChange
-            | CastOperator::FloatWiden
-            | CastOperator::FloatNarrow
-            | CastOperator::IntToFloat
-            | CastOperator::FloatToInt
-    )
-}
+    /// Check whether a cast operator is numeric.
+    fn is_numeric_cast_operator(&self, operator: CastOperator) -> bool {
+        // match numeric cast operators
+        matches!(
+            operator,
+            CastOperator::IntWiden
+                | CastOperator::IntNarrow
+                | CastOperator::IntSignChange
+                | CastOperator::FloatWiden
+                | CastOperator::FloatNarrow
+                | CastOperator::IntToFloat
+                | CastOperator::FloatToInt
+        )
+    }
 
-/// Classify enum casts between enum and primitive types.
-fn enum_cast_operator(source: &Type, target: &Type, types: &TypeTable) -> Option<CastOperator> {
-    // enum to primitive casts
-    if let Some(backing) = enum_backing_type_for_type(source, types) {
-        match backing {
-            EnumBackingType::Int(_) if is_integer_type(target) => {
-                return Some(CastOperator::EnumToInt);
+    /// Classify enum casts between enum and primitive types.
+    fn enum_cast_operator(
+        &self,
+        source: &Type,
+        target: &Type,
+        types: &TypeTable,
+    ) -> Option<CastOperator> {
+        // shared enum backing lookup
+        let backing_for_type = |ty: &Type| -> Option<EnumBackingType> {
+            // only enum references have a backing type
+            let Type::Reference { symbol, .. } = ty else {
+                return None;
+            };
+
+            types.get_enum_backing_type(*symbol)
+        };
+
+        // enum to primitive casts
+        if let Some(backing) = backing_for_type(source) {
+            match backing {
+                EnumBackingType::Int(_) if is_integer_type(target) => {
+                    return Some(CastOperator::EnumToInt);
+                }
+                EnumBackingType::String if is_string_type(target) => {
+                    return Some(CastOperator::EnumToString);
+                }
+                _ => {}
             }
-            EnumBackingType::String if is_string_type(target) => {
-                return Some(CastOperator::EnumToString);
+        }
+
+        // primitive to enum casts
+        if let Some(backing) = backing_for_type(target) {
+            match backing {
+                EnumBackingType::Int(_) if is_integer_type(source) => {
+                    return Some(CastOperator::IntToEnum);
+                }
+                EnumBackingType::String if is_string_type(source) => {
+                    return Some(CastOperator::StringToEnum);
+                }
+                _ => {}
             }
-            _ => {}
+        }
+
+        None
+    }
+
+    /// Strip value wrapper types to reach the underlying type id.
+    fn unwrap_value_type_id(&self, types: &TypeTable, type_id: LocalTypeId) -> LocalTypeId {
+        // peel value wrapper types
+        let mut current = type_id;
+        loop {
+            match types.get_type(current) {
+                Type::Value { value } => {
+                    current = *value;
+                }
+                _ => return current,
+            }
         }
     }
 
-    // primitive to enum casts
-    if let Some(backing) = enum_backing_type_for_type(target, types) {
-        match backing {
-            EnumBackingType::Int(_) if is_integer_type(source) => {
-                return Some(CastOperator::IntToEnum);
+    /// Return true when a type id points at an interface reference type.
+    fn is_interface_reference_type(&self, types: &TypeTable, type_id: LocalTypeId) -> bool {
+        // resolve the underlying type id
+        let type_id = self.unwrap_value_type_id(types, type_id);
+
+        // check for interface reference types
+        matches!(
+            types.get_type(type_id),
+            Type::Reference { symbol, .. } if symbol.ty() == SymbolType::Interface
+        )
+    }
+
+    /// Return true when a new expression targets a nominal class or struct.
+    fn is_concrete_new_expression(
+        &self,
+        tree: &NodeTree,
+        value_id: LocalNodeId<Expression>,
+    ) -> bool {
+        // require a new expression
+        let Expression::New { left, .. } = tree.get(value_id) else {
+            return false;
+        };
+
+        // accept nominal constructor targets
+        match tree.get(*left) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                matches!(target_symbol.ty(), SymbolType::Class | SymbolType::Struct)
             }
-            EnumBackingType::String if is_string_type(source) => {
-                return Some(CastOperator::StringToEnum);
-            }
-            _ => {}
+            _ => false,
         }
     }
 
-    None
-}
+    /// Return true when a value expression is a tagged constructor literal.
+    fn is_tagged_expression(&self, tree: &NodeTree, value_id: LocalNodeId<Expression>) -> bool {
+        // check tagged constructor expressions
+        matches!(
+            tree.get(value_id),
+            Expression::TaggedScalarExpression { .. }
+                | Expression::TaggedTupleExpression { .. }
+                | Expression::TaggedObjectExpression { .. }
+        )
+    }
 
-/// Read the enum backing type for a type when it is an enum reference.
-fn enum_backing_type_for_type(ty: &Type, types: &TypeTable) -> Option<EnumBackingType> {
-    let Type::Reference { symbol, .. } = ty else {
-        return None;
-    };
+    /// Return true when a value expression resolves to a concrete nominal symbol.
+    fn is_concrete_resolution(
+        &self,
+        module_id: ModuleId,
+        value_id: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> bool {
+        // resolve the node resolution
+        let node_id = value_id.into_global_any(module_id);
+        let Some(resolution_id) = types.get_resolution_for_node(node_id) else {
+            return false;
+        };
+        let resolution = types.get_resolution(resolution_id);
 
-    types.get_enum_backing_type(*symbol)
-}
+        // accept concrete static resolutions only
+        match resolution {
+            Resolution::Static { candidate, .. } => {
+                self.is_concrete_resolution_candidate(candidate, types)
+            }
+            Resolution::Dynamic { .. }
+            | Resolution::Unresolved { .. }
+            | Resolution::Builtin { .. } => false,
+        }
+    }
 
-/// Check whether a binary operator is numeric.
-fn is_numeric_binary_operator(operator: BinaryOperator) -> bool {
-    matches!(
-        operator,
-        BinaryOperator::Multiply
-            | BinaryOperator::WrappingMultiply
-            | BinaryOperator::SaturatingMultiply
-            | BinaryOperator::Exponent
-            | BinaryOperator::WrappingExponent
-            | BinaryOperator::SaturatingExponent
-            | BinaryOperator::Divide
-            | BinaryOperator::Remainder
-            | BinaryOperator::Add
-            | BinaryOperator::WrappingAdd
-            | BinaryOperator::SaturatingAdd
-            | BinaryOperator::Subtract
-            | BinaryOperator::WrappingSubtract
-            | BinaryOperator::SaturatingSubtract
-            | BinaryOperator::ShiftLeft
-            | BinaryOperator::SaturatingShiftLeft
-            | BinaryOperator::ShiftRight
-            | BinaryOperator::UnsignedShiftRight
-            | BinaryOperator::ElementwiseAnd
-            | BinaryOperator::ElementwiseXor
-            | BinaryOperator::ElementwiseOr
-            | BinaryOperator::Equal
-            | BinaryOperator::NotEqual
-            | BinaryOperator::EqualStrict
-            | BinaryOperator::NotEqualStrict
-            | BinaryOperator::LessThan
-            | BinaryOperator::LessThanOrEqual
-            | BinaryOperator::GreaterThan
-            | BinaryOperator::GreaterThanOrEqual
-    )
+    /// Return true when a resolution candidate targets a concrete nominal symbol.
+    fn is_concrete_resolution_candidate(
+        &self,
+        candidate: &ResolutionCandidate,
+        types: &TypeTable,
+    ) -> bool {
+        // accept direct nominal symbols
+        if matches!(
+            candidate.target_symbol.ty(),
+            SymbolType::Class | SymbolType::Struct
+        ) {
+            return true;
+        }
+
+        // fall back to the resolved return type
+        let Some(resolved_signature) = candidate.resolved_signature.as_ref() else {
+            return false;
+        };
+        let Some(return_type) = resolved_signature.return_type else {
+            return false;
+        };
+
+        // require a nominal return type
+        let return_type = self.unwrap_value_type_id(types, return_type);
+        matches!(
+            types.get_type(return_type),
+            Type::Reference { symbol, .. }
+                if matches!(symbol.ty(), SymbolType::Class | SymbolType::Struct)
+        )
+    }
+
+    /// Check whether a binary operator is numeric.
+    fn is_numeric_binary_operator(&self, operator: BinaryOperator) -> bool {
+        // match numeric binary operators
+        matches!(
+            operator,
+            BinaryOperator::Multiply
+                | BinaryOperator::WrappingMultiply
+                | BinaryOperator::SaturatingMultiply
+                | BinaryOperator::Exponent
+                | BinaryOperator::WrappingExponent
+                | BinaryOperator::SaturatingExponent
+                | BinaryOperator::Divide
+                | BinaryOperator::Remainder
+                | BinaryOperator::Add
+                | BinaryOperator::WrappingAdd
+                | BinaryOperator::SaturatingAdd
+                | BinaryOperator::Subtract
+                | BinaryOperator::WrappingSubtract
+                | BinaryOperator::SaturatingSubtract
+                | BinaryOperator::ShiftLeft
+                | BinaryOperator::SaturatingShiftLeft
+                | BinaryOperator::ShiftRight
+                | BinaryOperator::UnsignedShiftRight
+                | BinaryOperator::ElementwiseAnd
+                | BinaryOperator::ElementwiseXor
+                | BinaryOperator::ElementwiseOr
+                | BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::EqualStrict
+                | BinaryOperator::NotEqualStrict
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual
+                | BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+        )
+    }
 }
 
 #[cfg(test)]
@@ -1330,6 +1485,98 @@ function test(condition): float64 {
     }
 
     #[test]
+    fn test_reify_implicit_cast_in_match_expression() {
+        // match case expressions cast to the match expression type
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(condition: boolean): float {
+    let value: float = match (condition) {
+        true => intValue()
+        false => intValue()
+    };
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(condition): float64 {
+    let value;
+    if (condition == true) {
+        value = intValue() as float64;
+    } else {
+        value = intValue() as float64;
+    }
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_in_match_block() {
+        // match case blocks cast their trailing expressions
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(condition: boolean): float {
+    let value: float = match (condition) {
+        true => {
+            let value = intValue();
+            value
+        }
+        false => {
+            let value = intValue();
+            value
+        }
+    };
+    return value;
+}
+"#,
+        );
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+function intValue(): int32 {
+    return 1;
+}
+
+function test(condition): float64 {
+    let value;
+    if (condition == true) {
+        let value = intValue();
+        value = value as float64;
+    } else {
+        let value = intValue();
+        value = value as float64;
+    }
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
     fn test_reify_implicit_cast_in_binary_comparison() {
         // comparison expressions cast numeric literals
         let test = TestProgram::memory_sequential();
@@ -1430,6 +1677,110 @@ function intValue(): int32 {
 function test(): int32 | float64 {
     let value = intValue() as int32 | float64;
     return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_interface_upcast() {
+        // interface upcasts are inserted for contextual constructor values
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+interface Greeter {
+    greet(): int32;
+}
+
+class GreeterImpl implements Greeter {
+    value: int32;
+
+    constructor(value: int32) {
+        this.value = value;
+        return;
+    }
+
+    greet(): int32 { 
+        return this.value;
+    }
+}
+
+function test(): Greeter {
+    let value: Greeter = new GreeterImpl(1);
+    return value;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+interface Greeter {
+    greet(): int32
+}
+
+class GreeterImpl implements Greeter {
+    value: int32,
+
+    constructor(value) {
+        this.value = value;
+        return;
+    }
+
+    greet(): int32 {
+        return this.value;
+    }
+}
+
+function test(): Greeter {
+    let value = new GreeterImpl(1) as Greeter;
+    return value;
+}
+"#,
+        );
+    }
+
+    #[test]
+    fn test_reify_implicit_cast_interface_to_interface() {
+        // interface to interface casts are reified
+        let test = TestProgram::memory_sequential();
+        let module_id = test.add_module(
+            "test.ds",
+            r#"
+interface Greeter {
+    greet(): int32;
+}
+
+interface Speaker {
+    greet(): int32;
+}
+
+function test(value: Greeter): Speaker {
+    let assigned: Speaker = value;
+    return assigned;
+}
+"#,
+        );
+
+        test.elaborate_module(module_id);
+        test.compile_check_clean();
+        test.assert_elaborated(
+            module_id,
+            r#"
+interface Greeter {
+    greet(): int32
+}
+
+interface Speaker {
+    greet(): int32
+}
+
+function test(value): Speaker {
+    let assigned = value as Speaker;
+    return assigned as Speaker;
 }
 "#,
         );
