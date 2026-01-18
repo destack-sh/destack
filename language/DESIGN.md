@@ -447,7 +447,7 @@ Destack supports TypeScript's polymorphic `this` type for instance members, and 
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
+Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
 In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
 
 The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
@@ -461,7 +461,6 @@ const LOOKUP_TABLE: uint8[] = comptime {
     table
 };
 ```
-Note here that the `LOOKUP_TABLE` must specify a type upfront.
 
 ```
 function factorial(n: int): int {

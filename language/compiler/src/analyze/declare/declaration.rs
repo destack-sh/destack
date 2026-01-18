@@ -1207,7 +1207,20 @@ impl Compiler {
                         is_readonly,
                     });
                 }
-                Member::Embed { .. }
+                Member::Embed { modifiers, value, .. } => {
+                    // collect embedded fields from the target type
+                    let is_static = Self::member_is_static(modifiers.as_ref());
+                    let target_shape = Self::member_target_shape(&mut shapes, is_static);
+                    let embed_shape = self.embed_member_shape(
+                        module,
+                        profile,
+                        *value,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    target_shape.extend_from_shape(&embed_shape);
+                }
                 | Member::StaticBlock { .. }
                 | Member::ComptimeBlock { .. } => {}
             }
@@ -1364,6 +1377,11 @@ impl Compiler {
                 body,
                 ..
             } => {
+                // declare generics for the signature
+                if let Some(generics) = signature.generics.as_ref() {
+                    self.declare_generics(module, profile, generics, tree, symbols, types)?;
+                }
+
                 // handle call or construct signatures
                 if key.is_none()
                     && body.is_none()
@@ -1435,9 +1453,21 @@ impl Compiler {
 
                 Ok(shape)
             }
-            Member::Embed { .. } | Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => {
+            Member::Embed { value, .. } => {
+                // collect embedded fields from the target type
+                let embed_shape = self.embed_member_shape(
+                    module,
+                    profile,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                shape.extend_from_shape(&embed_shape);
+
                 Ok(shape)
             }
+            Member::StaticBlock { .. } | Member::ComptimeBlock { .. } => Ok(shape),
         }
     }
 

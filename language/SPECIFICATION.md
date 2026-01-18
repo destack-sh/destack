@@ -929,7 +929,8 @@ if (result.ok) {
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
-Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **typed slots** rather than enabling fully arbitrary code generation.
+Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
+Slots are typed because Analyze fixes all bindings and types before Execute.
 In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
 
 ### Static Execution vs Comptime Execution
@@ -997,7 +998,9 @@ const TABLE: uint8[] = comptime {
     t
 };
 ```
-Note here that the result type must be specified upfront.
+Comptime expressions infer their result type like any other expression.
+Explicit annotations are recommended when the resulting type must be stable or obvious.
+Comptime does not change the rules for static expressions, so static parameters still require static expressions.
 
 The result is embedded as a constant in the compiled output.
 
@@ -1204,7 +1207,7 @@ function serialize<T>(value: T): string {
 
 ### Comptime "Slots"
 
-Destack's comptime is designed around the concept of **typed slots**:
+Destack's comptime is designed around the concept of **slots**:
 
 1. **Types are fixed during Analyze**: all bindings, symbols, and types are determined.
 2. **Comptime expressions are slots**: positions where a value will be computed.
