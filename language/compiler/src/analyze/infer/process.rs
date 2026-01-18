@@ -7,7 +7,7 @@ use crate::{
 use destack_dir::{
     FlowGraphBuilder, InferTable, LocalNodeIdAny, NodeType, PrimitiveType, Type, TypeLiteral,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{ModuleContent, ModuleType, ProfileId};
 
 use super::super::common::json_value_to_type;
@@ -20,6 +20,8 @@ impl Compiler {
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
         use crate::AnalyzeTask;
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(AnalyzeTask::AnalyzeModuleInfer { module, profile })
     }
 
@@ -28,7 +30,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> AnalyzeResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<AnalyzeError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         self.require_analyze_module_declare(module_id, profile)?;
 
         // analyze data modules specially

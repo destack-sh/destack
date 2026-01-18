@@ -141,7 +141,7 @@ The compiler uses a parallel task system for concurrent compilation.
 Each phase defines tasks that can yield on dependencies and resume when satisfied.
 Tasks are identified by phase letter and sub-code (e.g., `TI001` for Import task 1).
 See `compile/task.rs` for task definitions and `compile/queue.rs` for the task queue.
-The compiler uses versions (file/module/artifact) to track changes and dependencies between phases.
+Tasks are keyed by versioned inputs and guarded against stale writes.
 
 ## Incremental Compilation
 
@@ -151,6 +151,51 @@ Per-profile module signatures are computed after Analyze and gate downstream inv
 Downstream modules re analyze only when the signatures they import change.
 Task dependencies are recorded through `require_*` calls and resolved by the task queue.
 Comptime results are invalidated when either the module version or profile version changes.
+
+### Version Axes
+
+The compiler uses explicit version axes to make incremental invalidation sound.
+The version axes are:
+- `FileVersion`: changes on any file content update, including virtual edits.
+- `ModuleVersion`: changes when a module source changes and invalidates module-scoped caches.
+- `ProfileVersion`: changes when dsconfig or tsconfig changes and invalidates profile-scoped caches.
+- `PackageVersion`: changes when any module or config in the package changes.
+- `TargetId`: identifies target-specific work and is included in target-scoped tasks.
+
+### Task Keys
+
+Each task key includes the versions required to make it safe to reuse.
+The task key rules are:
+- Import tasks use the `module` stamp (id plus version).
+- Resolve builtins and lib tasks use the `profile` stamp (id plus version).
+- Resolve module tasks use the `module` and `profile` stamps.
+- Analyze tasks use the `module` and `profile` stamps.
+- Elaborate and Execute tasks use the `module` and `profile` stamps.
+- Lower, Optimize, and Generate tasks use the `module` and `profile` stamps plus `target_id`.
+- Lint module tasks use the `module` and `profile` stamps.
+- Lint package tasks use the `package` stamp (id plus version).
+- Link and Emit tasks use the `package` stamp plus `target_id`.
+
+### Stale Task Guards
+
+Tasks re-check versions at the start of processing and before committing writes.
+If versions mismatch, tasks return early without mutating program state or diagnostics.
+This prevents in-flight stale tasks from clobbering newer incremental state.
+
+### LSP Update Semantics
+
+LSP text updates are applied only if the document version is monotonic.
+Stale updates are ignored and logged at debug level.
+
+### Delete and Rename Semantics
+
+Delete and rename events are treated as remove plus add, even across packages.
+Module graphs and signatures are updated to reflect removed modules and new module ids.
+
+### Task Pruning
+
+Long-lived daemons prune completed tasks to bound memory growth.
+Pruning is driven by version epochs so that stale tasks can be safely discarded.
 
 ### Module Signatures
 

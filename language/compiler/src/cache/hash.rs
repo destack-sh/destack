@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use rustc_hash::FxHasher;
 use serde_json::Value;
 
-const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 6] = [
+pub(super) const DSCONFIG_CACHE_IGNORED_KEYS: [&str; 6] = [
     "cache",
     "watch",
     "formatter",
@@ -20,31 +20,20 @@ pub(super) fn hash_bytes(bytes: &[u8]) -> u64 {
 }
 
 /// Hash a JSON object with a stable key ordering.
-fn hash_json_object(
-    map: &serde_json::Map<String, Value>,
-    hasher: &mut FxHasher,
-    filter_keys: Option<&[&str]>,
-) {
+fn hash_json_object(map: &serde_json::Map<String, Value>, hasher: &mut FxHasher) {
     let mut keys: Vec<&String> = map.keys().collect();
     keys.sort();
 
     for key in keys {
-        if filter_keys
-            .map(|filter| filter.contains(&key.as_str()))
-            .unwrap_or(false)
-        {
-            continue;
-        }
-
         key.hash(hasher);
         if let Some(value) = map.get(key) {
-            hash_json_value(value, hasher);
+            hash_json_value_inner(value, hasher);
         }
     }
 }
 
 /// Hash a JSON value with canonical ordering for object keys.
-fn hash_json_value(value: &Value, hasher: &mut FxHasher) {
+fn hash_json_value_inner(value: &Value, hasher: &mut FxHasher) {
     match value {
         Value::Null => {
             0_u8.hash(hasher);
@@ -65,37 +54,48 @@ fn hash_json_value(value: &Value, hasher: &mut FxHasher) {
             4_u8.hash(hasher);
             values.len().hash(hasher);
             for entry in values {
-                hash_json_value(entry, hasher);
+                hash_json_value_inner(entry, hasher);
             }
         }
         Value::Object(map) => {
             5_u8.hash(hasher);
-            hash_json_object(map, hasher, None);
+            hash_json_object(map, hasher);
         }
     }
 }
 
-/// Hash a dsconfig JSON value for cache purposes.
-pub(super) fn hash_dsconfig_value(value: &Value) -> u64 {
+/// Hash a JSON value with stable ordering for cache purposes.
+pub(super) fn hash_json_value(value: &Value) -> u64 {
     let mut hasher = FxHasher::default();
-    match value {
-        Value::Object(map) => {
-            5_u8.hash(&mut hasher);
-            hash_json_object(map, &mut hasher, Some(&DSCONFIG_CACHE_IGNORED_KEYS));
-        }
-        _ => hash_json_value(value, &mut hasher),
-    }
+    hash_json_value_inner(value, &mut hasher);
     hasher.finish()
+}
+
+/// Trim ignored keys from a JSON object value.
+pub(super) fn trim_json_object(value: &Value, ignored_keys: &[&str]) -> Value {
+    let Value::Object(map) = value else {
+        return value.clone();
+    };
+
+    let mut trimmed = serde_json::Map::with_capacity(map.len());
+    for (key, value) in map {
+        if ignored_keys.contains(&key.as_str()) {
+            continue;
+        }
+        trimmed.insert(key.clone(), value.clone());
+    }
+
+    Value::Object(trimmed)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::hash_dsconfig_value;
+    use super::{DSCONFIG_CACHE_IGNORED_KEYS, hash_json_value, trim_json_object};
     use serde_json::json;
 
-    /// Hashing ignores dsconfig key order for cache invalidation.
+    /// Hashing ignores key order for cache invalidation.
     #[test]
-    fn test_dsconfig_hash_is_order_invariant() {
+    fn test_json_hash_is_order_invariant() {
         let first = json!({
             "compilerOptions": { "strict": true, "noImplicitAny": true },
             "include": ["src"],
@@ -108,12 +108,12 @@ mod tests {
         });
 
         // assert hashes are stable across key order
-        assert_eq!(hash_dsconfig_value(&first), hash_dsconfig_value(&second));
+        assert_eq!(hash_json_value(&first), hash_json_value(&second));
     }
 
-    /// Hashing changes when relevant config values change.
+    /// Hashing changes when JSON values change.
     #[test]
-    fn test_dsconfig_hash_changes_on_value_change() {
+    fn test_json_hash_changes_on_value_change() {
         let first = json!({
             "compilerOptions": { "strict": true },
             "include": ["src"],
@@ -124,12 +124,12 @@ mod tests {
         });
 
         // assert hashes diverge for semantic changes
-        assert_ne!(hash_dsconfig_value(&first), hash_dsconfig_value(&second));
+        assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 
-    /// Hashing ignores tooling only sections that do not affect compilation.
+    /// Hashing ignores tooling only sections when trimmed.
     #[test]
-    fn test_dsconfig_hash_ignores_tooling_sections() {
+    fn test_json_trim_ignores_tooling_sections() {
         let first = json!({
             "compilerOptions": { "strict": true },
             "cache": { "mode": "disk" },
@@ -146,6 +146,45 @@ mod tests {
         });
 
         // assert hashes match despite tooling only changes
-        assert_eq!(hash_dsconfig_value(&first), hash_dsconfig_value(&second));
+        let trimmed_first = trim_json_object(&first, &DSCONFIG_CACHE_IGNORED_KEYS);
+        let trimmed_second = trim_json_object(&second, &DSCONFIG_CACHE_IGNORED_KEYS);
+        assert_eq!(
+            hash_json_value(&trimmed_first),
+            hash_json_value(&trimmed_second)
+        );
+    }
+
+    /// Hashing ignores key order for cache invalidation.
+    #[test]
+    fn test_tsconfig_hash_is_order_invariant() {
+        let first = json!({
+            "compilerOptions": { "strict": true, "target": "ES2022" },
+            "include": ["src"],
+            "exclude": ["dist"],
+        });
+        let second = json!({
+            "exclude": ["dist"],
+            "include": ["src"],
+            "compilerOptions": { "target": "ES2022", "strict": true },
+        });
+
+        // assertion block
+        assert_eq!(hash_json_value(&first), hash_json_value(&second));
+    }
+
+    /// Hashing changes when tsconfig values change.
+    #[test]
+    fn test_tsconfig_hash_changes_on_value_change() {
+        let first = json!({
+            "compilerOptions": { "strict": true },
+            "include": ["src"],
+        });
+        let second = json!({
+            "compilerOptions": { "strict": false },
+            "include": ["src"],
+        });
+
+        // assertion block
+        assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::{StatsSnapshot, Task, TaskError, TaskId, TaskPhase};
+use crate::{StatsSnapshot, Task, TaskError, TaskId, TaskPhase, TaskSkipReason};
 
 /// Event emitted by the compiler during compilation.
 #[derive(Debug, Clone)]
@@ -11,7 +11,6 @@ pub enum CompilerEvent {
         task_id: TaskId,
         task: Task,
         phase: TaskPhase,
-        /// Human-readable description of the task (e.g., "src/main.ds").
         description: String,
     },
     /// Task completed successfully.
@@ -20,7 +19,6 @@ pub enum CompilerEvent {
         task: Task,
         phase: TaskPhase,
         elapsed: Duration,
-        /// Human-readable description of the task.
         description: String,
     },
     /// Task failed with an error.
@@ -29,6 +27,14 @@ pub enum CompilerEvent {
         task: Task,
         phase: TaskPhase,
         error: TaskError,
+    },
+    /// Task was skipped.
+    TaskSkipped {
+        task_id: TaskId,
+        task: Task,
+        phase: TaskPhase,
+        reason: TaskSkipReason,
+        description: String,
     },
     /// Task yielded waiting for a dependency.
     TaskYielded {
@@ -42,16 +48,12 @@ pub enum CompilerEvent {
         task: Task,
         phase: TaskPhase,
         elapsed: Duration,
-        /// Human-readable description of the task.
         description: String,
     },
     /// Compilation started.
     CompilationStarted { worker_count: u16 },
     /// Compilation finished.
-    CompilationFinished {
-        /// Compilation statistics snapshot.
-        stats: StatsSnapshot,
-    },
+    CompilationFinished { stats: StatsSnapshot },
 }
 
 /// Type alias for the event handler callback.

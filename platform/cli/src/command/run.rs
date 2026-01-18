@@ -185,8 +185,15 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
     // enqueue lowering and optional optimization
     context.enqueue_module(entry_module);
     if should_optimize(&resolved.target) {
+        let profile = context
+            .program
+            .profile_id_for_target(entry_module, &resolved.id)
+            .unwrap_or_else(|| context.program.default_profile_id_for_module(entry_module));
+        let module = context.compiler.module_stamp(entry_module);
+        let profile = context.compiler.profile_stamp(profile);
         context.compiler.enqueue(OptimizeTask::OptimizeModule {
-            module: entry_module,
+            module,
+            profile,
             target: resolved.id.clone(),
         });
     }
@@ -576,8 +583,15 @@ fn compile_and_run(
     // enqueue lowering and optional optimization
     context.enqueue_module(entry_module);
     if should_optimize(&resolved.target) {
+        let profile = context
+            .program
+            .profile_id_for_target(entry_module, &resolved.id)
+            .unwrap_or_else(|| context.program.default_profile_id_for_module(entry_module));
+        let module = context.compiler.module_stamp(entry_module);
+        let profile = context.compiler.profile_stamp(profile);
         context.compiler.enqueue(OptimizeTask::OptimizeModule {
-            module: entry_module,
+            module,
+            profile,
             target: resolved.id.clone(),
         });
     }

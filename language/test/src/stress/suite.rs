@@ -4,7 +4,8 @@ use std::time::Duration;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, ResolveTask};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri,
+    File, FileRegistry, FileSystem, FileType, LanguageType, MemoryFileSystem, ModuleStamp,
+    ProfileStamp, Uri,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
 
@@ -190,9 +191,15 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
 
     // resolve schedules import + bind automatically
     let profile = program.default_profile_id_for_module(module_id);
+    let module_version = program.modules.get(module_id).read().version;
+    let profile_version = program
+        .profiles
+        .get(profile)
+        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+        .version;
     compiler.enqueue(ResolveTask::ResolveModule {
-        module: module_id,
-        profile,
+        module: ModuleStamp::new(module_id, module_version),
+        profile: ProfileStamp::new(profile, profile_version),
     });
     compiler.compile();
 
@@ -271,9 +278,15 @@ fn run_checker_stress(test: &TestCase) -> TestResult {
 
     // analyze schedules import + bind + resolve automatically
     let profile = program.default_profile_id_for_module(module_id);
+    let module_version = program.modules.get(module_id).read().version;
+    let profile_version = program
+        .profiles
+        .get(profile)
+        .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+        .version;
     compiler.enqueue(AnalyzeTask::AnalyzeModule {
-        module: module_id,
-        profile,
+        module: ModuleStamp::new(module_id, module_version),
+        profile: ProfileStamp::new(profile, profile_version),
     });
     compiler.compile();
 

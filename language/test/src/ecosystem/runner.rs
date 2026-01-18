@@ -6,7 +6,8 @@ use std::sync::Arc;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_parser::Parser;
 use destack_source::{
-    File, FileRegistry, FileSystem, FileType, MemoryFileSystem, PhysicalFileSystem, Uri, glob,
+    File, FileRegistry, FileSystem, FileType, MemoryFileSystem, ModuleStamp, PhysicalFileSystem,
+    ProfileStamp, Uri, glob,
 };
 use destack_workspace::{FormatterOptions, LinterOptions, Program, Session};
 
@@ -326,9 +327,15 @@ fn run_analyze_tier(package_dir: &Path, files: &[PathBuf]) -> TestResult {
             }
         };
         let profile = program.default_profile_id_for_module(module_id);
+        let module_version = program.modules.get(module_id).read().version;
+        let profile_version = program
+            .profiles
+            .get(profile)
+            .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+            .version;
         compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-            module: module_id,
-            profile,
+            module: ModuleStamp::new(module_id, module_version),
+            profile: ProfileStamp::new(profile, profile_version),
         });
     }
 

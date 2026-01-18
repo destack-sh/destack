@@ -3,7 +3,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_source::{FileId, FileSystem, FileType, MemoryFileSystem, Uri};
+use destack_source::{
+    FileId, FileSystem, FileType, MemoryFileSystem, ModuleStamp, ProfileStamp, Uri,
+};
 use destack_workspace::Session;
 
 use super::{TestMarkers, parse_markers};
@@ -193,9 +195,15 @@ impl QueryTestSession {
 
         let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, false);
         compiler.options.load_libs = load_libs;
+        let module_version = program.modules.get(module_id).read().version;
+        let profile_version = program
+            .profiles
+            .get(profile)
+            .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
+            .version;
         compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-            module: module_id,
-            profile,
+            module: ModuleStamp::new(module_id, module_version),
+            profile: ProfileStamp::new(profile, profile_version),
         });
         compiler.compile();
         drop(compiler);

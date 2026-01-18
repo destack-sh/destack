@@ -102,10 +102,9 @@ impl Daemon {
         // analyze the module when available
         if let Some(module_id) = module_id {
             let profile = program.default_profile_id_for_module(module_id);
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate {
-                module: module_id,
-                profile,
-            });
+            let module = compiler.module_stamp(module_id);
+            let profile = compiler.profile_stamp(profile);
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
             compiler.compile();
         }
 

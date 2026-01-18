@@ -4,7 +4,7 @@ use destack_dir::{
     Expression, IfCondition, IfKind, LocalNodeId, MatchKind, NodeTree, SymbolTable,
     TypeBinaryOperator, TypeTable,
 };
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{Module, ProfileId};
 
 use crate::{Compiler, ElaborateError, ElaborateResult};
@@ -21,7 +21,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ElaborateResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ElaborateError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         // ensure transform phase is complete
         self.require_elaborate_module_transform(module_id, profile)?;
         if !self.is_code_module(module_id) {

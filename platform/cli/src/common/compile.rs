@@ -232,11 +232,15 @@ impl CompilerContext {
         match &self.mode {
             CompilerMode::Check => {
                 let profile = self.program.default_profile_id_for_module(module);
+                let module = self.compiler.module_stamp(module);
+                let profile = self.compiler.profile_stamp(profile);
                 self.compiler
                     .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
             }
             CompilerMode::Lint => {
                 let profile = self.program.default_profile_id_for_module(module);
+                let module = self.compiler.module_stamp(module);
+                let profile = self.compiler.profile_stamp(profile);
                 self.compiler
                     .enqueue(LintTask::LintModule { module, profile });
             }
@@ -244,8 +248,14 @@ impl CompilerContext {
                 let module_ref = self.program.modules.get(module);
                 let package_id = module_ref.read().package_id;
                 let target_id = TargetId::new(package_id, target);
+                let profile = self
+                    .program
+                    .profile_id_for_target_or_default(module, &target_id);
+                let module = self.compiler.module_stamp(module);
+                let profile = self.compiler.profile_stamp(profile);
                 self.compiler.enqueue(LowerTask::LowerModule {
                     module,
+                    profile,
                     target: target_id,
                 });
             }
@@ -253,8 +263,14 @@ impl CompilerContext {
                 let module_ref = self.program.modules.get(module);
                 let package_id = module_ref.read().package_id;
                 let target_id = TargetId::new(package_id, target);
+                let profile = self
+                    .program
+                    .profile_id_for_target_or_default(module, &target_id);
+                let module = self.compiler.module_stamp(module);
+                let profile = self.compiler.profile_stamp(profile);
                 self.compiler.enqueue(GenerateTask::GenerateModule {
                     module,
+                    profile,
                     target: target_id,
                 });
             }

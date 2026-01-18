@@ -8,7 +8,8 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_parser::Parser;
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, Edit, File, FileId, FileType,
-    LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri, print_diagnostics, print_diff,
+    LanguageType, MemoryFileSystem, ModuleId, ModuleStamp, PrintOptions, ProfileStamp, Uri,
+    print_diagnostics, print_diff,
 };
 use destack_workspace::{
     EnvSnapshot, LintCategory, LintSeverity, LinterOptions, OutputFormat, Platform, ProfileFlags,
@@ -156,36 +157,72 @@ impl TestProgram {
 
     /// Import a module.
     pub(crate) fn import_module(&self, module: ModuleId) {
-        self.compiler.enqueue(ImportTask::ImportModule { module });
+        let module_stamp =
+            ModuleStamp::new(module, self.program.modules.get(module).read().version);
+        self.compiler.enqueue(ImportTask::ImportModule {
+            module: module_stamp,
+        });
     }
 
     /// Resolve a module.
     pub(crate) fn resolve_module(&self, module: ModuleId) {
+        let module_stamp =
+            ModuleStamp::new(module, self.program.modules.get(module).read().version);
+        let profile_version = self
+            .program
+            .profiles
+            .get(self.profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
+            .version;
+        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
         self.compiler.enqueue(ResolveTask::ResolveModuleCanonical {
-            module,
-            profile: self.profile_id,
+            module: module_stamp,
+            profile: profile_stamp,
         });
     }
 
     /// Resolve builtin language items for the current profile.
     pub(crate) fn resolve_builtins(&self) {
+        let profile_version = self
+            .program
+            .profiles
+            .get(self.profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
+            .version;
+        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
         self.compiler.enqueue(ResolveTask::ResolveBuiltins {
-            profile: self.profile_id,
+            profile: profile_stamp,
         });
     }
 
     /// Resolve builtin libs for the current profile.
     pub(crate) fn resolve_libs(&self) {
+        let profile_version = self
+            .program
+            .profiles
+            .get(self.profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
+            .version;
+        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
         self.compiler.enqueue(ResolveTask::ResolveLibs {
-            profile: self.profile_id,
+            profile: profile_stamp,
         });
     }
 
     /// Analyze a module.
     pub(crate) fn analyze_module(&self, module: ModuleId) {
+        let module_stamp =
+            ModuleStamp::new(module, self.program.modules.get(module).read().version);
+        let profile_version = self
+            .program
+            .profiles
+            .get(self.profile_id)
+            .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
+            .version;
+        let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
         self.compiler.enqueue(AnalyzeTask::AnalyzeModule {
-            module,
-            profile: self.profile_id,
+            module: module_stamp,
+            profile: profile_stamp,
         });
     }
 

@@ -1,9 +1,16 @@
-use crate::{Compiler, ImportResult};
-use destack_source::ModuleId;
+use crate::{Compiler, ImportError, ImportResult};
+use destack_source::{ModuleId, ModuleVersion};
 
 impl Compiler {
     /// Validate module "syntactic" correctness.
-    pub(crate) fn import_module_validate(&self, module_id: ModuleId) -> ImportResult<()> {
+    pub(crate) fn import_module_validate(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+    ) -> ImportResult<()> {
+        // skip stale tasks
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
+
         self.require_import_module_desugar(module_id)?;
         if !self.is_code_module(module_id) {
             return Ok(());

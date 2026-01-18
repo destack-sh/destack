@@ -9,10 +9,12 @@ use crate::{
 };
 
 use destack_compiler_macros::DefineTask;
-use destack_source::{ModuleId, PackageId};
+use destack_source::{
+    ModuleId, ModuleStamp, ModuleVersion, PackageId, PackageStamp, ProfileStamp, ProfileVersion,
+};
 use destack_workspace::{
-    LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, Target,
-    TargetDiscovery, TargetId,
+    LtoMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, OutputFormat, ProfileId,
+    ProgramStamp, Target, TargetDiscovery, TargetId,
 };
 use target_lexicon::Triple;
 
@@ -40,12 +42,19 @@ enum OptimizationScope {
 pub enum OptimizeTask {
     /// Optimize a module's MIR.
     #[task(code = 1, trace = "module={module} target={target}")]
-    OptimizeModule { module: ModuleId, target: TargetId },
+    OptimizeModule {
+        /// The module to optimize.
+        module: ModuleStamp,
+        /// The profile to optimize.
+        profile: ProfileStamp,
+        /// The target to optimize.
+        target: TargetId,
+    },
     /// Optimize all modules in a package for a target.
     #[task(code = 2, trace = "package={package} target={target}")]
     OptimizePackage {
         /// The package id to optimize.
-        package: PackageId,
+        package: PackageStamp,
         /// The target id for this package.
         target: TargetId,
     },
@@ -54,6 +63,8 @@ pub enum OptimizeTask {
     OptimizeProgram {
         /// The target name to optimize.
         target: String,
+        /// Stamp of the current package versions.
+        program_stamp: ProgramStamp,
     },
 }
 
@@ -62,20 +73,39 @@ impl Compiler {
     pub fn process_optimize(&self, task: OptimizeTask) -> OptimizeResult<()> {
         // dispatch the optimize task
         match task {
-            OptimizeTask::OptimizeModule { module, target } => {
+            OptimizeTask::OptimizeModule {
+                module,
+                profile,
+                target,
+            } => {
+                self.ensure_module_profile_matches::<OptimizeError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
                 // require lowering for this module and target
-                self.require_lower_module(module, &target)?;
+                self.require_lower_module(module.id, profile.id, &target)?;
 
                 // optimize the module
-                self.optimize_module(module, &target)?;
+                self.optimize_module(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                    &target,
+                )?;
             }
             OptimizeTask::OptimizePackage { package, target } => {
+                self.ensure_package_version_matches::<OptimizeError>(package.id, package.version)?;
                 // optimize the package for this target
-                self.optimize_package(package, &target)?;
+                self.optimize_package(package.id, &target)?;
             }
             OptimizeTask::OptimizeProgram {
                 target: target_name,
+                program_stamp,
             } => {
+                self.ensure_program_stamp_matches::<OptimizeError>(program_stamp)?;
                 // optimize all packages that define the target
                 self.optimize_program(&target_name)?;
             }
@@ -88,23 +118,39 @@ impl Compiler {
     pub fn require_optimize(
         &self,
         module: ModuleId,
+        profile: ProfileId,
         target: &TargetId,
     ) -> Result<(), TaskDependencyError> {
         // resolve optimization scope for this target
         let scope = self.optimization_scope_for_target(target);
 
+        // validate profile mapping for module scope
+        if matches!(scope, OptimizationScope::Module) {
+            let resolved_profile = self.program.profile_id_for_target(module, target);
+            if resolved_profile != Some(profile) {
+                self.error(OptimizeError::InvalidTarget {
+                    package: target.package_id,
+                    target: target.clone(),
+                    message: "target not found for profile resolution".to_string(),
+                });
+                return Ok(());
+            }
+        }
+
         // build the optimize task for this scope
         let task = match scope {
             OptimizationScope::Module => OptimizeTask::OptimizeModule {
-                module,
+                module: self.module_stamp(module),
+                profile: self.profile_stamp(profile),
                 target: target.clone(),
             },
             OptimizationScope::Package => OptimizeTask::OptimizePackage {
-                package: target.package_id,
+                package: self.package_stamp(target.package_id),
                 target: target.clone(),
             },
             OptimizationScope::Program => OptimizeTask::OptimizeProgram {
                 target: target.name.clone(),
+                program_stamp: self.program_stamp(),
             },
         };
 
@@ -113,7 +159,34 @@ impl Compiler {
     }
 
     /// Optimize a module's MIR.
-    fn optimize_module(&self, module: ModuleId, target: &TargetId) -> OptimizeResult<()> {
+    fn optimize_module(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
+        target: &TargetId,
+    ) -> OptimizeResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<OptimizeError>(
+            module,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
+        let resolved_profile = self
+            .program
+            .profile_id_for_target(module, target)
+            .ok_or_else(|| OptimizeError::InvalidTarget {
+                package: target.package_id,
+                target: target.clone(),
+                message: "target not found for profile resolution".to_string(),
+            })?;
+        if resolved_profile != profile {
+            return Ok(());
+        }
+
         // resolve pipeline for this target
         let target_config = self.target_for_module(module, target)?;
         let level = self.optimization_level_for_target_config(&target_config);
@@ -185,7 +258,15 @@ impl Compiler {
             }
 
             // require lowering for this module
-            let result = self.require_lower_module(module, target);
+            let profile = self
+                .program
+                .profile_id_for_target(module, target)
+                .ok_or_else(|| OptimizeError::InvalidTarget {
+                    package: target.package_id,
+                    target: target.clone(),
+                    message: "target not found for profile resolution".to_string(),
+                })?;
+            let result = self.require_lower_module(module, profile, target);
             collector.try_collect(result);
         }
 
@@ -286,7 +367,15 @@ impl Compiler {
                 }
 
                 // require lowering for this module
-                let result = self.require_lower_module(module, &target_id);
+                let profile = self
+                    .program
+                    .profile_id_for_target(module, &target_id)
+                    .ok_or_else(|| OptimizeError::InvalidTarget {
+                        package: target_id.package_id,
+                        target: target_id.clone(),
+                        message: "target not found for profile resolution".to_string(),
+                    })?;
+                let result = self.require_lower_module(module, profile, &target_id);
                 collector.try_collect(result);
             }
 

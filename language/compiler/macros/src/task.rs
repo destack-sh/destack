@@ -3,7 +3,8 @@ use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use std::collections::HashSet;
 use syn::{
-    Data, DeriveInput, Error, Fields, Ident, LitInt, LitStr, Result, Type, parse_macro_input,
+    Data, DeriveInput, Error, Fields, GenericArgument, Ident, LitInt, LitStr, PathArguments,
+    Result, Type, parse_macro_input,
 };
 
 struct TaskVariant {
@@ -11,6 +12,45 @@ struct TaskVariant {
     code: LitInt,
     trace: Option<String>,
     fields: Vec<(Ident, Type)>,
+}
+
+/// Kinds of stamp fields that drive task skips.
+#[derive(Debug, Clone, Copy)]
+enum StampKind {
+    Module,
+    Profile,
+    Package,
+    Program,
+}
+
+/// Return the stamp kind for a type when applicable.
+fn stamp_kind(ty: &Type) -> Option<StampKind> {
+    let Type::Path(path) = ty else {
+        return None;
+    };
+
+    let segment = path.path.segments.last()?;
+    let ident = segment.ident.to_string();
+    match ident.as_str() {
+        "ModuleStamp" => Some(StampKind::Module),
+        "ProfileStamp" => Some(StampKind::Profile),
+        "PackageStamp" => Some(StampKind::Package),
+        "ProgramStamp" => Some(StampKind::Program),
+        "Option" => {
+            let PathArguments::AngleBracketed(args) = &segment.arguments else {
+                return None;
+            };
+            for arg in &args.args {
+                if let GenericArgument::Type(inner) = arg
+                    && let Some(kind) = stamp_kind(inner)
+                {
+                    return Some(kind);
+                }
+            }
+            None
+        }
+        _ => None,
+    }
 }
 
 /// Map a compiler phase name to its single letter code.
@@ -297,17 +337,94 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
                 quote! {
                     Self::#name { node, module, .. } => match node {
                         Some(n) => crate::DiagnosticAnchor::Node(*n),
-                        None => crate::DiagnosticAnchor::Module(*module),
+                        None => crate::DiagnosticAnchor::from(*module),
                     }
                 }
             } else if v.fields.iter().any(|(n, _)| n == "node") {
                 quote! { Self::#name { node, .. } => crate::DiagnosticAnchor::Node(*node) }
             } else if v.fields.iter().any(|(n, _)| n == "module") {
-                quote! { Self::#name { module, .. } => crate::DiagnosticAnchor::Module(*module) }
+                quote! { Self::#name { module, .. } => crate::DiagnosticAnchor::from(*module) }
             } else if v.fields.iter().any(|(n, _)| n == "package") {
-                quote! { Self::#name { package, .. } => crate::DiagnosticAnchor::Package(*package) }
+                quote! { Self::#name { package, .. } => crate::DiagnosticAnchor::from(*package) }
             } else {
                 quote! { Self::#name { .. } => crate::DiagnosticAnchor::Global }
+            }
+        })
+        .collect();
+
+    // generate match arms for skip_reason()
+    let skip_arms: Vec<TokenStream2> = variants
+        .iter()
+        .map(|v| {
+            let name = &v.name;
+            let mut module_fields = Vec::new();
+            let mut profile_fields = Vec::new();
+            let mut package_fields = Vec::new();
+            let mut program_fields = Vec::new();
+
+            for (field_name, field_ty) in &v.fields {
+                match stamp_kind(field_ty) {
+                    Some(StampKind::Module) => module_fields.push(field_name.clone()),
+                    Some(StampKind::Profile) => profile_fields.push(field_name.clone()),
+                    Some(StampKind::Package) => package_fields.push(field_name.clone()),
+                    Some(StampKind::Program) => program_fields.push(field_name.clone()),
+                    None => {}
+                }
+            }
+
+            let mut used_fields = Vec::new();
+            used_fields.extend(module_fields.iter().cloned());
+            used_fields.extend(profile_fields.iter().cloned());
+            used_fields.extend(package_fields.iter().cloned());
+            used_fields.extend(program_fields.iter().cloned());
+
+            let pattern = if v.fields.is_empty() {
+                quote! { Self::#name }
+            } else if used_fields.is_empty() {
+                quote! { Self::#name { .. } }
+            } else {
+                quote! { Self::#name { #(#used_fields,)* .. } }
+            };
+
+            let mut checks: Vec<TokenStream2> = Vec::new();
+            for field in &module_fields {
+                checks.push(quote! {
+                    if !compiler.module_version_matches(#field.id, #field.version) {
+                        return Some(crate::TaskSkipReason::StaleModuleVersion);
+                    }
+                });
+            }
+            for field in &profile_fields {
+                checks.push(quote! {
+                    if !compiler.profile_version_matches(#field.id, #field.version) {
+                        return Some(crate::TaskSkipReason::StaleProfileVersion);
+                    }
+                });
+            }
+            for field in &package_fields {
+                checks.push(quote! {
+                    if !compiler.package_version_matches(#field.id, #field.version) {
+                        return Some(crate::TaskSkipReason::StalePackageVersion);
+                    }
+                });
+            }
+            for field in &program_fields {
+                checks.push(quote! {
+                    if compiler.program_stamp() != *#field {
+                        return Some(crate::TaskSkipReason::StaleProgramStamp);
+                    }
+                });
+            }
+
+            if checks.is_empty() {
+                quote! { #pattern => None }
+            } else {
+                quote! {
+                    #pattern => {
+                        #(#checks)*
+                        None
+                    }
+                }
             }
         })
         .collect();
@@ -349,6 +466,14 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
             fn trace_args(&self, program: &destack_workspace::Program) -> String {
                 match self {
                     #(#trace_args_arms),*
+                }
+            }
+        }
+
+        impl crate::TaskSkipCheck for #enum_name {
+            fn skip_reason(&self, compiler: &crate::Compiler) -> Option<crate::TaskSkipReason> {
+                match self {
+                    #(#skip_arms),*
                 }
             }
         }

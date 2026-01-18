@@ -17,7 +17,8 @@ impl Compiler {
         let package_id = module.read().package_id;
         let target_id = TargetId::new(package_id, &target.name);
 
-        self.require_optimize(module_id, &target_id)?;
+        // require module to be optimized
+        self.require_optimize(module_id, profile, &target_id)?;
 
         // generate artifact
         let registry_next_id = || self.program.artifacts.next_id();

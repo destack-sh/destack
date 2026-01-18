@@ -23,7 +23,7 @@ pub struct PackageStats {
 pub struct PhaseStats {
     /// Total time spent in this phase (nanoseconds).
     pub duration_ns: AtomicU64,
-    /// Number of tasks completed in this phase.
+    /// Number of tasks processed in this phase.
     pub task_count: AtomicUsize,
 }
 
@@ -38,6 +38,8 @@ pub struct TaskStats {
     pub failed: AtomicUsize,
     /// Tasks that yielded (waiting on dependencies).
     pub yielded: AtomicUsize,
+    /// Tasks that were skipped.
+    pub skipped: AtomicUsize,
 }
 
 /// Module statistics.
@@ -192,6 +194,12 @@ impl CompilerStats {
     #[inline]
     pub fn record_fail(&self) {
         self.tasks.failed.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a task being skipped.
+    #[inline]
+    pub fn record_skip(&self) {
+        self.tasks.skipped.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a task yielding.
@@ -501,6 +509,7 @@ impl CompilerStats {
                 completed: self.tasks.completed.load(Ordering::Relaxed),
                 failed: self.tasks.failed.load(Ordering::Relaxed),
                 yielded: self.tasks.yielded.load(Ordering::Relaxed),
+                skipped: self.tasks.skipped.load(Ordering::Relaxed),
             },
             modules: ModuleStatsSnapshot {
                 parsed: self.modules.parsed.load(Ordering::Relaxed),
@@ -586,6 +595,8 @@ pub struct TaskStatsSnapshot {
     pub failed: usize,
     /// Tasks that yielded.
     pub yielded: usize,
+    /// Tasks that were skipped.
+    pub skipped: usize,
 }
 
 /// Snapshot of module statistics.

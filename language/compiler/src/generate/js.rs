@@ -11,6 +11,7 @@ impl Compiler {
         target: &Target,
         profile: ProfileId,
     ) -> GenerateResult<()> {
+        // require module to be elaborated
         self.require_elaborate_module(module_id, profile)?;
 
         // generate artifact

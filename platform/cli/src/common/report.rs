@@ -10,7 +10,7 @@ use crate::common::format::{DiagnosticOutputJson, LineWriter};
 use crate::console;
 
 /// Schema version for command reports.
-pub const REPORT_SCHEMA_VERSION: u32 = 3;
+pub const REPORT_SCHEMA_VERSION: u32 = 4;
 
 /// Output format for command reports.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
@@ -82,6 +82,8 @@ pub struct CommandStats {
     pub tasks_completed: usize,
     /// Number of tasks failed by the compiler.
     pub tasks_failed: usize,
+    /// Number of tasks skipped by the compiler.
+    pub tasks_skipped: usize,
     /// Number of modules processed.
     pub modules_processed: usize,
     /// Number of lines processed.
@@ -104,6 +106,7 @@ impl CommandStats {
             elapsed_ms,
             tasks_completed: snapshot.tasks.completed,
             tasks_failed: snapshot.tasks.failed,
+            tasks_skipped: snapshot.tasks.skipped,
             modules_processed,
             lines_processed: snapshot.modules.lines_processed,
             slow_tasks: snapshot.slow_tasks,

@@ -451,7 +451,7 @@ impl Parser {
             self.eat_expression_inner()
         }
 
-        #[cfg(not(feature = "profile-stack"))]
+        #[cfg(not(feature = "profile-stack"))] // FUGU: remove profile-stack feature
         {
             destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
         }
@@ -477,8 +477,8 @@ impl Parser {
 
             // labelled blocks are only allowed in statement position
             let is_labelled_block = self.peek_next_next_token(TokenType::OpenBrace).is_ok();
-            let can_parse_label = (self.options.in_statement_position
-                && (is_labelled_expression || is_labelled_block))
+            let can_parse_label = self.options.in_statement_position
+                && (is_labelled_expression || is_labelled_block)
                 || (!self.options.in_statement_position && is_labelled_expression);
             if can_parse_label {
                 let label = self.eat_identifier()?;

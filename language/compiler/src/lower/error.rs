@@ -1,5 +1,6 @@
 use crate::{
     DiagnosticAnchor, DiagnosticDefinition, TaskDependency, TaskDependencyError, TaskError,
+    TaskSkipReason,
 };
 use destack_base::StringId;
 use destack_compiler_macros::DefineError;
@@ -27,6 +28,10 @@ pub enum LowerError {
         /// Carry the dependency that failed to resolve.
         dependency: TaskDependency,
     },
+
+    /// Task was skipped due to stale versions.
+    #[error(code = "EM002", message = "task skipped")]
+    Skipped { reason: TaskSkipReason },
 
     // -------------------------------------------------------------------------
     // 1xx: Type issues

@@ -1,7 +1,7 @@
-use crate::{Compiler, ResolveResult, TaskDependencyError};
+use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleStamp, ProfileStamp};
 use destack_workspace::ProfileId;
 
 /// Task to statically resolve something in-place.
@@ -10,40 +10,40 @@ use destack_workspace::ProfileId;
 pub enum ResolveTask {
     /// Resolve all builtin modules and required language items.
     #[task(code = 0, trace = "builtins profile={profile}")]
-    ResolveBuiltins { profile: ProfileId },
+    ResolveBuiltins { profile: ProfileStamp },
 
     /// Resolve a profile's libraries.
     #[task(code = 1, trace = "profile={profile}")]
-    ResolveLibs { profile: ProfileId },
+    ResolveLibs { profile: ProfileStamp },
 
     /// Resolve a module completely (direct, canonical).
     #[task(code = 2, trace = "module={module} profile={profile}")]
     ResolveModule {
-        module: ModuleId,
-        profile: ProfileId,
+        module: ModuleStamp,
+        profile: ProfileStamp,
     },
 
     /// Resolve expressions and dependency items.
     /// Sets target_symbol for imports and populates namespace_exports.
     #[task(code = 3, trace = "module={module} profile={profile}")]
     ResolveModuleDirect {
-        module: ModuleId,
-        profile: ProfileId,
+        module: ModuleStamp,
+        profile: ProfileStamp,
     },
 
     /// Prepare the per profile DIR for a module.
     #[task(code = 4, trace = "module={module} profile={profile}")]
     ResolveModulePrepare {
-        module: ModuleId,
-        profile: ProfileId,
+        module: ModuleStamp,
+        profile: ProfileStamp,
     },
 
     /// Compute canonical_symbol for all symbols.
     /// Follows target_symbol chains to find the canonical symbol.
     #[task(code = 5, trace = "module={module} profile={profile}")]
     ResolveModuleCanonical {
-        module: ModuleId,
-        profile: ProfileId,
+        module: ModuleStamp,
+        profile: ProfileStamp,
     },
 }
 
@@ -52,23 +52,59 @@ impl Compiler {
     pub fn process_resolve(&self, task: ResolveTask) -> ResolveResult<()> {
         match task {
             ResolveTask::ResolveBuiltins { profile } => {
-                self.resolve_builtins(profile)?;
+                self.ensure_profile_version_matches::<ResolveError>(profile.id, profile.version)?;
+                self.resolve_builtins(profile.id)?;
             }
             ResolveTask::ResolveLibs { profile } => {
-                self.resolve_libs(profile)?;
+                self.ensure_profile_version_matches::<ResolveError>(profile.id, profile.version)?;
+                self.resolve_libs(profile.id)?;
             }
             ResolveTask::ResolveModule { module, profile } => {
-                self.require_resolve_module_canonical(module, profile)?;
+                self.ensure_module_profile_matches::<ResolveError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.require_resolve_module_canonical(module.id, profile.id)?;
             }
             ResolveTask::ResolveModuleDirect { module, profile } => {
-                self.resolve_module_direct(module, profile)?;
+                self.ensure_module_profile_matches::<ResolveError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.resolve_module_direct(module.id, profile.id, module.version, profile.version)?;
             }
             ResolveTask::ResolveModulePrepare { module, profile } => {
-                self.resolve_module_prepare(module, profile)?;
+                self.ensure_module_profile_matches::<ResolveError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.resolve_module_prepare(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                )?;
             }
             ResolveTask::ResolveModuleCanonical { module, profile } => {
-                self.resolve_module_canonical(module, profile)?;
-                if self.is_code_module(module) {
+                self.ensure_module_profile_matches::<ResolveError>(
+                    module.id,
+                    module.version,
+                    profile.id,
+                    profile.version,
+                )?;
+                self.resolve_module_canonical(
+                    module.id,
+                    profile.id,
+                    module.version,
+                    profile.version,
+                )?;
+                if self.is_code_module(module.id) {
                     self.stats.record_resolve();
                 }
             }
@@ -78,11 +114,13 @@ impl Compiler {
 
     /// Ensure builtins have been resolved.
     pub fn require_resolve_builtins(&self, profile: ProfileId) -> Result<(), TaskDependencyError> {
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveBuiltins { profile })
     }
 
     /// Ensure a profile's libraries have been resolved.
     pub fn require_resolve_libs(&self, profile: ProfileId) -> Result<(), TaskDependencyError> {
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveLibs { profile })
     }
 
@@ -92,6 +130,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveModuleDirect { module, profile })
     }
 
@@ -101,6 +141,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveModulePrepare { module, profile })
     }
 
@@ -136,6 +178,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical { module, profile })
     }
 
@@ -145,6 +189,8 @@ impl Compiler {
         module: ModuleId,
         profile: ProfileId,
     ) -> Result<(), TaskDependencyError> {
+        let module = self.module_stamp(module);
+        let profile = self.profile_stamp(profile);
         self.do_require_task_internal_only(ResolveTask::ResolveModule { module, profile })
     }
 }

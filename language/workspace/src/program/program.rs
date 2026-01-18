@@ -6,7 +6,7 @@ use destack_ast as ast;
 use destack_base::StringPool;
 use destack_source::{
     DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageType, ModuleId,
-    ModuleVersion, PackageId, Uri,
+    ModuleVersion, PackageId, PackageVersion, Uri,
 };
 use indexmap::IndexMap;
 
@@ -39,6 +39,35 @@ impl ProgramId {
     /// Wrap an id as a ProgramId.
     pub fn new(id: u32) -> Self {
         Self(id)
+    }
+}
+
+/// Digest of package versions for program-scoped tasks.
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ProgramStamp(pub u64);
+
+impl std::fmt::Debug for ProgramStamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "p{:016x}", self.0)
+    }
+}
+
+impl std::fmt::Display for ProgramStamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "p{:016x}", self.0)
+    }
+}
+
+impl ProgramStamp {
+    /// Create a new ProgramStamp.
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    /// Get the raw stamp value.
+    pub fn raw(self) -> u64 {
+        self.0
     }
 }
 
@@ -196,6 +225,7 @@ impl Program {
         let root_uri = Uri::from_string("<root>");
         let root_package = Package {
             id: root_package_id,
+            package_version: PackageVersion::INITIAL,
             kind: PackageKind::Ephemeral,
             uri: root_uri.clone(),
             path: None,
@@ -351,17 +381,20 @@ impl Program {
 
     /// Get the profile id for a module with the default profile selection.
     pub fn default_profile_id_for_module(&self, module_id: ModuleId) -> ProfileId {
+        // get package for module
         let module = self.modules.get(module_id);
         let module = module.read();
         let package = self.packages.get(module.package_id);
         let package = package.read();
 
+        // get compiler options from package dsconfig
         let compiler_options = package
             .dsconfig
             .as_ref()
             .map(|dsconfig| dsconfig.options.compiler.clone())
             .unwrap_or_default();
 
+        // get target and profile config from package dsconfig
         let (target, profile_config) = if let Some(dsconfig) = package.dsconfig.as_ref() {
             let target = dsconfig
                 .options
@@ -381,6 +414,7 @@ impl Program {
             (target, profile_config)
         } else {
             (Target::js("default"), None)
+            // FUGU #Cleanup: should we default profiles at all?
         };
 
         let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
@@ -426,6 +460,16 @@ impl Program {
 
         let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
         Some(self.profiles.get_or_create(key))
+    }
+
+    /// Get the profile id for a target, falling back to the module default profile.
+    pub fn profile_id_for_target_or_default(
+        &self,
+        module_id: ModuleId,
+        target_id: &TargetId,
+    ) -> ProfileId {
+        self.profile_id_for_target(module_id, target_id)
+            .unwrap_or_else(|| self.default_profile_id_for_module(module_id))
     }
 
     /// Collect additive library types for a target.

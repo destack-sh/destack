@@ -3,8 +3,8 @@ use destack_workspace::Program;
 use crate::DiagnosticAnchor;
 
 use crate::{
-    AnalyzeTask, ElaborateTask, EmitTask, ExecuteTask, GenerateTask, ImportTask, LinkTask,
-    LintTask, LowerTask, OptimizeTask, ResolveTask, TaskError,
+    AnalyzeTask, Compiler, ElaborateTask, EmitTask, ExecuteTask, GenerateTask, ImportTask,
+    LinkTask, LintTask, LowerTask, OptimizeTask, ResolveTask, TaskError,
 };
 
 /// Trait for formatting task information.
@@ -14,6 +14,12 @@ pub trait TaskDebug {
 
     /// Format the task arguments for tracing (resolving ids, making the arguments readable, etc.).
     fn trace_args(&self, program: &Program) -> String;
+}
+
+/// Trait for task staleness checks.
+pub trait TaskSkipCheck {
+    /// Return a skip reason if the task is stale.
+    fn skip_reason(&self, compiler: &Compiler) -> Option<TaskSkipReason>;
 }
 
 /// Region of the compiler.
@@ -259,6 +265,39 @@ impl Task {
     }
 }
 
+impl TaskSkipCheck for Task {
+    fn skip_reason(&self, compiler: &Compiler) -> Option<TaskSkipReason> {
+        let reason = match self {
+            Self::Import(task) => task.skip_reason(compiler),
+            Self::Resolve(task) => task.skip_reason(compiler),
+            Self::Analyze(task) => task.skip_reason(compiler),
+            Self::Elaborate(task) => task.skip_reason(compiler),
+            Self::Execute(task) => task.skip_reason(compiler),
+            Self::Lower(task) => task.skip_reason(compiler),
+            Self::Optimize(task) => task.skip_reason(compiler),
+            Self::Generate(task) => task.skip_reason(compiler),
+            Self::Link(task) => task.skip_reason(compiler),
+            Self::Emit(task) => task.skip_reason(compiler),
+            Self::Lint(task) => task.skip_reason(compiler),
+        };
+        if reason.is_some() {
+            return reason;
+        }
+
+        if let Self::Emit(EmitTask::EmitModule {
+            module, package, ..
+        }) = self
+        {
+            let module_package = compiler.program.modules.get(module.id).read().package_id;
+            if module_package != package.id {
+                return Some(TaskSkipReason::StalePackageVersion);
+            }
+        }
+
+        None
+    }
+}
+
 impl TaskDebug for Task {
     fn name(&self) -> &'static str {
         match self {
@@ -331,6 +370,8 @@ pub enum TaskStatus {
     Running,
     /// The task is waiting for a dependency.
     Yielded { dependency: TaskDependency },
+    /// The task was skipped.
+    Skipped { reason: TaskSkipReason },
     /// The task is complete.
     Complete,
     /// The task failed.
@@ -340,14 +381,20 @@ pub enum TaskStatus {
 impl TaskStatus {
     /// Whether the status is final (i.e., will not change).
     pub fn is_final(&self) -> bool {
-        matches!(self, Self::Complete { .. } | Self::Failed { .. })
+        matches!(
+            self,
+            Self::Complete { .. } | Self::Failed { .. } | Self::Skipped { .. }
+        )
     }
 
-    /// Whether the status is an outcome (i.e., yield, complete or fail).
+    /// Whether the status is an outcome (i.e., yield, complete, skip, or fail).
     pub fn is_outcome(&self) -> bool {
         matches!(
             self,
-            Self::Yielded { .. } | Self::Complete { .. } | Self::Failed { .. }
+            Self::Yielded { .. }
+                | Self::Complete { .. }
+                | Self::Failed { .. }
+                | Self::Skipped { .. }
         )
     }
 }
@@ -357,6 +404,7 @@ impl From<TaskOutcome> for TaskStatus {
         match outcome {
             TaskOutcome::Yield { dependency } => Self::Yielded { dependency },
             TaskOutcome::Error { error } => Self::Failed { error },
+            TaskOutcome::Skipped { reason } => Self::Skipped { reason },
             TaskOutcome::Complete => Self::Complete,
         }
     }
@@ -407,24 +455,31 @@ pub enum TaskOutcome {
     Yield { dependency: TaskDependency },
     /// The task failed with an error.
     Error { error: TaskError },
+    /// The task was skipped.
+    Skipped { reason: TaskSkipReason },
     /// The task completed successfully.
     Complete,
 }
 
 impl<E> From<Result<(), E>> for TaskOutcome
 where
-    E: Into<TaskError>,
+    E: Into<TaskError> + TaskSkip,
     E: TryInto<TaskDependency, Error = E>,
 {
     fn from(result: Result<(), E>) -> Self {
         match result {
             Ok(()) => Self::Complete,
-            Err(error) => match error.try_into() {
-                Ok(dependency) => Self::Yield { dependency },
-                Err(error) => Self::Error {
-                    error: error.into(),
-                },
-            },
+            Err(error) => {
+                if let Some(reason) = error.skip_reason() {
+                    return Self::Skipped { reason };
+                }
+                match error.try_into() {
+                    Ok(dependency) => Self::Yield { dependency },
+                    Err(error) => Self::Error {
+                        error: error.into(),
+                    },
+                }
+            }
         }
     }
 }
@@ -435,6 +490,7 @@ impl TaskOutcome {
         match self {
             Self::Yield { .. } => false,
             Self::Error { .. } => true,
+            Self::Skipped { .. } => true,
             Self::Complete => true,
         }
     }
@@ -525,6 +581,31 @@ impl TryFrom<TaskDependencyError> for TaskDependency {
             TaskDependencyError::Failed { .. } => Err(error),
         }
     }
+}
+
+/// Reason a task was skipped.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TaskSkipReason {
+    /// Task was stale due to a module version change.
+    StaleModuleVersion,
+    /// Task was stale due to a profile version change.
+    StaleProfileVersion,
+    /// Task was stale due to a package version change.
+    StalePackageVersion,
+    /// Task was stale due to a program stamp change.
+    StaleProgramStamp,
+}
+
+/// Return a skip reason for errors that represent task skips.
+pub trait TaskSkip {
+    /// Get the skip reason, if this error represents a skipped task.
+    fn skip_reason(&self) -> Option<TaskSkipReason>;
+}
+
+/// Build phase errors that represent skipped tasks.
+pub trait TaskSkipError: Sized {
+    /// Create an error that marks a task as skipped for the given reason.
+    fn skipped(reason: TaskSkipReason) -> Self;
 }
 
 /// Collector for coalescing task dependencies from multiple operations.

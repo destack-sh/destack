@@ -389,6 +389,7 @@ fn run_watch(
 }
 
 /// Run check in watch mode with injected options.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     args: &CheckArgs,
     command_name: &str,

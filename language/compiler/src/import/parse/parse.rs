@@ -2,12 +2,19 @@ use crate::{Compiler, ImportError, ImportResult};
 
 use destack_base::StringPool;
 use destack_parser::Parser;
-use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, Span};
+use destack_source::{CacheKind, File, FileType, LanguageType, ModuleId, ModuleVersion, Span};
 use destack_workspace::{Loader, ModuleAst, ModuleContent, ModuleDir};
 
 impl Compiler {
     /// Parse a module (load file and parse into AST).
-    pub(crate) fn import_module_parse(&self, module_id: ModuleId) -> ImportResult<()> {
+    pub(crate) fn import_module_parse(
+        &self,
+        module_id: ModuleId,
+        module_version: ModuleVersion,
+    ) -> ImportResult<()> {
+        // skip stale tasks
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
+
         let module = self.program.modules.get(module_id);
 
         // get module info and check if already loaded
@@ -39,18 +46,32 @@ impl Compiler {
 
         // dispatch to appropriate loader
         match loader {
-            Loader::Destack | Loader::TypeScript | Loader::JavaScript => {
-                self.import_code_module_parse(module_id, file_id, path, uri, package_id)
+            Loader::Destack | Loader::TypeScript | Loader::JavaScript => self
+                .import_code_module_parse(
+                    module_id,
+                    module_version,
+                    file_id,
+                    path,
+                    uri,
+                    package_id,
+                ),
+            Loader::Json => {
+                self.import_json_module_parse(module_id, module_version, file_id, path, uri)
             }
-            Loader::Json => self.import_json_module_parse(module_id, file_id, path, uri),
-            Loader::Toml => self.import_toml_module_parse(module_id, file_id, path, uri),
-            Loader::Yaml => self.import_yaml_module_parse(module_id, file_id, path, uri),
+            Loader::Toml => {
+                self.import_toml_module_parse(module_id, module_version, file_id, path, uri)
+            }
+            Loader::Yaml => {
+                self.import_yaml_module_parse(module_id, module_version, file_id, path, uri)
+            }
             Loader::Text | Loader::Env => {
-                self.import_text_module_parse(module_id, file_id, path, uri)
+                self.import_text_module_parse(module_id, module_version, file_id, path, uri)
             }
-            Loader::Base64 => self.import_base64_module_parse(module_id, file_id, path, uri),
+            Loader::Base64 => {
+                self.import_base64_module_parse(module_id, module_version, file_id, path, uri)
+            }
             Loader::Binary | Loader::File => {
-                self.import_binary_module_parse(module_id, file_id, path, uri)
+                self.import_binary_module_parse(module_id, module_version, file_id, path, uri)
             }
         }
     }
@@ -59,6 +80,7 @@ impl Compiler {
     fn import_code_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -102,8 +124,11 @@ impl Compiler {
         if let Some(cache) = cache_handle.as_ref()
             && let Ok(Some(entry)) = cache.read_ast()
         {
+            // skip stale tasks before applying cached data
+            self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
             let ast = ModuleAst::from_data(entry.payload);
             let mut module = module.write();
+            self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
             module.code_mut().ast = Some(ast);
             tracing::trace!(?module_id, "import.module.parse.code.cache");
             return Ok(());
@@ -122,11 +147,13 @@ impl Compiler {
         self.stats.record_module_for_package(package_id);
 
         // update module with AST
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         let strings = StringPool::from_local(parser.strings);
         module.code_mut().ast = Some(ModuleAst::from_tree(
             module_id,
-            module.version,
+            module_version,
             parser.tree,
             expressions,
             strings,
@@ -136,6 +163,7 @@ impl Compiler {
         drop(module);
 
         // write AST to cache
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         if let Some(cache) = cache_handle.as_ref()
             && let Some(ast) = self.program.modules.get(module_id).read().ast_maybe()
         {
@@ -153,6 +181,7 @@ impl Compiler {
     fn import_json_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -188,11 +217,13 @@ impl Compiler {
         })?;
 
         // create base DIR for data module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Data {
             source: content,
             value,
@@ -209,6 +240,7 @@ impl Compiler {
     fn import_toml_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -250,11 +282,13 @@ impl Compiler {
         let value = toml_to_json(toml_value);
 
         // create base DIR for data module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Data {
             source: content,
             value,
@@ -271,6 +305,7 @@ impl Compiler {
     fn import_yaml_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -312,11 +347,13 @@ impl Compiler {
         })?;
 
         // create base DIR for data module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Data {
             source: content,
             value,
@@ -333,6 +370,7 @@ impl Compiler {
     fn import_text_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -358,11 +396,13 @@ impl Compiler {
         };
 
         // create base DIR for text module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Text {
             content,
             dir_base: Some(dir_base),
@@ -378,6 +418,7 @@ impl Compiler {
     fn import_binary_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         _file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -398,11 +439,13 @@ impl Compiler {
         })?;
 
         // create base DIR for binary module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Binary {
             bytes,
             dir_base: Some(dir_base),
@@ -418,6 +461,7 @@ impl Compiler {
     fn import_base64_module_parse(
         &self,
         module_id: ModuleId,
+        module_version: ModuleVersion,
         _file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
@@ -444,11 +488,13 @@ impl Compiler {
         let content = STANDARD.encode(&bytes);
 
         // create base DIR for text module
-        let module_version = module.read().version;
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let dir_base = ModuleDir::new_data_base(module_id, module_version);
 
         // update module content (stored as Text since it produces a string)
+        self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
         let mut module = module.write();
+        self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Text {
             content,
             dir_base: Some(dir_base),

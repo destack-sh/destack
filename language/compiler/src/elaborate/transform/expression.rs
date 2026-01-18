@@ -1,7 +1,7 @@
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::ProfileId;
 
-use crate::{Compiler, ElaborateResult};
+use crate::{Compiler, ElaborateError, ElaborateResult};
 
 impl Compiler {
     /// Transform a module with target-independent simplifications:
@@ -17,7 +17,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ElaborateResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ElaborateError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         // ensure analysis is complete
         self.require_analyze_module(module_id, profile)?;
         if !self.is_code_module(module_id) {

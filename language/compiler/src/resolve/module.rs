@@ -9,7 +9,7 @@ use destack_dir::{
     SymbolTable,
 };
 
-use destack_source::{CacheKind, ModuleId};
+use destack_source::{CacheKind, ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ImportMeta, Module, ModuleContent, ModuleDir, ModuleGraph, ModuleGraphKey, ProfileId,
 };
@@ -22,12 +22,27 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
         self.require_import_module_validate(module_id)?;
 
         // data/text/binary modules have simpler preparation
         if !self.is_code_module(module_id) {
-            return self.resolve_data_module_prepare(module_id, profile_id);
+            return self.resolve_data_module_prepare(
+                module_id,
+                profile_id,
+                module_version,
+                profile_version,
+            );
         }
 
         // resolve libs if needed
@@ -41,11 +56,23 @@ impl Compiler {
 
         // resolve cache handle
         let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::Dir);
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
 
         // load the module and skip when the profile dir already exists
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
         let module = self.program.modules.get(module_id);
         let mut module = module.write();
+        self.ensure_module_profile_matches_guard::<ResolveError>(
+            &module,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
         if module
             .code()
             .dirs
@@ -57,8 +84,14 @@ impl Compiler {
 
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir()
+            && let Ok(Some(entry)) = cache.read_dir_resolved()
         {
+            self.ensure_module_profile_matches::<ResolveError>(
+                module_id,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
             let dir = ModuleDir::from_data(entry.payload);
             module.code_mut().dirs.push(dir);
             tracing::trace!(?module_id, ?profile_id, "resolve.module.prepare.cache");
@@ -111,7 +144,7 @@ impl Compiler {
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
             let payload = module.dir(profile_id).to_data();
-            if let Err(error) = cache.write_dir(payload) {
+            if let Err(error) = cache.write_dir_resolved(payload) {
                 tracing::debug!(
                     ?module_id,
                     ?profile_id,
@@ -129,13 +162,29 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
         // resolve cache handle
         let cache_handle =
-            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::Dir);
+            self.cache_handle_for_module(module_id, Some(profile_id), None, CacheKind::DirResolved);
 
         let module = self.program.modules.get(module_id);
+
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
         let mut module = module.write();
+        self.ensure_module_profile_matches_guard::<ResolveError>(
+            &module,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
 
         // skip if profile DIR already exists
         if module.dir_maybe(profile_id).is_some() {
@@ -144,8 +193,14 @@ impl Compiler {
 
         // try to load profile DIR from cache
         if let Some(cache) = cache_handle.as_ref()
-            && let Ok(Some(entry)) = cache.read_dir()
+            && let Ok(Some(entry)) = cache.read_dir_resolved()
         {
+            self.ensure_module_profile_matches::<ResolveError>(
+                module_id,
+                module_version,
+                profile_id,
+                profile_version,
+            )?;
             let dir = ModuleDir::from_data(entry.payload);
             match &mut module.content {
                 ModuleContent::Data { dirs, .. } => dirs.push(dir),
@@ -190,7 +245,7 @@ impl Compiler {
         // write profile DIR to cache
         if let Some(cache) = cache_handle.as_ref() {
             let payload = module.dir(profile_id).to_data();
-            if let Err(error) = cache.write_dir(payload) {
+            if let Err(error) = cache.write_dir_resolved(payload) {
                 tracing::debug!(?module_id, ?profile_id, ?error, "resolve.data.cache.write");
             }
         }
@@ -203,7 +258,17 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         self.require_resolve_module_prepare(module_id, profile)?;
         if !self.is_code_module(module_id) {
             return Ok(());
@@ -1452,10 +1517,20 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         profile: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
     ) -> ResolveResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile,
+            profile_version,
+        )?;
+
         self.require_resolve_module_direct(module_id, profile)?;
         if !self.is_code_module(module_id) {
-            self.update_module_graph(module_id, profile)?;
+            self.update_module_graph(module_id, profile, module_version, profile_version)?;
             return Ok(());
         }
 
@@ -1506,12 +1581,26 @@ impl Compiler {
             return Err(ResolveError::Yield { dependency });
         }
 
-        self.update_module_graph(module_id, profile)?;
+        self.update_module_graph(module_id, profile, module_version, profile_version)?;
         Ok(())
     }
 
     /// Update the module graph for a resolved module.
-    fn update_module_graph(&self, module_id: ModuleId, profile_id: ProfileId) -> ResolveResult<()> {
+    fn update_module_graph(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
+    ) -> ResolveResult<()> {
+        // skip stale tasks
+        self.ensure_module_profile_matches::<ResolveError>(
+            module_id,
+            module_version,
+            profile_id,
+            profile_version,
+        )?;
+
         // load module data for dependency discovery
         let module = self.program.modules.get(module_id);
         let module = module.read();
@@ -1520,7 +1609,6 @@ impl Compiler {
         };
 
         // collect module dependency targets from imports and namespace exports
-        let module_version = module.version;
         let mut targets = Vec::new();
         for target in dir.imported_modules.read().values() {
             targets.push(*target);

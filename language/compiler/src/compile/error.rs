@@ -1,4 +1,4 @@
-use destack_workspace::Program;
+use destack_workspace::{ProfileId, Program};
 
 use crate::{
     AnalyzeError, DiagnosticAnchor, ElaborateError, EmitError, ExecuteError, GenerateError,
@@ -50,6 +50,8 @@ pub enum InternalError {
     ExcessiveYield { task_id: TaskId, yield_count: u32 },
     /// Circular dependency detected in task graph.
     CircularDependency { task_id: TaskId, cycle: Vec<TaskId> },
+    /// Missing profile data for a profile id.
+    MissingProfile { profile_id: ProfileId },
 }
 
 impl InternalError {
@@ -60,6 +62,7 @@ impl InternalError {
             Self::SuspiciousYield { .. } => 1,
             Self::ExcessiveYield { .. } => 2,
             Self::CircularDependency { .. } => 3,
+            Self::MissingProfile { .. } => 4,
         }
     }
 
@@ -89,6 +92,9 @@ impl InternalError {
                     .collect::<Vec<_>>()
                     .join(" -> ");
                 format!("internal error: circular dependency involving {task_id}: {cycle_str}")
+            }
+            Self::MissingProfile { profile_id } => {
+                format!("internal error: missing profile data for {profile_id:?}")
             }
         }
     }
