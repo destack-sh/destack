@@ -44,6 +44,20 @@ let buffer: Buffer<string, 4> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
 
+### static value arguments require static expressions
+
+> Static value arguments must be static expressions.
+
+```ds
+type Buffer<T, N: number> = { value: T }
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, comptime 4> = makeBuffer();
+```
+
+- contains: static argument must be a static expression
+
 ### static value argument mismatch on type aliases
 
 > Static value arguments must satisfy declared types.
@@ -83,6 +97,20 @@ declare function makeBuffer(): Buffer<string>;
 let buffer: Buffer<string> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
+
+### default static value arguments require static expressions
+
+> Static value defaults must be static expressions.
+
+```ds
+type Buffer<T, N: number = comptime 4> = { value: T }
+
+declare function makeBuffer(): Buffer<string>;
+
+let buffer: Buffer<string> = makeBuffer();
+```
+
+- contains: static argument must be a static expression
 
 ## newtypes
 
@@ -125,6 +153,20 @@ declare function makeBuffer(): Buffer<string, 4>;
 let buffer: Buffer<string, 4> = makeBuffer();
 buffer satisfies Buffer<string, 4>;
 ```
+
+### static value arguments on newtypes require static expressions
+
+> Newtype static value arguments must be static expressions.
+
+```ds
+newtype Buffer<T, N: number> = { value: T }
+
+declare function makeBuffer(): Buffer<string, 4>;
+
+let buffer: Buffer<string, comptime 4> = makeBuffer();
+```
+
+- contains: static argument must be a static expression
 
 ### static value argument mismatch on newtypes
 

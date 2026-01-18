@@ -73,6 +73,22 @@ if let Point { x, y } = point {
 }
 ```
 
+### if let object patterns reject structs
+
+> Untagged object patterns do not match nominal structs.
+
+```ds
+struct Point { x: int32, y: int32 }
+declare const point: Point;
+
+if let { x, y } = point {
+    x satisfies int32;
+    y satisfies int32;
+}
+```
+
+- contains: not assignable
+
 ### if let tagged object patterns accept type aliases
 
 > Tagged object patterns allow type aliases as tags.

@@ -20,6 +20,8 @@ The last non-statement expression becomes the value.
 | `blocks/` | Block expressions, labeled blocks, `do { }` |
 | `if/` | If expressions and if let |
 | `patterns/` | Pattern syntax for destructuring |
+| `comptime/` | Comptime expressions and blocks |
+| `try/` | Try/catch/finally expressions |
 
 ## Coverage
 

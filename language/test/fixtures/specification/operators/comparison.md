@@ -31,6 +31,38 @@ const x = 1 === 1;
 x satisfies true;
 ```
 
+### strict equality rejects structs
+
+> Strict equality requires reference identity types.
+
+```ds
+struct Point {
+    x: int32
+}
+
+const left = Point { x: 1 };
+const right = Point { x: 1 };
+const value = left === right;
+```
+
+- contains: strict equality not supported
+
+### strict equality allows classes
+
+> Strict equality is allowed for identity types.
+
+```ds
+class User {
+    name: string = ""
+}
+
+const left = new User();
+const right = new User();
+const value = left === right;
+value satisfies boolean;
+```
+
+
 ## Inequality
 
 ### not equal

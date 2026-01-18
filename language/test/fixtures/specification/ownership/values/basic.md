@@ -27,3 +27,20 @@ let value: Point = ^Point { x: 1 };
 ```
 
 - contains: not assignable
+
+### owned fields are allowed in structs
+
+> Structs can store owned fields directly.
+
+```ds
+struct Data {
+    value: int32,
+}
+
+struct Container {
+    data: ^Data,
+}
+
+const container = Container { data: ^Data { value: 1 } };
+container.data satisfies ^Data;
+```

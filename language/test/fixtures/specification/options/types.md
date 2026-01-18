@@ -287,6 +287,78 @@ let value: Box = new Box();
 
 - contains: implicit managed types are disabled
 
+### noImplicitManaged reports implicit managed array types
+
+> Array types require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+let values: int32[] = [1, 2, 3];
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed types are disabled
+
+### noImplicitManaged reports implicit managed object types
+
+> Structural object types require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+let value: { x: int32 } = { x: 1 };
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed types are disabled
+
+### noImplicitManaged reports implicit managed function types
+
+> Function types require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+let fn: () => int32 = () => 1;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed types are disabled
+
+### noImplicitManaged reports implicit managed string types
+
+> String types require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+let value: string = "hello";
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed types are disabled
+
 ### noImplicitManaged reports inferred managed values
 
 > Inferred managed values require explicit ownership when noImplicitManaged is true.
@@ -297,6 +369,24 @@ class Box {
 }
 
 let value = new Box();
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noImplicitManaged": true } }
+```
+
+- contains: implicit managed values are disabled
+
+### noImplicitManaged reports inferred managed arrays
+
+> Inferred array values require explicit ownership when noImplicitManaged is true.
+
+```ds:main.ds
+let values = [1, 2, 3];
 ```
 
 ```ds:package.json
