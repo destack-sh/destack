@@ -1,4 +1,4 @@
-# Type Alias Generics
+# Static Arguments for Type Aliases and Newtypes
 
 Tests for static parameters on type aliases and newtypes.
 

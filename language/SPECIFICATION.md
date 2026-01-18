@@ -792,6 +792,13 @@ myFunction(2, 3);
 
 ### Static Parameterisation ("Generics")
 
+Static parameters come in two kinds: type parameters and value parameters.
+Type parameters accept type arguments.
+Value parameters accept static expressions and are constrained by value types.
+Value parameters should include a value constraint or a value default so their kind is unambiguous.
+Static arguments are resolved during Analyze, so they must be static expressions and cannot require full comptime execution.
+Static arguments may reference other static parameters.
+
 Static parameterisation for types works like in TypeScript.
 In Destack, static parameters also work for "compile-time" values and look more like dynamic parameters (though TypeScript syntax with `T extends U` is still supported).
 
@@ -805,10 +812,11 @@ function identity<T>(x: T): T {
 }
 ```
 
-Non-type parameters for "compile-time" constants:
+Value parameters for compile-time constants:
+
 ```
-function compute<Foo: boolean>(data: uint8[]) {
-    if Foo {
+function compute<Flag: boolean>(data: uint8[]) {
+    if Flag {
         ...
     }
 
@@ -816,6 +824,15 @@ function compute<Foo: boolean>(data: uint8[]) {
 }
 
 compute<true>(); // pass the static argument positionally
+```
+
+Value parameters can drive type construction:
+
+```
+type Buffer<N: number> = uint8[N];
+
+declare let value: Buffer<4>;
+value satisfies uint8[4];
 ```
 
 ### Where Clauses
@@ -1067,6 +1084,8 @@ Use static parameters when the value affects the return type; use `comptime` par
 
 Static parameters require **static expressions**. They cannot depend on full comptime execution,
 since static parameters are needed for instantiation and type resolution.
+Defaults on static parameters apply when arguments are omitted.
+Static arguments may reference other static parameters as long as the resulting expression remains static.
 
 ### Comptime Parameters
 
