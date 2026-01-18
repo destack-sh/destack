@@ -2,8 +2,9 @@ use std::collections::HashSet;
 
 use crate::{AnalyzeResult, Compiler};
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeId, LocalSymbolId, LocalTypeId, StaticKey, SymbolSpace,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeTable,
+    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, LocalTypeId, NodeTree,
+    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -213,6 +214,56 @@ impl Compiler {
             Type::Value { .. } => {}
             _ => extras.push(ty_id),
         }
+    }
+
+    /// Collect embedded fields and index signatures for an embed member.
+    pub(crate) fn embed_member_shape(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<ObjectShape> {
+        // resolve the embed target type
+        let embed_ty_id = self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            value,
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )?;
+
+        // prefer instance types for nominal references
+        let embed_ty_id = match types.get_type(embed_ty_id) {
+            Type::Reference { symbol, .. } => {
+                types.get_instance_type_id(*symbol).unwrap_or(embed_ty_id)
+            }
+            Type::Value { value } => *value,
+            _ => embed_ty_id,
+        };
+
+        // collect field-like members from the embedded type
+        let mut embed_shape = ObjectShape::default();
+        let mut extras = Vec::new();
+        let mut visited = Vec::new();
+        self.collect_value_shape_from_type(
+            embed_ty_id,
+            types,
+            &mut embed_shape,
+            &mut extras,
+            &mut visited,
+        );
+
+        // embedding only contributes fields and index signatures
+        embed_shape.call_signatures.clear();
+        embed_shape.construct_signatures.clear();
+
+        Ok(embed_shape)
     }
 
     /// Merge value shape into a symbol value type.

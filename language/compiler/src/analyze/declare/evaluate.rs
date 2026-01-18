@@ -233,14 +233,17 @@ impl Compiler {
         // evaluate each static argument into a literal or type
         for argument_id in static_arguments {
             let argument = tree.get(*argument_id);
-
-            // capture the name for named arguments
             let name = match argument {
                 Argument::Named { name, .. } => Some(*name),
                 _ => None,
             };
-
             let expression_id = argument.value();
+
+            // keep comptime expressions unevaluated for static argument resolution
+            if matches!(tree.get(expression_id), Expression::Comptime { .. }) {
+                evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
+                continue;
+            }
 
             // evaluate static values directly when possible
             if let Some(value) = self.evaluate_static_expression_value_for_type(

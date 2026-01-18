@@ -83,6 +83,13 @@ pub enum AnalyzeError {
     #[error(code = "EA107", message = "implicit this type")]
     ImplicitThis { node: AnchoredGlobalNodeId },
 
+    /// Static value arguments must be static expressions.
+    #[error(
+        code = "EA108",
+        message = "static argument must be a static expression"
+    )]
+    NonStaticArgument { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

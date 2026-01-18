@@ -2894,6 +2894,25 @@ impl Compiler {
                 )?;
             }
             Pattern::Object { fields } => {
+                // reject bare object patterns against struct values (#Architecture should we?)
+                if let Some(binding_ty_id) = binding_ty_id
+                    && self.is_definitely_struct_type(types.get_type(binding_ty_id))
+                {
+                    let object_ty_id = types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Object,
+                        },
+                        pattern_id.into_any(),
+                    );
+                    self.error(AnalyzeError::UnassignableType {
+                        node: pattern_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        expected_ty: binding_ty_id.into_global(module.id),
+                        actual_ty: object_ty_id.into_global(module.id),
+                    });
+                }
+
                 for field_id in fields {
                     self.infer_pattern_field(
                         module,
