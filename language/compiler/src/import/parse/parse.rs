@@ -44,6 +44,20 @@ impl Compiler {
             return Ok(());
         }
 
+        // stop when the file is known missing
+        let file = self.program.files.get(file_id);
+        if file.is_missing() {
+            let target = path
+                .as_ref()
+                .map(|path| path.to_string_lossy())
+                .unwrap_or_else(|| uri.as_ref().into());
+            let target = self.program.strings.intern(target.as_ref());
+            return Err(ImportError::ModuleNotFound {
+                target,
+                error: None,
+            });
+        }
+
         // dispatch to appropriate loader
         match loader {
             Loader::Destack | Loader::TypeScript | Loader::JavaScript => self

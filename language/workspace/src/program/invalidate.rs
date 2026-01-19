@@ -15,6 +15,8 @@ pub enum FileUpdate {
     Bytes { content: Vec<u8> },
     /// Bump the file version without changing content.
     Touch,
+    /// Mark file content as missing.
+    Removed,
 }
 
 /// Classification of invalidation work derived from a file change.
@@ -243,6 +245,8 @@ impl Program {
                 }
             }
             FileUpdate::Touch => file.as_ref().clone().with_version(next_version),
+            FileUpdate::Removed => File::missing(file_id, file_name, file_uri, file_path, file_ty)
+                .with_version(next_version),
         };
 
         // write the updated file back to the registry
@@ -555,8 +559,8 @@ mod tests {
     use indexmap::IndexMap;
 
     use destack_source::{
-        File, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId, PackageId,
-        PackageVersion, Uri,
+        File, FileContent, FileRegistry, FileType, LanguageType, MemoryFileSystem, ModuleId,
+        PackageId, PackageVersion, Uri,
     };
 
     use crate::{
@@ -601,6 +605,38 @@ mod tests {
         let stored = program.files.get(file_id);
         assert_eq!(stored.version, initial_version);
         assert_eq!(stored.text(), "export const value = 1;");
+    }
+
+    /// Mark removed files as missing in the registry.
+    #[test]
+    fn test_invalidate_file_marks_missing() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let files = Arc::new(FileRegistry::new());
+        let program = Program::from_fs(PathBuf::from("/workspace"), fs, files.clone());
+
+        let file_id = files.next_id();
+        let path = PathBuf::from("/workspace/src/main.ts");
+        let (name, uri) = Uri::from_path_with_name(&path);
+        let file = File::from_text(
+            file_id,
+            name,
+            uri,
+            Some(path),
+            FileType::TypeScript,
+            "export const value = 1;".to_string(),
+        );
+        let initial_version = file.version;
+        files.insert(file);
+
+        program
+            .invalidate_file(file_id, FileUpdate::Removed)
+            .expect("failed to remove file");
+
+        // assertion block
+        let stored = program.files.get(file_id);
+        assert!(stored.is_missing());
+        assert_eq!(stored.version, initial_version.next());
+        assert!(matches!(stored.content, FileContent::Missing));
     }
 
     /// Clear profile scoped data for every module that shares the invalidated profile.

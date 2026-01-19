@@ -137,7 +137,9 @@ impl Compiler {
         let content = match &file.content {
             FileContent::Text { content } => content.as_str(),
             FileContent::Json { content, .. } => content.as_str(),
-            FileContent::Binary { .. } | FileContent::Unloaded => return None,
+            FileContent::Binary { .. } | FileContent::Missing | FileContent::Unloaded => {
+                return None;
+            }
         };
         let slice = content.get(span.start as usize..span.end as usize)?;
         let trimmed = slice.trim();

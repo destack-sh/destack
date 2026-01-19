@@ -149,6 +149,11 @@ impl Session {
         program
     }
 
+    /// Remove a root from the session.
+    pub fn remove_root(&self, root: &Path) -> Option<Arc<Program>> {
+        self.programs.remove(root).map(|(_, program)| program)
+    }
+
     /// Get a program by root path.
     pub fn get_program(&self, root: &Path) -> Option<Arc<Program>> {
         self.programs.get(root).map(|p| p.clone())
@@ -186,5 +191,44 @@ impl Session {
             .map(|path| self.find_program_for_path(path))
             .unwrap_or_else(|| self.get_or_create_program(self.cwd.clone()));
         program.default_profile_id_for_module(module_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use std::sync::Arc;
+
+    use destack_source::MemoryFileSystem;
+
+    use super::Session;
+
+    /// Removes roots from the session program map.
+    #[test]
+    fn test_session_remove_root() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let root = PathBuf::from("/workspace");
+        let session = Session::new(root.clone()).with_fs(fs);
+
+        let program = session.add_root(root.clone());
+        let removed = session.remove_root(&root);
+
+        // assertion block
+        assert!(removed.is_some());
+        assert!(Arc::ptr_eq(&removed.unwrap(), &program));
+        assert!(session.get_program(&root).is_none());
+    }
+
+    /// Returns None when removing an unknown root.
+    #[test]
+    fn test_session_remove_root_missing() {
+        let fs = Arc::new(MemoryFileSystem::new());
+        let root = PathBuf::from("/workspace");
+        let session = Session::new(root).with_fs(fs);
+
+        let missing = session.remove_root(PathBuf::from("/missing").as_path());
+
+        // assertion block
+        assert!(missing.is_none());
     }
 }
