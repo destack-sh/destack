@@ -225,7 +225,7 @@ impl SignatureType {
             mir::Type::Isize => SignatureType::Isize,
             mir::Type::Usize => SignatureType::Usize,
             mir::Type::Float { width } => SignatureType::Float { width: *width },
-            mir::Type::TypeTag => SignatureType::TypeTag,
+            mir::Type::Type => SignatureType::TypeTag,
             mir::Type::Reference {
                 kind,
                 address_space,

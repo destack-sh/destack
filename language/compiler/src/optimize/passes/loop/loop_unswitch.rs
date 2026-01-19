@@ -684,6 +684,22 @@ fn remap_check_constraint(
             right: remap(right),
             is_signed,
         },
+        mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
+            value: remap(value),
+            expected,
+        },
+        mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
+            value: remap(value),
+            expected,
+        },
+        mir::CheckConstraint::Vtable { receiver, expected } => mir::CheckConstraint::Vtable {
+            receiver: remap(receiver),
+            expected,
+        },
+        mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
+            receiver: remap(receiver),
+            expected,
+        },
     }
 }
 

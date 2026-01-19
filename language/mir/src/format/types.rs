@@ -46,7 +46,7 @@ fn format_type_inner<'a>(
         Type::Float { width } => {
             write!(f, [text(&format!("f{width}"))])
         }
-        Type::TypeTag => write!(f, [token("type_tag")]),
+        Type::Type => write!(f, [token("type")]),
         Type::Reference {
             kind,
             address_space,

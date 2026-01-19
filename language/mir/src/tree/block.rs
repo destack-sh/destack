@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Function, Instruction, LocalNodeId, Node, NodeType, Type, TypedValue, Value,
+    BinaryOperator, DispatchTableId, Function, Instruction, LocalNodeId, Node, NodeType, Type,
+    TypedValue, Value,
 };
 
 /// A basic block is a sequence of instructions with:
@@ -112,6 +113,34 @@ pub enum CheckConstraint {
         /// Whether the overflow check is signed.
         is_signed: bool,
     },
+    /// Type tag check for a runtime value.
+    Type {
+        /// The tag value being checked.
+        value: Value,
+        /// The expected type for this tag.
+        expected: LocalNodeId<Type>,
+    },
+    /// Union tag check for a discriminated union value.
+    Union {
+        /// The tag value being checked.
+        value: Value,
+        /// The expected tag index.
+        expected: u64,
+    },
+    /// Vtable identity check for a class receiver.
+    Vtable {
+        /// The receiver being checked.
+        receiver: Value,
+        /// The expected class type.
+        expected: LocalNodeId<Type>,
+    },
+    /// Itab identity check for an interface receiver.
+    Itab {
+        /// The receiver being checked.
+        receiver: Value,
+        /// The expected itab id.
+        expected: DispatchTableId,
+    },
 }
 
 impl CheckConstraint {
@@ -130,6 +159,10 @@ impl CheckConstraint {
             CheckConstraint::ShiftRange { value, .. } => smallvec![*value],
             CheckConstraint::Narrow { value, .. } => smallvec![*value],
             CheckConstraint::Overflow { left, right, .. } => smallvec![*left, *right],
+            CheckConstraint::Type { value, .. } => smallvec![*value],
+            CheckConstraint::Union { value, .. } => smallvec![*value],
+            CheckConstraint::Vtable { receiver, .. } => smallvec![*receiver],
+            CheckConstraint::Itab { receiver, .. } => smallvec![*receiver],
         }
     }
 }

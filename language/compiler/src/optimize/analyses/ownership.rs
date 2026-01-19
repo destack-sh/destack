@@ -232,7 +232,7 @@ impl TypeLookup {
                         lookup.usize = Some(type_id);
                     }
                 }
-                Type::TypeTag => {
+                Type::Type => {
                     if lookup.type_tag.is_none() {
                         lookup.type_tag = Some(type_id);
                     }
@@ -416,7 +416,7 @@ impl OwnershipAnalysis {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::TypeTag => true,
+            | Type::Type => true,
             // function pointers are copy
             Type::FunctionPointer { .. } => true,
             // raw and borrowed references are copy
@@ -1563,7 +1563,7 @@ fn value_is_copy(
                 | Type::Isize
                 | Type::Usize
                 | Type::Float { .. }
-                | Type::TypeTag => true,
+                | Type::Type => true,
                 Type::FunctionPointer { .. } => true,
                 Type::Reference {
                     kind: ReferenceKind::Raw | ReferenceKind::Borrowed,

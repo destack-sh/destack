@@ -124,7 +124,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             let success_index = f.context().block_index(success.target);
             let failure_index = f.context().block_index(failure.target);
             write!(f, [token("check"), space(), condition, token(","), space()])?;
-            format_check_kind(constraint, f)?;
+            format_check_constraint(constraint, f)?;
             write!(
                 f,
                 [token(","), space(), text(&format!("block{success_index}"))]
@@ -295,10 +295,13 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
     }
 }
 
-/// Format a check kind and its operands.
-fn format_check_kind<'a>(kind: &CheckConstraint, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+/// Format a check constraint.
+fn format_check_constraint<'a>(
+    constraint: &CheckConstraint,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
     // write the check kind header
-    match kind {
+    match constraint {
         CheckConstraint::Bounds {
             index,
             length,
@@ -390,6 +393,50 @@ fn format_check_kind<'a>(kind: &CheckConstraint, f: &mut MirFormatter<'a, '_>) -
             let name = format!("{prefix}.{op_name}");
             write!(f, [text(&name), space(), left, token(","), space(), right])
         }
+        CheckConstraint::Type { value, expected } => write!(
+            f,
+            [
+                token("type"),
+                space(),
+                value,
+                token(","),
+                space(),
+                expected
+            ]
+        ),
+        CheckConstraint::Union { value, expected } => write!(
+            f,
+            [
+                token("union"),
+                space(),
+                value,
+                token(","),
+                space(),
+                text(&expected.to_string())
+            ]
+        ),
+        CheckConstraint::Vtable { receiver, expected } => write!(
+            f,
+            [
+                token("vtable"),
+                space(),
+                receiver,
+                token(","),
+                space(),
+                expected
+            ]
+        ),
+        CheckConstraint::Itab { receiver, expected } => write!(
+            f,
+            [
+                token("itab"),
+                space(),
+                receiver,
+                token(","),
+                space(),
+                text(&expected.index().to_string())
+            ]
+        ),
     }
 }
 
