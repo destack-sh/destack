@@ -282,6 +282,19 @@ impl InferContext {
         false
     }
 
+    /// Merge try error types from a forked context.
+    pub fn merge_try_errors_from(&mut self, other: &InferContext) {
+        if self.try_stack.len() != other.try_stack.len() {
+            return;
+        }
+
+        for (frame, other_frame) in self.try_stack.iter_mut().zip(other.try_stack.iter()) {
+            frame
+                .error_types
+                .extend_from_slice(&other_frame.error_types);
+        }
+    }
+
     /// Check if we can break (in loop or switch).
     pub fn can_break(&self) -> bool {
         !self.break_stack.is_empty()

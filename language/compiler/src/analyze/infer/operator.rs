@@ -1,18 +1,20 @@
-use super::member::MemberResolution;
+use super::call::ResolvedMemberFunction;
+use super::member::{MemberLookupMode, MemberResolution};
 use super::{
     index_key_kind_for_index, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
 use crate::{
-    AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext,
-    OperatorLanguageSymbolExt,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, Compiler,
+    InferContext, OperatorLanguageSymbolExt,
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
     BinaryOperator, Constraint, DynamicKey, Expression, InferTable, LocalInstanceId, LocalNodeId,
-    LocalTypeId, NodeTree, PrimitiveType, ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type,
-    TypeField, TypeLiteral, TypeTable, UnaryOperator,
+    LocalNodeIdAny, LocalTypeId, NodeTree, NormalizationMode, PrimitiveType, ResolvedSignature,
+    ScalarLiteral, StaticKey, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
+use std::collections::HashMap;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -65,7 +67,14 @@ impl Compiler {
         };
 
         // require explicit operator interface implementation
-        if !self.is_interface_implemented(&right_ty, operator_item, types) {
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &right_ty,
+            operator_item,
+            symbols,
+            types,
+        ) {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -288,7 +297,14 @@ impl Compiler {
         };
 
         // require explicit operator interface implementation
-        if !self.is_interface_implemented(&left_ty, operator_item, types) {
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &left_ty,
+            operator_item,
+            symbols,
+            types,
+        ) {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -524,7 +540,7 @@ impl Compiler {
         _right_id: LocalNodeId<Expression>,
         left_ty_id: LocalTypeId,
         right_ty_id: LocalTypeId,
-        left_ty: &Type,
+        _left_ty: &Type,
         _right_ty: &Type,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -532,14 +548,61 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
-        // use Try semantics when the receiver implements Try
-        if self.is_interface_implemented(left_ty, LanguageSymbol::Try, types) {
+        // strip nullish before Try evaluation
+        let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
+        let Some(non_nullish_ty_id) = non_nullish_ty_id else {
+            self.record_builtin_resolution(
+                expression_id.into_global_any(module.id),
+                Some(left_ty_id),
+                types,
+            );
+            return Ok(right_ty_id);
+        };
+
+        // split Try and non-Try elements
+        let (try_elements, non_try_elements) =
+            self.split_try_elements(module, ctx.profile, non_nullish_ty_id, symbols, types);
+
+        // no Try elements means nullish-only behavior
+        if try_elements.is_empty() {
+            let result_ty_id = if has_nullish {
+                self.union_type(non_nullish_ty_id, right_ty_id, types)
+            } else {
+                left_ty_id
+            };
+
+            self.record_builtin_resolution(
+                expression_id.into_global_any(module.id),
+                Some(left_ty_id),
+                types,
+            );
+
+            return Ok(result_ty_id);
+        }
+
+        // collect Try success types for ??: remove nullish after unwrap
+        let value_types = self.try_coalesce_success_types(
+            module,
+            expression_id,
+            left_id,
+            &try_elements,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+            infer,
+            ctx,
+        )?;
+
+        // record Try branch resolution when the receiver is Try-only
+        if non_try_elements.is_empty() {
+            let non_nullish_ty = types.get_type(non_nullish_ty_id).clone();
             let branch = self.resolve_try_branch_member(
                 module,
                 expression_id,
                 left_id,
-                left_ty_id,
-                left_ty,
+                non_nullish_ty_id,
+                &non_nullish_ty,
                 ctx.profile,
                 &ctx.options,
                 tree,
@@ -548,47 +611,64 @@ impl Compiler {
                 infer,
             )?;
 
-            if !branch.has_member {
+            if !branch.resolved.has_member {
                 self.error(AnalyzeError::NoOverload {
                     node: expression_id
                         .into_global_any(module.id)
                         .into_anchored(Some(ctx.profile)),
-                    receiver_ty: left_ty_id.into_global(module.id),
+                    receiver_ty: non_nullish_ty_id.into_global(module.id),
                 });
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                return Ok(types.insert_type_from(ty, expression_id));
+            } else {
+                let payloads = self.resolve_try_branch_payloads(
+                    module,
+                    expression_id,
+                    left_id.into_any(),
+                    &non_nullish_ty,
+                    &branch.resolved,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                    types,
+                    &ctx.options,
+                )?;
+
+                if payloads.is_none() {
+                    self.error(AnalyzeError::InvalidTryBranch {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                } else {
+                    self.record_try_branch_resolution(
+                        module,
+                        expression_id,
+                        non_nullish_ty_id,
+                        &branch,
+                        types,
+                    );
+                }
             }
-
-            let Some(value_ty_id) = branch.value_type_id else {
-                self.error(AnalyzeError::MissingType {
-                    node: expression_id
-                        .into_global_any(module.id)
-                        .into_anchored(Some(ctx.profile)),
-                });
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
-                };
-                return Ok(types.insert_type_from(ty, expression_id));
-            };
-
-            self.record_try_branch_resolution(module, expression_id, left_ty_id, &branch, types);
-
-            let union_ty_id = self.union_type(value_ty_id, right_ty_id, types);
-            return Ok(union_ty_id);
         }
 
-        // use nullish semantics for unions with null or undefined
-        let (non_nullish_ty_id, has_nullish) = self.strip_nullish_from_union(left_ty_id, types);
-        let result_ty_id = if has_nullish {
-            if let Some(non_nullish_ty_id) = non_nullish_ty_id {
-                self.union_type(non_nullish_ty_id, right_ty_id, types)
-            } else {
-                right_ty_id
+        let mut result_types = Vec::new();
+
+        if !value_types.is_empty() {
+            let source_type_id = value_types[0];
+            let unioned = self.union_type_from_list(value_types, source_type_id, types);
+            result_types.push(unioned);
+        }
+
+        result_types.extend(non_try_elements);
+
+        result_types.push(right_ty_id);
+
+        let result_ty_id = match result_types.len() {
+            0 => right_ty_id,
+            1 => result_types[0],
+            _ => {
+                let source_type_id = result_types[0];
+                self.union_type_from_list(result_types, source_type_id, types)
             }
-        } else {
-            left_ty_id
         };
 
         self.record_builtin_resolution(
@@ -696,7 +776,14 @@ impl Compiler {
         }
 
         // guard non indexable receivers
-        if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::Index, types) {
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &receiver_ty,
+            LanguageSymbol::Index,
+            symbols,
+            types,
+        ) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
                     .into_global_any(module.id)
@@ -950,7 +1037,14 @@ impl Compiler {
         }
 
         // guard non indexable receivers
-        if !self.is_interface_implemented(&receiver_ty, LanguageSymbol::IndexSet, types) {
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &receiver_ty,
+            LanguageSymbol::IndexSet,
+            symbols,
+            types,
+        ) {
             self.error(AnalyzeError::NonIndexable {
                 node: expression_id
                     .into_global_any(module.id)
@@ -1109,11 +1203,140 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
+        // infer the receiver type
         let left_ty_id =
             self.infer_expression(module, left_id, tree, symbols, types, infer, ctx)?;
         let left_ty = types.get_type(left_ty_id).clone();
 
-        if !self.is_interface_implemented(&left_ty, LanguageSymbol::Try, types) {
+        // handle Try unions by aggregating payload types
+        if let Type::Union { elements } = &left_ty {
+            let mut value_types = Vec::new();
+            let mut error_types = Vec::new();
+
+            // validate each Try union element and collect payload types
+            for element_id in elements {
+                // require Try on each union element
+                let element_ty = types.get_type(*element_id).clone();
+                let implements_try = self.is_interface_implemented(
+                    module,
+                    ctx.profile,
+                    &element_ty,
+                    LanguageSymbol::Try,
+                    symbols,
+                    types,
+                );
+                if !implements_try {
+                    self.error(AnalyzeError::NoOverload {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        receiver_ty: left_ty_id.into_global(module.id),
+                    });
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                }
+
+                // resolve the branch member for the receiver
+                let branch = self.resolve_try_branch_member(
+                    module,
+                    expression_id,
+                    left_id,
+                    *element_id,
+                    &element_ty,
+                    ctx.profile,
+                    &ctx.options,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                )?;
+                if !branch.resolved.has_member {
+                    self.error(AnalyzeError::NoOverload {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        receiver_ty: element_id.into_global(module.id),
+                    });
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                }
+
+                // resolve payload types for the receiver and branch
+                let payloads = self.resolve_try_branch_payloads(
+                    module,
+                    expression_id,
+                    left_id.into_any(),
+                    &element_ty,
+                    &branch.resolved,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                    types,
+                    &ctx.options,
+                )?;
+                let Some((value_ty_id, error_ty_id)) = payloads else {
+                    self.error(AnalyzeError::InvalidTryBranch {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                    });
+                    let ty = Type::Error;
+                    return Ok(types.insert_type_from(ty, expression_id));
+                };
+
+                value_types.push(value_ty_id);
+                error_types.push(error_ty_id);
+            }
+
+            // build union types for the merged branch payloads
+            let fallback_type = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            let value_source = value_types
+                .first()
+                .copied()
+                .unwrap_or_else(|| types.insert_type_from(fallback_type.clone(), expression_id));
+            let error_source = error_types
+                .first()
+                .copied()
+                .unwrap_or_else(|| types.insert_type_from(fallback_type, expression_id));
+            let value_ty_id = self.union_type_from_list(value_types, value_source, types);
+            let error_ty_id = self.union_type_from_list(error_types, error_source, types);
+
+            // register the error types for any enclosing catch
+            let is_caught = ctx.record_try_error(error_ty_id);
+            if !is_caught {
+                self.ensure_try_from_error(
+                    module,
+                    expression_id,
+                    left_ty_id,
+                    &left_ty,
+                    ctx.profile,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+            }
+
+            // warn about non Error try error types
+            self.warn_try_error_type(module, expression_id, error_ty_id, symbols, types, ctx);
+
+            return Ok(value_ty_id);
+        }
+
+        // require a Try implementation for non union receivers
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &left_ty,
+            LanguageSymbol::Try,
+            symbols,
+            types,
+        ) {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -1126,6 +1349,7 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
+        // resolve the branch member on the receiver
         let branch = self.resolve_try_branch_member(
             module,
             expression_id,
@@ -1140,7 +1364,8 @@ impl Compiler {
             infer,
         )?;
 
-        if !branch.has_member {
+        // reject missing branch members
+        if !branch.resolved.has_member {
             self.error(AnalyzeError::NoOverload {
                 node: expression_id
                     .into_global_any(module.id)
@@ -1153,21 +1378,414 @@ impl Compiler {
             return Ok(types.insert_type_from(ty, expression_id));
         }
 
-        let Some(value_ty_id) = branch.value_type_id else {
-            self.error(AnalyzeError::MissingType {
+        // resolve payload types for the receiver and branch
+        let payloads = self.resolve_try_branch_payloads(
+            module,
+            expression_id,
+            left_id.into_any(),
+            &left_ty,
+            &branch.resolved,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+            &ctx.options,
+        )?;
+        let Some((value_ty_id, error_ty_id)) = payloads else {
+            self.error(AnalyzeError::InvalidTryBranch {
                 node: expression_id
                     .into_global_any(module.id)
                     .into_anchored(Some(ctx.profile)),
             });
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            };
+            let ty = Type::Error;
             return Ok(types.insert_type_from(ty, expression_id));
         };
 
+        // register errors for the nearest catch, if present
+        let is_caught = ctx.record_try_error(error_ty_id);
+
+        // enforce Try return compatibility and fromError when not handled by catch
+        if !is_caught {
+            self.ensure_try_from_error(
+                module,
+                expression_id,
+                left_ty_id,
+                &left_ty,
+                ctx.profile,
+                tree,
+                symbols,
+                types,
+            )?;
+            self.ensure_try_return_type_compatibility(
+                module,
+                expression_id,
+                error_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            );
+        }
+
+        // warn when Try error types are non Error
+        self.warn_try_error_type(module, expression_id, error_ty_id, symbols, types, ctx);
+
+        // record the branch resolution for later phases
         self.record_try_branch_resolution(module, expression_id, left_ty_id, &branch, types);
 
         Ok(value_ty_id)
+    }
+
+    /// Resolve Try payload types from receiver static arguments.
+    fn try_payload_types_from_receiver(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        receiver_id: LocalNodeIdAny,
+        receiver_ty: &Type,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
+        // resolve static arguments for the receiver reference
+        let inherited = self.resolve_inherited_static_arguments(
+            module,
+            profile,
+            receiver_id,
+            receiver_ty,
+            options,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // require at least two static arguments for Try payloads
+        let Some(value_argument) = inherited.arguments.first() else {
+            return Ok(None);
+        };
+        let Some(error_argument) = inherited.arguments.get(1) else {
+            return Ok(None);
+        };
+
+        // convert the static arguments into payload types
+        let value_ty_id = self.convert_static_argument_type(value_argument, receiver_id, types);
+        let error_ty_id = self.convert_static_argument_type(error_argument, receiver_id, types);
+
+        Ok(Some((value_ty_id, error_ty_id)))
+    }
+
+    /// Resolve Try payload types from the branch return shape.
+    fn try_payload_types_from_branch_return(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        return_ty_id: LocalTypeId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
+        // evaluate unevaluated return types before inspecting
+        if matches!(types.get_type(return_ty_id), Type::Unevaluated(_)) {
+            self.evaluate_type(module, profile, return_ty_id, tree, symbols, types)?;
+        }
+
+        // skip when the branch type already errored
+        if matches!(types.get_type(return_ty_id), Type::Error) {
+            return Ok(None);
+        }
+
+        // ensure alias instance types are available for normalization
+        self.ensure_reference_instance_types_for_type(
+            module,
+            profile,
+            expression_id.into_any(),
+            return_ty_id,
+            types,
+        )?;
+
+        // normalize alias references for structural inspection
+        let normalized_id = self.normalize_type(
+            module,
+            profile,
+            return_ty_id,
+            symbols,
+            types,
+            NormalizationMode::Assign,
+        );
+        let normalized = types.get_type(normalized_id).clone();
+
+        // resolve type alias references into their structural targets
+        let elements = match normalized {
+            Type::Union { elements } => elements,
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                let try_branch_symbol = self.language_symbol(LanguageSymbol::TryBranch);
+                if symbol == try_branch_symbol {
+                    let arguments = static_arguments.as_deref().unwrap_or(&[]);
+                    let Some(value_argument) = arguments.first() else {
+                        return Ok(None);
+                    };
+                    let Some(error_argument) = arguments.get(1) else {
+                        return Ok(None);
+                    };
+
+                    let value_ty_id = self.convert_static_argument_type(
+                        value_argument,
+                        expression_id.into_any(),
+                        types,
+                    );
+                    let error_ty_id = self.convert_static_argument_type(
+                        error_argument,
+                        expression_id.into_any(),
+                        types,
+                    );
+                    return Ok(Some((value_ty_id, error_ty_id)));
+                }
+
+                if symbol.ty() != SymbolType::TypeAlias {
+                    return Ok(None);
+                }
+
+                let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
+                    return Ok(None);
+                };
+
+                let options = self.analyze_context_options_for_module(module.id);
+                let resolved_arguments = self.resolve_type_reference_static_arguments(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    symbol,
+                    static_arguments.as_deref(),
+                    true,
+                    &options,
+                    tree,
+                    symbols,
+                    types,
+                )?;
+                let arguments = resolved_arguments
+                    .as_deref()
+                    .or(static_arguments.as_deref())
+                    .unwrap_or(&[]);
+
+                let alias_ty_id = if arguments.is_empty() {
+                    alias_target_id
+                } else {
+                    let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                        module,
+                        profile,
+                        symbol,
+                        expression_id.into_any(),
+                        arguments,
+                        tree,
+                        symbols,
+                        types,
+                    );
+                    if substitutions.is_empty() {
+                        alias_target_id
+                    } else {
+                        let mut cache = HashMap::new();
+                        self.substitute_static_parameters(
+                            alias_target_id,
+                            &substitutions,
+                            types,
+                            &mut cache,
+                        )
+                    }
+                };
+
+                if matches!(types.get_type(alias_ty_id), Type::Unevaluated(_)) {
+                    self.evaluate_type(module, profile, alias_ty_id, tree, symbols, types)?;
+                }
+
+                let alias_type = types.get_type(alias_ty_id).clone();
+                let Type::Union { elements } = alias_type else {
+                    return Ok(None);
+                };
+                elements
+            }
+            _ => return Ok(None),
+        };
+
+        // prepare static keys for branch inspection
+        let kind_key = StaticKey::Name(self.program.strings.intern("kind"));
+        let value_key = StaticKey::Name(self.program.strings.intern("value"));
+        let error_key = StaticKey::Name(self.program.strings.intern("error"));
+        let ok_id = self.program.strings.intern("ok");
+        let err_id = self.program.strings.intern("err");
+
+        let mut ok_types = Vec::new();
+        let mut err_types = Vec::new();
+
+        for element_id in elements {
+            let Type::Object { fields, .. } = types.get_type(element_id) else {
+                return Ok(None);
+            };
+
+            let Some(kind_field) = fields.iter().find(|field| field.key == kind_key) else {
+                return Ok(None);
+            };
+            if kind_field.is_optional {
+                return Ok(None);
+            }
+
+            let kind_literal = match types.get_type(kind_field.ty) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(value)),
+                } => *value,
+                _ => return Ok(None),
+            };
+
+            if kind_literal == ok_id {
+                let Some(value_field) = fields.iter().find(|field| field.key == value_key) else {
+                    return Ok(None);
+                };
+                if value_field.is_optional {
+                    return Ok(None);
+                }
+                ok_types.push(value_field.ty);
+                continue;
+            }
+
+            if kind_literal == err_id {
+                let Some(error_field) = fields.iter().find(|field| field.key == error_key) else {
+                    return Ok(None);
+                };
+                if error_field.is_optional {
+                    return Ok(None);
+                }
+                err_types.push(error_field.ty);
+                continue;
+            }
+
+            return Ok(None);
+        }
+
+        if ok_types.is_empty() || err_types.is_empty() {
+            return Ok(None);
+        }
+
+        let value_source = ok_types[0];
+        let error_source = err_types[0];
+        let value_ty_id = self.union_type_from_list(ok_types, value_source, types);
+        let error_ty_id = self.union_type_from_list(err_types, error_source, types);
+
+        Ok(Some((value_ty_id, error_ty_id)))
+    }
+
+    /// Resolve Try payloads while validating branch compatibility.
+    fn resolve_try_branch_payloads(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_id: LocalNodeIdAny,
+        receiver_ty: &Type,
+        branch: &ResolvedMemberFunction,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
+        // resolve payloads from receiver static arguments when available
+        let receiver_payloads = self.try_payload_types_from_receiver(
+            module,
+            profile,
+            receiver_id,
+            receiver_ty,
+            options,
+            tree,
+            symbols,
+            types,
+        )?;
+
+        // resolve payloads from the branch return shape
+        let branch_payloads = if let Some(return_ty_id) = branch.signature.return_type {
+            self.try_payload_types_from_branch_return(
+                module,
+                expression_id,
+                return_ty_id,
+                profile,
+                tree,
+                symbols,
+                types,
+            )?
+        } else {
+            None
+        };
+
+        // prefer receiver payloads when they are concrete
+        let mut payloads = receiver_payloads;
+        if let Some(receiver_payloads) = receiver_payloads
+            && self.payloads_need_branch(receiver_payloads, types)
+        {
+            payloads = branch_payloads;
+        } else if payloads.is_none() {
+            payloads = branch_payloads;
+        }
+
+        let Some((value_ty_id, error_ty_id)) = payloads else {
+            return Ok(None);
+        };
+
+        // validate branch return types when the receiver payloads are authoritative
+        if let Some(receiver_payloads) = receiver_payloads
+            && !self.payloads_need_branch(receiver_payloads, types)
+        {
+            let is_valid = self.validate_try_branch_return_type(
+                module,
+                expression_id,
+                branch,
+                receiver_payloads.0,
+                receiver_payloads.1,
+                profile,
+                tree,
+                symbols,
+                types,
+                options,
+            )?;
+            if !is_valid {
+                return Ok(None);
+            }
+        }
+
+        Ok(Some((value_ty_id, error_ty_id)))
+    }
+
+    /// Decide whether receiver payloads should be replaced by branch payloads.
+    fn payloads_need_branch(
+        &self,
+        payloads: (LocalTypeId, LocalTypeId),
+        types: &TypeTable,
+    ) -> bool {
+        // prefer branch payloads when receiver payloads are unknown
+        [payloads.0, payloads.1].iter().any(|ty_id| {
+            matches!(
+                types.get_type(*ty_id),
+                Type::InferVar { .. }
+                    | Type::TypeLiteral {
+                        value: TypeLiteral::Unknown | TypeLiteral::Any
+                    }
+                    | Type::Error
+            )
+        })
+    }
+
+    /// Decide whether a Try payload type should be validated for assignability.
+    fn should_check_try_payload(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+        !matches!(
+            types.get_type(ty_id),
+            Type::InferVar { .. }
+                | Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any
+                }
+                | Type::Error
+        )
     }
 
     /// Resolve the Try branch member for a receiver type.
@@ -1184,7 +1802,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: &mut InferTable,
-    ) -> AnalyzeResult<TryBranchResolution> {
+    ) -> AnalyzeResult<TryBranchMember> {
         // resolve the branch member function
         let member_key = self.try_branch_member_key();
         let Some(resolved) = self.resolve_member_function(
@@ -1206,21 +1824,27 @@ impl Compiler {
                     .into_global_any(module.id)
                     .into_anchored(Some(profile)),
             });
-            return Ok(TryBranchResolution {
-                value_type_id: None,
-                member_resolution: MemberResolution::None,
+            return Ok(TryBranchMember {
+                resolved: ResolvedMemberFunction {
+                    signature: ResolvedSignature {
+                        dynamic_parameters: Vec::new(),
+                        return_type: None,
+                        static_arguments: Vec::new(),
+                    },
+                    member_resolution: MemberResolution::None,
+                    member_symbol: None,
+                    instance_arguments: Vec::new(),
+                    has_member: false,
+                },
                 member_instance_id: None,
-                has_member: false,
             });
         };
 
         // handle missing member
         if !resolved.has_member {
-            return Ok(TryBranchResolution {
-                value_type_id: None,
-                member_resolution: resolved.member_resolution,
+            return Ok(TryBranchMember {
+                resolved,
                 member_instance_id: None,
-                has_member: false,
             });
         }
 
@@ -1250,18 +1874,86 @@ impl Compiler {
             }
         }
 
-        // extract the value type from the return type
-        let value_type_id = resolved
-            .signature
-            .return_type
-            .and_then(|return_type_id| self.try_extract_branch_value_type(return_type_id, types));
-
-        Ok(TryBranchResolution {
-            value_type_id,
-            member_resolution: resolved.member_resolution,
+        Ok(TryBranchMember {
+            resolved,
             member_instance_id,
-            has_member: true,
         })
+    }
+
+    /// Validate the Try branch return type against receiver payloads.
+    fn validate_try_branch_return_type(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        branch: &ResolvedMemberFunction,
+        value_ty_id: LocalTypeId,
+        error_ty_id: LocalTypeId,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> AnalyzeResult<bool> {
+        // require an explicit return type on the branch member
+        let Some(return_ty_id) = branch.signature.return_type else {
+            return Ok(false);
+        };
+
+        // evaluate unevaluated return types before checking assignability
+        if matches!(types.get_type(return_ty_id), Type::Unevaluated(_)) {
+            self.evaluate_type(module, profile, return_ty_id, tree, symbols, types)?;
+        }
+
+        // skip additional diagnostics when the branch already errors
+        if matches!(types.get_type(return_ty_id), Type::Error) {
+            return Ok(true);
+        }
+
+        // extract payload types from the branch return shape
+        let Some((branch_value_ty_id, branch_error_ty_id)) = self
+            .try_payload_types_from_branch_return(
+                module,
+                expression_id,
+                return_ty_id,
+                profile,
+                tree,
+                symbols,
+                types,
+            )?
+        else {
+            return Ok(false);
+        };
+
+        // compare payloads to the expected Try arguments when they are concrete
+        if self.should_check_try_payload(value_ty_id, types)
+            && self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                value_ty_id,
+                branch_value_ty_id,
+                types,
+                options,
+            ) == Assignability::NotAssignable
+        {
+            return Ok(false);
+        }
+
+        if self.should_check_try_payload(error_ty_id, types)
+            && self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                error_ty_id,
+                branch_error_ty_id,
+                types,
+                options,
+            ) == Assignability::NotAssignable
+        {
+            return Ok(false);
+        }
+
+        Ok(true)
     }
 
     /// Record resolution for a Try branch lookup.
@@ -1270,18 +1962,436 @@ impl Compiler {
         module: &Module,
         expression_id: LocalNodeId<Expression>,
         receiver_ty_id: LocalTypeId,
-        branch: &TryBranchResolution,
+        branch: &TryBranchMember,
         types: &mut TypeTable,
     ) {
         self.record_member_resolution(
             expression_id.into_global_any(module.id),
             Some(receiver_ty_id),
-            &branch.member_resolution,
+            &branch.resolved.member_resolution,
             branch.member_instance_id,
             None,
-            branch.has_member,
+            branch.resolved.has_member,
             types,
         );
+    }
+
+    /// Ensure a Try receiver exposes a static fromError constructor.
+    fn ensure_try_from_error(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_ty_id: LocalTypeId,
+        receiver_ty: &Type,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> AnalyzeResult<()> {
+        // resolve the fromError key once
+        let from_error_key = StaticKey::Name(self.program.strings.intern("fromError"));
+
+        // scan receiver variants for missing static members
+        let mut missing_from_error = false;
+        match receiver_ty {
+            Type::Reference { symbol, .. } => {
+                let mut visited = Vec::new();
+                let member = self.resolve_member_symbol_for_symbol(
+                    module,
+                    *symbol,
+                    &from_error_key,
+                    MemberLookupMode::Value,
+                    profile,
+                    tree,
+                    symbols,
+                    types,
+                    &mut visited,
+                )?;
+                if member.is_none() {
+                    missing_from_error = true;
+                }
+            }
+            Type::Union { elements } => {
+                for element_id in elements {
+                    let element_ty = types.get_type(*element_id);
+                    if let Type::Reference { symbol, .. } = element_ty {
+                        let mut visited = Vec::new();
+                        let member = self.resolve_member_symbol_for_symbol(
+                            module,
+                            *symbol,
+                            &from_error_key,
+                            MemberLookupMode::Value,
+                            profile,
+                            tree,
+                            symbols,
+                            types,
+                            &mut visited,
+                        )?;
+                        if member.is_none() {
+                            missing_from_error = true;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        // report missing fromError implementations
+        if missing_from_error {
+            self.error(AnalyzeError::MissingMember {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                receiver_ty: receiver_ty_id.into_global(module.id),
+                member_key: from_error_key,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Ensure the enclosing function return type can accept a Try error.
+    fn ensure_try_return_type_compatibility(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        error_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) {
+        // require a return type in the current function
+        let Some(return_ty_id) = ctx.return_type else {
+            self.error(AnalyzeError::MissingTryReturnType {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return;
+        };
+
+        // require a Try return type
+        let return_ty = types.get_type(return_ty_id).clone();
+        if !self.is_interface_implemented(
+            module,
+            ctx.profile,
+            &return_ty,
+            LanguageSymbol::Try,
+            symbols,
+            types,
+        ) {
+            self.error(AnalyzeError::MissingTryReturnType {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return;
+        }
+
+        // resolve payload types from the return type
+        let payloads = match self.try_payload_types_from_receiver(
+            module,
+            ctx.profile,
+            expression_id.into_any(),
+            &return_ty,
+            &ctx.options,
+            tree,
+            symbols,
+            types,
+        ) {
+            Ok(payloads) => payloads,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+
+        let Some((value_ty_id, return_error_ty_id)) = payloads else {
+            self.error(AnalyzeError::InvalidTryBranch {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return;
+        };
+
+        // resolve the return type branch signature
+        let branch = match self.resolve_try_branch_member(
+            module,
+            expression_id,
+            expression_id,
+            return_ty_id,
+            &return_ty,
+            ctx.profile,
+            &ctx.options,
+            tree,
+            symbols,
+            types,
+            infer,
+        ) {
+            Ok(branch) => branch,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+
+        // reject missing branch members on the return type
+        if !branch.resolved.has_member {
+            self.error(AnalyzeError::InvalidTryBranch {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return;
+        }
+
+        // validate the branch return type against the return payload types
+        let is_valid = match self.validate_try_branch_return_type(
+            module,
+            expression_id,
+            &branch.resolved,
+            value_ty_id,
+            return_error_ty_id,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+            &ctx.options,
+        ) {
+            Ok(is_valid) => is_valid,
+            Err(error) => {
+                self.error(error);
+                return;
+            }
+        };
+        if !is_valid {
+            self.error(AnalyzeError::InvalidTryBranch {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+            });
+            return;
+        }
+
+        // relate propagated error to the return error type
+        infer.push_constraint(Constraint::Subtype {
+            sub_type: error_ty_id,
+            super_type: return_error_ty_id,
+            variance: None,
+        });
+
+        // report incompatible error types when inference is resolved
+        if !self.is_infer_var_type(return_error_ty_id, types)
+            && !self.is_infer_var_type(error_ty_id, types)
+            && self.is_type_assignable(
+                module,
+                ctx.profile,
+                symbols,
+                return_error_ty_id,
+                error_ty_id,
+                types,
+                &ctx.options,
+            ) == Assignability::NotAssignable
+        {
+            self.error(AnalyzeError::UnassignableType {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+                expected_ty: return_error_ty_id.into_global(module.id),
+                actual_ty: error_ty_id.into_global(module.id),
+            });
+        }
+    }
+
+    /// Warn when Try error types do not implement Error.
+    fn warn_try_error_type(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        error_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        ctx: &InferContext,
+    ) {
+        // only lint user modules
+        if !matches!(module.source, ModuleSource::User) {
+            return;
+        }
+
+        // skip unknown or inference-driven error types
+        let error_ty = types.get_type(error_ty_id);
+        if matches!(
+            error_ty,
+            Type::InferVar { .. }
+                | Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any
+                }
+                | Type::Error
+        ) {
+            return;
+        }
+
+        // resolve the Error interface reference
+        let error_symbol = self.language_symbol(LanguageSymbol::Error);
+        let error_reference_id = types.insert_type_from_any(
+            Type::Reference {
+                symbol: error_symbol,
+                static_arguments: None,
+            },
+            expression_id.into_any(),
+        );
+
+        // warn when error type is not assignable to Error
+        if self.is_type_assignable(
+            module,
+            ctx.profile,
+            symbols,
+            error_reference_id,
+            error_ty_id,
+            types,
+            &ctx.options,
+        ) == Assignability::NotAssignable
+        {
+            self.warning(AnalyzeWarning::TryErrorNotError {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(ctx.profile)),
+                ty: error_ty_id.into_global(module.id),
+            });
+        }
+    }
+
+    /// Split a type into Try and non-Try elements.
+    fn split_try_elements(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> (Vec<LocalTypeId>, Vec<LocalTypeId>) {
+        // collect Try and non-Try elements
+        let mut try_elements = Vec::new();
+        let mut non_try_elements = Vec::new();
+
+        // split based on interface implementation
+        match types.get_type(ty_id) {
+            Type::Union { elements } => {
+                for element_id in elements {
+                    let element_ty = types.get_type(*element_id);
+                    if self.is_interface_implemented(
+                        module,
+                        profile,
+                        element_ty,
+                        LanguageSymbol::Try,
+                        symbols,
+                        types,
+                    ) {
+                        try_elements.push(*element_id);
+                    } else {
+                        non_try_elements.push(*element_id);
+                    }
+                }
+            }
+            ty => {
+                if self.is_interface_implemented(
+                    module,
+                    profile,
+                    ty,
+                    LanguageSymbol::Try,
+                    symbols,
+                    types,
+                ) {
+                    try_elements.push(ty_id);
+                } else {
+                    non_try_elements.push(ty_id);
+                }
+            }
+        }
+
+        // return the split lists
+        (try_elements, non_try_elements)
+    }
+
+    /// Collect the Try success types for coalesce.
+    fn try_coalesce_success_types(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        receiver_expression_id: LocalNodeId<Expression>,
+        element_ids: &[LocalTypeId],
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Vec<LocalTypeId>> {
+        // collect the success value types
+        let mut value_types = Vec::new();
+
+        // resolve branch types for each Try element
+        for element_id in element_ids {
+            let element_ty = types.get_type(*element_id).clone();
+            let branch = self.resolve_try_branch_member(
+                module,
+                expression_id,
+                receiver_expression_id,
+                *element_id,
+                &element_ty,
+                profile,
+                &ctx.options,
+                tree,
+                symbols,
+                types,
+                infer,
+            )?;
+
+            // reject missing branches for Try elements
+            if !branch.resolved.has_member {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                    receiver_ty: element_id.into_global(module.id),
+                });
+                continue;
+            }
+
+            // resolve payload types for the receiver and branch
+            let payloads = self.resolve_try_branch_payloads(
+                module,
+                expression_id,
+                receiver_expression_id.into_any(),
+                &element_ty,
+                &branch.resolved,
+                profile,
+                tree,
+                symbols,
+                types,
+                &ctx.options,
+            )?;
+            let Some((value_ty_id, _error_ty_id)) = payloads else {
+                self.error(AnalyzeError::InvalidTryBranch {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(profile)),
+                });
+                continue;
+            };
+
+            // collect ok branch types and strip nullish
+            let (non_nullish, _) = self.strip_nullish_from_union(value_ty_id, types);
+            if let Some(non_nullish) = non_nullish {
+                value_types.push(non_nullish);
+            }
+        }
+
+        // return collected success types
+        Ok(value_types)
     }
 
     /// Infer builtin index access for arrays, tuples, and index signatures.
@@ -1412,103 +2522,6 @@ impl Compiler {
                 Some(self.union_type_from_list(value_types, source_type_id, types))
             }
         }
-    }
-
-    /// Extract the ok value type from a Try branch return type.
-    fn try_extract_branch_value_type(
-        &self,
-        return_ty_id: LocalTypeId,
-        types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
-        let return_ty = types.get_type(return_ty_id).clone();
-        self.try_extract_branch_value_type_from_type(&return_ty, return_ty_id, types)
-    }
-
-    /// Extract the ok value type from a Try branch return type.
-    fn try_extract_branch_value_type_from_type(
-        &self,
-        ty: &Type,
-        source_type_id: LocalTypeId,
-        types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
-        match ty {
-            Type::Union { elements } => {
-                let mut value_types = Vec::new();
-
-                for element_id in elements {
-                    let element_ty = types.get_type(*element_id).clone();
-                    if let Some(value_ty_id) = self.try_extract_branch_value_type_from_type(
-                        &element_ty,
-                        *element_id,
-                        types,
-                    ) {
-                        value_types.push(value_ty_id);
-                    }
-                }
-
-                if value_types.is_empty() {
-                    None
-                } else {
-                    let source_type_id = value_types[0];
-                    Some(self.union_type_from_list(value_types, source_type_id, types))
-                }
-            }
-            Type::Object { fields, .. } => {
-                self.try_extract_branch_value_type_from_object(fields, types)
-            }
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => {
-                let result_symbol = self.language_symbol(LanguageSymbol::Result);
-                if *symbol != result_symbol {
-                    return None;
-                }
-                let arguments = static_arguments.as_ref()?;
-                let first_argument = arguments.first()?;
-                Some(self.convert_static_argument_type(
-                    first_argument,
-                    types.get_type_source(source_type_id),
-                    types,
-                ))
-            }
-            _ => None,
-        }
-    }
-
-    /// Extract the ok value type from a Try branch object type.
-    fn try_extract_branch_value_type_from_object(
-        &self,
-        fields: &[TypeField],
-        types: &TypeTable,
-    ) -> Option<LocalTypeId> {
-        let kind_key = self.program.strings.intern("kind");
-        let value_key = self.program.strings.intern("value");
-        let ok_value = self.program.strings.intern("ok");
-
-        let mut has_ok_kind = false;
-        let mut value_ty_id = None;
-
-        for field in fields {
-            if let StaticKey::Name(name_id) = field.key {
-                if name_id == kind_key {
-                    let field_ty = types.get_type(field.ty);
-                    if let Type::TypeLiteral {
-                        value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(kind_id)),
-                    } = field_ty
-                        && *kind_id == ok_value
-                    {
-                        has_ok_kind = true;
-                    }
-                }
-
-                if name_id == value_key {
-                    value_ty_id = Some(field.ty);
-                }
-            }
-        }
-
-        if has_ok_kind { value_ty_id } else { None }
     }
 
     /// Build the member key for Try.branch.
@@ -1655,13 +2668,9 @@ impl Compiler {
 
 /// Resolved information for a Try branch lookup.
 #[derive(Debug)]
-struct TryBranchResolution {
-    /// The extracted ok value type.
-    value_type_id: Option<LocalTypeId>,
-    /// The member resolution for the branch lookup.
-    member_resolution: MemberResolution,
+struct TryBranchMember {
+    /// The resolved branch member signature.
+    resolved: ResolvedMemberFunction,
     /// The instance used by the branch member.
     member_instance_id: Option<LocalInstanceId>,
-    /// Whether the branch member exists on the receiver type.
-    has_member: bool,
 }

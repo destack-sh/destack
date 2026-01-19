@@ -2941,18 +2941,40 @@ impl Compiler {
     /// Check whether the receiver explicitly implements a language item interface.
     pub(super) fn is_interface_implemented(
         &self,
+        module: &Module,
+        profile: ProfileId,
         ty: &Type,
         interface_item: LanguageSymbol,
+        symbols: &SymbolTable,
         types: &TypeTable,
     ) -> bool {
         let interface_symbol = self.language_symbol(interface_item);
         match ty {
+            Type::Value { value } => {
+                let inner_ty = types.get_type(*value);
+                self.is_interface_implemented(
+                    module,
+                    profile,
+                    inner_ty,
+                    interface_item,
+                    symbols,
+                    types,
+                )
+            }
             Type::Reference { symbol, .. } => {
-                self.is_type_lineage_assignable(*symbol, interface_symbol, types)
+                let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, *symbol);
+                self.is_type_lineage_assignable(canonical_symbol, interface_symbol, types)
             }
             Type::Union { elements } => elements.iter().all(|element_id| {
                 let element_ty = types.get_type(*element_id);
-                self.is_interface_implemented(element_ty, interface_item, types)
+                self.is_interface_implemented(
+                    module,
+                    profile,
+                    element_ty,
+                    interface_item,
+                    symbols,
+                    types,
+                )
             }),
             _ => false,
         }

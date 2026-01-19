@@ -1692,23 +1692,6 @@ impl Compiler {
                 return Ok(Some(member_symbol));
             }
 
-            // check implemented interfaces
-            for implements in &lineage.implements {
-                if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
-                    module,
-                    *implements,
-                    member_key,
-                    lookup_mode,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                    visited,
-                )? {
-                    return Ok(Some(member_symbol));
-                }
-            }
-
             // check embedded types
             for embedded in &lineage.embedded {
                 if let Some(member_symbol) = self.resolve_member_symbol_for_symbol(
