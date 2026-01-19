@@ -28,7 +28,7 @@
 /// }
 /// ```
 
-import { Try } from "./try.ds";
+import { Try, TryBranch } from "./try.ds";
 import { Equal } from "../operator/comparison.ds";
 import { Display, Debug } from "../operator/format.ds";
 
@@ -200,8 +200,11 @@ extension<T, E> for Result<T, E> {
 
 /// Result implements Try for the ? operator.
 extension<T, E> for Result<T, E> implements Try<T, E> {
-    branch(): Result<T, E> {
-        this
+    branch(): TryBranch<T, E> {
+        match (this) {
+            Ok { value } => ({ kind: "ok", value })
+            Err { error } => ({ kind: "err", error })
+        }
     }
 
     static fromError(error: E): Result<T, E> {

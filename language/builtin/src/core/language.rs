@@ -7,6 +7,8 @@ pub enum LanguageSymbolKind {
     Struct,
     /// An `enum` declaration.
     Enum,
+    /// A `type` alias declaration.
+    TypeAlias,
     /// A `newtype` declaration.
     Newtype,
     /// A `function` declaration.
@@ -175,6 +177,12 @@ define_language_symbols! {
     control {
         /// `?` operator for early return
         Try => (Interface, "control/try", "Try"),
+
+        /// Try branch shape for ? and ??
+        TryBranch => (TypeAlias, "control/try", "TryBranch"),
+
+        /// Error interface for conventional error shapes
+        Error => (Interface, "control/error", "Error"),
 
         /// Result type for ? operator
         Result => (Newtype, "control/result", "Result"),

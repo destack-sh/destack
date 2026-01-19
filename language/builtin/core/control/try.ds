@@ -3,13 +3,16 @@
 /// Types implementing `Try` support both error propagation (`?`) and
 /// default values (`??`).
 ///
+/// The `Try` protocol is structural at the branch level.
+/// Implementations must return a `TryBranch<T, E>` shape from `branch()`.
+///
 /// ## The `?` Operator (propagate)
 ///
 /// `x?` extracts the success value or returns early with the error:
 /// ```
 /// match x.branch() {
-///     Ok { value } => value
-///     Err { error } => return fromError(error)
+///     { kind: "ok", value } => value
+///     { kind: "err", error } => return fromError(error)
 /// }
 /// ```
 ///
@@ -18,8 +21,8 @@
 /// `x ?? default` extracts the success value or uses the default:
 /// ```
 /// match x.branch() {
-///     Ok { value } => value
-///     Err _ => default
+///     { kind: "ok", value } => value
+///     { kind: "err", error: _ } => default
 /// }
 /// ```
 ///
@@ -52,13 +55,17 @@
 /// const result = divide(10, 0) ?? 0;  // result = 0
 /// ```
 
-// Note: Try.branch() returns Result<T, E>, but we don't import Result here
-// to avoid circular dependencies. The Result type is resolved at the module level.
+/// Try branch result for the `?` and `??` operators.
+///
+/// Implementations may return this shape directly or any compatible union.
+export type TryBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
 export newtype interface Try<T, E> {
     /// Branch on success or failure.
-    /// Returns Ok(value) to continue, Err(error) to break.
-    branch(): { kind: "ok", value: T } | { kind: "err", error: E }
+    /// Returns a TryBranch value to continue or break.
+    branch(): TryBranch<T, E>
 
     /// Construct the implementing type from an error (for early return with `?`).
     static fromError(error: E): this
