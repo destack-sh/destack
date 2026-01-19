@@ -23,25 +23,21 @@ function read(): Result<int, Error> {
 > The ? operator accepts Try implementations with a compatible TryBranch shape.
 
 ```ds
-struct FancyOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type FancyBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct FancyErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct FancyTry<T, E> {
+    value: FancyBranch<T, E>,
 }
-
-newtype FancyTry<T, E> = FancyOk<T> | FancyErr<E>;
 
 extension<T, E> for FancyTry<T, E> implements Try<T, E> {
-    branch(): FancyTry<T, E> {
-        this
+    branch(): FancyBranch<T, E> {
+        this.value
     }
 
     static fromError(error: E): FancyTry<T, E> {
-        FancyTry(FancyErr { error })
+        FancyTry { value: { kind: "err", error } }
     }
 }
 
@@ -92,21 +88,17 @@ function read(): Result<int, Error> {
 > The ? operator requires Try.fromError to be implemented.
 
 ```ds
-struct BrokenOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type BrokenBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct BrokenErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct BrokenTry<T, E> {
+    value: BrokenBranch<T, E>,
 }
-
-newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
-    branch(): BrokenTry<T, E> {
-        this
+    branch(): BrokenBranch<T, E> {
+        this.value
     }
 }
 
@@ -126,25 +118,21 @@ function read(): Result<int, Error> {
 > The ? operator requires the receiver to implement Try.
 
 ```ds
-struct LooseOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type LooseBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct LooseErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct LooseTry<T, E> {
+    value: LooseBranch<T, E>,
 }
-
-newtype LooseTry<T, E> = LooseOk<T> | LooseErr<E>;
 
 extension<T, E> for LooseTry<T, E> {
-    branch(): LooseTry<T, E> {
-        this
+    branch(): LooseBranch<T, E> {
+        this.value
     }
 
     static fromError(error: E): LooseTry<T, E> {
-        LooseTry(LooseErr { error })
+        LooseTry { value: { kind: "err", error } }
     }
 }
 
@@ -163,23 +151,21 @@ function read(): Result<int, Error> {
 > The ? operator requires Try.branch to return TryBranch.
 
 ```ds
-struct BadOk<T> {
-    value: T,
-}
+type BadBranch<T, E> =
+    | { value: T }
+    | { error: E };
 
-struct BadErr<E> {
-    error: E,
+struct BadTry<T, E> {
+    value: BadBranch<T, E>,
 }
-
-newtype BadTry<T, E> = BadOk<T> | BadErr<E>;
 
 extension<T, E> for BadTry<T, E> implements Try<T, E> {
-    branch(): BadTry<T, E> {
-        this
+    branch(): BadBranch<T, E> {
+        this.value
     }
 
     static fromError(error: E): BadTry<T, E> {
-        BadTry(BadErr { error })
+        BadTry { value: { error } }
     }
 }
 
@@ -199,25 +185,21 @@ function read(): Result<int, Error> {
 > The ? operator rejects branches with incorrect kind discriminators.
 
 ```ds
-struct WrongOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type WrongBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "bad", error: E };
 
-struct WrongErr<E> {
-    kind: "bad" = "bad",
-    error: E,
+struct WrongTry<T, E> {
+    value: WrongBranch<T, E>,
 }
-
-newtype WrongTry<T, E> = WrongOk<T> | WrongErr<E>;
 
 extension<T, E> for WrongTry<T, E> implements Try<T, E> {
-    branch(): WrongTry<T, E> {
-        this
+    branch(): WrongBranch<T, E> {
+        this.value
     }
 
     static fromError(error: E): WrongTry<T, E> {
-        WrongTry(WrongErr { error })
+        WrongTry { value: { kind: "bad", error } }
     }
 }
 
@@ -357,21 +339,17 @@ value satisfies int;
 > The ?? operator does not require Try.fromError.
 
 ```ds
-struct BrokenOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type BrokenBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct BrokenErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct BrokenTry<T, E> {
+    value: BrokenBranch<T, E>,
 }
-
-newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
-    branch(): BrokenTry<T, E> {
-        this
+    branch(): BrokenBranch<T, E> {
+        this.value
     }
 }
 

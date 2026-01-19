@@ -86,21 +86,17 @@ value satisfies int;
 > Catching a Try error does not require Try.fromError.
 
 ```ds
-struct BrokenOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type BrokenBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct BrokenErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct BrokenTry<T, E> {
+    value: BrokenBranch<T, E>,
 }
-
-newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
-    branch(): BrokenTry<T, E> {
-        this
+    branch(): BrokenBranch<T, E> {
+        this.value
     }
 }
 
@@ -121,21 +117,17 @@ value satisfies int;
 > Catching a Try error allows non Try return types.
 
 ```ds
-struct BrokenOk<T> {
-    kind: "ok" = "ok",
-    value: T,
-}
+type BrokenBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
 
-struct BrokenErr<E> {
-    kind: "err" = "err",
-    error: E,
+struct BrokenTry<T, E> {
+    value: BrokenBranch<T, E>,
 }
-
-newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
 
 extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
-    branch(): BrokenTry<T, E> {
-        this
+    branch(): BrokenBranch<T, E> {
+        this.value
     }
 }
 

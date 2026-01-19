@@ -225,6 +225,7 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 
 Both operators work via the `Try` interface, which `Result` implements.
 `Try.branch()` returns a structural `TryBranch<T, E>` shape.
+Structural `TryBranch` compatibility is based on object shapes, not nominal structs or newtypes.
 `Try.fromError` is required when a `?` propagates out of the enclosing function.
 The `??` operator coalesces nullish values before and after a single `Try` unwrap.
 This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
