@@ -2595,9 +2595,25 @@ Destack uses **Result-first error handling**: recoverable errors use `Result<T, 
 The builtin `Error` interface is the conventional error shape, but any type can be used as `E`.
 For compatibility with existing JS/TS, we do support `throw` in JS targets.
 
-#### Result and the ? Operator
+#### Try protocol
 
-The `?` operator propagates `Result` errors to the caller:
+The `Try<T, E>` interface defines the protocol for `?` and `??`.
+`Try` is nominal, while its branch shape is structural.
+`Try.branch()` must return a `TryBranch<T, E>` compatible shape:
+
+```
+type TryBranch<T, E> =
+    | { kind: "ok", value: T }
+    | { kind: "err", error: E };
+```
+
+Implementations must provide `Try.fromError(error: E): this` for uncaught early returns.
+`Try.fromError` is not required when a `?` is inside a `try` with `catch`.
+`Try.fromError` is not required for `??` because it does not return early.
+
+#### Try and the ? Operator
+
+The `?` operator propagates `Try` errors to the caller:
 
 ```
 function readConfig(path: string): Result<Config, Error> {
@@ -2607,13 +2623,20 @@ function readConfig(path: string): Result<Config, Error> {
 }
 ```
 
-When `?` is applied to a `Result<T, E>`:
-- If `Ok(value)`, extracts and returns `value`
-- If `Err(e)`, returns early with `Err(e)` from the enclosing function
+When `?` is applied to a `Try<T, E>`:
+- If the branch is ok, extracts and returns the success value.
+- If the branch is err, returns early with `Try.fromError(error)` from the enclosing function.
+The receiver must be a non-nullish `Try` type.
+Unions containing non-`Try` or nullish members are not valid operands for `?`.
+The success type is returned as-is without stripping nullish values.
+The `?` operator unwraps at most one `Try` layer.
+For unions of `Try` types, the success type and error type are both unioned.
 
-The enclosing function must have a compatible `Result` return type.
+The enclosing function must return a compatible `Try` type.
+The error type `E` is unconstrained, but `Error` is the conventional shape.
+Non-`Error` error types should emit a lint, not a hard error.
 
-#### Result and the ?? Operator
+#### Try and the ?? Operator
 
 The `??` operator extracts the success value or uses a default:
 
@@ -2622,13 +2645,13 @@ const config = loadConfig() ?? defaultConfig;
 const port = parsePort(input) ?? 8080;
 ```
 
-When `??` is applied to a `Result<T, E>`:
-- If `Ok(value)`, extracts and returns `value`
-- If `Err(_)`, returns the right-hand default value
+When `??` is applied to a `Try<T, E>`:
+- If the branch is ok, extracts and returns the success value.
+- If the branch is err, returns the right-hand default value.
 
 When `??` is applied to `T | null | undefined`:
-- If nullish, returns the right-hand default value
-- Otherwise, returns the left-hand value
+- If nullish, returns the right-hand default value.
+- Otherwise, returns the left-hand value.
 
 Evaluation order is fixed and does not depend on union ordering:
 1. Evaluate the left-hand side
@@ -2638,6 +2661,8 @@ Evaluation order is fixed and does not depend on union ordering:
 5. Otherwise, return the value as-is
 
 `??` performs at most one `Try` unwrap.
+When the left-hand side is a union of `Try` and non-`Try` values, the result unions the unwrapped success types, non-`Try` members, and the fallback.
+Nullish values are removed from both the union and the `Try` success type before the result is formed.
 
 ```
 const value: Result<User, IOError> | null = loadUser();
@@ -2662,6 +2687,7 @@ try {
 The example uses `Result`, but any type implementing `Try` behaves the same.
 `try` does not implicitly unwrap `Result` values.
 Use `?` or `??` inside the block to propagate `Try` errors into the catch.
+When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 A try expression must include a catch or finally block.
 
