@@ -199,6 +199,10 @@ impl Compiler {
             FileContent::Text { content } => Ok(hash_bytes(content.as_bytes())),
             FileContent::Json { content, .. } => Ok(hash_bytes(content.as_bytes())),
             FileContent::Binary { content } => Ok(hash_bytes(content)),
+            FileContent::Missing => Err(CacheError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "file content missing",
+            ))),
             FileContent::Unloaded => Err(CacheError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 "file content not loaded",
@@ -229,6 +233,7 @@ impl Compiler {
                 FileContent::Binary { content } => {
                     hasher.hash_bytes(content);
                 }
+                FileContent::Missing => {}
                 FileContent::Unloaded => {}
             }
         }
@@ -248,6 +253,7 @@ impl Compiler {
                 FileContent::Binary { content } => {
                     hasher.hash_bytes(content);
                 }
+                FileContent::Missing => {}
                 FileContent::Unloaded => {}
             }
         }

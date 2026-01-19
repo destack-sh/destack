@@ -94,6 +94,8 @@ pub enum FileContent {
     },
     /// Binary content.
     Binary { content: Vec<u8> },
+    /// Content is known missing on disk.
+    Missing,
     /// Content not yet loaded.
     Unloaded,
 }
@@ -120,6 +122,27 @@ impl File {
         }
     }
 
+    /// Create a File that is known missing on disk.
+    pub fn missing(
+        id: FileId,
+        name: String,
+        uri: Uri,
+        path: Option<PathBuf>,
+        ty: FileType,
+    ) -> Self {
+        Self {
+            id,
+            version: FileVersion::INITIAL,
+            name,
+            uri,
+            path,
+            ty,
+            len: 0,
+            content: FileContent::Missing,
+            line_start_offsets: None,
+        }
+    }
+
     /// Create an empty source in some format.
     pub fn empty_text(ty: FileType) -> Self {
         Self::from_text(
@@ -134,7 +157,12 @@ impl File {
 
     /// Check if this file has content loaded.
     pub fn is_loaded(&self) -> bool {
-        !matches!(self.content, FileContent::Unloaded)
+        !matches!(self.content, FileContent::Unloaded | FileContent::Missing)
+    }
+
+    /// Check if this file is known missing.
+    pub fn is_missing(&self) -> bool {
+        matches!(self.content, FileContent::Missing)
     }
 
     /// Precompute line start byte offsets for O(1) line.
@@ -311,6 +339,7 @@ impl File {
                 Some(&content[span.start as usize..span.end as usize])
             }
             FileContent::Binary { .. } => None,
+            FileContent::Missing => None,
             FileContent::Unloaded => None,
         }
     }
