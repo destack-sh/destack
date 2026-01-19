@@ -1,9 +1,10 @@
 use std::collections::HashSet;
 
-use destack_dir as dir;
-use destack_workspace::Package;
+use destack_workspace::{Module, Package};
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
+use crate::{LowerError, LowerResult};
 
 /// Suffix for object metadata names.
 const OBJECT_METADATA_SUFFIX: &str = "#object";
@@ -17,6 +18,8 @@ const FUNCTION_METADATA_SUFFIX: &str = "#function";
 const ARRAY_METADATA_SUFFIX: &str = "#array";
 /// Suffix for pointer metadata names.
 const POINTER_METADATA_SUFFIX: &str = "#pointer";
+/// Suffix for class reference metadata names.
+const REFERENCE_METADATA_SUFFIX: &str = "#reference";
 /// Suffix for parameter context in union metadata names.
 const UNION_PARAMETER_SUFFIX: &str = "#parameter:";
 /// Suffix for field context in union metadata names.
@@ -27,6 +30,14 @@ const UNION_METHOD_SUFFIX: &str = "#method:";
 const UNION_RETURN_SUFFIX: &str = "#return";
 /// Suffix for local bindings in union metadata names.
 const UNION_LOCAL_SUFFIX: &str = "#let:";
+/// Prefix for intrinsic metadata names.
+const INTRINSIC_METADATA_PREFIX: &str = "intrinsic:";
+/// Prefix for scalar literal metadata names.
+const LITERAL_METADATA_PREFIX: &str = "literal:";
+/// Prefix for regex literal metadata names.
+const REGEX_METADATA_PREFIX: &str = "regex:";
+/// Prefix for string literal metadata names.
+const STRING_METADATA_PREFIX: &str = "string:";
 
 /// Context derived from a type source node for naming.
 #[derive(Default)]
@@ -48,8 +59,88 @@ struct TypeNameContext {
 }
 
 impl ModuleLowerer<'_> {
+    /// Assign deterministic metadata names to nominal types.
+    pub(crate) fn assign_nominal_metadata_names(&mut self) -> LowerResult<()> {
+        // collect nominal declaration metadata for this module
+        let nominal_info = self.collect_nominal_types();
+
+        // assign metadata names for nominal instance types
+        for info in nominal_info {
+            // lower or reuse the type for metadata attachment
+            // resolve the qualified metadata name
+            let name = self.qualified_symbol_name(info.symbol).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: info.anchor,
+                    message: "missing qualified name for nominal type".to_string(),
+                }
+            })?;
+
+            // intern the name
+            let name_id = self.builder.intern(&name);
+
+            // resolve interface reference and instance types separately
+            if info.kind == dir::SymbolType::Interface {
+                if let Some(reference_type_id) =
+                    self.nominal_reference_type_id_for_symbol(info.symbol)
+                {
+                    let mir_type = self.lower_type(reference_type_id, info.anchor)?;
+                    let metadata = self
+                        .builder
+                        .tree_mut()
+                        .type_table
+                        .type_metadata_by_id
+                        .entry(mir_type)
+                        .or_default();
+                    if metadata.name.is_none() {
+                        metadata.name = Some(name_id);
+                    }
+                }
+
+                if let Some(instance_type_id) = info.instance_type_id {
+                    let mir_type = self.lower_type(instance_type_id, info.anchor)?;
+                    let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
+                    let instance_name_id = self.builder.intern(&instance_name);
+                    let metadata = self
+                        .builder
+                        .tree_mut()
+                        .type_table
+                        .type_metadata_by_id
+                        .entry(mir_type)
+                        .or_default();
+                    if metadata.name.is_none() {
+                        metadata.name = Some(instance_name_id);
+                    }
+                }
+
+                continue;
+            }
+
+            // resolve the type id to attach metadata
+            let Some(metadata_type_id) = info.instance_type_id else {
+                continue;
+            };
+
+            // lower or reuse the type for metadata attachment
+            let mir_type = self.lower_type(metadata_type_id, info.anchor)?;
+            let metadata = self
+                .builder
+                .tree_mut()
+                .type_table
+                .type_metadata_by_id
+                .entry(mir_type)
+                .or_default();
+
+            // set the name only when missing
+            if metadata.name.is_none() {
+                metadata.name = Some(name_id);
+            }
+        }
+
+        Ok(())
+    }
+
     /// Assign deterministic metadata names to anonymous types.
-    pub(crate) fn assign_anonymous_metadata_names(&mut self) -> crate::LowerResult<()> {
+    pub(crate) fn assign_anonymous_metadata_names(&mut self) -> LowerResult<()> {
         // collect lowered type ids to avoid borrowing conflicts
         let type_ids: Vec<_> = self.type_lowerer.type_cache.keys().copied().collect();
 
@@ -65,12 +156,14 @@ impl ModuleLowerer<'_> {
 
             // resolve the suffix for anonymous types
             let dir_type = self.types.get_type(type_id);
-            let Some(suffix) = self.anonymous_metadata_suffix(dir_type) else {
-                continue;
+            let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
+                self.anonymous_metadata_name(type_id, suffix)
+            } else {
+                self.reference_metadata_name(dir_type)
+                    .or_else(|| self.alias_metadata_name(type_id))
+                    .or_else(|| self.type_literal_metadata_name(dir_type))
             };
-
-            // resolve the metadata name
-            let Some(name) = self.anonymous_metadata_name(type_id, suffix) else {
+            let Some(name) = name else {
                 continue;
             };
 
@@ -90,6 +183,8 @@ impl ModuleLowerer<'_> {
                 .type_metadata_by_id
                 .entry(mir_type)
                 .or_default();
+
+            // set the name only when missing
             if metadata.name.is_none() {
                 metadata.name = Some(name_id);
             }
@@ -99,8 +194,81 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
+    /// Ensure every MIR type has a metadata name assigned.
+    pub(crate) fn ensure_metadata_names_assigned(&self) -> LowerResult<()> {
+        // read the mir type table
+        let type_table = &self.builder.tree().type_table;
+
+        // require names for existing metadata entries
+        for (type_id, metadata) in &type_table.type_metadata_by_id {
+            if metadata.name.is_some() {
+                continue;
+            }
+
+            let type_node = self.builder.tree().get(*type_id);
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: format!("missing metadata name for mir type {type_id:?} ({type_node:?})"),
+            });
+        }
+
+        // require names for cached dir types
+        for mir_type in self.type_lowerer.type_cache.values() {
+            let has_name = type_table
+                .type_metadata_by_id
+                .get(mir_type)
+                .and_then(|metadata| metadata.name)
+                .is_some();
+            if has_name {
+                continue;
+            }
+
+            let type_node = self.builder.tree().get(*mir_type);
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: format!("missing metadata name for mir type {mir_type:?} ({type_node:?})"),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Assign a metadata name for a function signature type.
+    pub(crate) fn assign_signature_metadata_name(
+        &mut self,
+        mir_type: mir::LocalNodeId<mir::Type>,
+        symbol: dir::GlobalSymbolId,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<()> {
+        // resolve the qualified symbol name
+        let base = self
+            .qualified_symbol_name_for_global(symbol)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "missing qualified name for signature type".to_string(),
+            })?;
+
+        // format the signature metadata name
+        let name = format!("{base}{FUNCTION_METADATA_SUFFIX}");
+        let name_id = self.builder.intern(&name);
+
+        // attach metadata when missing
+        let metadata = self
+            .builder
+            .tree_mut()
+            .type_table
+            .type_metadata_by_id
+            .entry(mir_type)
+            .or_default();
+        if metadata.name.is_none() {
+            metadata.name = Some(name_id);
+        }
+        Ok(())
+    }
+
     /// Resolve the metadata suffix for an anonymous type.
     fn anonymous_metadata_suffix(&self, dir_type: &dir::Type) -> Option<&'static str> {
+        // select a suffix based on the type kind
         match dir_type {
             dir::Type::Object { .. } => Some(OBJECT_METADATA_SUFFIX),
             dir::Type::Tuple { .. } => Some(TUPLE_METADATA_SUFFIX),
@@ -126,30 +294,185 @@ impl ModuleLowerer<'_> {
             return Some(name);
         }
 
-        // append parameter name when present
+        // parameter name
         if let Some(parameter_name) = context.parameter_name {
             name.push_str(&format!("{UNION_PARAMETER_SUFFIX}{parameter_name}"));
-        } else if let Some(field_name) = context.field_name {
-            // append field name when present
+        }
+        // field name
+        else if let Some(field_name) = context.field_name {
             name.push_str(&format!("{UNION_FIELD_SUFFIX}{field_name}"));
-        } else if let Some(method_name) = context.method_name {
-            // append method name and return marker when present
+        }
+        // method name
+        else if let Some(method_name) = context.method_name {
             name.push_str(&format!("{UNION_METHOD_SUFFIX}{method_name}"));
+            // return marker
             if context.is_return_type {
                 name.push_str(UNION_RETURN_SUFFIX);
             }
-        } else if context.is_return_type {
-            // append return marker for declaration return types
+        }
+        // return marker for declaration return types
+        else if context.is_return_type {
             name.push_str(UNION_RETURN_SUFFIX);
-        } else if let Some(declarator_name) = context.declarator_name {
-            // append local name when present
+        }
+        // local name
+        else if let Some(declarator_name) = context.declarator_name {
             name.push_str(&format!("{UNION_LOCAL_SUFFIX}{declarator_name}"));
         }
 
-        // append the type suffix
+        // type suffix
         name.push_str(suffix);
 
         Some(name)
+    }
+
+    /// Resolve the metadata name for a type alias value.
+    fn alias_metadata_name(&self, type_id: dir::LocalTypeId) -> Option<String> {
+        // resolve naming context
+        let context = self.type_name_context(type_id)?;
+        if !context.is_type_alias {
+            return None;
+        }
+
+        // return the qualified alias name
+        self.qualified_symbol_name(context.declaration_symbol?)
+    }
+
+    /// Resolve a metadata name for scalar and literal types.
+    fn type_literal_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
+        // only handle type literal nodes
+        let dir::Type::TypeLiteral { value } = dir_type else {
+            return None;
+        };
+
+        match value {
+            dir::TypeLiteral::Never => Some("never".to_string()),
+            dir::TypeLiteral::Any => Some("any".to_string()),
+            dir::TypeLiteral::Infer => Some("_".to_string()),
+            dir::TypeLiteral::Undefined => Some("undefined".to_string()),
+            dir::TypeLiteral::Unknown => Some("unknown".to_string()),
+            dir::TypeLiteral::Object => Some("object".to_string()),
+            dir::TypeLiteral::Void => Some("void".to_string()),
+            dir::TypeLiteral::Null => Some("null".to_string()),
+            dir::TypeLiteral::Primitive(primitive) => {
+                Some(self.primitive_metadata_name(*primitive))
+            }
+            dir::TypeLiteral::Intrinsic(intrinsic) => {
+                Some(self.intrinsic_metadata_name(*intrinsic))
+            }
+            dir::TypeLiteral::ScalarLiteral(literal) => {
+                Some(self.scalar_literal_metadata_name(literal))
+            }
+        }
+    }
+
+    /// Resolve a metadata name for named reference types.
+    fn reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
+        // only handle reference nodes
+        let dir::Type::Reference { symbol, .. } = dir_type else {
+            return None;
+        };
+
+        let name = self.qualified_symbol_name(*symbol).or_else(|| {
+            let module = self.compiler.program.modules.get(symbol.module_id);
+            let module = module.read();
+            let dir = module.dir(self.profile);
+            let symbols = dir.symbols.read();
+            self.symbol_path_from_symbols(*symbol, &symbols)
+        })?;
+
+        if symbol.ty() == dir::SymbolType::Class {
+            return Some(format!("{name}{REFERENCE_METADATA_SUFFIX}"));
+        }
+
+        Some(name)
+    }
+
+    /// Resolve a metadata name for primitive types.
+    fn primitive_metadata_name(&self, primitive: dir::PrimitiveType) -> String {
+        match primitive {
+            dir::PrimitiveType::Boolean => "bool".to_string(),
+            dir::PrimitiveType::Character => "char".to_string(),
+            dir::PrimitiveType::String => "string".to_string(),
+            dir::PrimitiveType::Bigint => "bigint".to_string(),
+            dir::PrimitiveType::Number => "number".to_string(),
+            dir::PrimitiveType::Int(int_type) => int_type.as_str(),
+            dir::PrimitiveType::Float(float_type) => float_type.as_str(),
+            dir::PrimitiveType::Symbol => "symbol".to_string(),
+            dir::PrimitiveType::UniqueSymbol => "unique_symbol".to_string(),
+        }
+    }
+
+    /// Resolve a metadata name for intrinsic types.
+    fn intrinsic_metadata_name(&self, intrinsic: dir::IntrinsicType) -> String {
+        let suffix = match intrinsic {
+            dir::IntrinsicType::Uppercase => "uppercase",
+            dir::IntrinsicType::Lowercase => "lowercase",
+            dir::IntrinsicType::Capitalize => "capitalize",
+            dir::IntrinsicType::Uncapitalize => "uncapitalize",
+            dir::IntrinsicType::NoInfer => "no_infer",
+            dir::IntrinsicType::BuiltinIteratorReturn => "builtin_iterator_return",
+        };
+
+        format!("{INTRINSIC_METADATA_PREFIX}{suffix}")
+    }
+
+    /// Resolve a metadata name for scalar literal types.
+    fn scalar_literal_metadata_name(&self, literal: &dir::ScalarLiteral) -> String {
+        // load string pool for literal formatting
+        let strings = &self.compiler.program.strings;
+
+        match literal {
+            dir::ScalarLiteral::Boolean(value) => {
+                format!("{LITERAL_METADATA_PREFIX}bool:{value}")
+            }
+            dir::ScalarLiteral::Integer(value) => {
+                format!("{LITERAL_METADATA_PREFIX}int:{value}")
+            }
+            dir::ScalarLiteral::Bigint(value) => {
+                format!("{LITERAL_METADATA_PREFIX}bigint:{value}")
+            }
+            dir::ScalarLiteral::Float(value) => {
+                format!("{LITERAL_METADATA_PREFIX}float:{value}")
+            }
+            dir::ScalarLiteral::Character(value) => {
+                format!("{LITERAL_METADATA_PREFIX}char:U+{:04X}", *value as u32)
+            }
+            dir::ScalarLiteral::String(value) => {
+                let content = strings.get(*value);
+                let content = content.as_str();
+                let content = self.escape_metadata_fragment(content);
+                format!("{LITERAL_METADATA_PREFIX}{STRING_METADATA_PREFIX}{content}")
+            }
+            dir::ScalarLiteral::RegexString { content, flags } => {
+                let content = strings.get(*content);
+                let content = content.as_str();
+                let content = self.escape_metadata_fragment(content);
+                let mut name = format!("{LITERAL_METADATA_PREFIX}{REGEX_METADATA_PREFIX}{content}");
+                if let Some(flags) = flags {
+                    let flags = strings.get(*flags);
+                    let flags = flags.as_str();
+                    let flags = self.escape_metadata_fragment(flags);
+                    name.push_str(":flags:");
+                    name.push_str(&flags);
+                }
+                name
+            }
+        }
+    }
+
+    /// Escape metadata fragments to avoid separator collisions.
+    fn escape_metadata_fragment(&self, value: &str) -> String {
+        let mut escaped = String::new();
+        for byte in value.as_bytes() {
+            let ch = *byte as char;
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                escaped.push(ch);
+            } else {
+                escaped.push('%');
+                escaped.push_str(&format!("{byte:02X}"));
+            }
+        }
+        escaped
     }
 
     /// Collect instance type ids for nominal declarations.
@@ -157,31 +480,9 @@ impl ModuleLowerer<'_> {
         // seed the set with all nominal instance types
         let mut type_ids = HashSet::new();
 
-        for (_, declaration) in self
-            .dir_tree
-            .iter_nodes_of_type::<destack_dir::Declaration>()
-        {
-            // match nominal declaration kinds
-            let symbol = match declaration {
-                destack_dir::Declaration::Struct { descriptor, .. }
-                | destack_dir::Declaration::Class { descriptor, .. }
-                | destack_dir::Declaration::Enum { descriptor, .. }
-                | destack_dir::Declaration::Interface { descriptor, .. } => {
-                    descriptor.symbol.into_global(self.module_id)
-                }
-                destack_dir::Declaration::Type {
-                    descriptor, kind, ..
-                } => {
-                    if !matches!(kind, destack_dir::TypeKind::Nominal) {
-                        continue;
-                    }
-                    descriptor.symbol.into_global(self.module_id)
-                }
-                _ => continue,
-            };
-
+        for info in self.collect_nominal_types() {
             // collect the instance type id when available
-            if let Some(instance_type_id) = self.types.get_instance_type_id(symbol) {
+            if let Some(instance_type_id) = info.instance_type_id {
                 type_ids.insert(instance_type_id);
             }
         }
@@ -205,7 +506,9 @@ impl ModuleLowerer<'_> {
 
         // walk parent nodes for naming context
         while let Some(node_id) = current {
+            // match parent node kinds
             match node_id.ty {
+                // handle parameter nodes
                 dir::NodeType::Parameter => {
                     // fill parameter context when missing
                     if context.parameter_name.is_none() || context.declaration_symbol.is_none() {
@@ -225,6 +528,7 @@ impl ModuleLowerer<'_> {
                         }
                     }
                 }
+                // handle member nodes
                 dir::NodeType::Member => {
                     // load the member node
                     let member_id = dir::LocalNodeId::<dir::Member>::new(node_id.id);
@@ -238,6 +542,7 @@ impl ModuleLowerer<'_> {
                     // apply member naming context
                     self.apply_member_context(member, expression_id, &mut context);
                 }
+                // handle property nodes
                 dir::NodeType::Property => {
                     // load the property node
                     let property_id = dir::LocalNodeId::<dir::Property>::new(node_id.id);
@@ -252,6 +557,7 @@ impl ModuleLowerer<'_> {
                     // apply property naming context
                     self.apply_property_context(property, expression_id, &mut context);
                 }
+                // handle declarator nodes
                 dir::NodeType::Declarator => {
                     // load the declarator node
                     let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(node_id.id);
@@ -269,6 +575,7 @@ impl ModuleLowerer<'_> {
                         context.declaration_symbol = self.owner_symbol_from_symbol(symbol_id);
                     }
                 }
+                // handle declaration nodes
                 dir::NodeType::Declaration => {
                     // load the declaration node
                     let declaration_id = dir::LocalNodeId::<dir::Declaration>::new(node_id.id);
@@ -283,6 +590,7 @@ impl ModuleLowerer<'_> {
                     // apply declaration naming context
                     self.apply_declaration_context(declaration, expression_id, &mut context);
                 }
+                // ignore other node kinds
                 _ => {}
             }
 
@@ -311,12 +619,14 @@ impl ModuleLowerer<'_> {
 
         // check declaration kinds for naming context
         match declaration {
+            // handle function declarations
             dir::Declaration::Function { signature, .. } => {
                 // mark function return types
                 if signature.return_type == Some(expression_id) {
                     context.is_return_type = true;
                 }
             }
+            // handle type alias declarations
             dir::Declaration::Type { value, .. } => {
                 // mark type alias values
                 if *value == expression_id {
@@ -336,12 +646,14 @@ impl ModuleLowerer<'_> {
     ) {
         // check member kinds for naming context
         match member {
+            // handle field members
             dir::Member::Field { key, .. } => {
                 // capture field name when missing
                 if context.field_name.is_none() {
                     context.field_name = self.member_name_from_key(*key);
                 }
             }
+            // handle method members
             dir::Member::Method { key, signature, .. } => {
                 // capture method name when missing
                 if context.method_name.is_none() {
@@ -368,12 +680,14 @@ impl ModuleLowerer<'_> {
     ) {
         // check property kinds for naming context
         match property {
+            // handle field properties
             dir::Property::Field { key, .. } => {
                 // capture field name when missing
                 if context.field_name.is_none() {
                     context.field_name = self.member_name_from_key(*key);
                 }
             }
+            // handle method properties
             dir::Property::Method { key, signature, .. } => {
                 // capture method name when missing
                 if context.method_name.is_none() {
@@ -398,9 +712,11 @@ impl ModuleLowerer<'_> {
 
         // match parameter kinds to resolve names
         match parameter {
+            // handle named parameters
             dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
                 Some(strings.get(*name).to_string())
             }
+            // handle pattern parameters
             dir::Parameter::Pattern {
                 symbol, pattern, ..
             } => {
@@ -430,7 +746,9 @@ impl ModuleLowerer<'_> {
 
         // extract binding names when available
         match pattern {
+            // handle simple binding patterns
             dir::Pattern::Binding { name, .. } => Some(strings.get(*name).to_string()),
+            // reject unsupported pattern kinds
             _ => None,
         }
     }
@@ -451,8 +769,11 @@ impl ModuleLowerer<'_> {
     fn property_symbol(&self, property: &dir::Property) -> dir::LocalSymbolId {
         // extract the symbol from each property kind
         match property {
+            // handle field properties
             dir::Property::Field { symbol, .. } => *symbol,
+            // handle method properties
             dir::Property::Method { symbol, .. } => *symbol,
+            // handle spread properties
             dir::Property::Spread { symbol, .. } => *symbol,
         }
     }
@@ -516,41 +837,69 @@ impl ModuleLowerer<'_> {
 
         // map supported key types to names
         match key {
+            // handle name and numeric keys
             dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
                 Some(strings.get(name_id).to_string())
             }
+            // reject symbol keys
             dir::StaticKey::Symbol(_) => None,
         }
     }
 
     /// Resolve the qualified name for a symbol in this module.
-    fn qualified_symbol_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    pub(crate) fn qualified_symbol_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        self.qualified_symbol_name_for_module(symbol_id, self.module, self.symbols)
+    }
+
+    /// Resolve the qualified name for a symbol in any module.
+    pub(crate) fn qualified_symbol_name_for_global(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<String> {
+        // load module metadata for the symbol
+        let module = self.compiler.program.modules.get(symbol_id.module_id);
+        let module = module.read();
+        let dir = module.dir(self.profile);
+        let symbols = dir.symbols.read();
+        self.qualified_symbol_name_for_module(symbol_id, &module, &symbols)
+    }
+
+    /// Resolve the qualified name for a symbol and module pair.
+    fn qualified_symbol_name_for_module(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        module: &Module,
+        symbols: &dir::SymbolTable,
+    ) -> Option<String> {
         // load the owning package
-        let package = self.compiler.program.packages.get(self.module.package_id);
+        let package = self.compiler.program.packages.get(module.package_id);
         let package = package.read();
 
         // build the module prefix
         let package_name = package.name.as_ref()?;
+        // require a non empty package name
         if package_name.is_empty() {
             return None;
         }
-        let module_path = self.module_path_without_extension(&package)?;
+        let module_path = self.module_path_without_extension(module, &package)?;
         let module_prefix = if module_path.is_empty() {
+            // use the package name for root modules
             package_name.to_string()
         } else {
+            // append the module path for nested modules
             format!("{package_name}/{module_path}")
         };
 
         // build the symbol path
-        let symbol_path = self.symbol_path_from_symbols(symbol_id)?;
+        let symbol_path = self.symbol_path_from_symbols(symbol_id, symbols)?;
 
         Some(format!("{module_prefix}:{symbol_path}"))
     }
 
     /// Resolve the package relative module path without extension.
-    fn module_path_without_extension(&self, package: &Package) -> Option<String> {
+    fn module_path_without_extension(&self, module: &Module, package: &Package) -> Option<String> {
         // prefer package relative paths when available
-        let module_path = if let Some(path) = &self.module.path {
+        let module_path = if let Some(path) = &module.path {
             let relative = package
                 .path
                 .as_ref()
@@ -558,7 +907,8 @@ impl ModuleLowerer<'_> {
                 .unwrap_or(path);
             relative.to_string_lossy().to_string()
         } else {
-            self.module.uri.to_string()
+            // fall back to the module uri
+            module.uri.to_string()
         };
 
         // normalize separators and drop extension
@@ -567,9 +917,13 @@ impl ModuleLowerer<'_> {
     }
 
     /// Build a symbol path from the module symbol table.
-    fn symbol_path_from_symbols(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    fn symbol_path_from_symbols(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        symbols: &dir::SymbolTable,
+    ) -> Option<String> {
         // seed with the symbol name
-        let symbol = self.symbols.get_symbol(symbol_id.into_local());
+        let symbol = symbols.get_symbol(symbol_id.into_local());
         let symbol_name = self.static_key_name(symbol.key?)?;
         let mut segments = vec![symbol_name];
 
@@ -583,14 +937,15 @@ impl ModuleLowerer<'_> {
             }
 
             // collect named owners into the path
-            let scope = self.symbols.get_scope_by_id(scope_id);
+            let scope = symbols.get_scope_by_id(scope_id);
             if let Some(owner_id) = scope.owner_id
                 && owner_id != symbol_id.into_local()
             {
-                let owner = self.symbols.get_symbol(owner_id);
+                let owner = symbols.get_symbol(owner_id);
                 if let Some(owner_name) = owner.key
                     && let Some(owner_name) = self.static_key_name(owner_name)
                 {
+                    // append the owner name to the path
                     segments.push(owner_name);
                 }
             }
@@ -621,9 +976,12 @@ impl ModuleLowerer<'_> {
         let stripped = leaf.rsplit_once('.').map(|(base, _)| base).unwrap_or(leaf);
 
         // rebuild the path without the extension
+        // return the leaf when no prefix is present
         if prefix.is_empty() {
             stripped.to_string()
-        } else {
+        }
+        // return the rebuilt path with the prefix
+        else {
             format!("{prefix}/{stripped}")
         }
     }
