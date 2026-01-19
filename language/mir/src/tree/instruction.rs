@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, Constant, Function, Global, Intrinsic, Local, LocalNodeId, MemoryOrdering,
-    Node, NodeType, Type, UnaryOperator, Value,
+    BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local, LocalNodeId,
+    MemoryOrdering, Node, NodeType, Type, UnaryOperator, Value,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
 ///
-/// Used by Call, CallIndirect, and Intrinsic instructions to reference arguments.
+/// Used by Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic instructions to reference arguments.
 /// This saves 16 bytes per instruction compared to using `Vec<Value>` inline.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ArgumentSlice {
@@ -41,6 +41,25 @@ impl ArgumentSlice {
     pub const fn len(&self) -> usize {
         self.count as usize
     }
+}
+
+/// Dispatch kind for a call instruction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CallDispatchKind {
+    /// Direct function call.
+    Direct,
+    /// Virtual call through a vtable slot.
+    Virtual {
+        /// The vtable slot id for the method.
+        slot_id: u32,
+    },
+    /// Interface call through an itab slot.
+    Interface {
+        /// The itab slot id for the method.
+        slot_id: u32,
+    },
+    /// Indirect call through a function pointer.
+    Indirect,
 }
 
 /// Instructions produce SSA values and perform "operations".
@@ -263,10 +282,8 @@ pub enum Instruction {
         elements: ArgumentSlice,
     },
 
-    // function calls (call, call.indirect)
+    // function calls (call, call.virtual, call.interface, call.indirect)
     /// Call a function directly.
-    ///
-    /// Callsite metadata, including memory effects, is stored in `NodeTree::call_table`.
     Call {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
@@ -274,10 +291,50 @@ pub enum Instruction {
         function: LocalNodeId<Function>,
         /// The arguments to pass (stored in NodeTree's argument buffer).
         arguments: ArgumentSlice,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// Optional callsite effects and attributes.
+        effects: Option<CallEffects>,
+    },
+    /// Call a virtual method through a vtable slot.
+    CallVirtual {
+        /// The SSA value to define with the return value, if any.
+        destination: Option<Value>,
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass (stored in NodeTree's argument buffer).
+        arguments: ArgumentSlice,
+        /// The declaring type for this virtual call.
+        declaring_type: LocalNodeId<Type>,
+        /// The vtable slot id for the method.
+        slot_id: u32,
+        /// The declared target function, when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// Optional callsite effects and attributes.
+        effects: Option<CallEffects>,
+    },
+    /// Call an interface method through an itab slot.
+    CallInterface {
+        /// The SSA value to define with the return value, if any.
+        destination: Option<Value>,
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass (stored in NodeTree's argument buffer).
+        arguments: ArgumentSlice,
+        /// The declaring interface type for this call.
+        declaring_type: LocalNodeId<Type>,
+        /// The itab slot id for the method.
+        slot_id: u32,
+        /// The declared target function, when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+        /// Optional callsite effects and attributes.
+        effects: Option<CallEffects>,
     },
     /// Call through a function pointer (call.indirect).
-    ///
-    /// Callsite metadata, including memory effects, is stored in `NodeTree::call_table`.
     CallIndirect {
         /// The SSA value to define with the return value, if any.
         destination: Option<Value>,
@@ -287,6 +344,8 @@ pub enum Instruction {
         arguments: ArgumentSlice,
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
+        /// Optional callsite effects and attributes.
+        effects: Option<CallEffects>,
     },
 
     // allocation (managed - runtime tracks memory: managed.alloc, managed.alloc_array)
@@ -411,6 +470,8 @@ impl Instruction {
             Instruction::Tuple { destination, .. } => Some(*destination),
             Instruction::Array { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
+            Instruction::CallVirtual { destination, .. } => *destination,
+            Instruction::CallInterface { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
             Instruction::ManagedAlloc { destination, .. } => Some(*destination),
             Instruction::ManagedAllocArray { destination, .. } => Some(*destination),
@@ -426,7 +487,7 @@ impl Instruction {
 
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
-    /// For Call, CallIndirect, and Intrinsic, the arguments are stored externally
+    /// For Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
     /// in NodeTree's argument buffer and must be fetched via `NodeTree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
@@ -464,6 +525,8 @@ impl Instruction {
             Instruction::Tuple { .. } => smallvec![],
             Instruction::Array { .. } => smallvec![],
             Instruction::Call { .. } => smallvec![],
+            Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
+            Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::ManagedAlloc { .. } => smallvec![],
             Instruction::ManagedAllocArray { length, .. } => smallvec![*length],
@@ -480,7 +543,8 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallIndirect, and Intrinsic.
+    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallInterface,
+    /// CallIndirect, and Intrinsic.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ArgumentSlice> {
         match self {
@@ -488,8 +552,72 @@ impl Instruction {
             Instruction::Tuple { elements, .. } => Some(*elements),
             Instruction::Array { elements, .. } => Some(*elements),
             Instruction::Call { arguments, .. } => Some(*arguments),
+            Instruction::CallVirtual { arguments, .. } => Some(*arguments),
+            Instruction::CallInterface { arguments, .. } => Some(*arguments),
             Instruction::CallIndirect { arguments, .. } => Some(*arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
+            _ => None,
+        }
+    }
+
+    /// Return the dispatch kind for call instructions.
+    pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
+        match self {
+            Instruction::Call { .. } => Some(CallDispatchKind::Direct),
+            Instruction::CallVirtual { slot_id, .. } => {
+                Some(CallDispatchKind::Virtual { slot_id: *slot_id })
+            }
+            Instruction::CallInterface { slot_id, .. } => {
+                Some(CallDispatchKind::Interface { slot_id: *slot_id })
+            }
+            Instruction::CallIndirect { .. } => Some(CallDispatchKind::Indirect),
+            _ => None,
+        }
+    }
+
+    /// Return the signature type for call instructions.
+    pub fn call_signature(&self) -> Option<LocalNodeId<Type>> {
+        match self {
+            Instruction::Call { signature, .. }
+            | Instruction::CallVirtual { signature, .. }
+            | Instruction::CallInterface { signature, .. }
+            | Instruction::CallIndirect { signature, .. } => Some(*signature),
+            _ => None,
+        }
+    }
+
+    /// Return the declared target for call instructions, when known.
+    pub fn call_declared_target(&self) -> Option<LocalNodeId<Function>> {
+        match self {
+            Instruction::Call { function, .. } => Some(*function),
+            Instruction::CallVirtual {
+                declared_target, ..
+            }
+            | Instruction::CallInterface {
+                declared_target, ..
+            } => *declared_target,
+            _ => None,
+        }
+    }
+
+    /// Return callsite effects for call instructions, when present.
+    pub fn call_effects(&self) -> Option<&CallEffects> {
+        match self {
+            Instruction::Call { effects, .. }
+            | Instruction::CallVirtual { effects, .. }
+            | Instruction::CallInterface { effects, .. }
+            | Instruction::CallIndirect { effects, .. } => effects.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// Return mutable callsite effects for call instructions, when present.
+    pub fn call_effects_mut(&mut self) -> Option<&mut CallEffects> {
+        match self {
+            Instruction::Call { effects, .. }
+            | Instruction::CallVirtual { effects, .. }
+            | Instruction::CallInterface { effects, .. }
+            | Instruction::CallIndirect { effects, .. } => effects.as_mut(),
             _ => None,
         }
     }

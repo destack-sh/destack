@@ -1,7 +1,7 @@
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{
-    AddressSpace, AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallMetadata,
+    AddressSpace, AllocSize, AllocationMode, BinaryOperator, Block, CallBehavior, CallEffects,
     CastOperator, CheckConstraint, CheckTarget, Constant, Function, Global, Instruction, Intrinsic,
     Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, MemoryOrdering, Mutability, NodeTree,
     Ownership, PointerAttributes, ReferenceKind, Terminator, Type, TypedValue, UnaryOperator,
@@ -469,6 +469,10 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::CallIndirect {
                     callee: argument, ..
                 }
+                Instruction::CallVirtual { receiver, .. }
+                | Instruction::CallInterface { receiver, .. } => {
+                    Self::replace_value_in_slot(receiver, from, to);
+                }
                 | Instruction::RawFree { pointer: argument }
                 | Instruction::RawDrop { value: argument }
                 | Instruction::StackDrop { value: argument } => {
@@ -608,6 +612,19 @@ impl<'a> FunctionBuilder<'a> {
                 callee, arguments, ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
+                Self::replace_values_in_slice(arguments, from, to);
+            }
+            Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                ..
+            }
+            | Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                ..
+            } => {
+                Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(arguments, from, to);
             }
         }
@@ -1234,6 +1251,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn call(
         &mut self,
         function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) -> Option<Value> {
         let destination = self.allocate_value();
@@ -1242,61 +1260,161 @@ impl<'a> FunctionBuilder<'a> {
             destination: Some(destination),
             function,
             arguments,
+            signature,
+            effects: None,
         });
         Some(destination)
     }
 
     /// Call a function with no return value.
-    pub fn call_void(&mut self, function: LocalNodeId<Function>, argument_values: Vec<Value>) {
+    pub fn call_void(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
         let arguments = self.tree.add_arguments(&argument_values);
         self.insert_instruction(Instruction::Call {
             destination: None,
             function,
             arguments,
+            signature,
+            effects: None,
         });
     }
 
-    /// Call a function with associated dispatch metadata.
-    pub fn call_with_metadata(
+    /// Call a virtual method through a vtable slot.
+    pub fn call_virtual(
         &mut self,
-        function: LocalNodeId<Function>,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        metadata: CallMetadata,
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::Call {
+        self.insert_instruction(Instruction::CallVirtual {
             destination: Some(destination),
-            function,
+            receiver,
             arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects: None,
         });
-
-        // store call metadata for later optimization passes
-        self.tree
-            .call_table
-            .insert_call_metadata(instruction_id, metadata);
-
         Some(destination)
     }
 
-    /// Call a function with no return value and associated dispatch metadata.
-    pub fn call_void_with_metadata(
+    /// Call a virtual method with no return value.
+    pub fn call_virtual_void(
         &mut self,
-        function: LocalNodeId<Function>,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        metadata: CallMetadata,
     ) {
         let arguments = self.tree.add_arguments(&argument_values);
-        let instruction_id = self.insert_instruction(Instruction::Call {
+        self.insert_instruction(Instruction::CallVirtual {
+            destination: None,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects: None,
+        });
+    }
+
+    /// Call an interface method through an itab slot.
+    pub fn call_interface(
+        &mut self,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) -> Option<Value> {
+        let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&argument_values);
+        self.insert_instruction(Instruction::CallInterface {
+            destination: Some(destination),
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects: None,
+        });
+        Some(destination)
+    }
+
+    /// Call an interface method with no return value.
+    pub fn call_interface_void(
+        &mut self,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
+        let arguments = self.tree.add_arguments(&argument_values);
+        self.insert_instruction(Instruction::CallInterface {
+            destination: None,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects: None,
+        });
+    }
+
+    /// Call a function with explicit effects metadata.
+    pub fn call_with_effects(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+        effects: CallEffects,
+    ) -> Option<Value> {
+        let destination = self.allocate_value();
+        let arguments = self.tree.add_arguments(&argument_values);
+        self.insert_instruction(Instruction::Call {
+            destination: Some(destination),
+            function,
+            arguments,
+            signature,
+            effects: Some(effects),
+        });
+        Some(destination)
+    }
+
+    /// Call a function with no return value and explicit effects metadata.
+    pub fn call_void_with_effects(
+        &mut self,
+        function: LocalNodeId<Function>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+        effects: CallEffects,
+    ) {
+        let arguments = self.tree.add_arguments(&argument_values);
+        self.insert_instruction(Instruction::Call {
             destination: None,
             function,
             arguments,
+            signature,
+            effects: Some(effects),
         });
-
-        // store call metadata for later optimization passes
-        self.tree
-            .call_table
-            .insert_call_metadata(instruction_id, metadata);
     }
 
     /// Call through a function pointer with an explicit signature type.
@@ -1308,15 +1426,13 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         let arguments = self.tree.add_arguments(&args);
-        let instruction_id = self.insert_instruction(Instruction::CallIndirect {
+        self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination),
             callee,
             arguments,
             signature,
+            effects: None,
         });
-        self.tree
-            .call_table
-            .insert_call_metadata(instruction_id, CallMetadata::indirect(signature));
         destination
     }
 
@@ -1328,15 +1444,13 @@ impl<'a> FunctionBuilder<'a> {
         args: Vec<Value>,
     ) {
         let arguments = self.tree.add_arguments(&args);
-        let instruction_id = self.insert_instruction(Instruction::CallIndirect {
+        self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee,
             arguments,
             signature,
+            effects: None,
         });
-        self.tree
-            .call_table
-            .insert_call_metadata(instruction_id, CallMetadata::indirect(signature));
     }
 
     // instruction builders: casts
@@ -1532,6 +1646,54 @@ impl<'a> FunctionBuilder<'a> {
         block.terminator = Terminator::TailCall {
             function,
             arguments: argument_values,
+        };
+    }
+
+    /// Tail call through a virtual dispatch slot.
+    ///
+    /// The callee's return value becomes this function's return value.
+    pub fn tail_call_virtual(
+        &mut self,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
+        let block = self.current_block();
+        let block = self.tree.get_mut(block);
+        block.terminator = Terminator::TailCallVirtual {
+            receiver,
+            arguments: argument_values,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        };
+    }
+
+    /// Tail call through an interface dispatch slot.
+    ///
+    /// The callee's return value becomes this function's return value.
+    pub fn tail_call_interface(
+        &mut self,
+        receiver: Value,
+        declaring_type: LocalNodeId<Type>,
+        slot_id: u32,
+        declared_target: Option<LocalNodeId<Function>>,
+        signature: LocalNodeId<Type>,
+        argument_values: Vec<Value>,
+    ) {
+        let block = self.current_block();
+        let block = self.tree.get_mut(block);
+        block.terminator = Terminator::TailCallInterface {
+            receiver,
+            arguments: argument_values,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
         };
     }
 

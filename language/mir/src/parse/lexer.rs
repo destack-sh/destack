@@ -161,6 +161,8 @@ impl<'a> Lexer<'a> {
             "unreachable" => TokenType::Unreachable,
             "tailcall" => TokenType::TailCall,
             "tailcall.indirect" => TokenType::TailCallIndirect,
+            "tailcall.virtual" => TokenType::TailCallVirtual,
+            "tailcall.interface" => TokenType::TailCallInterface,
             "void" => TokenType::Void,
             "bool" => TokenType::Bool,
             "ref" => {

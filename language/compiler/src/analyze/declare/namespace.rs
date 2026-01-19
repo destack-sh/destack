@@ -23,6 +23,7 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // pick a stable source node for module imports
+        // FUGU #Broken: replace placeholder nodes
         let module_source_id = module
             .dir(profile)
             .roots

@@ -5,8 +5,8 @@ use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ArgumentSlice, Block, CallTable, DebugInfoTable, Field, Function, Global, Instruction, Local,
-    LocalNodeId, MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
+    ArgumentSlice, Block, DebugInfoTable, Field, Function, Global, Instruction, Local, LocalNodeId,
+    MemoryTable, Node, NodeType, Type, TypeAlias, TypeTable, Value,
 };
 
 /// MIR node tree for a single module.
@@ -48,8 +48,6 @@ pub struct NodeTree {
     // metadata tables
     /// Type metadata table.
     pub type_table: TypeTable,
-    /// Callsite metadata table.
-    pub call_table: CallTable,
     /// Memory metadata table.
     pub memory_table: MemoryTable,
     /// Debug metadata table.
@@ -103,7 +101,6 @@ impl NodeTree {
             span_by_node_id: Vec::with_capacity(capacity),
             instruction_arguments: Vec::new(),
             type_table: TypeTable::new(),
-            call_table: CallTable::new(),
             memory_table: MemoryTable::new(),
             debug_info: DebugInfoTable::new(),
         }

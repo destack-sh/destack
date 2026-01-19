@@ -234,6 +234,40 @@ pub enum Terminator {
         /// The signature type for the callee.
         signature: LocalNodeId<Type>,
     },
+    /// Tail call through a virtual dispatch slot.
+    ///
+    /// The callee's return value becomes this function's return value.
+    TailCallVirtual {
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass.
+        arguments: Vec<Value>,
+        /// The declaring type for this virtual call.
+        declaring_type: LocalNodeId<Type>,
+        /// The vtable slot id for the method.
+        slot_id: u32,
+        /// The declared target function, when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+    },
+    /// Tail call through an interface dispatch slot.
+    ///
+    /// The callee's return value becomes this function's return value.
+    TailCallInterface {
+        /// The receiver value for dispatch.
+        receiver: Value,
+        /// The arguments to pass.
+        arguments: Vec<Value>,
+        /// The declaring interface type for this call.
+        declaring_type: LocalNodeId<Type>,
+        /// The itab slot id for the method.
+        slot_id: u32,
+        /// The declared target function, when known.
+        declared_target: Option<LocalNodeId<Function>>,
+        /// The signature type for the callee.
+        signature: LocalNodeId<Type>,
+    },
 }
 
 impl Terminator {
@@ -262,6 +296,8 @@ impl Terminator {
             // tail calls don't return to this function, so no successors
             Terminator::TailCall { .. } => smallvec![],
             Terminator::TailCallIndirect { .. } => smallvec![],
+            Terminator::TailCallVirtual { .. } => smallvec![],
+            Terminator::TailCallInterface { .. } => smallvec![],
         }
     }
 
@@ -321,6 +357,24 @@ impl Terminator {
                 callee, arguments, ..
             } => {
                 let mut uses = smallvec![*callee];
+                uses.extend(arguments.iter().copied());
+                uses
+            }
+            Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                ..
+            } => {
+                let mut uses = smallvec![*receiver];
+                uses.extend(arguments.iter().copied());
+                uses
+            }
+            Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                ..
+            } => {
+                let mut uses = smallvec![*receiver];
                 uses.extend(arguments.iter().copied());
                 uses
             }

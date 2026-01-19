@@ -1,4 +1,7 @@
-use crate::{Constant, GlobalInitializer, MirFormatOptions, ModuleBuilder, Mutability, format_mir};
+use crate::{
+    AddressSpace, Constant, GlobalInitializer, MirFormatOptions, ModuleBuilder, Mutability,
+    ReferenceKind, format_mir,
+};
 
 /// Simple add function with two parameters.
 #[test]
@@ -198,7 +201,13 @@ fn test_format_global_variable() {
     let mut builder = module.function("increment", &[], void_type);
     let entry_block = builder.create_block();
     builder.switch_to_block(entry_block);
-    let ptr_type = module.type_raw_pointer(i32_type);
+    let ptr_type = builder.type_reference(
+        ReferenceKind::Raw,
+        i32_type,
+        Mutability::Mutable,
+        AddressSpace::Global,
+        false,
+    );
     let ptr = builder.global_addr(counter, ptr_type);
     let value = builder.load(ptr, i32_type);
     let one = builder.iconst_i32(1);
@@ -215,7 +224,7 @@ fn test_format_global_variable() {
 global @counter: i32 = zeroinit ; mut
 function @increment() -> void {
 block0:
-    v0 = global.addr @counter -> ref<raw addrspace(global) i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2

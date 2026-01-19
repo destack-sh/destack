@@ -119,28 +119,28 @@ impl Compiler {
         let module_ref = self.program.modules.get(module_id);
         let module = module_ref.read();
 
-        // Get the profile DIR and default symbol
+        // get the profile DIR and default symbol
         let dir = module.dir(profile);
         let default_symbol = dir.default_symbol;
 
-        // Use a synthetic source ID since there's no actual AST node
+        // FUGU #Broken: replace placeholder nodes
         let source_id = LocalNodeIdAny::new(0, NodeType::Expression);
 
-        // Extract module type and content
+        // extract module type and content
         let module_type = module.module_type;
 
         match module_type {
             ModuleType::Data => {
-                // Get the parsed JSON value
+                // get the parsed JSON value
                 let value = match &module.content {
                     ModuleContent::Data { value, .. } => value.clone(),
                     _ => return Ok(()),
                 };
 
-                // Drop the read lock before taking the write lock
+                // drop the read lock before taking the write lock
                 drop(module);
 
-                // Re-acquire the module and infer type
+                // re-acquire the module and infer type
                 let module_ref = self.program.modules.get(module_id);
                 let module = module_ref.read();
                 let dir = module.dir(profile);
@@ -149,11 +149,11 @@ impl Compiler {
                 let inferred_type =
                     json_value_to_type(&value, source_id, &mut types, &self.program.strings);
 
-                // Associate the inferred type with the default symbol
+                // associate the inferred type with the default symbol
                 types.set_value_type(default_symbol.into_global(module_id), inferred_type);
             }
             ModuleType::Text => {
-                // Text modules are always string
+                // text modules are always string
                 let mut types = dir.types.write();
                 let string_type = types.insert_type_from_any(
                     Type::TypeLiteral {
@@ -164,7 +164,7 @@ impl Compiler {
                 types.set_value_type(default_symbol.into_global(module_id), string_type);
             }
             ModuleType::Binary => {
-                // Binary modules are uint8[]
+                // binary modules are uint8[]
                 let mut types = dir.types.write();
                 let element = types.insert_type_from_any(
                     Type::TypeLiteral {
@@ -183,7 +183,7 @@ impl Compiler {
                 types.set_value_type(default_symbol.into_global(module_id), array_type);
             }
             ModuleType::Code => {
-                // Should not reach here - code modules are handled by analyze_module_infer
+                unreachable!("code modules are handled by analyze_module_infer");
             }
         }
 

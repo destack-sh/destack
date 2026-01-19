@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ArgumentSlice, Block, CallMetadata, Function, Instruction, Local, LocalNodeId,
-    MemoryAccessKind, MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree, NodeType,
-    ReferenceKind, SwitchCase, Terminator, Type, Value,
+    ArgumentSlice, Block, CallEffects, Function, Instruction, Local, LocalNodeId, MemoryAccessKind,
+    MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree, NodeType, ReferenceKind, SwitchCase,
+    Terminator, Type, Value,
 };
 
 use super::{VerifyAnchor, VerifyError, VerifyResult};
@@ -393,65 +393,87 @@ impl<'a> Verifier<'a> {
                 self.ensure_defined(value, VerifyAnchor::node(instruction_id), defined_values)?;
             }
 
-            // validate direct call signatures
-            if let Instruction::Call {
-                destination,
-                function,
-                ..
-            } = instruction
-            {
-                let callee = self.tree.get(*function);
-
-                // reject mismatched argument counts
-                if arguments.len() != callee.parameters.len() {
-                    return Err(VerifyError::CallArgumentCountMismatch {
-                        expected: callee.parameters.len(),
-                        got: arguments.len(),
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
+            // validate call signatures and effects
+            match instruction {
+                Instruction::Call {
+                    destination,
+                    function,
+                    signature,
+                    effects,
+                    ..
+                } => {
+                    self.verify_call_signature(
+                        instruction_id,
+                        *destination,
+                        arguments.len(),
+                        *signature,
+                    )?;
+                    self.verify_call_signature_matches_function(
+                        VerifyAnchor::node(instruction_id),
+                        *signature,
+                        *function,
+                    )?;
+                    self.verify_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
                 }
-
-                let returns_void = matches!(self.tree.get(callee.return_type), Type::Void);
-
-                // reject return values from void callees
-                if returns_void && destination.is_some() {
-                    return Err(VerifyError::CallReturnValueNotAllowedForVoid {
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
+                Instruction::CallVirtual {
+                    destination,
+                    signature,
+                    effects,
+                    declared_target,
+                    ..
+                } => {
+                    self.verify_call_signature(
+                        instruction_id,
+                        *destination,
+                        arguments.len(),
+                        *signature,
+                    )?;
+                    if let Some(target) = declared_target {
+                        self.verify_call_signature_matches_function(
+                            VerifyAnchor::node(instruction_id),
+                            *signature,
+                            *target,
+                        )?;
+                    }
+                    self.verify_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
                 }
-            }
-
-            // validate indirect call signatures
-            if let Instruction::CallIndirect {
-                destination,
-                signature,
-                ..
-            } = instruction
-            {
-                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
-                    return Err(VerifyError::MetadataInvariantViolation {
-                        message: "call indirect signature is not a function type".to_string(),
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
-                };
-
-                // reject mismatched argument counts
-                if arguments.len() != parameters.len() {
-                    return Err(VerifyError::CallArgumentCountMismatch {
-                        expected: parameters.len(),
-                        got: arguments.len(),
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
+                Instruction::CallInterface {
+                    destination,
+                    signature,
+                    effects,
+                    declared_target,
+                    ..
+                } => {
+                    self.verify_call_signature(
+                        instruction_id,
+                        *destination,
+                        arguments.len(),
+                        *signature,
+                    )?;
+                    if let Some(target) = declared_target {
+                        self.verify_call_signature_matches_function(
+                            VerifyAnchor::node(instruction_id),
+                            *signature,
+                            *target,
+                        )?;
+                    }
+                    self.verify_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
                 }
-
-                let returns_void = matches!(self.tree.get(*result), Type::Void);
-
-                // reject return values from void callees
-                if returns_void && destination.is_some() {
-                    return Err(VerifyError::CallReturnValueNotAllowedForVoid {
-                        anchor: VerifyAnchor::node(instruction_id),
-                    });
+                Instruction::CallIndirect {
+                    destination,
+                    signature,
+                    effects,
+                    ..
+                } => {
+                    self.verify_call_signature(
+                        instruction_id,
+                        *destination,
+                        arguments.len(),
+                        *signature,
+                    )?;
+                    self.verify_call_effects(instruction_id, effects.as_ref(), arguments.len())?;
                 }
+                _ => {}
             }
         }
 
@@ -625,6 +647,64 @@ impl<'a> Verifier<'a> {
                 let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
                     return Err(VerifyError::MetadataInvariantViolation {
                         message: "tailcall.indirect signature is not a function type".to_string(),
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                };
+
+                // reject mismatched argument counts
+                if arguments.len() != parameters.len() {
+                    return Err(VerifyError::CallArgumentCountMismatch {
+                        expected: parameters.len(),
+                        got: arguments.len(),
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                }
+
+                // reject return kind mismatches
+                let caller_returns_void = matches!(self.tree.get(function.return_type), Type::Void);
+                let callee_returns_void = matches!(self.tree.get(*result), Type::Void);
+                if caller_returns_void != callee_returns_void {
+                    return Err(VerifyError::TailCallReturnTypeMismatch {
+                        anchor: VerifyAnchor::node(block_id),
+                    });
+                }
+            }
+            Terminator::TailCallVirtual {
+                arguments,
+                declaring_type,
+                declared_target,
+                signature,
+                ..
+            }
+            | Terminator::TailCallInterface {
+                arguments,
+                declaring_type,
+                declared_target,
+                signature,
+                ..
+            } => {
+                self.ensure_node_type(
+                    NodeType::Type,
+                    declaring_type.id,
+                    VerifyAnchor::node(block_id),
+                )?;
+
+                if let Some(target) = declared_target {
+                    self.ensure_node_type(
+                        NodeType::Function,
+                        target.id,
+                        VerifyAnchor::node(block_id),
+                    )?;
+                    self.verify_call_signature_matches_function(
+                        VerifyAnchor::node(block_id),
+                        *signature,
+                        *target,
+                    )?;
+                }
+
+                let Type::FunctionPointer { parameters, result } = self.tree.get(*signature) else {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tailcall signature is not a function type".to_string(),
                         anchor: VerifyAnchor::node(block_id),
                     });
                 };
@@ -880,6 +960,17 @@ impl<'a> Verifier<'a> {
                 // ensure function ids resolve
                 self.ensure_node_type(NodeType::Function, function.id, anchor)?;
             }
+            Instruction::CallVirtual {
+                declared_target, ..
+            }
+            | Instruction::CallInterface {
+                declared_target, ..
+            } => {
+                // ensure declared targets resolve
+                if let Some(target) = declared_target {
+                    self.ensure_node_type(NodeType::Function, target.id, anchor)?;
+                }
+            }
             Instruction::Cast { to_type, .. }
             | Instruction::Struct { ty: to_type, .. }
             | Instruction::Tuple { ty: to_type, .. }
@@ -1086,12 +1177,32 @@ impl<'a> Verifier<'a> {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 self.verify_reference_result_type(*result_type, None, None, None, anchor)?;
             }
-            Instruction::CallIndirect { signature, .. } => {
+            Instruction::Call { signature, .. } | Instruction::CallIndirect { signature, .. } => {
                 self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
                 let ty = self.tree.get(*signature);
                 if !matches!(ty, Type::FunctionPointer { .. }) {
                     return Err(VerifyError::MetadataInvariantViolation {
-                        message: "call.indirect signature is not a function type".to_string(),
+                        message: "call signature is not a function type".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::CallVirtual {
+                declaring_type,
+                signature,
+                ..
+            }
+            | Instruction::CallInterface {
+                declaring_type,
+                signature,
+                ..
+            } => {
+                self.ensure_node_type(NodeType::Type, declaring_type.id, anchor)?;
+                self.ensure_node_type(NodeType::Type, signature.id, anchor)?;
+                let ty = self.tree.get(*signature);
+                if !matches!(ty, Type::FunctionPointer { .. }) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "call signature is not a function type".to_string(),
                         anchor,
                     });
                 }
@@ -1158,11 +1269,6 @@ impl<'a> Verifier<'a> {
 
     /// Verify metadata tables after function checks.
     fn verify_metadata_tables(&self) -> VerifyResult<()> {
-        // validate call metadata entries
-        for (&instruction_id, metadata) in &self.tree.call_table.call_metadata_by_instruction_id {
-            self.verify_call_metadata_entry(instruction_id, metadata)?;
-        }
-
         // validate memory metadata entries
         for (&instruction_id, accesses) in &self.tree.memory_table.memory_accesses_by_instruction_id
         {
@@ -1245,98 +1351,135 @@ impl<'a> Verifier<'a> {
         Ok(())
     }
 
-    /// Verify call table metadata entries.
-    fn verify_call_metadata_entry(
+    /// Verify call signature invariants.
+    fn verify_call_signature(
         &self,
         instruction_id: LocalNodeId<Instruction>,
-        metadata: &CallMetadata,
+        destination: Option<Value>,
+        argument_count: usize,
+        signature: LocalNodeId<Type>,
     ) -> VerifyResult<()> {
-        // ensure the instruction id resolves
-        self.ensure_node_type(
-            NodeType::Instruction,
-            instruction_id.id,
-            VerifyAnchor::node(instruction_id),
-        )?;
-
-        // ensure call metadata attaches to calls
-        let instruction = self.tree.get(instruction_id);
-        if !matches!(
-            instruction,
-            Instruction::Call { .. } | Instruction::CallIndirect { .. }
-        ) {
+        // resolve the signature type
+        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
             return Err(VerifyError::MetadataInvariantViolation {
-                message: "call metadata attached to non call instruction".to_string(),
+                message: "call signature is not a function type".to_string(),
+                anchor: VerifyAnchor::node(instruction_id),
+            });
+        };
+
+        // reject mismatched argument counts
+        if argument_count != parameters.len() {
+            return Err(VerifyError::CallArgumentCountMismatch {
+                expected: parameters.len(),
+                got: argument_count,
                 anchor: VerifyAnchor::node(instruction_id),
             });
         }
+
+        let returns_void = matches!(self.tree.get(*result), Type::Void);
+
+        // reject return values from void callees
+        if returns_void && destination.is_some() {
+            return Err(VerifyError::CallReturnValueNotAllowedForVoid {
+                anchor: VerifyAnchor::node(instruction_id),
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Verify call signatures against a concrete function.
+    fn verify_call_signature_matches_function(
+        &self,
+        anchor: VerifyAnchor,
+        signature: LocalNodeId<Type>,
+        function_id: LocalNodeId<Function>,
+    ) -> VerifyResult<()> {
+        // resolve the signature type
+        let Type::FunctionPointer { parameters, result } = self.tree.get(signature) else {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "call signature is not a function type".to_string(),
+                anchor,
+            });
+        };
+
+        let function = self.tree.get(function_id);
+
+        // reject mismatched parameter counts
+        if parameters.len() != function.parameters.len() {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "call signature does not match callee".to_string(),
+                anchor,
+            });
+        }
+
+        // validate parameter types
+        for (parameter, signature_type) in function.parameters.iter().zip(parameters.iter()) {
+            if parameter.ty != *signature_type {
+                return Err(VerifyError::MetadataInvariantViolation {
+                    message: "call signature does not match callee".to_string(),
+                    anchor,
+                });
+            }
+        }
+
+        // validate return type
+        if function.return_type != *result {
+            return Err(VerifyError::MetadataInvariantViolation {
+                message: "call signature does not match callee".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Verify call effects invariants.
+    fn verify_call_effects(
+        &self,
+        instruction_id: LocalNodeId<Instruction>,
+        effects: Option<&CallEffects>,
+        argument_count: usize,
+    ) -> VerifyResult<()> {
+        // skip empty effects
+        let Some(effects) = effects else {
+            return Ok(());
+        };
+
+        let anchor = VerifyAnchor::node(instruction_id);
 
         // validate argument metadata length
-        let args_len = instruction
-            .argument_slice()
-            .map(|slice| slice.len())
-            .unwrap_or(0);
-        if !metadata.argument_metadata.is_empty() && metadata.argument_metadata.len() != args_len {
-            return Err(VerifyError::MetadataInvariantViolation {
-                message: format!(
-                    "call metadata argument count mismatch expected {args_len} got {}",
-                    metadata.argument_metadata.len()
-                ),
-                anchor: VerifyAnchor::node(instruction_id),
-            });
-        }
-
-        // require receiver values for dispatch
-        if metadata.dispatch.expects_receiver() && metadata.receiver.is_none() {
-            return Err(VerifyError::MetadataInvariantViolation {
-                message: "call metadata missing receiver for dispatch".to_string(),
-                anchor: VerifyAnchor::node(instruction_id),
-            });
-        }
-
-        // validate signature types
-        let signature_type = self.tree.get(metadata.signature);
-        if !matches!(signature_type, Type::FunctionPointer { .. }) {
-            return Err(VerifyError::MetadataInvariantViolation {
-                message: "call metadata signature is not a function type".to_string(),
-                anchor: VerifyAnchor::node(instruction_id),
-            });
-        }
-
-        // ensure indirect call signatures align
-        if let Instruction::CallIndirect { signature, .. } = instruction
-            && *signature != metadata.signature
+        if !effects.argument_metadata.is_empty()
+            && effects.argument_metadata.len() != argument_count
         {
             return Err(VerifyError::MetadataInvariantViolation {
-                message: "call metadata signature does not match call.indirect".to_string(),
-                anchor: VerifyAnchor::node(instruction_id),
+                message: format!(
+                    "call effects argument count mismatch expected {argument_count} got {}",
+                    effects.argument_metadata.len()
+                ),
+                anchor,
             });
         }
 
         // validate memory effects
-        self.verify_memory_effect_invariants(
-            metadata.memory_effects.as_ref(),
-            VerifyAnchor::node(instruction_id),
-        )?;
+        self.verify_memory_effect_invariants(effects.memory_effects.as_ref(), anchor)?;
 
         // validate call behavior
-        self.verify_call_behavior_invariants(
-            metadata.behavior.as_ref(),
-            VerifyAnchor::node(instruction_id),
-        )?;
+        self.verify_call_behavior_invariants(effects.behavior.as_ref(), anchor)?;
 
         // validate return attributes
         self.verify_pointer_attributes_invariants(
             "call return attributes",
-            &metadata.return_attributes,
-            VerifyAnchor::node(instruction_id),
+            &effects.return_attributes,
+            anchor,
         )?;
 
         // validate argument attributes
-        for argument in &metadata.argument_metadata {
+        for argument in &effects.argument_metadata {
             self.verify_pointer_attributes_invariants(
                 "call argument attributes",
                 &argument.attributes,
-                VerifyAnchor::node(instruction_id),
+                anchor,
             )?;
         }
 

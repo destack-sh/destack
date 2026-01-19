@@ -758,7 +758,7 @@ fn test_build_stack_alloc() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
-function @stack_alloc_test() -> ref<raw i32> {
+function @stack_alloc_test() -> ref<raw addrspace(stack) i32> {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     return v0

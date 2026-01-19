@@ -129,14 +129,14 @@ pub struct DispatchTable {
     pub slots: Vec<DispatchSlot>,
 }
 
-/// Table of dispatch metadata.
+/// Registry of dispatch metadata.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DispatchTables {
+pub struct DispatchRegistry {
     /// Registered dispatch tables.
     pub tables: Vec<DispatchTable>,
 }
 
-impl DispatchTables {
+impl DispatchRegistry {
     /// Create a new empty dispatch table registry.
     pub fn new() -> Self {
         Self::default()
@@ -183,7 +183,7 @@ pub struct TypeTable {
     /// Type metadata keyed by type id.
     pub type_metadata_by_id: HashMap<LocalNodeId<Type>, TypeMetadata>,
     /// Dispatch tables for virtual and interface calls.
-    pub dispatch_tables: DispatchTables,
+    pub dispatch_registry: DispatchRegistry,
 }
 
 impl TypeTable {
