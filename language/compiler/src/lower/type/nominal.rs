@@ -4,7 +4,9 @@ use destack_base::StringId;
 use destack_dir::{self as dir, GlobalSymbolId, LocalNodeId};
 use destack_mir as mir;
 
-use crate::lower::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, static_key_to_field_name};
+use crate::lower::{
+    FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, static_key_to_field_name,
+};
 use crate::{LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;

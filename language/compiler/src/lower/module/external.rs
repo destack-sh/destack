@@ -1,7 +1,6 @@
-use destack_dir as dir;
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
-use destack_mir as mir;
 use destack_source::ModuleId;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult, TaskDependencyError};
 

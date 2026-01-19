@@ -56,7 +56,7 @@ impl Compiler {
                     )
                 };
 
-            // preserve alias identity 
+            // preserve alias identity
             if matches!(mode, CanonicalSymbolMode::PreserveAliases)
                 && matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype)
             {

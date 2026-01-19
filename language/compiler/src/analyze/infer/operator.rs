@@ -1915,16 +1915,15 @@ impl Compiler {
         }
 
         // extract payload types from the branch return shape
-        let Some((branch_value_ty_id, branch_error_ty_id)) = self
-            .try_branch_payloads_from_return(
-                module,
-                expression_id,
-                return_ty_id,
-                profile,
-                tree,
-                symbols,
-                types,
-            )?
+        let Some((branch_value_ty_id, branch_error_ty_id)) = self.try_branch_payloads_from_return(
+            module,
+            expression_id,
+            return_ty_id,
+            profile,
+            tree,
+            symbols,
+            types,
+        )?
         else {
             return Ok(false);
         };

@@ -630,7 +630,7 @@ block2:
     store v1, v3
     jump block3
 block3:
-    call @read_only()
+    call @read_only() -> fn() -> void
     v4 = load v1 -> i32
     return v4
 }
@@ -651,7 +651,7 @@ block2:
     v7 = load v1 -> i32
     jump block3(v7)
 block3(v5: i32):
-    call @read_only()
+    call @read_only() -> fn() -> void
     return v5
 }
 extern function @read_only() -> void"#;
