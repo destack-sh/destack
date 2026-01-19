@@ -961,6 +961,7 @@ impl TestProgram {
         let tree = mir.tree.read().clone();
         let strings = mir.strings.clone().into_immutable();
         Isolate::with_options(tree, strings, IsolateOptions::test())
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
     }
 
     /// Run a MIR function by name and return its output value.

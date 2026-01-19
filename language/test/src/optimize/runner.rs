@@ -1134,7 +1134,7 @@ fn run_program_with_tree_result(
     }
 
     // build isolate and arguments
-    let mut isolate = Isolate::with_options(tree, strings, options);
+    let mut isolate = Isolate::with_options(tree, strings, options)?;
     let args = program.args_for_profile(&isolate, program::BenchProfileKind::Quick);
 
     // execute using the requested runner
@@ -1160,7 +1160,7 @@ fn run_program_with_tree_result_default_args(
     }
 
     // build isolate and arguments
-    let mut isolate = Isolate::with_options(tree, strings, options);
+    let mut isolate = Isolate::with_options(tree, strings, options)?;
     let args = (program.default_args)(&isolate);
 
     // execute using the requested runner

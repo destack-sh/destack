@@ -226,7 +226,8 @@ block0(v0: fn(i32) -> i32, v1: i32):
         .expect("double not found");
 
     // create isolate and run
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
+        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let result = isolate
         .run_function_by_name(
             "caller",
@@ -247,7 +248,8 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v2
 }"#;
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
+        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
 
     // pass an integer instead of a function pointer
     let result = isolate.run_function_by_name("caller", &[Value::int32(999), Value::int32(21)]);
@@ -321,7 +323,8 @@ block0(v0: i32, v1: fn(i32, i32) -> i32):
         .expect("countdown not found");
 
     // create isolate and run
-    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test());
+    let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
+        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
     let result = isolate
         .run_function_by_name(
             "entry",

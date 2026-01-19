@@ -9,6 +9,7 @@ use crate::{ExecutionOutput, Isolate, IsolateOptions};
 pub(crate) fn create_isolate(mir_text: &str) -> Isolate {
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
     Isolate::with_options(tree, strings, IsolateOptions::test())
+        .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
 }
 
 /// Create an aggregate value on the isolate heap.

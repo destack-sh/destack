@@ -1046,6 +1046,7 @@ impl Program {
         options.limits.max_raw_cells = 5_000_000;
 
         Isolate::with_options(tree, strings, options)
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
     }
 
     /// Create an isolate with benchmark options applied.
@@ -1068,6 +1069,7 @@ impl Program {
         }
 
         Isolate::with_options(tree, strings, options)
+            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"))
     }
 
     /// Resolve the entry function id for this program.

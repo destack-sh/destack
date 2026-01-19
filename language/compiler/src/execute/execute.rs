@@ -303,7 +303,11 @@ impl Compiler {
                 mir_tree,
                 strings.into_immutable(), // TODO #Performance: avoid cloning the string pool
                 options,
-            );
+            )
+            .map_err(|error| ExecuteError::FailedExecution {
+                module: module_id,
+                message: format!("{error}"),
+            })?;
             let output = isolate.run_function(function_id, &[]).map_err(|error| {
                 ExecuteError::FailedExecution {
                     module: module_id,
