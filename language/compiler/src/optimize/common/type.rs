@@ -93,7 +93,7 @@ impl TypeKey {
             mir::Type::Isize => TypeKey::Isize,
             mir::Type::Usize => TypeKey::Usize,
             mir::Type::Float { width } => TypeKey::Float { width: *width },
-            mir::Type::TypeTag => TypeKey::TypeTag,
+            mir::Type::Type => TypeKey::TypeTag,
 
             mir::Type::Reference {
                 kind,
@@ -305,7 +305,7 @@ fn types_are_equal_inner(
         (mir::Type::Isize, mir::Type::Isize) => true,
         (mir::Type::Usize, mir::Type::Usize) => true,
         (mir::Type::Float { width: w1 }, mir::Type::Float { width: w2 }) => w1 == w2,
-        (mir::Type::TypeTag, mir::Type::TypeTag) => true,
+        (mir::Type::Type, mir::Type::Type) => true,
 
         // references: compare all fields recursively
         (
@@ -427,7 +427,7 @@ mod tests {
         let usize_id = tree.insert(mir::Type::Usize);
         let uint64_id = tree.insert(mir::Type::UINT64);
         let float64_id = tree.insert(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert(mir::Type::TypeTag);
+        let type_tag_id = tree.insert(mir::Type::Type);
 
         assert_eq!(TypeKey::from_type(void_id, &tree), TypeKey::Void);
         assert_eq!(TypeKey::from_type(boolean_id, &tree), TypeKey::Boolean);
@@ -464,7 +464,7 @@ mod tests {
         let isize_id = tree.insert(mir::Type::Isize);
         let usize_id = tree.insert(mir::Type::Usize);
         let float64_id = tree.insert(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert(mir::Type::TypeTag);
+        let type_tag_id = tree.insert(mir::Type::Type);
 
         assert!(TypeKey::from_type(void_id, &tree).is_scalar());
         assert!(TypeKey::from_type(boolean_id, &tree).is_scalar());

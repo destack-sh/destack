@@ -194,7 +194,7 @@ pub enum Type {
     /// Floating point with explicit width (32 or 64).
     Float { width: u16 },
     /// Runtime type tag handle.
-    TypeTag,
+    Type,
 
     /// Reference with explicit kind and mutability.
     Reference {
@@ -329,7 +329,7 @@ impl Type {
                 | Type::Isize
                 | Type::Usize
                 | Type::Float { .. }
-                | Type::TypeTag
+                | Type::Type
                 | Type::Reference { .. }
         )
     }
@@ -400,7 +400,7 @@ impl Type {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::TypeTag => Copyability::Trivial,
+            | Type::Type => Copyability::Trivial,
 
             // references depend on ownership
             Type::Reference { kind, .. } => {

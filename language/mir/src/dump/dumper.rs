@@ -146,7 +146,7 @@ impl<'a> Dumper<'a> {
             Type::Isize => "isize".to_string(),
             Type::Usize => "usize".to_string(),
             Type::Float { width } => format!("f{width}"),
-            Type::TypeTag => "type_tag".to_string(),
+            Type::Type => "type".to_string(),
             Type::Reference {
                 kind,
                 address_space,
@@ -872,6 +872,30 @@ impl<'a> Dumper<'a> {
                     CheckConstraint::DivZero { divisor } => {
                         self.write("div_zero ");
                         self.write(&self.format_value(*divisor));
+                    }
+                    CheckConstraint::Type { value, expected } => {
+                        self.write("type ");
+                        self.write(&self.format_value(*value));
+                        self.write(", ");
+                        self.write(&self.format_type_id(*expected));
+                    }
+                    CheckConstraint::Union { value, expected } => {
+                        self.write("union ");
+                        self.write(&self.format_value(*value));
+                        self.write(", ");
+                        self.write(&expected.to_string());
+                    }
+                    CheckConstraint::Vtable { receiver, expected } => {
+                        self.write("vtable ");
+                        self.write(&self.format_value(*receiver));
+                        self.write(", ");
+                        self.write(&self.format_type_id(*expected));
+                    }
+                    CheckConstraint::Itab { receiver, expected } => {
+                        self.write("itab ");
+                        self.write(&self.format_value(*receiver));
+                        self.write(", ");
+                        self.write(&expected.index().to_string());
                     }
                     CheckConstraint::ShiftRange {
                         value,

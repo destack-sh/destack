@@ -469,14 +469,14 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::CallIndirect {
                     callee: argument, ..
                 }
-                Instruction::CallVirtual { receiver, .. }
-                | Instruction::CallInterface { receiver, .. } => {
-                    Self::replace_value_in_slot(receiver, from, to);
-                }
                 | Instruction::RawFree { pointer: argument }
                 | Instruction::RawDrop { value: argument }
                 | Instruction::StackDrop { value: argument } => {
                     Self::replace_value_in_slot(argument, from, to);
+                }
+                Instruction::CallVirtual { receiver, .. }
+                | Instruction::CallInterface { receiver, .. } => {
+                    Self::replace_value_in_slot(receiver, from, to);
                 }
                 Instruction::Select {
                     condition,
@@ -667,6 +667,18 @@ impl<'a> FunctionBuilder<'a> {
             CheckConstraint::Overflow { left, right, .. } => {
                 Self::replace_value_in_slot(left, from, to);
                 Self::replace_value_in_slot(right, from, to);
+            }
+            CheckConstraint::Type { value, .. } => {
+                Self::replace_value_in_slot(value, from, to);
+            }
+            CheckConstraint::Union { value, .. } => {
+                Self::replace_value_in_slot(value, from, to);
+            }
+            CheckConstraint::Vtable { receiver, .. } => {
+                Self::replace_value_in_slot(receiver, from, to);
+            }
+            CheckConstraint::Itab { receiver, .. } => {
+                Self::replace_value_in_slot(receiver, from, to);
             }
         }
     }
@@ -1697,6 +1709,7 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
+
     /// Tail call through a function pointer (does not return to this function).
     ///
     /// The callee's return value becomes this function's return value.
@@ -1714,6 +1727,7 @@ impl<'a> FunctionBuilder<'a> {
             signature,
         };
     }
+
 
     /// Insert an instruction into the current block.
     fn insert_instruction(&mut self, instruction: Instruction) -> LocalNodeId<Instruction> {

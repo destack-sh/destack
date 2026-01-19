@@ -45,6 +45,10 @@ pub(crate) fn constraint_truth_value(
             right,
             is_signed,
         } => overflow_constraint_truth(*operator, *left, *right, *is_signed, ranges),
+        mir::CheckConstraint::Type { .. }
+        | mir::CheckConstraint::Union { .. }
+        | mir::CheckConstraint::Vtable { .. }
+        | mir::CheckConstraint::Itab { .. } => None,
     }
 }
 

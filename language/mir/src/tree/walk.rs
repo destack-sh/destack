@@ -157,7 +157,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         | Type::Isize
         | Type::Usize
         | Type::Float { .. }
-        | Type::TypeTag => {}
+        | Type::Type => {}
     }
 }
 

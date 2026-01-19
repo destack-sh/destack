@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
-    CheckTarget, Constant, Copyability, Field, Function, Global, GlobalInitializer, Instruction,
-    Intrinsic, Lifetime, Linkage, Local, LocalNodeId, MemoryOrdering, Mutability, NodeTree,
-    Ownership, PointerAttributes, ReferenceKind, SwitchCase, Terminator, Type, TypeAlias,
-    TypedValue, UnaryOperator, Value,
+    CheckTarget, Constant, Copyability, DispatchTableId, Field, Function, Global,
+    GlobalInitializer, Instruction, Intrinsic, Lifetime, Linkage, Local, LocalNodeId,
+    MemoryOrdering, Mutability, NodeTree, Ownership, PointerAttributes, ReferenceKind, SwitchCase,
+    Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
 };
 use destack_base::{ImmutableStringPool, StringId, StringPool};
 use destack_source::{FileId, Span};
@@ -84,7 +84,7 @@ impl TypeKey {
             Type::Isize => TypeKey::Isize,
             Type::Usize => TypeKey::Usize,
             Type::Float { width } => TypeKey::Float { width: *width },
-            Type::TypeTag => TypeKey::TypeTag,
+            Type::Type => TypeKey::TypeTag,
             Type::Reference {
                 kind,
                 address_space,
@@ -1716,9 +1716,23 @@ impl<'a> Parser<'a> {
     /// Parse a check kind and its operands.
     fn parse_check_kind(&mut self) -> ParseResult<CheckConstraint> {
         // parse the kind identifier
-        let kind_token = self.eat_token(TokenType::Identifier)?;
+        let kind_token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("check kind", self.pos()))?;
         let kind_text = kind_token.text;
         let kind_start = kind_token.start;
+        match kind_token.ty {
+            TokenType::Identifier | TokenType::TypeName | TokenType::Type => {
+                self.bump();
+            }
+            _ => {
+                return Err(ParseError::unexpected(
+                    "check kind",
+                    kind_token.ty,
+                    kind_start,
+                ));
+            }
+        }
 
         // split the kind into segments
         let mut parts = kind_text.split('.');
@@ -1790,6 +1804,78 @@ impl<'a> Parser<'a> {
                 let divisor = self.parse_value()?;
                 Ok(CheckConstraint::DivZero { divisor })
             }
+            "type" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse type tag operands
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let expected = self.parse_type()?;
+
+                Ok(CheckConstraint::Type { value, expected })
+            }
+            "union" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse union tag operands
+                let value = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let expected = self.parse_int_literal()?;
+                let expected = u64::try_from(expected)
+                    .map_err(|_| ParseError::invalid("check union tag", kind_start))?;
+
+                Ok(CheckConstraint::Union { value, expected })
+            }
+            "vtable" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse vtable operands
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let expected = self.parse_type()?;
+
+                Ok(CheckConstraint::Vtable { receiver, expected })
+            }
+            "itab" => {
+                // reject extra segments
+                if parts.next().is_some() {
+                    return Err(ParseError::invalid(
+                        &format!("check kind '{kind_text}'"),
+                        kind_start,
+                    ));
+                }
+
+                // parse itab operands
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let expected = self.parse_int_literal()?;
+                let expected = u32::try_from(expected)
+                    .map_err(|_| ParseError::invalid("check itab id", kind_start))?;
+
+                Ok(CheckConstraint::Itab {
+                    receiver,
+                    expected: DispatchTableId::new(expected),
+                })
+            }
+
             "shift" => {
                 // parse signedness
                 let signedness = parts.next().ok_or_else(|| {
@@ -1962,6 +2048,10 @@ impl<'a> Parser<'a> {
                 parse_primitive_type(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("type '{token_text}'"), token_start)
                 })?
+            }
+            TokenType::Type => {
+                self.bump();
+                Type::Type
             }
             TokenType::Ref | TokenType::RefNullable => {
                 let is_nullable = token.ty == TokenType::RefNullable;
@@ -2444,7 +2534,7 @@ fn parse_primitive_type(s: &str) -> Option<Type> {
         "usize" => Type::Usize,
         "f32" => Type::Float { width: 32 },
         "f64" => Type::Float { width: 64 },
-        "type_tag" => Type::TypeTag,
+        "type" => Type::Type,
         _ => return None,
     })
 }

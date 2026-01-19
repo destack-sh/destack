@@ -35,8 +35,8 @@ block0:
 #[test]
 fn test_roundtrip_pointer_sized_types() {
     roundtrip(
-        r#"function @pointerSized(v0: isize, v1: usize, v2: type_tag) -> isize {
-block0(v0: isize, v1: usize, v2: type_tag):
+        r#"function @pointerSized(v0: isize, v1: usize, v2: type) -> isize {
+block0(v0: isize, v1: usize, v2: type):
     return v0
 }"#,
     );
@@ -73,6 +73,32 @@ block1(v4: u32):
     v5 = iconst 0i32
     return v5
 block2:
+    unreachable
+}"#,
+    );
+}
+
+/// Roundtrip parsing supports type guard checks.
+#[test]
+fn test_roundtrip_check_type_guards() {
+    roundtrip(
+        r#"function @guard(v0: u32, v1: ref<managed void>) -> i32 {
+block0(v0: u32, v1: ref<managed void>):
+    v2 = icmp_eq v0, v0
+    check v2, type v0, i32, block1, block4
+block1:
+    v5 = icmp_eq v0, v0
+    check v5, union v0, 1, block4, block5
+block2:
+    v3 = icmp_eq v0, v0
+    check v3, vtable v1, i32, block2, block4
+block3:
+    v4 = icmp_eq v0, v0
+    check v4, itab v1, 0, block3, block5
+block4:
+    v6 = iconst 0i32
+    return v6
+block5:
     unreachable
 }"#,
     );

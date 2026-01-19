@@ -346,6 +346,26 @@ fn rotate_loop(
                 right: remap(*right, map),
                 is_signed: *is_signed,
             },
+            mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
+                value: remap(*value, map),
+                expected: *expected,
+            },
+            mir::CheckConstraint::Union { value, expected } => {
+                mir::CheckConstraint::Union {
+                    value: remap(*value, map),
+                    expected: *expected,
+                }
+            }
+            mir::CheckConstraint::Vtable { receiver, expected } => {
+                mir::CheckConstraint::Vtable {
+                    receiver: remap(*receiver, map),
+                    expected: *expected,
+                }
+            }
+            mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
+                receiver: remap(*receiver, map),
+                expected: *expected,
+            },
         }
     };
 

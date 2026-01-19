@@ -682,6 +682,26 @@ fn update_terminator_arguments(
                     right: resolve_value(*right, substitutions),
                     is_signed: *is_signed,
                 },
+                mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
+                    value: resolve_value(*value, substitutions),
+                    expected: *expected,
+                },
+                mir::CheckConstraint::Union { value, expected } => {
+                    mir::CheckConstraint::Union {
+                        value: resolve_value(*value, substitutions),
+                        expected: *expected,
+                    }
+                }
+                mir::CheckConstraint::Vtable { receiver, expected } => {
+                    mir::CheckConstraint::Vtable {
+                        receiver: resolve_value(*receiver, substitutions),
+                        expected: *expected,
+                    }
+                }
+                mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
+                    receiver: resolve_value(*receiver, substitutions),
+                    expected: *expected,
+                },
             };
             Terminator::Check {
                 condition: resolve_value(*condition, substitutions),

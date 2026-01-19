@@ -1754,6 +1754,18 @@ pub fn terminator_remap(
                     remap_value(left);
                     remap_value(right);
                 }
+                mir::CheckConstraint::Type { value, .. } => {
+                    remap_value(value);
+                }
+                mir::CheckConstraint::Union { value, .. } => {
+                    remap_value(value);
+                }
+                mir::CheckConstraint::Vtable { receiver, .. } => {
+                    remap_value(receiver);
+                }
+                mir::CheckConstraint::Itab { receiver, .. } => {
+                    remap_value(receiver);
+                }
             }
         }
         mir::Terminator::Switch {

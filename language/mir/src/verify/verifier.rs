@@ -1650,7 +1650,7 @@ impl<'a> Verifier<'a> {
             Type::Isize => "isize",
             Type::Usize => "usize",
             Type::Float { .. } => "float",
-            Type::TypeTag => "type_tag",
+            Type::Type => "type",
             Type::Reference { .. } => "ref",
             Type::Array { .. } => "array",
             Type::Tuple { .. } => "tuple",

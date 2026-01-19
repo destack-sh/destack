@@ -111,7 +111,7 @@ impl ModuleBuilder {
 
     /// Create a type tag handle type.
     pub fn type_type_tag(&mut self) -> LocalNodeId<Type> {
-        self.tree.insert(Type::TypeTag)
+        self.tree.insert(Type::Type)
     }
 
     /// Create a raw pointer type (manual memory management).

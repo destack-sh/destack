@@ -321,7 +321,7 @@ fn is_type_name(s: &str) -> bool {
             | "f64"
             | "isize"
             | "usize"
-            | "type_tag"
+            | "type"
     )
 }
 
