@@ -43,38 +43,9 @@ MIR is generated per-target with target-specific decisions:
 - Alignment requirements
 - Policy-controlled checks (bounds, overflow, etc.)
 
-## Phases
-
-Lower executes in four explicit phases with clear dependencies:
-Phases flow left to right: **Types → Declarations → Tables → Emit**.
-
-<pre>
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Lower Pipeline                                  │
-│                                                                          │
-│   Phase 1      Phase 2          Phase 3        Phase 4                  │
-│   ───────      ───────          ───────        ───────                  │
-│    Types   →  Declarations  →    Tables    →    Emit                    │
-│                                                                          │
-│   layouts      signatures       vtables         blocks                   │
-│   lineages     globals          itabs           terminators             │
-│   slots        init order       RTTI            ownership                │
-│                                 string tags     barriers                 │
-└─────────────────────────────────────────────────────────────────────────┘
-</pre>
-
-| Phase | Input | Output | Why Separate |
-|-------|-------|--------|--------------|
-| Types | DIR types | MIR types, layouts, lineages | Must know sizes before allocating |
-| Declarations | DIR items | Function shells, globals | Enables forward references in Emit |
-| Tables | Types + lineages | VTables, ITabs, RTTI | Needs complete type info |
-| Emit | Everything above | Complete MIR functions | Has all context for codegen |
-
-See [Phases](#phases-1) section for detailed descriptions.
-
 ## Implementation Structure
 
-Lower mirrors the phase boundaries in its module layout:
+Lower organizes the implementation by responsibility.
 
 - `module/`: orchestration and phase sequencing
 - `type/`: type lowering and layout (including nominal field layouts)
@@ -82,7 +53,7 @@ Lower mirrors the phase boundaries in its module layout:
 - `table/`: dispatch tables (vtables, itabs) and RTTI
 - `emit/`: function body lowering (statements, values, control)
 
-Nominal layouts are computed from declared fields only and are predeclared in the Types phase.
+Nominal layouts are computed from declared fields and cached on demand.
 
 ## Layout Map
 
@@ -1870,45 +1841,11 @@ External effects cross the runtime boundary through yield and resume so they can
 | Component | Responsibility | Location |
 |-----------|----------------|----------|
 | **Lower** | Transform async bodies to state machines, emit `yield` terminators | `compiler/src/lower/` |
-| **Promise** | Store state (pending/fulfilled/rejected), manage continuations | `builtin/lib/native/` |
-| **Runtime** | Event loop, microtask/macrotask queues, I/O primitives | `builtin/lib/native/` |
+| **Async library** | Store state, manage continuations, expose async APIs | `builtin/lib/native/` |
+| **Runtime** | Schedule async work and I/O primitives | `builtin/lib/native/` |
 
-Lower does NOT know Promise internals.
-Lower just emits `yield` terminators; the runtime hooks them to Promise continuations.
-
-#### Promise as Library Type
-
-Promise is a regular class defined in `language/builtin/lib/native/`:
-
-```ds
-class Promise<T> {
-    #state: "pending" | "fulfilled" | "rejected" = "pending";
-    #value: T | Error | null = null;
-    #continuations: Array<Continuation<T>> = [];
-
-    // register continuation, called when resolved
-    then<U>(
-        onFulfilled?: (value: T) => U | Promise<U>,
-        onRejected?: (error: Error) => U | Promise<U>
-    ): Promise<U> { ... }
-
-    catch<U>(onRejected: (error: Error) => U | Promise<U>): Promise<U> { ... }
-    finally(onFinally: () => void): Promise<T> { ... }
-
-    // internal: resolve/reject (called by state machine or runtime)
-    static resolve<T>(value: T): Promise<T> { ... }
-    static reject<T>(error: Error): Promise<T> { ... }
-
-    // combinators
-    static all<T>(promises: Promise<T>[]): Promise<T[]> { ... }
-    static race<T>(promises: Promise<T>[]): Promise<T> { ... }
-    static any<T>(promises: Promise<T>[]): Promise<T> { ... }
-    static allSettled<T>(promises: Promise<T>[]): Promise<SettledResult<T>[]> { ... }
-}
-```
-
-This is a normal Destack type, and Lower treats it like any other type.
-The "magic" is in how the runtime connects yield terminators to Promise continuations.
+Lower does not know async library internals.
+Lower emits `yield` terminators, and the runtime hooks them to continuations.
 
 #### State Machine Transformation
 
@@ -2069,91 +2006,6 @@ block_state2:
     return
 }
 ```
-
-#### Runtime: Connecting Yield to Promise
-
-The runtime interprets `yield` terminators by:
-
-1. Creating a closure that captures the resume block and args
-2. Calling `awaited_promise.then(closure)`
-3. When promise resolves, closure calls resume block with result
-
-```ds
-// runtime pseudocode: handling yield
-function handleYield<T>(
-    awaitedPromise: Promise<T>,
-    resumeBlock: (T, ...args: unknown[]) => void,
-    resumeArgs: unknown[]
-): void {
-    awaitedPromise.then(value => {
-        // schedule as microtask per JS semantics
-        queueMicrotask(() => {
-            resumeBlock(value, ...resumeArgs);
-        });
-    });
-}
-```
-
-#### Event Loop Semantics
-
-The runtime maintains JS-compatible task queues:
-
-| Queue | Contents | When Drained |
-|-------|----------|--------------|
-| **Microtask** | Promise continuations (`.then`), `queueMicrotask` | After each task, completely |
-| **Macrotask** | `setTimeout`, `setInterval`, I/O callbacks | One per event loop iteration |
-
-```ds
-setTimeout(() => console.log("A"), 0);           // macrotask
-Promise.resolve().then(() => console.log("B"));  // microtask
-console.log("C");
-// output: C, B, A (same as JS)
-```
-
-Order of execution:
-1. Current synchronous code runs to completion → prints "C"
-2. Microtask queue drains → prints "B"
-3. Next macrotask runs → prints "A"
-
-#### Usage Scenarios
-
-**Scenario 1: Simple await**
-```ds
-const response = await fetch(url);
-```
-- `fetch` returns `Promise<Response>` immediately
-- Lower emits `yield fetchPromise, nextBlock(sm)`
-- Runtime: `fetchPromise.then(response => resume(response))`
-- When HTTP completes, resume block executes with response
-
-**Scenario 2: Promise.all**
-```ds
-const [a, b, c] = await Promise.all([fetchA(), fetchB(), fetchC()]);
-```
-- `Promise.all` is a library function, creates a new Promise
-- Internally tracks which inputs resolved
-- Resolves output Promise when all inputs resolve
-- State machine yields on the combined Promise
-
-**Scenario 3: setTimeout**
-```ds
-await new Promise(resolve => setTimeout(resolve, 1000));
-```
-- `setTimeout` schedules callback on macrotask queue
-- Callback calls `resolve()`, which resolves the Promise
-- State machine resumes after 1000ms (plus microtask processing)
-
-**Scenario 4: Error handling**
-```ds
-try {
-    const data = await fetchData();
-} catch (e) {
-    console.error(e);
-}
-```
-- If `fetchData()` rejects, Promise stores error
-- Runtime calls reject handler instead of fulfill handler
-- State machine jumps to catch block
 
 #### Async Cancellation
 
