@@ -295,7 +295,7 @@ impl Compiler {
             infer,
         )?;
 
-        // drop overloads that are equivalent after resolution
+        // drop equivalent overloads introduced by declaration merging
         let mut candidates = self.dedupe_signature_candidates(
             module,
             profile,

@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
-use crate::{AnalyzeResult, Compiler};
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler};
 use destack_dir::{
-    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalSymbolId, LocalTypeId, NodeTree,
-    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature,
-    TypeTable,
+    Asynchrony, Declaration, Expression, FunctionCardinality, GlobalSymbolId, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, NodeTree, StaticKey, SymbolSpace, SymbolTable,
+    SymbolType, Type, TypeField, TypeIndexSignature, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
-/// Store object type members for shape assembly.
+/// Object shape builder and identity.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct ObjectShape {
     /// Fields collected for the shape.
@@ -141,6 +141,23 @@ impl ObjectShape {
         self.index_signatures
             .extend_from_slice(&other.index_signatures);
     }
+}
+
+/// Function signature shape builder and identity.
+#[derive(Debug, Clone)]
+struct SignatureShape {
+    /// Whether the function is async.
+    asynchrony: Asynchrony,
+    /// The function cardinality.
+    cardinality: FunctionCardinality,
+    /// The static parameter type ids.
+    static_parameters: Vec<LocalTypeId>,
+    /// The optional `this` parameter type id.
+    this_parameter: Option<LocalTypeId>,
+    /// The dynamic parameter type ids.
+    dynamic_parameters: Vec<LocalTypeId>,
+    /// The optional return type id.
+    return_type: Option<LocalTypeId>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -338,9 +355,11 @@ impl Compiler {
     pub(crate) fn merge_function_value_type(
         &self,
         module: &Module,
+        profile: ProfileId,
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         fn_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         allow_merge: bool,
     ) {
@@ -383,6 +402,17 @@ impl Compiler {
             _ => {}
         }
 
+        // report duplicate overloads in non-declaration modules
+        self.report_duplicate_overload_signature(
+            module,
+            profile,
+            declaration_id.into_any(),
+            &call_signatures,
+            fn_ty_id,
+            symbols,
+            types,
+        );
+
         // append the new overload signature
         call_signatures.push(fn_ty_id);
 
@@ -395,6 +425,205 @@ impl Compiler {
         };
         let value_ty_id = types.insert_type_from(value_ty, declaration_id);
         types.set_value_type(symbol, value_ty_id);
+    }
+
+    /// Report duplicate overload signatures in non-declaration modules.
+    pub(crate) fn report_duplicate_overload_signature(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        source_id: LocalNodeIdAny,
+        existing_signatures: &[LocalTypeId],
+        candidate_signature: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) {
+        // allow duplicate overloads in declaration modules
+        if module.language_type.is_declaration() {
+            return;
+        }
+
+        // skip checks when no prior overloads exist
+        if existing_signatures.is_empty() {
+            return;
+        }
+
+        // resolve options for assignability checks
+        let options = self.analyze_context_options_for_module(module.id);
+
+        // detect equivalent overloads by shape
+        let has_duplicate = existing_signatures.iter().any(|signature_id| {
+            self.signature_types_equivalent(
+                module,
+                profile,
+                *signature_id,
+                candidate_signature,
+                symbols,
+                types,
+                &options,
+            )
+        });
+
+        if has_duplicate {
+            self.error(AnalyzeError::DuplicateOverloadSignature {
+                node: source_id.into_anchored(module.id, Some(profile)),
+            });
+        }
+    }
+
+    /// Check whether two signature types are equivalent by shape.
+    fn signature_types_equivalent(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_id: LocalTypeId,
+        right_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        // unpack function signatures
+        let Some(left) = self.signature_shape_from_type(left_id, types) else {
+            return false;
+        };
+        let Some(right) = self.signature_shape_from_type(right_id, types) else {
+            return false;
+        };
+
+        // compare async and cardinality modifiers
+        if left.asynchrony != right.asynchrony || left.cardinality != right.cardinality {
+            return false;
+        }
+
+        // compare static parameter arity
+        if left.static_parameters.len() != right.static_parameters.len() {
+            return false;
+        }
+
+        // compare dynamic parameter arity
+        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
+            return false;
+        }
+
+        // compare this parameter presence
+        match (left.this_parameter, right.this_parameter) {
+            (None, None) => {}
+            (Some(left_this), Some(right_this)) => {
+                if !self.signature_type_ids_equivalent(
+                    module,
+                    profile,
+                    left_this,
+                    right_this,
+                    symbols,
+                    types,
+                    options,
+                ) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+
+        // compare static parameter shapes
+        for (left_param, right_param) in left
+            .static_parameters
+            .iter()
+            .zip(right.static_parameters.iter())
+        {
+            if !self.signature_type_ids_equivalent(
+                module,
+                profile,
+                *left_param,
+                *right_param,
+                symbols,
+                types,
+                options,
+            ) {
+                return false;
+            }
+        }
+
+        // compare dynamic parameter shapes
+        for (left_param, right_param) in left
+            .dynamic_parameters
+            .iter()
+            .zip(right.dynamic_parameters.iter())
+        {
+            if !self.signature_type_ids_equivalent(
+                module,
+                profile,
+                *left_param,
+                *right_param,
+                symbols,
+                types,
+                options,
+            ) {
+                return false;
+            }
+        }
+
+        // compare return type shapes
+        match (left.return_type, right.return_type) {
+            (None, None) => true,
+            (Some(left_return), Some(right_return)) => self.signature_type_ids_equivalent(
+                module,
+                profile,
+                left_return,
+                right_return,
+                symbols,
+                types,
+                options,
+            ),
+            _ => false,
+        }
+    }
+
+    /// Check whether two type ids are mutually assignable for overload equivalence.
+    fn signature_type_ids_equivalent(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_id: LocalTypeId,
+        right_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        // compare assignability in both directions
+        let left_assignable =
+            self.is_type_assignable(module, profile, symbols, left_id, right_id, types, options);
+        let right_assignable =
+            self.is_type_assignable(module, profile, symbols, right_id, left_id, types, options);
+        left_assignable != Assignability::NotAssignable
+            && right_assignable != Assignability::NotAssignable
+    }
+
+    /// Borrow a function signature shape from a type id.
+    fn signature_shape_from_type(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<SignatureShape> {
+        let Type::Function {
+            asynchrony,
+            cardinality,
+            static_parameters,
+            this_parameter,
+            dynamic_parameters,
+            return_type,
+        } = types.get_type(ty_id)
+        else {
+            return None;
+        };
+
+        Some(SignatureShape {
+            asynchrony: *asynchrony,
+            cardinality: *cardinality,
+            static_parameters: static_parameters.clone(),
+            this_parameter: *this_parameter,
+            dynamic_parameters: dynamic_parameters.clone(),
+            return_type: *return_type,
+        })
     }
 
     /// Merge instance shape into the symbol and any merge group peers.

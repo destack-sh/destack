@@ -178,6 +178,10 @@ pub enum AnalyzeError {
     #[error(code = "EA210", message = "instanceof requires a class type")]
     InvalidInstanceOfTarget { node: AnchoredGlobalNodeId },
 
+    /// Duplicate overload signature in a non-declaration module.
+    #[error(code = "EA211", message = "duplicate overload signature")]
+    DuplicateOverloadSignature { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 3xx: Control flow
     // -------------------------------------------------------------------------

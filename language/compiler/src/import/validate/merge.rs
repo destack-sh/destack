@@ -133,6 +133,14 @@ pub(crate) fn can_merge_declarations(
         return true;
     }
 
+    // allow ambient function signatures to merge with runtime implementations
+    if left.symbol_type == SymbolType::Function
+        && right.symbol_type == SymbolType::Function
+        && (left.binding == SymbolBinding::Ambient || right.binding == SymbolBinding::Ambient)
+    {
+        return true;
+    }
+
     // allow enum redeclarations
     if left.symbol_type == SymbolType::Enum && right.symbol_type == SymbolType::Enum {
         return true;
