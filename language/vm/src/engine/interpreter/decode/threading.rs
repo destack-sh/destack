@@ -200,7 +200,9 @@ fn propagate_block_param_kinds(
             mir::Terminator::Return { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallIndirect { .. } => {}
+            | mir::Terminator::TailCallIndirect { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallInterface { .. } => {}
         }
     }
 
@@ -698,7 +700,9 @@ pub(crate) fn thread_function(
             mir::Terminator::Return { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallIndirect { .. } => {}
+            | mir::Terminator::TailCallIndirect { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallInterface { .. } => {}
         }
     }
 
@@ -1376,6 +1380,7 @@ fn swap_compare_operator(operator: mir::BinaryOperator) -> mir::BinaryOperator {
 }
 
 /// Convert a MIR instruction to threaded form.
+#[allow(clippy::too_many_arguments)]
 fn thread_instruction(
     tree: &mir::NodeTree,
     inst: &mir::Instruction,
@@ -1475,6 +1480,7 @@ fn thread_instruction(
             destination,
             function,
             arguments,
+            ..
         } => {
             // resolve call arguments and copy plan
             let args = tree.get_arguments(*arguments);
@@ -1493,6 +1499,46 @@ fn thread_instruction(
                     callee_index,
                     arguments: args_range,
                     copies,
+                },
+            }
+        }
+
+        mir::Instruction::CallVirtual {
+            destination,
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let args = tree.get_arguments(*arguments);
+            let args_range = push_argument_range(argument_pool, args);
+            ThreadedInstruction {
+                handler: dispatch::handle_call_virtual,
+                data: ThreadedInstructionData::CallVirtual {
+                    dest: pack_optional_value(*destination),
+                    receiver: *receiver,
+                    slot_id: *slot_id,
+                    arguments: args_range,
+                },
+            }
+        }
+
+        mir::Instruction::CallInterface {
+            destination,
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let args = tree.get_arguments(*arguments);
+            let args_range = push_argument_range(argument_pool, args);
+            ThreadedInstruction {
+                handler: dispatch::handle_call_interface,
+                data: ThreadedInstructionData::CallInterface {
+                    dest: pack_optional_value(*destination),
+                    receiver: *receiver,
+                    slot_id: *slot_id,
+                    arguments: args_range,
                 },
             }
         }
@@ -1992,6 +2038,22 @@ fn infer_instruction_kind(
             let func = tree.get(*function);
             Some(kind_from_type(tree, func.return_type))
         }
+        mir::Instruction::CallVirtual {
+            destination,
+            signature,
+            ..
+        }
+        | mir::Instruction::CallInterface {
+            destination,
+            signature,
+            ..
+        } => {
+            destination.as_ref()?;
+            let mir::Type::FunctionPointer { result, .. } = tree.get(*signature) else {
+                return None;
+            };
+            Some(kind_from_type(tree, *result))
+        }
         mir::Instruction::CallIndirect {
             destination,
             signature,
@@ -2116,7 +2178,7 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
         mir::Type::Float { width } => ValueKind::Float {
             width: *width as u8,
         },
-        mir::Type::TypeTag => ValueKind::Int {
+        mir::Type::Type => ValueKind::Int {
             width: usize::BITS as u8,
             signed: false,
         },
@@ -2265,7 +2327,7 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
         | mir::Type::Isize
         | mir::Type::Usize
         | mir::Type::Float { .. }
-        | mir::Type::TypeTag
+        | mir::Type::Type
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. } => Some(1),
     }
@@ -2947,6 +3009,40 @@ fn thread_terminator(
                     arguments: args,
                     cached_function: Cell::new(None),
                     cached_ptr: Cell::new(None),
+                },
+            }
+        }
+
+        mir::Terminator::TailCallVirtual {
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, arguments);
+            ThreadedInstruction {
+                handler: dispatch::handle_tail_call_virtual,
+                data: ThreadedInstructionData::TailCallVirtual {
+                    receiver: *receiver,
+                    slot_id: *slot_id,
+                    arguments: args,
+                },
+            }
+        }
+
+        mir::Terminator::TailCallInterface {
+            receiver,
+            slot_id,
+            arguments,
+            ..
+        } => {
+            let args = push_argument_range(argument_pool, arguments);
+            ThreadedInstruction {
+                handler: dispatch::handle_tail_call_interface,
+                data: ThreadedInstructionData::TailCallInterface {
+                    receiver: *receiver,
+                    slot_id: *slot_id,
+                    arguments: args,
                 },
             }
         }

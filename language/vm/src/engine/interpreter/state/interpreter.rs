@@ -93,6 +93,7 @@ pub(crate) struct ThreadedFunctionTable {
     /// Mapping from function id to threaded index (INVALID_FUNCTION_INDEX if missing).
     index_by_id: Vec<u32>,
     /// Import status by function id.
+    /// NOTE #Cleanup: do we really need ThreadedFunctionTable::is_import_by_id?
     is_import_by_id: Vec<bool>,
 }
 
@@ -315,7 +316,8 @@ impl<'a> InterpreterContext<'a> {
                 }
             }
             mir::Type::Boolean => Value::bool(false),
-            mir::Type::TypeTag => Value::uint(0, usize::BITS as u8),
+            // FUGU #Broken: mir::Type::Type doesn't have a zero value..?
+            mir::Type::Type => Value::uint(0, usize::BITS as u8),
             mir::Type::Tuple {
                 elements,
                 copyability: _,

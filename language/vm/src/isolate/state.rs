@@ -36,6 +36,9 @@ pub(crate) struct IsolateState {
     pub(crate) externals_by_id: Vec<Option<ExternalFnPtr>>,
     /// Lookup table for function ids by name.
     pub(crate) function_name_map: HashMap<String, mir::LocalNodeId<mir::Function>>,
+    /// Lookup table for dispatch tables keyed by vtable globals.
+    pub(crate) dispatch_table_by_global:
+        HashMap<mir::LocalNodeId<mir::Global>, mir::DispatchTableId>,
     /// Configuration options for this isolate.
     pub(crate) options: IsolateOptions,
 }
@@ -48,6 +51,7 @@ impl IsolateState {
         options: IsolateOptions,
     ) -> Self {
         let function_name_map = build_function_name_map(&tree, &strings);
+        let dispatch_table_by_global = build_dispatch_table_map(&tree);
 
         // assign a unique isolate id
         let isolate_id = ISOLATE_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
@@ -63,8 +67,17 @@ impl IsolateState {
             externals: HashMap::new(),
             externals_by_id: Vec::new(),
             function_name_map,
+            dispatch_table_by_global,
             options,
         }
+    }
+
+    /// Resolve a dispatch table id for a vtable global.
+    pub(crate) fn dispatch_table_for_global(
+        &self,
+        global: mir::LocalNodeId<mir::Global>,
+    ) -> Option<mir::DispatchTableId> {
+        self.dispatch_table_by_global.get(&global).copied()
     }
 
     /// Register an external function handler.
@@ -166,13 +179,24 @@ fn build_function_name_map(
     tree: &mir::NodeTree,
     strings: &ImmutableStringPool,
 ) -> HashMap<String, mir::LocalNodeId<mir::Function>> {
-    // collect names into a lookup map
     let mut map = HashMap::new();
     for (id, func) in tree.iter_nodes::<mir::Function>() {
         let name = strings.get(func.name).to_string();
         map.entry(name).or_insert(id);
     }
+    map
+}
 
-    // return lookup map
+/// Build a lookup table from vtable globals to dispatch table ids.
+fn build_dispatch_table_map(
+    tree: &mir::NodeTree,
+) -> HashMap<mir::LocalNodeId<mir::Global>, mir::DispatchTableId> {
+    let mut map = HashMap::new();
+    for (index, table) in tree.type_table.dispatch_registry.tables.iter().enumerate() {
+        let Some(global) = table.global else {
+            continue;
+        };
+        map.insert(global, mir::DispatchTableId::new(index as u32));
+    }
     map
 }
