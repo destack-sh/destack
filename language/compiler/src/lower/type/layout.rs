@@ -17,6 +17,31 @@ pub(crate) enum LayoutPolicy {
     C,
 }
 
+/// Policy values for type layout decisions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TypeLayoutPolicy {
+    /// Maximum size in bytes for inline union payloads.
+    pub inline_union_budget_bytes: u32,
+    /// Maximum alignment in bytes for inline union payloads.
+    pub inline_union_max_alignment: u32,
+    /// Require trivial copyability for inline union payloads.
+    pub inline_union_requires_trivial_copyability: bool,
+}
+
+impl TypeLayoutPolicy {
+    /// Build a layout policy using target pointer size.
+    pub(crate) fn for_target(pointer_bytes: u8) -> Self {
+        let pointer_size = u32::from(pointer_bytes).max(1);
+        let inline_union_budget_bytes = pointer_size.saturating_mul(2);
+
+        Self {
+            inline_union_budget_bytes,
+            inline_union_max_alignment: pointer_size,
+            inline_union_requires_trivial_copyability: true,
+        }
+    }
+}
+
 /// Classification for layout fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum FieldLayoutKind {
