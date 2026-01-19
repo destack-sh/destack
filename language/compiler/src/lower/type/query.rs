@@ -9,7 +9,7 @@ impl ModuleLowerer<'_> {
         let source = self.types.get_type_source(type_id);
         source.into_anchored(self.module_id, Some(self.profile))
     }
-    
+
     /// Return true when two type ids are structurally equivalent.
     pub(crate) fn types_are_equivalent(
         &self,

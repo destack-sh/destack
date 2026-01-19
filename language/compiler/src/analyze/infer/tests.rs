@@ -6,10 +6,10 @@ use crate::{
 use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, Declarator, Expression, ExtensionKind, FlowEdgeKind,
-    FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferTable, IntType,
-    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, InferTable, IntType,
+    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
+    TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
@@ -775,6 +775,52 @@ fn test_analyze_binary_number_comparison() {
         *ty,
         Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))
+        }
+    );
+}
+
+/// Analyze union discriminant comparisons as boolean expressions.
+#[test]
+fn test_analyze_union_discriminant_comparison() {
+    // arrange test module
+    let test = TestProgram::memory_sequential();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): int32 {
+    return value.kind == 0 ? 1 : 2;
+}
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+
+    // locate the ternary condition
+    let condition_id = view
+        .tree()
+        .iter_node_ids_of_type::<Expression>()
+        .iter()
+        .find_map(|expression_id| match view.tree().get(*expression_id) {
+            Expression::If {
+                kind: IfKind::Ternary,
+                condition: IfCondition::Expression { condition },
+                ..
+            } => Some(*condition),
+            _ => None,
+        })
+        .expect("expected ternary condition expression");
+
+    // read inferred type
+    let ty = view.expect_inferred_type(condition_id);
+
+    assert_eq!(
+        *ty,
+        Type::TypeLiteral {
+            value: TypeLiteral::Primitive(PrimitiveType::Boolean)
         }
     );
 }

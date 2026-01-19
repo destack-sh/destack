@@ -301,7 +301,7 @@ impl Compiler {
         // resolve the flow environment for the node when flow typing is active
         let flow_environment = ctx.flow.as_ref().and_then(|flow_context| {
             if flow_context.module_id != module.id {
-                // NOTE #Suspicious: flow context belongs to a different module
+                // #Suspicious: flow context belongs to a different module (error?)
                 return None;
             }
             let block_id = flow_context
@@ -909,7 +909,7 @@ impl Compiler {
             }
 
             // type literal: use the given type literal?
-            // NOTE #Suspicious: using the type literal type itself as its type is strange
+            // #Suspicious: using the type literal type itself as its type is strange (?)
             Expression::TypeLiteral { value } => {
                 let ty = Type::TypeLiteral {
                     value: value.clone(),
@@ -2369,7 +2369,7 @@ impl Compiler {
     }
 
     /// Find the nearest `this` symbol visible to the expression.
-    /// NOTE #Architecture: should 'find_this_symbol' be resolved during Bind? (instead of Analyze/infer)?
+    /// #Architecture: should 'find_this_symbol' be resolved during Bind? (instead of Analyze/infer)?
     fn find_this_symbol(
         &self,
         module: &Module,
@@ -2455,14 +2455,13 @@ impl Compiler {
         };
 
         // canonicalize imports before picking a type
-        let canonical_symbol =
-            self.canonical_symbol_id(
-                module,
-                symbols,
-                ctx.profile,
-                target_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            ctx.profile,
+            target_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // reuse a narrowed or declared value type when possible
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
@@ -3316,15 +3315,13 @@ impl Compiler {
         match tree.get(expression_id) {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                Some(self.canonical_symbol_id(
-                    module,
-                    symbols,
-                    profile,
-                    *target_symbol,
-                    CanonicalSymbolMode::FollowAliases,
-                ))
-            }
+            | Expression::GlobalReference { target_symbol, .. } => Some(self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                *target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            )),
             _ => None,
         }
     }
@@ -3394,14 +3391,13 @@ impl Compiler {
         ctx: &InferContext,
     ) -> AnalyzeResult<LocalTypeId> {
         // resolve the canonical symbol for imported references
-        let canonical_symbol =
-            self.canonical_symbol_id(
-                module,
-                symbols,
-                ctx.profile,
-                target_symbol,
-                CanonicalSymbolMode::FollowAliases,
-            );
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            ctx.profile,
+            target_symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // reject globalThis references when configured
         if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {

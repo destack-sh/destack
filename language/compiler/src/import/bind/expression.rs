@@ -2048,7 +2048,9 @@ impl Compiler {
 mod tests {
     use crate::tests::TestProgram;
     use crate::{assert_node, assert_path};
-    use destack_dir::{Declarator, Expression, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable};
+    use destack_dir::{
+        Declarator, Expression, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
+    };
 
     // Test that infer type variables are visible in the then-branch of conditional types.
     #[test]
@@ -2169,8 +2171,7 @@ let Foo: Foo = Foo;
         let symbols = dir.symbols.read();
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);
-        let (type_count, value_count, type_value_count) =
-            count_symbol_spaces(&symbols, key);
+        let (type_count, value_count, type_value_count) = count_symbol_spaces(&symbols, key);
 
         assert_eq!(type_count, 1);
         assert_eq!(value_count, 0);

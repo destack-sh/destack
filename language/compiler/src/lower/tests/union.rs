@@ -265,8 +265,6 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 }
 
 /// Lower union tag comparisons into check terminators.
-// FUGU #Broken: fix Analyze/Resolution for discriminants
-#[ignore]
 #[test]
 fn test_lower_union_tag_check() {
     // set up the test program
@@ -310,8 +308,6 @@ block3(v6: i32):
 }
 
 /// Lower discriminant comparisons to tag checks.
-// FUGU #Broken: fix Analyze/Resolution for discriminants
-#[ignore]
 #[test]
 fn test_lower_union_integer_discriminant() {
     // set up the test program
@@ -347,8 +343,6 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 }
 
 /// Lower string discriminant comparisons to tag checks.
-// FUGU #Broken: fix Analyze/Resolution for discriminants
-#[ignore]
 #[test]
 fn test_lower_union_string_discriminant() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
@@ -371,8 +365,8 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
         module_id,
         "native",
         r#"
-function @isA(v0: { @tag: u8, @payload: [usize; 1] }) -> bool {
-block0(v0: { @tag: u8, @payload: [usize; 1] }):
+function @isA(v0: { @tag: u8, @payload: ref<managed void> }) -> bool {
+block0(v0: { @tag: u8, @payload: ref<managed void> }):
     v1 = field.get v0, 0
     v2 = iconst 0u8
     v3 = icmp_eq v1, v2

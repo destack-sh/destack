@@ -863,7 +863,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
-    call @touch(v6)
+    call @touch(v6) -> fn(u32) -> void
     v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
     v8 = iconst 1i32
     store v7, v8

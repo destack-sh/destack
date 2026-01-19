@@ -521,13 +521,7 @@ impl Compiler {
             (None, None) => {}
             (Some(left_this), Some(right_this)) => {
                 if !self.signature_type_ids_equivalent(
-                    module,
-                    profile,
-                    left_this,
-                    right_this,
-                    symbols,
-                    types,
-                    options,
+                    module, profile, left_this, right_this, symbols, types, options,
                 ) {
                     return false;
                 }

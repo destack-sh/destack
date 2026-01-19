@@ -296,14 +296,8 @@ impl Compiler {
         )?;
 
         // drop equivalent overloads introduced by declaration merging
-        let mut candidates = self.dedupe_signature_candidates(
-            module,
-            profile,
-            candidates,
-            symbols,
-            types,
-            options,
-        );
+        let mut candidates =
+            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
 
         if candidates.is_empty() {
             return Ok(None);
@@ -376,14 +370,8 @@ impl Compiler {
         )?;
 
         // drop equivalent overloads introduced by declaration merging
-        let candidates = self.dedupe_signature_candidates(
-            module,
-            profile,
-            candidates,
-            symbols,
-            types,
-            options,
-        );
+        let candidates =
+            self.dedupe_signature_candidates(module, profile, candidates, symbols, types, options);
         if candidates.is_empty() {
             return Ok(None);
         }
@@ -432,15 +420,7 @@ impl Compiler {
             {
                 ty_id
             } else {
-                self.infer_expression(
-                    module,
-                    argument_value_id,
-                    tree,
-                    symbols,
-                    types,
-                    infer,
-                    ctx,
-                )?
+                self.infer_expression(module, argument_value_id, tree, symbols, types, infer, ctx)?
             };
             argument_ty_ids.push(argument_ty_id);
         }

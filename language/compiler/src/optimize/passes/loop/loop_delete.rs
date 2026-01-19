@@ -438,7 +438,7 @@ block0:
     v0 = iconst false
     jump block1
 block1:
-    v1 = call @side_effect() -> fn() -> void
+    v1 = call @side_effect() -> fn() -> i32
     branch v0, block1, block2
 block2:
     return
