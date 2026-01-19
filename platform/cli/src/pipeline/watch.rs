@@ -177,18 +177,89 @@ pub fn apply_watch_event(
         };
     }
 
-    // handle delete and rename by forcing a rescan
-    if matches!(
-        event.kind,
-        FileWatchEventKind::Deleted | FileWatchEventKind::Renamed
-    ) {
+    // handle delete by marking the file missing
+    if matches!(event.kind, FileWatchEventKind::Deleted) {
+        let requires_rescan = is_config_path(&event.path);
+        if !is_watchable_path(&event.path) {
+            return WatchEventResult {
+                updated: false,
+                rescan: requires_rescan,
+                message: None,
+            };
+        }
+
+        if let Err(error) = daemon.remove_virtual_file(&event.path) {
+            return WatchEventResult {
+                updated: false,
+                rescan: requires_rescan,
+                message: Some(format!(
+                    "watch: failed to remove {}: {error}",
+                    event.path.display()
+                )),
+            };
+        }
+
         return WatchEventResult {
-            updated: false,
-            rescan: true,
-            message: Some(format!(
-                "watch: rescan required for change: {}",
-                event.path.display()
-            )),
+            updated: true,
+            rescan: requires_rescan,
+            message: None,
+        };
+    }
+
+    // handle rename as a delete plus create
+    if matches!(event.kind, FileWatchEventKind::Renamed) {
+        let mut requires_rescan = false;
+        let mut updated = false;
+        let mut message = None;
+
+        if let Some(previous) = event.previous_path.as_ref() {
+            requires_rescan |= is_config_path(previous);
+            if is_watchable_path(previous)
+                && let Err(error) = daemon.remove_virtual_file(previous)
+            {
+                message = Some(format!(
+                    "watch: failed to remove {}: {error}",
+                    previous.display()
+                ));
+            }
+        } else {
+            requires_rescan = true;
+        }
+
+        requires_rescan |= is_config_path(&event.path);
+        if is_watchable_path(&event.path) {
+            let content = match session.fs.read_to_string(&event.path) {
+                Ok(content) => content,
+                Err(error) => {
+                    return WatchEventResult {
+                        updated: false,
+                        rescan: requires_rescan,
+                        message: Some(format!(
+                            "watch: failed to read {}: {error}",
+                            event.path.display()
+                        )),
+                    };
+                }
+            };
+
+            if let Err(error) = daemon.update_virtual_file(&event.path, content) {
+                return WatchEventResult {
+                    updated: false,
+                    rescan: requires_rescan,
+                    message: Some(format!(
+                        "watch: failed to update {}: {error}",
+                        event.path.display()
+                    )),
+                };
+            }
+
+            updated = true;
+        }
+
+        return WatchEventResult {
+            updated,
+            rescan: requires_rescan,
+            message,
         };
     }
 
