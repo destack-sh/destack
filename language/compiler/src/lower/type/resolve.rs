@@ -23,7 +23,7 @@ impl FunctionContext<'_> {
         let type_id = self.unwrap_value_type_id(type_id);
 
         // return cached types when available
-        if let Some(&mir_type) = self.env.type_lowerer.type_cache.get(&type_id) {
+        if let Some(mir_type) = self.env.type_lowerer.cached_type(type_id) {
             return Ok(mir_type);
         }
 

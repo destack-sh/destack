@@ -10,6 +10,15 @@ use {destack_dir as dir, destack_mir as mir};
 use super::StructLayout;
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
+/// Cached entry for lowered types.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TypeCacheEntry {
+    /// Lowering is in progress for this type.
+    InProgress,
+    /// Lowered mir type is ready.
+    Ready(mir::LocalNodeId<mir::Type>),
+}
+
 /// Lowers DIR types into MIR types with a shared cache.
 #[derive(Debug)]
 pub(crate) struct TypeLowerer {
@@ -18,7 +27,7 @@ pub(crate) struct TypeLowerer {
     /// Access to package metadata for qualified names.
     pub(super) packages: Arc<PackageRegistry>,
     /// Cached MIR types by DIR type id.
-    pub(crate) type_cache: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
+    pub(crate) type_cache: HashMap<dir::LocalTypeId, TypeCacheEntry>,
     /// Cached struct layouts by MIR type id (for field index lookup).
     pub(super) layout_cache: HashMap<mir::LocalNodeId<mir::Type>, StructLayout>,
     /// Pointer width in bits for pointer-sized integers.
@@ -74,6 +83,17 @@ impl TypeLowerer {
             ty_string: None,
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
+        }
+    }
+
+    /// Return a cached mir type when available.
+    pub(crate) fn cached_type(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        match self.type_cache.get(&type_id) {
+            Some(TypeCacheEntry::Ready(mir_type)) => Some(*mir_type),
+            _ => None,
         }
     }
 
@@ -160,14 +180,6 @@ impl TypeLowerer {
         self.layout_cache.insert(ty, layout);
     }
 
-    /// Return a snapshot of cached struct layouts.
-    pub(crate) fn layout_entries(&self) -> Vec<(mir::LocalNodeId<mir::Type>, StructLayout)> {
-        self.layout_cache
-            .iter()
-            .map(|(ty, layout)| (*ty, layout.clone()))
-            .collect()
-    }
-
     /// Create a MIR struct type from a computed layout.
     ///
     /// This creates the MIR `Type::Struct` with fields that have their offsets
@@ -216,67 +228,69 @@ impl TypeLowerer {
         node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        if let Some(mir_type) = self.type_cache.get(&type_id) {
-            return Ok(*mir_type);
+        if let Some(entry) = self.type_cache.get(&type_id) {
+            return match entry {
+                TypeCacheEntry::Ready(mir_type) => Ok(*mir_type),
+                TypeCacheEntry::InProgress => Err(LowerError::UnsupportedType {
+                    node,
+                    ty: type_id.into_global(module_id),
+                    message: "cycle detected while lowering type".to_string(),
+                }),
+            };
         }
+
+        self.type_cache.insert(type_id, TypeCacheEntry::InProgress);
 
         let dir_type = types.get_type(type_id);
         let mir_type = match dir_type {
             dir::Type::Reference { symbol, .. } => {
                 if symbol.ty() == dir::SymbolType::Interface {
-                    let mir_type = self
-                        .lower_interface_reference_type(types, type_id, module_id, node, builder)?;
-                    return Ok(mir_type);
-                }
-
-                // follow the reference to its instance type
-                let instance_type_id = types.get_instance_type_id(*symbol).ok_or_else(|| {
-                    LowerError::UnsupportedType {
-                        node,
-                        ty: type_id.into_global(module_id),
-                        message: "type reference has no instance type".to_string(),
-                    }
-                })?;
-
-                // unwrap nominal aliases that point at themselves
-                if instance_type_id == type_id {
-                    // check if the type is an invalid / self-referential alias
-                    if !matches!(
-                        symbol.ty(),
-                        dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
-                    ) {
-                        return Err(LowerError::UnsupportedType {
+                    self.lower_interface_reference_type(types, type_id, module_id, node, builder)?
+                } else {
+                    // follow the reference to its instance type
+                    let instance_type_id = types.get_instance_type_id(*symbol).ok_or_else(|| {
+                        LowerError::UnsupportedType {
                             node,
                             ty: type_id.into_global(module_id),
-                            message: "non-alias type is self-referential".to_string(),
-                        });
-                    }
-                    let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) else {
-                        return Err(LowerError::UnsupportedType {
-                            node,
-                            ty: type_id.into_global(module_id),
-                            message: "type alias has no target type".to_string(),
-                        });
+                            message: "type reference has no instance type".to_string(),
+                        }
+                    })?;
+
+                    // unwrap nominal aliases that point at themselves
+                    let instance_type = if instance_type_id == type_id {
+                        // check if the type is an invalid / self-referential alias
+                        if !matches!(
+                            symbol.ty(),
+                            dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
+                        ) {
+                            return Err(LowerError::UnsupportedType {
+                                node,
+                                ty: type_id.into_global(module_id),
+                                message: "non-alias type is self-referential".to_string(),
+                            });
+                        }
+                        let Some(alias_target_id) = types.get_alias_target_type_id(*symbol) else {
+                            return Err(LowerError::UnsupportedType {
+                                node,
+                                ty: type_id.into_global(module_id),
+                                message: "type alias has no target type".to_string(),
+                            });
+                        };
+
+                        // lower the alias target type for layout
+                        self.lower_type(types, alias_target_id, module_id, node, builder)?
+                    } else {
+                        // recursively lower the instance type
+                        self.lower_type(types, instance_type_id, module_id, node, builder)?
                     };
 
-                    // lower the alias target type for layout
-                    return self.lower_type(types, alias_target_id, module_id, node, builder);
+                    // wrap class instance types in a managed reference
+                    if symbol.ty() == dir::SymbolType::Class {
+                        builder.type_managed_reference(instance_type)
+                    } else {
+                        instance_type
+                    }
                 }
-
-                // recursively lower the instance type
-                let instance_type =
-                    self.lower_type(types, instance_type_id, module_id, node, builder)?;
-
-                // wrap class instance types in a managed reference
-                let mir_type = if symbol.ty() == dir::SymbolType::Class {
-                    builder.type_managed_reference(instance_type)
-                } else {
-                    instance_type
-                };
-
-                // cache this reference type id as well so we don't re-resolve next time
-                self.type_cache.insert(type_id, mir_type);
-                return Ok(mir_type);
             }
             dir::Type::PointerOf { right, .. } => {
                 let pointee = self.lower_type(types, *right, module_id, node, builder)?;
@@ -328,14 +342,13 @@ impl TypeLowerer {
                 builder.type_function_pointer(parameters, result)
             }
             dir::Type::Union { elements } => {
-                return self.lower_union_type(types, type_id, elements, module_id, node, builder);
+                self.lower_union_type(types, type_id, elements, module_id, node, builder)?
             }
             dir::Type::Intersection { elements } => {
                 let primary =
                     self.select_intersection_primary_type(types, elements, module_id, node)?;
                 let mir_type = self.lower_type(types, primary, module_id, node, builder)?;
-                self.type_cache.insert(type_id, mir_type);
-                return Ok(mir_type);
+                mir_type
             }
             _ => self
                 .try_lower_type(dir_type, builder)
@@ -345,7 +358,8 @@ impl TypeLowerer {
                     message: "unsupported type".to_string(),
                 })?,
         };
-        self.type_cache.insert(type_id, mir_type);
+        self.type_cache
+            .insert(type_id, TypeCacheEntry::Ready(mir_type));
         Ok(mir_type)
     }
 

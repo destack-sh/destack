@@ -44,6 +44,8 @@ impl ModuleLowerer<'_> {
                 continue;
             }
 
+            let vtable_id = mir::DispatchTableId::new(self.vtable_class_symbols.len() as u32);
+            self.vtable_ids_by_symbol.insert(symbol, vtable_id);
             self.vtable_class_symbols.push(symbol);
 
             // resolve the declaration id for this class symbol
@@ -84,7 +86,7 @@ impl ModuleLowerer<'_> {
         interface_symbols.dedup();
 
         for symbol in interface_symbols {
-            let _ = self.lower_interface_slots(symbol)?;
+            self.lower_interface_slots(symbol)?;
         }
 
         // precompute interface pair ids for itab lowering
@@ -102,5 +104,14 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(())
+    }
+
+    /// Return dispatch tables emitted after lowering items.
+    pub(crate) fn dispatch_tables(
+        &mut self,
+    ) -> LowerResult<(Vec<mir::DispatchTableId>, Vec<mir::DispatchTableId>)> {
+        let vtables = self.vtables()?;
+        let itabs = self.itabs()?;
+        Ok((vtables, itabs))
     }
 }

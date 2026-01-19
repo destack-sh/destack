@@ -4,7 +4,7 @@ use destack_base::StringId;
 use destack_dir::{self as dir, GlobalSymbolId, LocalNodeId};
 use destack_mir as mir;
 
-use crate::lower::{FieldInput, FieldLayoutKind, LayoutPolicy, static_key_to_field_name};
+use crate::lower::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeCacheEntry, static_key_to_field_name};
 use crate::{LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
@@ -73,7 +73,7 @@ impl ModuleLowerer<'_> {
 
         // predeclare the base layout for derived classes
         if let Some(base_symbol) = base_symbol {
-            let _ = self.lower_nominal_layout(base_symbol)?;
+            self.lower_nominal_layout(base_symbol)?;
         }
 
         // prepare derived field tracking
@@ -89,10 +89,9 @@ impl ModuleLowerer<'_> {
                         node: instance_declaration,
                         message: "class base instance type missing".to_string(),
                     })?;
-            let base_mir_type = *self
+            let base_mir_type = self
                 .type_lowerer
-                .type_cache
-                .get(&base_instance_type_id)
+                .cached_type(base_instance_type_id)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: instance_declaration,
                     message: "class base layout missing".to_string(),
@@ -168,7 +167,7 @@ impl ModuleLowerer<'_> {
         self.type_lowerer.set_layout(mir_type, layout);
         self.type_lowerer
             .type_cache
-            .insert(instance_type_id, mir_type);
+            .insert(instance_type_id, TypeCacheEntry::Ready(mir_type));
 
         self.nominal_layouts_by_symbol.insert(symbol, mir_type);
         self.nominal_layouts_in_progress.shift_remove(&symbol);

@@ -38,24 +38,24 @@ impl<'a> BuiltinTypeLayouts<'a> {
         }
     }
 
-    /// Ensure the String layout is cached for lowering.
-    pub(crate) fn ensure_string_layout(
+    /// Return the builtin String type for lowering.
+    pub(crate) fn string_type_for_builtin(
         &mut self,
         anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<()> {
+    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
         // skip when already cached
-        if self.type_lowerer.string_type().is_some() {
-            return Ok(());
+        if let Some(string_type) = self.type_lowerer.string_type() {
+            return Ok(Some(string_type));
         }
 
         // resolve the builtin string symbol
         let Some(string_symbol) = self.resolve_well_known_symbol(WellKnownSymbol::String) else {
-            return Ok(());
+            return Ok(None);
         };
 
         // install the struct layout for String
-        let Some(ty_struct) = self.ensure_struct_layout_for_symbol(string_symbol, anchor)? else {
-            return Ok(());
+        let Some(ty_struct) = self.struct_layout_for_symbol(string_symbol, anchor)? else {
+            return Ok(None);
         };
 
         // name the builtin string type metadata
@@ -65,7 +65,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let ty_string = self.builder.type_managed_reference(ty_struct);
         self.type_lowerer.set_string_type(ty_string);
 
-        Ok(())
+        Ok(Some(ty_string))
     }
 
     /// Resolve a well-known symbol for this profile.
@@ -211,8 +211,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
         Ok(field_inputs)
     }
 
-    /// Ensure a struct layout is installed for the provided symbol.
-    pub(crate) fn ensure_struct_layout_for_symbol(
+    /// Return a struct layout installed for the provided symbol.
+    pub(crate) fn struct_layout_for_symbol(
         &mut self,
         symbol: dir::GlobalSymbolId,
         anchor: dir::AnchoredGlobalNodeId,

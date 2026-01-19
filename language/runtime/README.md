@@ -7,45 +7,7 @@ Provides scheduling, I/O, external bindings, snapshotting, and debug support.
 
 The runtime is **only** for WASM and native targets.
 JS/TS targets use external runtimes (Node, Bun, Deno, browsers) and do not link this library.
-The target split is simple:
-
-| Target | Pipeline | Runtime |
-| --- | --- | --- |
-| JS/TS | Source -> Compiler -> JS/TS | External runtime (Node/Bun/Deno/browsers) |
-| WASM/Native | Source -> Compiler -> Codegen -> Binary | Destack runtime |
-
 The runtime is linked into compiled binaries; it is not a separate process.
-
-# Objectives
-
-The runtime provides the platform envelope around VM and native execution.
-It must:
-
-- provide a complete execution environment for MIR and native code
-- enable Go-style concurrency with deterministic test control
-- support snapshots, profiling, and full debug workflows
-- preserve VM/native semantic equivalence
-
-# Layout
-
-<pre>
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                   Runtime                                   │
-│                                                                             │
-│  Platform                                                                    │
-│   ├─ bindings: external calls + shims                                        │
-│   ├─ clock: time sources                                                     │
-│   ├─ random: PRNG and entropy                                                │
-│   └─ resources: external lifetimes + finalizers                              │
-│                                                                             │
-│  Scheduler                                                                   │
-│  Replay                                                                      │
-│  Snapshot                                                                    │
-│  Telemetry                                                                   │
-│                                                                             │
-│  Bridge → VM                                                                 │
-└─────────────────────────────────────────────────────────────────────────────┘
-</pre>
 
 ## Components
 
@@ -315,105 +277,6 @@ Any external resource must be reattached explicitly by the runtime after restore
 Snapshots are versioned and tied to the target ABI.
 The runtime must reject snapshot restore when the compiler version, target triple, or GC layout does not match.
 
-# VM <-> Native Transitions
-
-Tiering relies on lowering metadata:
-
-- Deopt maps reconstruct MIR frames from native registers and stack.
-- OSR maps enter native code from MIR block boundaries.
-- GC stack maps identify live managed references in native frames.
-
-The runtime decides when transitions occur; correctness lives in the metadata.
-Metadata formats are compiler-version private; mismatched versions must be rejected.
-
-## Runtime ABI
-
-NOTE #Incomplete #ABI: this ABI surface is defined but will be tightened as runtime shims and native transitions are finalized.
-
-The runtime interacts with the VM through a strict entrypoint table.
-The entrypoint table is per isolate.
-
-```ds
-type VmEntrypoints = {
-    runFunction: (functionId: uint32, args: Value[]) -> VmOutcome,
-    runFunctionYielding: (functionId: uint32, args: Value[]) -> VmOutcome,
-    resume: (continuation: Continuation, resumeValue: Value) -> VmOutcome,
-    collectGarbage: (extraRoots: Continuation[]) -> void,
-};
-
-type VmOutcome = VmYielded | VmCompleted | VmTrapped;
-
-type VmYielded = {
-    kind: 'yielded',
-    continuation: Continuation,
-};
-
-type VmCompleted = {
-    kind: 'completed',
-    value: Value,
-};
-
-type VmTrapped = {
-    kind: 'trapped',
-    error: VmError,
-};
-
-type VmError = {
-    code: uint16,
-    detail: string,
-};
-```
-
-The runtime must validate that entrypoints are not reentrant for a given isolate.
-The runtime must serialize all entrypoint calls per isolate.
-
-## Native Transition ABI
-
-Native code transfers control to the VM using a deopt entrypoint.
-The deopt entrypoint takes the native machine state and a deopt reason.
-
-```ds
-type NativeState = {
-    pc: uint64,
-    framePointer: uint64,
-    stackPointer: uint64,
-    registers: uint64[],
-};
-
-type DeoptReason = {
-    code: uint16,
-    siteId: uint32,
-};
-
-type DeoptRequest = {
-    deoptMap: uint32,
-    state: NativeState,
-    reason: DeoptReason,
-};
-```
-
-The runtime must ensure `deoptMap` is a valid index into the metadata blob.
-
-## Bindings Shim ABI
-
-External I/O flows through runtime shims in deterministic modes.
-Each external call is represented as a typed binding with an opaque payload.
-
-```ds
-type ExternalCall = {
-    bindingId: uint32,
-    payload: uint8[],
-};
-
-type ExternalResult = {
-    payload: uint8[],
-    errorCode: uint16,
-};
-```
-
-`Record` captures ExternalCall and ExternalResult pairs in program order.
-`bindingId` refers to a runtime binding registry with stable payload schemas.
-
 # Replay and Determinism
 
 Deterministic execution requires the runtime to control:
@@ -450,12 +313,3 @@ type ReplayEntry = {
 ```
 
 `sequence` is a monotonically increasing identifier assigned by the runtime.
-
-# Telemetry
-
-The runtime aggregates VM/native signals:
-
-- Counters and sampling from the VM are aggregated.
-- Timeline trace events across VM and native are aggregated.
-- Debug inspection tools and source mapping are aggregated.
-Telemetry libraries should join VM and native signals using the shared trace timeline.

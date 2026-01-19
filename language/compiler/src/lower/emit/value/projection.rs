@@ -242,7 +242,7 @@ impl FunctionContext<'_> {
             let node = expression_id
                 .into_global_any(self.env.module_id)
                 .into_anchored(Some(self.env.profile));
-            self.ensure_constructor_field_initialized(node, field_index as u32, field_name)?;
+            self.require_constructor_field_initialized(node, field_index as u32, field_name)?;
         }
 
         // load through references before field access

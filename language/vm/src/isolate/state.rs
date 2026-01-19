@@ -193,6 +193,9 @@ fn build_dispatch_table_map(
 ) -> HashMap<mir::LocalNodeId<mir::Global>, mir::DispatchTableId> {
     let mut map = HashMap::new();
     for (index, table) in tree.type_table.dispatch_registry.tables.iter().enumerate() {
+        let Some(table) = table.as_ref() else {
+            continue;
+        };
         let Some(global) = table.global else {
             continue;
         };

@@ -33,6 +33,7 @@ impl TestProgram {
             .dispatch_registry
             .tables
             .iter()
+            .filter_map(|table| table.as_ref())
             .filter(|table| matches!(table.kind, mir::DispatchTableKind::Class { .. }))
             .collect()
     }
@@ -47,6 +48,7 @@ impl TestProgram {
             .dispatch_registry
             .tables
             .iter()
+            .filter_map(|table| table.as_ref())
             .filter(|table| matches!(table.kind, mir::DispatchTableKind::Interface { .. }))
             .collect()
     }
@@ -66,6 +68,7 @@ impl TestProgram {
             .dispatch_registry
             .tables
             .iter()
+            .filter_map(|table| table.as_ref())
             .find(|table| {
                 matches!(
                     table.kind,

@@ -10,18 +10,20 @@ use crate::lower::ModuleLowerer;
 use crate::lower::table::interface::InterfaceSlot;
 
 impl ModuleLowerer<'_> {
-    /// Lower itabs for interface dispatch.
-    pub(crate) fn lower_itabs(&mut self) -> LowerResult<()> {
+    /// Return itabs for interface dispatch.
+    pub(crate) fn itabs(&mut self) -> LowerResult<Vec<mir::DispatchTableId>> {
         // generate itabs for each pair
+        let mut tables = Vec::new();
         for (concrete, interface) in self.interface_itab_pairs.clone() {
-            let _ = self.lower_itab(concrete, interface)?;
+            let table_id = self.itab_for_pair(concrete, interface)?;
+            tables.push(table_id);
         }
 
-        Ok(())
+        Ok(tables)
     }
 
-    /// Lower a single interface itab for a concrete type.
-    fn lower_itab(
+    /// Return a single interface itab for a concrete type.
+    fn itab_for_pair(
         &mut self,
         concrete: GlobalSymbolId,
         interface: GlobalSymbolId,
@@ -132,6 +134,14 @@ impl ModuleLowerer<'_> {
 
         // insert the dispatch table
         let table_id = {
+            let table_id = self
+                .interface_itab_ids
+                .get(&(concrete, interface))
+                .copied()
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "missing itab id for interface pair".to_string(),
+                })?;
             let table = mir::DispatchTable {
                 kind: mir::DispatchTableKind::Interface {
                     concrete: concrete_mir_type,
@@ -144,7 +154,8 @@ impl ModuleLowerer<'_> {
                 .tree_mut()
                 .type_table
                 .dispatch_registry
-                .insert(table)
+                .insert_at(table_id, table);
+            table_id
         };
 
         // attach the itab to type metadata

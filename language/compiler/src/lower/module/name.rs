@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_base::StringId;
 use destack_workspace::{Module, Package};
 use {destack_dir as dir, destack_mir as mir};
 
@@ -58,70 +59,50 @@ struct TypeNameContext {
     is_type_alias: bool,
 }
 
-impl ModuleLowerer<'_> {
-    /// Assign deterministic metadata names to nominal types.
-    pub(crate) fn assign_nominal_metadata_names(&mut self) -> LowerResult<()> {
-        // collect nominal declaration metadata for this module
-        let nominal_info = self.collect_nominal_types();
+/// Names derived from a nominal type symbol.
+struct NominalMetadataNames {
+    /// The metadata name for reference types, when available.
+    reference: Option<StringId>,
+    /// The metadata name for instance types, when available.
+    instance: Option<StringId>,
+}
 
-        // assign metadata names for nominal instance types
-        for info in nominal_info {
-            // lower or reuse the type for metadata attachment
-            // resolve the qualified metadata name
-            let name = self.qualified_symbol_name(info.symbol).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
-                    node: info.anchor,
-                    message: "missing qualified name for nominal type".to_string(),
-                }
+impl ModuleLowerer<'_> {
+    /// Return a metadata name for a lowered type.
+    pub(crate) fn metadata_name_for_type(
+        &mut self,
+        type_id: dir::LocalTypeId,
+        mir_type: mir::LocalNodeId<mir::Type>,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<StringId> {
+        let dir_type = self.types.get_type(type_id);
+
+        // skip if metadata already exists
+        if let Some(metadata) = self
+            .builder
+            .tree()
+            .type_table
+            .type_metadata_by_id
+            .get(&mir_type)
+            && let Some(name) = metadata.name
+        {
+            return Ok(name);
+        }
+
+        // use nominal naming when the type resolves to a symbol
+        if let dir::Type::Reference { symbol, .. } = dir_type
+            && matches!(
+                symbol.ty(),
+                dir::SymbolType::Struct | dir::SymbolType::Class | dir::SymbolType::Interface
+            )
+        {
+            let names = self.metadata_names_for_symbol(*symbol, anchor)?;
+            let reference_name = names.reference.ok_or_else(|| LowerError::Internal {
+                module: self.module_id,
+                message: "missing reference metadata name for nominal type".to_string(),
             })?;
 
-            // intern the name
-            let name_id = self.builder.intern(&name);
-
-            // resolve interface reference and instance types separately
-            if info.kind == dir::SymbolType::Interface {
-                if let Some(reference_type_id) =
-                    self.nominal_reference_type_id_for_symbol(info.symbol)
-                {
-                    let mir_type = self.lower_type(reference_type_id, info.anchor)?;
-                    let metadata = self
-                        .builder
-                        .tree_mut()
-                        .type_table
-                        .type_metadata_by_id
-                        .entry(mir_type)
-                        .or_default();
-                    if metadata.name.is_none() {
-                        metadata.name = Some(name_id);
-                    }
-                }
-
-                if let Some(instance_type_id) = info.instance_type_id {
-                    let mir_type = self.lower_type(instance_type_id, info.anchor)?;
-                    let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
-                    let instance_name_id = self.builder.intern(&instance_name);
-                    let metadata = self
-                        .builder
-                        .tree_mut()
-                        .type_table
-                        .type_metadata_by_id
-                        .entry(mir_type)
-                        .or_default();
-                    if metadata.name.is_none() {
-                        metadata.name = Some(instance_name_id);
-                    }
-                }
-
-                continue;
-            }
-
-            // resolve the type id to attach metadata
-            let Some(metadata_type_id) = info.instance_type_id else {
-                continue;
-            };
-
-            // lower or reuse the type for metadata attachment
-            let mir_type = self.lower_type(metadata_type_id, info.anchor)?;
+            // attach metadata for the current reference type when missing
             let metadata = self
                 .builder
                 .tree_mut()
@@ -129,53 +110,24 @@ impl ModuleLowerer<'_> {
                 .type_metadata_by_id
                 .entry(mir_type)
                 .or_default();
-
-            // set the name only when missing
             if metadata.name.is_none() {
-                metadata.name = Some(name_id);
+                metadata.name = Some(reference_name);
             }
+
+            return Ok(reference_name);
         }
 
-        Ok(())
-    }
-
-    /// Assign deterministic metadata names to anonymous types.
-    pub(crate) fn assign_anonymous_metadata_names(&mut self) -> LowerResult<()> {
-        // collect lowered type ids to avoid borrowing conflicts
-        let type_ids: Vec<_> = self.type_lowerer.type_cache.keys().copied().collect();
-
-        // collect nominal instance types to skip anonymous naming
-        let nominal_instance_types = self.nominal_instance_type_ids();
-
-        // assign metadata names for anonymous type ids
-        for type_id in type_ids {
-            // skip nominal instance types
-            if nominal_instance_types.contains(&type_id) {
-                continue;
-            }
-
-            // resolve the suffix for anonymous types
-            let dir_type = self.types.get_type(type_id);
-            let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
-                self.anonymous_metadata_name(type_id, suffix)
-            } else {
-                self.reference_metadata_name(dir_type)
-                    .or_else(|| self.alias_metadata_name(type_id))
-                    .or_else(|| self.type_literal_metadata_name(dir_type))
-            };
-            let Some(name) = name else {
-                continue;
-            };
-
-            // resolve the cached mir type
-            let Some(mir_type) = self.type_lowerer.type_cache.get(&type_id).copied() else {
-                continue;
-            };
-
-            // intern the name
-            let name_id = self.builder.intern(&name);
-
-            // update metadata when no name is assigned
+        if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
+            && matches!(
+                symbol.ty(),
+                dir::SymbolType::Struct | dir::SymbolType::Class | dir::SymbolType::Interface
+            )
+        {
+            let names = self.metadata_names_for_symbol(symbol, anchor)?;
+            let instance_name = names.instance.ok_or_else(|| LowerError::Internal {
+                module: self.module_id,
+                message: "missing instance metadata name for nominal type".to_string(),
+            })?;
             let metadata = self
                 .builder
                 .tree_mut()
@@ -183,19 +135,152 @@ impl ModuleLowerer<'_> {
                 .type_metadata_by_id
                 .entry(mir_type)
                 .or_default();
-
-            // set the name only when missing
             if metadata.name.is_none() {
-                metadata.name = Some(name_id);
+                metadata.name = Some(instance_name);
+            }
+            return Ok(instance_name);
+        }
+
+        // resolve the suffix for anonymous types
+        let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
+            self.anonymous_metadata_name(type_id, suffix)
+        } else {
+            self.reference_metadata_name(dir_type)
+                .or_else(|| self.alias_metadata_name(type_id))
+                .or_else(|| self.type_literal_metadata_name(dir_type))
+        };
+        let Some(name) = name else {
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: format!("missing metadata name for type {type_id:?}"),
+            });
+        };
+
+        // intern the name
+        let name_id = self.builder.intern(&name);
+
+        // attach the metadata name
+        let metadata = self
+            .builder
+            .tree_mut()
+            .type_table
+            .type_metadata_by_id
+            .entry(mir_type)
+            .or_default();
+        if metadata.name.is_none() {
+            metadata.name = Some(name_id);
+        }
+
+        Ok(name_id)
+    }
+
+    /// Return metadata names for a nominal symbol.
+    fn metadata_names_for_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<NominalMetadataNames> {
+        // resolve the qualified metadata name
+        let name =
+            self.qualified_symbol_name(symbol)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "missing qualified name for nominal type".to_string(),
+                })?;
+        let name_id = self.builder.intern(&name);
+        let mut names = NominalMetadataNames {
+            reference: None,
+            instance: None,
+        };
+        names.reference = Some(name_id);
+
+        // resolve interface reference and instance types separately
+        if symbol.ty() == dir::SymbolType::Interface {
+            let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
+            let instance_name_id = self.builder.intern(&instance_name);
+            names.reference = Some(name_id);
+            names.instance = Some(instance_name_id);
+
+            if let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+                && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
+            {
+                let metadata = self
+                    .builder
+                    .tree_mut()
+                    .type_table
+                    .type_metadata_by_id
+                    .entry(mir_type)
+                    .or_default();
+                if metadata.name.is_none() {
+                    metadata.name = Some(name_id);
+                }
+            }
+
+            if let Some(instance_type_id) = self.types.get_instance_type_id(symbol)
+                && let Some(mir_type) = self.type_lowerer.cached_type(instance_type_id)
+            {
+                let metadata = self
+                    .builder
+                    .tree_mut()
+                    .type_table
+                    .type_metadata_by_id
+                    .entry(mir_type)
+                    .or_default();
+                if metadata.name.is_none() {
+                    metadata.name = Some(instance_name_id);
+                }
+            }
+
+            return Ok(names);
+        }
+
+        // resolve class reference types separately
+        if symbol.ty() == dir::SymbolType::Class
+            && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+            && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
+        {
+            let reference_name = format!("{name}{REFERENCE_METADATA_SUFFIX}");
+            let reference_name_id = self.builder.intern(&reference_name);
+            names.reference = Some(reference_name_id);
+            let metadata = self
+                .builder
+                .tree_mut()
+                .type_table
+                .type_metadata_by_id
+                .entry(mir_type)
+                .or_default();
+            if metadata.name.is_none() {
+                metadata.name = Some(reference_name_id);
             }
         }
 
-        // report success
-        Ok(())
+        // resolve the instance type id to attach metadata
+        let Some(instance_type_id) = self.types.get_instance_type_id(symbol) else {
+            return Ok(names);
+        };
+        let Some(mir_type) = self.type_lowerer.cached_type(instance_type_id) else {
+            names.instance = Some(name_id);
+            return Ok(names);
+        };
+
+        let metadata = self
+            .builder
+            .tree_mut()
+            .type_table
+            .type_metadata_by_id
+            .entry(mir_type)
+            .or_default();
+        if metadata.name.is_none() {
+            metadata.name = Some(name_id);
+        }
+
+        names.instance = Some(name_id);
+
+        Ok(names)
     }
 
-    /// Ensure every MIR type has a metadata name assigned.
-    pub(crate) fn ensure_metadata_names_assigned(&self) -> LowerResult<()> {
+    /// Validate that every MIR type has a metadata name assigned.
+    pub(crate) fn validate_metadata_names_assigned(&self) -> LowerResult<()> {
         // read the mir type table
         let type_table = &self.builder.tree().type_table;
 
@@ -213,17 +298,27 @@ impl ModuleLowerer<'_> {
         }
 
         // require names for cached dir types
-        for mir_type in self.type_lowerer.type_cache.values() {
+        for entry in self.type_lowerer.type_cache.values() {
+            let mir_type = match entry {
+                crate::lower::TypeCacheEntry::Ready(mir_type) => *mir_type,
+                crate::lower::TypeCacheEntry::InProgress => {
+                    return Err(LowerError::Internal {
+                        module: self.module_id,
+                        message: "type lowering cache left in progress".to_string(),
+                    });
+                }
+            };
+
             let has_name = type_table
                 .type_metadata_by_id
-                .get(mir_type)
+                .get(&mir_type)
                 .and_then(|metadata| metadata.name)
                 .is_some();
             if has_name {
                 continue;
             }
 
-            let type_node = self.builder.tree().get(*mir_type);
+            let type_node = self.builder.tree().get(mir_type);
             return Err(LowerError::Internal {
                 module: self.module_id,
                 message: format!("missing metadata name for mir type {mir_type:?} ({type_node:?})"),
@@ -473,21 +568,6 @@ impl ModuleLowerer<'_> {
             }
         }
         escaped
-    }
-
-    /// Collect instance type ids for nominal declarations.
-    fn nominal_instance_type_ids(&self) -> HashSet<dir::LocalTypeId> {
-        // seed the set with all nominal instance types
-        let mut type_ids = HashSet::new();
-
-        for info in self.collect_nominal_types() {
-            // collect the instance type id when available
-            if let Some(instance_type_id) = info.instance_type_id {
-                type_ids.insert(instance_type_id);
-            }
-        }
-
-        type_ids
     }
 
     /// Collect naming context from a type source node.

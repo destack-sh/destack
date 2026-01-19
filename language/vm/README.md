@@ -3,68 +3,7 @@
 MIR interpreter for comptime execution, debug mode, deoptimization, and native fallback.
 The VM is a fully featured execution engine for MIR.
 
-# Overview
-
-## Objectives
-
-The VM preserves native semantics while enabling a broader execution envelope:
-- **comptime**: evaluate `comptime { }` blocks during compilation
-- **debugging**: full introspection, breakpoints, and step control
-- **deoptimization**: continue optimized native code in the VM
-- **fallback execution**: run MIR directly when native code is unavailable
-
-## Scope
-
-The VM owns correctness, GC, and state reconstruction.
-The runtime owns scheduling, I/O, and platform integration.
-
-| Area | VM owns | Runtime owns |
-|------|---------|--------------|
-| Execution | MIR semantics, stacks, continuations | task queues, event loop |
-| Memory | managed GC, raw heap, stack alloc | external resources |
-| Transitions | state reconstruction | OSR/deopt policy |
-| Telemetry | counters, profiling hooks | aggregation, UX |
-| Snapshotting | state capture hooks | persistence format |
-
-## Layout
-
-<pre>
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                     VM                                      │
-│                                                                             │
-│  Isolate                                                                    │
-│   ├─ heaps, GC, globals, interned strings                                   │
-│   ├─ options, telemetry hooks                                               │
-│   └─ externals registry (runtime-provided)                                  │
-│                                                                             │
-│  Engines                                                                    │
-│   ├─ interpreter engine: threaded decode + dispatch                         │
-│   └─ compiled engine: OSR, deopt, stack map consumption                      │
-│                                                                             │
-│  Execute                                                                    │
-│   ├─ entrypoints: run_function, resume                                      │
-│   └─ continuations: capture and restore                                     │
-│                                                                             │
-│  ABI (vm/abi)                                                               │
-│   └─ metadata: safepoints, deopt maps, stack maps, versions                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-</pre>
-
-### Components
-
-| Component | Description |
-|-----------|-------------|
-| `isolate` | per-instance state: heaps, globals, options, telemetry hooks |
-| `engine::interpreter::InterpreterEngine` | threaded decode and MIR dispatch |
-| `engine::compiled::CompiledEngine` | compiled execution (AOT or JIT), OSR, deopt, stack map consumption |
-| `execute` | entrypoints and continuation state machine |
-| `memory` | Value representation, managed heap, raw heap, GC |
-| `diagnostic` | errors and stack traces |
-| `telemetry` | counters and profiling hooks |
-| `snapshot` | state capture and restore |
-| `abi` (`vm/abi`) | metadata wire types and versioning |
-
-### Ownership boundary
+## Boundaries
 
 The VM executes MIR and reconstructs state.
 Platform services (I/O, bindings, scheduling, replay) live in the runtime.
@@ -80,40 +19,14 @@ The runtime selects a trust policy per isolate:
 - **Trusted**: relaxed limits for internal code, still with validated entrypoints
 
 The VM never performs syscalls or host I/O.
-All external effects must go through runtime-provided externals and their policy.
-
+All external effects must go through runtime-provided externals (and their policy).
 Compiled entrypoints are only used when metadata is present and version-checked.
-External native binaries must be sandboxed by the runtime or rejected.
-
-## Usage Scenarios
-
-| Scenario | Start | Transitions | Notes |
-|----------|-------|-------------|-------|
-| VM-first JIT | interpreter | OSR into compiled, deopt back | hot code is compiled on demand |
-| AOT-first debug | compiled | deopt at safepoints | stepping and inspection in the VM |
-| AOT-first | compiled | optional deopt | full-speed execution, debug off |
-| Mixed debug | interpreter + compiled | selective deopt | debug modules in VM, others compiled |
-| VM-only | interpreter | none | comptime, deterministic runs, fallback |
-| Replay run | interpreter or compiled | replays external bindings | deterministic playback from log |
-| Compiled-only slim runtime | compiled | deopt disabled | interpreter not linked |
-| Comptime-only | interpreter | none | compile-time evaluation only |
-
-## Terminology
-
-| Term | Meaning |
-|------|---------|
-| isolate | one VM instance with its own heaps and globals |
-| continuation | suspended execution state captured at `yield` |
-| safepoint | program point where control can transfer VM <-> native |
-| deopt map | metadata to reconstruct MIR state from native |
-| OSR map | metadata to enter native code from MIR |
-| stack map | metadata describing live GC references |
 
 # Execution Model
 
 ## Isolate Model
 
-A VM instance is a single isolate.
+A VM instance is a single "isolate" (borrowed from JS engines).
 Each isolate owns its heaps and globals and is single-threaded at VM entry points.
 The runtime may host many isolates across OS threads.
 

@@ -303,11 +303,10 @@ impl FunctionContext<'_> {
             })?;
 
         // resolve the declaring mir type
-        let declaring_type = *self
+        let declaring_type = self
             .env
             .type_lowerer
-            .type_cache
-            .get(&interface_type_id)
+            .cached_type(interface_type_id)
             .ok_or_else(|| LowerError::MissingType {
                 node: expression_id
                     .into_global_any(self.env.module_id)
@@ -590,9 +589,7 @@ impl FunctionContext<'_> {
         let mir_type = self
             .env
             .type_lowerer
-            .type_cache
-            .get(&instance_type_id)
-            .copied()
+            .cached_type(instance_type_id)
             .ok_or_else(|| LowerError::MissingType {
                 node: expression_id
                     .into_global_any(self.env.module_id)
