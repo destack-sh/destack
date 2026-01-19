@@ -430,6 +430,8 @@ pub fn terminator_edges(
         mir::Terminator::Return { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
     }
 }

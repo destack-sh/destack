@@ -360,7 +360,10 @@ impl BasicAA {
                 }
             }
 
-            mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
+            mir::Instruction::Call { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. } => {
                 self.get_call_mod_ref(instruction_id, inst, loc, tree)
             }
 
@@ -574,20 +577,17 @@ impl BasicAA {
     /// Get mod/ref for a call instruction.
     fn get_call_mod_ref(
         &self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
+        _instruction_id: mir::LocalNodeId<mir::Instruction>,
         inst: &mir::Instruction,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
     ) -> ModRefInfo {
-        // read callsite metadata when present
-        let call_metadata = tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .get(&instruction_id);
+        // read callsite effects when present
+        let call_effects = inst.call_effects();
 
         // read call memory effects from metadata or callee
-        let mut memory_effects = call_metadata
-            .and_then(|metadata| metadata.memory_effects.clone())
+        let mut memory_effects = call_effects
+            .and_then(|effects| effects.memory_effects.clone())
             .or_else(|| self.callee_memory_effects(inst, tree));
 
         // fall back to conservative behavior without effects
@@ -615,7 +615,7 @@ impl BasicAA {
 
         // argmemonly calls only touch pointer arguments
         if effects.argmemonly {
-            return self.argmemonly_mod_ref(inst, loc, tree, call_metadata, &effects);
+            return self.argmemonly_mod_ref(inst, loc, tree, call_effects, &effects);
         }
 
         // honor coarse location set restrictions when possible
@@ -635,7 +635,7 @@ impl BasicAA {
         inst: &mir::Instruction,
         loc: &MemoryLocation,
         tree: &mir::NodeTree,
-        call_metadata: Option<&mir::CallMetadata>,
+        call_effects: Option<&mir::CallEffects>,
         effects: &mir::MemoryEffect,
     ) -> ModRefInfo {
         // honor coarse location sets when args are not the only constraint
@@ -660,7 +660,7 @@ impl BasicAA {
         }
 
         // resolve argument types
-        let arg_types = self.call_argument_types(inst, call_metadata, tree);
+        let arg_types = self.call_argument_types(inst, tree);
         let Some(arg_types) = arg_types else {
             return ModRefInfo::from_flags(effects.reads, effects.writes);
         };
@@ -680,8 +680,8 @@ impl BasicAA {
             };
 
             // read argument metadata
-            let arg_metadata = call_metadata
-                .and_then(|metadata| metadata.argument_metadata.get(index))
+            let arg_metadata = call_effects
+                .and_then(|effects| effects.argument_metadata.get(index))
                 .cloned()
                 .unwrap_or_default();
 
@@ -781,25 +781,16 @@ impl BasicAA {
     fn call_argument_types(
         &self,
         inst: &mir::Instruction,
-        call_metadata: Option<&mir::CallMetadata>,
         tree: &mir::NodeTree,
     ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
-        // prefer the metadata signature when present
-        if let Some(metadata) = call_metadata {
-            let signature = tree.get(metadata.signature);
-            if let mir::Type::FunctionPointer { parameters, .. } = signature {
-                return Some(parameters.clone());
-            }
-        }
-
-        // fall back to direct call signatures
-        let mir::Instruction::Call { function, .. } = inst else {
+        // use the instruction signature when available
+        let signature = inst.call_signature()?;
+        let signature = tree.get(signature);
+        let mir::Type::FunctionPointer { parameters, .. } = signature else {
             return None;
         };
 
-        // collect parameter types from the callee
-        let callee = tree.get(*function);
-        Some(callee.parameters.iter().map(|param| param.ty).collect())
+        Some(parameters.clone())
     }
 
     /// Resolve memory effects from a direct callee when present.
@@ -808,13 +799,9 @@ impl BasicAA {
         inst: &mir::Instruction,
         tree: &mir::NodeTree,
     ) -> Option<mir::MemoryEffect> {
-        // only direct calls have callee effects
-        let mir::Instruction::Call { function, .. } = inst else {
-            return None;
-        };
-
-        // read callee effects
-        let callee = tree.get(*function);
+        // resolve the declared target when available
+        let function = inst.call_declared_target()?;
+        let callee = tree.get(function);
         callee.memory_effects.clone()
     }
 

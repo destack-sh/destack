@@ -1122,7 +1122,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v2 = load v0 -> i32
     return v2
 }"#;
@@ -1142,7 +1142,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v2 = load v0 -> i32
     return v2
 }"#;
@@ -1152,23 +1152,21 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     return v1
 }"#;
 
         let mut program = TestProgram::new(input);
 
         let function_id = program.entry_function_id();
-        let (call_inst, callee) = program.first_call_in_entry(function_id);
-        let signature = program.call_signature_for_callee(callee);
+        let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
-        let metadata = mir::CallMetadata::direct(callee, signature)
-            .with_memory_effects(mir::MemoryEffect::none());
-        program
-            .tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .insert(call_inst, metadata);
+        let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
+        let instruction = program.tree.get_mut(call_inst);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         program.run_pass(&LoadStoreForward);
         program.assert_output(expected);
@@ -1183,7 +1181,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     jump block1
 block1:
     v2 = load v0 -> i32

@@ -51,6 +51,12 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
             ..
         } => *v == value || resume_arguments.contains(&value),
         mir::Terminator::TailCall { arguments, .. } => arguments.contains(&value),
+        mir::Terminator::TailCallVirtual {
+            receiver, arguments, ..
+        }
+        | mir::Terminator::TailCallInterface {
+            receiver, arguments, ..
+        } => *receiver == value || arguments.contains(&value),
         mir::Terminator::TailCallIndirect {
             callee, arguments, ..
         } => *callee == value || arguments.contains(&value),
@@ -112,6 +118,16 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
             values
         }
         mir::Terminator::TailCall { arguments, .. } => arguments.clone(),
+        mir::Terminator::TailCallVirtual {
+            receiver, arguments, ..
+        }
+        | mir::Terminator::TailCallInterface {
+            receiver, arguments, ..
+        } => {
+            let mut values = vec![*receiver];
+            values.extend(arguments.iter().copied());
+            values
+        }
         mir::Terminator::TailCallIndirect {
             callee, arguments, ..
         } => {
@@ -1588,6 +1604,36 @@ pub fn terminator_substitute_uses(
         } => mir::Terminator::TailCall {
             function: *function,
             arguments: arguments.iter().map(&substitute).collect(),
+        },
+        mir::Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => mir::Terminator::TailCallVirtual {
+            receiver: substitute(receiver),
+            arguments: arguments.iter().map(&substitute).collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+        },
+        mir::Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => mir::Terminator::TailCallInterface {
+            receiver: substitute(receiver),
+            arguments: arguments.iter().map(&substitute).collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
         },
         mir::Terminator::TailCallIndirect {
             callee,

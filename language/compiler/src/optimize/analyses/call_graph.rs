@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use destack_mir::{self as mir, CallDispatchKind, CallMetadata, Linkage};
+use destack_mir::{self as mir, CallDispatchKind, Linkage};
 use destack_source::ModuleId;
 
 use crate::optimize::{
@@ -947,7 +947,6 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
                             instruction_id,
                             instruction,
                             &symbols_by_function,
-                            tree.call_table.call_metadata(instruction_id),
                             &tree,
                         ) else {
                             continue;
@@ -997,7 +996,6 @@ impl SymbolCallSite {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
         symbols_by_function: &HashMap<mir::LocalNodeId<mir::Function>, SymbolName>,
-        metadata: Option<&CallMetadata>,
         tree: &mir::NodeTree,
     ) -> Option<Self> {
         // capture the callsite identity
@@ -1007,66 +1005,32 @@ impl SymbolCallSite {
             instruction: Some(instruction_id),
         };
 
-        // resolve the metadata signature
-        let signature =
-            metadata.and_then(|meta| SignatureKey::from_function_type(tree, meta.signature));
+        // resolve the dispatch kind
+        let dispatch = instruction.call_dispatch_kind()?;
 
-        // map call instructions to resolved targets
-        match instruction {
-            mir::Instruction::Call { function, .. } => {
-                // resolve dispatch and callee from metadata
-                let dispatch = metadata
-                    .map(|meta| meta.dispatch)
-                    .unwrap_or(CallDispatchKind::Direct);
-                let target = metadata
-                    .and_then(|meta| meta.declared_target)
-                    .unwrap_or(*function);
-                let callee = symbols_by_function.get(&target).cloned();
-                let callee_linkage = Some(tree.get(target).linkage);
-                let signature = signature.or_else(|| {
-                    let function = tree.get(target);
-                    Some(SignatureKey::from_function(tree, function))
-                });
-                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+        // resolve the declared target when present
+        let declared_target = instruction.call_declared_target();
+        let callee = declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
+        let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
 
-                Some(Self {
-                    callsite,
-                    dispatch,
-                    callee,
-                    callee_linkage,
-                    signature,
-                    is_precise,
-                })
-            }
-            mir::Instruction::CallIndirect { .. } => {
-                // resolve dispatch and callee from metadata
-                let dispatch = metadata
-                    .map(|meta| meta.dispatch)
-                    .unwrap_or(CallDispatchKind::Indirect);
-                let callee = metadata
-                    .and_then(|meta| meta.declared_target)
-                    .and_then(|target| symbols_by_function.get(&target).cloned());
-                let callee_linkage = metadata
-                    .and_then(|meta| meta.declared_target)
-                    .map(|target| tree.get(target).linkage);
-                let signature = signature.or_else(|| {
-                    metadata
-                        .and_then(|meta| meta.declared_target)
-                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
-                });
-                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+        // resolve the signature type
+        let signature = instruction
+            .call_signature()
+            .and_then(|sig| SignatureKey::from_function_type(tree, sig))
+            .or_else(|| {
+                declared_target.map(|target| SignatureKey::from_function(tree, tree.get(target)))
+            });
 
-                Some(Self {
-                    callsite,
-                    dispatch,
-                    callee,
-                    callee_linkage,
-                    signature,
-                    is_precise,
-                })
-            }
-            _ => None,
-        }
+        let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+
+        Some(Self {
+            callsite,
+            dispatch,
+            callee,
+            callee_linkage,
+            signature,
+            is_precise,
+        })
     }
 
     /// Build a symbol callsite from a terminator when it represents a tail call.
@@ -1099,14 +1063,60 @@ impl SymbolCallSite {
                     is_precise: true,
                 })
             }
-            mir::Terminator::TailCallIndirect { .. } => Some(Self {
+            mir::Terminator::TailCallIndirect { signature, .. } => Some(Self {
                 callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
                 callee_linkage: None,
-                signature: None,
+                signature: SignatureKey::from_function_type(tree, *signature),
                 is_precise: false,
             }),
+            mir::Terminator::TailCallVirtual {
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                let callee =
+                    declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
+                let signature = SignatureKey::from_function_type(tree, *signature).or_else(|| {
+                    declared_target
+                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
+                });
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: false,
+                })
+            }
+            mir::Terminator::TailCallInterface {
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                let callee =
+                    declared_target.and_then(|target| symbols_by_function.get(&target).cloned());
+                let callee_linkage = declared_target.map(|target| tree.get(target).linkage);
+                let signature = SignatureKey::from_function_type(tree, *signature).or_else(|| {
+                    declared_target
+                        .map(|target| SignatureKey::from_function(tree, tree.get(target)))
+                });
+
+                Some(Self {
+                    callsite,
+                    dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                    callee,
+                    callee_linkage,
+                    signature,
+                    is_precise: false,
+                })
+            }
             _ => None,
         }
     }
@@ -1269,45 +1279,19 @@ impl CallSite {
         caller: mir::LocalNodeId<mir::Function>,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
-        tree: &mir::NodeTree,
+        _tree: &mir::NodeTree,
     ) -> Option<Self> {
-        match instruction {
-            mir::Instruction::Call { function, .. } => {
-                let metadata = tree.call_table.call_metadata(instruction_id);
-                let dispatch = metadata
-                    .map(|meta| meta.dispatch)
-                    .unwrap_or(CallDispatchKind::Direct);
-                let callee = metadata
-                    .and_then(|meta| meta.declared_target)
-                    .or(Some(*function));
-                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
+        let dispatch = instruction.call_dispatch_kind()?;
+        let callee = instruction.call_declared_target();
+        let is_precise = matches!(dispatch, CallDispatchKind::Direct);
 
-                Some(Self {
-                    caller,
-                    callsite: CallSiteRef::Instruction(instruction_id),
-                    dispatch,
-                    callee,
-                    is_precise,
-                })
-            }
-            mir::Instruction::CallIndirect { .. } => {
-                let metadata = tree.call_table.call_metadata(instruction_id);
-                let dispatch = metadata
-                    .map(|meta| meta.dispatch)
-                    .unwrap_or(CallDispatchKind::Indirect);
-                let callee = metadata.and_then(|meta| meta.declared_target);
-                let is_precise = matches!(dispatch, CallDispatchKind::Direct);
-
-                Some(Self {
-                    caller,
-                    callsite: CallSiteRef::Instruction(instruction_id),
-                    dispatch,
-                    callee,
-                    is_precise,
-                })
-            }
-            _ => None,
-        }
+        Some(Self {
+            caller,
+            callsite: CallSiteRef::Instruction(instruction_id),
+            dispatch,
+            callee,
+            is_precise,
+        })
     }
 
     /// Build a callsite from a terminator when it represents a tail call.
@@ -1330,6 +1314,28 @@ impl CallSite {
                 callsite: CallSiteRef::Terminator(block_id),
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
+                is_precise: false,
+            }),
+            mir::Terminator::TailCallVirtual {
+                slot_id,
+                declared_target,
+                ..
+            } => Some(Self {
+                caller,
+                callsite: CallSiteRef::Terminator(block_id),
+                dispatch: CallDispatchKind::Virtual { slot_id: *slot_id },
+                callee: *declared_target,
+                is_precise: false,
+            }),
+            mir::Terminator::TailCallInterface {
+                slot_id,
+                declared_target,
+                ..
+            } => Some(Self {
+                caller,
+                callsite: CallSiteRef::Terminator(block_id),
+                dispatch: CallDispatchKind::Interface { slot_id: *slot_id },
+                callee: *declared_target,
                 is_precise: false,
             }),
             _ => None,
@@ -1355,26 +1361,6 @@ mod tests {
     };
 
     use super::*;
-
-    /// Find the first call instruction in a function.
-    fn first_call_instruction(
-        program: &TestProgram,
-        function_id: mir::LocalNodeId<mir::Function>,
-    ) -> mir::LocalNodeId<mir::Instruction> {
-        let block_id = program.entry_block_id(function_id);
-        let block = program.tree.get(block_id);
-
-        for &instruction_id in &block.instructions {
-            if matches!(
-                program.tree.get(instruction_id),
-                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
-            ) {
-                return instruction_id;
-            }
-        }
-
-        panic!("missing call instruction");
-    }
 
     /// Build a module work item from MIR text.
     fn module_work_item(package_id: PackageId, module_index: u32, source: &str) -> ModuleWorkItem {
@@ -1423,7 +1409,7 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1451,17 +1437,17 @@ block0:
         let program = TestProgram::new(
             r#"function @a() -> void {
 block0:
-    call @b()
+    call @b() -> fn() -> void
     return
 }
 function @b() -> void {
 block0:
-    call @a()
+    call @a() -> fn() -> void
     return
 }
 function @c() -> void {
 block0:
-    call @c()
+    call @c() -> fn() -> void
     return
 }
 function @d() -> void {
@@ -1555,10 +1541,10 @@ block0(v0: fn(i32) -> i32, v1: i32):
         assert!(matches!(unknown[0].callsite, CallSiteRef::Terminator(_)));
     }
 
-    /// Call metadata can resolve call.indirect targets.
+    /// Call.indirect remains unresolved without a declared target.
     #[test]
-    fn test_call_graph_metadata_resolves_indirect() {
-        let mut program = TestProgram::new(
+    fn test_call_graph_call_indirect_unknown() {
+        let program = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -1570,59 +1556,33 @@ block0(v0: fn(i32) -> i32, v1: i32):
 }"#,
         );
 
-        let callee_id = program.function_id_by_name("callee");
         let test_id = program.function_id_by_name("test");
-        let callsite_id = first_call_instruction(&program, test_id);
-        let callee = program.tree.get(callee_id);
-        let signature = program.tree.insert(mir::Type::FunctionPointer {
-            parameters: callee.parameters.iter().map(|param| param.ty).collect(),
-            result: callee.return_type,
-        });
-
-        program
-            .tree
-            .call_table
-            .insert_call_metadata(callsite_id, CallMetadata::direct(callee_id, signature));
 
         let analyses = ModuleAnalyses::new(&program.tree);
         let callgraph = analyses.get::<CallGraph>();
 
-        assert_eq!(callgraph.outgoing(test_id).len(), 1);
-        assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
-        assert!(callgraph.unknown_calls(test_id).is_empty());
+        let unknown = callgraph.unknown_calls(test_id);
+        assert_eq!(unknown.len(), 1);
+        assert_eq!(unknown[0].dispatch, CallDispatchKind::Indirect);
     }
 
     /// Virtual dispatch keeps a call edge and records an unknown target.
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {
-        let mut program = TestProgram::new(
+        let program = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
 }
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call.virtual v0, i32, 1, @callee(v0) -> fn(i32) -> i32
     return v1
 }"#,
         );
 
         let callee_id = program.function_id_by_name("callee");
         let test_id = program.function_id_by_name("test");
-        let callsite_id = first_call_instruction(&program, test_id);
-        let signature = program.call_signature_for_callee(callee_id);
-        let declaring_type = program.tree.get(callee_id).parameters[0].ty;
-
-        program.tree.call_table.insert_call_metadata(
-            callsite_id,
-            CallMetadata::virtual_call(
-                mir::Value::new(0),
-                declaring_type,
-                1,
-                signature,
-                Some(callee_id),
-            ),
-        );
 
         let analyses = ModuleAnalyses::new(&program.tree);
         let callgraph = analyses.get::<CallGraph>();
@@ -1659,7 +1619,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1693,7 +1653,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1738,7 +1698,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1781,7 +1741,7 @@ block0(v0: i32):
             r#"extern function @callee(i64) -> i64
 function @test(v0: i64) -> i64 {
 block0(v0: i64):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i64) -> i64
     return v1
 }"#,
         );
@@ -1818,7 +1778,7 @@ block0(v0: i64):
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1874,7 +1834,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );

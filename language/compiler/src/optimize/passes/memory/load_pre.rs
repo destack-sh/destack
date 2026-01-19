@@ -336,7 +336,7 @@ fn load_can_move_to_entry(
         // reject side effecting instructions
         if instruction_has_side_effects(instruction) {
             if read_only_access
-                && instruction_allows_read_only_motion(instruction_id, instruction, tree)
+                && instruction_allows_read_only_motion(instruction)
             {
                 continue;
             }
@@ -363,6 +363,67 @@ fn load_can_move_to_entry(
     true
 }
 
+/// Return true when an instruction is a read only memory access.
+fn instruction_is_read_only_access(
+    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    memory_ssa: &MemorySSA,
+) -> bool {
+    // load memory accesses for this instruction
+    let Some(accesses) = memory_ssa.accesses_for_instruction(instruction_id) else {
+        return false;
+    };
+
+    // require read only effects across all accesses
+    let mut reads = false;
+    for access_id in accesses {
+        // read the access effect
+        let effect = match memory_ssa.access(*access_id) {
+            MemoryAccess::Use(use_access) => &use_access.effect,
+            MemoryAccess::Def(def_access) => &def_access.effect,
+            MemoryAccess::Phi(_) | MemoryAccess::LiveOnEntry => continue,
+        };
+
+        // reject write or ordered accesses
+        if effect.writes || effect.is_volatile || effect.is_barrier {
+            return false;
+        }
+
+        // record any read access
+        reads |= effect.reads;
+    }
+
+    reads
+}
+
+/// Return true when a read only instruction can be moved before a load.
+fn instruction_allows_read_only_motion(instruction: &mir::Instruction) -> bool {
+    // reject calls without explicit behavior metadata
+    let is_call = matches!(
+        instruction,
+        mir::Instruction::Call { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. }
+    );
+    if !is_call {
+        return true;
+    }
+
+    // require call metadata to be present
+    let Some(metadata) = instruction.call_effects() else {
+        return false;
+    };
+
+    // require non effecting call behavior
+    let Some(behavior) = metadata.behavior.as_ref() else {
+        return false;
+    };
+    if behavior.convergent || behavior.noreturn || behavior.allocates || behavior.frees {
+        return false;
+    }
+
+    true
+}
 /// Collect edge insertions for each predecessor of the load block.
 // allow many arguments to keep the edge selection explicit
 #[allow(clippy::too_many_arguments)]

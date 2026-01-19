@@ -434,6 +434,163 @@ fn record_live_clobber(
     }
 }
 
+fn collect_non_escaping_stack_allocs(
+    function: &mir::Function,
+    tree: &mir::NodeTree,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+) -> HashSet<mir::Value> {
+    // collect stack allocation bases
+    let mut stack_allocs = HashSet::new();
+
+    // scan blocks for stack allocations
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
+            if let mir::Instruction::StackAlloc { destination, .. } = instruction {
+                stack_allocs.insert(*destination);
+            }
+        }
+    }
+
+    // collect escaping stack allocations
+    let mut escaping = HashSet::new();
+
+    // scan blocks for escaping uses
+    for &block_id in &function.blocks {
+        // read the block
+        let block = tree.get(block_id);
+
+        // scan instructions in the block
+        for &instruction_id in &block.instructions {
+            // read the instruction
+            let instruction = tree.get(instruction_id);
+            match instruction {
+                mir::Instruction::Call { .. }
+                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallInterface { .. }
+                | mir::Instruction::CallIndirect { .. } => {
+                    // capture call effects for escape checks
+                    let call_effects = instruction.call_effects();
+
+                    // mark stack pointers passed to calls as escaping
+                    if let Some(arg_slice) = instruction.argument_slice() {
+                        let arguments = tree.get_arguments(arg_slice);
+
+                        for (index, &arg) in arguments.iter().enumerate() {
+                            if call_argument_escapes(call_effects, index) {
+                                record_stack_escape(
+                                    arg,
+                                    definitions,
+                                    tree,
+                                    &stack_allocs,
+                                    &mut escaping,
+                                );
+                            }
+                        }
+                    }
+                }
+                mir::Instruction::Store { value, .. } => {
+                    // mark stored stack pointers as escaping
+                    record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                }
+                _ => {}
+            }
+        }
+
+        // scan terminators for escaping values
+        match &block.terminator {
+            mir::Terminator::Return { value: Some(value) } => {
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+            }
+            mir::Terminator::Jump { arguments, .. } => {
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Branch {
+                then_arguments,
+                else_arguments,
+                ..
+            } => {
+                for &arg in then_arguments.iter().chain(else_arguments.iter()) {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Check {
+                success, failure, ..
+            } => {
+                for &arg in success.arguments.iter().chain(failure.arguments.iter()) {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Switch {
+                cases,
+                default_arguments,
+                ..
+            } => {
+                for &arg in default_arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+                for case in cases {
+                    for &arg in &case.arguments {
+                        record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                    }
+                }
+            }
+            mir::Terminator::Yield {
+                value,
+                resume_arguments,
+                ..
+            } => {
+                record_stack_escape(*value, definitions, tree, &stack_allocs, &mut escaping);
+                for &arg in resume_arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                ..
+            }
+            | mir::Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                ..
+            } => {
+                record_stack_escape(*receiver, definitions, tree, &stack_allocs, &mut escaping);
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::TailCallIndirect {
+                callee, arguments, ..
+            } => {
+                record_stack_escape(*callee, definitions, tree, &stack_allocs, &mut escaping);
+                for &arg in arguments {
+                    record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
+                }
+            }
+            mir::Terminator::Return { value: None } | mir::Terminator::Unreachable => {}
+        }
+    }
+
+    // filter non escaping stack allocations
+    stack_allocs
+        .into_iter()
+        .filter(|alloc| !escaping.contains(alloc))
+        .collect()
+}
+
 /// Collect stack allocation bases that are read by any memory access.
 fn collect_stack_alloc_reads(
     function: &mir::Function,
@@ -474,6 +631,86 @@ fn collect_stack_alloc_reads(
     }
 
     reads
+}
+
+/// Mark stack allocations that may escape through a value.
+fn record_stack_escape(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+) {
+    // visit values recursively to detect aggregate escapes
+    let mut visited = HashSet::new();
+    record_stack_escape_value(
+        value,
+        definitions,
+        tree,
+        stack_allocs,
+        escaping,
+        &mut visited,
+    );
+}
+
+/// Walk a value to find stack allocations that escape.
+fn record_stack_escape_value(
+    value: mir::Value,
+    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    tree: &mir::NodeTree,
+    stack_allocs: &HashSet<mir::Value>,
+    escaping: &mut HashSet<mir::Value>,
+    visited: &mut HashSet<mir::Value>,
+) {
+    // stop on cycles
+    if !visited.insert(value) {
+        return;
+    }
+
+    // resolve the stack base and mark it as escaping
+    if let Some(base) = stack_alloc_base(value, definitions, tree) {
+        if stack_allocs.contains(&base) {
+            escaping.insert(base);
+        }
+        return;
+    }
+
+    // inspect aggregate construction for nested pointers
+    let Some(instruction_id) = definitions.get(&value) else {
+        return;
+    };
+    let instruction = tree.get(*instruction_id);
+    match instruction {
+        mir::Instruction::Struct { fields, .. } => {
+            let args = tree.get_arguments(*fields);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+            }
+        }
+        mir::Instruction::Tuple { elements, .. } | mir::Instruction::Array { elements, .. } => {
+            let args = tree.get_arguments(*elements);
+            for &arg in args {
+                record_stack_escape_value(arg, definitions, tree, stack_allocs, escaping, visited);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Report whether a call argument may escape.
+fn call_argument_escapes(call_effects: Option<&mir::CallEffects>, index: usize) -> bool {
+    // default to escaping when metadata is missing
+    let Some(metadata) = call_effects else {
+        return true;
+    };
+
+    // default to escaping when argument metadata is missing
+    let Some(arg_metadata) = metadata.argument_metadata.get(index) else {
+        return true;
+    };
+
+    // treat no capture arguments as non escaping
+    !matches!(arg_metadata.attributes.capture, mir::CaptureKind::NoCapture)
 }
 
 /// Return true when a store targets a non escaping stack allocation.
@@ -828,7 +1065,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     return
 }"#;
 
@@ -846,7 +1083,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v2 = iconst 0i32
     return v2
 }"#;
@@ -855,7 +1092,7 @@ function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v2 = iconst 0i32
     return v2
 }"#;
@@ -863,22 +1100,20 @@ block0:
         let mut program = TestProgram::new(input);
 
         let function_id = program.entry_function_id();
-        let (call_inst, callee) = program.first_call_in_entry(function_id);
-        let signature = program.call_signature_for_callee(callee);
+        let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
         let mut arg0 = mir::CallArgumentMetadata::default();
         arg0.attributes.capture = mir::CaptureKind::NoCapture;
         arg0.access = mir::ArgumentAccess::None;
 
-        let metadata = mir::CallMetadata::direct(callee, signature)
+        let effects = mir::CallEffects::default()
             .with_memory_effects(mir::MemoryEffect::none())
             .with_argument_metadata(vec![arg0]);
-
-        program
-            .tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .insert(call_inst, metadata);
+        let instruction = program.tree.get_mut(call_inst);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         program.run_pass(&DeadStoreEliminate);
         program.assert_output(expected);
@@ -970,7 +1205,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = call @read_value(v0)
+    v2 = call @read_value(v0) -> fn(ref<raw i32>) -> i32
     return v2
 }"#;
 
@@ -989,7 +1224,7 @@ block0:
 function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    call @side_effect()
+    call @side_effect() -> fn() -> void
     v1 = iconst 1i32
     store v0, v1
     v2 = iconst 2i32
@@ -1001,7 +1236,7 @@ block0:
 function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    call @side_effect()
+    call @side_effect() -> fn() -> void
     v1 = iconst 1i32
     v2 = iconst 2i32
     store v0, v2

@@ -762,6 +762,42 @@ fn update_terminator_arguments(
                 .map(|v| resolve_value(*v, substitutions))
                 .collect(),
         },
+        Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => Terminator::TailCallVirtual {
+            receiver: resolve_value(*receiver, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+        },
+        Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => Terminator::TailCallInterface {
+            receiver: resolve_value(*receiver, substitutions),
+            arguments: arguments
+                .iter()
+                .map(|v| resolve_value(*v, substitutions))
+                .collect(),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+        },
         Terminator::TailCallIndirect {
             callee,
             arguments,
@@ -1109,14 +1145,14 @@ block0:
     v0 = iconst 7i32
     local.set local0, v0
     v1 = local.get local0
-    call @sink(v1)
+    call @sink(v1) -> fn(i32) -> void
     return
 }"#;
         let expected = r#"extern function @sink(i32) -> void
 function @test() -> void {
 block0:
     v0 = iconst 7i32
-    call @sink(v0)
+    call @sink(v0) -> fn(i32) -> void
     return
 }"#;
 

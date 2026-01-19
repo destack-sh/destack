@@ -477,6 +477,8 @@ impl<'a> SccpState<'a> {
             mir::Terminator::Return { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallInterface { .. }
             | mir::Terminator::TailCallIndirect { .. } => {}
         }
     }
@@ -1477,7 +1479,7 @@ block0:
     v0 = iconst 5i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = call @callee(v1)
+    v2 = call @callee(v1) -> fn(i32) -> i32
     return v2
 }"#;
         let expected = r#"function @callee(v0: i32) -> i32 {
@@ -1490,7 +1492,7 @@ block0:
     jump block1(v0)
 block1(v1: i32):
     v3 = iconst 5i32
-    v2 = call @callee(v3)
+    v2 = call @callee(v3) -> fn(i32) -> i32
     return v2
 }"#;
 

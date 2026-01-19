@@ -88,6 +88,8 @@ impl GlobalsAA {
 
                     // calls may access any address-taken global
                     mir::Instruction::Call { arguments, .. }
+                    | mir::Instruction::CallVirtual { arguments, .. }
+                    | mir::Instruction::CallInterface { arguments, .. }
                     | mir::Instruction::CallIndirect { arguments, .. } => {
                         let args = tree.get_arguments(*arguments);
                         for &arg in args {
@@ -337,7 +339,7 @@ extern function @external(ref<raw i32>) -> void
 function @test() -> void {
 block0:
     v0 = global.addr @g -> ref<raw addrspace(global) i32>
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     return
 }"#,
         );

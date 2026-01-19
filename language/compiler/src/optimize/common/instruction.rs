@@ -48,7 +48,10 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => false,
 
         // calls may have side effects
-        Instruction::Call { .. } | Instruction::CallIndirect { .. } => false,
+        Instruction::Call { .. }
+        | Instruction::CallVirtual { .. }
+        | Instruction::CallInterface { .. }
+        | Instruction::CallIndirect { .. } => false,
 
         // allocations have side effects
         Instruction::ManagedAlloc { .. }
@@ -128,7 +131,10 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         Instruction::RawDrop { .. } | Instruction::StackDrop { .. } => true,
 
         // calls may have side effects
-        Instruction::Call { .. } | Instruction::CallIndirect { .. } => true,
+        Instruction::Call { .. }
+        | Instruction::CallVirtual { .. }
+        | Instruction::CallInterface { .. }
+        | Instruction::CallIndirect { .. } => true,
 
         // allocations have side effects (memory allocation)
         Instruction::ManagedAlloc { .. }
@@ -171,6 +177,8 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
         Instruction::Store { .. }
             | Instruction::LocalSet { .. }
             | Instruction::Call { .. }
+            | Instruction::CallVirtual { .. }
+            | Instruction::CallInterface { .. }
             | Instruction::CallIndirect { .. }
             | Instruction::Intrinsic { .. }
             | Instruction::ManagedAlloc { .. }
@@ -275,7 +283,7 @@ pub fn instruction_collect_used_values(
                 used.insert(value);
             }
 
-            // add externalized argument uses (for Call, CallIndirect, Intrinsic)
+            // add externalized argument uses for calls and intrinsics
             if let Some(args_slice) = instruction.argument_slice() {
                 for &arg in tree.get_arguments(args_slice) {
                     used.insert(arg);
@@ -440,16 +448,56 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Assume { condition } => mir::Instruction::Assume {
             condition: substitute(condition),
         },
+        mir::Instruction::CallVirtual {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallVirtual {
+            destination: *destination,
+            receiver: substitute(receiver),
+            arguments: *arguments,
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallInterface {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallInterface {
+            destination: *destination,
+            receiver: substitute(receiver),
+            arguments: *arguments,
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
+        },
         mir::Instruction::CallIndirect {
             destination,
             callee,
             arguments,
             signature,
+            effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(callee),
             arguments: *arguments,
             signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::ManagedAllocArray {
             destination,
@@ -551,21 +599,65 @@ pub fn instruction_substitute_uses_in_tree(
             destination,
             function,
             arguments,
+            signature,
+            effects,
         } => mir::Instruction::Call {
             destination: *destination,
             function: *function,
             arguments: substitute_arguments(*arguments),
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallVirtual {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallVirtual {
+            destination: *destination,
+            receiver: substitute(*receiver),
+            arguments: substitute_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallInterface {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallInterface {
+            destination: *destination,
+            receiver: substitute(*receiver),
+            arguments: substitute_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
             arguments,
             signature,
+            effects,
         } => mir::Instruction::CallIndirect {
             destination: *destination,
             callee: substitute(*callee),
             arguments: substitute_arguments(*arguments),
             signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -1130,21 +1222,65 @@ pub fn instruction_map(
             destination,
             function,
             arguments,
+            signature,
+            effects,
         } => mir::Instruction::Call {
             destination: destination.map(remap),
             function: *function,
             arguments: remap_arguments(*arguments),
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallVirtual {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallVirtual {
+            destination: destination.map(remap),
+            receiver: remap(*receiver),
+            arguments: remap_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallInterface {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallInterface {
+            destination: destination.map(remap),
+            receiver: remap(*receiver),
+            arguments: remap_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
             arguments,
             signature,
+            effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
             arguments: remap_arguments(*arguments),
             signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::ManagedAlloc {
             destination,
@@ -1457,21 +1593,65 @@ pub fn instruction_map_with_locals(
             destination,
             function,
             arguments,
+            signature,
+            effects,
         } => mir::Instruction::Call {
             destination: destination.map(remap),
             function: *function,
             arguments: remap_arguments(*arguments),
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallVirtual {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallVirtual {
+            destination: destination.map(remap),
+            receiver: remap(*receiver),
+            arguments: remap_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
+        },
+        mir::Instruction::CallInterface {
+            destination,
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+            effects,
+        } => mir::Instruction::CallInterface {
+            destination: destination.map(remap),
+            receiver: remap(*receiver),
+            arguments: remap_arguments(*arguments),
+            declaring_type: *declaring_type,
+            slot_id: *slot_id,
+            declared_target: *declared_target,
+            signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::CallIndirect {
             destination,
             callee,
             arguments,
             signature,
+            effects,
         } => mir::Instruction::CallIndirect {
             destination: destination.map(remap),
             callee: remap(*callee),
             arguments: remap_arguments(*arguments),
             signature: *signature,
+            effects: effects.clone(),
         },
         mir::Instruction::Intrinsic {
             destination,
@@ -1609,6 +1789,19 @@ pub fn terminator_remap(
             function: _,
             arguments,
         } => {
+            remap_args(arguments);
+        }
+        mir::Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            ..
+        }
+        | mir::Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            ..
+        } => {
+            remap_value(receiver);
             remap_args(arguments);
         }
         mir::Terminator::TailCallIndirect {

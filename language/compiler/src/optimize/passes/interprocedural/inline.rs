@@ -25,7 +25,7 @@ declare_pass! {
     /// }
     /// function @caller(v0: i32) -> i32 {
     /// block0(v0: i32):
-    ///     v1 = call @callee(v0)
+    ///     v1 = call @callee(v0) -> fn(i32) -> i32
     ///     v2 = iadd v1, v0
     ///     return v2
     /// }
@@ -316,7 +316,7 @@ fn find_inline_site(
             // resolve a direct inline target for the instruction
             let instruction = tree.get(*instruction_id);
             let Some((callee_id, arguments, destination)) =
-                resolve_inline_target(*instruction_id, instruction, tree)
+                resolve_inline_target(instruction, tree)
             else {
                 continue;
             };
@@ -533,7 +533,6 @@ fn inline_score(
 
 /// Resolve a call instruction to a direct inline target.
 fn resolve_inline_target(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
     tree: &mir::NodeTree,
 ) -> Option<(
@@ -547,24 +546,11 @@ fn resolve_inline_target(
             destination,
             function,
             arguments,
+            ..
         } => {
             // capture call arguments for a direct call
             let args = tree.get_arguments(*arguments).to_vec();
             Some((*function, args, *destination))
-        }
-        mir::Instruction::CallIndirect {
-            destination,
-            arguments,
-            ..
-        } => {
-            // resolve metadata to a direct target when available
-            let args = tree.get_arguments(*arguments).to_vec();
-            let metadata = tree.call_table.call_metadata(instruction_id)?;
-            if metadata.dispatch != mir::CallDispatchKind::Direct {
-                return None;
-            }
-            let target = metadata.declared_target?;
-            Some((target, args, *destination))
         }
         _ => None,
     }
@@ -729,8 +715,6 @@ fn inline_callsite(
     );
 
     // clean up metadata for the removed call instruction
-    tree.call_table
-        .remove_call_metadata(site.call_instruction_id);
     tree.memory_table
         .remove_memory_accesses(site.call_instruction_id);
     tree.debug_info
@@ -945,11 +929,6 @@ fn remap_inline_blocks(
             let instruction = tree.get(instruction_id).clone();
             let remapped = instruction_map_with_locals(&instruction, value_map, local_map, tree);
             let new_id = tree.insert(remapped);
-
-            // clone call metadata onto the new instruction
-            if let Some(metadata) = tree.call_table.call_metadata(instruction_id).cloned() {
-                tree.call_table.insert_call_metadata(new_id, metadata);
-            }
 
             // clone memory access metadata onto the new instruction
             if let Some(accesses) = tree
@@ -1355,6 +1334,9 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
             INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
         }
         mir::Instruction::Call { .. } => INLINE_COST_CALL,
+        mir::Instruction::CallVirtual { .. } | mir::Instruction::CallInterface { .. } => {
+            INLINE_COST_CALL_INDIRECT
+        }
         mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
         mir::Instruction::ManagedAlloc { .. }
         | mir::Instruction::ManagedAllocArray { .. }
@@ -1384,6 +1366,9 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
+        mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {
+            INLINE_COST_CALL_INDIRECT
+        }
         mir::Terminator::TailCallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
     }
 }
@@ -1403,7 +1388,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     v2 = iadd v1, v0
     return v2
 }"#;
@@ -1434,7 +1419,7 @@ block2(v5: i32):
     fn test_inline_skips_recursive_call() {
         let input = r#"function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @caller(v0)
+    v1 = call @caller(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1452,7 +1437,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1473,7 +1458,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1514,7 +1499,7 @@ block2(v5: i32):
         input.push_str("}\n");
         input.push_str("function @caller(v0: i32) -> i32 {\n");
         input.push_str("block0(v0: i32):\n");
-        input.push_str("    v1 = call @callee(v0)\n");
+        input.push_str("    v1 = call @callee(v0) -> fn(i32) -> i32\n");
         input.push_str("    return v1\n");
         input.push_str("}\n");
 
@@ -1533,7 +1518,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> void {
 block0(v0: i32):
-    call @callee(v0)
+    call @callee(v0) -> fn(i32) -> i32
     return
 }"#;
 
@@ -1575,7 +1560,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1609,16 +1594,16 @@ block0(v0: i32):
 }
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @helper(v0)
-    v2 = call @helper(v1)
-    v3 = call @helper(v2)
-    v4 = call @helper(v3)
-    v5 = call @helper(v4)
+    v1 = call @helper(v0) -> fn(i32) -> i32
+    v2 = call @helper(v1) -> fn(i32) -> i32
+    v3 = call @helper(v2) -> fn(i32) -> i32
+    v4 = call @helper(v3) -> fn(i32) -> i32
+    v5 = call @helper(v4) -> fn(i32) -> i32
     return v5
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1637,22 +1622,22 @@ block0(v0: i32):
 }
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @helper(v0)
-    v2 = call @helper(v1)
-    v3 = call @helper(v2)
-    v4 = call @helper(v3)
-    v5 = call @helper(v4)
+    v1 = call @helper(v0) -> fn(i32) -> i32
+    v2 = call @helper(v1) -> fn(i32) -> i32
+    v3 = call @helper(v2) -> fn(i32) -> i32
+    v4 = call @helper(v3) -> fn(i32) -> i32
+    v5 = call @helper(v4) -> fn(i32) -> i32
     return v5
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
     jump block1(v0)
 block1(v2: i32):
-    v3 = call @helper(v2)
-    v4 = call @helper(v3)
-    v5 = call @helper(v4)
-    v6 = call @helper(v5)
-    v7 = call @helper(v6)
+    v3 = call @helper(v2) -> fn(i32) -> i32
+    v4 = call @helper(v3) -> fn(i32) -> i32
+    v5 = call @helper(v4) -> fn(i32) -> i32
+    v6 = call @helper(v5) -> fn(i32) -> i32
+    v7 = call @helper(v6) -> fn(i32) -> i32
     jump block2(v7)
 block2(v8: i32):
     return v8
@@ -1748,7 +1733,7 @@ block2:
 }
 function @caller(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = call @callee(v0, v1, v2)
+    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, bool) -> i32
     return v3
 }"#;
 
@@ -1792,7 +1777,7 @@ block0(v0: i32):
 }
 function @caller(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     jump block1(v1)
 block1(v2: i32):
     return v2
@@ -1820,9 +1805,9 @@ block3(v5: i32):
         program.assert_output(expected);
     }
 
-    /// Call indirect sites inline when metadata resolves a direct target.
+    /// Call indirect sites do not inline without a direct target.
     #[test]
-    fn test_inline_indirect_with_metadata() {
+    fn test_inline_skips_indirect_call() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iadd v0, v0
@@ -1834,43 +1819,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v2
 }"#;
 
-        let expected = r#"function @callee(v0: i32) -> i32 {
-block0(v0: i32):
-    v1 = iadd v0, v0
-    return v1
-}
-function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
-block0(v0: fn(i32) -> i32, v1: i32):
-    jump block1(v1)
-block1(v3: i32):
-    v4 = iadd v3, v3
-    jump block2(v4)
-block2(v5: i32):
-    return v5
-}"#;
-
         let mut program = TestProgram::new(input);
-        let caller_id = program.function_id_by_name("caller");
-        let callee_id = program.function_id_by_name("callee");
-        let signature = program.call_signature_for_callee(callee_id);
-        let entry_block = program.entry_block_id(caller_id);
-        let call_instruction_id = program
-            .instructions_in_block(entry_block)
-            .into_iter()
-            .find(|instruction_id| {
-                matches!(
-                    program.tree.get(*instruction_id),
-                    mir::Instruction::CallIndirect { .. }
-                )
-            })
-            .expect("missing call.indirect");
-
-        program.tree.call_table.insert_call_metadata(
-            call_instruction_id,
-            mir::CallMetadata::direct(callee_id, signature),
-        );
 
         program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        program.assert_output(input);
     }
 }

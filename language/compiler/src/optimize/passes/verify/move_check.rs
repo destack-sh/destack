@@ -241,6 +241,21 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
+            mir::Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                ..
+            }
+            | mir::Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                ..
+            } => {
+                self.check_use(state, *receiver, None, block_id, context);
+                for &arg in arguments {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+            }
             mir::Terminator::TailCallIndirect {
                 callee, arguments, ..
             } => {
@@ -376,7 +391,7 @@ block0:
 function @test() -> i32 {
 block0:
     v0 = iconst 42i32
-    call @consume(v0)
+    call @consume(v0) -> fn(i32) -> void
     v1 = iadd v0, v0
     return v1
 }"#;
@@ -701,7 +716,7 @@ block0:
 function @test() -> void {
 block0:
     v0 = managed.alloc i32 -> ref<managed i32>
-    call @consume(v0)
+    call @consume(v0) -> fn(ref<owned i32>) -> void
     raw.drop v0
     return
 }"#;

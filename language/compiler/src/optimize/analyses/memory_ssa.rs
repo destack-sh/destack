@@ -901,8 +901,10 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { arguments, .. }
+            | mir::Instruction::CallVirtual { arguments, .. }
+            | mir::Instruction::CallInterface { arguments, .. }
             | mir::Instruction::CallIndirect { arguments, .. } => {
-                self.call_effects(instruction_id, instruction, *arguments)
+                self.call_effects(instruction, *arguments)
             }
             mir::Instruction::RawFree { pointer } => {
                 let access_type = self.pointer_access_type(*pointer);
@@ -1147,24 +1149,19 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Determine memory effects for a call instruction using metadata.
     fn call_effects(
         &mut self,
-        instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
         arguments: mir::ArgumentSlice,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
-        // fetch callsite metadata when available
-        let call_metadata = self
-            .tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .get(&instruction_id);
+        // read callsite effects when present
+        let call_effects = instruction.call_effects();
 
         // use callsite or callee metadata for memory effects
-        let mut call_effects = call_metadata
-            .and_then(|metadata| metadata.memory_effects.clone())
+        let mut memory_effects = call_effects
+            .and_then(|effects| effects.memory_effects.clone())
             .or_else(|| self.callee_memory_effects(instruction));
 
         // fall back to conservative unknown when missing
-        let Some(effects) = call_effects.take() else {
+        let Some(effects) = memory_effects.take() else {
             return Self::single_effect(MemoryAccessEffect::read_write(
                 MemoryAccessLocation::Unknown,
                 false,
@@ -1190,7 +1187,7 @@ impl<'a> MemoryAccessCollector<'a> {
             }
 
             // resolve argument types
-            let arg_types = self.call_argument_types(instruction, call_metadata);
+            let arg_types = self.call_argument_types(instruction);
             let Some(arg_types) = arg_types else {
                 return Self::single_effect(self.effect_from_call_effect(&effects));
             };
@@ -1210,8 +1207,8 @@ impl<'a> MemoryAccessCollector<'a> {
                 };
 
                 // read argument metadata
-                let arg_metadata = call_metadata
-                    .and_then(|metadata| metadata.argument_metadata.get(index))
+                let arg_metadata = call_effects
+                    .and_then(|effects| effects.argument_metadata.get(index))
                     .cloned()
                     .unwrap_or_default();
 
@@ -1320,36 +1317,30 @@ impl<'a> MemoryAccessCollector<'a> {
     fn call_argument_types(
         &self,
         instruction: &mir::Instruction,
-        call_metadata: Option<&mir::CallMetadata>,
     ) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
-        // prefer the signature from call metadata
-        if let Some(metadata) = call_metadata {
-            let signature = self.tree.get(metadata.signature);
+        // prefer the signature from the instruction
+        if let Some(signature) = instruction.call_signature() {
+            let signature = self.tree.get(signature);
             if let mir::Type::FunctionPointer { parameters, .. } = signature {
                 return Some(parameters.clone());
             }
         }
 
-        // fall back to direct call signatures
+        // fall back to direct call signatures when available
         if let mir::Instruction::Call { function, .. } = instruction {
             let callee = self.tree.get(*function);
             let parameters = callee.parameters.iter().map(|param| param.ty).collect();
             return Some(parameters);
         }
 
-        // indirect calls without metadata are unknown
         None
     }
 
     /// Read memory effects from a direct callee when available.
     fn callee_memory_effects(&self, instruction: &mir::Instruction) -> Option<mir::MemoryEffect> {
         // only direct calls have callee metadata
-        let mir::Instruction::Call { function, .. } = instruction else {
-            return None;
-        };
-
-        // return callee effects when present
-        let callee = self.tree.get(*function);
+        let function = instruction.call_declared_target()?;
+        let callee = self.tree.get(function);
         callee.memory_effects.clone()
     }
 
@@ -3027,7 +3018,7 @@ block0:
             r#"extern function @external(ref<raw i32>) -> void
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v1 = iconst 0i32
     return v1
 }"#,
@@ -3068,22 +3059,20 @@ block0(v0: ref<raw i32>):
             r#"extern function @external(ref<raw i32>) -> void
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw i32>) -> void
     v1 = iconst 0i32
     return v1
 }"#,
         );
 
         let function_id = program.entry_function_id();
-        let (call_inst, callee) = program.first_call_in_entry(function_id);
-        let signature = program.call_signature_for_callee(callee);
-        let metadata = mir::CallMetadata::direct(callee, signature)
-            .with_memory_effects(mir::MemoryEffect::none());
-        program
-            .tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .insert(call_inst, metadata);
+        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
+        let instruction = program.tree.get_mut(call_inst);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
@@ -3102,7 +3091,7 @@ block0(v0: ref<raw i32>):
             r#"extern function @external(ref<raw i32>, i32) -> void
 function @test(v0: ref<raw i32>, v1: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: i32):
-    call @external(v0, v1)
+    call @external(v0, v1) -> fn(ref<raw i32>, i32) -> void
     v2 = iconst 0i32
     return v2
 }"#,
@@ -3113,8 +3102,7 @@ block0(v0: ref<raw i32>, v1: i32):
             let function = program.tree.get(function_id);
             function.parameters[0].value
         };
-        let (call_inst, callee) = program.first_call_in_entry(function_id);
-        let signature = program.call_signature_for_callee(callee);
+        let (call_inst, _callee) = program.first_call_in_entry(function_id);
 
         let mut arg0 = mir::CallArgumentMetadata::default();
         arg0.access = mir::ArgumentAccess::Read;
@@ -3122,15 +3110,14 @@ block0(v0: ref<raw i32>, v1: i32):
 
         let effects =
             mir::MemoryEffect::read_only(mir::MemoryLocationSet::ARGUMENTS).with_argmemonly();
-        let metadata = mir::CallMetadata::direct(callee, signature)
+        let effects = mir::CallEffects::default()
             .with_memory_effects(effects)
             .with_argument_metadata(vec![arg0, arg1]);
-
-        program
-            .tree
-            .call_table
-            .call_metadata_by_instruction_id
-            .insert(call_inst, metadata);
+        let instruction = program.tree.get_mut(call_inst);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         let function = program.tree.get(function_id);
         let analyses = program.function_analyses(function);
@@ -3156,7 +3143,7 @@ block0(v0: ref<raw i32>, v1: i32):
             r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
 function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
-    call @external(v0, v1)
+    call @external(v0, v1) -> fn(ref<raw i32>, ref<raw i32>) -> void
     v2 = iconst 0i32
     return v2
 }"#,

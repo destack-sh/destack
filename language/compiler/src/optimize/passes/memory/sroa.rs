@@ -402,7 +402,10 @@ fn analyze_uses(
                     }
 
                     // calls: check if value is passed as argument (escapes)
-                    mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
+                    mir::Instruction::Call { .. }
+                    | mir::Instruction::CallVirtual { .. }
+                    | mir::Instruction::CallInterface { .. }
+                    | mir::Instruction::CallIndirect { .. } => {
                         // arguments are stored externally, access via argument_slice
                         if let Some(arg_slice) = inst.argument_slice() {
                             for &arg in tree.get_arguments(arg_slice) {
@@ -910,7 +913,7 @@ extern function @external(ref<raw @Point>) -> void
 function @test() -> void {
 block0:
     v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    call @external(v0)
+    call @external(v0) -> fn(ref<raw @Point>) -> void
     return
 }"#;
 

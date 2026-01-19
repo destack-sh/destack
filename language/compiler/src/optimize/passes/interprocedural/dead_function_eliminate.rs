@@ -15,7 +15,7 @@ declare_pass! {
     /// ```mir
     /// export function @root() -> void {
     /// block0:
-    ///     call @live()
+    ///     call @live() -> fn() -> void
     ///     return
     /// }
     /// function @live() -> void {
@@ -31,7 +31,7 @@ declare_pass! {
     /// ```mir
     /// export function @root() -> void {
     /// block0:
-    ///     call @live()
+    ///     call @live() -> fn() -> void
     ///     return
     /// }
     /// function @live() -> void {
@@ -209,9 +209,7 @@ fn unknown_call_constraints(
 
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
-            if let Some(constraint) =
-                call_constraint_from_instruction(tree, instruction_id, instruction)
-            {
+            if let Some(constraint) = call_constraint_from_instruction(tree, instruction) {
                 constraints.push(constraint);
             }
         }
@@ -227,69 +225,54 @@ fn unknown_call_constraints(
 /// Resolve a call constraint from a call instruction.
 fn call_constraint_from_instruction(
     tree: &mir::NodeTree,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &mir::Instruction,
 ) -> Option<CallConstraint> {
-    // read callsite metadata for dispatch decisions
-    let metadata = tree.call_table.call_metadata(instruction_id);
-
-    // classify call instruction variants
-    match instruction {
-        mir::Instruction::Call { function, .. } => {
-            let dispatch = metadata
-                .map(|meta| meta.dispatch)
-                .unwrap_or(mir::CallDispatchKind::Direct);
-            if dispatch == mir::CallDispatchKind::Direct {
-                return None;
-            }
-            call_constraint_from_metadata(tree, metadata, Some(*function))
-        }
-        mir::Instruction::CallIndirect { .. } => {
-            let dispatch = metadata
-                .map(|meta| meta.dispatch)
-                .unwrap_or(mir::CallDispatchKind::Indirect);
-            if dispatch == mir::CallDispatchKind::Direct {
-                return None;
-            }
-            call_constraint_from_metadata(tree, metadata, None)
-        }
-        _ => None,
+    let dispatch = instruction.call_dispatch_kind()?;
+    if dispatch == mir::CallDispatchKind::Direct {
+        return None;
     }
+
+    let signature = instruction.call_signature()?;
+    let declared_target = instruction.call_declared_target();
+    call_constraint_from_signature(tree, signature, declared_target)
 }
 
 /// Resolve a call constraint from a tail call terminator.
 fn call_constraint_from_terminator(
-    _tree: &mir::NodeTree,
+    tree: &mir::NodeTree,
     terminator: &mir::Terminator,
 ) -> Option<CallConstraint> {
     // classify tail call terminators
     match terminator {
         mir::Terminator::TailCall { .. } => None,
-        mir::Terminator::TailCallIndirect { .. } => Some(CallConstraint::Unknown),
+        mir::Terminator::TailCallIndirect { signature, .. } => {
+            call_constraint_from_signature(tree, *signature, None)
+        }
+        mir::Terminator::TailCallVirtual {
+            signature,
+            declared_target,
+            ..
+        } => call_constraint_from_signature(tree, *signature, *declared_target),
+        mir::Terminator::TailCallInterface {
+            signature,
+            declared_target,
+            ..
+        } => call_constraint_from_signature(tree, *signature, *declared_target),
         _ => None,
     }
 }
 
-/// Resolve call constraints from callsite metadata when possible.
-fn call_constraint_from_metadata(
+/// Resolve call constraints from a signature type.
+fn call_constraint_from_signature(
     tree: &mir::NodeTree,
-    metadata: Option<&mir::CallMetadata>,
-    fallback_target: Option<mir::LocalNodeId<mir::Function>>,
+    signature: mir::LocalNodeId<mir::Type>,
+    declared_target: Option<mir::LocalNodeId<mir::Function>>,
 ) -> Option<CallConstraint> {
-    // prefer the metadata signature when present
-    if let Some(metadata) = metadata {
-        if let Some(signature) = SignatureKey::from_signature_type(tree, metadata.signature) {
-            return Some(CallConstraint::Signature(signature));
-        }
-
-        if let Some(target) = metadata.declared_target {
-            let signature = SignatureKey::from_function(tree, tree.get(target));
-            return Some(CallConstraint::Signature(signature));
-        }
+    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
+        return Some(CallConstraint::Signature(signature));
     }
 
-    // fall back to the direct target signature when available
-    if let Some(target) = fallback_target {
+    if let Some(target) = declared_target {
         let signature = SignatureKey::from_function(tree, tree.get(target));
         return Some(CallConstraint::Signature(signature));
     }
@@ -325,7 +308,6 @@ fn strip_function_body(function_id: mir::LocalNodeId<mir::Function>, tree: &mut 
 
     // remove instruction metadata tied to stripped blocks
     for instruction_id in instruction_ids {
-        tree.call_table.remove_call_metadata(instruction_id);
         tree.memory_table
             .memory_accesses_by_instruction_id
             .remove(&instruction_id);
@@ -390,7 +372,7 @@ mod tests {
     fn test_dead_function_eliminate_local() {
         let input = r#"export function @root() -> void {
 block0:
-    call @live()
+    call @live() -> fn() -> void
     return
 }
 function @live() -> void {
@@ -404,7 +386,7 @@ block0:
 
         let expected = r#"export function @root() -> void {
 block0:
-    call @live()
+    call @live() -> fn() -> void
     return
 }
 function @live() -> void {
@@ -475,26 +457,6 @@ block0(v0: i64):
 }"#;
 
         let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let keep_id = program.function_id_by_name("keep");
-        let signature = program.call_signature_for_callee(keep_id);
-
-        let root_block = program.entry_block_id(root_id);
-        let call_instruction_id = program
-            .instructions_in_block(root_block)
-            .into_iter()
-            .find(|instruction_id| {
-                matches!(
-                    program.tree.get(*instruction_id),
-                    mir::Instruction::CallIndirect { .. }
-                )
-            })
-            .expect("missing call.indirect");
-        program
-            .tree
-            .call_table
-            .insert_call_metadata(call_instruction_id, mir::CallMetadata::indirect(signature));
-
         program.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
@@ -536,7 +498,7 @@ block0:
     fn test_dead_function_eliminate_clears_debug_metadata() {
         let input = r#"export function @root() -> void {
 block0:
-    call @live()
+    call @live() -> fn() -> void
     return
 }
 function @live() -> void {
@@ -551,7 +513,7 @@ block0(v0: i32):
 
         let expected = r#"export function @root() -> void {
 block0:
-    call @live()
+    call @live() -> fn() -> void
     return
 }
 function @live() -> void {

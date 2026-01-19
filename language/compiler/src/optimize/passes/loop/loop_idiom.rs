@@ -1928,7 +1928,7 @@ block1(v4: u32):
     v5 = icmp_ult v4, v1
     branch v5, block2, block3
 block2:
-    call @touch(v4)
+    call @touch(v4) -> fn(u32) -> void
     v6 = element.addr v0, v4 -> ref<borrowed u8>
     v7 = iconst 0u8
     store v6, v7

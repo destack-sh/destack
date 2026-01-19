@@ -37,7 +37,7 @@ declare_pass! {
     /// block0:
     ///     v0 = iconst 2i32
     ///     v1 = iconst 3i32
-    ///     v2 = call @callee(v0, v1)
+    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     ///     return v2
     /// }
     /// ```
@@ -59,7 +59,7 @@ declare_pass! {
     /// block0:
     ///     v0 = iconst 2i32
     ///     v1 = iconst 3i32
-    ///     v2 = call @callee$spec0()
+    ///     v2 = call @callee$spec0() -> fn() -> i32
     ///     return v2
     /// }
     /// ```
@@ -256,20 +256,15 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                // record direct callsites
-                if let mir::Instruction::Call {
-                    function: callee,
-                    arguments,
-                    ..
-                } = instruction
-                {
-                    let dispatch = tree
-                        .call_table
-                        .call_metadata(instruction_id)
-                        .map(|meta| meta.dispatch)
-                        .unwrap_or(mir::CallDispatchKind::Direct);
-
-                    if matches!(dispatch, mir::CallDispatchKind::Direct) {
+                // record callsites and signatures
+                if let Some(dispatch) = instruction.call_dispatch_kind() {
+                    if let mir::CallDispatchKind::Direct = dispatch
+                        && let mir::Instruction::Call {
+                            function: callee,
+                            arguments,
+                            ..
+                        } = instruction
+                    {
                         let arguments = tree.get_arguments(*arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
@@ -279,21 +274,14 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                             arguments,
                         });
                         continue;
-                    } else if let Some(signature) = tree
-                        .call_table
-                        .call_metadata(instruction_id)
-                        .and_then(|meta| SignatureKey::from_signature_type(tree, meta.signature))
+                    }
+
+                    if let Some(signature) = instruction
+                        .call_signature()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
-                        continue;
                     }
-                }
-
-                // record signatures for call.indirect instructions
-                if let mir::Instruction::CallIndirect { signature, .. } = instruction
-                    && let Some(signature) = SignatureKey::from_signature_type(tree, *signature)
-                {
-                    data.indirect_signatures.insert(signature);
                 }
             }
         }
@@ -482,11 +470,6 @@ fn clone_function(
             );
             let new_id = tree.insert(remapped);
 
-            // preserve call metadata for the cloned instruction
-            if let Some(metadata) = tree.call_table.call_metadata(instruction_id).cloned() {
-                tree.call_table.insert_call_metadata(new_id, metadata);
-            }
-
             // preserve memory access metadata for the cloned instruction
             if let Some(accesses) = tree
                 .memory_table
@@ -621,31 +604,37 @@ fn update_callsite(
     // filter the argument list to match the specialized signature
     let arguments = remap.filter_by_index(tree.get_arguments(slice));
     let new_slice = tree.add_arguments(&arguments);
-    let updated = mir::Instruction::Call {
-        destination,
-        function: new_callee,
-        arguments: new_slice,
+    let (signature, effects) = match tree.get(callsite.call_instruction) {
+        mir::Instruction::Call {
+            signature,
+            effects,
+            ..
+        } => (*signature, effects.clone()),
+        _ => return false,
     };
-    tree.replace(callsite.call_instruction, updated);
 
-    // build the updated signature type before borrowing call metadata
+    // build the updated signature type before borrowing the tree again
     let signature_type = if remap.removal_indices().is_empty() {
         None
     } else {
         Some(build_signature_type(new_callee, tree))
     };
 
-    // update call metadata when present
-    if let Some(metadata) = tree.call_table.call_metadata_mut(callsite.call_instruction) {
-        metadata.declared_target = Some(new_callee);
-        metadata.argument_metadata = remap.filter_by_index(&metadata.argument_metadata);
-        metadata.alloc_size = remap.remap_alloc_size(metadata.alloc_size);
-
-        // refresh the signature for removed arguments
-        if let Some(signature_type) = signature_type {
-            metadata.signature = signature_type;
-        }
+    let mut effects = effects;
+    if let Some(effects) = effects.as_mut() {
+        effects.argument_metadata = remap.filter_by_index(&effects.argument_metadata);
+        effects.alloc_size = remap.remap_alloc_size(effects.alloc_size);
     }
+
+    let signature = signature_type.unwrap_or(signature);
+    let updated = mir::Instruction::Call {
+        destination,
+        function: new_callee,
+        arguments: new_slice,
+        signature,
+        effects,
+    };
+    tree.replace(callsite.call_instruction, updated);
 
     true
 }
@@ -700,7 +689,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -713,7 +702,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee$spec0()
+    v2 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
@@ -739,7 +728,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -752,7 +741,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee$spec0()
+    v2 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
@@ -763,34 +752,31 @@ block0:
 
         let mut program = TestProgram::new(input);
         let root_id = program.function_id_by_name("root");
-        let (call_id, callee_id) = program.first_call_in_entry(root_id);
-        let signature = program.call_signature_for_callee(callee_id);
+        let (call_id, _callee_id) = program.first_call_in_entry(root_id);
         let argument_metadata = vec![mir::CallArgumentMetadata::default(); 2];
-        let call_metadata = mir::CallMetadata::direct(callee_id, signature)
-            .with_argument_metadata(argument_metadata);
-        program
-            .tree
-            .call_table
-            .insert_call_metadata(call_id, call_metadata);
+        let effects = mir::CallEffects::default().with_argument_metadata(argument_metadata);
+        let instruction = program.tree.get_mut(call_id);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         program.run_module_pass(&ArgumentSpecialize);
         program.assert_output(expected);
 
         let (call_id, callee_id) = program.first_call_in_entry(root_id);
         let callee = program.tree.get(callee_id);
-        let call_metadata = program
+        let instruction = program.tree.get(call_id);
+        let effects = instruction.call_effects().expect("missing call effects");
+        let signature = program
             .tree
-            .call_table
-            .call_metadata(call_id)
-            .expect("missing call metadata");
-        let signature = program.tree.get(call_metadata.signature);
+            .get(instruction.call_signature().expect("missing call signature"));
         let expected_signature = mir::Type::FunctionPointer {
             parameters: callee.parameters.iter().map(|param| param.ty).collect(),
             result: callee.return_type,
         };
 
-        assert_eq!(call_metadata.declared_target, Some(callee_id));
-        assert!(call_metadata.argument_metadata.is_empty());
+        assert!(effects.argument_metadata.is_empty());
         assert_eq!(signature, &expected_signature);
     }
 
@@ -806,7 +792,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -834,7 +820,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -860,7 +846,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -887,7 +873,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -900,7 +886,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 2i32
     v1 = iconst 3i32
-    v2 = call @callee$spec0()
+    v2 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
@@ -931,7 +917,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = iconst 7i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -942,7 +928,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = iconst 7i32
-    v1 = call @callee$spec0(v0)
+    v1 = call @callee$spec0(v0) -> fn(i32) -> i32
     return v1
 }
 function @callee$spec0(v0: i32) -> i32 {
@@ -972,13 +958,13 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    v5 = call @callee(v4)
+    v5 = call @callee(v4) -> fn(i32) -> i32
     return v5
 }
 function @root() -> i32 {
 block0:
     v0 = iconst 9i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -994,7 +980,7 @@ block0:
 function @root() -> i32 {
 block0:
     v0 = iconst 2i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1017,11 +1003,11 @@ block0:
     v2 = iconst 3i32
     v3 = iconst 4i32
     v4 = iconst 5i32
-    v5 = call @callee(v0)
-    v6 = call @callee(v1)
-    v7 = call @callee(v2)
-    v8 = call @callee(v3)
-    v9 = call @callee(v4)
+    v5 = call @callee(v0) -> fn(i32) -> i32
+    v6 = call @callee(v1) -> fn(i32) -> i32
+    v7 = call @callee(v2) -> fn(i32) -> i32
+    v8 = call @callee(v3) -> fn(i32) -> i32
+    v9 = call @callee(v4) -> fn(i32) -> i32
     return v9
 }"#;
 
@@ -1036,11 +1022,11 @@ block0:
     v2 = iconst 3i32
     v3 = iconst 4i32
     v4 = iconst 5i32
-    v5 = call @callee$spec0()
-    v6 = call @callee$spec1()
-    v7 = call @callee$spec2()
-    v8 = call @callee$spec3()
-    v9 = call @callee(v4)
+    v5 = call @callee$spec0() -> fn() -> i32
+    v6 = call @callee$spec1() -> fn() -> i32
+    v7 = call @callee$spec2() -> fn() -> i32
+    v8 = call @callee$spec3() -> fn() -> i32
+    v9 = call @callee(v4) -> fn(i32) -> i32
     return v9
 }
 function @callee$spec0() -> i32 {

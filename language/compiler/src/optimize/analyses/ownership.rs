@@ -501,7 +501,10 @@ impl OwnershipAnalysis {
             }
 
             // call moves arguments (if non-copy)
-            Instruction::Call { arguments, .. } | Instruction::CallIndirect { arguments, .. } => {
+            Instruction::Call { arguments, .. }
+            | Instruction::CallVirtual { arguments, .. }
+            | Instruction::CallInterface { arguments, .. }
+            | Instruction::CallIndirect { arguments, .. } => {
                 let args = tree.get_arguments(*arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
@@ -621,6 +624,25 @@ impl OwnershipAnalysis {
             | mir::Terminator::Switch { .. }
             | mir::Terminator::Unreachable => {}
             mir::Terminator::TailCall { arguments, .. } => {
+                for &arg in arguments {
+                    if !self.value_is_copy(arg, tree) {
+                        state.mark_moved(arg, at.clone());
+                    }
+                }
+            }
+            mir::Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                ..
+            }
+            | mir::Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                ..
+            } => {
+                if !self.value_is_copy(*receiver, tree) {
+                    state.mark_moved(*receiver, at.clone());
+                }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
                         state.mark_moved(arg, at.clone());
@@ -833,7 +855,7 @@ fn register_value_type(
 /// Collect type information, copy values, and stack allocations from an instruction.
 #[allow(clippy::too_many_arguments)]
 fn instruction_collect_types(
-    instruction_id: mir::LocalNodeId<Instruction>,
+    _instruction_id: mir::LocalNodeId<Instruction>,
     instruction: &Instruction,
     tree: &mir::NodeTree,
     value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
@@ -983,27 +1005,13 @@ fn instruction_collect_types(
                 reference_infos,
             );
         }
-        Instruction::Call {
-            destination,
-            function,
-            ..
-        } => {
-            if let Some(dest) = destination {
-                let func = tree.get(*function);
-                register_value_type(
-                    *dest,
-                    func.return_type,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-        Instruction::CallIndirect { destination, .. } => {
+        Instruction::Call { destination, .. }
+        | Instruction::CallVirtual { destination, .. }
+        | Instruction::CallInterface { destination, .. }
+        | Instruction::CallIndirect { destination, .. } => {
             if let Some(dest) = destination
-                && let Some(metadata) = tree.call_table.call_metadata(instruction_id)
-                && let Type::FunctionPointer { result, .. } = tree.get(metadata.signature)
+                && let Some(signature) = instruction.call_signature()
+                && let Type::FunctionPointer { result, .. } = tree.get(signature)
             {
                 register_value_type(
                     *dest,
@@ -1612,16 +1620,18 @@ fn process_instruction(
             destination,
             arguments,
             ..
-        } => {
-            let args = tree.get_arguments(*arguments);
-            for &arg in args {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
-            }
-            if let Some(dest) = destination {
-                state.mark_owned(*dest);
-            }
         }
-        Instruction::CallIndirect {
+        | Instruction::CallVirtual {
+            destination,
+            arguments,
+            ..
+        }
+        | Instruction::CallInterface {
+            destination,
+            arguments,
+            ..
+        }
+        | Instruction::CallIndirect {
             destination,
             arguments,
             ..
@@ -1765,6 +1775,21 @@ fn process_terminator(
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall { arguments, .. } => {
+            for &arg in arguments {
+                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+            }
+        }
+        mir::Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            ..
+        }
+        | mir::Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            ..
+        } => {
+            state.mark_moved_if_not_copy(*receiver, at.clone(), tree, value_types, copy_values);
             for &arg in arguments {
                 state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
             }

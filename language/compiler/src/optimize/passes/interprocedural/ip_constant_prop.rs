@@ -25,7 +25,7 @@ declare_pass! {
     /// block0:
     ///     v0 = iconst 40i32
     ///     v1 = iconst 2i32
-    ///     v2 = call @callee(v0, v1)
+    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     ///     return v2
     /// }
     /// ```
@@ -42,7 +42,7 @@ declare_pass! {
     /// block0:
     ///     v0 = iconst 40i32
     ///     v1 = iconst 2i32
-    ///     v2 = call @callee(v0, v1)
+    ///     v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     ///     return v2
     /// }
     /// ```
@@ -169,26 +169,31 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                if let mir::Instruction::Call {
-                    function,
-                    arguments,
-                    ..
-                } = instruction
-                {
-                    let arguments = tree.get_arguments(*arguments).to_vec();
-                    data.direct_calls
-                        .entry(*function)
-                        .or_default()
-                        .push(DirectCallArgs {
-                            caller: caller_id,
+                if let Some(dispatch) = instruction.call_dispatch_kind() {
+                    if let mir::CallDispatchKind::Direct = dispatch
+                        && let mir::Instruction::Call {
+                            function,
                             arguments,
-                        });
-                }
+                            ..
+                        } = instruction
+                    {
+                        let arguments = tree.get_arguments(*arguments).to_vec();
+                        data.direct_calls
+                            .entry(*function)
+                            .or_default()
+                            .push(DirectCallArgs {
+                                caller: caller_id,
+                                arguments,
+                            });
+                        continue;
+                    }
 
-                if let mir::Instruction::CallIndirect { signature, .. } = instruction
-                    && let Some(signature) = SignatureKey::from_signature_type(tree, *signature)
-                {
-                    data.indirect_signatures.insert(signature);
+                    if let Some(signature) = instruction
+                        .call_signature()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                    {
+                        data.indirect_signatures.insert(signature);
+                    }
                 }
             }
 
@@ -314,7 +319,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 40i32
     v1 = iconst 2i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -329,7 +334,7 @@ function @root() -> i32 {
 block0:
     v0 = iconst 40i32
     v1 = iconst 2i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -349,13 +354,13 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = iconst 1i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }
 function @other() -> i32 {
 block0:
     v0 = iconst 2i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -376,7 +381,7 @@ function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
     v2 = call.indirect v0(v1) -> fn(i32) -> i32
     v3 = iconst 4i32
-    v4 = call @callee(v3)
+    v4 = call @callee(v3) -> fn(i32) -> i32
     return v4
 }"#;
 
@@ -396,7 +401,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = global.const @value
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -409,7 +414,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = global.const @value
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 

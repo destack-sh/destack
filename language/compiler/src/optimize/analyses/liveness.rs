@@ -578,7 +578,7 @@ function @test() -> void {
 block0:
     v0 = iconst 1i32
     v1 = iconst 2i32
-    call @external(v0, v1)
+    call @external(v0, v1) -> fn(i32, i32) -> void
     return
 }"#,
         );
