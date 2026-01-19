@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalSymbolId, LocalNodeId};
+use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::{LowerError, LowerResult, TaskDependencyError};
@@ -46,23 +47,23 @@ impl ModuleLowerer<'_> {
             };
 
             // declare the external function
-            self.ensure_external_function(expression_id, target_symbol, signature)?;
+            self.external_function_for_symbol(expression_id, target_symbol, signature)?;
         }
 
         // return once all externs are declared
         Ok(())
     }
 
-    /// Ensure an external function is declared for a call target.
-    fn ensure_external_function(
+    /// Return the external function declared for a call target.
+    fn external_function_for_symbol(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
         signature: &dir::ResolvedSignature,
-    ) -> LowerResult<()> {
+    ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // skip already declared externs
-        if self.functions_by_symbol.contains_key(&target_symbol) {
-            return Ok(());
+        if let Some(function_id) = self.functions_by_symbol.get(&target_symbol) {
+            return Ok(*function_id);
         }
 
         // resolve the extern symbol name
@@ -110,7 +111,7 @@ impl ModuleLowerer<'_> {
             .insert(function_id, signature_type);
 
         // return after declaration
-        Ok(())
+        Ok(function_id)
     }
 
     /// Resolve the extern binding name for a symbol, if any.

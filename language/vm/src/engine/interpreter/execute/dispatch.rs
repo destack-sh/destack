@@ -1588,6 +1588,7 @@ fn resolve_interface_dispatch_target(
     let table = dispatch_registry
         .tables
         .get(table_id.index())
+        .and_then(|table| table.as_ref())
         .ok_or(Error::InvalidInstruction)?;
     let slot = table
         .slots

@@ -77,7 +77,7 @@ impl ModuleLowerer<'_> {
         let mut visited = HashSet::new();
 
         // collect members across the interface lineage
-        self.collect_interface_slots_recursive(
+        self.collect_interface_slots_inner(
             interface,
             &mut slots,
             &mut seen_fields,
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect interface slots with inheritance ordering.
-    fn collect_interface_slots_recursive(
+    fn collect_interface_slots_inner(
         &mut self,
         interface: GlobalSymbolId,
         slots: &mut Vec<InterfaceSlot>,
@@ -106,13 +106,7 @@ impl ModuleLowerer<'_> {
         if let Some(lineage) = self.types.get_lineage_for_symbol(interface)
             && let Some(base) = lineage.extends
         {
-            self.collect_interface_slots_recursive(
-                base,
-                slots,
-                seen_fields,
-                seen_methods,
-                visited,
-            )?;
+            self.collect_interface_slots_inner(base, slots, seen_fields, seen_methods, visited)?;
         }
 
         // resolve the interface instance type for method stubs
@@ -264,7 +258,7 @@ impl ModuleLowerer<'_> {
 
                 // create interface method stub when needed
                 let method_symbol = symbol.into_global(self.module_id);
-                let _ = self.lower_interface_method_stub(
+                self.lower_interface_method_stub(
                     interface_type,
                     member_id,
                     key.as_ref(),

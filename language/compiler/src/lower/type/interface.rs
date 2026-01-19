@@ -37,8 +37,8 @@ impl TypeLowerer {
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // return cached types when available
-        if let Some(mir_type) = self.type_cache.get(&type_id) {
-            return Ok(*mir_type);
+        if let Some(mir_type) = self.cached_type(type_id) {
+            return Ok(mir_type);
         }
 
         // load the dir type for validation
@@ -122,9 +122,6 @@ impl TypeLowerer {
                 itab_type,
             },
         );
-
-        // cache the mir type and return
-        self.type_cache.insert(type_id, mir_type);
 
         Ok(mir_type)
     }

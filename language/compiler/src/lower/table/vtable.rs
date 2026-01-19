@@ -52,18 +52,20 @@ impl VirtualMethodDescriptor {
 }
 
 impl ModuleLowerer<'_> {
-    /// Lower vtables for classes that require virtual dispatch.
-    pub(crate) fn lower_vtables(&mut self) -> LowerResult<()> {
+    /// Return vtables for classes that require virtual dispatch.
+    pub(crate) fn vtables(&mut self) -> LowerResult<Vec<mir::DispatchTableId>> {
         // generate vtables for each class
+        let mut tables = Vec::new();
         for symbol in self.vtable_class_symbols.clone() {
-            let _ = self.lower_vtable(symbol)?;
+            let table_id = self.vtable_for_symbol(symbol)?;
+            tables.push(table_id);
         }
 
-        Ok(())
+        Ok(tables)
     }
 
-    /// Lower the vtable for a single class symbol.
-    fn lower_vtable(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::DispatchTableId> {
+    /// Return the vtable for a single class symbol.
+    fn vtable_for_symbol(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::DispatchTableId> {
         if let Some(table_id) = self.vtable_by_symbol.get(&symbol).copied() {
             return Ok(table_id);
         }
@@ -141,6 +143,14 @@ impl ModuleLowerer<'_> {
                     module: self.module_id,
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
+            let table_id = self
+                .vtable_ids_by_symbol
+                .get(&symbol)
+                .copied()
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: format!("missing vtable id for class {symbol:?}"),
+                })?;
             let table = mir::DispatchTable {
                 kind: mir::DispatchTableKind::Class { ty: mir_type },
                 global: Some(vtable_global.global_id),
@@ -150,7 +160,8 @@ impl ModuleLowerer<'_> {
                 .tree_mut()
                 .type_table
                 .dispatch_registry
-                .insert(table)
+                .insert_at(table_id, table);
+            table_id
         };
 
         // attach the vtable to type metadata

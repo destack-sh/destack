@@ -180,9 +180,8 @@ impl TypeLowerer {
         let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type_with_copyability(&layout, copyability, builder);
 
-        // cache layout and type lowering
+        // cache layout for later field lookups
         self.layout_cache.insert(mir_type, layout.clone());
-        self.type_cache.insert(type_id, mir_type);
 
         // resolve tag and payload field indices
         let tag_field_index =

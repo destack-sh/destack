@@ -6,85 +6,96 @@ use crate::LowerResult;
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Record lineage metadata for nominal types.
-    pub(crate) fn lower_lineage_metadata(&mut self) -> LowerResult<()> {
-        // collect nominal declaration metadata for this module
-        let mut nominal_info = self.collect_nominal_types();
-        nominal_info.sort_by_key(|info| info.symbol.local_id.id);
-
-        for info in nominal_info {
-            // resolve the instance type
-            let Some(instance_type_id) = info.instance_type_id else {
-                continue;
-            };
-            let mir_type = self.lower_type(instance_type_id, info.anchor)?;
-
-            // resolve the lineage data for the symbol
-            let lineage = self.types.get_lineage_for_symbol(info.symbol);
-            let parent_symbol = lineage
-                .and_then(|lineage| lineage.extends)
-                .filter(|_| info.kind == dir::SymbolType::Class);
-
-            // resolve the parent mir type when present
-            let parent = if let Some(parent_symbol) = parent_symbol {
-                self.lower_instance_type(parent_symbol, info.anchor)?
-            } else {
-                None
-            };
-
-            // collect implemented interfaces
-            let mut interface_symbols = Vec::new();
-            let mut seen_interfaces = HashSet::new();
-            if let Some(lineage) = lineage {
-                // include base interface lineage for interfaces
-                if info.kind == dir::SymbolType::Interface
-                    && let Some(base) = lineage.extends
-                {
-                    self.collect_interface_lineage_symbols(
-                        base,
-                        &mut interface_symbols,
-                        &mut seen_interfaces,
-                    );
-                }
-
-                // include implemented interfaces for nominal types
-                for interface_symbol in &lineage.implements {
-                    self.collect_interface_lineage_symbols(
-                        *interface_symbol,
-                        &mut interface_symbols,
-                        &mut seen_interfaces,
-                    );
-                }
-            }
-
-            // lower interface instance types for metadata
-            let mut interfaces = Vec::new();
-            for interface_symbol in interface_symbols {
-                // skip interfaces that cannot be lowered
-                let Some(interface_type) =
-                    self.lower_instance_type(interface_symbol, info.anchor)?
-                else {
-                    continue;
-                };
-                interfaces.push(interface_type);
-            }
-
-            // record lineage metadata
-            let is_interface = info.kind == dir::SymbolType::Interface;
-            let is_abstract = info.is_abstract || is_interface;
-            let type_table = &mut self.builder.tree_mut().type_table;
-            let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
-            metadata.lineage = Some(mir::TypeLineage {
-                parent,
-                interfaces,
-                is_sealed: false,
-                is_final: false,
-                is_abstract,
-                is_interface,
-            });
+    /// Return lineage metadata for a nominal symbol and instance type.
+    pub(crate) fn lineage_metadata_for_symbol(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        mir_type: mir::LocalNodeId<mir::Type>,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::TypeLineage> {
+        // skip if metadata already exists
+        if let Some(metadata) = self
+            .builder
+            .tree()
+            .type_table
+            .type_metadata_by_id
+            .get(&mir_type)
+            && let Some(lineage) = metadata.lineage.clone()
+        {
+            return Ok(lineage);
         }
 
-        Ok(())
+        // resolve the lineage data for the symbol
+        let lineage = self.types.get_lineage_for_symbol(symbol);
+        let parent_symbol = lineage
+            .and_then(|lineage| lineage.extends)
+            .filter(|_| symbol.ty() == dir::SymbolType::Class);
+
+        // resolve the parent mir type when present
+        let parent = if let Some(parent_symbol) = parent_symbol {
+            self.lower_instance_type(parent_symbol, anchor)?
+        } else {
+            None
+        };
+
+        // collect implemented interfaces
+        let mut interface_symbols = Vec::new();
+        let mut seen_interfaces = HashSet::new();
+        if let Some(lineage) = lineage {
+            // include base interface lineage for interfaces
+            if symbol.ty() == dir::SymbolType::Interface
+                && let Some(base) = lineage.extends
+            {
+                self.collect_interface_lineage_symbols(
+                    base,
+                    &mut interface_symbols,
+                    &mut seen_interfaces,
+                );
+            }
+
+            // include implemented interfaces for nominal types
+            for interface_symbol in &lineage.implements {
+                self.collect_interface_lineage_symbols(
+                    *interface_symbol,
+                    &mut interface_symbols,
+                    &mut seen_interfaces,
+                );
+            }
+        }
+
+        // lower interface instance types for metadata
+        let mut interfaces = Vec::new();
+        for interface_symbol in interface_symbols {
+            // skip interfaces that cannot be lowered
+            let Some(interface_type) = self.lower_instance_type(interface_symbol, anchor)? else {
+                continue;
+            };
+            interfaces.push(interface_type);
+        }
+
+        // record lineage metadata
+        let is_interface = symbol.ty() == dir::SymbolType::Interface;
+        let is_abstract = is_interface
+            || self
+                .declaration_ids_for_symbol(symbol)
+                .iter()
+                .any(|declaration_id| {
+                    self.dir_tree.get(*declaration_id).descriptor().abstraction
+                        == dir::DeclarationAbstraction::Abstract
+                });
+        let type_table = &mut self.builder.tree_mut().type_table;
+        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
+        let type_lineage = mir::TypeLineage {
+            parent,
+            interfaces,
+            is_sealed: false,
+            is_final: false,
+            is_abstract,
+            is_interface,
+        };
+        metadata.lineage = Some(type_lineage.clone());
+
+        Ok(type_lineage)
     }
 
     /// Collect interface lineage in base to derived order.

@@ -68,6 +68,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) vtable_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
     /// Track vtable lowering in progress.
     pub(crate) vtable_in_progress: IndexSet<GlobalSymbolId>,
+    /// Precomputed dispatch table ids for class vtables.
+    pub(crate) vtable_ids_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
     /// Track itabs that have been lowered.
     pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
     /// Track itab lowering in progress.
@@ -143,6 +145,7 @@ impl<'a> ModuleLowerer<'a> {
             vtable_layout_symbols: None,
             vtable_by_symbol: HashMap::new(),
             vtable_in_progress: IndexSet::new(),
+            vtable_ids_by_symbol: HashMap::new(),
             itab_by_pair: HashMap::new(),
             itab_in_progress: IndexSet::new(),
             dispatch_registry_ready: false,
@@ -155,79 +158,106 @@ impl<'a> ModuleLowerer<'a> {
     }
 
     /// Lower this entire DIR module to MIR (in-place).
-    ///
-    /// Lowering proceeds with explicit registries and query-driven lowering:
-    /// 1. Initialize builtin layouts used by lowering.
-    /// 2. Build deterministic dispatch registries for vtables/itabs.
-    /// 3. Lower DIR types into the MIR type cache.
-    /// 4. Lower globals and function bodies.
-    /// 5. Emit tables and metadata derived from lowered types.
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
-        // initialize builtin layout state
+        // initialize builtin layouts
         self.initialize_string_type()?;
 
-        // build deterministic dispatch registry
+        // build dispatch registry
         self.lower_dispatch_registry()?;
 
-        // lower dir types to populate the type cache
-        self.lower_types()?;
-
-        // lower declarations (globals + functions)
-        self.lower_items()?;
-
-        // lower tables (vtables, itabs, RTTI)
-        self.lower_tables()?;
-
-        Ok(())
-    }
-
-    /// Phase 2: Lower DIR types into cached MIR types.
-    ///
-    /// Ensures value lowering can reuse cached MIR type ids.
-    fn lower_types(&mut self) -> LowerResult<()> {
-        // collect types referenced by expressions and signatures
-        let mut type_sources = HashMap::new();
-        for (expression_id, _) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
-            let node_id = expression_id.into_global_any(self.module_id);
-            let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) else {
-                continue;
-            };
-            if matches!(
-                self.types.get_type(type_id),
-                dir::Type::TypeLiteral {
-                    value: dir::TypeLiteral::Never
-                } | dir::Type::Value { .. }
-            ) {
-                continue;
-            }
-            type_sources.entry(type_id).or_insert(node_id);
-        }
-        for (node_id, type_id) in self.types.iter_signature_type_ids() {
-            type_sources.entry(type_id).or_insert(node_id);
-        }
-
-        // lower each type in deterministic order
-        let mut type_entries: Vec<_> = type_sources.into_iter().collect();
-        type_entries.sort_by_key(|(type_id, _)| type_id.0);
-        for (type_id, node_id) in type_entries {
-            let anchor = node_id.into_anchored(Some(self.profile));
-            self.lower_type(type_id, anchor)?;
-        }
-
-        Ok(())
-    }
-
-    /// Phase 3: Lower item declarations (globals, functions, methods).
-    ///
-    /// Processes all root expressions to lower globals and function bodies.
-    fn lower_items(&mut self) -> LowerResult<()> {
-        // predeclare externs referenced by this module
+        // lower external calls
         self.lower_external_calls()?;
 
-        // lower root expressions for globals and bodies
+        // lower root expressions
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
+
+        // finalize nominal types so layouts are cached
+        self.finalize_declared_types()?;
+
+        // emit dispatch tables (vtables, itabs)
+        self.dispatch_tables()?;
+
+        // finalize metadata for all cached types
+        self.finalize_type_metadata()?;
+
+        Ok(())
+    }
+
+    /// Ensure all nominal types are lowered into the type cache.
+    fn finalize_declared_types(&mut self) -> LowerResult<()> {
+        // track symbols we've already finalized
+        let mut seen = HashSet::new();
+        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
+        {
+            let symbol = match declaration {
+                dir::Declaration::Struct { descriptor, .. }
+                | dir::Declaration::Class { descriptor, .. }
+                | dir::Declaration::Enum { descriptor, .. }
+                | dir::Declaration::Interface { descriptor, .. } => {
+                    descriptor.symbol.into_global(self.module_id)
+                }
+                dir::Declaration::Type {
+                    descriptor, kind, ..
+                } => {
+                    if !matches!(kind, dir::TypeKind::Nominal) {
+                        continue;
+                    }
+                    descriptor.symbol.into_global(self.module_id)
+                }
+                _ => continue,
+            };
+            if !seen.insert(symbol) {
+                continue;
+            }
+
+            let anchor = declaration_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+            if let Some(instance_type_id) = self.types.get_instance_type_id(symbol) {
+                self.lower_type(instance_type_id, anchor)?;
+            }
+
+            if symbol.ty() == dir::SymbolType::Interface
+                && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+            {
+                self.lower_type(reference_type_id, anchor)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Finalize metadata for all cached types.
+    fn finalize_type_metadata(&mut self) -> LowerResult<()> {
+        // collect cached types
+        let mut cached_types = Vec::new();
+        for (type_id, entry) in &self.type_lowerer.type_cache {
+            let mir_type = match entry {
+                crate::lower::TypeCacheEntry::Ready(mir_type) => *mir_type,
+                crate::lower::TypeCacheEntry::InProgress => {
+                    return Err(crate::LowerError::Internal {
+                        module: self.module_id,
+                        message: "type lowering cache left in progress".to_string(),
+                    });
+                }
+            };
+            cached_types.push((*type_id, mir_type));
+        }
+
+        // finalize metadata for each cached type
+        for (type_id, mir_type) in cached_types {
+            let anchor = self.type_anchor(type_id);
+            self.metadata_name_for_type(type_id, mir_type, anchor)?;
+            self.layout_metadata_for_type(mir_type)?;
+            self.field_map_metadata_for_type(type_id, mir_type, anchor)?;
+            if let Some(symbol) = self.types.symbol_for_instance_type(type_id) {
+                self.lineage_metadata_for_symbol(symbol, mir_type, anchor)?;
+            }
+        }
+
+        self.validate_metadata_names_assigned()?;
 
         Ok(())
     }
@@ -257,7 +287,7 @@ impl<'a> ModuleLowerer<'a> {
             &mut self.builder,
             &mut self.type_lowerer,
         );
-        builtin_layouts.ensure_string_layout(anchor)?;
+        builtin_layouts.string_type_for_builtin(anchor)?;
 
         Ok(())
     }

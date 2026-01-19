@@ -133,7 +133,7 @@ pub struct DispatchTable {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DispatchRegistry {
     /// Registered dispatch tables.
-    pub tables: Vec<DispatchTable>,
+    pub tables: Vec<Option<DispatchTable>>,
 }
 
 impl DispatchRegistry {
@@ -145,13 +145,27 @@ impl DispatchRegistry {
     /// Insert a dispatch table and return its id.
     pub fn insert(&mut self, table: DispatchTable) -> DispatchTableId {
         let id = DispatchTableId::new(self.tables.len() as u32);
-        self.tables.push(table);
+        self.tables.push(Some(table));
         id
+    }
+
+    /// Insert a dispatch table at a specific id.
+    pub fn insert_at(&mut self, id: DispatchTableId, table: DispatchTable) {
+        let index = id.index();
+        if self.tables.len() <= index {
+            self.tables.resize_with(index + 1, || None);
+        }
+        if self.tables[index].is_some() {
+            panic!("dispatch table slot {index} already populated");
+        }
+        self.tables[index] = Some(table);
     }
 
     /// Return the dispatch table for an id.
     pub fn table(&self, id: DispatchTableId) -> &DispatchTable {
-        &self.tables[id.index()]
+        self.tables[id.index()]
+            .as_ref()
+            .expect("missing dispatch table entry")
     }
 }
 

@@ -13,7 +13,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<()> {
         match declaration {
             Declaration::Function { .. } => {
-                let _ = self.lower_function(declaration_id, declaration)?;
+                self.lower_function(declaration_id, declaration)?;
                 Ok(())
             }
 

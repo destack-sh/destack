@@ -95,8 +95,8 @@ impl FunctionContext<'_> {
         }
     }
 
-    /// Ensure a constructor field was initialized before use.
-    pub(crate) fn ensure_constructor_field_initialized(
+    /// Require a constructor field to be initialized before use.
+    pub(crate) fn require_constructor_field_initialized(
         &self,
         node: AnchoredGlobalNodeId,
         field_index: u32,
@@ -120,8 +120,8 @@ impl FunctionContext<'_> {
         })
     }
 
-    /// Ensure all constructor fields were initialized before returning.
-    pub(crate) fn ensure_constructor_complete(
+    /// Require all constructor fields to be initialized before returning.
+    pub(crate) fn require_constructor_complete(
         &self,
         node: AnchoredGlobalNodeId,
     ) -> LowerResult<()> {
@@ -164,7 +164,7 @@ impl FunctionContext<'_> {
         node: AnchoredGlobalNodeId,
     ) -> LowerResult<()> {
         // verify all fields are initialized
-        self.ensure_constructor_complete(node)?;
+        self.require_constructor_complete(node)?;
 
         // return the current this value
         let binding =

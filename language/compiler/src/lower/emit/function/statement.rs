@@ -123,7 +123,7 @@ impl FunctionContext<'_> {
             } => self.lower_match_statement(expression_id, *kind, *value, cases, *symbol),
 
             _ => {
-                let _ = self.lower_value_expression(expression_id)?;
+                self.lower_value_expression(expression_id)?;
                 Ok(Terminates::No)
             }
         }

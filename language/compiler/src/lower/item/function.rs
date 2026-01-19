@@ -1,4 +1,9 @@
-use destack_dir::{Declaration, GlobalNodeId, GlobalNodeIdAny, LocalNodeId, Member};
+use std::collections::HashMap;
+
+use destack_dir::{
+    Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, LocalNodeId, Member, NodeVisitor,
+    NodeVisitorOptions, walk_expression,
+};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{
@@ -7,7 +12,99 @@ use crate::{
 
 use crate::lower::module::ModuleLowerer;
 
+/// Visitor that collects expression ids from a subtree.
+#[derive(Default)]
+struct ExpressionTypeCollector {
+    /// Expression ids encountered during traversal.
+    expression_ids: Vec<LocalNodeId<Expression>>,
+    /// Options for the node visitor.
+    options: NodeVisitorOptions,
+}
+
+impl ExpressionTypeCollector {
+    /// Create a new collector.
+    fn new() -> Self {
+        Self {
+            expression_ids: Vec::new(),
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Return collected expression ids.
+    fn expression_ids(&self) -> &[LocalNodeId<Expression>] {
+        &self.expression_ids
+    }
+}
+
+impl NodeVisitor for ExpressionTypeCollector {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        self.expression_ids.push(id);
+        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+    }
+}
+
 impl ModuleLowerer<'_> {
+    /// Prelower types required by a function body expression.
+    fn prelower_expression_types(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> LowerResult<()> {
+        // collect expression ids for this subtree
+        let mut collector = ExpressionTypeCollector::new();
+        let expression = self.dir_tree.get(expression_id);
+        collector.visit_expression(self.dir_tree, expression_id, expression);
+
+        // collect type ids referenced by expressions
+        let mut type_sources: HashMap<dir::LocalTypeId, dir::GlobalNodeIdAny> = HashMap::new();
+        for expression_id in collector.expression_ids() {
+            let node_id = expression_id.into_global_any(self.module_id);
+            if let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) {
+                let dir_type = self.types.get_type(type_id);
+                if matches!(
+                    dir_type,
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Never
+                    } | dir::Type::Value { .. }
+                ) {
+                    continue;
+                }
+                type_sources.entry(type_id).or_insert(node_id);
+            }
+
+            if let Expression::Type { value } = self.dir_tree.get(*expression_id) {
+                let dir_type = self.types.get_type(*value);
+                if matches!(
+                    dir_type,
+                    dir::Type::TypeLiteral {
+                        value: dir::TypeLiteral::Never
+                    } | dir::Type::Value { .. }
+                ) {
+                    continue;
+                }
+                type_sources.entry(*value).or_insert(node_id);
+            }
+        }
+
+        // lower each type in deterministic order
+        let mut type_entries: Vec<_> = type_sources.into_iter().collect();
+        type_entries.sort_by_key(|(type_id, _)| type_id.0);
+        for (type_id, node_id) in type_entries {
+            let anchor = node_id.into_anchored(Some(self.profile));
+            self.lower_type(type_id, anchor)?;
+        }
+
+        Ok(())
+    }
+
     /// Resolve the signature type id for a declaration or member node.
     pub(crate) fn signature_type_id_for_node(
         &self,
@@ -98,6 +195,11 @@ impl ModuleLowerer<'_> {
         // resolve the signature type for direct callsites
         let signature_type =
             self.signature_mir_type_for_node(declaration_id.into_global_any(self.module_id))?;
+
+        // prelower body expression types
+        if let Some(body_id) = body {
+            self.prelower_expression_types(*body_id)?;
+        }
 
         // build the function
         let mut builder = self.builder.function(&name, &parameter_types, return_type);
@@ -306,6 +408,11 @@ impl ModuleLowerer<'_> {
         // resolve the signature type for direct callsites
         let signature_type =
             self.signature_mir_type_for_node(member_id.into_global_any(self.module_id))?;
+
+        // prelower body expression types
+        if let Some(body_id) = body {
+            self.prelower_expression_types(*body_id)?;
+        }
 
         // build the function
         let builder = self

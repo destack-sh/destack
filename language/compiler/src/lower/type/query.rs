@@ -4,6 +4,12 @@ use crate::lower::ModuleLowerer;
 use destack_dir as dir;
 
 impl ModuleLowerer<'_> {
+    /// Return the anchored node id for a type source.
+    pub(crate) fn type_anchor(&self, type_id: dir::LocalTypeId) -> dir::AnchoredGlobalNodeId {
+        let source = self.types.get_type_source(type_id);
+        source.into_anchored(self.module_id, Some(self.profile))
+    }
+    
     /// Return true when two type ids are structurally equivalent.
     pub(crate) fn types_are_equivalent(
         &self,

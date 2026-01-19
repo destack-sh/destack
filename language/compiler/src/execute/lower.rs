@@ -103,9 +103,9 @@ impl Compiler {
         let mut builtin_layouts =
             BuiltinTypeLayouts::new(self, profile, &mut builder, &mut type_lowerer);
 
-        // ensure builtin String layout for comptime lowering
+        // load builtin String layout for comptime lowering
         builtin_layouts
-            .ensure_string_layout(anchor)
+            .string_type_for_builtin(anchor)
             .map_err(|error| self.execute_error_from_lower(module.id, error))?;
 
         // resolve the return type for the comptime expression
