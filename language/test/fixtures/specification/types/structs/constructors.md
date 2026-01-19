@@ -98,6 +98,36 @@ const point = new Point("a", 2);
 
 - contains: not assignable
 
+### new struct constructor rejects missing arguments
+
+> Positional constructors require all fields.
+
+```ds
+struct Point {
+    x: int32
+    y: int32
+}
+
+const point = new Point(1);
+```
+
+- contains: no matching overload
+
+### new struct constructor rejects extra arguments
+
+> Positional constructors reject extra arguments.
+
+```ds
+struct Point {
+    x: int32
+    y: int32
+}
+
+const point = new Point(1, 2, 3);
+```
+
+- contains: no matching overload
+
 ### struct methods can mutate this
 
 > Struct methods can update fields through `this`.

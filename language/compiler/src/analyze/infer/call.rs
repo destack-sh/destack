@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use super::member::{MemberLookupMode, MemberResolution};
-use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
+use crate::{
+    analyze::common::CanonicalSymbolMode, AnalyzeError, AnalyzeOptions, AnalyzeResult,
+    Assignability, Compiler, InferContext,
+};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
     InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
@@ -2021,6 +2024,17 @@ impl Compiler {
         let callee_id = self.unwrap_parenthesized_expression(left_id, tree);
         let callee_symbol =
             self.reference_symbol_for_expression(module, callee_id, ctx.profile, tree, symbols);
+        let struct_constructor_symbol = callee_symbol.map(|symbol| {
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                ctx.profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            )
+        });
+        let is_struct_constructor = struct_constructor_symbol
+            .is_some_and(|symbol| symbol.ty() == SymbolType::Struct);
 
         // resolve construct signatures for the callee type
         let construct_signatures = self.construct_signatures_for_type(callee_ty_id, types);
@@ -2098,6 +2112,36 @@ impl Compiler {
             let resolved_return_type = resolved_signature.return_type;
             let resolved_dynamic_parameters = &resolved_signature.dynamic_parameters;
             let resolved_static_arguments = &resolved_signature.static_arguments;
+
+            // enforce exact arity for struct constructors
+            if is_struct_constructor
+                && dynamic_arguments.len() != resolved_signature.dynamic_parameters.len()
+            {
+                self.error(AnalyzeError::NoOverload {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: callee_ty_id.into_global(module.id),
+                });
+
+                for argument_id in dynamic_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                };
+                return Ok(types.insert_type_from(ty, expression_id));
+            }
 
             // infer argument types and constraints
             let argument_ty_ids = self.infer_invocation_arguments(
