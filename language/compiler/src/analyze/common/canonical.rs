@@ -56,14 +56,17 @@ impl Compiler {
                     )
                 };
 
-            // preserve alias identity when requested
+            // preserve alias identity 
             if matches!(mode, CanonicalSymbolMode::PreserveAliases)
                 && matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype)
             {
                 return current_symbol;
             }
 
-            if let Some(canonical_symbol) = canonical_symbol {
+            // otherwise, follow canonical links
+            if let Some(canonical_symbol) = canonical_symbol
+                && matches!(mode, CanonicalSymbolMode::FollowAliases)
+            {
                 return canonical_symbol;
             }
 

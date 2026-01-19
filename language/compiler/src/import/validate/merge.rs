@@ -44,7 +44,9 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (Option<LocalSymbolId>, Option<LocalMergeGroupId>) {
         // skip merge handling when declaration merging is disabled
-        if !module.language_type.supports_declaration_merging() {
+        if !module.language_type.supports_declaration_merging()
+            && (!module.language_type.is_destack() || symbol_type != SymbolType::Function)
+        {
             return (None, None);
         }
 
@@ -102,9 +104,11 @@ pub(crate) fn can_merge_declarations(
     left: SymbolDescriptor,
     right: SymbolDescriptor,
 ) -> bool {
-    // bail out when declaration merging is not supported
+    // allow function overloads in destack modules
     if !language_type.supports_declaration_merging() {
-        return false;
+        let is_function_overload =
+            left.symbol_type == SymbolType::Function && right.symbol_type == SymbolType::Function;
+        return language_type.is_destack() && is_function_overload;
     }
 
     // reject type aliases in merge candidates

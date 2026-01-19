@@ -359,6 +359,7 @@ impl Compiler {
         declaration_id: LocalNodeId<Declaration>,
         symbol_id: LocalSymbolId,
         fn_ty_id: LocalTypeId,
+        previous_signature_id: Option<LocalTypeId>,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         allow_merge: bool,
@@ -386,6 +387,11 @@ impl Compiler {
         let mut index_signatures = Vec::new();
         match existing_ty {
             Type::Function { .. } => {
+                if previous_signature_id == Some(existing_id) {
+                    // replace the cached signature for this declaration
+                    types.set_value_type(symbol, fn_ty_id);
+                    return;
+                }
                 call_signatures.push(existing_id);
             }
             Type::Object {
@@ -400,6 +406,11 @@ impl Compiler {
                 index_signatures = existing_indexes;
             }
             _ => {}
+        }
+
+        // drop old cached signatures for this declaration
+        if let Some(previous_signature_id) = previous_signature_id {
+            call_signatures.retain(|signature_id| *signature_id != previous_signature_id);
         }
 
         // report duplicate overloads in non-declaration modules

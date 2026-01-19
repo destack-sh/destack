@@ -770,7 +770,10 @@ impl Compiler {
             } => {
                 // treat signature-only functions as declarations in mergeable languages
                 let mut descriptor = descriptor.clone();
-                if body.is_none() && module.language_type.supports_declaration_merging() {
+                if body.is_none()
+                    && (module.language_type.supports_declaration_merging()
+                        || module.language_type.is_destack())
+                {
                     descriptor.kind = ast::DeclarationKind::Declaration;
                 }
                 let (descriptor, scope_id) = self.bind_declaration_descriptor(
