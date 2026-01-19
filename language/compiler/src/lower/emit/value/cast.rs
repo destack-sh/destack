@@ -4,6 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{LowerError, LowerResult, ScalarType};
 
 use crate::lower::emit::FunctionContext;
+use crate::lower::r#type::UnionPayloadKind;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionContext<'_> {
@@ -202,7 +203,7 @@ impl FunctionContext<'_> {
         Ok((value, target_mir_type))
     }
 
-    /// Lower a union upcast into a tagged boxed union value.
+    /// Lower a union upcast into a tagged union value.
     pub(crate) fn lower_union_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
@@ -261,9 +262,22 @@ impl FunctionContext<'_> {
             .builder
             .iconst(tag_index as i64, tag_width, tag_signed);
 
-        // box the payload and cast to the payload field type
-        let boxed = self.box_value(value, source_mir_type);
-        let payload = self.state.builder.bitcast(boxed, layout.payload_type);
+        // build the union payload
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let payload = match layout.payload_kind {
+            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+                layout.payload_type,
+                value,
+                source_mir_type,
+                node,
+            )?,
+            UnionPayloadKind::Boxed => {
+                let boxed = self.box_value(value, source_mir_type);
+                self.state.builder.bitcast(boxed, layout.payload_type)
+            }
+        };
 
         // assemble the union value
         let mut fields = vec![tag_value, payload];
@@ -300,22 +314,35 @@ impl FunctionContext<'_> {
                     .into_anchored(Some(self.env.profile)),
             })?;
 
-        // extract the payload pointer
-        let payload = self
+        // extract the payload value
+        let payload_value = self
             .state
             .builder
             .field_get(value, layout.payload_field_index);
 
         // load the payload as the target type
-        let reference_type = self.state.builder.type_reference(
-            mir::ReferenceKind::Managed,
-            target_mir_type,
-            mir::Mutability::Immutable,
-            mir::AddressSpace::Generic,
-            false,
-        );
-        let casted = self.state.builder.bitcast(payload, reference_type);
-        let value = self.state.builder.load(casted, target_mir_type);
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let value = match layout.payload_kind {
+            UnionPayloadKind::Inline => self.inline_union_payload_to_value(
+                layout.payload_type,
+                payload_value,
+                target_mir_type,
+                node,
+            )?,
+            UnionPayloadKind::Boxed => {
+                let reference_type = self.state.builder.type_reference(
+                    mir::ReferenceKind::Managed,
+                    target_mir_type,
+                    mir::Mutability::Immutable,
+                    mir::AddressSpace::Generic,
+                    false,
+                );
+                let casted = self.state.builder.bitcast(payload_value, reference_type);
+                self.state.builder.load(casted, target_mir_type)
+            }
+        };
 
         // return the payload value and type
         Ok((value, target_mir_type))

@@ -1,5 +1,8 @@
 use destack_base::StringId;
-use destack_dir::{Expression, GlobalSymbolId, LocalNodeId, Resolution, StaticKey, Type};
+use destack_dir::{
+    AnchoredGlobalNodeId, CastSource, Expression, GlobalSymbolId, LocalNodeId, Resolution,
+    StaticKey, Type,
+};
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
@@ -7,6 +10,7 @@ use crate::{LowerError, LowerResult};
 use crate::lower::emit::FunctionContext;
 use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
+    UnionPayloadKind,
 };
 
 /// Union discriminant comparison data for tag checks.
@@ -23,6 +27,136 @@ pub(crate) struct UnionTagComparison {
 }
 
 impl FunctionContext<'_> {
+    /// Build an inline union payload by storing the value into scratch memory.
+    pub(crate) fn inline_union_payload_from_value(
+        &mut self,
+        payload_type: mir::LocalNodeId<mir::Type>,
+        value: mir::Value,
+        value_type: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // allocate payload storage on the stack
+        let payload_ref_type = self.state.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            payload_type,
+            mir::Mutability::Mutable,
+            mir::AddressSpace::Generic,
+            false,
+        );
+        let payload_ptr = self
+            .state
+            .builder
+            .stack_alloc(payload_type, payload_ref_type);
+
+        // zero initialize the payload storage
+        let payload_zero = self.inline_union_payload_zero_value(payload_type, node)?;
+        self.state.builder.store(payload_ptr, payload_zero);
+
+        // store the source value into the payload storage
+        let value_ref_type = self.state.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            value_type,
+            mir::Mutability::Mutable,
+            mir::AddressSpace::Generic,
+            false,
+        );
+        let value_ptr = self.state.builder.bitcast(payload_ptr, value_ref_type);
+        self.state.builder.store(value_ptr, value);
+
+        // load the payload value
+        Ok(self.state.builder.load(payload_ptr, payload_type))
+    }
+
+    /// Extract a value from an inline union payload.
+    pub(crate) fn inline_union_payload_to_value(
+        &mut self,
+        payload_type: mir::LocalNodeId<mir::Type>,
+        payload_value: mir::Value,
+        target_type: mir::LocalNodeId<mir::Type>,
+        _node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // allocate payload storage on the stack
+        let payload_ref_type = self.state.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            payload_type,
+            mir::Mutability::Mutable,
+            mir::AddressSpace::Generic,
+            false,
+        );
+        let payload_ptr = self
+            .state
+            .builder
+            .stack_alloc(payload_type, payload_ref_type);
+
+        // store the payload into the scratch memory
+        self.state.builder.store(payload_ptr, payload_value);
+
+        // load the target value from the payload storage
+        let target_ref_type = self.state.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            target_type,
+            mir::Mutability::Mutable,
+            mir::AddressSpace::Generic,
+            false,
+        );
+        let target_ptr = self.state.builder.bitcast(payload_ptr, target_ref_type);
+        Ok(self.state.builder.load(target_ptr, target_type))
+    }
+
+    /// Build a zero value for inline payload storage.
+    fn inline_union_payload_zero_value(
+        &mut self,
+        payload_type: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        let (element, length) = match self.state.builder.tree().get(payload_type) {
+            mir::Type::Array {
+                element, length, ..
+            } => (*element, *length),
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "inline union payload must be an array".to_string(),
+                });
+            }
+        };
+
+        // create a zero element value
+        let zero_element = self.inline_union_payload_zero_element(element, node)?;
+        let elements = vec![zero_element; length as usize];
+
+        Ok(self.state.builder.array(payload_type, elements))
+    }
+
+    /// Build a zero element for inline payload arrays.
+    fn inline_union_payload_zero_element(
+        &mut self,
+        element_type: mir::LocalNodeId<mir::Type>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        let element = self.state.builder.tree().get(element_type);
+        match element {
+            mir::Type::Int { width, signed } => {
+                Ok(self.state.builder.iconst(0, *width as u8, *signed))
+            }
+            mir::Type::Usize => {
+                let width = self.env.type_lowerer.pointer_width_bits() as u8;
+                let zero = self.state.builder.iconst(0, width, false);
+                Ok(self.state.builder.bitcast(zero, element_type))
+            }
+            mir::Type::Isize => {
+                let width = self.env.type_lowerer.pointer_width_bits() as u8;
+                let zero = self.state.builder.iconst(0, width, true);
+                Ok(self.state.builder.bitcast(zero, element_type))
+            }
+            mir::Type::Boolean => Ok(self.state.builder.bconst(false)),
+            _ => Err(LowerError::UnsupportedConstruct {
+                node,
+                message: "inline union payload element must be scalar".to_string(),
+            }),
+        }
+    }
+
     /// Resolve a union tag comparison for a discriminant check.
     pub(crate) fn union_tag_comparison(
         &mut self,
@@ -41,6 +175,23 @@ impl FunctionContext<'_> {
         ) {
             return Ok(None);
         }
+
+        // unwrap implicit casts and parens before matching
+        let unwrap_expression = |mut expr_id: LocalNodeId<Expression>| {
+            loop {
+                match self.env.dir_tree.get(expr_id) {
+                    Expression::Parenthesized { expression } => expr_id = *expression,
+                    Expression::Cast {
+                        value,
+                        source: CastSource::Implicit,
+                        ..
+                    } => expr_id = *value,
+                    _ => return expr_id,
+                }
+            }
+        };
+        let left = unwrap_expression(left);
+        let right = unwrap_expression(right);
 
         // match member access against a scalar literal
         let (member_id, literal_value) =
@@ -147,6 +298,22 @@ impl FunctionContext<'_> {
         then_block: mir::LocalNodeId<mir::Block>,
         else_block: mir::LocalNodeId<mir::Block>,
     ) -> LowerResult<bool> {
+        // unwrap implicit casts and parens before matching
+        let unwrap_expression = |mut expr_id: LocalNodeId<Expression>| {
+            loop {
+                match self.env.dir_tree.get(expr_id) {
+                    Expression::Parenthesized { expression } => expr_id = *expression,
+                    Expression::Cast {
+                        value,
+                        source: CastSource::Implicit,
+                        ..
+                    } => expr_id = *value,
+                    _ => return expr_id,
+                }
+            }
+        };
+        let condition_id = unwrap_expression(condition_id);
+
         // match on binary expressions
         let Expression::Binary {
             left,
@@ -333,7 +500,7 @@ impl FunctionContext<'_> {
                 message: "missing union layout for discriminant field".to_string(),
             })?;
 
-        // allocate a result variable for tag-based selection
+        // allocate a result variable for tag based selection
         let result_variable = self.state.builder.create_variable(result_type);
         let merge_block = self.state.builder.create_block();
 
@@ -425,9 +592,19 @@ impl FunctionContext<'_> {
         let (literal_value, literal_type) =
             self.mir_value_for_discriminant_literal(literal, node)?;
 
-        // box the payload and cast to the union payload type
-        let boxed = self.box_value(literal_value, literal_type);
-        let payload = self.state.builder.bitcast(boxed, union_layout.payload_type);
+        // build the payload for the union
+        let payload = match union_layout.payload_kind {
+            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+                union_layout.payload_type,
+                literal_value,
+                literal_type,
+                node,
+            )?,
+            UnionPayloadKind::Boxed => {
+                let boxed = self.box_value(literal_value, literal_type);
+                self.state.builder.bitcast(boxed, union_layout.payload_type)
+            }
+        };
 
         // assemble the union value
         let tag_value = self.union_tag_constant(union_layout, tag_index)?;

@@ -19,6 +19,8 @@ pub(crate) struct UnionLayout {
     pub(crate) tag_type: mir::LocalNodeId<mir::Type>,
     /// The payload field type.
     pub(crate) payload_type: mir::LocalNodeId<mir::Type>,
+    /// The payload storage strategy.
+    pub(crate) payload_kind: UnionPayloadKind,
     /// The union element type ids in tag order.
     pub(crate) element_types: Vec<dir::LocalTypeId>,
     /// The tag field index in layout order.
@@ -27,6 +29,15 @@ pub(crate) struct UnionLayout {
     pub(crate) payload_field_index: u32,
     /// Discriminant field metadata when present.
     pub(crate) discriminant: Option<UnionDiscriminant>,
+}
+
+/// Payload storage strategy for union layouts.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum UnionPayloadKind {
+    /// Store the payload inline inside the union struct.
+    Inline,
+    /// Store the payload as a managed box.
+    Boxed,
 }
 
 /// Discriminant metadata for a tagged union.
@@ -105,7 +116,7 @@ impl TypeLowerer {
         self.union_cache.get(&type_id)
     }
 
-    /// Lower a DIR union type into a tagged boxed layout.
+    /// Lower a DIR union type into a tagged union layout.
     pub(crate) fn lower_union_type(
         &mut self,
         types: &dir::TypeTable,
@@ -135,12 +146,17 @@ impl TypeLowerer {
         let (ordered_elements, discriminant) =
             self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
 
-        // lower union element types for copyability
+        // lower union element types for copyability and layout bounds
         let mut copyability = mir::Copyability::Trivial;
+        let mut max_payload_size = 0;
+        let mut max_payload_alignment = 1;
         for element_id in &ordered_elements {
             let element_type = self.lower_type(types, *element_id, module_id, node, builder)?;
             let element = builder.tree().get(element_type);
             copyability = copyability.combine(element.copyability());
+            let (size, alignment) = self.size_and_align_of_type(element, builder.tree());
+            max_payload_size = max_payload_size.max(size);
+            max_payload_alignment = max_payload_alignment.max(alignment);
         }
 
         // define tag and payload field types
@@ -148,7 +164,12 @@ impl TypeLowerer {
         let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
         let tag_width = Self::tag_width_for_discriminant_count(ordered_elements.len(), node)?;
         let tag_type = self.union_tag_type(tag_width, builder);
-        let payload_type = builder.type_managed_reference(self.ty_void);
+        let payload_kind =
+            self.union_payload_kind(copyability, max_payload_size, max_payload_alignment);
+        let payload_type = match payload_kind {
+            UnionPayloadKind::Inline => self.inline_union_payload_type(max_payload_size, builder),
+            UnionPayloadKind::Boxed => builder.type_managed_reference(self.ty_void),
+        };
 
         // compute field sizes and alignments
         let (tag_size, tag_alignment) =
@@ -205,6 +226,7 @@ impl TypeLowerer {
             UnionLayout {
                 tag_type,
                 payload_type,
+                payload_kind,
                 element_types: ordered_elements,
                 tag_field_index,
                 payload_field_index,
@@ -230,6 +252,47 @@ impl TypeLowerer {
             64 => builder.type_int(64, false),
             _ => builder.type_int(tag_width, false),
         }
+    }
+
+    /// Select the payload storage strategy for a union layout.
+    fn union_payload_kind(
+        &self,
+        copyability: mir::Copyability,
+        payload_size: u32,
+        payload_alignment: u32,
+    ) -> UnionPayloadKind {
+        // require trivial copyability for inline payloads
+        if self.layout_policy.inline_union_requires_trivial_copyability
+            && copyability != mir::Copyability::Trivial
+        {
+            return UnionPayloadKind::Boxed;
+        }
+
+        // keep inline payloads aligned within the policy
+        if payload_alignment > self.layout_policy.inline_union_max_alignment {
+            return UnionPayloadKind::Boxed;
+        }
+        if payload_size <= self.layout_policy.inline_union_budget_bytes {
+            return UnionPayloadKind::Inline;
+        }
+
+        UnionPayloadKind::Boxed
+    }
+
+    /// Build the inline payload type for a union.
+    fn inline_union_payload_type(
+        &mut self,
+        payload_size: u32,
+        builder: &mut mir::ModuleBuilder,
+    ) -> mir::LocalNodeId<mir::Type> {
+        // store inline payloads as pointer sized words
+        let pointer_size = u32::from(self.pointer_bytes()).max(1);
+        let slot_count = if payload_size == 0 {
+            0
+        } else {
+            payload_size.div_ceil(pointer_size)
+        };
+        builder.type_array(self.ty_usize, slot_count as u64, mir::Copyability::Trivial)
     }
 
     /// Collect union elements with deduplication.

@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
-use super::StructLayout;
+use super::{StructLayout, TypeLayoutPolicy};
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 /// Cached entry for lowered types.
@@ -54,6 +54,8 @@ pub(crate) struct TypeLowerer {
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached interface reference layouts by DIR type id.
     pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, InterfaceRefLayout>,
+    /// Policy values for layout decisions.
+    pub(crate) layout_policy: TypeLayoutPolicy,
 }
 
 impl TypeLowerer {
@@ -65,6 +67,8 @@ impl TypeLowerer {
         packages: Arc<PackageRegistry>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
+
+        let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
 
         Self {
             modules,
@@ -83,6 +87,7 @@ impl TypeLowerer {
             ty_string: None,
             union_cache: HashMap::new(),
             interface_ref_cache: HashMap::new(),
+            layout_policy,
         }
     }
 
@@ -248,13 +253,14 @@ impl TypeLowerer {
                     self.lower_interface_reference_type(types, type_id, module_id, node, builder)?
                 } else {
                     // follow the reference to its instance type
-                    let instance_type_id = types.get_instance_type_id(*symbol).ok_or_else(|| {
-                        LowerError::UnsupportedType {
-                            node,
-                            ty: type_id.into_global(module_id),
-                            message: "type reference has no instance type".to_string(),
-                        }
-                    })?;
+                    let instance_type_id =
+                        types.get_instance_type_id(*symbol).ok_or_else(|| {
+                            LowerError::UnsupportedType {
+                                node,
+                                ty: type_id.into_global(module_id),
+                                message: "type reference has no instance type".to_string(),
+                            }
+                        })?;
 
                     // unwrap nominal aliases that point at themselves
                     let instance_type = if instance_type_id == type_id {
@@ -347,8 +353,7 @@ impl TypeLowerer {
             dir::Type::Intersection { elements } => {
                 let primary =
                     self.select_intersection_primary_type(types, elements, module_id, node)?;
-                let mir_type = self.lower_type(types, primary, module_id, node, builder)?;
-                mir_type
+                self.lower_type(types, primary, module_id, node, builder)?
             }
             _ => self
                 .try_lower_type(dir_type, builder)
