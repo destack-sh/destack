@@ -1005,6 +1005,8 @@ pub fn collect_block_uses(block: &mir::Block, tree: &mir::NodeTree) -> Vec<mir::
         }
         mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => {}
     }
 

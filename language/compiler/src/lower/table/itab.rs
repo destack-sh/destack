@@ -10,29 +10,11 @@ use crate::lower::ModuleLowerer;
 use crate::lower::table::interface::InterfaceSlot;
 
 impl ModuleLowerer<'_> {
-    /// Predeclare interface itab ids for interface upcasts.
-    pub(crate) fn predeclare_itab_ids(&mut self) -> LowerResult<()> {
-        let mut pairs = self.collect_interface_pairs();
-        pairs.sort_by_key(|(concrete, interface)| (concrete.local_id.id, interface.local_id.id));
-        pairs.dedup();
-
-        self.interface_itab_pairs = pairs.clone();
-        self.interface_itab_ids.clear();
-
-        let base_offset = self.vtable_class_symbols.len() as u32;
-        for (index, pair) in pairs.iter().enumerate() {
-            let id = mir::DispatchTableId::new(base_offset + index as u32);
-            self.interface_itab_ids.insert(*pair, id);
-        }
-
-        Ok(())
-    }
-
     /// Lower itabs for interface dispatch.
     pub(crate) fn lower_itabs(&mut self) -> LowerResult<()> {
         // generate itabs for each pair
         for (concrete, interface) in self.interface_itab_pairs.clone() {
-            self.lower_itab(concrete, interface)?;
+            let _ = self.lower_itab(concrete, interface)?;
         }
 
         Ok(())
@@ -43,7 +25,30 @@ impl ModuleLowerer<'_> {
         &mut self,
         concrete: GlobalSymbolId,
         interface: GlobalSymbolId,
-    ) -> LowerResult<()> {
+    ) -> LowerResult<mir::DispatchTableId> {
+        if let Some(table_id) = self.itab_by_pair.get(&(concrete, interface)).copied() {
+            return Ok(table_id);
+        }
+
+        if self.itab_in_progress.contains(&(concrete, interface)) {
+            let anchor = self
+                .declaration_ids_for_symbol(interface)
+                .first()
+                .copied()
+                .map(|id| id.into_global_any(self.module_id))
+                .map(|id| id.into_anchored(Some(self.profile)))
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "itab cycle missing declaration".to_string(),
+                })?;
+            return Err(LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "cycle detected while lowering itab".to_string(),
+            });
+        }
+
+        self.itab_in_progress.insert((concrete, interface));
+
         // resolve the declaration
         let declaration_id = self
             .declaration_ids_for_symbol(interface)
@@ -54,11 +59,14 @@ impl ModuleLowerer<'_> {
                     .into_anchored(Some(self.profile))
             });
         let Some(declaration_id) = declaration_id else {
-            return Ok(());
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: "interface declaration missing for itab".to_string(),
+            });
         };
 
         // collect interface slots in declaration order
-        let interface_slots = self.interface_slots_for_symbol(interface)?;
+        let interface_slots = self.lower_interface_slots(interface)?;
 
         // resolve concrete instance type
         let instance_type_id = self.types.get_instance_type_id(concrete).ok_or_else(|| {
@@ -69,14 +77,7 @@ impl ModuleLowerer<'_> {
         })?;
 
         // resolve concrete layout from cache
-        let concrete_mir_type = *self
-            .type_lowerer
-            .type_cache
-            .get(&instance_type_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: declaration_id,
-                message: "concrete layout not lowered".to_string(),
-            })?;
+        let concrete_mir_type = self.lower_type(instance_type_id, declaration_id)?;
 
         // resolve interface instance type
         let interface_type_id = self.types.get_instance_type_id(interface).ok_or_else(|| {
@@ -87,13 +88,7 @@ impl ModuleLowerer<'_> {
         })?;
 
         // lower interface instance type
-        let interface_mir_type = self.type_lowerer.lower_type(
-            self.types,
-            interface_type_id,
-            self.module_id,
-            declaration_id,
-            &mut self.builder,
-        )?;
+        let interface_mir_type = self.lower_type(interface_type_id, declaration_id)?;
 
         // build itab slots with fixed prefix
         let mut slots = Vec::with_capacity(interface_slots.len() + 1);
@@ -160,7 +155,10 @@ impl ModuleLowerer<'_> {
             .or_default();
         metadata.itabs.push(table_id);
 
-        Ok(())
+        self.itab_by_pair.insert((concrete, interface), table_id);
+        self.itab_in_progress.shift_remove(&(concrete, interface));
+
+        Ok(table_id)
     }
 
     /// Resolve the concrete field offset for an interface field.
@@ -286,7 +284,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect concrete to interface pairs for itab generation.
-    fn collect_interface_pairs(&self) -> Vec<(GlobalSymbolId, GlobalSymbolId)> {
+    pub(crate) fn collect_interface_pairs(&self) -> Vec<(GlobalSymbolId, GlobalSymbolId)> {
         let mut pairs = Vec::new();
 
         // scan type lineages for concrete symbols

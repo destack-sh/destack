@@ -2010,27 +2010,6 @@ fn scaled_step_constant(
     }
 }
 
-/// Clone instruction metadata when present.
-fn clone_instruction_metadata(
-    tree: &mut mir::NodeTree,
-    original: mir::LocalNodeId<mir::Instruction>,
-    cloned: mir::LocalNodeId<mir::Instruction>,
-    value_map: &HashMap<mir::Value, mir::Value>,
-) {
-    if let Some(accesses) = tree.memory_table.memory_accesses(original) {
-        let mut cloned_accesses = accesses.to_vec();
-        for access in &mut cloned_accesses {
-            if let mir::MemoryAccessTarget::Pointer(value) = access.target
-                && let Some(&remapped) = value_map.get(&value)
-            {
-                access.target = mir::MemoryAccessTarget::Pointer(remapped);
-            }
-        }
-
-        tree.memory_table
-            .insert_memory_accesses(cloned, cloned_accesses);
-    }
-}
 /// Compute unroll limits based on block hotness.
 fn unroll_limits_for_loop(
     header: mir::LocalNodeId<mir::Block>,

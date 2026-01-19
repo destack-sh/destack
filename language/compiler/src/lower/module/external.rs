@@ -7,8 +7,8 @@ use crate::{LowerError, LowerResult, TaskDependencyError};
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Predeclare external functions referenced by this module.
-    pub(crate) fn predeclare_external_calls(&mut self) -> LowerResult<()> {
+    /// Declare external functions referenced by this module.
+    pub(crate) fn lower_external_calls(&mut self) -> LowerResult<()> {
         // scan call expressions for external targets
         for (expression_id, expression) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
             // skip non call expressions
@@ -84,25 +84,13 @@ impl ModuleLowerer<'_> {
         let mut parameter_types = Vec::with_capacity(signature.dynamic_parameters.len());
         for type_id in &signature.dynamic_parameters {
             // lower the parameter type
-            let parameter_type = self.type_lowerer.lower_type(
-                self.types,
-                *type_id,
-                self.module_id,
-                anchor,
-                &mut self.builder,
-            )?;
+            let parameter_type = self.lower_type(*type_id, anchor)?;
             parameter_types.push(parameter_type);
         }
 
         // lower the return type
         let return_type = match signature.return_type {
-            Some(return_type) => self.type_lowerer.lower_type(
-                self.types,
-                return_type,
-                self.module_id,
-                anchor,
-                &mut self.builder,
-            )?,
+            Some(return_type) => self.lower_type(return_type, anchor)?,
             None => self.type_lowerer.ty_void,
         };
 

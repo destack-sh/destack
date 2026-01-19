@@ -84,6 +84,24 @@ impl ModuleLowerer<'_> {
         type_id: dir::LocalTypeId,
         anchor: AnchoredGlobalNodeId,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        if let dir::Type::Reference { symbol, .. } = self.types.get_type(type_id)
+            && matches!(
+                symbol.ty(),
+                dir::SymbolType::Struct | dir::SymbolType::Class
+            )
+        {
+            let _ = self.lower_nominal_layout(*symbol)?;
+        }
+
+        if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
+            && matches!(
+                symbol.ty(),
+                dir::SymbolType::Struct | dir::SymbolType::Class
+            )
+        {
+            let _ = self.lower_nominal_layout(symbol)?;
+        }
+
         // use cached types when available
         if let Some(&mir_type) = self.type_lowerer.type_cache.get(&type_id) {
             return Ok(mir_type);

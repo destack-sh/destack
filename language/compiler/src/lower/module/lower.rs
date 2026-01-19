@@ -1,16 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_base::StringPool;
 use destack_dir::{GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, TargetId};
+use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::LowerResult;
 
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::VtableGlobal;
-use crate::lower::table::interface::InterfaceDispatchCache;
+use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
@@ -47,14 +48,32 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
-    /// Cache interface dispatch slots for call lowering.
-    pub(crate) interface_dispatch: InterfaceDispatchCache,
     /// Synthetic name for call signatures in dispatch tables.
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
     /// Synthetic name for vtable header fields.
     pub(crate) vtable_field_name: destack_base::StringId,
+    /// Track interface slot data for dispatch lowering.
+    pub(crate) interface_slots_by_symbol: HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
+    /// Track interface slot lowering in progress.
+    pub(crate) interface_slots_in_progress: IndexSet<GlobalSymbolId>,
+    /// Track nominal layout lowering by symbol.
+    pub(crate) nominal_layouts_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
+    /// Track nominal layout lowering in progress.
+    pub(crate) nominal_layouts_in_progress: IndexSet<GlobalSymbolId>,
+    /// Track class symbols that require vtable headers.
+    pub(crate) vtable_layout_symbols: Option<HashSet<GlobalSymbolId>>,
+    /// Track vtables that have been lowered.
+    pub(crate) vtable_by_symbol: HashMap<GlobalSymbolId, mir::DispatchTableId>,
+    /// Track vtable lowering in progress.
+    pub(crate) vtable_in_progress: IndexSet<GlobalSymbolId>,
+    /// Track itabs that have been lowered.
+    pub(crate) itab_by_pair: HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
+    /// Track itab lowering in progress.
+    pub(crate) itab_in_progress: IndexSet<(GlobalSymbolId, GlobalSymbolId)>,
+    /// Track whether the dispatch registry is initialized.
+    pub(crate) dispatch_registry_ready: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
     pub(crate) virtual_method_slots_by_symbol: HashMap<GlobalSymbolId, u32>,
     /// Ordered list of class symbols that require vtables.
@@ -114,10 +133,19 @@ impl<'a> ModuleLowerer<'a> {
             function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             type_lowerer,
-            interface_dispatch: InterfaceDispatchCache::new(),
             dispatch_call_name,
             dispatch_construct_name,
             vtable_field_name,
+            interface_slots_by_symbol: HashMap::new(),
+            interface_slots_in_progress: IndexSet::new(),
+            nominal_layouts_by_symbol: HashMap::new(),
+            nominal_layouts_in_progress: IndexSet::new(),
+            vtable_layout_symbols: None,
+            vtable_by_symbol: HashMap::new(),
+            vtable_in_progress: IndexSet::new(),
+            itab_by_pair: HashMap::new(),
+            itab_in_progress: IndexSet::new(),
+            dispatch_registry_ready: false,
             virtual_method_slots_by_symbol: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
@@ -128,52 +156,73 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower this entire DIR module to MIR (in-place).
     ///
-    /// Lowering proceeds in four phases:
-    /// 1. Types: lower struct/class type layouts (cached on-demand)
-    /// 2. Declarations: lower globals, function/method signatures and bodies
-    /// 3. Tables: generate vtables, itabs, RTTI (currently stubbed)
-    /// 4. Emit: (bodies are currently lowered inline with declarations)
+    /// Lowering proceeds with explicit registries and query-driven lowering:
+    /// 1. Initialize builtin layouts used by lowering.
+    /// 2. Build deterministic dispatch registries for vtables/itabs.
+    /// 3. Lower DIR types into the MIR type cache.
+    /// 4. Lower globals and function bodies.
+    /// 5. Emit tables and metadata derived from lowered types.
     pub(crate) fn lower_module(&mut self) -> LowerResult<()> {
-        // phase 1: types (lowered lazily as encountered)
+        // initialize builtin layout state
+        self.initialize_string_type()?;
+
+        // build deterministic dispatch registry
+        self.lower_dispatch_registry()?;
+
+        // lower dir types to populate the type cache
         self.lower_types()?;
 
-        // phase 2: declarations (globals + functions)
+        // lower declarations (globals + functions)
         self.lower_items()?;
 
-        // phase 3: tables (vtables, itabs, RTTI)
+        // lower tables (vtables, itabs, RTTI)
         self.lower_tables()?;
 
         Ok(())
     }
 
-    /// Phase 1: Lower type declarations.
+    /// Phase 2: Lower DIR types into cached MIR types.
     ///
-    /// Type layouts are cached lazily when first encountered during lowering.
-    /// This phase is a no-op since types are lowered on-demand.
+    /// Ensures value lowering can reuse cached MIR type ids.
     fn lower_types(&mut self) -> LowerResult<()> {
-        // initialize builtin string layout for string literals and types
-        self.initialize_string_type()?;
+        // collect types referenced by expressions and signatures
+        let mut type_sources = HashMap::new();
+        for (expression_id, _) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            let node_id = expression_id.into_global_any(self.module_id);
+            let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) else {
+                continue;
+            };
+            if matches!(
+                self.types.get_type(type_id),
+                dir::Type::TypeLiteral {
+                    value: dir::TypeLiteral::Never
+                } | dir::Type::Value { .. }
+            ) {
+                continue;
+            }
+            type_sources.entry(type_id).or_insert(node_id);
+        }
+        for (node_id, type_id) in self.types.iter_signature_type_ids() {
+            type_sources.entry(type_id).or_insert(node_id);
+        }
 
-        // predeclare nominal layouts for struct and class instance types
-        self.predeclare_nominal_layouts()?;
+        // lower each type in deterministic order
+        let mut type_entries: Vec<_> = type_sources.into_iter().collect();
+        type_entries.sort_by_key(|(type_id, _)| type_id.0);
+        for (type_id, node_id) in type_entries {
+            let anchor = node_id.into_anchored(Some(self.profile));
+            self.lower_type(type_id, anchor)?;
+        }
 
-        // predeclare interface reference types for interface values
-        self.predeclare_interface_reference_types()?;
-
-        // types are lowered lazily via TypeLowerer when first accessed
         Ok(())
     }
 
-    /// Phase 2: Lower item declarations (globals, functions, methods).
+    /// Phase 3: Lower item declarations (globals, functions, methods).
     ///
     /// Processes all root expressions to lower globals and function bodies.
     fn lower_items(&mut self) -> LowerResult<()> {
-        // predeclare dispatch tables and interface metadata
-        self.predeclare_virtual_dispatch()?;
-        self.predeclare_itab_ids()?;
-        self.predeclare_interface_methods()?;
-        self.predeclare_interface_dispatch()?;
-        self.predeclare_external_calls()?;
+        // predeclare externs referenced by this module
+        self.lower_external_calls()?;
 
         // lower root expressions for globals and bodies
         for expression_id in self.dir_roots.iter().copied() {

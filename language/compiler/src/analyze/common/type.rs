@@ -1,10 +1,6 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    GlobalSymbolId, LocalTypeId, StaticArgument, StaticExpression, StaticProperty, SymbolType,
-    Type, TypeLiteral, TypeTable,
-};
-use destack_dir::{
     GlobalSymbolId, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticProperty,
     SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };

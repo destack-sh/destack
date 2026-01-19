@@ -519,8 +519,9 @@ impl FunctionContext<'_> {
         // load interface slots for dispatch
         let slots = self
             .env
-            .interface_dispatch
-            .slots(interface_symbol)
+            .interface_slots_by_symbol
+            .get(&interface_symbol)
+            .map(|slots| slots.as_slice())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)

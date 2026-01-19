@@ -30,13 +30,7 @@ impl ModuleLowerer<'_> {
         let signature_type_id = self.signature_type_id_for_node(node_id)?;
 
         // lower the signature type
-        self.type_lowerer.lower_type(
-            self.types,
-            signature_type_id,
-            self.module_id,
-            node_id.into_anchored(Some(self.profile)),
-            &mut self.builder,
-        )
+        self.lower_type(signature_type_id, node_id.into_anchored(Some(self.profile)))
     }
 
     /// Lower a function declaration to a MIR function.
@@ -91,12 +85,9 @@ impl ModuleLowerer<'_> {
                 .ok_or(LowerError::MissingType {
                     node: parameter_node.into_anchored(Some(self.profile)),
                 })?;
-            let parameter_ty = self.type_lowerer.lower_type(
-                self.types,
+            let parameter_ty = self.lower_type(
                 parameter_ty,
-                self.module_id,
                 parameter_node.into_anchored(Some(self.profile)),
-                &mut self.builder,
             )?;
             parameter_types.push(parameter_ty);
         }
@@ -130,7 +121,7 @@ impl ModuleLowerer<'_> {
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
-            interface_dispatch: &self.interface_dispatch,
+            interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
             virtual_method_slots_by_symbol: &self.virtual_method_slots_by_symbol,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
@@ -211,13 +202,7 @@ impl ModuleLowerer<'_> {
         };
 
         // lower the return type
-        self.type_lowerer.lower_type(
-            self.types,
-            return_type_id,
-            self.module_id,
-            node_id.into_anchored(Some(self.profile)),
-            &mut self.builder,
-        )
+        self.lower_type(return_type_id, node_id.into_anchored(Some(self.profile)))
     }
 
     /// Lower a method member to a MIR function.
@@ -345,7 +330,7 @@ impl ModuleLowerer<'_> {
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
-            interface_dispatch: &self.interface_dispatch,
+            interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
             virtual_method_slots_by_symbol: &self.virtual_method_slots_by_symbol,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
@@ -497,12 +482,9 @@ impl ModuleLowerer<'_> {
         };
 
         // lower the return type
-        self.type_lowerer.lower_type(
-            self.types,
+        self.lower_type(
             *return_type_id,
-            self.module_id,
             member_node.into_anchored(Some(self.profile)),
-            &mut self.builder,
         )
     }
 
@@ -538,12 +520,9 @@ impl ModuleLowerer<'_> {
                 })?;
 
             // lower the parameter type
-            let parameter_ty = self.type_lowerer.lower_type(
-                self.types,
+            let parameter_ty = self.lower_type(
                 parameter_ty_id,
-                self.module_id,
                 parameter_node.into_anchored(Some(self.profile)),
-                &mut self.builder,
             )?;
             parameter_types.push(parameter_ty);
         }

@@ -1,4 +1,5 @@
 mod declaration;
+mod dispatch;
 mod external;
 mod interface;
 mod lower;

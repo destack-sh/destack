@@ -135,274 +135,6 @@ A type layout can reference zero or more dispatch layouts, but dispatch layouts 
 VTables are only emitted for classes that still require virtual dispatch after devirtualization.
 Interface dispatch always uses itabs, even when the concrete type is a class.
 
-### Layout Query Flow
-
-Layout queries should be deterministic and cacheable:
-1. **Resolve type identity** (nominal reference, instance arguments, etc.)
-2. **Build shape** (fields, tag, tables, constraints)
-3. **Select placement policy** (inline vs boxed, tag scheme)
-4. **Finalize placement** (offsets, alignment, size)
-5. **Cache** and return
-
-This is the backbone for later work on unions, interfaces, and RTTI without
-refactoring the phase boundaries again.
-
-## Target Policies Summary
-
-Lower behavior is configured by target policies (see [Target Configuration](#target-configuration)):
-
-| Policy | Effect on Lower |
-|--------|-----------------|
-| `boundsChecks` | Insert/omit array bounds checks |
-| `overflowChecks` | Insert/omit integer overflow checks |
-| `panic` | Abort immediately or unwind |
-| `debugInfo` | Controls debug metadata granularity |
-| `debugMode` | Execution mode for debug workflows |
-| `osrMode` | OSR entry placement for native execution |
-| `safepointMode` | Safepoint insertion strategy |
-| `safepointInterval` | Instruction interval for safepoint polling |
-| `speculationMode` | Guarded speculation mode |
-| `profilingMode` | Runtime profiling |
-| `determinism` | Deterministic scheduling and randomness |
-| `replay` | External I/O record or replay |
-| `stripLevel` | Symbol table stripping |
-| `unwindFormat` | Unwind info format (DWARF/SEH/None) |
-| `allocator` | Global allocator selection |
-| `borrowMode` | Hint vs strict borrow enforcement |
-| `relocationModel` | PIC/PIE/static code generation |
-| `linkMode` | Static vs dynamic linking preference |
-
-## VM and Runtime Interop
-
-Lower must emit metadata for VM <-> native transitions.
-This metadata enables deopt, OSR, and GC correctness when execution shifts between tiers.
-
-The required metadata includes:
-
-Lower emits runtime/VM metadata for transitions:
-
-- **safepoint table** keyed by native PC
-- **deopt maps** for reconstructing MIR frames
-- **OSR entries** for entering native code at MIR block boundaries
-- **GC stack maps** for managed reference tracing
-
-### Safepoint Table
-
-Safepoints are inserted at call sites, loop back-edges, and allocation points.
-Each safepoint entry includes:
-
-```ds
-type DeoptMapId = uint32;
-type StackMapId = uint32;
-type OsrEntryId = uint32;
-
-type Safepoint = {
-    pc: uint64,
-    deoptMap: DeoptMapId,
-    gcStackMap: StackMapId,
-    osrEntry?: OsrEntryId,
-};
-```
-
-### Deopt Maps
-
-Deopt maps reconstruct MIR frames from native registers and stack slots.
-Frames are ordered from outermost to innermost, with the last frame active.
-
-```ds
-type FunctionId = uint32;
-type BlockId = uint32;
-type InstructionId = uint32;
-
-type DeoptMap = {
-    frames: FrameMap[],
-};
-
-type FrameMap = {
-    function: FunctionId,
-    block: BlockId,
-    instruction: InstructionId,
-    values: ValueLoc[],
-    locals: ValueLoc[],
-    returnDestination?: ValueLoc,
-};
-
-type Register = { kind: 'reg', index: uint16 };
-type StackSlot = { kind: 'stack', index: uint32, offset: int32 };
-type Constant = { kind: 'const', value: ConstantValue };
-type ValueLoc = Register | StackSlot | Constant;
-```
-
-Missing values are materialized as `Void` during reconstruction.
-Constants use the MIR constant encoding and do not require native storage.
-
-### OSR Entries
-
-OSR entries allow native execution to start at MIR block boundaries.
-Each entry specifies the MIR block and the live value set required to enter.
-
-### GC Stack Maps
-
-GC stack maps identify managed references in native frames.
-Lower must emit precise maps for all safepoints and native call frames.
-
-### Metadata Encoding
-
-NOTE #Incomplete #ABI: this metadata layout defines the ABI surface and will be tightened as the runtime and codegen converge.
-
-Lower emits a single metadata blob per native artifact.
-The runtime reads this blob to drive deopt, OSR, GC, profiling, and debugging.
-All integer fields are little-endian.
-All offsets are byte offsets from the start of the metadata blob.
-`pointerWidth` is 4 for 32-bit targets and 8 for 64-bit targets.
-`entrySize` is zero for variable-length entries.
-Section headers are contiguous and ordered by ascending `offset`.
-
-```ds
-type MetadataHeader = {
-    magic: uint32,
-    version: uint32,
-    pointerWidth: uint8,
-    endianness: uint8,
-    sectionCount: uint32,
-    sectionTableOffset: uint32,
-    compilerHash: uint64,
-    targetHash: uint64,
-};
-
-const METADATA_MAGIC: uint32 = 0x44534d44;
-const ENDIAN_LITTLE: uint8 = 1;
-
-type SectionHeader = {
-    kind: uint16,
-    entryCount: uint32,
-    entrySize: uint32,
-    offset: uint32,
-    length: uint32,
-};
-
-const SECTION_SAFEPOINTS: uint16 = 1;
-const SECTION_DEOPT_MAPS: uint16 = 2;
-const SECTION_STACK_MAPS: uint16 = 3;
-const SECTION_OSR_ENTRIES: uint16 = 4;
-const SECTION_PROFILE_SITES: uint16 = 5;
-```
-
-The runtime must validate `magic`, `version`, and `endianness` before use.
-The runtime must validate `compilerHash` and `targetHash` against the executing artifact.
-The runtime must reject overlapping sections and out-of-bounds offsets.
-The runtime must reject section tables with unknown `kind` values.
-
-### Safepoint Section
-
-```ds
-type SafepointEntry = {
-    pc: uint64,
-    deoptMap: uint32,
-    stackMap: uint32,
-    osrEntry: uint32,
-};
-
-const NO_OSR_ENTRY: uint32 = 0xffffffff;
-```
-
-`osrEntry` uses `NO_OSR_ENTRY` when no OSR is available at the safepoint.
-
-### Deopt Map Section
-
-```ds
-type DeoptMapEntry = {
-    frameCount: uint16,
-    frameOffset: uint32,
-};
-
-type FrameMapEntry = {
-    functionId: uint32,
-    blockId: uint32,
-    instructionId: uint32,
-    valueCount: uint16,
-    valueOffset: uint32,
-    localCount: uint16,
-    localOffset: uint32,
-    returnDestination: ValueLocEntry,
-};
-
-type ValueLocEntry = {
-    kind: uint8,
-    regIndex: uint16,
-    stackIndex: uint32,
-    stackOffset: int32,
-    constId: uint32,
-};
-
-const VALUELOC_REG: uint8 = 1;
-const VALUELOC_STACK: uint8 = 2;
-const VALUELOC_CONST: uint8 = 3;
-const VALUELOC_VOID: uint8 = 4;
-```
-
-`VALUELOC_VOID` is used only for dead SSA values at the safepoint.
-`constId` indexes the MIR constant pool for the owning function.
-
-### Stack Map Section
-
-```ds
-type StackMapEntry = {
-    pc: uint64,
-    rootCount: uint16,
-    rootOffset: uint32,
-};
-
-type RootLocEntry = {
-    kind: uint8,
-    regIndex: uint16,
-    stackIndex: uint32,
-    stackOffset: int32,
-};
-
-const ROOTLOC_REG: uint8 = 1;
-const ROOTLOC_STACK: uint8 = 2;
-```
-
-Stack maps identify managed references at the given `pc`.
-Roots are interpreted using MIR types recorded for the corresponding frame.
-
-### OSR Entry Section
-
-```ds
-type OsrEntry = {
-    functionId: uint32,
-    blockId: uint32,
-    valueCount: uint16,
-    valueOffset: uint32,
-    localCount: uint16,
-    localOffset: uint32,
-};
-```
-
-OSR entries materialize live values and locals required for the target block.
-
-### Profiling Site Section
-
-```ds
-type ProfileSiteEntry = {
-    kind: uint8,
-    functionId: uint32,
-    blockId: uint32,
-    instructionId: uint32,
-    flags: uint32,
-};
-
-const PROFILE_CALL: uint8 = 1;
-const PROFILE_BACKEDGE: uint8 = 2;
-const PROFILE_ALLOC: uint8 = 3;
-const PROFILE_BRANCH: uint8 = 4;
-const PROFILE_GUARD: uint8 = 5;
-const PROFILE_INDIRECT_CALL: uint8 = 6;
-```
-
-Profiling site interpretation is defined by the compiler and runtime together.
-
 ### Write Barriers
 
 Lower must preserve managed write sites (`field.set`, `element.set`, stores through
@@ -526,215 +258,6 @@ language/builtin/
     ├── es/     # JS target types (uses JS-defined built-ins)
     └── ...
 </pre>
-
----
-
-# Phases
-
-Lower executes in four explicit phases.
-Each phase produces complete, self-contained output before the next phase begins.
-This ensures clear invariants and enables forward references.
-
-## Phase 1: Types
-
-Lower all type declarations to MIR types with computed layouts.
-
-### Input
-- DIR type declarations (structs, classes, enums, newtypes, interfaces)
-- Target layout parameters (pointer size, alignment rules)
-
-### Output
-- MIR `Type` definitions with field offsets and sizes
-- Layout cache mapping DIR types to MIR types
-- Lineage information for class inheritance chains
-- VTable slot assignments for virtual methods
-
-### Operations
-
-**Monomorphization:** Each generic instantiation becomes a concrete MIR type.
-`Array<int>` and `Array<string>` produce separate MIR struct types with different layouts.
-
-**Layout computation:** Fields are ordered by alignment (largest first) to minimize padding.
-The default layout minimizes size; `@layout("C")` matches C ABI; `@layout("source")` preserves declaration order.
-
-**Lineage computation:** For classes with `extends`, compute the inheritance chain.
-Parent fields come first, ensuring pointer compatibility for upcasts.
-
-**VTable slot assignment:** For polymorphic classes, assign vtable slots in declaration order.
-Child classes inherit parent slots; overrides reuse the same slot.
-
-### Invariants After Phase 1
-- Every DIR type maps to exactly one MIR type
-- All MIR types have known size and alignment
-- All class lineages are computed
-- All vtable slots are assigned (but vtables not yet generated)
-
-### MIR Metadata Emission
-Lower populates MIR metadata tables incrementally as phases complete.
-Phase 1 records type layouts and lineages in `NodeTree.type_table.type_metadata_by_id`.
-Phase 2 records function memory effects and pointer attributes on MIR `Function`.
-Phase 3 registers dispatch tables, type descriptors, and type tags in `NodeTree.type_table.dispatch_registry` and type metadata.
-Phase 4 records callsite effects on call instructions (`CallEffects`), memory access metadata (including alias scopes and TBAA tags) in `NodeTree.memory_table`, and debug scopes in `NodeTree.debug_info`.
-
-MIR metadata structures live in `language/mir/src/metadata/` and define the canonical expectations
-for layout, dispatch, and memory semantics. Lower must emit metadata that matches those invariants:
-- `TypeLayout.field_offsets` length matches the field or element count
-- `DispatchSlot` order follows the vtable/itab slot rules defined below
-- Callsite `CallEffects` captures memory effects, behavior, allocation sizing, and argument metadata
-- Memory access metadata records sizes, alignment, volatility, ordering, and alias scopes when known
-
-## Phase 2: Declarations
-
-Create function signatures and global variable bindings.
-
-### Input
-- DIR function and method declarations
-- DIR global variable declarations
-- MIR types from Phase 1
-
-### Output
-- Function shells (signature only, no body)
-- Global variable bindings
-- Module initialization order
-
-### Operations
-
-**Function signatures:** Create MIR function declarations with parameter types and return type.
-Bodies are not lowered yet; this creates "shells" that can be referenced.
-
-**Global variables:** Lower global `const` and `let` declarations to MIR globals.
-Compute initialization order based on dependencies.
-
-**Module initialization:** Generate `__init` function per module containing:
-- Static global initializers (in dependency order)
-- Top-level `using` statements
-- Module-level side effects
-
-Initialization order follows import dependencies.
-Circular dependencies are a compile error (detected earlier in Analyze).
-
-### Invariants After Phase 2
-- All functions have MIR declarations (callable by reference)
-- All globals have MIR bindings
-- Module initialization order is determined
-
-## Phase 3: Tables
-
-Generate dispatch tables and runtime type information.
-
-### Input
-- MIR types with layouts and lineages
-- VTable slot assignments
-- Interface implementations
-
-### Output
-- VTable constants for polymorphic classes
-- ITab constants for (Type, Interface) pairs
-- TypeTag constants for RTTI
-- Interned string tag tables
-
-### Operations
-
-**VTable generation:** For each polymorphic class with virtual dispatch, emit a constant vtable:
-```ds
-struct VTable {
-    typeTag: TypeTag;    // slot 0, for instanceof and T.is
-    drop: fn();                      // slot 1, drop glue
-    methods: [fn; N];                 // virtual methods in slot order
-}
-```
-
-**ITab generation:** For each (Type, Interface) pair where the type implements the interface:
-```ds
-struct ITab {
-    typeTag: TypeTag;    // for T.is on interface refs
-    slots: [InterfaceSlot];          // fields and methods in interface declaration order
-}
-```
-InterfaceSlot corresponds to MIR `DispatchSlot::FieldOffset` and `DispatchSlot::InterfaceMethod` entries.
-
-**TypeDescriptor generation:** For types that need RTTI (used with `instanceof`, `T.is`, `typeOf`, stored in `unknown`):
-```ds
-struct TypeDescriptor {
-    id: uint32                  // index into RTTI table
-    typeIdOffset: uint32        // offset to TypeId string
-    nameOffset: uint32          // offset to name string
-    size: uint32                // sizeof in bytes
-    alignment: uint16           // alignof in bytes
-    kind: uint8                 // struct/class/enum/etc.
-    flags: uint8                // nominal, sealed, etc.
-    ...
-}
-```
-TypeTag values are pointers to these TypeDescriptor constants.
-
-**String tag interning:** TypeScript-style discriminated unions use string tags.
-Lower interns these to integer discriminants:
-```ds
-"loading" → 0
-"success" → 1
-"error"   → 2
-```
-
-### Invariants After Phase 3
-- All vtables are generated as global constants
-- All itabs are generated as global constants
-- All needed TypeDescriptors are generated
-- All needed TypeTags are generated
-- String tags are interned to integers
-
-## Phase 4: Emit
-
-Lower function bodies to MIR blocks.
-
-### Input
-- DIR function bodies (expressions, statements)
-- All context from Phases 1-3
-
-### Output
-- Complete MIR functions with blocks and terminators
-- Ownership markers on `^T` values (drops inserted by Optimize)
-- GC write barrier insertions
-- Debug info metadata
-
-### Operations
-
-**Block generation:** Each control flow construct becomes MIR blocks:
-- `if/else` → conditional branch to then/else blocks
-- `match` → switch or branch cascade
-- `while/for/loop` → header, body, and exit blocks
-
-**Value lowering:** Expressions become MIR instructions:
-- Literals → `const`
-- Binary ops → `binary` or builtin intrinsics
-- Function calls → `call` (direct) or `call.indirect` (virtual)
-- Field access → `field.get`/`field.addr`
-
-Lower emits inline result types for pointer producing instructions and `load`.
-Lower emits inline signature types for `call.indirect`.
-
-**Ownership marking:** For `^T` owned values, mark ownership in MIR.
-Optimize's `drop-insert` pass later inserts actual drops at last use points.
-
-**GC barrier insertion:** For writes to managed reference fields:
-```mir
-intrinsic.gc.write_barrier(field_addr, new_value)
-store field_addr, new_value
-```
-
-**Terminator generation:** Each block ends with a terminator:
-- `return` for function exit
-- `jump` for unconditional branch
-- `branch` for conditional
-- `switch` for multi-way
-- `yield` for coroutines
-- `unreachable` for dead code
-
-### Invariants After Phase 4
-- All functions have complete bodies
-- All ownership is marked (drops inserted by Optimize)
-- All GC barriers are inserted
-- MIR is ready for Optimize's verification and transformation passes
 
 ---
 
@@ -1118,9 +641,9 @@ block0(v0: @string):
 ### Arrays
 
 Arrays are heap-allocated, dynamically-sized collections (like Rust's `Vec<T>`).
-
-**Fixed-size arrays** `T[N]` are inline values with no header.
-**Dynamic arrays** `T[]` are heap-allocated, growable buffers.
+We also support fixed-size arrays which are more like Rust arrays / slices:
+- **Fixed-size arrays** `T[N]` are inline values with no header
+- **Dynamic arrays** `T[]` are heap-allocated, growable buffers
 
 | Array kind | Layout | Notes |
 | --- | --- | --- |
@@ -1677,24 +1200,7 @@ struct TypeDescriptor {
     typeIdOffset: uint32        // offset to TypeId string ("myapp/models:User")
     nameOffset: uint32          // offset to name string ("User")
     size: uint32                // sizeof(T) in bytes
-    alignment: uint16           // alignof(T) in bytes
-    kind: uint8                 // maps to Type<T> discriminant
-    flags: uint8                // nominal, sealed, etc.
-    parentDesc: &TypeDescriptor // for class inheritance (null if none)
-    vtablePtr: &VTable          // for virtual dispatch (null if none)
-    gcLayoutOffset: uint32      // offset to GC layout bitmap
-    gcLayoutWordCount: uint16   // number of words in GC bitmap
-    propertiesOffset: uint32    // offset to PropertyDescriptor array
-    propertyCount: uint16       // number of properties
-    decoratorsOffset: uint32    // offset to DecoratorDescriptor array
-    decoratorCount: uint16      // number of decorators
-}
-
-struct PropertyDescriptor {
-    nameOffset: uint32          // offset into string table
-    typeDescriptor: &TypeDescriptor   // TypeDescriptor for property type
-    offset: uint32              // byte offset within parent struct
-    flags: uint8                // optional, readonly, etc.
+    ...
 }
 ```
 
@@ -2107,33 +1613,6 @@ For targets without GC (freestanding, `@noManaged` code):
 Lower queries the target profile to determine which GC features to emit.
 The runtime provides the actual GC implementation; Lower just emits the hooks.
 
-#### Safepoints and Stack Maps
-
-*Safepoints and stack maps only apply when GC is enabled for the target.*
-With a Go-style concurrent GC, true "stop-the-world" pauses are minimal.
-However, the GC still needs to find roots on each thread's stack during the mark phase.
-This requires knowing which stack slots contain managed references at any given instruction.
-
-**Why stack maps (not traditional safepoints):**
-Go and similar runtimes use conservative stack scanning or async preemption.
-For precise GC with AOT compilation, we generate stack maps that describe root locations.
-The GC can scan roots at any point by consulting the stack map for the current PC.
-
-**Stack map generation:**
-Lower emits stack map metadata at:
-1. **Function calls** - roots must be live across the call
-2. **Allocation sites** - GC may trigger, need current roots
-3. **Loop back-edges** - for long-running loops (optional, for latency)
-
-The stack map covers the full function; codegen generates per-PC maps for call sites.
-Between calls, the GC can async-preempt and scan conservatively if needed (like Go 1.14+).
-
-**Stack maps:**
-Each safepoint has an associated stack map describing which stack slots and registers
-contain managed references at that point. 
-Codegen emits these as metadata attached to the safepoint location. 
-The GC uses stack maps to find roots during collection.
-
 #### Raw Allocation
 
 `raw.alloc` creates manually-managed heap memory for owned values (`^T`).
@@ -2264,7 +1743,7 @@ function process() {
 Optimize's `drop-insert` pass inserts drops at last use points (non lexical), including before
 control flow merges and before coroutine suspension when the value is not used after resume.
 
-**Borrowing:**
+#### Borrowing
 
 `&T` and `&mut T` are explicit references (pointers) to data.
 They lower directly to pointer types in MIR:
@@ -2291,14 +1770,14 @@ Dropping or freeing a value while it is borrowed is always an error.
 In strict mode, conflicting borrows and invalidating stores are errors.
 In lenient mode, the same situations produce warnings.
 
-**Raw pointers:**
+#### Raw pointers
 
 `*T` and `*mut T` are unsafe pointers with no borrow tracking.
 They lower directly to `ref<raw T>` and `ref<raw mut T>`.
 Deref and mutation use explicit `load`/`store` and pointer operations.
 Conversions between borrowed references and raw pointers are explicit.
 
-**Address spaces:**
+#### Address spaces
 
 Lower preserves address space annotations on references for native and accelerator targets.
 The default address space is `generic`.
@@ -2306,7 +1785,7 @@ Non generic address spaces are only valid for borrowed and raw references.
 `constant` references are always immutable.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.
 
-**Borrow Modes:**
+#### Borrow Modes
 
 By default, `&T` and `&mut T` are hints and violations produce warnings.
 They help document APIs, guide drops, and enable limited optimizations.
@@ -2579,7 +2058,7 @@ function @fetchUser_poll(sm: &@fetchUser_StateMachine): void {
 }
 ```
 
-#### MIR: The Yield Terminator
+#### Yield Terminator
 
 At the MIR level, `await` becomes a `yield` terminator:
 
@@ -2836,12 +2315,6 @@ async function* fetchPages(urls: string[]): AsyncGenerator<Page> {
 - State machine may suspend multiple times per `next()` call (on awaits)
 - Eventually yields a value or completes
 
-#### JS Target Behavior
-
-On JS targets, async functions compile directly to JS async/await.
-No state machine transformation is needed; the JS runtime handles it natively.
-This preserves perfect Promise interop with existing JS code and avoids double-transformation overhead.
-
 ### Iterator Protocol
 
 `for...of` uses the JavaScript iterator protocol.
@@ -2880,9 +2353,8 @@ Range types implement `Iterable<int>`.
 
 Destack preserves JS and TS concurrency semantics by default while enabling native level parallelism on supported targets.
 The core ideas are a single threaded event loop by default, `Promise` and `async` for concurrency, and `Worker` for parallelism.
-Target specific implementations keep surface semantics consistent across JS, WASM, and native targets.
 
-**Threading Model:**
+#### Threading Model
 Default behavior is a single threaded event loop with microtask and macrotask queues.
 Native targets support worker threads with the same `Worker` API.
 JS targets map to real JS `Worker` instances.
@@ -2890,14 +2362,14 @@ WASM targets map to host specific workers when available.
 Native targets map to OS threads with message passing.
 Shared memory is explicit and opt-in.
 
-**Memory Model:**
+#### Memory Model
 Shared memory follows JS Atomics semantics.
 Atomic operations are sequentially consistent by default and accept explicit orderings when needed.
 Non atomic loads and stores have no cross thread ordering guarantees.
 Data races on shared non atomic memory are undefined behavior on native targets.
 This preserves JS and TS semantics while enabling native performance when code uses atomics.
 
-**GC and Threads:**
+#### GC and Threads
 GC heaps are per worker by default to match JS semantics and avoid sharing mutable GC objects.
 GC managed objects are not shared across workers unless explicitly frozen or copied.
 Shared memory uses raw pointers or explicit shared buffers.
@@ -3029,20 +2501,6 @@ Controls how runtime profiling data is collected for tiering and optimization.
 
 Profiling is scoped per isolate and consumed by the optimizer and runtime.
 
-### Tiering Triggers
-
-The runtime decides when to tier or OSR, but all triggers are expected to be available and tunable per target profile.
-
-Tiering triggers include:
-
-- Backedge counts and loop hotness.
-- Wall-clock time spent in a function or loop.
-- Allocation rate and allocation pressure.
-- Explicit `@hot` or `@cold` hints on functions or blocks.
-- Deopt frequency and guard failure rates.
-
-Lower emits metadata for these sites so the runtime can make decisions without recompiling MIR.
-
 ### Speculation Policy
 
 Controls guarded speculative optimizations in native code.
@@ -3079,11 +2537,6 @@ Controls safepoint insertion for preemption and deopt latency.
 | `Budgeted` | Add instruction-budget safepoints |
 
 `safepointInterval` sets the instruction interval when `Budgeted` is enabled.
-The interval is an abstract step budget.
-The VM decrements the budget per threaded instruction.
-Native code decrements at inserted safepoint polls and backedges.
-Lower inserts budget polls at loop backedges by default and may add them to hot block entries when the target opts in.
-Smaller intervals reduce preemption latency but increase overhead.
 
 ### Determinism Policy
 
@@ -3108,13 +2561,6 @@ Controls whether external I/O is recorded or replayed.
 
 `Record` records external I/O at runtime boundaries; unshimmed FFI/syscalls are rejected in this mode.
 `Replay` consumes recorded external I/O and rejects unlogged effects.
-External I/O is any operation outside the VM interpreter.
-Filesystem and network access are external I/O.
-Process, environment, and clock sources are external I/O.
-Randomness and entropy sources are external I/O.
-Host callbacks and FFI calls are external I/O.
-All external I/O must go through runtime shims in `Record` and `Replay`.
-Record and Replay enable time-travel debugging and simulation testing in userland libraries.
 
 ## Memory
 
@@ -3130,38 +2576,6 @@ Global allocator selection for native targets.
 | `Custom` | User-provided allocator |
 
 The allocator provides both managed (GC) and raw allocations.
-
-### GC Strategy
-
-Native targets use a Go-style, headerless managed heap with side tables.
-The default GC strategy is generational with incremental marking.
-Concurrent marking may be enabled by the runtime, but is not required by the ABI.
-
-Write barriers are inserted by Lower at all managed write sites.
-Stack maps are exact at all safepoints for precise tracing.
-The barrier model is Go-style Dijkstra with shade-on-write.
-
-When `determinism` is `Deterministic` or `replay` is `Record` or `Replay`, GC scheduling must be deterministic.
-The runtime should use allocation-count thresholds and deterministic mark/sweep scheduling.
-Concurrent or parallel marking is permitted only when the runtime can guarantee deterministic scheduling.
-
-### Snapshots
-
-Snapshots capture an isolate for deterministic replay, testing, and debugging.
-Snapshots are required to implement `Record` and `Replay`.
-Snapshots are a core debugging tool for deterministic execution.
-
-A snapshot captures:
-
-- Managed heap, raw heap, and globals are captured.
-- VM continuations and stacks are captured.
-- Runtime scheduler state for the isolate is captured.
-
-Snapshots exclude external handles.
-Any external handle must be reattached explicitly by the runtime after restore.
-
-Snapshots are versioned and tied to the target ABI.
-The runtime must reject snapshot restore when the compiler version, target triple, or GC layout does not match.
 
 ### Borrow Mode
 
@@ -3204,108 +2618,3 @@ Target CPU and feature detection.
 
 Lower uses `cpuFeatures` to gate SIMD codegen.
 If a feature is unavailable, vector operations scalarize to loops.
-
----
-
-# Code Generation
-
-MIR is target-independent, so code generation is mostly mechanical translation.
-See `language/codegen/` for target-specific backends (Cranelift for native/WASM).
-
-## Debug Info
-
-Lower preserves source information so native code can emit high-quality debug symbols.
-This is required for source-level debugging, accurate stack traces, and profiling.
-Debug info emission is configured per target (`debugInfo`).
-
-**What Lower records:**
-- Source spans on every block and instruction (file, line, column)
-- Function debug names (human-readable) plus mangled symbol names for linkage
-- Local variable names and lexical scope ranges
-- Type debug descriptors (struct/class names, field names, offsets)
-- Inline callsite chains for inlined functions
-
-**Codegen output:**
-Cranelift consumes this metadata and emits DWARF debug info for native targets.
-The MIR itself remains layout-only; debug names are metadata attached to MIR nodes.
-
-## Symbol Visibility
-
-Symbols have visibility levels that control linking:
-
-| Visibility | Description |
-|------------|-------------|
-| `Local` | Internal to module, not exported |
-| `Export` | Visible outside module, public API |
-| `Import` | Declared here, defined elsewhere |
-
-**@export decorator:**
-```ds
-@export("C")
-function add(a: int32, b: int32): int32 { a + b }
-```
-
-Exports the function with C ABI for FFI.
-Without a calling convention, uses Destack ABI and is compiler-version private.
-
-**public modifier:**
-```ds
-public function process(data: Data): Result { ... }
-```
-
-Exports with Destack ABI.
-
-## Module Initialization
-
-Each module may have initialization code that runs before `main()`:
-- Static global initializers
-- Top-level `using` statements (for resource acquisition)
-- Module-level side effects
-
-Lower generates a `__init` function per module containing this code.
-Initialization order follows import dependencies: if module A imports module B, B's `__init` runs first.
-
-### Initialization Order
-
-1. Imports are initialized in depth-first order
-2. Each module's `__init` runs exactly once
-3. Top-level statements execute in source order within a module
-4. `main()` runs after all `__init` functions complete
-
-### Cycle Detection
-
-**Value-evaluation cycles are a compile error.**
-The Analyze phase performs static analysis to detect cycles involving evaluated expressions.
-
-**Allowed:**
-- Type-only imports in cycles (types have no initialization code)
-- Function references (not called at init time)
-- Lazy values (computed on first access, not at init)
-
-**Forbidden (compile error):**
-- `const x = otherModule.y` where `otherModule.y` depends on `x`
-- Circular `using` declarations
-- Any cycle where module A's init reads a value from module B, and B's init reads from A
-
-This is the same approach Go uses: deterministic initialization order, no runtime cycle detection.
-
-```ds
-// module.ds
-const config = loadConfig();  // runs during init
-
-using logger = Logger.new();  // acquired during init, released at shutdown
-
-export function process() { ... }
-```
-
-Generates:
-```mir
-function @module.__init() -> void {
-block0:
-    v0 = call @loadConfig()
-    global.store @config, v0
-    v1 = call @Logger.new()
-    global.store @logger, v1
-    return
-}
-```

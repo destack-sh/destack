@@ -1,25 +1,12 @@
 # Destack Language Design
 
-Destack is "TypeScript++" for building correct, optimal, integrated full-stack systems.
-This document describes the motivation and tradeoffs in choosing TypeScript and why what was added.
-Destack adds features to TypeScript that wouldn't fit in TypeScript itself (like `.tsx` or `.svelte` do).
+Destack is "TypeScript++" for building correct, optimal, integrated software systems.
+This document describes the motivation and tradeoffs in choosing TypeScript and why we added what.
+(Basically, Destack adds features to TypeScript that wouldn't fit in TypeScript itself, much like `.tsx` or `.svelte` do).
 
-> ---
-> - Valid JavaScript is valid Destack*.
-> 
-> - Valid TypeScript is valid Destack*.
-> 
-> - Valid TSX/JSX is valid Destack*.
->
-> - Destack transpiles to idiomatic TypeScript.
-> ---
->
-<sub>*[A few obscure syntax patterns](#compatibility) work differently in `.ds` files due to TSX-interoperability and additional typing features.</sub>
-
-Yes, other languages with some similar features also have tried this before. 
-Some are even moderately successful.
+Of course, other languages with some similar features also have tried this before, and some are moderately successful.
 But they all fall short in interoperability, usefulness and - ultimately - adoption.
-We feel that now is the time to try this again, and have made some different tradeoffs to enable adoption.
+We feel that now is the time to try this again, and have made some different tradeoffs to enable TypeScript to cover many more usage scenarios.
 
 ## "TypeScript++"
 
@@ -28,21 +15,18 @@ We want to make correct, optimal, integrated full-stack software systems simple 
 But that requires unifying all the disparate pieces: one language, one type system, one way of thinking about code from UI to servers to simulations.
 
 TypeScript is the closest thing we have to a unified software foundation today.
-JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (read: every browser everywhere).
-Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language. 
+JavaScript runs everywhere, everyone knows it, and it has a massive ecosystem and install base (i.e., every browser everywhere).
+Unlike Python, the TypeScript ecosystem also has a good answer to rich frontends *and* strict modern TypeScript is a much more optimizable language (as evidenced by V8 and JSC coming within touching distance of Go and C# in some scenarios). 
 
 Where Destack looks like TypeScript (e.g., `interface`, `class`, `async`/`await`), it behaves like TypeScript, because it *is* TypeScript(++).
-Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly with Destack (on JS targets), and all `++` features are opt-in and complementary.
-
-All parts of Destack are designed to be incrementally adoptable and complementary.
-This mindest also extends to the features Destack extends TypeScript with:
+Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectly with Destack (on JS/TS targets), and the `++` features are opt-in and complementary.
 
 | Feature | Description | Tests |
 |---------|-------------|-------|
 | [Expressions](#expressions) | Expression extensions: "as values", ranges, patterns, `loop`, `using` | [expressions/](test/fixtures/specification/expressions/) |
 | [Trees](#trees) | Tree literals: TSX-like syntax generalized for any tree-shaped data | |
 | [Annotations](#annotations) | Annotations: decorators and tags (`@`) for _any_ expression | |
-| [Errors](#errors) | `Result`-first error handling with `?` propagation, no exceptions | |
+| [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
 | [Reflection](#reflection) | Types as values, runtime type descriptors, refinement metadata, schema validation | [reflection/](test/fixtures/specification/reflection/) |
@@ -442,15 +426,13 @@ function merge<T: int, U>(): T where (
 
 ### The `this` Type
 
-Destack supports TypeScript's polymorphic `this` type for instance members, and extends it to static type positions.
+Destack supports TypeScript's polymorphic `this` type for instance members, and also allows it in static type positions.
 `this` is type-only and resolves to the surrounding receiver or containing type.
 
 ## Comptime
 
 Inspired by Zig, Destack supports compile-time evaluation via the `comptime` keyword.
 Unlike Zig or Rust macros, however, Destack's comptime fills in well-defined **slots** rather than enabling fully arbitrary code generation.
-In practice, this `comptime` behavior and specialisation together with decorators enable most macro-style use cases without the unpredictability and compiler complexity of a "full" macro system.
-
 The `comptime` keyword requires that an expression must be evaluated at compile time (otherwise it is a compile error):
 
 ```

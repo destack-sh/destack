@@ -693,7 +693,6 @@ fn prune_latch_instructions(
             filtered.push(*instruction_id);
         } else {
             tree.memory_table.remove_memory_accesses(*instruction_id);
-            tree.call_table.remove_call_metadata(*instruction_id);
         }
     }
 

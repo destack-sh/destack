@@ -12,7 +12,6 @@ pub(crate) use emit::*;
 pub use error::*;
 pub(crate) use module::ModuleLowerer;
 pub use process::*;
-pub(crate) use table::interface::InterfaceDispatchCache;
 pub(crate) use r#type::*;
 pub use warning::*;
 

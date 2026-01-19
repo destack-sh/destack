@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use destack_base::StringId;
 use destack_dir::{self as dir, GlobalSymbolId, LocalNodeId};
+use destack_mir as mir;
 
 use crate::lower::{FieldInput, FieldLayoutKind, LayoutPolicy, static_key_to_field_name};
 use crate::{LowerError, LowerResult};
@@ -9,102 +10,52 @@ use crate::{LowerError, LowerResult};
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Predeclare nominal layouts for struct and class instance types.
-    pub(crate) fn predeclare_nominal_layouts(&mut self) -> LowerResult<()> {
-        // collect class symbols that require vtable headers
-        let vtable_layout_symbols = self.collect_vtable_layout_symbols()?;
-
-        // track symbols already handled to avoid duplicate work
-        let mut seen_symbols = HashSet::new();
-
-        // scan declarations for nominal types
-        for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
-        {
-            let symbol = match declaration {
-                dir::Declaration::Struct { descriptor, .. }
-                | dir::Declaration::Class { descriptor, .. } => {
-                    descriptor.symbol.into_global(self.module_id)
-                }
-                _ => continue,
-            };
-
-            // skip symbols already handled
-            if !seen_symbols.insert(symbol) {
-                continue;
-            }
-
-            self.predeclare_nominal_layout_for_symbol(symbol, &vtable_layout_symbols)?;
-        }
-
-        Ok(())
-    }
-
-    /// Predeclare interface reference types for this module.
-    pub(crate) fn predeclare_interface_reference_types(&mut self) -> LowerResult<()> {
-        // track interface symbols already processed
-        let mut seen_symbols = HashSet::new();
-
-        // scan interface declarations
-        for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
-        {
-            // skip non interface declarations
-            let dir::Declaration::Interface { descriptor, .. } = declaration else {
-                continue;
-            };
-
-            // deduplicate symbols across declarations
-            let symbol = descriptor.symbol.into_global(self.module_id);
-            // skip symbols already handled
-            if !seen_symbols.insert(symbol) {
-                continue;
-            }
-
-            // build a stable anchor for diagnostics
-            let anchor = declaration_id
-                .into_global_any(self.module_id)
-                .into_anchored(Some(self.profile));
-
-            // resolve reference type ids for this interface
-            let reference_type_ids = self.nominal_reference_type_ids_for_symbol(symbol);
-            for reference_type_id in reference_type_ids {
-                // skip cached types
-                if self
-                    .type_lowerer
-                    .type_cache
-                    .contains_key(&reference_type_id)
-                {
-                    continue;
-                }
-
-                // lower the interface reference type
-                let _ = self.type_lowerer.lower_type(
-                    self.types,
-                    reference_type_id,
-                    self.module_id,
-                    anchor,
-                    &mut self.builder,
-                )?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Predeclare the instance layout for a struct or class symbol.
-    fn predeclare_nominal_layout_for_symbol(
+    /// Lower and cache the instance layout for a struct or class symbol.
+    pub(crate) fn lower_nominal_layout(
         &mut self,
         symbol: GlobalSymbolId,
-        vtable_layout_symbols: &HashSet<GlobalSymbolId>,
-    ) -> LowerResult<()> {
-        // skip when no instance type is registered
-        let Some(instance_type_id) = self.types.get_instance_type_id(symbol) else {
-            return Ok(());
-        };
-
-        // skip when already cached
-        if self.type_lowerer.type_cache.contains_key(&instance_type_id) {
-            return Ok(());
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // check for cached layout
+        if let Some(mir_type) = self.nominal_layouts_by_symbol.get(&symbol).copied() {
+            return Ok(mir_type);
         }
+
+        // check for cycles
+        if self.nominal_layouts_in_progress.contains(&symbol) {
+            let anchor = self
+                .declaration_ids_for_symbol(symbol)
+                .first()
+                .copied()
+                .map(|id| id.into_global_any(self.module_id))
+                .map(|id| id.into_anchored(Some(self.profile)))
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "nominal layout cycle missing declaration".to_string(),
+                })?;
+            return Err(LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "cycle detected while lowering nominal layout".to_string(),
+            });
+        }
+        self.nominal_layouts_in_progress.insert(symbol);
+
+        // resolve the instance type id
+        let Some(instance_type_id) = self.types.get_instance_type_id(symbol) else {
+            let anchor = self
+                .declaration_ids_for_symbol(symbol)
+                .first()
+                .copied()
+                .map(|id| id.into_global_any(self.module_id))
+                .map(|id| id.into_anchored(Some(self.profile)))
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "nominal type missing declaration for instance type".to_string(),
+                })?;
+            return Err(LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "nominal type missing instance type".to_string(),
+            });
+        };
 
         // resolve a stable declaration for diagnostics
         let instance_declaration = self
@@ -122,7 +73,7 @@ impl ModuleLowerer<'_> {
 
         // predeclare the base layout for derived classes
         if let Some(base_symbol) = base_symbol {
-            self.predeclare_nominal_layout_for_symbol(base_symbol, vtable_layout_symbols)?;
+            let _ = self.lower_nominal_layout(base_symbol)?;
         }
 
         // prepare derived field tracking
@@ -131,7 +82,6 @@ impl ModuleLowerer<'_> {
 
         // load the base layout prefix when present
         let base_layout = if let Some(base_symbol) = base_symbol {
-            // resolve the base instance type id
             let base_instance_type_id =
                 self.types
                     .get_instance_type_id(base_symbol)
@@ -139,8 +89,6 @@ impl ModuleLowerer<'_> {
                         node: instance_declaration,
                         message: "class base instance type missing".to_string(),
                     })?;
-
-            // resolve the base layout from the type cache
             let base_mir_type = *self
                 .type_lowerer
                 .type_cache
@@ -154,10 +102,8 @@ impl ModuleLowerer<'_> {
                 .layout_for_type_or_error(base_mir_type, instance_declaration)?
                 .clone();
 
-            // seed the derived field tracking from the base layout
             for field in &base_layout.fields {
                 seen_fields.insert(field.name);
-                // account for source ordered fields
                 if field.source_index.is_some() {
                     source_index_offset += 1;
                 }
@@ -165,7 +111,6 @@ impl ModuleLowerer<'_> {
 
             Some(base_layout)
         } else {
-            // skip base layout for root classes
             None
         };
 
@@ -173,18 +118,25 @@ impl ModuleLowerer<'_> {
         let field_inputs =
             self.collect_nominal_field_inputs(symbol, &mut seen_fields, source_index_offset)?;
 
+        // compute vtable layout symbols when needed
+        if self.vtable_layout_symbols.is_none() {
+            let symbols = self.collect_vtable_layout_symbols()?;
+            self.vtable_layout_symbols = Some(symbols);
+        }
+
         // compute and cache the layout for this instance type
-        let has_vtable_header = vtable_layout_symbols.contains(&symbol);
+        let has_vtable_header = self
+            .vtable_layout_symbols
+            .as_ref()
+            .map(|symbols| symbols.contains(&symbol))
+            .unwrap_or(false);
         let layout = if let Some(base_layout) = base_layout {
-            // inherit the base layout for derived classes
             self.type_lowerer.compute_struct_layout_with_base(
                 base_layout,
                 field_inputs,
                 LayoutPolicy::default(),
             )
-        }
-        // prepend a vtable header for class layouts
-        else if symbol.ty() == dir::SymbolType::Class && has_vtable_header {
+        } else if symbol.ty() == dir::SymbolType::Class && has_vtable_header {
             let vtable_name = self.vtable_field_name;
             let vtable_type = self.builder.type_raw_pointer(self.type_lowerer.ty_void);
             let (size, alignment) = self
@@ -205,9 +157,7 @@ impl ModuleLowerer<'_> {
                 field_inputs,
                 LayoutPolicy::default(),
             )
-        }
-        // compute a standard struct layout
-        else {
+        } else {
             self.type_lowerer
                 .compute_struct_layout(field_inputs, LayoutPolicy::default())
         };
@@ -220,47 +170,10 @@ impl ModuleLowerer<'_> {
             .type_cache
             .insert(instance_type_id, mir_type);
 
-        // predeclare nominal reference types for class and struct symbols
-        if matches!(
-            symbol.ty(),
-            dir::SymbolType::Class | dir::SymbolType::Struct
-        ) {
-            // resolve the type anchor for diagnostics
-            let source = self.types.get_type_source(instance_type_id);
-            let anchor = source
-                .into_global(self.module_id)
-                .into_anchored(Some(self.profile));
-            let reference_type_ids = self.nominal_reference_type_ids_for_symbol(symbol);
+        self.nominal_layouts_by_symbol.insert(symbol, mir_type);
+        self.nominal_layouts_in_progress.shift_remove(&symbol);
 
-            // require reference type ids for class symbols
-            if reference_type_ids.is_empty() {
-                return Err(LowerError::UnsupportedConstruct {
-                    node: anchor,
-                    message: "class missing nominal reference type".to_string(),
-                });
-            }
-
-            for reference_type_id in reference_type_ids {
-                // skip cached reference types
-                if self
-                    .type_lowerer
-                    .type_cache
-                    .contains_key(&reference_type_id)
-                {
-                    continue;
-                }
-
-                let _ = self.type_lowerer.lower_type(
-                    self.types,
-                    reference_type_id,
-                    self.module_id,
-                    anchor,
-                    &mut self.builder,
-                )?;
-            }
-        }
-
-        Ok(())
+        Ok(mir_type)
     }
 
     /// Collect field inputs for a nominal struct or class instance layout.
@@ -272,7 +185,6 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<Vec<FieldInput>> {
         // gather all declarations that contribute to this symbol
         let declaration_ids = self.declaration_ids_for_symbol(symbol);
-        // return early when no declarations are found
         if declaration_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -292,7 +204,6 @@ impl ModuleLowerer<'_> {
 
             for member_id in members {
                 let member = self.dir_tree.get(*member_id);
-                // skip non field members
                 let dir::Member::Field {
                     modifiers,
                     key,
@@ -345,13 +256,7 @@ impl ModuleLowerer<'_> {
                 let anchor = member_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile));
-                let mir_type = self.type_lowerer.lower_type(
-                    self.types,
-                    type_id,
-                    self.module_id,
-                    anchor,
-                    &mut self.builder,
-                )?;
+                let mir_type = self.lower_type(type_id, anchor)?;
                 let field_type = self.builder.tree().get(mir_type);
                 let (size, alignment) = self
                     .type_lowerer
@@ -359,7 +264,6 @@ impl ModuleLowerer<'_> {
 
                 // compute the layout field name
                 let field_name = static_key_to_field_name(&key, &mut self.builder);
-                // reject duplicate field names
                 if !seen_fields.insert(field_name) {
                     return Err(LowerError::UnsupportedConstruct {
                         node: member_id
@@ -404,7 +308,6 @@ impl ModuleLowerer<'_> {
         // expand the lineage for classes that need virtual headers
         let mut vtable_layout_symbols = HashSet::new();
         for symbol in class_symbols {
-            // skip classes without virtual methods
             if !self.class_has_virtual_methods(symbol)? {
                 continue;
             }

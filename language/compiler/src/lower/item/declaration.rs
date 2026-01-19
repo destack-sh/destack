@@ -29,14 +29,11 @@ impl ModuleLowerer<'_> {
                 let struct_mir_type =
                     if let Some(instance_type_id) = self.types.get_instance_type_id(type_symbol) {
                         Some(
-                            self.type_lowerer.lower_type(
-                                self.types,
+                            self.lower_type(
                                 instance_type_id,
-                                self.module_id,
                                 declaration_id
                                     .into_global_any(self.module_id)
                                     .into_anchored(Some(self.profile)),
-                                &mut self.builder,
                             )?,
                         )
                     } else {
@@ -66,32 +63,13 @@ impl ModuleLowerer<'_> {
                 let anchor = declaration_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile));
-                let instance_type_id =
-                    self.types
-                        .get_instance_type_id(type_symbol)
-                        .ok_or_else(|| LowerError::UnsupportedConstruct {
-                            node: anchor,
-                            message: "class missing instance type".to_string(),
-                        })?;
-                if !self.type_lowerer.type_cache.contains_key(&instance_type_id) {
-                    return Err(LowerError::UnsupportedConstruct {
-                        node: anchor,
-                        message: "class instance layout not predeclared".to_string(),
-                    });
-                }
                 let reference_type_id = self
                     .nominal_reference_type_id_for_symbol(type_symbol)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: anchor,
                         message: "class missing nominal reference type".to_string(),
                     })?;
-                let class_mir_type = Some(self.type_lowerer.lower_type(
-                    self.types,
-                    reference_type_id,
-                    self.module_id,
-                    anchor,
-                    &mut self.builder,
-                )?);
+                let class_mir_type = Some(self.lower_type(reference_type_id, anchor)?);
 
                 // lower methods
                 for member_id in members {
