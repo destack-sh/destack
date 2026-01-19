@@ -324,6 +324,22 @@ pub enum ThreadedInstructionData {
         copies: CopyRange,
     },
 
+    /// Virtual method call.
+    CallVirtual {
+        dest: mir::Value,
+        receiver: mir::Value,
+        slot_id: u32,
+        arguments: ArgumentRange,
+    },
+
+    /// Interface method call.
+    CallInterface {
+        dest: mir::Value,
+        receiver: mir::Value,
+        slot_id: u32,
+        arguments: ArgumentRange,
+    },
+
     /// Indirect function call.
     CallIndirect {
         dest: mir::Value,
@@ -593,6 +609,20 @@ pub enum ThreadedInstructionData {
         arguments: ArgumentRange,
     },
 
+    /// Virtual tail call (call + return).
+    TailCallVirtual {
+        receiver: mir::Value,
+        slot_id: u32,
+        arguments: ArgumentRange,
+    },
+
+    /// Interface tail call (call + return).
+    TailCallInterface {
+        receiver: mir::Value,
+        slot_id: u32,
+        arguments: ArgumentRange,
+    },
+
     /// Indirect tail call (call + return).
     TailCallIndirect {
         callee: mir::Value,
@@ -618,6 +648,8 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::Cast { .. } => "cast",
             ThreadedInstructionData::Select { .. } => "select",
             ThreadedInstructionData::Call { .. } => "call",
+            ThreadedInstructionData::CallVirtual { .. } => "call_virtual",
+            ThreadedInstructionData::CallInterface { .. } => "call_interface",
             ThreadedInstructionData::CallIndirect { .. } => "call_indirect",
             ThreadedInstructionData::LocalGet { .. } => "local_get",
             ThreadedInstructionData::LocalSet { .. } => "local_set",
@@ -658,6 +690,8 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::Unreachable => "unreachable",
             ThreadedInstructionData::TailCall { .. } => "tail_call",
             ThreadedInstructionData::TailCallSelf { .. } => "tail_call_self",
+            ThreadedInstructionData::TailCallVirtual { .. } => "tail_call_virtual",
+            ThreadedInstructionData::TailCallInterface { .. } => "tail_call_interface",
             ThreadedInstructionData::TailCallIndirect { .. } => "tail_call_indirect",
         }
     }

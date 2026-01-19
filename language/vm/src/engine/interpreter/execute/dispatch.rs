@@ -9,7 +9,7 @@ use crate::diagnostic::Error;
 use crate::memory::{ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
 
 use super::super::decode::{
-    ArgumentRange, ConstValue, ControlFlow, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
+    ArgumentRange, ConstValue, ControlFlow, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     ThreadedFunction, ThreadedInstruction, ThreadedInstructionData, ThreadedState,
     UNKNOWN_SLOT_COUNT, is_invalid_value, operator,
 };
@@ -17,6 +17,10 @@ use super::super::state::{Frame, resize_and_clear_stack};
 use super::call::copy_values_with_plan;
 use super::instruction;
 use crate::telemetry::stat_inc;
+
+// dispatch slot indices
+const VTABLE_FIELD_INDEX: u32 = 0;
+const INTERFACE_ITAB_FIELD_INDEX: u32 = 1;
 
 // helper macro: do work, then become next handler
 macro_rules! next {
@@ -1492,55 +1496,141 @@ pub(crate) fn handle_select(
     next!(state, block, pc)
 }
 
-/// Handle function call (returns to trampoline).
-pub(crate) fn handle_call(
+/// Load a field value from a heap aggregate receiver.
+fn load_receiver_field(
     state: &mut ThreadedState<'_, '_>,
-    block: &[ThreadedInstruction],
-    pc: usize,
-) -> ControlFlow {
-    state.maybe_profile_instruction(&block[pc]);
+    receiver: Value,
+    field_index: u32,
+) -> Result<Value, Error> {
+    // resolve based on receiver storage
+    match receiver.tag() {
+        ValueTag::ManagedReference => {
+            let aggregate = instruction::load_from_managed_reference(state, receiver)?;
+            instruction::get_field(state, aggregate, field_index)
+        }
+        ValueTag::Aggregate | ValueTag::String => {
+            instruction::get_field(state, receiver, field_index)
+        }
+        _ => Err(Error::TypeMismatch {
+            expected: "aggregate".to_string(),
+            actual: format!("{receiver:?}"),
+        }),
+    }
+}
 
-    // decode instruction data
-    let ThreadedInstructionData::Call {
-        dest,
-        function,
-        callee_index,
-        arguments,
-        copies,
-    } = &block[pc].data
-    else {
-        unreachable!()
+/// Resolve the vtable dispatch target for a virtual call.
+fn resolve_virtual_dispatch_target(
+    state: &mut ThreadedState<'_, '_>,
+    receiver: Value,
+    slot_id: u32,
+) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+    // load the vtable pointer from the receiver
+    let vtable_value = load_receiver_field(state, receiver, VTABLE_FIELD_INDEX)?;
+
+    // require a global pointer for the vtable
+    let vtable_pointer = vtable_value
+        .as_global_pointer()
+        .ok_or_else(|| Error::TypeMismatch {
+            expected: "global_pointer".to_string(),
+            actual: format!("{vtable_value:?}"),
+        })?;
+
+    // map the vtable global to a dispatch table id
+    let table_id = state
+        .interpreter
+        .isolate
+        .dispatch_table_for_global(vtable_pointer.id)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // resolve the dispatch slot for the virtual call
+    let dispatch_registry = &state.interpreter.isolate.tree.type_table.dispatch_registry;
+    let table = dispatch_registry.table(table_id);
+    let slot = table
+        .slots
+        .get(slot_id as usize)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // require a method slot
+    let mir::DispatchSlot::Method { function } = slot else {
+        return Err(Error::InvalidInstruction);
     };
 
-    // resolve target function id
-    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    Ok(*function)
+}
 
-    // skip fast path when stats or step limits are active
-    let allow_direct = !state.collect_stats
-        && state
-            .interpreter
-            .isolate
-            .options
-            .limits
-            .max_instructions
-            .is_none();
+/// Resolve the itab dispatch target for an interface call.
+fn resolve_interface_dispatch_target(
+    state: &mut ThreadedState<'_, '_>,
+    receiver: Value,
+    slot_id: u32,
+) -> Result<mir::LocalNodeId<mir::Function>, Error> {
+    // load the itab id from the interface reference
+    let itab_value = load_receiver_field(state, receiver, INTERFACE_ITAB_FIELD_INDEX)?;
 
+    // decode the dispatch table id
+    let raw_id = match itab_value.as_uint_with_width() {
+        Some((value, _)) => value,
+        None => match itab_value.as_int_with_width() {
+            Some((value, _)) if value >= 0 => value as u64,
+            _ => {
+                return Err(Error::TypeMismatch {
+                    expected: "itab_id".to_string(),
+                    actual: format!("{itab_value:?}"),
+                });
+            }
+        },
+    };
+    let raw_id = u32::try_from(raw_id).map_err(|_| Error::InvalidInstruction)?;
+    let table_id = mir::DispatchTableId::new(raw_id);
+
+    // resolve the dispatch slot for the interface call
+    let dispatch_registry = &state.interpreter.isolate.tree.type_table.dispatch_registry;
+    let table = dispatch_registry
+        .tables
+        .get(table_id.index())
+        .ok_or(Error::InvalidInstruction)?;
+    let slot = table
+        .slots
+        .get(slot_id as usize)
+        .ok_or(Error::InvalidInstruction)?;
+
+    // require an interface method slot
+    let mir::DispatchSlot::InterfaceMethod { target, .. } = slot else {
+        return Err(Error::InvalidInstruction);
+    };
+
+    Ok(*target)
+}
+
+/// Enter a call with a resolved target function.
+#[allow(clippy::too_many_arguments)]
+fn call_with_target(
+    state: &mut ThreadedState<'_, '_>,
+    dest: mir::Value,
+    function_id: mir::LocalNodeId<mir::Function>,
+    callee_index: u32,
+    arguments: ArgumentRange,
+    copy_plan: Option<CopyRange>,
+    resume_pc: usize,
+    allow_direct: bool,
+) -> ControlFlow {
     // try direct threaded call when possible
     if allow_direct
+        && copy_plan.is_some()
         && !state
             .interpreter
             .engine
             .threaded_functions
             .is_import(function_id)
     {
-        let resolved_index = if *callee_index == INVALID_FUNCTION_INDEX {
+        let resolved_index = if callee_index == INVALID_FUNCTION_INDEX {
             state
                 .interpreter
                 .engine
                 .threaded_functions
                 .index_for(function_id)
         } else {
-            Some(*callee_index)
+            Some(callee_index)
         };
         let callee_ptr = resolved_index.and_then(|index| {
             state
@@ -1562,8 +1652,8 @@ pub(crate) fn handle_call(
             // store return destination and resume pc on caller frame
             {
                 let caller = state.current_frame_mut();
-                caller.return_destination = *dest;
-                caller.resume_pc = pc + 1;
+                caller.return_destination = dest;
+                caller.resume_pc = resume_pc;
             }
 
             // allocate new frame for callee
@@ -1608,11 +1698,14 @@ pub(crate) fn handle_call(
                 caller as *const Frame
             };
             let caller = unsafe { &*caller_ptr };
+            let Some(copy_plan) = copy_plan else {
+                return ControlFlow::Error(Error::InvalidInstruction);
+            };
             copy_values_with_plan(
                 &mut state.interpreter.engine.value_stack,
                 caller,
                 &new_frame,
-                *copies,
+                copy_plan,
                 current_func.copy_pool.as_slice(),
             );
 
@@ -1623,19 +1716,161 @@ pub(crate) fn handle_call(
 
             // continue at entry block
             let entry_instructions = entry_block.instructions.as_slice();
-            become (entry_instructions[0].handler)(state, entry_instructions, 0)
+            return (entry_instructions[0].handler)(state, entry_instructions, 0);
         }
     }
 
     // return control to trampoline
     ControlFlow::Call {
-        function: *function,
-        callee_index: *callee_index,
-        destination: *dest,
-        arguments: *arguments,
-        copies: Some(*copies),
-        resume_pc: pc + 1,
+        function: function_id.id,
+        callee_index,
+        destination: dest,
+        arguments,
+        copies: copy_plan,
+        resume_pc,
     }
+}
+
+/// Handle function call (returns to trampoline).
+pub(crate) fn handle_call(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::Call {
+        dest,
+        function,
+        callee_index,
+        arguments,
+        copies,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve target function id
+    let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
+    let copy_plan = Some(*copies);
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats
+        && state
+            .interpreter
+            .isolate
+            .options
+            .limits
+            .max_instructions
+            .is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        *callee_index,
+        *arguments,
+        copy_plan,
+        pc + 1,
+        allow_direct,
+    )
+}
+
+/// Handle virtual call (returns to trampoline).
+pub(crate) fn handle_call_virtual(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CallVirtual {
+        dest,
+        receiver,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_virtual_dispatch_target(state, receiver_value, *slot_id) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats
+        && state
+            .interpreter
+            .isolate
+            .options
+            .limits
+            .max_instructions
+            .is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        INVALID_FUNCTION_INDEX,
+        *arguments,
+        None,
+        pc + 1,
+        allow_direct,
+    )
+}
+
+/// Handle interface call (returns to trampoline).
+pub(crate) fn handle_call_interface(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::CallInterface {
+        dest,
+        receiver,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_interface_dispatch_target(state, receiver_value, *slot_id) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // skip fast path when stats or step limits are active
+    let allow_direct = !state.collect_stats
+        && state
+            .interpreter
+            .isolate
+            .options
+            .limits
+            .max_instructions
+            .is_none();
+
+    call_with_target(
+        state,
+        *dest,
+        function_id,
+        INVALID_FUNCTION_INDEX,
+        *arguments,
+        None,
+        pc + 1,
+        allow_direct,
+    )
 }
 
 /// Handle indirect call (returns to trampoline).
@@ -5508,6 +5743,72 @@ pub(crate) fn handle_tail_call_self(
     // continue at entry block
     let entry_instructions = entry_block.instructions.as_slice();
     become (entry_instructions[0].handler)(state, entry_instructions, 0)
+}
+
+/// Handle virtual tail call (returns to trampoline).
+pub(crate) fn handle_tail_call_virtual(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::TailCallVirtual {
+        receiver,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_virtual_dispatch_target(state, receiver_value, *slot_id) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    ControlFlow::TailCall {
+        function: function_id.id,
+        callee_index: INVALID_FUNCTION_INDEX,
+        arguments: *arguments,
+        copies: None,
+    }
+}
+
+/// Handle interface tail call (returns to trampoline).
+pub(crate) fn handle_tail_call_interface(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    state.maybe_profile_instruction(&block[pc]);
+
+    // decode instruction data
+    let ThreadedInstructionData::TailCallInterface {
+        receiver,
+        slot_id,
+        arguments,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve dynamic target
+    let receiver_value = state.get(*receiver);
+    let function_id = match resolve_interface_dispatch_target(state, receiver_value, *slot_id) {
+        Ok(function_id) => function_id,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    ControlFlow::TailCall {
+        function: function_id.id,
+        callee_index: INVALID_FUNCTION_INDEX,
+        arguments: *arguments,
+        copies: None,
+    }
 }
 
 /// Handle indirect tail call.
