@@ -14,6 +14,7 @@ use destack_source::{
     PhysicalFileSystem, Span, Uri,
 };
 use destack_workspace::{FormatterOptions, Session, query};
+use serde_json::to_value;
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
 use crate::query::common::{byte_span_to_range, position_to_byte, span_to_location};
@@ -52,6 +53,7 @@ pub struct DestackLanguageServer {
     session: OnceLock<Arc<Session>>,
     daemon: OnceLock<Arc<Daemon>>,
     open_documents: DashMap<String, OpenDocument>,
+    watch_registration_id: OnceLock<String>,
 }
 
 impl DestackLanguageServer {
@@ -65,6 +67,7 @@ impl DestackLanguageServer {
             session: OnceLock::new(),
             daemon: OnceLock::new(),
             open_documents: DashMap::new(),
+            watch_registration_id: OnceLock::new(),
         }
     }
 
@@ -78,6 +81,56 @@ impl DestackLanguageServer {
     #[inline]
     fn daemon(&self) -> &Arc<Daemon> {
         self.daemon.get().expect("daemon not initialized")
+    }
+
+    /// Ensure the module backing a file is analyzed.
+    fn ensure_analyzed_for_file(&self, file_id: FileId) {
+        let session = self.session();
+        let file = session.files.get(file_id);
+        let Some(path) = file.path.as_ref() else {
+            return;
+        };
+
+        if let Err(error) = self.daemon().analyze_path(path) {
+            tracing::debug!(?error, path = ?path, "lsp.query.analyze_failed");
+        }
+    }
+
+    /// Prepare a file for queries by ensuring analysis is current.
+    fn prepare_query_file(&self, file_id: FileId) -> Arc<File> {
+        self.ensure_analyzed_for_file(file_id);
+        self.session().files.get(file_id)
+    }
+
+    /// Register file watchers with the client.
+    async fn register_file_watchers(&self) {
+        if self.watch_registration_id.get().is_some() {
+            return;
+        }
+
+        let watchers = build_file_watchers();
+        let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
+        let register_options = match to_value(options) {
+            Ok(value) => Some(value),
+            Err(error) => {
+                tracing::debug!(?error, "lsp.watch.register.serialize_failed");
+                return;
+            }
+        };
+        let registration = lsp::Registration {
+            id: "destack.watch".to_string(),
+            method: "workspace/didChangeWatchedFiles".to_string(),
+            register_options,
+        };
+
+        match self.client.register_capability(vec![registration]).await {
+            Ok(()) => {
+                let _ = self.watch_registration_id.set("destack.watch".to_string());
+            }
+            Err(error) => {
+                tracing::debug!(?error, "lsp.watch.register_failed");
+            }
+        }
     }
 
     /// Invalidate a module at the given path and publish diagnostics.
@@ -110,6 +163,30 @@ impl DestackLanguageServer {
             .publish_diagnostics(uri.clone(), diagnostics, None)
             .await;
     }
+}
+
+/// Build file watcher patterns for the client.
+fn build_file_watchers() -> Vec<lsp::FileSystemWatcher> {
+    let mut watchers = Vec::new();
+    for file_type in TRACKED_FILE_TYPES {
+        if let Some(pattern) = file_type.glob() {
+            watchers.push(lsp::FileSystemWatcher {
+                glob_pattern: pattern.to_string().into(),
+                kind: None,
+            });
+        }
+    }
+
+    watchers.push(lsp::FileSystemWatcher {
+        glob_pattern: "**/dsconfig.json".to_string().into(),
+        kind: None,
+    });
+    watchers.push(lsp::FileSystemWatcher {
+        glob_pattern: "**/tsconfig*.json".to_string().into(),
+        kind: None,
+    });
+
+    watchers
 }
 
 // ----------------------------------------------------------------------------
@@ -252,6 +329,8 @@ impl LanguageServer for DestackLanguageServer {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.initialized")
             .await;
+
+        self.register_file_watchers().await;
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
@@ -345,24 +424,173 @@ impl LanguageServer for DestackLanguageServer {
             .await;
     }
 
-    async fn did_change_workspace_folders(&self, _params: lsp::DidChangeWorkspaceFoldersParams) {
-        // #Incomplete: handle workspace folder changes
+    async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
+        let session = self.session();
+        let daemon = self.daemon();
+
+        for folder in params.event.added {
+            if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
+                session.get_or_create_program(path);
+            }
+        }
+
+        for folder in params.event.removed {
+            if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
+                let _ = session.remove_root(&path);
+                let _ = daemon.remove_program_handle(&path);
+            }
+        }
     }
 
-    async fn did_change_watched_files(&self, _params: lsp::DidChangeWatchedFilesParams) {
-        // #Incomplete: handle external file changes
+    async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
+        // apply external file changes to the daemon
+        let session = self.session().clone();
+        let daemon = self.daemon().clone();
+        for change in params.changes {
+            // resolve file path
+            let Some(path) = change.uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+
+            // skip updates for open documents
+            let uri_str = change.uri.to_string();
+            if self.open_documents.contains_key(&uri_str) {
+                continue;
+            }
+
+            // remove any stale overlay for disk changes
+            self.overlay_fs.remove_overlay(&path);
+
+            // handle change type
+            if change.typ == lsp::FileChangeType::DELETED {
+                if let Err(error) = daemon.remove_virtual_file(&path) {
+                    tracing::debug!(?error, path = ?path, "lsp.watch.remove_failed");
+                }
+
+                // clear diagnostics for deleted files
+                self.client
+                    .publish_diagnostics(change.uri.clone(), Vec::new(), None)
+                    .await;
+                continue;
+            }
+
+            // read updated content from disk
+            let content = match session.fs.read_to_string(&path) {
+                Ok(content) => content,
+                Err(error) => {
+                    tracing::debug!(?error, path = ?path, "lsp.watch.read_failed");
+                    continue;
+                }
+            };
+
+            // invalidate and publish diagnostics
+            self.invalidate_and_publish(&change.uri, &path, content)
+                .await;
+        }
     }
 
-    async fn did_create_files(&self, _params: lsp::CreateFilesParams) {
-        // #Incomplete: handle file creation
+    async fn did_create_files(&self, params: lsp::CreateFilesParams) {
+        // apply created file updates
+        let session = self.session().clone();
+        for file in params.files {
+            let Ok(uri) = file.uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+            let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+
+            let uri_str = uri.to_string();
+            if self.open_documents.contains_key(&uri_str) {
+                continue;
+            }
+
+            self.overlay_fs.remove_overlay(&path);
+
+            let content = match session.fs.read_to_string(&path) {
+                Ok(content) => content,
+                Err(error) => {
+                    tracing::debug!(?error, path = ?path, "lsp.create.read_failed");
+                    continue;
+                }
+            };
+
+            self.invalidate_and_publish(&uri, &path, content).await;
+        }
     }
 
-    async fn did_rename_files(&self, _params: lsp::RenameFilesParams) {
-        // #Incomplete: handle file renames
+    async fn did_rename_files(&self, params: lsp::RenameFilesParams) {
+        // apply renamed file updates
+        let session = self.session().clone();
+        let daemon = self.daemon().clone();
+        for file in params.files {
+            let Ok(old_uri) = file.old_uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+            let Ok(new_uri) = file.new_uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+
+            let old_uri_str = old_uri.to_string();
+            if !self.open_documents.contains_key(&old_uri_str) {
+                if let Some(path) = old_uri.to_file_path().map(|path| path.into_owned())
+                    && let Err(error) = daemon.remove_virtual_file(&path)
+                {
+                    tracing::debug!(?error, path = ?path, "lsp.rename.remove_failed");
+                }
+
+                self.client
+                    .publish_diagnostics(old_uri.clone(), Vec::new(), None)
+                    .await;
+
+                if let Some(path) = old_uri.to_file_path().map(|path| path.into_owned()) {
+                    self.overlay_fs.remove_overlay(&path);
+                }
+            }
+
+            let new_uri_str = new_uri.to_string();
+            if self.open_documents.contains_key(&new_uri_str) {
+                continue;
+            }
+
+            let Some(path) = new_uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+            self.overlay_fs.remove_overlay(&path);
+
+            let content = match session.fs.read_to_string(&path) {
+                Ok(content) => content,
+                Err(error) => {
+                    tracing::debug!(?error, path = ?path, "lsp.rename.read_failed");
+                    continue;
+                }
+            };
+
+            self.invalidate_and_publish(&new_uri, &path, content).await;
+        }
     }
 
-    async fn did_delete_files(&self, _params: lsp::DeleteFilesParams) {
-        // #Incomplete: handle file deletion
+    async fn did_delete_files(&self, params: lsp::DeleteFilesParams) {
+        // clear diagnostics for deleted files
+        let daemon = self.daemon().clone();
+        for file in params.files {
+            let Ok(uri) = file.uri.parse::<lsp::Uri>() else {
+                continue;
+            };
+            let uri_str = uri.to_string();
+            if self.open_documents.contains_key(&uri_str) {
+                continue;
+            }
+
+            if let Some(path) = uri.to_file_path().map(|path| path.into_owned()) {
+                self.overlay_fs.remove_overlay(&path);
+                if let Err(error) = daemon.remove_virtual_file(&path) {
+                    tracing::debug!(?error, path = ?path, "lsp.delete.remove_failed");
+                }
+            }
+
+            self.client.publish_diagnostics(uri, Vec::new(), None).await;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -383,7 +611,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -413,7 +641,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -442,7 +670,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -467,7 +695,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -512,7 +740,7 @@ impl LanguageServer for DestackLanguageServer {
         }
 
         // convert to LSP symbols
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let lsp_symbols: Vec<lsp::DocumentSymbol> = symbols
             .iter()
             .filter_map(|s| document_symbol_to_lsp(&file, s))
@@ -562,7 +790,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -602,7 +830,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -634,7 +862,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -681,7 +909,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -744,7 +972,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // query semantic tokens
         let tokens = query::semantic_tokens(session, doc.file_id);
@@ -770,7 +998,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -850,7 +1078,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // get formatter options from program (respects dsconfig.json)
         let formatter = file
@@ -896,7 +1124,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // get formatter options from program
         let formatter = file
@@ -943,7 +1171,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // convert positions to byte offsets
         let positions: Vec<u32> = params
@@ -978,7 +1206,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1011,7 +1239,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // query document links
         let links = query::document_links(session, doc.file_id);
@@ -1047,7 +1275,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -1085,7 +1313,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // query code lenses
         let lenses = query::code_lenses(session, doc.file_id);
@@ -1117,7 +1345,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
 
         // convert range to span
         let Some(start) = position_to_byte(&file, &params.range.start) else {
@@ -1154,7 +1382,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.position) else {
             return Ok(None);
         };
@@ -1182,7 +1410,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position.position) else {
             return Ok(None);
         };
@@ -1215,7 +1443,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);
@@ -1305,7 +1533,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(doc) = self.open_documents.get(&uri_str) else {
             return Ok(None);
         };
-        let file = session.files.get(doc.file_id);
+        let file = self.prepare_query_file(doc.file_id);
         let Some(offset) = position_to_byte(&file, &params.text_document_position_params.position)
         else {
             return Ok(None);

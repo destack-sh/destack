@@ -206,6 +206,85 @@ fn test_apply_watch_event_updates_file() {
     assert!(!result.rescan);
 }
 
+/// Apply delete watch events to a tracked file.
+#[test]
+fn test_apply_watch_event_deletes_file() {
+    let test = TestProgram::new("watch_delete");
+    let program = test.session.get_or_create_program(test.root.clone());
+
+    let path = test.write_source("src/main.ds", "export const value = 1;\n");
+    register_file(
+        &program,
+        &path,
+        "export const value = 1;\n",
+        FileType::Destack,
+    );
+
+    let daemon = Daemon::new(test.session.clone());
+    let event = FileWatchEvent {
+        path: path.clone(),
+        previous_path: None,
+        kind: FileWatchEventKind::Deleted,
+    };
+
+    let result = apply_watch_event(&daemon, &test.session, &event);
+    let file = program
+        .files
+        .get_by_path(&path)
+        .expect("file should be tracked");
+
+    // assertion block: deleted files are marked missing
+    assert!(result.updated);
+    assert!(!result.rescan);
+    assert!(file.is_missing());
+}
+
+/// Apply rename watch events to tracked files.
+#[test]
+fn test_apply_watch_event_renames_file() {
+    let test = TestProgram::new("watch_rename");
+    let program = test.session.get_or_create_program(test.root.clone());
+
+    let old_path = test.write_source("src/old.ds", "export const value = 1;\n");
+    register_file(
+        &program,
+        &old_path,
+        "export const value = 1;\n",
+        FileType::Destack,
+    );
+
+    let new_path = test.write_source("src/new.ds", "export const value = 1;\n");
+    register_file(
+        &program,
+        &new_path,
+        "export const value = 1;\n",
+        FileType::Destack,
+    );
+
+    let daemon = Daemon::new(test.session.clone());
+    let event = FileWatchEvent {
+        path: new_path.clone(),
+        previous_path: Some(old_path.clone()),
+        kind: FileWatchEventKind::Renamed,
+    };
+
+    let result = apply_watch_event(&daemon, &test.session, &event);
+    let old_file = program
+        .files
+        .get_by_path(&old_path)
+        .expect("old file should be tracked");
+    let new_file = program
+        .files
+        .get_by_path(&new_path)
+        .expect("new file should be tracked");
+
+    // assertion block: rename removes the old file and updates the new one
+    assert!(result.updated);
+    assert!(!result.rescan);
+    assert!(old_file.is_missing());
+    assert!(!new_file.is_missing());
+}
+
 /// Rescan when config files change.
 #[test]
 fn test_apply_watch_event_requests_rescan_for_config() {

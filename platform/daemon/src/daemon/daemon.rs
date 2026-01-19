@@ -1,10 +1,24 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_workspace::{FileUpdate, Session};
+use destack_workspace::{FileUpdate, Program, Session};
+use parking_lot::Mutex;
 
 use crate::{DaemonError, DaemonUpdate};
+
+/// Per-program daemon handle.
+#[derive(Debug)]
+struct ProgramHandle {
+    /// The program for this root.
+    program: Arc<Program>,
+    /// The compiler for this program.
+    compiler: Arc<Compiler>,
+    /// Serialize compilation per program.
+    compile_lock: Mutex<()>,
+}
 
 /// Persistent daemon state for incremental compilation.
 #[derive(Debug, Clone)]
@@ -13,6 +27,8 @@ pub struct Daemon {
     pub session: Arc<Session>,
     /// Default compiler options for daemon work.
     pub compiler_options: CompilerOptions,
+    /// Per program daemon handle.
+    program_handles: Arc<DashMap<PathBuf, Arc<ProgramHandle>>>,
 }
 
 impl Daemon {
@@ -21,6 +37,7 @@ impl Daemon {
         Self {
             session,
             compiler_options: CompilerOptions::default(),
+            program_handles: Arc::new(DashMap::new()),
         }
     }
 
@@ -29,6 +46,7 @@ impl Daemon {
         Self {
             session,
             compiler_options,
+            program_handles: Arc::new(DashMap::new()),
         }
     }
 
@@ -46,21 +64,28 @@ impl Daemon {
         self.update_virtual_file(path, content)
     }
 
+    /// Return the number of tracked program handles.
+    #[cfg(test)]
+    pub(crate) fn program_handle_count(&self) -> usize {
+        self.program_handles.len()
+    }
+
+    /// Drop the program handle for a workspace root.
+    pub fn remove_program_handle(&self, root: &Path) -> bool {
+        self.program_handles.remove(root).is_some()
+    }
+
     /// Apply a text update without writing to the filesystem.
     pub fn update_virtual_file(
         &self,
         path: &Path,
         content: String,
     ) -> Result<DaemonUpdate, DaemonError> {
-        // locate the program for the path
-        let program = self.session.find_program_for_path(path);
-
-        // create compiler with existing session
-        let compiler = Compiler::new(
-            self.session.clone(),
-            program.clone(),
-            self.compiler_options.clone(),
-        );
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
 
         // resolve path to module or fall back to tracked files
         let module_id = match compiler.resolve_path_to_module(&path.to_path_buf()) {
@@ -122,5 +147,117 @@ impl Daemon {
             invalidation,
             diagnostics,
         })
+    }
+
+    /// Mark a file as removed without touching the filesystem.
+    pub fn remove_virtual_file(&self, path: &Path) -> Result<DaemonUpdate, DaemonError> {
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
+
+        // resolve module id for tracked paths
+        let module_id = program.modules.get_id_by_path(path);
+
+        // resolve file id for invalidation
+        let file_id = match module_id {
+            Some(module_id) => program.modules.get(module_id).read().file_id,
+            None => match program.files.get_id_by_path(path) {
+                Some(file_id) => file_id,
+                None => {
+                    return Err(DaemonError::FileNotTracked {
+                        path: path.to_path_buf(),
+                    });
+                }
+            },
+        };
+        let invalidation = program
+            .invalidate_file(file_id, FileUpdate::Removed)
+            .map_err(|error| DaemonError::Invalidation {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })?;
+
+        // reset diagnostics for a clean publish pass
+        let _ = program.diagnostics.drain();
+
+        // analyze the module when available
+        if let Some(module_id) = module_id {
+            let profile = program.default_profile_id_for_module(module_id);
+            let module = compiler.module_stamp(module_id);
+            let profile = compiler.profile_stamp(profile);
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+            compiler.compile();
+        }
+
+        // collect diagnostics for the updated file
+        let diagnostics = program
+            .diagnostics
+            .iter()
+            .into_iter()
+            .filter(|diagnostic| diagnostic.file_id == file_id)
+            .collect();
+
+        Ok(DaemonUpdate {
+            module_id,
+            file_id,
+            invalidation,
+            diagnostics,
+        })
+    }
+
+    /// Ensure a module for the given path is analyzed.
+    pub fn analyze_path(&self, path: &Path) -> Result<(), DaemonError> {
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
+
+        let module_id = compiler
+            .resolve_path_to_module(&path.to_path_buf())
+            .map_err(|error| DaemonError::Resolve {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })?;
+
+        let profile = program.default_profile_id_for_module(module_id);
+        let module = compiler.module_stamp(module_id);
+        let profile = compiler.profile_stamp(profile);
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+        compiler.compile();
+
+        Ok(())
+    }
+
+    /// Resolve the daemon program handle for a path.
+    fn program_handle_for_path(&self, path: &Path) -> Arc<ProgramHandle> {
+        // resolve the program first
+        let program = self.session.find_program_for_path(path);
+        let key = program.cwd.clone();
+
+        // return existing handle when present
+        match self.program_handles.entry(key) {
+            Entry::Occupied(entry) => {
+                // reuse the existing handle
+                entry.get().clone()
+            }
+            Entry::Vacant(entry) => {
+                // build a new compiler for the program
+                let compiler = Arc::new(Compiler::new(
+                    self.session.clone(),
+                    program.clone(),
+                    self.compiler_options.clone(),
+                ));
+                let handle = Arc::new(ProgramHandle {
+                    program,
+                    compiler,
+                    compile_lock: Mutex::new(()),
+                });
+                entry.insert(handle.clone());
+                handle
+            }
+        }
     }
 }
