@@ -66,14 +66,11 @@ impl ModuleLowerer<'_> {
                         .into_anchored(Some(self.profile)),
                     message: "cannot determine type for module-level binding".to_string(),
                 })?;
-            let mir_type = self.type_lowerer.lower_type(
-                self.types,
+            let mir_type = self.lower_type(
                 type_id,
-                self.module_id,
                 value_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile)),
-                &mut self.builder,
             )?;
 
             // constant initializer

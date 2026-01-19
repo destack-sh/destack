@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::lower::{
-    BuiltinTypeLayouts, FunctionEnv, FunctionState, InterfaceDispatchCache, TypeLowerer,
-};
+use crate::lower::{BuiltinTypeLayouts, FunctionEnv, FunctionState, TypeLowerer};
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
 use destack_workspace::{Module, ProfileId, TargetId};
@@ -136,7 +134,7 @@ impl Compiler {
         // create empty maps for function/global lookup (comptime expressions are standalone)
         let functions_by_symbol = HashMap::new();
         let globals_by_symbol = HashMap::new();
-        let interface_dispatch = InterfaceDispatchCache::new();
+        let interface_slots_by_symbol = HashMap::new();
         let interface_itab_ids = HashMap::new();
         let virtual_method_slots_by_symbol = HashMap::new();
         let vtable_globals_by_symbol = HashMap::new();
@@ -154,7 +152,7 @@ impl Compiler {
             functions_by_symbol: &functions_by_symbol,
             function_signature_types: &function_signature_types,
             globals_by_symbol: &globals_by_symbol,
-            interface_dispatch: &interface_dispatch,
+            interface_slots_by_symbol: &interface_slots_by_symbol,
             interface_itab_ids: &interface_itab_ids,
             virtual_method_slots_by_symbol: &virtual_method_slots_by_symbol,
             vtable_globals_by_symbol: &vtable_globals_by_symbol,

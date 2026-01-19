@@ -33,7 +33,7 @@ struct VirtualMethodKey {
 
 /// A virtual method candidate for vtable construction.
 #[derive(Debug, Clone)]
-struct VirtualMethodDescriptor {
+pub(crate) struct VirtualMethodDescriptor {
     /// The slot identity for overrides.
     key: VirtualMethodKey,
     /// The abstraction mode for override handling.
@@ -44,77 +44,49 @@ struct VirtualMethodDescriptor {
     symbol: GlobalSymbolId,
 }
 
-impl ModuleLowerer<'_> {
-    /// Predeclare virtual dispatch slots for method call metadata.
-    pub(crate) fn predeclare_virtual_dispatch(&mut self) -> LowerResult<()> {
-        // collect class symbols in declaration order
-        let mut class_symbols = Vec::new();
-        for (_declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
-        {
-            let dir::Declaration::Class { descriptor, .. } = declaration else {
-                continue;
-            };
-            class_symbols.push(descriptor.symbol.into_global(self.module_id));
-        }
-
-        // deduplicate and sort for determinism
-        class_symbols.sort_by_key(|symbol| symbol.local_id.id);
-        class_symbols.dedup();
-
-        // collect classes that need vtable headers
-        let vtable_layout_symbols = self.collect_vtable_layout_symbols()?;
-
-        for symbol in class_symbols {
-            // collect virtual method slots for this class
-            let slots = self.virtual_method_slots_for_class(symbol)?;
-            // skip classes without a vtable header
-            if !vtable_layout_symbols.contains(&symbol) {
-                continue;
-            }
-
-            // register the class as a vtable owner
-            self.vtable_class_symbols.push(symbol);
-
-            // resolve the declaration id for this class symbol
-            let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
-            let Some(declaration_id) = declaration_id else {
-                return Err(LowerError::Internal {
-                    module: self.module_id,
-                    message: format!("missing class declaration for vtable symbol {symbol:?}"),
-                });
-            };
-            let anchor = declaration_id
-                .into_global_any(self.module_id)
-                .into_anchored(Some(self.profile));
-
-            // predeclare the vtable storage for this class
-            let vtable_global =
-                self.create_vtable_global(symbol, slots.len() as u64 + 2, anchor)?;
-            self.vtable_globals_by_symbol.insert(symbol, vtable_global);
-
-            // record vtable slot ids for virtual call metadata
-            for (index, slot) in slots.iter().enumerate() {
-                let slot_id = index as u32 + 2;
-                self.virtual_method_slots_by_symbol
-                    .insert(slot.symbol, slot_id);
-            }
-        }
-
-        Ok(())
+impl VirtualMethodDescriptor {
+    /// Return the method symbol for this slot.
+    pub(crate) fn symbol(&self) -> GlobalSymbolId {
+        self.symbol
     }
+}
 
+impl ModuleLowerer<'_> {
     /// Lower vtables for classes that require virtual dispatch.
     pub(crate) fn lower_vtables(&mut self) -> LowerResult<()> {
         // generate vtables for each class
         for symbol in self.vtable_class_symbols.clone() {
-            self.lower_vtable_for_class(symbol)?;
+            let _ = self.lower_vtable(symbol)?;
         }
 
         Ok(())
     }
 
     /// Lower the vtable for a single class symbol.
-    fn lower_vtable_for_class(&mut self, symbol: GlobalSymbolId) -> LowerResult<()> {
+    fn lower_vtable(&mut self, symbol: GlobalSymbolId) -> LowerResult<mir::DispatchTableId> {
+        if let Some(table_id) = self.vtable_by_symbol.get(&symbol).copied() {
+            return Ok(table_id);
+        }
+
+        if self.vtable_in_progress.contains(&symbol) {
+            let anchor = self
+                .declaration_ids_for_symbol(symbol)
+                .first()
+                .copied()
+                .map(|id| id.into_global_any(self.module_id))
+                .map(|id| id.into_anchored(Some(self.profile)))
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: "vtable cycle missing declaration".to_string(),
+                })?;
+            return Err(LowerError::UnsupportedConstruct {
+                node: anchor,
+                message: "cycle detected while lowering vtable".to_string(),
+            });
+        }
+
+        self.vtable_in_progress.insert(symbol);
+
         // resolve the declaration id for this class symbol
         let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
         let Some(declaration_id) = declaration_id else {
@@ -137,14 +109,7 @@ impl ModuleLowerer<'_> {
                 message: "class missing instance type".to_string(),
             }
         })?;
-        let mir_type = *self
-            .type_lowerer
-            .type_cache
-            .get(&instance_type_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
-                message: "class instance layout not lowered".to_string(),
-            })?;
+        let mir_type = self.lower_type(instance_type_id, anchor)?;
 
         // resolve drop glue when available
         let drop_function = self
@@ -193,11 +158,14 @@ impl ModuleLowerer<'_> {
         let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
         metadata.vtable = Some(table_id);
 
-        Ok(())
+        self.vtable_by_symbol.insert(symbol, table_id);
+        self.vtable_in_progress.shift_remove(&symbol);
+
+        Ok(table_id)
     }
 
     /// Create the global backing storage for a class vtable.
-    fn create_vtable_global(
+    pub(crate) fn create_vtable_global(
         &mut self,
         symbol: GlobalSymbolId,
         slot_count: u64,
@@ -341,7 +309,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Collect virtual method slots for a class in vtable order.
-    fn virtual_method_slots_for_class(
+    pub(crate) fn virtual_method_slots_for_class(
         &self,
         symbol: GlobalSymbolId,
     ) -> LowerResult<Vec<VirtualMethodDescriptor>> {

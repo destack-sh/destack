@@ -8,6 +8,14 @@ use crate::{LowerError, LowerResult};
 impl ModuleLowerer<'_> {
     /// Record layout metadata for lowered struct layouts.
     pub(crate) fn lower_layout_metadata(&mut self) -> LowerResult<()> {
+        // ensure nominal layouts are lowered before metadata assignment
+        let nominal_info = self.collect_nominal_types();
+        for info in &nominal_info {
+            if matches!(info.kind, dir::SymbolType::Struct | dir::SymbolType::Class) {
+                let _ = self.lower_nominal_layout(info.symbol)?;
+            }
+        }
+
         // collect layout data to avoid borrow conflicts
         let layouts = self.type_lowerer.layout_entries();
 

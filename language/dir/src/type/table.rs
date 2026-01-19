@@ -346,6 +346,15 @@ impl TypeTable {
         self.declared_type_by_node_id.get(&node_id).copied()
     }
 
+    /// Iterate over declared type ids keyed by node id.
+    pub fn iter_declared_type_ids(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        self.declared_type_by_node_id
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
+    }
+
     /// Set the inferred type for a node.
     pub fn set_inferred_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
         self.inferred_type_by_node_id.insert(node_id, ty);
@@ -366,6 +375,15 @@ impl TypeTable {
     /// Get the inferred type id for a node.
     pub fn get_inferred_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
         self.inferred_type_by_node_id.get(&node_id).copied()
+    }
+
+    /// Iterate over inferred type ids keyed by node id.
+    pub fn iter_inferred_type_ids(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        self.inferred_type_by_node_id
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
     /// Get declared or fallback to inferred type for a node.
@@ -391,6 +409,15 @@ impl TypeTable {
     /// Get the signature type id for a declaration or member node.
     pub fn get_signature_type_for_node(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
         self.signature_type_by_node_id.get(&node_id).copied()
+    }
+
+    /// Iterate over signature type ids keyed by node id.
+    pub fn iter_signature_type_ids(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+        self.signature_type_by_node_id
+            .iter()
+            .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
     /// Copy node-local analysis data from a source node to a target node.

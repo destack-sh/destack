@@ -1282,17 +1282,16 @@ impl Compiler {
             if types
                 .get_static_parameter_constraint_type(*extension_symbol)
                 .is_none()
-            {
-                if let Some(constraint_id) = self.static_parameter_constraint_type(
+                && let Some(constraint_id) = self.static_parameter_constraint_type(
                     module,
                     profile,
                     *target_parameter_symbol,
                     node_id,
                     symbols,
                     types,
-                ) {
-                    types.set_static_parameter_constraint_type(*extension_symbol, constraint_id);
-                }
+                )
+            {
+                types.set_static_parameter_constraint_type(*extension_symbol, constraint_id);
             }
         }
 

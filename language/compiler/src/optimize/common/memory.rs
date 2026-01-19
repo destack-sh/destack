@@ -111,16 +111,19 @@ pub fn collect_non_escaping_stack_allocs(
             // read the instruction
             let instruction = tree.get(instruction_id);
             match instruction {
-                mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. } => {
-                    // capture call metadata for escape checks
-                    let call_metadata = tree.call_table.call_metadata(instruction_id);
+                mir::Instruction::Call { .. }
+                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallInterface { .. }
+                | mir::Instruction::CallIndirect { .. } => {
+                    // capture call effects for escape checks
+                    let call_effects = instruction.call_effects();
 
                     // mark stack pointers passed to calls as escaping
                     if let Some(arg_slice) = instruction.argument_slice() {
                         let arguments = tree.get_arguments(arg_slice);
 
                         for (index, &arg) in arguments.iter().enumerate() {
-                            if call_argument_escapes(call_metadata, index) {
+                            if call_argument_escapes(call_effects, index) {
                                 record_stack_escape(
                                     arg,
                                     definitions,
@@ -190,7 +193,9 @@ pub fn collect_non_escaping_stack_allocs(
                     record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
             }
-            mir::Terminator::TailCall { arguments, .. } => {
+            mir::Terminator::TailCall { arguments, .. }
+            | mir::Terminator::TailCallVirtual { arguments, .. }
+            | mir::Terminator::TailCallInterface { arguments, .. } => {
                 for &arg in arguments {
                     record_stack_escape(arg, definitions, tree, &stack_allocs, &mut escaping);
                 }
@@ -215,14 +220,14 @@ pub fn collect_non_escaping_stack_allocs(
 }
 
 /// Report whether a call argument may escape.
-fn call_argument_escapes(call_metadata: Option<&mir::CallMetadata>, index: usize) -> bool {
-    // default to escaping when metadata is missing
-    let Some(metadata) = call_metadata else {
+fn call_argument_escapes(call_effects: Option<&mir::CallEffects>, index: usize) -> bool {
+    // default to escaping when effects are missing
+    let Some(effects) = call_effects else {
         return true;
     };
 
     // default to escaping when argument metadata is missing
-    let Some(arg_metadata) = metadata.argument_metadata.get(index) else {
+    let Some(arg_metadata) = effects.argument_metadata.get(index) else {
         return true;
     };
 

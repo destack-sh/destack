@@ -12,7 +12,7 @@ use super::constructor::ConstructorState;
 use crate::lower::emit::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::VtableGlobal;
-use crate::lower::table::interface::InterfaceDispatchCache;
+use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::r#type::TypeLowerer;
 
 /// Shared, immutable inputs for lowering a single function body.
@@ -39,7 +39,7 @@ pub(crate) struct FunctionEnv<'a> {
     /// Resolve globals by symbol for module-level variable references.
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Resolve interface dispatch slots for call lowering.
-    pub(crate) interface_dispatch: &'a InterfaceDispatchCache,
+    pub(crate) interface_slots_by_symbol: &'a HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
     /// Resolve interface itab ids for interface upcasts.
     pub(crate) interface_itab_ids:
         &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,

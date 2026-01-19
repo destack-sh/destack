@@ -225,21 +225,24 @@ pub fn instruction_is_read_only_access(
 
 /// Check if a read only instruction can be moved before other memory operations.
 pub fn instruction_allows_read_only_motion(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    _instruction_id: mir::LocalNodeId<mir::Instruction>,
     instruction: &Instruction,
-    tree: &mir::NodeTree,
+    _tree: &mir::NodeTree,
 ) -> bool {
     // accept non call instructions
     let is_call = matches!(
         instruction,
-        Instruction::Call { .. } | Instruction::CallIndirect { .. }
+        Instruction::Call { .. }
+            | Instruction::CallVirtual { .. }
+            | Instruction::CallInterface { .. }
+            | Instruction::CallIndirect { .. }
     );
     if !is_call {
         return true;
     }
 
     // require call metadata to be present
-    let Some(metadata) = tree.call_table.call_metadata(instruction_id) else {
+    let Some(metadata) = instruction.call_effects() else {
         return false;
     };
 
@@ -859,19 +862,6 @@ pub fn clone_instruction_metadata(
 
         tree.memory_table
             .insert_memory_accesses(cloned, cloned_accesses);
-    }
-
-    // clone callsite metadata
-    if let Some(metadata) = tree.call_table.call_metadata(original) {
-        let mut cloned_metadata = metadata.clone();
-        if let Some(receiver) = cloned_metadata.receiver
-            && let Some(&remapped) = value_map.get(&receiver)
-        {
-            cloned_metadata.receiver = Some(remapped);
-        }
-
-        tree.call_table
-            .insert_call_metadata(cloned, cloned_metadata);
     }
 }
 

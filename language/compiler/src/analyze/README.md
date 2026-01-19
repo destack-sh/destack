@@ -16,7 +16,7 @@ that must be known during Analyze.
 
 ## Pipeline
 
-Analyze sits between Resolve and Elaborate in the per-profile pipeline.
+Analyze sits between Resolve and Elaborate in the per-profile part of the pipeline.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -41,7 +41,7 @@ Analyze runs in two internal stages with a clear contract:
 
 # Outputs
 
-Analyze records results in the **TypeTable**, one per module.
+Analyze records results in the **TypeTable** (one per module).
 TypeTable is the single source of truth for typing and resolution data.
 Elaborate and Lower rely on these results and don't recompute anything.
 

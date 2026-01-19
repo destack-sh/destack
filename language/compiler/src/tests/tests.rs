@@ -533,11 +533,13 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("unknown implicit target '{target}'"));
 
         let package = self.program.packages.get(package_id);
-        let mut package = package.write();
-        package
-            .targets
-            .entry(target_id.clone())
-            .or_insert(target_config);
+        {
+            let mut package = package.write();
+            package
+                .targets
+                .entry(target_id.clone())
+                .or_insert(target_config);
+        }
 
         let profile = self
             .program
