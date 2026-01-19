@@ -724,6 +724,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
+    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
     use destack_ast::{
         Argument, BinaryOperator, BindingKind, BindingModifier, Declaration, Expression,
         FunctionAbstraction, FunctionKind, FunctionMode, IntType, IntrinsicType, Key, Mutability,
@@ -731,7 +732,6 @@ mod tests {
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
-    use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
     fn test_parse_type_alias() {
