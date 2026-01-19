@@ -1696,10 +1696,10 @@ impl Compiler {
 
                 // collect try errors for catch typing
                 let has_catch = catch_expression.is_some();
-                ctx.push_try_frame(has_catch);
 
                 // infer the try body
                 let mut try_ctx = ctx.fork().with_expected_type(ctx.expected_type);
+                try_ctx.push_try_frame(has_catch);
                 let try_ty_id = self.infer_expression(
                     module,
                     *try_expression,
@@ -1711,7 +1711,7 @@ impl Compiler {
                 )?;
 
                 // capture try errors before entering catch
-                let try_error_types = ctx
+                let try_error_types = try_ctx
                     .pop_try_frame()
                     .map(|frame| frame.error_types)
                     .unwrap_or_default();
@@ -2094,6 +2094,13 @@ impl Compiler {
                     true,
                     true,
                 )?;
+                let ty_id = self.expected_tag_reference_type(
+                    *ty,
+                    ctx.expected_type,
+                    ty_id,
+                    tree,
+                    types,
+                );
 
                 // infer the value expression
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
@@ -2112,6 +2119,13 @@ impl Compiler {
                     true,
                     true,
                 )?;
+                let ty_id = self.expected_tag_reference_type(
+                    *ty,
+                    ctx.expected_type,
+                    ty_id,
+                    tree,
+                    types,
+                );
 
                 // collect expected element types
                 let expected_element_types =
@@ -2147,6 +2161,13 @@ impl Compiler {
                     true,
                     true,
                 )?;
+                let ty_id = self.expected_tag_reference_type(
+                    *ty,
+                    ctx.expected_type,
+                    ty_id,
+                    tree,
+                    types,
+                );
 
                 // derive an expected object type from the tag
                 let expected_object_ty_id = self.expected_object_type(
@@ -2315,12 +2336,13 @@ impl Compiler {
                 infer,
                 &mut expr_ctx,
             )?;
+            ctx.merge_try_errors_from(&expr_ctx);
         }
 
         // infer the last expression with contextual typing
         let ty_id = if let Some(last_expression_id) = block.expressions.last() {
             let mut last_ctx = ctx.fork().with_expected_type(ctx.expected_type);
-            self.infer_expression(
+            let ty_id = self.infer_expression(
                 module,
                 *last_expression_id,
                 tree,
@@ -2328,7 +2350,9 @@ impl Compiler {
                 types,
                 infer,
                 &mut last_ctx,
-            )?
+            )?;
+            ctx.merge_try_errors_from(&last_ctx);
+            ty_id
         } else {
             let ty = Type::TypeLiteral {
                 value: TypeLiteral::Void,

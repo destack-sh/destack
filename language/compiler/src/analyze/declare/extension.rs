@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Extension, ExtensionKind, GlobalSymbolId, Lineage, LocalLineageId, LocalSymbolId, SymbolTable,
-    SymbolType, TypeTable,
+    Expression, Extension, ExtensionKind, GlobalSymbolId, Lineage, LocalLineageId, LocalSymbolId,
+    NodeTree, SymbolTable, SymbolType, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -13,6 +13,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
@@ -22,20 +23,13 @@ impl Compiler {
         let mut seen_targets = HashSet::new();
         let mut seen_extensions = HashSet::new();
 
-        // scan module symbols for remote targets and extensions
-        for local_symbol in symbols.active_symbol_ids() {
-            let symbol_entry = symbols.get_symbol(local_symbol);
-            let symbol_id = LocalSymbolId::new_typed(local_symbol.id, symbol_entry.ty);
-            let global_symbol = symbol_id.into_global(module.id);
-
-            // resolve canonical ids for imported symbols
-            let canonical_symbol =
-                self.canonical_symbol_id(module, symbols, profile, global_symbol);
+        // helper to register remote symbols as targets or extensions
+        let mut register_symbol = |symbol: GlobalSymbolId| {
+            let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
             if canonical_symbol.module_id == module.id {
-                continue;
+                return;
             }
 
-            // track imported symbols that can expose extensions
             match canonical_symbol.ty() {
                 SymbolType::Struct
                 | SymbolType::Class
@@ -53,6 +47,22 @@ impl Compiler {
                 }
                 _ => {}
             }
+        };
+
+        // register remote symbols for targets and extensions
+        for local_symbol in symbols.active_symbol_ids() {
+            let symbol_entry = symbols.get_symbol(local_symbol);
+            let symbol_id = LocalSymbolId::new_typed(local_symbol.id, symbol_entry.ty);
+            let global_symbol = symbol_id.into_global(module.id);
+            register_symbol(global_symbol);
+        }
+
+        // register expressions for remote symbols referenced directly
+        for (_expression_id, expression) in tree.iter_nodes_of_type::<Expression>() {
+            let Some(target_symbol) = expression.target_symbol() else {
+                continue;
+            };
+            register_symbol(target_symbol);
         }
 
         // register inherent extensions from imported nominal types

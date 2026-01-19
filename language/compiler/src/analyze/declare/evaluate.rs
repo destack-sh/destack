@@ -1018,7 +1018,12 @@ impl Compiler {
                 static_arguments,
                 ..
             } => {
-                // prefer merged type symbols for namespace-qualified references
+                // resolve import targets without collapsing type aliases
+                let target_symbol = self.canonical_type_reference_symbol_id(
+                    module, symbols, profile, target_symbol,
+                );
+
+                // prefer merged type symbols for namespaces
                 let target_symbol =
                     self.merged_type_symbol_id(module, symbols, profile, target_symbol);
                 let static_arguments = self.evaluate_static_arguments(

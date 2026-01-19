@@ -258,6 +258,63 @@ impl Compiler {
         Ok(Some(filtered_type_id))
     }
 
+    /// Prefer a contextual tagged type when it supplies missing static arguments.
+    pub(super) fn expected_tag_reference_type(
+        &self,
+        tag_expression_id: LocalNodeId<Expression>,
+        expected_ty_id: Option<LocalTypeId>,
+        tag_ty_id: LocalTypeId,
+        tree: &NodeTree,
+        types: &TypeTable,
+    ) -> LocalTypeId {
+        // skip when no contextual type exists
+        let Some(expected_ty_id) = self.expected_value_type(expected_ty_id, types) else {
+            return tag_ty_id;
+        };
+
+        // keep explicit static arguments on the tag
+        let has_explicit_arguments = match tree.get(tag_expression_id) {
+            Expression::LocalReference {
+                static_arguments, ..
+            }
+            | Expression::ModuleReference {
+                static_arguments, ..
+            }
+            | Expression::GlobalReference {
+                static_arguments, ..
+            } => static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty()),
+            _ => false,
+        };
+        if has_explicit_arguments {
+            return tag_ty_id;
+        }
+
+        // resolve reference symbols for the tag and expected types
+        let Type::Reference {
+            symbol: tag_symbol,
+            static_arguments: _,
+        } = types.get_type(tag_ty_id)
+        else {
+            return tag_ty_id;
+        };
+        let Type::Reference {
+            symbol: expected_symbol,
+            static_arguments: expected_arguments,
+        } = types.get_type(expected_ty_id)
+        else {
+            return tag_ty_id;
+        };
+
+        // accept contextual arguments when the symbols match
+        if tag_symbol == expected_symbol && expected_arguments.is_some() {
+            return expected_ty_id;
+        }
+
+        tag_ty_id
+    }
+
     /// Resolve an expected field type from a contextual object type and key.
     pub(super) fn expected_field_type(
         &self,

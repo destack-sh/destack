@@ -175,7 +175,7 @@ impl Compiler {
         // register visible extensions from imported symbols
         self.collect(
             &mut collector,
-            self.register_visible_extensions(&module, profile, &symbols, &mut types),
+            self.register_visible_extensions(&module, profile, &tree, &symbols, &mut types),
         );
 
         // yield on any yields

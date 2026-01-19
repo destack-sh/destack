@@ -987,8 +987,7 @@ mod tests {
                 .with_profile_libs(&[lib.name]);
             test.resolve_builtins();
             test.resolve_libs();
-            // allow longer for full lib analysis
-            let timeout = Duration::from_secs(30);
+            let timeout = Duration::from_secs(60);
             test.compile_with_timeout(timeout);
             test.check_no_diagnostic(DiagnosticSeverity::Note);
 

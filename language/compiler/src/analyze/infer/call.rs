@@ -315,6 +315,20 @@ impl Compiler {
             candidates.push((*signature_ty_id, resolved));
         }
 
+        if !candidates.is_empty() {
+            let mut deduped = Vec::new();
+            for (signature_id, resolved) in candidates {
+                if !deduped.iter().any(|(_, existing)| {
+                    self.signatures_equivalent(
+                        module, profile, &resolved, existing, symbols, types, options,
+                    )
+                }) {
+                    deduped.push((signature_id, resolved));
+                }
+            }
+            candidates = deduped;
+        }
+
         if candidates.is_empty() {
             return Ok(None);
         }
@@ -353,6 +367,22 @@ impl Compiler {
             return Ok(Some(candidates.remove(index)));
         }
 
+        let min_params = maximal
+            .iter()
+            .map(|index| candidates[*index].1.dynamic_parameters.len())
+            .min()
+            .unwrap_or(0);
+        let mut narrowed = Vec::new();
+        for index in maximal {
+            if candidates[index].1.dynamic_parameters.len() == min_params {
+                narrowed.push(index);
+            }
+        }
+        if narrowed.len() == 1 {
+            let index = narrowed[0];
+            return Ok(Some(candidates.remove(index)));
+        }
+
         let candidates = callee_symbol.into_iter().collect();
         Err(AnalyzeError::AmbiguousOverload {
             node: expression_id
@@ -360,6 +390,78 @@ impl Compiler {
                 .into_anchored(Some(profile)),
             candidates,
         })
+    }
+
+    fn signatures_equivalent(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left: &ResolvedSignature,
+        right: &ResolvedSignature,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
+            return false;
+        }
+
+        for (left_ty_id, right_ty_id) in left
+            .dynamic_parameters
+            .iter()
+            .zip(right.dynamic_parameters.iter())
+        {
+            let left_assignable = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                *left_ty_id,
+                *right_ty_id,
+                types,
+                options,
+            );
+            let right_assignable = self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                *right_ty_id,
+                *left_ty_id,
+                types,
+                options,
+            );
+            if left_assignable == Assignability::NotAssignable
+                || right_assignable == Assignability::NotAssignable
+            {
+                return false;
+            }
+        }
+
+        match (left.return_type, right.return_type) {
+            (None, None) => true,
+            (Some(left_return), Some(right_return)) => {
+                let left_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    left_return,
+                    right_return,
+                    types,
+                    options,
+                );
+                let right_assignable = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    right_return,
+                    left_return,
+                    types,
+                    options,
+                );
+                left_assignable != Assignability::NotAssignable
+                    && right_assignable != Assignability::NotAssignable
+            }
+            _ => false,
+        }
     }
 
     /// Infer argument types for a resolved signature and emit subtype constraints.
