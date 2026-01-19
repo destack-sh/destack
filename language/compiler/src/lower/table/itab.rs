@@ -32,20 +32,20 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_itabs(&mut self) -> LowerResult<()> {
         // generate itabs for each pair
         for (concrete, interface) in self.interface_itab_pairs.clone() {
-            self.lower_itab_for_pair(concrete, interface)?;
+            self.lower_itab(concrete, interface)?;
         }
 
         Ok(())
     }
 
     /// Lower a single interface itab for a concrete type.
-    fn lower_itab_for_pair(
+    fn lower_itab(
         &mut self,
         concrete: GlobalSymbolId,
         interface: GlobalSymbolId,
     ) -> LowerResult<()> {
-        // collect a diagnostic anchor
-        let anchor = self
+        // resolve the declaration
+        let declaration_id = self
             .declaration_ids_for_symbol(interface)
             .first()
             .copied()
@@ -53,9 +53,7 @@ impl ModuleLowerer<'_> {
                 id.into_global_any(self.module_id)
                     .into_anchored(Some(self.profile))
             });
-
-        // skip interfaces without declarations
-        let Some(anchor) = anchor else {
+        let Some(declaration_id) = declaration_id else {
             return Ok(());
         };
 
@@ -65,7 +63,7 @@ impl ModuleLowerer<'_> {
         // resolve concrete instance type
         let instance_type_id = self.types.get_instance_type_id(concrete).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: anchor,
+                node: declaration_id,
                 message: "missing concrete instance type".to_string(),
             }
         })?;
@@ -76,14 +74,14 @@ impl ModuleLowerer<'_> {
             .type_cache
             .get(&instance_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
-                node: anchor,
+                node: declaration_id,
                 message: "concrete layout not lowered".to_string(),
             })?;
 
         // resolve interface instance type
         let interface_type_id = self.types.get_instance_type_id(interface).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: anchor,
+                node: declaration_id,
                 message: "missing interface instance type".to_string(),
             }
         })?;
@@ -93,7 +91,7 @@ impl ModuleLowerer<'_> {
             self.types,
             interface_type_id,
             self.module_id,
-            anchor,
+            declaration_id,
             &mut self.builder,
         )?;
 
@@ -108,8 +106,12 @@ impl ModuleLowerer<'_> {
                     name, member_id, ..
                 } => {
                     // resolve field offset slot
-                    let offset =
-                        self.interface_field_offset(concrete_mir_type, name, member_id, anchor)?;
+                    let offset = self.interface_field_offset(
+                        concrete_mir_type,
+                        name,
+                        member_id,
+                        declaration_id,
+                    )?;
                     slots.push(mir::DispatchSlot::FieldOffset {
                         field_name: name,
                         offset,
@@ -146,7 +148,7 @@ impl ModuleLowerer<'_> {
             self.builder
                 .tree_mut()
                 .type_table
-                .dispatch_tables
+                .dispatch_registry
                 .insert(table)
         };
 
@@ -167,7 +169,7 @@ impl ModuleLowerer<'_> {
         concrete_mir_type: mir::LocalNodeId<mir::Type>,
         field_name: StringId,
         member_id: LocalNodeId<Member>,
-        anchor: destack_dir::AnchoredGlobalNodeId,
+        anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<u32> {
         // resolve the struct layout for the concrete type
         let layout = self
@@ -262,7 +264,7 @@ impl ModuleLowerer<'_> {
 
                     // match the method signature
                     let signature_id = self.method_signature_type_id(*member_id)?;
-                    if !self.types_are_equivalent(signature_id, signature_type_id) {
+                    if !self.method_signatures_equivalent(signature_id, signature_type_id) {
                         continue;
                     }
 
@@ -281,29 +283,6 @@ impl ModuleLowerer<'_> {
                 .into_anchored(Some(self.profile)),
             message: "missing interface method implementation".to_string(),
         })
-    }
-
-    /// Collect interface lineage in base to derived order.
-    fn collect_interface_lineage(
-        &self,
-        interface: GlobalSymbolId,
-        order: &mut Vec<GlobalSymbolId>,
-        seen: &mut HashSet<GlobalSymbolId>,
-    ) {
-        // avoid duplicate interfaces
-        if !seen.insert(interface) {
-            return;
-        }
-
-        // visit the base interface first
-        if let Some(lineage) = self.types.get_lineage_for_symbol(interface)
-            && let Some(base) = lineage.extends
-        {
-            self.collect_interface_lineage(base, order, seen);
-        }
-
-        // append the interface after base types
-        order.push(interface);
     }
 
     /// Collect concrete to interface pairs for itab generation.
@@ -326,7 +305,7 @@ impl ModuleLowerer<'_> {
 
             // expand interface lineage
             for interface_symbol in &lineage.implements {
-                self.collect_interface_lineage(
+                self.collect_interface_lineage_symbols(
                     *interface_symbol,
                     &mut ordered_interfaces,
                     &mut seen_interfaces,

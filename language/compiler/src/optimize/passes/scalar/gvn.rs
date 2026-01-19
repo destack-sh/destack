@@ -1483,7 +1483,11 @@ block0:
 
         let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
         let instruction = program.tree.get_mut(call_inst);
-        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            effects: call_effects,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
         *call_effects = Some(effects);

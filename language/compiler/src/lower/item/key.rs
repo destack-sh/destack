@@ -1,5 +1,5 @@
 use destack_base::StringId;
-use destack_dir::{DynamicKey, LocalNodeId, Member};
+use destack_dir::{self as dir, DynamicKey, LocalNodeId, Member};
 
 use crate::{LowerError, LowerResult};
 
@@ -10,7 +10,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn member_dispatch_name_or_error(
         &self,
         key: Option<&DynamicKey>,
-        mode: Option<destack_dir::FunctionMode>,
+        mode: Option<dir::FunctionMode>,
         node: LocalNodeId<Member>,
     ) -> LowerResult<StringId> {
         if let Some(DynamicKey::Name(name)) = key {
@@ -18,8 +18,8 @@ impl ModuleLowerer<'_> {
         }
 
         match mode {
-            Some(destack_dir::FunctionMode::Call) => Ok(self.dispatch_call_name),
-            Some(destack_dir::FunctionMode::Constructor | destack_dir::FunctionMode::New) => {
+            Some(dir::FunctionMode::Call) => Ok(self.dispatch_call_name),
+            Some(dir::FunctionMode::Constructor | dir::FunctionMode::New) => {
                 Ok(self.dispatch_construct_name)
             }
             _ => Err(LowerError::UnsupportedConstruct {

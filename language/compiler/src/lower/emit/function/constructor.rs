@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use destack_dir::AnchoredGlobalNodeId;
+use destack_dir::{AnchoredGlobalNodeId, GlobalSymbolId};
 use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
@@ -26,6 +26,7 @@ impl FunctionContext<'_> {
         instance_type: mir::LocalNodeId<mir::Type>,
         layout: StructLayout,
         node: AnchoredGlobalNodeId,
+        class_symbol: Option<GlobalSymbolId>,
     ) -> LowerResult<()> {
         // build the initial instance value for this
         let instance_mir_type = self.state.builder.tree().get(instance_type).clone();
@@ -33,10 +34,12 @@ impl FunctionContext<'_> {
             mir::Type::Reference { kind, pointee, .. } => match kind {
                 mir::ReferenceKind::Managed => {
                     let pointer = self.state.builder.managed_alloc(pointee, instance_type);
-                    let zero = self.zero_value_for_type(pointee, node)?;
-                    self.state.builder.store(pointer, zero);
+                    let default_value =
+                        self.default_struct_value_for_layout(pointee, &layout, class_symbol, node)?;
+                    self.state.builder.store(pointer, default_value);
                     pointer
                 }
+                // reject unsupported reference kinds
                 _ => {
                     return Err(LowerError::UnsupportedConstruct {
                         node,
@@ -44,7 +47,10 @@ impl FunctionContext<'_> {
                     });
                 }
             },
-            _ => self.zero_value_for_type(instance_type, node)?,
+            // initialize value typed instances
+            _ => {
+                self.default_struct_value_for_layout(instance_type, &layout, class_symbol, node)?
+            }
         };
 
         // bind this as a local variable
@@ -83,6 +89,7 @@ impl FunctionContext<'_> {
             return;
         };
 
+        // record the field initialization when required
         if state.required_fields.contains(&field_index) {
             state.initialized_fields.insert(field_index);
         }

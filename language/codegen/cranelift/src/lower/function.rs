@@ -552,6 +552,26 @@ impl<'a> FunctionLowerer<'a> {
                 None
             }
 
+            // call_virtual/interface: look up return type from signature type
+            mir::Instruction::CallVirtual {
+                destination,
+                signature,
+                ..
+            }
+            | mir::Instruction::CallInterface {
+                destination,
+                signature,
+                ..
+            } => {
+                if let Some(dest) = destination {
+                    let callee_type = self.tree.get(*signature);
+                    if let mir::Type::FunctionPointer { result, .. } = callee_type {
+                        return Some((*dest, *result));
+                    }
+                }
+                None
+            }
+
             // stack_allocate: result type is explicit
             mir::Instruction::StackAlloc {
                 destination,
@@ -1181,6 +1201,7 @@ impl<'a> FunctionLowerer<'a> {
                 destination,
                 function,
                 arguments,
+                ..
             } => {
                 let function_ref = self.function_ref_map.get(function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
@@ -1210,6 +1231,7 @@ impl<'a> FunctionLowerer<'a> {
                 callee,
                 arguments,
                 signature,
+                ..
             } => {
                 let sig_ref =
                     self.build_indirect_call_signature(*signature, builder, "indirect call")?;
@@ -1230,6 +1252,12 @@ impl<'a> FunctionLowerer<'a> {
                         value_map.insert(*dest, results[0]);
                     }
                 }
+            }
+            mir::Instruction::CallVirtual { .. } | mir::Instruction::CallInterface { .. } => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "virtual calls are not supported in cranelift yet",
+                    instruction_id.into_any(),
+                ));
             }
 
             // stack_allocate: create_sized_stack_slot + stack_addr (alloca equivalent)
@@ -1442,6 +1470,11 @@ impl<'a> FunctionLowerer<'a> {
                 builder
                     .ins()
                     .return_call_indirect(sig_ref, callee_value, &argument_values);
+            }
+            mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "virtual tail calls are not supported in cranelift yet".into(),
+                });
             }
         }
 

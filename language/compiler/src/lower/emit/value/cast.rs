@@ -93,20 +93,8 @@ impl FunctionContext<'_> {
         let target_mir_type = self.mir_type_for_expression(expression_id)?;
 
         // resolve the source and target dir types
-        let source_type_id =
-            self.dir_type_for_expression(value_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: value_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
-        let target_type_id =
-            self.dir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
+        let target_type_id = self.dir_type_for_expression_or_error(expression_id)?;
         let target_dir_type = self.env.types.get_type(target_type_id);
 
         // handle interface upcasts
@@ -115,6 +103,7 @@ impl FunctionContext<'_> {
         {
             return self.lower_interface_upcast(
                 expression_id,
+                value_id,
                 value,
                 source_mir_type,
                 source_type_id,
@@ -151,13 +140,7 @@ impl FunctionContext<'_> {
         let target_mir_type = self.mir_type_for_expression(expression_id)?;
 
         // resolve the source dir type
-        let source_type_id =
-            self.dir_type_for_expression(value_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: value_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
         let source_dir_type = self.env.types.get_type(source_type_id);
 
         // handle interface downcasts by extracting object pointers
@@ -230,20 +213,8 @@ impl FunctionContext<'_> {
         let target_mir_type = self.mir_type_for_expression(expression_id)?;
 
         // resolve the source and target dir types
-        let source_type_id =
-            self.dir_type_for_expression(value_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: value_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
-        let target_type_id =
-            self.dir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
+        let target_type_id = self.dir_type_for_expression_or_error(expression_id)?;
 
         // resolve union layout metadata
         let layout = self
@@ -255,6 +226,11 @@ impl FunctionContext<'_> {
                     .into_global_any(self.env.module_id)
                     .into_anchored(Some(self.env.profile)),
             })?;
+
+        // skip when the source is already the target union type
+        if dir::are_types_equal(source_type_id, target_type_id, self.env.types) {
+            return Ok((value, target_mir_type));
+        }
 
         // resolve the union tag index for the source type
         let tag_index = layout
@@ -311,13 +287,7 @@ impl FunctionContext<'_> {
         let target_mir_type = self.mir_type_for_expression(expression_id)?;
 
         // resolve the source dir type
-        let source_type_id =
-            self.dir_type_for_expression(value_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: value_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
 
         // resolve union layout metadata
         let layout = self
@@ -352,9 +322,10 @@ impl FunctionContext<'_> {
     }
 
     /// Build an interface reference from a concrete value.
-    fn lower_interface_upcast(
+    pub(crate) fn lower_interface_upcast(
         &mut self,
         expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
         value: mir::Value,
         source_mir_type: mir::LocalNodeId<mir::Type>,
         source_type_id: dir::LocalTypeId,
@@ -374,14 +345,33 @@ impl FunctionContext<'_> {
             })?;
 
         // resolve the concrete symbol for the source type
+        let source_dir_type = self.env.types.get_type(source_type_id);
         let concrete_symbol = self
             .concrete_symbol_for_type(source_type_id)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
+            .or_else(|| self.concrete_symbol_for_expression(value_id));
+
+        // reject interface to interface casts without RTTI
+        let Some(concrete_symbol) = concrete_symbol else {
+            if matches!(
+                source_dir_type,
+                dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Interface
+            ) {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "FUGU #Broken: interface to interface upcast requires RTTI"
+                        .to_string(),
+                });
+            }
+
+            return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)
                     .into_anchored(Some(self.env.profile)),
                 message: "interface upcast requires a concrete symbol".to_string(),
-            })?;
+            });
+        };
 
         // resolve the itab id for the concrete and interface pair
         let itab_id = self
@@ -487,6 +477,35 @@ impl FunctionContext<'_> {
             dir::Type::Intersection { elements } => elements
                 .iter()
                 .find_map(|element| self.concrete_symbol_for_type(*element)),
+            _ => None,
+        }
+    }
+
+    /// Resolve the concrete symbol for an expression when possible.
+    fn concrete_symbol_for_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        // peel parenthesized expressions
+        let expression = self.env.dir_tree.get(expression_id);
+        match expression {
+            Expression::Parenthesized { expression } => {
+                self.concrete_symbol_for_expression(*expression)
+            }
+            Expression::Cast { value, .. } => self.concrete_symbol_for_expression(*value),
+            Expression::New { left, .. } => self.concrete_symbol_for_expression(*left),
+            Expression::TaggedScalarExpression { ty, .. }
+            | Expression::TaggedTupleExpression { ty, .. }
+            | Expression::TaggedObjectExpression { ty, .. } => {
+                let type_id = self.type_id_for_type_expression(*ty)?;
+                self.concrete_symbol_for_type(type_id)
+            }
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => match target_symbol.ty() {
+                dir::SymbolType::Class | dir::SymbolType::Struct => Some(*target_symbol),
+                _ => None,
+            },
             _ => None,
         }
     }

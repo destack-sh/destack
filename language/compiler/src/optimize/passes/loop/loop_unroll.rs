@@ -2030,7 +2030,6 @@ fn clone_instruction_metadata(
         tree.memory_table
             .insert_memory_accesses(cloned, cloned_accesses);
     }
-
 }
 /// Compute unroll limits based on block hotness.
 fn unroll_limits_for_loop(

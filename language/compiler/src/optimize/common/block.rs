@@ -52,10 +52,14 @@ pub fn terminator_uses(term: &mir::Terminator, value: mir::Value) -> bool {
         } => *v == value || resume_arguments.contains(&value),
         mir::Terminator::TailCall { arguments, .. } => arguments.contains(&value),
         mir::Terminator::TailCallVirtual {
-            receiver, arguments, ..
+            receiver,
+            arguments,
+            ..
         }
         | mir::Terminator::TailCallInterface {
-            receiver, arguments, ..
+            receiver,
+            arguments,
+            ..
         } => *receiver == value || arguments.contains(&value),
         mir::Terminator::TailCallIndirect {
             callee, arguments, ..
@@ -119,10 +123,14 @@ pub fn terminator_used_values(term: &mir::Terminator) -> Vec<mir::Value> {
         }
         mir::Terminator::TailCall { arguments, .. } => arguments.clone(),
         mir::Terminator::TailCallVirtual {
-            receiver, arguments, ..
+            receiver,
+            arguments,
+            ..
         }
         | mir::Terminator::TailCallInterface {
-            receiver, arguments, ..
+            receiver,
+            arguments,
+            ..
         } => {
             let mut values = vec![*receiver];
             values.extend(arguments.iter().copied());
@@ -1551,30 +1559,24 @@ pub fn terminator_substitute_uses(
                     right: substitute(right),
                     is_signed: *is_signed,
                 },
-                mir::CheckConstraint::Type { value, expected } => {
-                    mir::CheckConstraint::Type {
-                        value: substitute(value),
-                        expected: *expected,
-                    }
-                }
-                mir::CheckConstraint::Union { value, expected } => {
-                    mir::CheckConstraint::Union {
-                        value: substitute(value),
-                        expected: *expected,
-                    }
-                }
+                mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
+                    value: substitute(value),
+                    expected: *expected,
+                },
+                mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
+                    value: substitute(value),
+                    expected: *expected,
+                },
                 mir::CheckConstraint::Vtable { receiver, expected } => {
                     mir::CheckConstraint::Vtable {
                         receiver: substitute(receiver),
                         expected: *expected,
                     }
                 }
-                mir::CheckConstraint::Itab { receiver, expected } => {
-                    mir::CheckConstraint::Itab {
-                        receiver: substitute(receiver),
-                        expected: *expected,
-                    }
-                }
+                mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
+                    receiver: substitute(receiver),
+                    expected: *expected,
+                },
             };
 
             let success = mir::CheckTarget {

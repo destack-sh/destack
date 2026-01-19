@@ -1455,13 +1455,16 @@ const t = typeOf(p);          // Type<Point>
 
 Runtime type identity (RTTI) is demand-driven.
 The compiler only emits RTTI for types that are used at runtime.
-Examples include `typeOf`, `T.is`, `x is T`, `instanceof` for classes, `any`/`unknown`, and runtime reflection.
-Polymorphic classes carry a vtable pointer for dynamic dispatch and RTTI.
-Non-polymorphic classes may omit the vtable pointer and rely on metadata or fat pointers when RTTI is required.
-Structs are pure data unless RTTI is required by usage.
-On JS targets, RTTI-enabled values use a hidden symbol property rather than a global WeakMap, preserving "plain object" semantics.
-Native type tags are `TypeTag` handles that point to `TypeDescriptor` values.
-Classes reach RTTI via vtable slot 0 when present, while thin pointers without tags recover RTTI via GC metadata.
+RTTI is required by:
+- `typeOf`
+- `T.is`
+- `x is T`
+- `instanceof` for classes
+- `any` and `unknown`
+- runtime reflection
+
+Classes can carry RTTI for dynamic dispatch and type checks.
+JS targets attach RTTI with a hidden symbol property to preserve plain object behavior, while native targets attach a compact type tag that references the runtime descriptor.
 
 ### Runtime Type Guards
 
@@ -2090,28 +2093,6 @@ For method calls on unions, the call must be valid for every candidate signature
 - The return type is the union of per-candidate return types (after substitutions).
 
 Dynamic resolution is implemented by reifying the call into `if (receiver is Type)` branches with statically resolved calls in each branch.
-
-##### Dispatch Tables
-
-Classes use vtables for virtual method dispatch.
-VTables are emitted only when virtual dispatch remains after devirtualization.
-VTable slot 0 stores the type tag when RTTI is enabled.
-VTable slot 1 stores the drop glue function.
-Virtual methods follow in declaration order, and overrides reuse the same slot.
-Interface dispatch is separate and uses itabs instead of class vtables.
-Itabs are generated for both struct and class implementations.
-Each itab is specific to a (Type, Interface) pair.
-Interface references are fat pointers carrying an object pointer and an itab pointer.
-Itab slot 0 stores the type tag when RTTI is enabled.
-Itab slots follow interface member declaration order, including fields and methods.
-Interface inheritance flattens base interfaces in extends list order before local members.
-Members inherited with the same name and signature reuse the first slot.
-Fields reuse slots only when their declared types match.
-Conflicting member signatures are errors during analysis.
-Each interface field contributes a field offset slot.
-Each interface method contributes a method target slot.
-Static members are not part of vtables or itabs.
-Static methods and properties lower to direct symbols.
 
 #### Methods
 

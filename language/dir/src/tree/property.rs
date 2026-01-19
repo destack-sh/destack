@@ -103,7 +103,7 @@ pub struct BindingModifier {
 }
 
 /// The mode of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FunctionMode {
     /// Getter function.
     Getter,

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use destack_base::StringPool;
-use destack_dir::{Expression, GlobalSymbolId, IfCondition, LocalNodeId};
+use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
 use {destack_dir as dir, destack_mir as mir};
@@ -11,6 +11,7 @@ use crate::{LowerError, LowerResult};
 use super::constructor::ConstructorState;
 use crate::lower::emit::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
+use crate::lower::table::VtableGlobal;
 use crate::lower::table::interface::InterfaceDispatchCache;
 use crate::lower::r#type::TypeLowerer;
 
@@ -32,15 +33,20 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) strings: &'a StringPool,
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Resolve MIR signature types for known functions.
+    pub(crate) function_signature_types:
+        &'a HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
     /// Resolve globals by symbol for module-level variable references.
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_dispatch: &'a InterfaceDispatchCache,
     /// Resolve interface itab ids for interface upcasts.
     pub(crate) interface_itab_ids:
-        &'a HashMap<(GlobalSymbolId, GlobalSymbolId), destack_mir::DispatchTableId>,
+        &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
     /// Resolve virtual dispatch slot ids for method calls.
     pub(crate) virtual_method_slots_by_symbol: &'a HashMap<GlobalSymbolId, u32>,
+    /// Resolve vtable globals for class allocations.
+    pub(crate) vtable_globals_by_symbol: &'a HashMap<GlobalSymbolId, VtableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
@@ -81,6 +87,26 @@ pub(crate) struct FunctionState<'a> {
     pub(crate) constructor_state: Option<ConstructorState>,
 }
 
+impl<'a> FunctionState<'a> {
+    /// Create a new function state with an initialized builder.
+    pub(crate) fn new(builder: mir::FunctionBuilder<'a>) -> Self {
+        Self {
+            builder,
+            bindings: FunctionBindings {
+                locals_by_symbol: HashMap::new(),
+                this_binding: None,
+            },
+            control: FunctionControlFlow {
+                loops_by_symbol: HashMap::new(),
+                labels_by_symbol: HashMap::new(),
+                loop_stack: Vec::new(),
+                break_stack: Vec::new(),
+            },
+            constructor_state: None,
+        }
+    }
+}
+
 /// Mutable context for lowering a single function body into MIR.
 ///
 /// Owns the function builder and local state (variables, loops).
@@ -92,60 +118,10 @@ pub(crate) struct FunctionContext<'a> {
     pub(crate) state: FunctionState<'a>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> FunctionContext<'a> {
     /// Create a new function context with the given builder.
-    pub(crate) fn new(
-        module_id: ModuleId,
-        profile: ProfileId,
-        program: &'a Program,
-        dir_tree: &'a dir::NodeTree,
-        symbols: &'a dir::SymbolTable,
-        types: &'a dir::TypeTable,
-        strings: &'a StringPool,
-        functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
-        globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
-        interface_dispatch: &'a InterfaceDispatchCache,
-        interface_itab_ids: &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
-        virtual_method_slots_by_symbol: &'a HashMap<GlobalSymbolId, u32>,
-        dispatch_call_name: destack_base::StringId,
-        dispatch_construct_name: destack_base::StringId,
-        type_lowerer: &'a TypeLowerer,
-        builder: mir::FunctionBuilder<'a>,
-    ) -> Self {
-        Self {
-            env: FunctionEnv {
-                module_id,
-                profile,
-                program,
-                dir_tree,
-                symbols,
-                types,
-                strings,
-                functions_by_symbol,
-                globals_by_symbol,
-                interface_dispatch,
-                interface_itab_ids,
-                virtual_method_slots_by_symbol,
-                dispatch_call_name,
-                dispatch_construct_name,
-                type_lowerer,
-            },
-            state: FunctionState {
-                builder,
-                bindings: FunctionBindings {
-                    locals_by_symbol: HashMap::new(),
-                    this_binding: None,
-                },
-                control: FunctionControlFlow {
-                    loops_by_symbol: HashMap::new(),
-                    labels_by_symbol: HashMap::new(),
-                    loop_stack: Vec::new(),
-                    break_stack: Vec::new(),
-                },
-                constructor_state: None,
-            },
-        }
+    pub(crate) fn new(env: FunctionEnv<'a>, state: FunctionState<'a>) -> Self {
+        Self { env, state }
     }
 
     /// Lower a function body to MIR and return whether it terminates.
@@ -200,6 +176,44 @@ impl<'a> FunctionContext<'a> {
                 .into_global_any(self.env.module_id)
                 .into_anchored(Some(self.env.profile)),
         }
+    }
+
+    /// Load the vtable pointer for a class symbol as a raw reference.
+    pub(crate) fn vtable_pointer_for_class(
+        &mut self,
+        class_symbol: GlobalSymbolId,
+        _node: AnchoredGlobalNodeId,
+        result_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<mir::Value> {
+        // resolve the vtable global for the class
+        let vtable_global = self
+            .env
+            .vtable_globals_by_symbol
+            .get(&class_symbol)
+            .copied()
+            .ok_or_else(|| LowerError::Internal {
+                module: self.env.module_id,
+                message: format!("missing vtable global for class {class_symbol:?}"),
+            })?;
+
+        // load the address of the vtable global
+        let address = self
+            .state
+            .builder
+            .global_addr(vtable_global.global_id, vtable_global.address_type);
+
+        // bitcast to the desired pointer type when needed
+        let value = if vtable_global.address_type == result_type {
+            // reuse the existing address type
+            address
+        } else {
+            // cast to the desired pointer type
+            self.state
+                .builder
+                .cast(mir::CastOperator::Bitcast, address, result_type)
+        };
+
+        Ok(value)
     }
 
     /// Lower a value expression to its result value and type.
@@ -395,12 +409,16 @@ impl<'a> FunctionContext<'a> {
             | dir::CastOperator::AnyUpcast
             | dir::CastOperator::AnyDowncast
             | dir::CastOperator::UnknownUpcast
-            | dir::CastOperator::UnknownDowncast
-            | dir::CastOperator::NullableUpcast
-            | dir::CastOperator::NullableDowncast => {
+            | dir::CastOperator::UnknownDowncast => {
                 let (value, _) = self.lower_value_expression(value_id)?;
                 let target_type = self.mir_type_for_expression(expression_id)?;
                 return Ok((value, target_type));
+            }
+            dir::CastOperator::NullableUpcast => {
+                return self.lower_union_upcast(expression_id, value_id);
+            }
+            dir::CastOperator::NullableDowncast => {
+                return self.lower_union_downcast(expression_id, value_id);
             }
             _ => {}
         }

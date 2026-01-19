@@ -84,7 +84,7 @@ pub(crate) fn compute_type_layout(
         }
 
         // pointers and references
-        mir::Type::TypeTag | mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
+        mir::Type::Type | mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
             Ok(TypeLayout::natural(pointer_bytes as u32))
         }
 

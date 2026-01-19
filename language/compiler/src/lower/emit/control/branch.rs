@@ -25,10 +25,6 @@ impl FunctionContext<'_> {
             message: "conditional expression requires else branch".to_string(),
         })?;
 
-        // evaluate condition first
-        let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
-        self.check_type_is_bool(condition_id, condition_type, "conditional expression")?;
-
         // get the result type from the expression
         let result_type = self.mir_type_for_expression(expression_id)?;
 
@@ -40,10 +36,18 @@ impl FunctionContext<'_> {
         // create a variable to hold the result
         let result_variable = self.state.builder.create_variable(result_type);
 
-        // branch based on condition
-        self.state
-            .builder
-            .branch(condition_value, then_block, else_block);
+        // branch based on condition (with union tag checks when possible)
+        let did_check = self.lower_union_tag_check(condition_id, then_block, else_block)?;
+        if !did_check {
+            // evaluate condition first
+            let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
+            self.check_type_is_bool(condition_id, condition_type, "conditional expression")?;
+
+            // branch
+            self.state
+                .builder
+                .branch(condition_value, then_block, else_block);
+        }
 
         // then block: evaluate then expression and set result
         self.state.builder.switch_to_block(then_block);

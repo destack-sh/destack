@@ -43,12 +43,12 @@ Like most compilers, the Destack compiler has three main regions:
 ## Phases
 
 Each phase transforms or enriches the `Program`.
-Phases are identified by a single letter for tracing and diagnostics.
-Linting is a separate phase that runs on DIR alongside the pipeline.
+Phases are identified by a single letter for tracing and diagnostics, and just because that seems kind of nice.
+Linting is a separate "phase" that conceptually runs alongside the pipeline.
 
 ### Front-End
 
-The front-end transforms source text into typed, elaborated ("canonical") DIR.
+The "front-end" transforms source text into typed, elaborated ("canonical") DIR.
 Import is **profile-independent**, producing shared base DIR (parse, bind symbols/scopes, desugar).
 Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for each profile.
 
@@ -61,13 +61,7 @@ Resolve, Analyze, and Elaborate are **per-profile**, producing canonical DIR for
 
 ### Middle-End
 
-The middle-end performs comptime execution, lowers DIR to MIR, and runs verification and optimization.
-This region may be skipped for targets that do not require low level IR.
-Optimization runs at function and module scope by default.
-Package scope is used for Thin LTO and program scope is used for Full LTO.
-Optimization scope is selected by target ltoMode.
-Auto selects Thin LTO at O4 and disables LTO at lower levels.
-Compilation unit refers to the selected optimization scope when LTO is enabled.
+The "middle-end" performs comptime execution, lowers DIR to MIR, and runs verification and optimization.
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
@@ -77,7 +71,7 @@ Compilation unit refers to the selected optimization scope when LTO is enabled.
 
 ### Back-End
 
-The back-end generates target artifacts from DIR (for JS/TS) or MIR (for native/WASM).
+The "back-end" generates target artifacts from DIR (for JS/TS) or MIR (for native/WASM).
 
 | Phase | Letter | Input | Output | Description |
 |-------|--------|-------|--------|-------------|
@@ -101,22 +95,9 @@ The compiler uses three main intermediate representations.
 | DIR | Destack IR | Semantic IR with symbols, scopes, and types (base, canonical, patched) |
 | MIR | Machine IR | Monomorphic, target-aware IR for comptime execution, optimization, and native codegen |
 
-## Security Model
+## Structure
 
-The compiler treats all inputs as untrusted and must never crash or allocate unboundedly.
-Security relevant guarantees include:
-
-- parse and resolve must be total and defensive on malformed input
-- MIR must be validated before execution, optimization, or codegen
-- Core MIR requires explicit pointer result types and `call.indirect` signatures
-- Optimizable MIR invariants are required and validated for O2 and higher
-- optimization passes must not assume earlier passes succeeded without verification
-- comptime execution runs in the VM with strict limits and no ambient host access
-- codegen must emit versioned metadata for safepoints, deopt, and stack maps
-
-## Layout
-
-The compiler is organized into modules corresponding to each phase.
+The compiler is organized into modules (roughly) corresponding to each phase.
 
 | Path | Description | Source |
 |------|-------------|--------|
@@ -140,15 +121,15 @@ The compiler is organized into modules corresponding to each phase.
 The compiler uses a parallel task system for concurrent compilation.
 Each phase defines tasks that can yield on dependencies and resume when satisfied.
 Tasks are identified by phase letter and sub-code (e.g., `TI001` for Import task 1).
+Tasks track file, module, and artifact versions for change detection and dependency tracking.
 See `compile/task.rs` for task definitions and `compile/queue.rs` for the task queue.
-Tasks are keyed by versioned inputs and guarded against stale writes.
 
 ## Incremental Compilation
 
 Incremental compilation reuses phase outputs keyed by file, module, profile, and target versions.
 Edits bump `FileVersion` and propagate to `ModuleVersion`.
-Per-profile module signatures are computed after Analyze and gate downstream invalidation.
-Downstream modules re analyze only when the signatures they import change.
+Per-profile module signatures are computed after `Analyze` and gate downstream invalidation.
+Downstream modules re-`Analyze` only when the signatures they import change.
 Task dependencies are recorded through `require_*` calls and resolved by the task queue.
 Comptime results are invalidated when either the module version or profile version changes.
 
@@ -222,47 +203,17 @@ Cache eviction is policy driven and should not silently mask version mismatches.
 The compiler, daemon, and LSP share a single canonical cache format for all reusable artifacts.
 Consumer-specific metadata lives in sidecar files keyed by the same cache key.
 
-## Environment Variables
-
-Environment variables provide host level overrides and operational knobs for compiler tooling.
-Most configuration should live in `dsconfig` or target profiles.
-The compiler supports the following environment variables as part of the intended design.
-
-- `DESTACK_CACHE_DIR`: Override the global cache root for all compiler caches.
-- `DESTACK_CACHE_MODE`: Override `cache.mode` from dsconfig.
-- `DESTACK_CACHE_SCOPE`: Override `cache.scope` from dsconfig.
-- `DESTACK_CACHE_POLICY`: Override `cache.policy` from dsconfig.
-- `DESTACK_CACHE_MAX_MB`: Override `cache.max_size_mb` from dsconfig.
-- `DESTACK_CACHE_VALIDATE`: Override `cache.validate` from dsconfig.
-- `DESTACK_WATCH_MODE`: Override watch strategy selection.
-- `DESTACK_WATCH_POLL_MS`: Override `watch.poll_interval_ms` from dsconfig.
-- `DESTACK_WATCH_DEBOUNCE_MS`: Override `watch.debounce_ms` from dsconfig.
-- `DESTACK_WORKERS`: Override the compiler worker count.
-- `DESTACK_SLOW_TASK_MS`: Emit slow task diagnostics when a task exceeds this threshold.
-- `DESTACK_TARGET`: Override the default target selection.
-- `DESTACK_PROFILE`: Override the default profile selection.
-- `DESTACK_OUT_DIR`: Override target `out_dir` resolution.
-- `DESTACK_OUT_FILE`: Override target `out_file` resolution for single file outputs.
-- `DESTACK_DECLARATION_DIR`: Override target `declaration_dir` resolution.
-- `DESTACK_LOG`: Override compiler logging filters for tracing.
-- `XDG_CACHE_HOME`: Resolve global caches under `$XDG_CACHE_HOME/destack` when `DESTACK_CACHE_DIR` is not set.
-- `HOME`: Resolve global caches under `$HOME/.cache/destack` when `XDG_CACHE_HOME` and `DESTACK_CACHE_DIR` are not set.
-- `LOCAL_APPDATA`: Resolve global caches under `%LOCAL_APPDATA%\destack` when `DESTACK_CACHE_DIR` is not set.
-- `USERPROFILE`: Resolve global caches under `%USERPROFILE%\.cache\destack` when `LOCAL_APPDATA` and `DESTACK_CACHE_DIR` are not set.
-
-Comptime environment snapshots are derived from the process environment and filtered by profile configuration.
-
 ## Builtins
 
 The compiler loads language builtins from `language/builtin/` as needed based on target configuration.
-See [builtin/README.md](../builtin/README.md) for the full structure.
+See [builtin/README.md](../builtin/README.md) for the full structure, basically, it's a bunch of .d.ts libs plus our own custom core / std stuff, and the main native lib.
 
 ## Profiles and Targets
 
 A **profile** represents a semantic configuration, essentially, a "comptime world" that determines which symbols exist and how types resolve.
 A **target** represents a build output, with specific settings for code generation, optimization, and output paths.
 
-**Profile identity** is determined by:
+**Profile identity** is ~everything that might affect the middle-end by:
 - `output`: OutputFormat (js, ts, wasm, native)
 - `runtime`: Runtime (browser, node, deno, bun, wasm-js, wasm-wasi, native-hosted, native-freestanding, native-embedded)
 - `platform`: Platform (web, windows, macos, linux, ios, android, wasi, bare-metal, universal)
@@ -271,5 +222,4 @@ A **target** represents a build output, with specific settings for code generati
 - `env`: Comptime environment snapshot (for `import.meta.env`)
 - `flags`: Semantic restriction flags (`no_any`, `no_managed`, `no_exceptions`, etc.)
 
-Generalizing profiles from targets allows sharing work: if two targets use the same profile, they share the canonical DIR and only diverge at code generation (i.e., they have the same canonical profile-dependent DIR but different target-specific MIRs).
-The compiler also maintains a shared comptime target used by Execute to evaluate static code; it is not tied to any specific output target.
+(The compiler also maintains a shared comptime target used by Execute to evaluate static code; it is not tied to any specific output target. We need to run comptime on *something*.)

@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::lower::{BuiltinTypeLayouts, InterfaceDispatchCache, TypeLowerer};
+use crate::lower::{
+    BuiltinTypeLayouts, FunctionEnv, FunctionState, InterfaceDispatchCache, TypeLowerer,
+};
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
 use destack_workspace::{Module, ProfileId, TargetId};
@@ -137,26 +139,31 @@ impl Compiler {
         let interface_dispatch = InterfaceDispatchCache::new();
         let interface_itab_ids = HashMap::new();
         let virtual_method_slots_by_symbol = HashMap::new();
+        let vtable_globals_by_symbol = HashMap::new();
+        let function_signature_types = HashMap::new();
 
         // create function context
-        let mut function_ctx = FunctionContext::new(
-            module.id,
+        let env = FunctionEnv {
+            module_id: module.id,
             profile,
-            &self.program,
-            &dir_tree,
-            &symbols,
-            &types,
-            &self.program.strings,
-            &functions_by_symbol,
-            &globals_by_symbol,
-            &interface_dispatch,
-            &interface_itab_ids,
-            &virtual_method_slots_by_symbol,
+            program: &self.program,
+            dir_tree: &dir_tree,
+            symbols: &symbols,
+            types: &types,
+            strings: &self.program.strings,
+            functions_by_symbol: &functions_by_symbol,
+            function_signature_types: &function_signature_types,
+            globals_by_symbol: &globals_by_symbol,
+            interface_dispatch: &interface_dispatch,
+            interface_itab_ids: &interface_itab_ids,
+            virtual_method_slots_by_symbol: &virtual_method_slots_by_symbol,
+            vtable_globals_by_symbol: &vtable_globals_by_symbol,
             dispatch_call_name,
             dispatch_construct_name,
-            &type_lowerer,
-            function_builder,
-        );
+            type_lowerer: &type_lowerer,
+        };
+        let state = FunctionState::new(function_builder);
+        let mut function_ctx = FunctionContext::new(env, state);
 
         // create entry block
         let entry_block = function_ctx.state.builder.create_block();

@@ -1709,7 +1709,6 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-
     /// Tail call through a function pointer (does not return to this function).
     ///
     /// The callee's return value becomes this function's return value.
@@ -1727,7 +1726,6 @@ impl<'a> FunctionBuilder<'a> {
             signature,
         };
     }
-
 
     /// Insert an instruction into the current block.
     fn insert_instruction(&mut self, instruction: Instruction) -> LocalNodeId<Instruction> {

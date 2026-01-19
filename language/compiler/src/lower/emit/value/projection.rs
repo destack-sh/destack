@@ -9,19 +9,35 @@ use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
 };
 
+/// Union discriminant comparison data for tag checks.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct UnionTagComparison {
+    /// The tag value being compared.
+    pub(crate) tag_value: mir::Value,
+    /// The tag constant used for comparison.
+    pub(crate) tag_const: mir::Value,
+    /// The expected tag index.
+    pub(crate) tag_index: usize,
+    /// Whether the comparison expects equality.
+    pub(crate) is_equal: bool,
+}
+
 impl FunctionContext<'_> {
-    /// Lower a union discriminant comparison when possible.
-    pub(crate) fn lower_union_discriminant_comparison(
+    /// Resolve a union tag comparison for a discriminant check.
+    pub(crate) fn union_tag_comparison(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         left: LocalNodeId<Expression>,
         operator: dir::BinaryOperator,
         right: LocalNodeId<Expression>,
-    ) -> LowerResult<Option<mir::Value>> {
+    ) -> LowerResult<Option<UnionTagComparison>> {
         // only handle equality comparisons
         if !matches!(
             operator,
-            dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
+            dir::BinaryOperator::Equal
+                | dir::BinaryOperator::NotEqual
+                | dir::BinaryOperator::EqualStrict
+                | dir::BinaryOperator::NotEqualStrict
         ) {
             return Ok(None);
         }
@@ -34,6 +50,7 @@ impl FunctionContext<'_> {
                 _ => return Ok(None),
             };
 
+        // extract the member access expression
         let Expression::Member {
             left: receiver_id,
             name,
@@ -43,6 +60,7 @@ impl FunctionContext<'_> {
             return Ok(None);
         };
 
+        // reject static arguments on discriminant access
         if static_arguments.is_some() {
             return Ok(None);
         }
@@ -72,21 +90,101 @@ impl FunctionContext<'_> {
             }
         })?;
 
-        // lower the receiver and compare tags
+        // lower the receiver and resolve the tag constant
         let (union_value, _) = self.lower_value_expression(*receiver_id)?;
         let tag_value = self
             .state
             .builder
             .field_get(union_value, layout.tag_field_index);
         let tag_const = self.union_tag_constant(&layout, tag_index as usize)?;
-        let op = match operator {
-            dir::BinaryOperator::Equal => mir::BinaryOperator::Equal,
-            dir::BinaryOperator::NotEqual => mir::BinaryOperator::NotEqual,
-            _ => unreachable!(),
+
+        // determine comparison polarity
+        let is_equal = matches!(
+            operator,
+            dir::BinaryOperator::Equal | dir::BinaryOperator::EqualStrict
+        );
+
+        Ok(Some(UnionTagComparison {
+            tag_value,
+            tag_const,
+            tag_index: tag_index as usize,
+            is_equal,
+        }))
+    }
+
+    /// Lower a union discriminant comparison when possible.
+    pub(crate) fn lower_union_discriminant_comparison(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        left: LocalNodeId<Expression>,
+        operator: dir::BinaryOperator,
+        right: LocalNodeId<Expression>,
+    ) -> LowerResult<Option<mir::Value>> {
+        // resolve the tag comparison data
+        let Some(comparison) = self.union_tag_comparison(expression_id, left, operator, right)?
+        else {
+            return Ok(None);
         };
-        let value = self.state.builder.binary_op(op, tag_value, tag_const);
+
+        // emit the comparison as a boolean value
+        let op = if comparison.is_equal {
+            mir::BinaryOperator::Equal
+        } else {
+            mir::BinaryOperator::NotEqual
+        };
+        let value = self
+            .state
+            .builder
+            .binary_op(op, comparison.tag_value, comparison.tag_const);
 
         Ok(Some(value))
+    }
+
+    /// Lower a union tag comparison as a check terminator when possible.
+    pub(crate) fn lower_union_tag_check(
+        &mut self,
+        condition_id: LocalNodeId<Expression>,
+        then_block: mir::LocalNodeId<mir::Block>,
+        else_block: mir::LocalNodeId<mir::Block>,
+    ) -> LowerResult<bool> {
+        // match on binary expressions
+        let Expression::Binary {
+            left,
+            operator,
+            right,
+        } = self.env.dir_tree.get(condition_id)
+        else {
+            return Ok(false);
+        };
+
+        // resolve the union tag comparison
+        let Some(comparison) = self.union_tag_comparison(condition_id, *left, *operator, *right)?
+        else {
+            return Ok(false);
+        };
+
+        // build an equality condition for the union tag
+        let condition_value = self.state.builder.binary_op(
+            mir::BinaryOperator::Equal,
+            comparison.tag_value,
+            comparison.tag_const,
+        );
+        let constraint = mir::CheckConstraint::Union {
+            value: comparison.tag_value,
+            expected: comparison.tag_index as u64,
+        };
+
+        // swap branches for inequality comparisons
+        let (success_block, failure_block) = if comparison.is_equal {
+            (then_block, else_block)
+        } else {
+            (else_block, then_block)
+        };
+        self.state
+            .builder
+            .check(condition_value, constraint, success_block, failure_block);
+
+        Ok(true)
     }
 
     /// Lower a member access expression to a field_get.
@@ -100,7 +198,7 @@ impl FunctionContext<'_> {
         if let Some(target_symbol) = self.resolved_member_symbol(expression_id)
             && matches!(
                 self.member_mode_for_symbol(target_symbol),
-                Some(destack_dir::FunctionMode::Getter)
+                Some(dir::FunctionMode::Getter)
             )
         {
             return self.lower_getter_call(expression_id, left_id, target_symbol);
@@ -223,13 +321,7 @@ impl FunctionContext<'_> {
 
         // resolve the result type and union layout
         let result_type = self.mir_type_for_expression(expression_id)?;
-        let result_type_id =
-            self.dir_type_for_expression(expression_id)
-                .ok_or_else(|| LowerError::MissingType {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                })?;
+        let result_type_id = self.dir_type_for_expression_or_error(expression_id)?;
         let result_layout = self
             .env
             .type_lowerer
@@ -375,7 +467,7 @@ impl FunctionContext<'_> {
     fn mir_value_for_discriminant_literal(
         &mut self,
         literal: &DiscriminantLiteral,
-        node: destack_dir::AnchoredGlobalNodeId,
+        node: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         match &literal.value {
             DiscriminantValue::Boolean(value) => {
@@ -449,7 +541,7 @@ impl FunctionContext<'_> {
     pub(crate) fn member_mode_for_symbol(
         &self,
         symbol: GlobalSymbolId,
-    ) -> Option<destack_dir::FunctionMode> {
+    ) -> Option<dir::FunctionMode> {
         // load the module for this symbol
         let module = self.env.program.modules.get(symbol.module_id);
         let module = module.read();
@@ -465,22 +557,62 @@ impl FunctionContext<'_> {
         }
 
         // handle member declarations
-        if let Ok(member_id) = primary.local_id.try_into_typed::<destack_dir::Member>() {
+        if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
             let member = tree.get(member_id);
-            if let destack_dir::Member::Method { signature, .. } = member {
+            if let dir::Member::Method { signature, .. } = member {
                 return signature.mode;
             }
         }
 
         // handle property declarations
-        if let Ok(property_id) = primary.local_id.try_into_typed::<destack_dir::Property>() {
+        if let Ok(property_id) = primary.local_id.try_into_typed::<dir::Property>() {
             let property = tree.get(property_id);
-            if let destack_dir::Property::Method { signature, .. } = property {
+            if let dir::Property::Method { signature, .. } = property {
                 return signature.mode;
             }
         }
 
         None
+    }
+
+    /// Resolve receiver values for member getter/setter calls.
+    fn member_call_receivers(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        receiver_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(
+        Option<mir::Value>,
+        Option<mir::Value>,
+        Option<dir::LocalTypeId>,
+    )> {
+        // resolve the receiver value when present
+        let receiver_value = if self.receiver_is_namespace_reference(receiver_id) {
+            None
+        } else {
+            let (value, _) = self.lower_value_expression(receiver_id)?;
+            Some(value)
+        };
+
+        // resolve the receiver type id when available
+        let receiver_type_id = self.dir_type_for_expression(receiver_id);
+
+        // resolve interface receivers for dispatch and argument passing
+        let receivers = if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, receiver_value)
+        {
+            Some(self.interface_call_receivers(expression_id, receiver_type_id, receiver_value)?)
+        } else {
+            None
+        };
+        let (call_receiver, dispatch_receiver) = match receivers {
+            Some(receivers) => (
+                Some(receivers.argument_receiver),
+                Some(receivers.dispatch_receiver),
+            ),
+            None => (receiver_value, receiver_value),
+        };
+
+        Ok((call_receiver, dispatch_receiver, receiver_type_id))
     }
 
     /// Lower a getter call for a resolved member access.
@@ -490,45 +622,17 @@ impl FunctionContext<'_> {
         receiver_id: LocalNodeId<Expression>,
         target_symbol: GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve the receiver value
-        let receiver_value = if self.receiver_is_namespace_reference(receiver_id) {
-            None
-        } else {
-            let (value, _) = self.lower_value_expression(receiver_id)?;
-            Some(value)
-        };
+        // resolve receiver values for the call
+        let (call_receiver, dispatch_receiver, receiver_type_id) =
+            self.member_call_receivers(expression_id, receiver_id)?;
 
         // get the result type
         let result_type = self.mir_type_for_expression(expression_id)?;
 
         // build argument list
         let mut arguments = Vec::new();
-        if let Some(receiver) = receiver_value {
+        if let Some(receiver) = call_receiver {
             arguments.push(receiver);
-        }
-
-        // use interface dispatch metadata when available
-        if let (Some(receiver_type_id), Some(receiver_value)) =
-            (self.dir_type_for_expression(receiver_id), receiver_value)
-            && let Some((function_id, metadata)) = self.interface_dispatch_target(
-                expression_id,
-                receiver_type_id,
-                receiver_value,
-                target_symbol,
-                result_type,
-            )?
-        {
-            let value = self
-                .state
-                .builder
-                .call_with_metadata(function_id, arguments, metadata)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: expression_id
-                        .into_global_any(self.env.module_id)
-                        .into_anchored(Some(self.env.profile)),
-                    message: "getter call returned no value".to_string(),
-                })?;
-            return Ok((value, result_type));
         }
 
         // resolve the target function
@@ -543,11 +647,67 @@ impl FunctionContext<'_> {
                 symbol: target_symbol,
             })?;
 
-        // emit the call
+        // resolve the call signature
+        let signature = self.signature_type_for_function(expression_id, function_id)?;
+
+        // use interface dispatch when available
+        if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, dispatch_receiver)
+        {
+            if let Some(interface_target) =
+                self.interface_dispatch_target(expression_id, receiver_type_id, target_symbol)?
+            {
+                let value = self
+                    .state
+                    .builder
+                    .call_interface(
+                        receiver_value,
+                        interface_target.declaring_type,
+                        interface_target.slot_id,
+                        Some(interface_target.function_id),
+                        signature,
+                        arguments,
+                    )
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "getter call returned no value".to_string(),
+                    })?;
+                return Ok((value, result_type));
+            }
+
+            if let Some(slot_id) = self.virtual_method_slot_id(target_symbol)
+                && self.class_symbol_for_type(receiver_type_id).is_some()
+            {
+                let declaring_type =
+                    self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
+                let value = self
+                    .state
+                    .builder
+                    .call_virtual(
+                        receiver_value,
+                        declaring_type,
+                        slot_id,
+                        Some(function_id),
+                        signature,
+                        arguments,
+                    )
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "getter call returned no value".to_string(),
+                    })?;
+                return Ok((value, result_type));
+            }
+        }
+
+        // emit the direct call
         let value = self
             .state
             .builder
-            .call(function_id, arguments)
+            .call(function_id, signature, arguments)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 node: expression_id
                     .into_global_any(self.env.module_id)
@@ -566,37 +726,16 @@ impl FunctionContext<'_> {
         target_symbol: GlobalSymbolId,
         value: mir::Value,
     ) -> LowerResult<()> {
-        // resolve the receiver value
-        let receiver_value = if self.receiver_is_namespace_reference(receiver_id) {
-            None
-        } else {
-            let (value, _) = self.lower_value_expression(receiver_id)?;
-            Some(value)
-        };
+        // resolve receiver values for the call
+        let (call_receiver, dispatch_receiver, receiver_type_id) =
+            self.member_call_receivers(expression_id, receiver_id)?;
 
         // build argument list
         let mut arguments = Vec::new();
-        if let Some(receiver) = receiver_value {
+        if let Some(receiver) = call_receiver {
             arguments.push(receiver);
         }
         arguments.push(value);
-
-        // use interface dispatch metadata when available
-        if let (Some(receiver_type_id), Some(receiver_value)) =
-            (self.dir_type_for_expression(receiver_id), receiver_value)
-            && let Some((function_id, metadata)) = self.interface_dispatch_target(
-                expression_id,
-                receiver_type_id,
-                receiver_value,
-                target_symbol,
-                self.env.type_lowerer.ty_void,
-            )?
-        {
-            self.state
-                .builder
-                .call_void_with_metadata(function_id, arguments, metadata);
-            return Ok(());
-        }
 
         // resolve the target function
         let function_id = *self
@@ -610,8 +749,48 @@ impl FunctionContext<'_> {
                 symbol: target_symbol,
             })?;
 
-        // emit the call
-        self.state.builder.call_void(function_id, arguments);
+        // resolve the call signature
+        let signature = self.signature_type_for_function(expression_id, function_id)?;
+
+        // use interface dispatch when available
+        if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, dispatch_receiver)
+        {
+            if let Some(interface_target) =
+                self.interface_dispatch_target(expression_id, receiver_type_id, target_symbol)?
+            {
+                self.state.builder.call_interface_void(
+                    receiver_value,
+                    interface_target.declaring_type,
+                    interface_target.slot_id,
+                    Some(interface_target.function_id),
+                    signature,
+                    arguments,
+                );
+                return Ok(());
+            }
+
+            if let Some(slot_id) = self.virtual_method_slot_id(target_symbol)
+                && self.class_symbol_for_type(receiver_type_id).is_some()
+            {
+                let declaring_type =
+                    self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
+                self.state.builder.call_virtual_void(
+                    receiver_value,
+                    declaring_type,
+                    slot_id,
+                    Some(function_id),
+                    signature,
+                    arguments,
+                );
+                return Ok(());
+            }
+        }
+
+        // emit the direct call
+        self.state
+            .builder
+            .call_void(function_id, signature, arguments);
 
         Ok(())
     }
@@ -624,13 +803,7 @@ impl FunctionContext<'_> {
         index_id: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // reject non array indices for native lowering
-        let Some(left_type_id) = self.dir_type_for_expression(left_id) else {
-            return Err(LowerError::MissingType {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-            });
-        };
+        let left_type_id = self.dir_type_for_expression_or_error(left_id)?;
         match self.env.types.get_type(left_type_id) {
             Type::Array { .. } | Type::ArraySized { .. } => {}
             _ => {

@@ -6,7 +6,7 @@ use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
     InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
     ResolutionCandidate, ResolvedSignature, StaticArgument, StaticKey, StaticParameterKind,
-    SymbolTable, Type, TypeLiteral, TypeTable,
+    SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -1636,6 +1636,26 @@ impl Compiler {
                 types.insert_type_from(ty, expression_id)
             })
         } else {
+            if let Some(callee_symbol) = callee_symbol
+                && matches!(callee_symbol.ty(), SymbolType::Struct | SymbolType::Class)
+                && let Some(instance_type_id) = types.get_instance_type_id(callee_symbol)
+            {
+                for argument_id in dynamic_arguments {
+                    self.infer_argument(
+                        module,
+                        *argument_id,
+                        None,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        ctx,
+                    )?;
+                }
+
+                return Ok(instance_type_id);
+            }
+
             // infer dynamic arguments
             for argument_id in dynamic_arguments {
                 self.infer_argument(module, *argument_id, None, tree, symbols, types, infer, ctx)?;

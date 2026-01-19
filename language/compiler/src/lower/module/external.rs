@@ -106,11 +106,20 @@ impl ModuleLowerer<'_> {
             None => self.type_lowerer.ty_void,
         };
 
+        // create a signature type for direct callsites
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
+        // attach a metadata name for the signature type
+        self.assign_signature_metadata_name(signature_type, target_symbol, anchor)?;
+
         // declare the extern function
         let function_id = self
             .builder
             .extern_function(&extern_name, &parameter_types, return_type);
         self.functions_by_symbol.insert(target_symbol, function_id);
+        self.function_signature_types
+            .insert(function_id, signature_type);
 
         // return after declaration
         Ok(())

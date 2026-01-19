@@ -38,10 +38,10 @@ block2:
 block3:
     v6 = iconst 1f64
     v7 = fsub v0, v6
-    v8 = call @fibonacci(v7)
+    v8 = call @fibonacci(v7) -> fn(f64) -> f64
     v9 = iconst 2f64
     v10 = fsub v0, v9
-    v11 = call @fibonacci(v10)
+    v11 = call @fibonacci(v10) -> fn(f64) -> f64
     v12 = fadd v8, v11
     return v12
 }"#,
