@@ -139,6 +139,9 @@ pub enum Error {
 
     /// Reference address space does not match the pointer storage.
     InvalidAddressSpace { expected: String, actual: String } = 31,
+
+    /// Unsupported zero initialization for a MIR type.
+    UnsupportedZeroValue { ty: String } = 33,
 }
 
 impl Error {
@@ -224,6 +227,9 @@ impl Error {
             }
             Self::InvalidAddressSpace { expected, actual } => {
                 format!("invalid address space: expected {expected}, got {actual}")
+            }
+            Self::UnsupportedZeroValue { ty } => {
+                format!("unsupported zero initialization for type {ty}")
             }
         }
     }

@@ -4,10 +4,10 @@ use std::time::Duration;
 
 use destack_mir as mir;
 
-use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError};
+use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::execute::Continuation;
 use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
-use crate::memory::{GcStats, RawCellStorage, RawPointer, Value};
+use crate::memory::{GcStats, HeapHandle, RawCellStorage, RawPointer, ReferenceMeta, Value};
 use crate::telemetry::Statistics;
 
 use super::super::decode::{
@@ -207,7 +207,7 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Initialize global variables from the MIR tree.
-    pub(crate) fn initialize_globals(&mut self) {
+    pub(crate) fn initialize_globals(&mut self) -> RuntimeResult<()> {
         // seed empty global storage
         let mut globals = GlobalStorage::new();
 
@@ -235,7 +235,7 @@ impl<'a> InterpreterContext<'a> {
 
             // convert initializer when present
             let value = match initializer.as_ref() {
-                Some(init) => self.convert_initializer(init, ty),
+                Some(init) => self.convert_initializer(init, ty)?,
                 None => Value::VOID,
             };
             globals.set(id, value);
@@ -243,6 +243,8 @@ impl<'a> InterpreterContext<'a> {
 
         // store initialized globals
         self.isolate.globals = globals;
+
+        Ok(())
     }
 
     /// Convert a global initializer to a runtime value.
@@ -250,11 +252,11 @@ impl<'a> InterpreterContext<'a> {
         &mut self,
         init: &mir::GlobalInitializer,
         ty: mir::LocalNodeId<mir::Type>,
-    ) -> Value {
+    ) -> RuntimeResult<Value> {
         // select conversion strategy
         match init {
             mir::GlobalInitializer::Zero => self.zero_value(ty),
-            mir::GlobalInitializer::Scalar(constant) => self.constant_to_value(constant),
+            mir::GlobalInitializer::Scalar(constant) => Ok(self.constant_to_value(constant)),
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
@@ -262,19 +264,19 @@ impl<'a> InterpreterContext<'a> {
                 // allocate managed aggregate for bytes
                 let handle = self.isolate.managed_heap.allocate_with_values(values);
 
-                Value::aggregate(handle)
+                Ok(Value::aggregate(handle))
             }
             mir::GlobalInitializer::Aggregate(elements) => {
                 // convert each element recursively
                 let values: Vec<Value> = elements
                     .iter()
                     .map(|e| self.convert_initializer(e, ty))
-                    .collect();
+                    .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for elements
                 let handle = self.isolate.managed_heap.allocate_with_values(values);
 
-                Value::aggregate(handle)
+                Ok(Value::aggregate(handle))
             }
         }
     }
@@ -291,44 +293,74 @@ impl<'a> InterpreterContext<'a> {
     }
 
     /// Create a zero value for a given type.
-    fn zero_value(&mut self, ty: mir::LocalNodeId<mir::Type>) -> Value {
+    fn zero_value(&mut self, ty: mir::LocalNodeId<mir::Type>) -> RuntimeResult<Value> {
         // resolve the type node
         let ty_node = self.isolate.tree.get(ty).clone();
 
         // build a zero value based on type
         match ty_node {
+            mir::Type::Void => Ok(Value::VOID),
             mir::Type::Int { width, signed } => {
                 // select signed or unsigned zero
                 if signed {
-                    Value::int(0, width as u8)
+                    Ok(Value::int(0, width as u8))
                 } else {
-                    Value::uint(0, width as u8)
+                    Ok(Value::uint(0, width as u8))
                 }
             }
-            mir::Type::Isize => Value::int(0, usize::BITS as u8),
-            mir::Type::Usize => Value::uint(0, usize::BITS as u8),
+            mir::Type::Isize => Ok(Value::int(0, usize::BITS as u8)),
+            mir::Type::Usize => Ok(Value::uint(0, usize::BITS as u8)),
             mir::Type::Float { width } => {
                 // select float width
                 if width == 32 {
-                    Value::float32(0.0)
+                    Ok(Value::float32(0.0))
                 } else {
-                    Value::float64(0.0)
+                    Ok(Value::float64(0.0))
                 }
             }
-            mir::Type::Boolean => Value::bool(false),
-            // FUGU #Broken: mir::Type::Type doesn't have a zero value..?
-            mir::Type::Type => Value::uint(0, usize::BITS as u8),
+            mir::Type::Boolean => Ok(Value::bool(false)),
+            mir::Type::Type => Err(self.make_error(Error::UnsupportedZeroValue {
+                ty: format!("{ty_node:?}"),
+            })),
+            mir::Type::Reference {
+                kind,
+                address_space,
+                mutability,
+                is_nullable,
+                ..
+            } => {
+                if !is_nullable {
+                    return Err(self.make_error(Error::UnsupportedZeroValue {
+                        ty: format!("{ty_node:?}"),
+                    }));
+                }
+
+                let meta = ReferenceMeta::new(kind, address_space, mutability, is_nullable);
+                match kind {
+                    mir::ReferenceKind::Managed => {
+                        Ok(Value::managed_reference_with_meta(HeapHandle::NULL, meta))
+                    }
+                    mir::ReferenceKind::Owned
+                    | mir::ReferenceKind::Borrowed
+                    | mir::ReferenceKind::Raw => {
+                        Ok(Value::raw_pointer_with_meta(RawPointer::NULL, meta))
+                    }
+                }
+            }
             mir::Type::Tuple {
                 elements,
                 copyability: _,
             } => {
                 // recursively initialize tuple elements
-                let values: Vec<Value> = elements.into_iter().map(|e| self.zero_value(e)).collect();
+                let values: Vec<Value> = elements
+                    .into_iter()
+                    .map(|e| self.zero_value(e))
+                    .collect::<RuntimeResult<_>>()?;
 
                 // allocate managed aggregate for tuple
                 let handle = self.isolate.managed_heap.allocate_with_values(values);
 
-                Value::aggregate(handle)
+                Ok(Value::aggregate(handle))
             }
             mir::Type::Array {
                 element,
@@ -336,16 +368,17 @@ impl<'a> InterpreterContext<'a> {
                 copyability: _,
             } => {
                 // build an array of repeated element zeros
-                let elem_zero = self.zero_value(element);
+                let elem_zero = self.zero_value(element)?;
                 let values: Vec<Value> = (0..length).map(|_| elem_zero).collect();
 
                 // allocate managed aggregate for array
                 let handle = self.isolate.managed_heap.allocate_with_values(values);
 
-                Value::aggregate(handle)
+                Ok(Value::aggregate(handle))
             }
-            // for other types, use void
-            _ => Value::VOID,
+            _ => Err(self.make_error(Error::UnsupportedZeroValue {
+                ty: format!("{ty_node:?}"),
+            })),
         }
     }
 

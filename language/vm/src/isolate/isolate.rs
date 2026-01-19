@@ -32,7 +32,7 @@ impl fmt::Debug for Isolate {
 
 impl Isolate {
     /// Create a new isolate with default options.
-    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> Self {
+    pub fn new(tree: mir::NodeTree, strings: ImmutableStringPool) -> RuntimeResult<Self> {
         Self::with_options(tree, strings, IsolateOptions::default())
     }
 
@@ -41,7 +41,7 @@ impl Isolate {
         tree: mir::NodeTree,
         strings: ImmutableStringPool,
         options: IsolateOptions,
-    ) -> Self {
+    ) -> RuntimeResult<Self> {
         let mut state = IsolateState::new(tree, strings, options);
         let mut interpreter = InterpreterEngine::new(&state);
         let compiled = CompiledEngine::new(&state);
@@ -49,15 +49,15 @@ impl Isolate {
         // initialize globals and interned literals
         {
             let mut context = interpreter.context(&mut state);
-            context.initialize_globals();
+            context.initialize_globals()?;
             context.pre_intern_threaded_strings();
         }
 
-        Self {
+        Ok(Self {
             state,
             interpreter,
             compiled,
-        }
+        })
     }
 
     /// Get the isolate options.

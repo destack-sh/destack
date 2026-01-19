@@ -72,7 +72,7 @@ pub fn create_isolate(
     let strings = mir.strings.clone().into_immutable();
 
     // construct the isolate from mir state
-    Ok(Isolate::with_options(tree, strings, options))
+    Isolate::with_options(tree, strings, options).map_err(|error| format!("{error}"))
 }
 
 /// Build process arguments for the entry source.
