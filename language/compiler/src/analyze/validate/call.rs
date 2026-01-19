@@ -1,3 +1,4 @@
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, Compiler};
 use destack_dir::{
     Expression, GlobalSymbolId, LocalNodeId, NodeTree, SymbolTable, WellKnownSymbol,
@@ -49,8 +50,15 @@ impl Compiler {
         let set_prototype_of_name = self.program.strings.intern("setPrototypeOf");
 
         // resolve the canonical symbol for a global reference
-        let canonical_symbol =
-            |symbol: GlobalSymbolId| self.canonical_symbol_id(module, symbols, profile, symbol);
+        let canonical_symbol = |symbol: GlobalSymbolId| {
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            )
+        };
 
         // check whether a symbol is contained in a well-known group
         let group_contains = |group: Option<SymbolGroup>, symbol: GlobalSymbolId| {

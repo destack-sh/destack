@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Expression, Extension, ExtensionKind, GlobalSymbolId, Lineage, LocalLineageId, LocalSymbolId,
@@ -7,6 +8,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Register extensions visible in a module from imported symbols.
     pub(super) fn register_visible_extensions(
@@ -23,13 +25,23 @@ impl Compiler {
         let mut seen_targets = HashSet::new();
         let mut seen_extensions = HashSet::new();
 
-        // helper to register remote symbols as targets or extensions
+        // register remote symbols for targets and extensions
         let mut register_symbol = |symbol: GlobalSymbolId| {
-            let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+            // resolve to canonical symbols for stable identity
+            let canonical_symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+
+            // skip symbols already local to this module
             if canonical_symbol.module_id == module.id {
                 return;
             }
 
+            // register remote symbols by kind
             match canonical_symbol.ty() {
                 SymbolType::Struct
                 | SymbolType::Class

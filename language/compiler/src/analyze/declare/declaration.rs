@@ -11,7 +11,7 @@ use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeError, AnalyzeResult, AnalyzeWarning, Compiler, InferContext};
 
-use super::super::common::{ObjectShape, ObjectShapeSet};
+use super::super::common::{CanonicalSymbolMode, ObjectShape, ObjectShapeSet};
 
 /// Visitor used to declare type-level constructs across a module.
 #[derive(Debug)]
@@ -763,8 +763,13 @@ impl Compiler {
                 // register the extension when a target symbol exists
                 if let Some(target) = target_symbol {
                     // resolve the canonical target symbol for extension lookup
-                    let canonical_target =
-                        self.canonical_symbol_id(module, symbols, profile, *target);
+                    let canonical_target = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        *target,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
                     let kind = if module.id == canonical_target.module_id {
                         ExtensionKind::Inherent
                     } else if descriptor.name.is_some() {
@@ -875,8 +880,13 @@ impl Compiler {
         if let Some(extend_types) = heritage.extends_types.as_ref() {
             for expression_id in extend_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol =
-                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    let canonical_symbol = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        target_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
                     extends_symbols.push(canonical_symbol);
                 }
             }
@@ -887,8 +897,13 @@ impl Compiler {
         if let Some(implements_types) = heritage.implements_types.as_ref() {
             for expression_id in implements_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol =
-                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    let canonical_symbol = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        target_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
                     implements_symbols.push(canonical_symbol);
                 }
             }
@@ -899,8 +914,13 @@ impl Compiler {
         if let Some(embedded_types) = heritage.embedded_types.as_ref() {
             for expression_id in embedded_types {
                 if let Some(target_symbol) = collect_symbol(*expression_id, symbols, types)? {
-                    let canonical_symbol =
-                        self.canonical_symbol_id(module, symbols, profile, target_symbol);
+                    let canonical_symbol = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        target_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
                     embedded_symbols.push(canonical_symbol);
                 }
             }

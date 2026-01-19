@@ -619,7 +619,7 @@ impl Compiler {
                     receiver_ty: non_nullish_ty_id.into_global(module.id),
                 });
             } else {
-                let payloads = self.resolve_try_branch_payloads(
+                let payloads = self.resolve_try_payloads(
                     module,
                     expression_id,
                     left_id.into_any(),
@@ -1266,7 +1266,7 @@ impl Compiler {
                 }
 
                 // resolve payload types for the receiver and branch
-                let payloads = self.resolve_try_branch_payloads(
+                let payloads = self.resolve_try_payloads(
                     module,
                     expression_id,
                     left_id.into_any(),
@@ -1379,7 +1379,7 @@ impl Compiler {
         }
 
         // resolve payload types for the receiver and branch
-        let payloads = self.resolve_try_branch_payloads(
+        let payloads = self.resolve_try_payloads(
             module,
             expression_id,
             left_id.into_any(),
@@ -1416,7 +1416,7 @@ impl Compiler {
                 symbols,
                 types,
             )?;
-            self.ensure_try_return_type_compatibility(
+            self.ensure_try_return_type_assignable(
                 module,
                 expression_id,
                 error_ty_id,
@@ -1437,8 +1437,8 @@ impl Compiler {
         Ok(value_ty_id)
     }
 
-    /// Resolve Try payload types from receiver static arguments.
-    fn try_payload_types_from_receiver(
+    /// Resolve Try payloads from receiver static arguments.
+    fn try_payloads_from_receiver(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1476,8 +1476,8 @@ impl Compiler {
         Ok(Some((value_ty_id, error_ty_id)))
     }
 
-    /// Resolve Try payload types from the branch return shape.
-    fn try_payload_types_from_branch_return(
+    /// Resolve Try payloads from the branch return shape.
+    fn try_branch_payloads_from_return(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -1619,6 +1619,7 @@ impl Compiler {
         let ok_id = self.program.strings.intern("ok");
         let err_id = self.program.strings.intern("err");
 
+        // collect ok/error payload types from union members
         let mut ok_types = Vec::new();
         let mut err_types = Vec::new();
 
@@ -1678,8 +1679,8 @@ impl Compiler {
         Ok(Some((value_ty_id, error_ty_id)))
     }
 
-    /// Resolve Try payloads while validating branch compatibility.
-    fn resolve_try_branch_payloads(
+    /// Resolve Try payloads while validating branch assignability.
+    fn resolve_try_payloads(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -1693,7 +1694,7 @@ impl Compiler {
         options: &AnalyzeOptions,
     ) -> AnalyzeResult<Option<(LocalTypeId, LocalTypeId)>> {
         // resolve payloads from receiver static arguments when available
-        let receiver_payloads = self.try_payload_types_from_receiver(
+        let receiver_payloads = self.try_payloads_from_receiver(
             module,
             profile,
             receiver_id,
@@ -1706,7 +1707,7 @@ impl Compiler {
 
         // resolve payloads from the branch return shape
         let branch_payloads = if let Some(return_ty_id) = branch.signature.return_type {
-            self.try_payload_types_from_branch_return(
+            self.try_branch_payloads_from_return(
                 module,
                 expression_id,
                 return_ty_id,
@@ -1722,7 +1723,7 @@ impl Compiler {
         // prefer receiver payloads when they are concrete
         let mut payloads = receiver_payloads;
         if let Some(receiver_payloads) = receiver_payloads
-            && self.payloads_need_branch(receiver_payloads, types)
+            && self.try_payloads_need_branch(receiver_payloads, types)
         {
             payloads = branch_payloads;
         } else if payloads.is_none() {
@@ -1735,9 +1736,9 @@ impl Compiler {
 
         // validate branch return types when the receiver payloads are authoritative
         if let Some(receiver_payloads) = receiver_payloads
-            && !self.payloads_need_branch(receiver_payloads, types)
+            && !self.try_payloads_need_branch(receiver_payloads, types)
         {
-            let is_valid = self.validate_try_branch_return_type(
+            let is_valid = self.check_try_branch_return_type_assignable(
                 module,
                 expression_id,
                 branch,
@@ -1758,7 +1759,7 @@ impl Compiler {
     }
 
     /// Decide whether receiver payloads should be replaced by branch payloads.
-    fn payloads_need_branch(
+    fn try_payloads_need_branch(
         &self,
         payloads: (LocalTypeId, LocalTypeId),
         types: &TypeTable,
@@ -1777,7 +1778,11 @@ impl Compiler {
     }
 
     /// Decide whether a Try payload type should be validated for assignability.
-    fn should_check_try_payload(&self, ty_id: LocalTypeId, types: &TypeTable) -> bool {
+    fn should_check_try_payload_assignability(
+        &self,
+        ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> bool {
         !matches!(
             types.get_type(ty_id),
             Type::InferVar { .. }
@@ -1881,7 +1886,7 @@ impl Compiler {
     }
 
     /// Validate the Try branch return type against receiver payloads.
-    fn validate_try_branch_return_type(
+    fn check_try_branch_return_type_assignable(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -1911,7 +1916,7 @@ impl Compiler {
 
         // extract payload types from the branch return shape
         let Some((branch_value_ty_id, branch_error_ty_id)) = self
-            .try_payload_types_from_branch_return(
+            .try_branch_payloads_from_return(
                 module,
                 expression_id,
                 return_ty_id,
@@ -1925,7 +1930,7 @@ impl Compiler {
         };
 
         // compare payloads to the expected Try arguments when they are concrete
-        if self.should_check_try_payload(value_ty_id, types)
+        if self.should_check_try_payload_assignability(value_ty_id, types)
             && self.is_type_assignable(
                 module,
                 profile,
@@ -1939,7 +1944,7 @@ impl Compiler {
             return Ok(false);
         }
 
-        if self.should_check_try_payload(error_ty_id, types)
+        if self.should_check_try_payload_assignability(error_ty_id, types)
             && self.is_type_assignable(
                 module,
                 profile,
@@ -2051,7 +2056,7 @@ impl Compiler {
     }
 
     /// Ensure the enclosing function return type can accept a Try error.
-    fn ensure_try_return_type_compatibility(
+    fn ensure_try_return_type_assignable(
         &self,
         module: &Module,
         expression_id: LocalNodeId<Expression>,
@@ -2091,7 +2096,7 @@ impl Compiler {
         }
 
         // resolve payload types from the return type
-        let payloads = match self.try_payload_types_from_receiver(
+        let payloads = match self.try_payloads_from_receiver(
             module,
             ctx.profile,
             expression_id.into_any(),
@@ -2149,7 +2154,7 @@ impl Compiler {
         }
 
         // validate the branch return type against the return payload types
-        let is_valid = match self.validate_try_branch_return_type(
+        let is_valid = match self.check_try_branch_return_type_assignable(
             module,
             expression_id,
             &branch.resolved,
@@ -2216,6 +2221,7 @@ impl Compiler {
         types: &mut TypeTable,
         ctx: &InferContext,
     ) {
+        // NOTE #Cleanup: move this warning to the lint pipeline once available
         // only lint user modules
         if !matches!(module.source, ModuleSource::User) {
             return;
@@ -2362,7 +2368,7 @@ impl Compiler {
             }
 
             // resolve payload types for the receiver and branch
-            let payloads = self.resolve_try_branch_payloads(
+            let payloads = self.resolve_try_payloads(
                 module,
                 expression_id,
                 receiver_expression_id.into_any(),

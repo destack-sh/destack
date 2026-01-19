@@ -259,7 +259,8 @@ impl Compiler {
     }
 
     /// Prefer a contextual tagged type when it supplies missing static arguments.
-    pub(super) fn expected_tag_reference_type(
+    /// Requires the tag expression to detect explicit static arguments.
+    pub(super) fn expected_tag_reference_type_from_context(
         &self,
         tag_expression_id: LocalNodeId<Expression>,
         expected_ty_id: Option<LocalTypeId>,

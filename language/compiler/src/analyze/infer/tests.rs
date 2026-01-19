@@ -1,3 +1,4 @@
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{
     AnalyzeOptions, InferContext, TestProgram, assert_string, assert_type,
     expect_let_declarator_by_name, root_expression_id,
@@ -55,8 +56,13 @@ impl TestProgram {
         let symbols = module.dir(profile).symbols.read();
 
         // resolve the canonical symbol id
-        self.compiler
-            .canonical_symbol_id(&module, &symbols, profile, symbol)
+        self.compiler.canonical_symbol_id(
+            &module,
+            &symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        )
     }
 
     /// Create a cached module view for tests.
@@ -478,9 +484,13 @@ const raw: int32 = status;
     assert_eq!(member_name, active_name);
 
     let left_symbol = view.expect_reference_symbol(left_id);
-    let left_symbol =
-        test.compiler
-            .canonical_symbol_id(&module, view.symbols(), profile, left_symbol);
+    let left_symbol = test.compiler.canonical_symbol_id(
+        &module,
+        view.symbols(),
+        profile,
+        left_symbol,
+        CanonicalSymbolMode::FollowAliases,
+    );
     assert_eq!(left_symbol, enum_symbol);
 
     // validate assignability
@@ -588,9 +598,13 @@ const thing: GlobalThing = { value: 1, label: "ok" };
         thing_entry.canonical_symbol.is_none(),
         "unexpected canonical_symbol on thing binding",
     );
-    let canonical_symbol =
-        test.compiler
-            .canonical_symbol_id(&module, view.symbols(), profile, thing_symbol);
+    let canonical_symbol = test.compiler.canonical_symbol_id(
+        &module,
+        view.symbols(),
+        profile,
+        thing_symbol,
+        CanonicalSymbolMode::FollowAliases,
+    );
     assert_eq!(canonical_symbol, thing_symbol);
 
     // assert the binding uses a nominal reference type
@@ -2944,6 +2958,7 @@ const status = Status.Active;
         view.symbols(),
         view.profile_id(),
         status_symbol,
+        CanonicalSymbolMode::FollowAliases,
     );
     let status_ty_id = view.expect_value_type_id(status_symbol);
     assert_type!(

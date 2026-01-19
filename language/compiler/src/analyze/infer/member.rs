@@ -1,3 +1,4 @@
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
@@ -1711,7 +1712,13 @@ impl Compiler {
         }
 
         // resolve the canonical symbol for extension lookup
-        let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // check visible extensions for this symbol
         if let Some(extension_ids) = types.get_extensions_for_target(canonical_symbol) {

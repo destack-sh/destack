@@ -4,6 +4,7 @@ use std::sync::Arc;
 use super::declaration::DeclaratorConstraint;
 use super::member::MemberLookupMode;
 
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind, Compiler,
     FlowContext, InferContext,
@@ -2094,7 +2095,7 @@ impl Compiler {
                     true,
                     true,
                 )?;
-                let ty_id = self.expected_tag_reference_type(
+                let ty_id = self.expected_tag_reference_type_from_context(
                     *ty,
                     ctx.expected_type,
                     ty_id,
@@ -2119,7 +2120,7 @@ impl Compiler {
                     true,
                     true,
                 )?;
-                let ty_id = self.expected_tag_reference_type(
+                let ty_id = self.expected_tag_reference_type_from_context(
                     *ty,
                     ctx.expected_type,
                     ty_id,
@@ -2161,7 +2162,7 @@ impl Compiler {
                     true,
                     true,
                 )?;
-                let ty_id = self.expected_tag_reference_type(
+                let ty_id = self.expected_tag_reference_type_from_context(
                     *ty,
                     ctx.expected_type,
                     ty_id,
@@ -2336,7 +2337,7 @@ impl Compiler {
                 infer,
                 &mut expr_ctx,
             )?;
-            ctx.merge_try_errors_from(&expr_ctx);
+            ctx.merge_try_error_types_from(&expr_ctx);
         }
 
         // infer the last expression with contextual typing
@@ -2351,7 +2352,7 @@ impl Compiler {
                 infer,
                 &mut last_ctx,
             )?;
-            ctx.merge_try_errors_from(&last_ctx);
+            ctx.merge_try_error_types_from(&last_ctx);
             ty_id
         } else {
             let ty = Type::TypeLiteral {
@@ -2455,7 +2456,13 @@ impl Compiler {
 
         // canonicalize imports before picking a type
         let canonical_symbol =
-            self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                ctx.profile,
+                target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
 
         // reuse a narrowed or declared value type when possible
         let base_ty_id = if let Some(narrowed_ty_id) = ctx.get_narrowed(canonical_symbol) {
@@ -3310,7 +3317,13 @@ impl Compiler {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
-                Some(self.canonical_symbol_id(module, symbols, profile, *target_symbol))
+                Some(self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    *target_symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                ))
             }
             _ => None,
         }
@@ -3382,7 +3395,13 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // resolve the canonical symbol for imported references
         let canonical_symbol =
-            self.canonical_symbol_id(module, symbols, ctx.profile, target_symbol);
+            self.canonical_symbol_id(
+                module,
+                symbols,
+                ctx.profile,
+                target_symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
 
         // reject globalThis references when configured
         if ctx.options.no_global_this && matches!(module.source, ModuleSource::User) {

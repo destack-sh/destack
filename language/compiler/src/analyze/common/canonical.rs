@@ -6,15 +6,25 @@ use destack_workspace::{Module, ProfileId};
 
 use crate::Compiler;
 
+/// Control how canonical symbol resolution treats aliases.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum CanonicalSymbolMode {
+    /// Follow target and canonical links without preserving aliases.
+    FollowAliases,
+    /// Preserve alias identity when walking targets.
+    PreserveAliases,
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Resolve the canonical symbol for a reference.
+    /// Resolve the canonical symbol for a reference with explicit alias handling.
     pub(crate) fn canonical_symbol_id(
         &self,
         module: &Module,
         symbols: &SymbolTable,
         profile: ProfileId,
         symbol: GlobalSymbolId,
+        mode: CanonicalSymbolMode,
     ) -> GlobalSymbolId {
         let mut current_symbol = symbol;
         let mut visited = Vec::new();
@@ -26,61 +36,35 @@ impl Compiler {
             }
             visited.push(current_symbol);
 
-            let (canonical_symbol, target_symbol) = if current_symbol.module_id == module.id {
-                let symbol_entry = symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
-            } else {
-                let remote_module = self.program.modules.get(current_symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                let symbol_entry = remote_symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.canonical_symbol, symbol_entry.target_symbol)
-            };
+            let (symbol_ty, canonical_symbol, target_symbol) =
+                if current_symbol.module_id == module.id {
+                    let symbol_entry = symbols.get_symbol(current_symbol.local_id);
+                    (
+                        symbol_entry.ty,
+                        symbol_entry.canonical_symbol,
+                        symbol_entry.target_symbol,
+                    )
+                } else {
+                    let remote_module = self.program.modules.get(current_symbol.module_id);
+                    let remote_module = remote_module.read();
+                    let remote_symbols = remote_module.dir(profile).symbols.read();
+                    let symbol_entry = remote_symbols.get_symbol(current_symbol.local_id);
+                    (
+                        symbol_entry.ty,
+                        symbol_entry.canonical_symbol,
+                        symbol_entry.target_symbol,
+                    )
+                };
+
+            // preserve alias identity when requested
+            if matches!(mode, CanonicalSymbolMode::PreserveAliases)
+                && matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype)
+            {
+                return current_symbol;
+            }
 
             if let Some(canonical_symbol) = canonical_symbol {
                 return canonical_symbol;
-            }
-
-            if let Some(target_symbol) = target_symbol {
-                current_symbol = target_symbol;
-            } else {
-                return current_symbol;
-            }
-        }
-    }
-
-    /// Resolve the canonical symbol for a type reference without collapsing aliases.
-    pub(crate) fn canonical_type_reference_symbol_id(
-        &self,
-        module: &Module,
-        symbols: &SymbolTable,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-    ) -> GlobalSymbolId {
-        let mut current_symbol = symbol;
-        let mut visited = Vec::new();
-
-        // walk target chains but stop at nominal aliases
-        loop {
-            if visited.contains(&current_symbol) {
-                return current_symbol;
-            }
-            visited.push(current_symbol);
-
-            let (symbol_ty, target_symbol) = if current_symbol.module_id == module.id {
-                let symbol_entry = symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.ty, symbol_entry.target_symbol)
-            } else {
-                let remote_module = self.program.modules.get(current_symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                let symbol_entry = remote_symbols.get_symbol(current_symbol.local_id);
-                (symbol_entry.ty, symbol_entry.target_symbol)
-            };
-
-            // keep alias identity for type references
-            if matches!(symbol_ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-                return current_symbol;
             }
 
             if let Some(target_symbol) = target_symbol {
@@ -177,7 +161,13 @@ impl Compiler {
         static_arguments: Option<&[StaticArgument]>,
         types: &mut TypeTable,
     ) -> Option<Type> {
-        let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
 
         // check array reference
         if self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::Array) {
