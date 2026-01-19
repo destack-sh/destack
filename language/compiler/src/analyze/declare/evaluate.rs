@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
@@ -1019,8 +1020,12 @@ impl Compiler {
                 ..
             } => {
                 // resolve import targets without collapsing type aliases
-                let target_symbol = self.canonical_type_reference_symbol_id(
-                    module, symbols, profile, target_symbol,
+                let target_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    target_symbol,
+                    CanonicalSymbolMode::PreserveAliases,
                 );
 
                 // prefer merged type symbols for namespaces

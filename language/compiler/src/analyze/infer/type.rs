@@ -4,6 +4,7 @@ use super::member::MemberLookupMode;
 use super::{
     index_key_kind_for_member, index_key_kind_for_type, index_key_kinds_compatible_for_access,
 };
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{
     AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, TaskDependencyError,
 };
@@ -1861,7 +1862,13 @@ impl Compiler {
         // resolve the canonical symbol for extension lookup
         let canonical_symbol = {
             let symbols = module.dir(profile).symbols.read();
-            self.canonical_symbol_id(module, &symbols, profile, symbol)
+            self.canonical_symbol_id(
+                module,
+                &symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            )
         };
 
         // step 3: check visible extensions
@@ -1959,7 +1966,13 @@ impl Compiler {
         // resolve the canonical symbol for extension lookup
         let canonical_symbol = {
             let symbols = module.dir(profile).symbols.read();
-            self.canonical_symbol_id(module, &symbols, profile, symbol)
+            self.canonical_symbol_id(
+                module,
+                &symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            )
         };
 
         // step 3: check visible extensions
@@ -2962,7 +2975,13 @@ impl Compiler {
                 )
             }
             Type::Reference { symbol, .. } => {
-                let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, *symbol);
+                let canonical_symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    *symbol,
+                    CanonicalSymbolMode::FollowAliases,
+                );
                 self.is_type_lineage_assignable(canonical_symbol, interface_symbol, types)
             }
             Type::Union { elements } => elements.iter().all(|element_id| {
@@ -3972,7 +3991,13 @@ impl Compiler {
         };
 
         // compare canonical symbols to avoid alias mismatches
-        let canonical_symbol = self.canonical_symbol_id(module, symbols, profile, symbol);
+        let canonical_symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::FollowAliases,
+        );
         let is_promise_symbol = self
             .get_well_known_symbol(profile, WellKnownSymbol::Promise)
             .is_some_and(|promise_symbol| promise_symbol == canonical_symbol);

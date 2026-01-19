@@ -2048,7 +2048,7 @@ impl Compiler {
 mod tests {
     use crate::tests::TestProgram;
     use crate::{assert_node, assert_path};
-    use destack_dir::{Declarator, Expression, SymbolSpaceOrder};
+    use destack_dir::{Declarator, Expression, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable};
 
     // Test that infer type variables are visible in the then-branch of conditional types.
     #[test]
@@ -2150,5 +2150,52 @@ let Foo: Foo = Foo;
                 );
             }
         );
+    }
+
+    // ensure import type bindings use type space only
+    #[test]
+    fn test_bind_import_type_uses_type_space() {
+        let test = TestProgram::memory_sequential();
+        let _dep_id = test.add_module("dep.d.ts", "export type Foo = number;");
+        let main_id = test.add_module("main.d.ts", r#"import type { Foo } from "./dep";"#);
+
+        test.bind_module(main_id);
+        test.compile();
+        test.check_clean();
+
+        let module = test.program.modules.get(main_id);
+        let module = module.read();
+        let dir = module.dir_base();
+        let symbols = dir.symbols.read();
+        let name = test.program.strings.intern("Foo");
+        let key = StaticKey::Name(name);
+        let (type_count, value_count, type_value_count) =
+            count_symbol_spaces(&symbols, key);
+
+        assert_eq!(type_count, 1);
+        assert_eq!(value_count, 0);
+        assert_eq!(type_value_count, 0);
+    }
+
+    fn count_symbol_spaces(symbols: &SymbolTable, key: StaticKey) -> (usize, usize, usize) {
+        let mut type_count = 0;
+        let mut value_count = 0;
+        let mut type_value_count = 0;
+
+        for local_id in symbols.active_symbol_ids() {
+            let symbol = symbols.get_symbol(local_id);
+            if symbol.key != Some(key) {
+                continue;
+            }
+
+            match symbol.space {
+                SymbolSpace::Type => type_count += 1,
+                SymbolSpace::Value => value_count += 1,
+                SymbolSpace::TypeValue => type_value_count += 1,
+                SymbolSpace::Label => {}
+            }
+        }
+
+        (type_count, value_count, type_value_count)
     }
 }

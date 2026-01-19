@@ -283,7 +283,7 @@ impl InferContext {
     }
 
     /// Merge try error types from a forked context.
-    pub fn merge_try_errors_from(&mut self, other: &InferContext) {
+    pub fn merge_try_error_types_from(&mut self, other: &InferContext) {
         if self.try_stack.len() != other.try_stack.len() {
             return;
         }

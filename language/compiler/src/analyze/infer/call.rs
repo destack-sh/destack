@@ -279,7 +279,81 @@ impl Compiler {
         }
 
         // resolve and filter applicable overloads
+        let candidates = self.collect_applicable_signatures(
+            module,
+            expression_id,
+            callee_symbol,
+            static_arguments,
+            signature_ids,
+            dynamic_arguments,
+            call_receiver_ty_id,
+            profile,
+            options,
+            tree,
+            symbols,
+            types,
+            infer,
+        )?;
+
+        // drop overloads that are equivalent after resolution
+        let mut candidates = self.dedupe_signature_candidates(
+            module,
+            profile,
+            candidates,
+            symbols,
+            types,
+            options,
+        );
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+        if candidates.len() == 1 {
+            return Ok(Some(candidates.remove(0)));
+        }
+
+        // find the most specific signature among candidates
+        let candidate_index = self.select_signature_by_specificity(
+            module,
+            profile,
+            &candidates,
+            symbols,
+            types,
+            options,
+        );
+        if let Some(index) = candidate_index {
+            return Ok(Some(candidates.remove(index)));
+        }
+
+        let candidates = callee_symbol.into_iter().collect();
+        Err(AnalyzeError::AmbiguousOverload {
+            node: expression_id
+                .into_global_any(module.id)
+                .into_anchored(Some(profile)),
+            candidates,
+        })
+    }
+
+    /// Resolve and filter applicable overloads for call selection.
+    fn collect_applicable_signatures(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        callee_symbol: Option<GlobalSymbolId>,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        signature_ids: &[LocalTypeId],
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        call_receiver_ty_id: Option<LocalTypeId>,
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+    ) -> AnalyzeResult<Vec<(LocalTypeId, ResolvedSignature)>> {
+        // collect resolved signatures that apply to the call site
         let mut candidates = Vec::new();
+
         for signature_ty_id in signature_ids {
             let Some(resolved) = self.resolve_call_signature(
                 module,
@@ -315,31 +389,50 @@ impl Compiler {
             candidates.push((*signature_ty_id, resolved));
         }
 
-        if !candidates.is_empty() {
-            let mut deduped = Vec::new();
-            for (signature_id, resolved) in candidates {
-                if !deduped.iter().any(|(_, existing)| {
-                    self.signatures_equivalent(
-                        module, profile, &resolved, existing, symbols, types, options,
-                    )
-                }) {
-                    deduped.push((signature_id, resolved));
-                }
+        Ok(candidates)
+    }
+
+    /// Drop duplicate overloads that resolve to equivalent shapes.
+    fn dedupe_signature_candidates(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        candidates: Vec<(LocalTypeId, ResolvedSignature)>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Vec<(LocalTypeId, ResolvedSignature)> {
+        let mut deduped = Vec::new();
+
+        for (signature_id, resolved) in candidates {
+            let already_seen = deduped.iter().any(|(_, existing)| {
+                self.signature_shapes_equivalent(
+                    module, profile, &resolved, existing, symbols, types, options,
+                )
+            });
+            if !already_seen {
+                deduped.push((signature_id, resolved));
             }
-            candidates = deduped;
         }
 
-        if candidates.is_empty() {
-            return Ok(None);
-        }
-        if candidates.len() == 1 {
-            return Ok(Some(candidates.remove(0)));
-        }
+        deduped
+    }
 
-        // find the most specific signature among candidates
+    /// Select the most specific signature among candidates.
+    fn select_signature_by_specificity(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        candidates: &[(LocalTypeId, ResolvedSignature)],
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> Option<usize> {
+        // compute maximal candidates by specificity
         let mut maximal = Vec::new();
         for (index, candidate) in candidates.iter().enumerate() {
             let mut dominated = false;
+
             for (other_index, other) in candidates.iter().enumerate() {
                 if index == other_index {
                     continue;
@@ -357,16 +450,17 @@ impl Compiler {
                     break;
                 }
             }
+
             if !dominated {
                 maximal.push(index);
             }
         }
 
         if maximal.len() == 1 {
-            let index = maximal[0];
-            return Ok(Some(candidates.remove(index)));
+            return Some(maximal[0]);
         }
 
+        // break ties by parameter count
         let min_params = maximal
             .iter()
             .map(|index| candidates[*index].1.dynamic_parameters.len())
@@ -378,21 +472,16 @@ impl Compiler {
                 narrowed.push(index);
             }
         }
+
         if narrowed.len() == 1 {
-            let index = narrowed[0];
-            return Ok(Some(candidates.remove(index)));
+            return Some(narrowed[0]);
         }
 
-        let candidates = callee_symbol.into_iter().collect();
-        Err(AnalyzeError::AmbiguousOverload {
-            node: expression_id
-                .into_global_any(module.id)
-                .into_anchored(Some(profile)),
-            candidates,
-        })
+        None
     }
 
-    fn signatures_equivalent(
+    /// Check whether two resolved signatures are equivalent after normalization.
+    fn signature_shapes_equivalent(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -402,10 +491,12 @@ impl Compiler {
         types: &mut TypeTable,
         options: &AnalyzeOptions,
     ) -> bool {
+        // compare parameter counts first
         if left.dynamic_parameters.len() != right.dynamic_parameters.len() {
             return false;
         }
 
+        // compare parameter shapes bi-directionally
         for (left_ty_id, right_ty_id) in left
             .dynamic_parameters
             .iter()
@@ -436,6 +527,7 @@ impl Compiler {
             }
         }
 
+        // compare return types when present
         match (left.return_type, right.return_type) {
             (None, None) => true,
             (Some(left_return), Some(right_return)) => {

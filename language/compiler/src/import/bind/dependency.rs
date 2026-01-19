@@ -76,13 +76,17 @@ impl Compiler {
         // the symbol key is the alias if present, otherwise the name
         // (e.g., `import { foo as bar }` has key `bar`, `import * as baz` has key `baz`)
         let key = alias.or(name);
+        let symbol_space = match kind {
+            DependencyKind::Type => SymbolSpace::Type,
+            DependencyKind::Value => SymbolSpace::Value,
+        };
         let symbol_id = if is_export {
             None
         } else if let Some(key) = key {
             let (symbol_id, _) = self.bind_named_item(
                 module,
                 ast,
-                SymbolSpace::Value,
+                symbol_space,
                 StaticKey::Name(key),
                 scope,
                 None,
@@ -91,7 +95,7 @@ impl Compiler {
             Some(symbol_id)
         } else {
             let (symbol_id, _) =
-                self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
+                self.bind_anonymous_item(module, ast, symbol_space, scope, None, symbols);
             Some(symbol_id)
         };
 
