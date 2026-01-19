@@ -103,6 +103,7 @@ fn to_infix_operator(
     // special case for shift right (`>>`) and unsigned shift right (`>>>`) to avoid ungluing ambiguity
     if !options.in_static
         && !options.in_tree_literal
+        && !options.in_type
         && token.token.ty == TokenType::GreaterThan
         && next_token.token.ty == TokenType::GreaterThan
     {

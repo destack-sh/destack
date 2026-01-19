@@ -731,7 +731,6 @@ mod tests {
         TypeMappedModifiers, TypeModifier, TypePredicateSubject, TypeUnaryOperator, UnaryOperator,
     };
     use destack_source::LanguageType;
-
     use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};
 
     #[test]
@@ -1936,6 +1935,126 @@ mod tests {
                             assert_node!(parser.tree, *value, Expression::TypeIndex { left, index } => {
                                 assert_expression_path!(parser, parser.tree.get(*left), "T");
                                 assert_node!(parser.tree, *index, Expression::TypeLiteral(TypeLiteral::Number));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Nested generic closings should not parse as shift-right operators in type context.
+    #[test]
+    fn test_parse_nested_generic_closings_in_type() {
+        let mut test = TestParser::new("type A = Foo<Bar<Baz<Qux>>>");
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                    assert_eq!(path.segments.len(), 1);
+                    let args = static_arguments.as_ref().unwrap();
+                    assert_eq!(args.len(), 1);
+                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                            assert_eq!(path.segments.len(), 1);
+                            let args = static_arguments.as_ref().unwrap();
+                            assert_eq!(args.len(), 1);
+                            assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::Path { path, static_arguments } => {
+                                    assert_eq!(path.segments.len(), 1);
+                                    assert_expression_path!(parser, parser.tree.get(*value), "Baz");
+                                    let args = static_arguments.as_ref().unwrap();
+                                    assert_eq!(args.len(), 1);
+                                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                                        assert_expression_path!(parser, parser.tree.get(*value), "Qux");
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Tuple expressions inside static arguments should parse as a single argument.
+    #[test]
+    fn test_parse_tuple_static_argument() {
+        let mut test = TestParser::new_with_options(
+            "type A = And<[Left, Right]>",
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path: _, static_arguments } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "And");
+                    let args = static_arguments.as_ref().unwrap();
+                    assert_eq!(args.len(), 1);
+                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                            assert_eq!(elements.len(), 2);
+                            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "Left");
+                            });
+                            assert_node!(parser.tree, elements[1], Argument::Positional { value, .. } => {
+                                assert_expression_path!(parser, parser.tree.get(*value), "Right");
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Nested generic arguments inside tuple static arguments should stay grouped.
+    #[test]
+    fn test_parse_tuple_static_argument_with_nested_generics() {
+        let mut test = TestParser::new_with_options(
+            r#"type A<Actual> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]>;"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { path: _, static_arguments } => {
+                    let args = static_arguments.as_ref().unwrap();
+                    assert_eq!(args.len(), 1);
+                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                            assert_eq!(elements.len(), 2);
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Tuple static arguments inside a conditional type should stay grouped.
+    #[test]
+    fn test_parse_tuple_static_argument_in_type_conditional() {
+        let mut test = TestParser::new_with_options(
+            r#"type A<Actual, Expected> = And<[Extends<PrintType<Actual>, "...">, Not<IsAny<Actual>>]> extends true ? Actual : Expected;"#,
+            LanguageType::TypeScriptDeclaration,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::TypeConditional { left, .. } => {
+                    assert_node!(parser.tree, *left, Expression::Path { path: _, static_arguments } => {
+                        let args = static_arguments.as_ref().unwrap();
+                        assert_eq!(args.len(), 1);
+                        assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                            assert_node!(parser.tree, *value, Expression::ArrayExpression { elements } => {
+                                assert_eq!(elements.len(), 2);
                             });
                         });
                     });
