@@ -793,6 +793,7 @@ fn check_instruction(
             destination,
             function,
             arguments,
+            ..
         } => {
             let args = checker.tree.get_arguments(*arguments);
             for &arg in args {
@@ -808,14 +809,26 @@ fn check_instruction(
             }
         }
 
-        Instruction::CallIndirect {
+        Instruction::CallVirtual {
             destination,
-            callee,
             arguments,
             signature,
+            ..
+        }
+        | Instruction::CallInterface {
+            destination,
+            arguments,
+            signature,
+            ..
+        }
+        | Instruction::CallIndirect {
+            destination,
+            callee: _,
+            arguments,
+            signature,
+            ..
         } => {
             // callee is used, not moved
-            let _ = callee;
             let args = checker.tree.get_arguments(*arguments);
             for &arg in args {
                 checker.check_move_while_borrowed(arg, instruction_id, context);
@@ -1864,7 +1877,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @identity(v2)
+    v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
     v4 = load v3 -> i32
     return v4
@@ -1873,7 +1886,7 @@ block0:
         let mut program = TestProgram::new(input);
         program.run_pass(&BorrowCheck);
 
-        // v3 = call @identity(v2) returns a borrow of v2 which borrows from v0
+        // v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a borrow of v2 which borrows from v0
         // dropping v0 while v3 is live should be an error
         program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
@@ -1895,7 +1908,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @getStatic(v2)
+    v3 = call @getStatic(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
     v4 = load v3 -> i32
     return v4
@@ -1931,7 +1944,7 @@ block0:
     store v1, v2
     v3 = field.addr v0, 0 -> ref<borrowed i32>
     v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickFirst(v3, v4)
+    v5 = call @pickFirst(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v1
     v6 = load v5 -> i32
     raw.drop v0
@@ -1967,7 +1980,7 @@ block0:
     store v1, v2
     v3 = field.addr v0, 0 -> ref<borrowed i32>
     v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pick_any(v3, v4)
+    v5 = call @pick_any(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v1
     v6 = load v5 -> i32
     raw.drop v0
@@ -2000,7 +2013,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @deref(v2)
+    v3 = call @deref(v2) -> fn(ref<borrowed i32>) -> i32
     raw.drop v0
     return v3
 }"#;
@@ -2030,7 +2043,7 @@ block0:
     v1 = iconst 42i32
     store v0, v1
     v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = call @identity(v2)
+    v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     v4 = load v3 -> i32
     raw.drop v0
     return v4
@@ -2064,7 +2077,7 @@ block0:
     store v1, v2
     v3 = field.addr v0, 0 -> ref<borrowed i32>
     v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickEither(v3, v4)
+    v5 = call @pickEither(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
     v6 = load v5 -> i32
     raw.drop v1
@@ -2101,7 +2114,7 @@ block0:
     store v1, v2
     v3 = field.addr v0, 0 -> ref<borrowed i32>
     v4 = field.addr v1, 0 -> ref<borrowed i32>
-    v5 = call @pickSecond(v3, v4)
+    v5 = call @pickSecond(v3, v4) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     raw.drop v0
     v6 = load v5 -> i32
     raw.drop v1
@@ -2132,7 +2145,7 @@ block0(v0: ref<borrowed mut i32>):
 
 function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = call @getMut(v0)
+    v1 = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
     v2 = field.addr v0, 0 -> ref<borrowed i32>
     v3 = load v1 -> i32
     v4 = load v2 -> i32
@@ -2146,7 +2159,7 @@ block0(v0: ref<borrowed mut i32>):
         let mut program = TestProgram::new(input);
         program.run_pass_with_options(&BorrowCheck, options);
 
-        // v1 = call @getMut(v0) returns a mutable borrow from v0
+        // v1 = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32> returns a mutable borrow from v0
         // v2 = field.addr v0, 0 creates another mutable borrow of v0
         // these should conflict in strict mode
         program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
@@ -2165,7 +2178,7 @@ block0(v0: ref<borrowed i32>):
 
 function @test(v0: ref<borrowed i32>) -> i32 {
 block0(v0: ref<borrowed i32>):
-    v1 = call @getShared(v0)
+    v1 = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     v2 = field.addr v0, 0 -> ref<borrowed i32>
     v3 = load v1 -> i32
     v4 = load v2 -> i32
@@ -2179,7 +2192,7 @@ block0(v0: ref<borrowed i32>):
         let mut program = TestProgram::new(input);
         program.run_pass_with_options(&BorrowCheck, options);
 
-        // v1 = call @getShared(v0) returns a shared borrow from v0
+        // v1 = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a shared borrow from v0
         // v2 = field.addr v0, 0 creates another shared borrow of v0
         // shared + shared is okay
         program.assert_no_errors();
@@ -2202,7 +2215,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = call @getMutRef(v0)
+    v2 = call @getMutRef(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32>
     v3 = field.addr v0, 0 -> ref<borrowed i32>
     v4 = load v2 -> i32
     v5 = load v3 -> i32

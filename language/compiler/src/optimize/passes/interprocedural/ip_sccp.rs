@@ -25,7 +25,7 @@ declare_pass! {
     /// function @root() -> i32 {
     /// block0:
     ///     v0 = iconst 7i32
-    ///     v1 = call @callee(v0)
+    ///     v1 = call @callee(v0) -> fn(i32) -> i32
     ///     return v1
     /// }
     /// ```
@@ -39,7 +39,7 @@ declare_pass! {
     /// function @root() -> i32 {
     /// block0:
     ///     v0 = iconst 7i32
-    ///     v1 = call @callee(v0)
+    ///     v1 = call @callee(v0) -> fn(i32) -> i32
     ///     return v1
     /// }
     /// ```
@@ -566,7 +566,6 @@ fn replace_constant_calls(
                 value: constant.clone(),
             },
         );
-        tree.call_table.remove_call_metadata(call_instruction);
         tree.memory_table.remove_memory_accesses(call_instruction);
         changed = true;
     }
@@ -626,20 +625,15 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                // record direct callsites
-                if let mir::Instruction::Call {
-                    function: callee,
-                    arguments,
-                    ..
-                } = instruction
-                {
-                    let dispatch = tree
-                        .call_table
-                        .call_metadata(instruction_id)
-                        .map(|meta| meta.dispatch)
-                        .unwrap_or(mir::CallDispatchKind::Direct);
-
-                    if matches!(dispatch, mir::CallDispatchKind::Direct) {
+                // record callsites and signatures
+                if let Some(dispatch) = instruction.call_dispatch_kind() {
+                    if let mir::CallDispatchKind::Direct = dispatch
+                        && let mir::Instruction::Call {
+                            function: callee,
+                            arguments,
+                            ..
+                        } = instruction
+                    {
                         let arguments = tree.get_arguments(*arguments).to_vec();
                         data.callsites.push(DirectCallSite {
                             caller: caller_id,
@@ -649,21 +643,14 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                             arguments,
                         });
                         continue;
-                    } else if let Some(signature) = tree
-                        .call_table
-                        .call_metadata(instruction_id)
-                        .and_then(|meta| SignatureKey::from_signature_type(tree, meta.signature))
+                    }
+
+                    if let Some(signature) = instruction
+                        .call_signature()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
                     {
                         data.indirect_signatures.insert(signature);
-                        continue;
                     }
-                }
-
-                // record signatures for call.indirect instructions
-                if let mir::Instruction::CallIndirect { signature, .. } = instruction
-                    && let Some(signature) = SignatureKey::from_signature_type(tree, *signature)
-                {
-                    data.indirect_signatures.insert(signature);
                 }
             }
 
@@ -681,7 +668,9 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         arguments: arguments.clone(),
                     });
                 }
-                mir::Terminator::TailCallIndirect { signature, .. } => {
+                mir::Terminator::TailCallIndirect { signature, .. }
+                | mir::Terminator::TailCallVirtual { signature, .. }
+                | mir::Terminator::TailCallInterface { signature, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
                         data.indirect_signatures.insert(signature);
                     }
@@ -700,12 +689,14 @@ fn call_is_pure(
     call_instruction: mir::LocalNodeId<mir::Instruction>,
     callee: mir::LocalNodeId<mir::Function>,
 ) -> bool {
+    let instruction = tree.get(call_instruction);
+    let call_effects = instruction.call_effects();
+
     // resolve callsite effects when present
-    let metadata = tree.call_table.call_metadata(call_instruction);
-    let effects = metadata
+    let effects = call_effects
         .and_then(|meta| meta.memory_effects.clone())
         .or_else(|| tree.get(callee).memory_effects.clone());
-    let behavior = metadata
+    let behavior = call_effects
         .and_then(|meta| meta.behavior.clone())
         .or_else(|| tree.get(callee).call_behavior.clone());
 
@@ -745,7 +736,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = iconst 7i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -757,7 +748,7 @@ block0(v0: i32):
 function @root() -> i32 {
 block0:
     v0 = iconst 7i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -776,7 +767,7 @@ block0:
 }
 function @root() -> i32 {
 block0:
-    v0 = call @pure()
+    v0 = call @pure() -> fn() -> i32
     return v0
 }"#;
 
@@ -810,13 +801,13 @@ block0(v0: i32):
 function @first() -> i32 {
 block0:
     v0 = iconst 1i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }
 function @second() -> i32 {
 block0:
     v0 = iconst 2i32
-    v1 = call @callee(v0)
+    v1 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -835,8 +826,8 @@ block0(v0: i32):
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
-    v2 = call @callee(v1)
-    v3 = call @callee(v0)
+    v2 = call @callee(v1) -> fn(i32) -> i32
+    v3 = call @callee(v0) -> fn(i32) -> i32
     return v2
 }"#;
 
@@ -884,7 +875,7 @@ block0:
 }
 function @root() -> i32 {
 block0:
-    v0 = call @pure()
+    v0 = call @pure() -> fn() -> i32
     return v0
 }"#;
 
@@ -903,7 +894,7 @@ block0(v0: i32):
 function @root(v0: fn(i32) -> i32) -> i32 {
 block0(v0: fn(i32) -> i32):
     v1 = iconst 7i32
-    v2 = call @callee(v1)
+    v2 = call @callee(v1) -> fn(i32) -> i32
     v3 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;

@@ -1060,12 +1060,12 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = call @get_value()
+    v1 = call @get_value() -> fn() -> i32
     jump block3
 block2:
     jump block3
 block3:
-    v2 = call @get_value()
+    v2 = call @get_value() -> fn() -> i32
     return v2
 }
 function @get_value() -> i32 {

@@ -335,7 +335,7 @@ fn compute_function_summary(
         for &instruction_id in &block.instructions {
             let instruction = tree.get(instruction_id);
             if let Some((effect, behavior)) =
-                call_effects_for_instruction(tree, instruction_id, instruction, summaries)
+                call_effects_for_instruction(tree, instruction, summaries)
             {
                 memory_builder.record_effect(&effect);
                 behavior_builder.record_behavior(&behavior);
@@ -452,7 +452,7 @@ fn update_call_metadata(
         for instruction_id in instruction_ids {
             let callee_id = {
                 let instruction = tree.get(instruction_id);
-                direct_callee_for_instruction(instruction, tree, instruction_id)
+                direct_callee_for_instruction(instruction)
             };
             let Some(callee_id) = callee_id else {
                 continue;
@@ -462,7 +462,8 @@ fn update_call_metadata(
             };
 
             // update metadata entries when missing
-            let Some(metadata) = tree.call_table.call_metadata_mut(instruction_id) else {
+            let instruction = tree.get_mut(instruction_id);
+            let Some(metadata) = instruction.call_effects_mut() else {
                 continue;
             };
             if metadata.memory_effects.is_none() {
@@ -481,27 +482,29 @@ fn update_call_metadata(
 
 /// Resolve call effects for a call instruction.
 fn call_effects_for_instruction(
-    tree: &mir::NodeTree,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
+    _tree: &mir::NodeTree,
     instruction: &mir::Instruction,
     summaries: &HashMap<mir::LocalNodeId<mir::Function>, FunctionSummary>,
 ) -> Option<(mir::MemoryEffect, mir::CallBehavior)> {
     // skip non call instructions
     let is_call = matches!(
         instruction,
-        mir::Instruction::Call { .. } | mir::Instruction::CallIndirect { .. }
+        mir::Instruction::Call { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallIndirect { .. }
     );
     if !is_call {
         return None;
     }
 
     // seed effects from call metadata when present
-    let metadata = tree.call_table.call_metadata(instruction_id);
+    let metadata = instruction.call_effects();
     let mut memory_effect = metadata.and_then(|meta| meta.memory_effects.clone());
     let mut behavior = metadata.and_then(|meta| meta.behavior.clone());
 
     // fall back to direct callee summaries when available
-    if let Some(summary) = direct_callee_for_instruction(instruction, tree, instruction_id)
+    if let Some(summary) = direct_callee_for_instruction(instruction)
         .and_then(|callee_id| summaries.get(&callee_id))
     {
         if memory_effect.is_none() {
@@ -538,32 +541,9 @@ fn call_effects_for_tailcall(
 /// Resolve a direct callee id for a call instruction.
 fn direct_callee_for_instruction(
     instruction: &mir::Instruction,
-    tree: &mir::NodeTree,
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
 ) -> Option<mir::LocalNodeId<mir::Function>> {
-    // classify direct callees from call instructions
     match instruction {
-        mir::Instruction::Call { function, .. } => {
-            // respect call metadata dispatch when present
-            let metadata = tree.call_table.call_metadata(instruction_id);
-            let dispatch = metadata
-                .map(|meta| meta.dispatch)
-                .unwrap_or(mir::CallDispatchKind::Direct);
-            if dispatch == mir::CallDispatchKind::Direct {
-                Some(*function)
-            } else {
-                None
-            }
-        }
-        mir::Instruction::CallIndirect { .. } => {
-            // only resolve direct call metadata for indirect call sites
-            let metadata = tree.call_table.call_metadata(instruction_id)?;
-            if metadata.dispatch == mir::CallDispatchKind::Direct {
-                metadata.declared_target
-            } else {
-                None
-            }
-        }
+        mir::Instruction::Call { function, .. } => Some(*function),
         _ => None,
     }
 }
@@ -881,28 +861,26 @@ block0:
 }
 function @caller() -> i32 {
 block0:
-    v0 = call @callee()
+    v0 = call @callee() -> fn() -> i32
     return v0
 }"#;
 
         let mut program = TestProgram::new(input);
         let caller_id = program.function_id_by_name("caller");
-        let (call_inst, callee_id) = program.first_call_in_entry(caller_id);
-        let signature = program.call_signature_for_callee(callee_id);
-        program
-            .tree
-            .call_table
-            .insert_call_metadata(call_inst, mir::CallMetadata::direct(callee_id, signature));
+        let (call_inst, _callee_id) = program.first_call_in_entry(caller_id);
+        let instruction = program.tree.get_mut(call_inst);
+        let mir::Instruction::Call { effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *effects = Some(mir::CallEffects::default());
 
         program.run_module_pass(&FunctionAttrs);
         program.assert_output(input);
-        let metadata = program
-            .tree
-            .call_table
-            .call_metadata(call_inst)
-            .expect("missing call metadata");
-
-        assert_eq!(metadata.memory_effects, Some(mir::MemoryEffect::none()));
+        let instruction = program.tree.get(call_inst);
+        let effects = instruction
+            .call_effects()
+            .expect("missing call effects");
+        assert_eq!(effects.memory_effects, Some(mir::MemoryEffect::none()));
     }
 
     /// Tail calls to returning functions do not imply noreturn.

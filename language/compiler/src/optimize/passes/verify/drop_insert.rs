@@ -4,6 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{Instruction, Value};
 
+use crate::optimize::common::build_signature_type;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, PipelineContext,
 };
@@ -323,10 +324,13 @@ fn emit_drop_sequence(
         && let Some(&drop_fn) = tree.type_table.drop_function_by_type_id.get(&type_id)
     {
         let arguments = tree.add_arguments(&[value]);
+        let signature = build_signature_type(drop_fn, tree);
         let call = Instruction::Call {
             destination: None,
             function: drop_fn,
             arguments,
+            signature,
+            effects: None,
         };
         let call_id = tree.insert(call);
         instructions.push(call_id);
@@ -666,7 +670,7 @@ function @test() -> i32 {
 block0:
     v0 = iconst 1i32
     v1 = iconst 2i32
-    v2 = call @add(v0, v1)
+    v2 = call @add(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -847,7 +851,7 @@ block0(v0: ref<raw i32>):
 function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
     v1 = load v0 -> i32
-    call @my_drop(v0)
+    call @my_drop(v0) -> fn(ref<raw i32>) -> void
     raw.drop v0
     return v1
 }"#;

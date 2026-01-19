@@ -647,6 +647,19 @@ pub fn resolve_pointer_address_space(
     let instruction_id = definitions.get(&pointer)?;
     let instruction = tree.get(*instruction_id);
 
+    if let Some(signature) = instruction.call_signature() {
+        let signature = tree.get(signature);
+        let mir::Type::FunctionPointer { result, .. } = signature else {
+            return None;
+        };
+
+        if let mir::Type::Reference { address_space, .. } = tree.get(*result) {
+            return Some(*address_space);
+        }
+
+        return None;
+    }
+
     match instruction {
         mir::Instruction::StackAlloc { .. } => Some(mir::AddressSpace::Stack),
         mir::Instruction::RawAlloc { .. }
@@ -666,14 +679,6 @@ pub fn resolve_pointer_address_space(
                 Some(*address_space)
             } else {
                 resolve_pointer_address_space(*argument, function, tree, ownership, definitions)
-            }
-        }
-        mir::Instruction::Call { function, .. } => {
-            let callee = tree.get(*function);
-            if let mir::Type::Reference { address_space, .. } = tree.get(callee.return_type) {
-                Some(*address_space)
-            } else {
-                None
             }
         }
         _ => None,
@@ -950,6 +955,8 @@ impl<'a> PointerDecomposer<'a> {
 
             // calls return unknown pointers
             mir::Instruction::Call { destination, .. }
+            | mir::Instruction::CallVirtual { destination, .. }
+            | mir::Instruction::CallInterface { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. }
                 if destination.is_some_and(|d| d == ptr) =>
             {

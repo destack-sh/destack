@@ -150,6 +150,8 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::NodeTree) ->
             Terminator::Return { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }
+            | Terminator::TailCallVirtual { .. }
+            | Terminator::TailCallInterface { .. }
             | Terminator::TailCallIndirect { .. } => {}
         }
     }

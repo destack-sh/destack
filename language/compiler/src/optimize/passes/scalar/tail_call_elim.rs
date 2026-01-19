@@ -6,6 +6,7 @@ use mir::{BinaryOperator, Constant, Instruction};
 
 use destack_base::StringPool;
 
+use crate::optimize::common::build_signature_type;
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {
@@ -461,6 +462,8 @@ fn remap_terminator_blocks(
         mir::Terminator::Return { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
         // yield has a resume block that needs remapping
         mir::Terminator::Yield {
@@ -483,6 +486,7 @@ fn update_recursive_calls_to_impl(
     tree: &mut mir::NodeTree,
 ) {
     let block = tree.get(block_id).clone();
+    let signature = build_signature_type(impl_function_id, tree);
 
     for &instr_id in &block.instructions {
         let instr = tree.get(instr_id).clone();
@@ -490,6 +494,8 @@ fn update_recursive_calls_to_impl(
             destination,
             function,
             arguments,
+            effects,
+            ..
         } = instr
             && function == original_function_id
         {
@@ -497,6 +503,8 @@ fn update_recursive_calls_to_impl(
                 destination,
                 function: impl_function_id,
                 arguments,
+                signature,
+                effects,
             };
             tree.replace(instr_id, new_instr);
         }
@@ -529,10 +537,13 @@ fn rewrite_as_wrapper(
     // create call to impl
     let result_value = mir::Value::new(*next_value);
     *next_value += 1;
+    let signature = build_signature_type(impl_function_id, tree);
     let call_instr = Instruction::Call {
         destination: Some(result_value),
         function: impl_function_id,
         arguments: call_arguments,
+        signature,
+        effects: None,
     };
     let call_id = tree.insert(call_instr);
 
@@ -620,6 +631,8 @@ fn update_call_site(
         destination,
         function,
         arguments,
+        effects,
+        ..
     } = call_instr
     else {
         return;
@@ -642,10 +655,13 @@ fn update_call_site(
 
     // create new call with extended arguments
     let new_arguments = tree.add_arguments(&new_args);
+    let signature = build_signature_type(function, tree);
     let new_call = Instruction::Call {
         destination,
         function,
         arguments: new_arguments,
+        signature,
+        effects,
     };
     let new_call_id = tree.insert(new_call);
 
@@ -812,6 +828,7 @@ fn detect_accumulator_pattern(
             destination: Some(call_dest),
             function: called_func,
             arguments,
+            ..
         } = instr
         {
             // must be calling ourselves
@@ -1117,6 +1134,7 @@ fn transform_self_recursive_tail_call(
         destination,
         function: called_function,
         arguments,
+        ..
     } = last_instruction
     else {
         return false;
@@ -1191,6 +1209,7 @@ fn transform_sibling_tail_call(
             destination,
             function: called_function,
             arguments,
+            ..
         } => {
             // skip self-recursive calls (handled by transform_self_recursive_tail_call)
             if *called_function == current_function_id {
@@ -1233,6 +1252,7 @@ fn transform_sibling_tail_call(
             callee,
             arguments,
             signature,
+            ..
         } => {
             // return value must match call result
             let is_tail_position = match (destination, returned_value) {
@@ -1290,7 +1310,7 @@ block2:
     v4 = imul v0, v1
     v5 = iconst 1i32
     v6 = isub v0, v5
-    v7 = call @test(v6, v4)
+    v7 = call @test(v6, v4) -> fn(i32, i32) -> i32
     return v7
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
@@ -1325,7 +1345,7 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    call @test(v4)
+    call @test(v4) -> fn(i32) -> void
     return
 }"#;
         let expected = r#"function @test(v0: i32) -> void {
@@ -1358,7 +1378,7 @@ block1:
     return v1
 block2:
     v3 = isub v0, v1
-    v4 = call @test(v3)
+    v4 = call @test(v3) -> fn(i32) -> i32
     v5 = imul v0, v4
     return v5
 }"#;
@@ -1394,7 +1414,7 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    v5 = call @test(v4)
+    v5 = call @test(v4) -> fn(i32) -> i32
     v6 = isub v0, v5
     return v6
 }"#;
@@ -1409,7 +1429,7 @@ block2:
         // sibling call (to different function) in tail position becomes tailcall
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @other(v0)
+    v1 = call @other(v0) -> fn(i32) -> i32
     return v1
 }
 function @other(v0: i32) -> i32 {
@@ -1442,7 +1462,7 @@ block1:
     return v0
 block2:
     v4 = srem v0, v1
-    v5 = call @test(v1, v4)
+    v5 = call @test(v1, v4) -> fn(i32, i32) -> i32
     return v5
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
@@ -1467,7 +1487,7 @@ block2:
         // infinite recursion becomes infinite loop
         let input = r#"function @test() -> void {
 block0:
-    call @test()
+    call @test() -> fn() -> void
     return
 }"#;
         let expected = r#"function @test() -> void {
@@ -1486,7 +1506,7 @@ block0:
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
-    v2 = call @test(v0)
+    v2 = call @test(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -1509,7 +1529,7 @@ block2:
     v5 = iconst 1i32
     v6 = isub v0, v5
     v7 = iadd v1, v2
-    v8 = call @test(v6, v2, v7)
+    v8 = call @test(v6, v2, v7) -> fn(i32, i32, i32) -> i32
     return v8
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
@@ -1541,7 +1561,7 @@ block0(v0: i32):
     branch v2, block1, block2
 block1:
     v3 = ineg v0
-    v4 = call @test(v3)
+    v4 = call @test(v3) -> fn(i32) -> i32
     return v4
 block2:
     v5 = iconst 10i32
@@ -1549,7 +1569,7 @@ block2:
     branch v6, block3, block4
 block3:
     v7 = isub v0, v5
-    v8 = call @test(v7)
+    v8 = call @test(v7) -> fn(i32) -> i32
     return v8
 block4:
     return v0
@@ -1586,7 +1606,7 @@ block0(v0: i32, v1: i32):
     v2 = icmp_sgt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = call @test(v1, v0)
+    v3 = call @test(v1, v0) -> fn(i32, i32) -> i32
     return v3
 block2:
     return v0
@@ -1626,7 +1646,7 @@ block0(v0: i32):
 block0(v0: i32):
     v1 = iconst 1i32
     v2 = isub v0, v1
-    v3 = call @test(v2)
+    v3 = call @test(v2) -> fn(i32) -> i32
     v4 = iconst 0i32
     return v3
 }"#;
@@ -1650,7 +1670,7 @@ block1:
 block2:
     v4 = iconst 1i32
     v5 = isub v0, v4
-    v6 = call @odd(v5)
+    v6 = call @odd(v5) -> fn(i32) -> bool
     return v6
 }
 function @odd(v0: i32) -> bool {
@@ -1664,7 +1684,7 @@ block1:
 block2:
     v4 = iconst 1i32
     v5 = isub v0, v4
-    v6 = call @even(v5)
+    v6 = call @even(v5) -> fn(i32) -> bool
     return v6
 }"#;
         let expected = r#"function @even(v0: i32) -> bool {
@@ -1712,7 +1732,7 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    v5 = call @test(v4)
+    v5 = call @test(v4) -> fn(i32) -> i32
     v6 = iadd v0, v5
     return v6
 }"#;
@@ -1748,7 +1768,7 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    v5 = call @test(v4)
+    v5 = call @test(v4) -> fn(i32) -> i32
     v6 = bor v0, v5
     return v6
 }"#;
@@ -1785,7 +1805,7 @@ block1:
 block2:
     v4 = iconst 1i32
     v5 = isub v0, v4
-    v6 = call @test(v5)
+    v6 = call @test(v5) -> fn(i32) -> i32
     v7 = iadd v0, v6
     return v7
 }"#;
@@ -1823,7 +1843,7 @@ block1:
     return v1
 block2:
     v3 = isub v0, v1
-    v4 = call @test(v3)
+    v4 = call @test(v3) -> fn(i32) -> i32
     v5 = imul v0, v4
     v6 = iadd v5, v4
     return v6
@@ -1850,11 +1870,11 @@ block2:
     v6 = isub v0, v5
     branch v1, block3, block4
 block3:
-    v7 = call @test(v6, v1)
+    v7 = call @test(v6, v1) -> fn(i32, bool) -> i32
     v8 = imul v0, v7
     return v8
 block4:
-    v9 = call @test(v6, v1)
+    v9 = call @test(v6, v1) -> fn(i32, bool) -> i32
     v10 = iadd v0, v9
     return v10
 }"#;
@@ -1878,14 +1898,14 @@ block1:
     return v1
 block2:
     v3 = isub v0, v1
-    v4 = call @factorial(v3)
+    v4 = call @factorial(v3) -> fn(i32) -> i32
     v5 = imul v0, v4
     return v5
 }
 function @main() -> i32 {
 block0:
     v0 = iconst 5i32
-    v1 = call @factorial(v0)
+    v1 = call @factorial(v0) -> fn(i32) -> i32
     return v1
 }"#;
         // after transform: factorial gets accumulator param, main's tail call becomes tailcall
@@ -1925,7 +1945,7 @@ block1:
     return v1
 block2:
     v3 = isub v0, v1
-    v4 = call @factorial(v3)
+    v4 = call @factorial(v3) -> fn(i32) -> i32
     v5 = imul v0, v4
     return v5
 }"#;
@@ -1977,7 +1997,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
         // void sibling tail call
         let input = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    call @other(v0)
+    call @other(v0) -> fn(i32) -> void
     return
 }
 function @other(v0: i32) -> void {
@@ -2013,7 +2033,7 @@ block1:
 block2:
     v4 = iconst 1i32
     v5 = isub v0, v4
-    v6 = call @test(v5)
+    v6 = call @test(v5) -> fn(i32) -> i32
     v7 = band v0, v6
     return v7
 }"#;
@@ -2050,7 +2070,7 @@ block1:
 block2:
     v3 = iconst 1i32
     v4 = isub v0, v3
-    v5 = call @test(v4)
+    v5 = call @test(v4) -> fn(i32) -> i32
     v6 = bxor v0, v5
     return v6
 }"#;

@@ -749,7 +749,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     store v0, v1
     v2 = load v0 -> i32
     return v2
@@ -763,7 +763,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     v2 = load v0 -> i32
     return v2
 }"#;
@@ -790,7 +790,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     store v0, v1
     v2 = load v0 -> i32
     return v2
@@ -818,7 +818,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     store v0, v1
     v2 = load v0 -> i32
     return v2
@@ -832,7 +832,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     v2 = load v0 -> i32
     return v2
 }"#;
@@ -859,7 +859,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     store v0, v1
     v2 = load v0 -> i32
     return v2
@@ -873,7 +873,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 7i32
     store v0, v1
-    call @callee()
+    call @callee() -> fn() -> void
     v2 = load v0 -> i32
     return v2
 }"#;

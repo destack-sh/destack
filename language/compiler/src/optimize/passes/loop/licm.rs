@@ -1113,7 +1113,7 @@ block2:
 block0(v0: bool):
     jump block1
 block1:
-    v1 = call @get_value()
+    v1 = call @get_value() -> fn() -> i32
     branch v0, block1, block2
 block2:
     return v1
@@ -1303,7 +1303,7 @@ block0(v0: bool):
     jump block1
 block1:
     v3 = load v1 -> i32
-    call @touch(v1)
+    call @touch(v1) -> fn(ref<raw i32>) -> void
     branch v0, block1, block2
 block2:
     return v3

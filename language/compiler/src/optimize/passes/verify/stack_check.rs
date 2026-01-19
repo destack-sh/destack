@@ -168,6 +168,7 @@ impl StackPointerMap {
                 destination: Some(dest),
                 function,
                 arguments,
+                ..
             } => (*dest, *function, tree.get_arguments(*arguments)),
             // indirect calls: conservative, can't analyze lifetime
             // calls without destination: nothing to track
@@ -277,7 +278,10 @@ impl StackPointerMap {
 
             // calls are handled via apply_call_effects using lifetime analysis
             // indirect calls are conservative (can't analyze lifetime)
-            Instruction::Call { .. } | Instruction::CallIndirect { .. } => {}
+            Instruction::Call { .. }
+            | Instruction::CallVirtual { .. }
+            | Instruction::CallInterface { .. }
+            | Instruction::CallIndirect { .. } => {}
 
             // field.set with stack pointer into non-stack aggregate = escape
             Instruction::FieldSet {
@@ -925,14 +929,14 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = call @identity(v0)
+    v2 = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 
         let mut program = TestProgram::new(input);
         program.run_pass(&StackCheck);
 
-        // v2 = call @identity(v0) where v0 is stack pointer
+        // v2 = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> where v0 is stack pointer
         // @identity returns borrowed ref from param 0, so v2 is stack pointer
         // returning v2 is a stack escape
         program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
@@ -954,7 +958,7 @@ block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
     v1 = iconst 42i32
     store v0, v1
-    v2 = call @getStatic(v0)
+    v2 = call @getStatic(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 
@@ -986,7 +990,7 @@ block0:
     v2 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = call @pick(v0, v1)
+    v3 = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     return v3
 }"#;
 
@@ -1019,7 +1023,7 @@ block0:
     v2 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = call @pick(v0, v1)
+    v3 = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     return v3
 }"#;
 

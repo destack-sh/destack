@@ -365,8 +365,10 @@ fn collect_written_globals(
 
                 // detect calls that may write memory
                 if let mir::Instruction::Call { arguments, .. }
+                | mir::Instruction::CallVirtual { arguments, .. }
+                | mir::Instruction::CallInterface { arguments, .. }
                 | mir::Instruction::CallIndirect { arguments, .. } = instruction
-                    && call_writes_memory(instruction_id, tree)
+                    && call_writes_memory(instruction)
                     && any_argument_global(arguments, &definitions, addr_info, tree)
                 {
                     written.extend(globals_from_arguments(
@@ -589,11 +591,8 @@ fn intrinsic_writes_memory(intrinsic: mir::Intrinsic) -> bool {
 }
 
 /// Return true when a callsite may write memory.
-fn call_writes_memory(
-    instruction_id: mir::LocalNodeId<mir::Instruction>,
-    tree: &mir::NodeTree,
-) -> bool {
-    let Some(metadata) = tree.call_table.call_metadata(instruction_id) else {
+fn call_writes_memory(instruction: &mir::Instruction) -> bool {
+    let Some(metadata) = instruction.call_effects() else {
         return true;
     };
 

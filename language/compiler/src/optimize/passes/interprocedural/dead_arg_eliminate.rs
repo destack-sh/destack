@@ -23,7 +23,7 @@ declare_pass! {
     /// }
     /// function @root(v0: i32, v1: i32) -> i32 {
     /// block0(v0: i32, v1: i32):
-    ///     v2 = call @before(v0, v1)
+    ///     v2 = call @before(v0, v1) -> fn(i32, i32) -> i32
     ///     return v2
     /// }
     /// ```
@@ -35,7 +35,7 @@ declare_pass! {
     /// }
     /// function @root(v0: i32, v1: i32) -> i32 {
     /// block0(v0: i32, v1: i32):
-    ///     v2 = call @after(v0)
+    ///     v2 = call @after(v0) -> fn(i32) -> i32
     ///     return v2
     /// }
     /// ```
@@ -152,19 +152,23 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
             for &instruction_id in &block.instructions {
                 let instruction = tree.get(instruction_id);
 
-                // record direct callsites
-                if let mir::Instruction::Call { function, .. } = instruction {
-                    data.direct_calls
-                        .entry(*function)
-                        .or_default()
-                        .push(DirectCallSite::Instruction(instruction_id));
-                }
+                if let Some(dispatch) = instruction.call_dispatch_kind() {
+                    if let mir::CallDispatchKind::Direct = dispatch
+                        && let mir::Instruction::Call { function, .. } = instruction
+                    {
+                        data.direct_calls
+                            .entry(*function)
+                            .or_default()
+                            .push(DirectCallSite::Instruction(instruction_id));
+                        continue;
+                    }
 
-                // record indirect signatures for call.indirect
-                if let mir::Instruction::CallIndirect { signature, .. } = instruction
-                    && let Some(signature) = SignatureKey::from_signature_type(tree, *signature)
-                {
-                    data.indirect_signatures.insert(signature);
+                    if let Some(signature) = instruction
+                        .call_signature()
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                    {
+                        data.indirect_signatures.insert(signature);
+                    }
                 }
             }
 
@@ -176,7 +180,9 @@ fn collect_call_data(tree: &mir::NodeTree) -> CallData {
                         .or_default()
                         .push(DirectCallSite::TailCall(block_id));
                 }
-                mir::Terminator::TailCallIndirect { signature, .. } => {
+                mir::Terminator::TailCallIndirect { signature, .. }
+                | mir::Terminator::TailCallVirtual { signature, .. }
+                | mir::Terminator::TailCallInterface { signature, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, *signature) {
                         data.indirect_signatures.insert(signature);
                     }
@@ -261,24 +267,40 @@ fn update_call_sites(
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
 
-    // prepare a signature type for updated call metadata
+    // prepare a signature type for updated call signatures
     let mut signature_type: Option<mir::LocalNodeId<mir::Type>> = None;
 
     // update callsite arguments
     for site in call_sites {
         match *site {
             DirectCallSite::Instruction(instruction_id) => {
-                let (destination, function, slice) = match tree.get(instruction_id) {
+                let (destination, function, slice, signature, effects) = match tree.get(instruction_id) {
                     mir::Instruction::Call {
                         destination,
                         function,
                         arguments,
-                    } => (*destination, *function, *arguments),
+                        signature,
+                        effects,
+                    } => (*destination, *function, *arguments, *signature, effects.clone()),
                     _ => continue,
                 };
 
                 // filter the argument list
                 let arguments = remap.filter_by_index(tree.get_arguments(slice));
+
+                // refresh the signature when arguments are removed
+                let signature = if unused.is_empty() {
+                    signature
+                } else {
+                    *signature_type
+                        .get_or_insert_with(|| build_signature_type(function_id, tree))
+                };
+
+                let mut effects = effects;
+                if let Some(effects) = effects.as_mut() {
+                    effects.argument_metadata = remap.filter_by_index(&effects.argument_metadata);
+                    effects.alloc_size = remap.remap_alloc_size(effects.alloc_size);
+                }
 
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_arguments(&arguments);
@@ -286,21 +308,10 @@ fn update_call_sites(
                     destination,
                     function,
                     arguments: new_slice,
+                    signature,
+                    effects,
                 };
                 *tree.get_mut(instruction_id) = updated;
-
-                // update call metadata when present
-                if tree.call_table.call_metadata(instruction_id).is_some() {
-                    let signature_type = *signature_type
-                        .get_or_insert_with(|| build_signature_type(function_id, tree));
-                    let metadata = tree
-                        .call_table
-                        .call_metadata_mut(instruction_id)
-                        .expect("call metadata vanished");
-                    metadata.signature = signature_type;
-                    metadata.argument_metadata = remap.filter_by_index(&metadata.argument_metadata);
-                    metadata.alloc_size = remap.remap_alloc_size(metadata.alloc_size);
-                }
             }
             DirectCallSite::TailCall(block_id) => {
                 let block = tree.get_mut(block_id);
@@ -407,7 +418,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -417,7 +428,7 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0)
+    v2 = call @callee(v0) -> fn(i32) -> i32
     return v2
 }"#;
 
@@ -461,7 +472,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -480,7 +491,7 @@ block0(v0: i32, v1: i32):
 function @root(v0: fn(i32, i32) -> i32, v1: i32, v2: i32) -> i32 {
 block0(v0: fn(i32, i32) -> i32, v1: i32, v2: i32):
     v3 = call.indirect v0(v1, v2) -> fn(i32, i32) -> i32
-    v4 = call @callee(v1, v2)
+    v4 = call @callee(v1, v2) -> fn(i32, i32) -> i32
     return v4
 }"#;
 
@@ -498,7 +509,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -508,13 +519,11 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0)
+    v2 = call @callee(v0) -> fn(i32) -> i32
     return v2
 }"#;
 
         let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let signature = program.call_signature_for_callee(callee_id);
         let root_id = program.function_id_by_name("root");
         let call_id = program
             .entry_instructions(root_id)
@@ -527,23 +536,23 @@ block0(v0: i32):
             })
             .expect("missing call instruction");
 
-        program.tree.call_table.insert_call_metadata(
-            call_id,
-            mir::CallMetadata::direct(callee_id, signature).with_argument_metadata(vec![
-                mir::CallArgumentMetadata::default(),
-                mir::CallArgumentMetadata::default(),
-            ]),
-        );
+        let effects = mir::CallEffects::default().with_argument_metadata(vec![
+            mir::CallArgumentMetadata::default(),
+            mir::CallArgumentMetadata::default(),
+        ]);
+        let instruction = program.tree.get_mut(call_id);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         program.run_module_pass(&DeadArgEliminate);
         program.assert_output(expected);
-        let metadata = program
-            .tree
-            .call_table
-            .call_metadata(call_id)
-            .expect("missing call metadata");
-
-        assert_eq!(metadata.argument_metadata.len(), 1);
+        let instruction = program.tree.get(call_id);
+        let effects = instruction
+            .call_effects()
+            .expect("missing call effects");
+        assert_eq!(effects.argument_metadata.len(), 1);
     }
 
     /// Metadata parameter indices are remapped after removal.
@@ -555,7 +564,7 @@ block0(v0: i32, v1: i32, v2: i32):
 }
 function @root(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = call @callee(v0, v1, v2)
+    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
     return v3
 }"#;
 
@@ -565,7 +574,7 @@ block0(v0: i32, v2: i32):
 }
 function @root(v0: i32, v2: i32) -> i32 {
 block0(v0: i32, v2: i32):
-    v3 = call @callee(v0, v2)
+    v3 = call @callee(v0, v2) -> fn(i32, i32) -> i32
     return v3
 }"#;
 
@@ -613,7 +622,7 @@ block0(v0: i32, v1: i32, v2: i32):
 }
 function @root(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = call @callee(v0, v1, v2)
+    v3 = call @callee(v0, v1, v2) -> fn(i32, i32, i32) -> i32
     return v3
 }"#;
 
@@ -623,13 +632,11 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v3 = call @callee(v0)
+    v3 = call @callee(v0) -> fn(i32) -> i32
     return v3
 }"#;
 
         let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let signature = program.call_signature_for_callee(callee_id);
         let root_id = program.function_id_by_name("root");
         let call_id = program
             .entry_instructions(root_id)
@@ -642,21 +649,21 @@ block0(v0: i32):
             })
             .expect("missing call instruction");
 
-        program.tree.call_table.insert_call_metadata(
-            call_id,
-            mir::CallMetadata::direct(callee_id, signature)
-                .with_alloc_size(mir::AllocSize::new(2, Some(0))),
-        );
+        let effects =
+            mir::CallEffects::default().with_alloc_size(mir::AllocSize::new(2, Some(0)));
+        let instruction = program.tree.get_mut(call_id);
+        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+            panic!("expected call instruction");
+        };
+        *call_effects = Some(effects);
 
         program.run_module_pass(&DeadArgEliminate);
         program.assert_output(expected);
-        let metadata = program
-            .tree
-            .call_table
-            .call_metadata(call_id)
-            .expect("missing call metadata");
-
-        assert_eq!(metadata.alloc_size, None);
+        let instruction = program.tree.get(call_id);
+        let effects = instruction
+            .call_effects()
+            .expect("missing call effects");
+        assert_eq!(effects.alloc_size, None);
     }
 
     /// Return lifetime metadata preserves parameters.
@@ -689,7 +696,7 @@ block0(v0: i32, v1: i32):
 }
 function @root(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -699,7 +706,7 @@ block0(v0: i32):
 }
 function @root(v0: i32) -> i32 {
 block0(v0: i32):
-    v2 = call @callee(v0)
+    v2 = call @callee(v0) -> fn(i32) -> i32
     return v2
 }"#;
 

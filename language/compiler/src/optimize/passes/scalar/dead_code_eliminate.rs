@@ -384,7 +384,7 @@ block0:
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
-    v1 = call @side_effect(v0)
+    v1 = call @side_effect(v0) -> fn(i32) -> i32
     return
 }
 function @side_effect(v0: i32) -> i32 {
@@ -626,9 +626,9 @@ block3(v6: i32):
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
-    v1 = call @side_effect(v0)
-    v2 = call @side_effect(v0)
-    v3 = call @side_effect(v0)
+    v1 = call @side_effect(v0) -> fn(i32) -> i32
+    v2 = call @side_effect(v0) -> fn(i32) -> i32
+    v3 = call @side_effect(v0) -> fn(i32) -> i32
     return
 }
 function @side_effect(v0: i32) -> i32 {
