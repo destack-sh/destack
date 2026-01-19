@@ -25,7 +25,6 @@ tracing = { workspace = true }
 
 [features]
 profile-parser = []
-profile-stack = []
 
 [dev-dependencies]
 criterion = { workspace = true }
