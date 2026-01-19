@@ -446,15 +446,7 @@ impl Parser {
 
     /// Eat an expression.
     pub fn eat_expression(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        #[cfg(feature = "profile-stack")]
-        {
-            self.eat_expression_inner()
-        }
-
-        #[cfg(not(feature = "profile-stack"))] // FUGU: remove profile-stack feature
-        {
-            destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
-        }
+        destack_base::ensure_sufficient_stack(|| self.eat_expression_inner())
     }
 
     /// Eat an expression body without stack growth.
@@ -477,9 +469,8 @@ impl Parser {
 
             // labelled blocks are only allowed in statement position
             let is_labelled_block = self.peek_next_next_token(TokenType::OpenBrace).is_ok();
-            let can_parse_label = self.options.in_statement_position
-                && (is_labelled_expression || is_labelled_block)
-                || (!self.options.in_statement_position && is_labelled_expression);
+            let can_parse_label =
+                is_labelled_expression || (self.options.in_statement_position && is_labelled_block);
             if can_parse_label {
                 let label = self.eat_identifier()?;
                 self.eat_colon()?;
