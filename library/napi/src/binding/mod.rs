@@ -7,3 +7,5 @@ pub use compiler::*;
 pub use resolver::*;
 pub use source::*;
 pub use workspace::*;
+
+// FUGU: update napi
