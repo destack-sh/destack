@@ -4,232 +4,512 @@ Tests for the Try operator and nullish coalescing.
 
 ## Try unwrap
 
-### _try unwrap uses Try branch
+### try unwrap uses Try branch
 
 > The ? operator unwraps Try values to their success type.
 
 ```ds
-declare function getResult(): Result<int, string>;
+declare function getResult(): Result<int, Error>;
 
-const value = getResult()?;
-value satisfies int;
+function read(): Result<int, Error> {
+    const value = getResult()?;
+    value satisfies int;
+    return Result.ok(value);
+}
 ```
 
-### _try unwrap preserves nullish success values
+### try unwrap accepts structural TryBranch
+
+> The ? operator accepts Try implementations with a compatible TryBranch shape.
+
+```ds
+struct FancyOk<T> {
+    kind: "ok" = "ok",
+    value: T,
+}
+
+struct FancyErr<E> {
+    kind: "err" = "err",
+    error: E,
+}
+
+newtype FancyTry<T, E> = FancyOk<T> | FancyErr<E>;
+
+extension<T, E> for FancyTry<T, E> implements Try<T, E> {
+    branch(): FancyTry<T, E> {
+        this
+    }
+
+    static fromError(error: E): FancyTry<T, E> {
+        FancyTry(FancyErr { error })
+    }
+}
+
+declare function getFancy(): FancyTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getFancy()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+```
+
+### try unwrap accepts TryBranch aliases
+
+> The ? operator accepts Try.branch return types that alias TryBranch.
+
+```ds
+type AliasBranch<T, E> = TryBranch<T, E>;
+
+struct AliasTry<T, E> {
+    value: Result<T, E>,
+}
+
+extension<T, E> for AliasTry<T, E> implements Try<T, E> {
+    branch(): AliasBranch<T, E> {
+        match (this.value) {
+            Ok { value } => ({ kind: "ok", value })
+            Err { error } => ({ kind: "err", error })
+        }
+    }
+
+    static fromError(error: E): AliasTry<T, E> {
+        AliasTry { value: Result.err(error) }
+    }
+}
+
+declare function getAlias(): AliasTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getAlias()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+```
+
+### try unwrap requires fromError
+
+> The ? operator requires Try.fromError to be implemented.
+
+```ds
+struct BrokenOk<T> {
+    kind: "ok" = "ok",
+    value: T,
+}
+
+struct BrokenErr<E> {
+    kind: "err" = "err",
+    error: E,
+}
+
+newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
+
+extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+    branch(): BrokenTry<T, E> {
+        this
+    }
+}
+
+declare function getBroken(): BrokenTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getBroken()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+```
+
+- contains: fromError
+
+### try unwrap rejects types without Try implementations
+
+> The ? operator requires the receiver to implement Try.
+
+```ds
+struct LooseOk<T> {
+    kind: "ok" = "ok",
+    value: T,
+}
+
+struct LooseErr<E> {
+    kind: "err" = "err",
+    error: E,
+}
+
+newtype LooseTry<T, E> = LooseOk<T> | LooseErr<E>;
+
+extension<T, E> for LooseTry<T, E> {
+    branch(): LooseTry<T, E> {
+        this
+    }
+
+    static fromError(error: E): LooseTry<T, E> {
+        LooseTry(LooseErr { error })
+    }
+}
+
+declare function getLoose(): LooseTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getLoose()?;
+    return Result.ok(value);
+}
+```
+
+- contains: no matching overload
+
+### try unwrap rejects invalid TryBranch
+
+> The ? operator requires Try.branch to return TryBranch.
+
+```ds
+struct BadOk<T> {
+    value: T,
+}
+
+struct BadErr<E> {
+    error: E,
+}
+
+newtype BadTry<T, E> = BadOk<T> | BadErr<E>;
+
+extension<T, E> for BadTry<T, E> implements Try<T, E> {
+    branch(): BadTry<T, E> {
+        this
+    }
+
+    static fromError(error: E): BadTry<T, E> {
+        BadTry(BadErr { error })
+    }
+}
+
+declare function getBad(): BadTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getBad()?;
+    value satisfies int;
+    return Result.ok(value);
+}
+```
+
+- contains: Try.branch must return TryBranch
+
+### try unwrap rejects wrong branch kinds
+
+> The ? operator rejects branches with incorrect kind discriminators.
+
+```ds
+struct WrongOk<T> {
+    kind: "ok" = "ok",
+    value: T,
+}
+
+struct WrongErr<E> {
+    kind: "bad" = "bad",
+    error: E,
+}
+
+newtype WrongTry<T, E> = WrongOk<T> | WrongErr<E>;
+
+extension<T, E> for WrongTry<T, E> implements Try<T, E> {
+    branch(): WrongTry<T, E> {
+        this
+    }
+
+    static fromError(error: E): WrongTry<T, E> {
+        WrongTry(WrongErr { error })
+    }
+}
+
+declare function getWrong(): WrongTry<int, Error>;
+
+function read(): Result<int, Error> {
+    const value = getWrong()?;
+    return Result.ok(value);
+}
+```
+
+- contains: Try.branch must return TryBranch
+
+### try unwrap preserves nullish success values
 
 > The ? operator does not remove nullish from the success value.
 
 ```ds
-declare function getResult(): Result<int | null, string>;
+declare function getResult(): Result<int | null, Error>;
 
-const value = getResult()?;
-value satisfies int | null;
+function read(): Result<int | null, Error> {
+    const value = getResult()?;
+    value satisfies int | null;
+    return Result.ok(value);
+}
 ```
 
-### _try unwrap unwraps only one Try layer
+### try unwrap unwraps only one Try layer
 
 > The ? operator unwraps a single Try layer.
 
 ```ds
-declare function getNested(): Result<Result<int, string>, string>;
+declare function getNested(): Result<Result<int, Error>, Error>;
 
-const value = getNested()?;
-value satisfies Result<int, string>;
+function read(): Result<Result<int, Error>, Error> {
+    const value = getNested()?;
+    value satisfies Result<int, Error>;
+    return Result.ok(value);
+}
 ```
 
-### _try unwrap merges error types across unions
+### try unwrap merges error types across unions
 
 > The ? operator merges error types across Try unions.
 
 ```ds
-declare function getResult(): Result<int, string> | Result<string, number>;
+struct MissingError implements Error {
+    message: string,
+}
 
-function read(): Result<int | string, string | number> {
+struct BadError implements Error {
+    message: string,
+}
+
+declare function getResult(): Result<int, MissingError> | Result<string, BadError>;
+
+function read(): Result<int | string, MissingError | BadError> {
     const value = getResult()?;
     value satisfies int | string;
     return Result.ok(value);
 }
 ```
 
-### _try unwrap rejects non Try values
+### try unwrap rejects non Try values
 
 > The ? operator requires a Try implementation.
 
 ```ds
-const value = "nope"?;
-value satisfies string;
+function read(): Result<int, Error> {
+    const value = "nope"?;
+    return Result.ok(0);
+}
 ```
 
 - contains: no matching overload
 
-### _try unwrap rejects nullish unions
+### try unwrap rejects nullish unions
 
 > The ? operator does not accept nullish unions.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null;
+declare function getMaybeResult(): Result<int, Error> | null;
 
-const value = getMaybeResult()?;
-value satisfies int;
+function read(): Result<int, Error> {
+    const value = getMaybeResult()?;
+    return Result.ok(value);
+}
 ```
 
 - contains: no matching overload
 
-### _try unwrap rejects unions with non Try values
+### try unwrap rejects unions with non Try values
 
 > The ? operator rejects unions that contain non Try values.
 
 ```ds
-declare function getResult(): Result<int, string> | string;
+declare function getResult(): Result<int, Error> | string;
 
-const value = getResult()?;
-value satisfies int;
+function read(): Result<int, Error> {
+    const value = getResult()?;
+    return Result.ok(value);
+}
 ```
 
 - contains: no matching overload
 
+### try unwrap requires Try return type
+
+> The ? operator requires a Try return type on the enclosing function.
+
+```ds
+declare function getResult(): Result<int, Error>;
+
+function read(): int {
+    const value = getResult()?;
+    return value;
+}
+```
+
+- contains: try unwrap requires a Try return type
+
 ## Try coalesce
 
-### _try coalesce uses Try branch
+### try coalesce uses Try branch
 
 > The ?? operator uses Try when the left value implements it.
 
 ```ds
-declare function getResult(): Result<int, string>;
+declare function getResult(): Result<int, Error>;
 
 const value = getResult() ?? 0;
 value satisfies int;
 ```
 
-### _try coalesce unwraps nullish and Try
+### try coalesce allows missing fromError
+
+> The ?? operator does not require Try.fromError.
+
+```ds
+struct BrokenOk<T> {
+    kind: "ok" = "ok",
+    value: T,
+}
+
+struct BrokenErr<E> {
+    kind: "err" = "err",
+    error: E,
+}
+
+newtype BrokenTry<T, E> = BrokenOk<T> | BrokenErr<E>;
+
+extension<T, E> for BrokenTry<T, E> implements Try<T, E> {
+    branch(): BrokenTry<T, E> {
+        this
+    }
+}
+
+declare function getBroken(): BrokenTry<int, Error>;
+
+const value = getBroken() ?? 0;
+value satisfies int;
+```
+
+### try coalesce unwraps nullish and Try
 
 > The ?? operator coalesces nullish before unwrapping Try.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null;
+declare function getMaybeResult(): Result<int, Error> | null;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### _try coalesce removes nested nullish values
+### try coalesce removes nested nullish values
 
 > The ?? operator removes nullish after unwrapping one Try layer.
 
 ```ds
-declare function getMaybeResult(): Result<int | null, string>;
+declare function getMaybeResult(): Result<int | null, Error>;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### _try coalesce preserves fallback type when it differs
+### try coalesce preserves fallback type when it differs
 
 > The ?? operator returns a union of the unwrapped left and the fallback.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null;
+declare function getMaybeResult(): Result<int, Error> | null;
 
 const value = getMaybeResult() ?? "fallback";
 value satisfies int | string;
 ```
 
-### _try coalesce merges with non Try unions
+### try coalesce merges with non Try unions
 
 > The ?? operator preserves non Try union members.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | string;
+declare function getMaybeResult(): Result<int, Error> | string;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int | string;
 ```
 
-### _try coalesce merges nullish and non Try unions
+### try coalesce merges nullish and non Try unions
 
 > The ?? operator removes nullish and keeps non Try members.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null | string;
+declare function getMaybeResult(): Result<int, Error> | null | string;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int | string;
 ```
 
-### _try coalesce preserves Try on the fallback
+### try coalesce preserves Try on the fallback
 
 > The ?? operator does not unwrap a Try fallback.
 
 ```ds
-declare function getResult(): Result<int, string>;
-declare function getFallback(): Result<string, number>;
+declare function getResult(): Result<int, Error>;
+declare function getFallback(): Result<string, Error>;
 
 const value = getResult() ?? getFallback();
-value satisfies int | Result<string, number>;
+value satisfies int | Result<string, Error>;
 ```
 
-### _try coalesce preserves Try fallback from nullish union
+### try coalesce preserves Try fallback from nullish union
 
 > The ?? operator does not unwrap a Try fallback from a nullish union.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null;
-declare function getFallback(): Result<string, number>;
+declare function getMaybeResult(): Result<int, Error> | null;
+declare function getFallback(): Result<string, Error>;
 
 const value = getMaybeResult() ?? getFallback();
-value satisfies int | Result<string, number>;
+value satisfies int | Result<string, Error>;
 ```
 
-### _try coalesce unwraps one Try layer
+### try coalesce unwraps one Try layer
 
 > The ?? operator unwraps a single Try layer.
 
 ```ds
-declare function getNested(): Result<Result<int, string>, string>;
+declare function getNested(): Result<Result<int, Error>, Error>;
 
 const value = getNested() ?? 0;
-value satisfies Result<int, string> | int;
+value satisfies Result<int, Error> | int;
 ```
 
-### _try coalesce unwraps nested Try with nullish
+### try coalesce unwraps nested Try with nullish
 
 > The ?? operator unwraps a single Try layer even with nullish unions.
 
 ```ds
-declare function getNested(): Result<Result<int, string>, string> | null;
+declare function getNested(): Result<Result<int, Error>, Error> | null;
 
 const value = getNested() ?? 0;
-value satisfies Result<int, string> | int;
+value satisfies Result<int, Error> | int;
 ```
 
-### _try coalesce removes nullish from unions
+### try coalesce removes nullish from unions
 
 > The ?? operator removes nullish values before and after a Try unwrap.
 
 ```ds
-declare function getMaybeResult(): Result<int, string> | null | undefined;
+declare function getMaybeResult(): Result<int, Error> | null | undefined;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### _try coalesce removes nullish from success type
+### try coalesce removes nullish from success type
 
 > The ?? operator removes nullish from a Try success value.
 
 ```ds
-declare function getMaybeResult(): Result<null, string>;
+declare function getMaybeResult(): Result<null, Error>;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int;
 ```
 
-### _try coalesce removes undefined from success type
+### try coalesce removes undefined from success type
 
 > The ?? operator removes undefined from a Try success value.
 
 ```ds
-declare function getMaybeResult(): Result<undefined, string>;
+declare function getMaybeResult(): Result<undefined, Error>;
 
 const value = getMaybeResult() ?? 0;
 value satisfies int;

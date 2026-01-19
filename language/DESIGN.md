@@ -224,6 +224,8 @@ const config = loadConfig() ?? defaultConfig;  // use default on error
 ```
 
 Both operators work via the `Try` interface, which `Result` implements.
+`Try.branch()` returns a structural `TryBranch<T, E>` shape.
+`Try.fromError` is required when a `?` propagates out of the enclosing function.
 The `??` operator coalesces nullish values before and after a single `Try` unwrap.
 This keeps `Result<T, E> | null` ergonomic without recursive unwrapping.
 
@@ -261,6 +263,7 @@ try {
 The example uses `Result`, but any type implementing `Try` behaves the same.
 `try` does not implicitly unwrap `Result` values.
 Use `?` or `??` inside the block to propagate `Try` errors into the catch.
+When a `?` is inside a `try` with a catch, `Try.fromError` is not required.
 Exceptions still propagate into the catch on JS targets, or are rejected by `no_exceptions` on native.
 A try expression must include a catch or finally block.
 
