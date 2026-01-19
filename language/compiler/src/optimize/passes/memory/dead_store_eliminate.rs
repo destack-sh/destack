@@ -1110,7 +1110,11 @@ block0:
             .with_memory_effects(mir::MemoryEffect::none())
             .with_argument_metadata(vec![arg0]);
         let instruction = program.tree.get_mut(call_inst);
-        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            effects: call_effects,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
         *call_effects = Some(effects);

@@ -13,31 +13,104 @@ impl ModuleLowerer<'_> {
         dir::are_types_equal(left, right, self.types)
     }
 
-    /// Find nominal reference type ids for a symbol by walking its value type.
+    /// Return true when two method signature types are equivalent.
+    pub(crate) fn method_signatures_equivalent(
+        &self,
+        left: dir::LocalTypeId,
+        right: dir::LocalTypeId,
+    ) -> bool {
+        // load the signature types
+        let left_type = self.types.get_type(left);
+        let right_type = self.types.get_type(right);
+
+        // compare function signatures while ignoring this
+        match (left_type, right_type) {
+            (
+                dir::Type::Function {
+                    asynchrony: left_async,
+                    cardinality: left_cardinality,
+                    static_parameters: left_static,
+                    dynamic_parameters: left_dynamic,
+                    return_type: left_return,
+                    ..
+                },
+                dir::Type::Function {
+                    asynchrony: right_async,
+                    cardinality: right_cardinality,
+                    static_parameters: right_static,
+                    dynamic_parameters: right_dynamic,
+                    return_type: right_return,
+                    ..
+                },
+            ) => {
+                // require matching function modifiers
+                if left_async != right_async || left_cardinality != right_cardinality {
+                    return false;
+                }
+
+                // require matching static parameter counts
+                if left_static.len() != right_static.len() {
+                    return false;
+                }
+
+                // compare static parameter types
+                for (left_param, right_param) in left_static.iter().zip(right_static.iter()) {
+                    if !self.types_are_equivalent(*left_param, *right_param) {
+                        return false;
+                    }
+                }
+
+                // require matching dynamic parameter counts
+                if left_dynamic.len() != right_dynamic.len() {
+                    return false;
+                }
+
+                // compare dynamic parameter types
+                for (left_param, right_param) in left_dynamic.iter().zip(right_dynamic.iter()) {
+                    if !self.types_are_equivalent(*left_param, *right_param) {
+                        return false;
+                    }
+                }
+
+                // compare return types
+                match (left_return, right_return) {
+                    (Some(left_return), Some(right_return)) => {
+                        self.types_are_equivalent(*left_return, *right_return)
+                    }
+                    (None, None) => true,
+                    _ => false,
+                }
+            }
+            _ => self.types_are_equivalent(left, right),
+        }
+    }
+
+    /// Find nominal reference type ids for a symbol by scanning known types.
     pub(crate) fn nominal_reference_type_ids_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Vec<dir::LocalTypeId> {
-        // get the value type id as the search root
-        let Some(value_type_id) = self.types.get_value_type_id(symbol) else {
-            return Vec::new();
-        };
-
-        // walk the type graph to collect reference ids
-        let mut visited = HashSet::new();
+        // scan all known types for matching reference ids
         let mut seen = HashSet::new();
         let mut reference_ids = Vec::new();
-        self.collect_reference_type_ids(
-            value_type_id,
-            symbol,
-            &mut visited,
-            &mut seen,
-            &mut reference_ids,
-        );
+        let type_count = self.types.type_count();
+        for index in 0..type_count {
+            let type_id = dir::LocalTypeId::new(index);
+            let dir_type = self.types.get_type(type_id);
+            if let dir::Type::Reference {
+                symbol: target_symbol,
+                ..
+            } = dir_type
+                && *target_symbol == symbol
+                && seen.insert(type_id)
+            {
+                reference_ids.push(type_id);
+            }
+        }
         reference_ids
     }
 
-    /// Find a nominal reference type id for a symbol by walking its value type.
+    /// Find a nominal reference type id for a symbol by scanning known types.
     pub(crate) fn nominal_reference_type_id_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -46,223 +119,5 @@ impl ModuleLowerer<'_> {
         self.nominal_reference_type_ids_for_symbol(symbol)
             .into_iter()
             .next()
-    }
-
-    /// Collect reference type ids for a symbol by walking nested type nodes.
-    fn collect_reference_type_ids(
-        &self,
-        type_id: dir::LocalTypeId,
-        symbol: dir::GlobalSymbolId,
-        visited: &mut HashSet<dir::LocalTypeId>,
-        seen: &mut HashSet<dir::LocalTypeId>,
-        reference_ids: &mut Vec<dir::LocalTypeId>,
-    ) {
-        // skip visited nodes to avoid cycles
-        if !visited.insert(type_id) {
-            return;
-        }
-
-        // walk the type based on its structure
-        match self.types.get_type(type_id) {
-            dir::Type::Reference {
-                symbol: target_symbol,
-                ..
-            } => {
-                if *target_symbol == symbol && seen.insert(type_id) {
-                    reference_ids.push(type_id);
-                }
-            }
-            dir::Type::Value { value } => {
-                self.collect_reference_type_ids(*value, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                self.collect_reference_type_ids(*left, symbol, visited, seen, reference_ids);
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-                self.collect_reference_type_ids(*then_type, symbol, visited, seen, reference_ids);
-                self.collect_reference_type_ids(*else_type, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Mapped {
-                parameter, value, ..
-            } => {
-                self.collect_reference_type_ids(
-                    parameter.constraint,
-                    symbol,
-                    visited,
-                    seen,
-                    reference_ids,
-                );
-                if let Some(remap) = parameter.key_remap {
-                    self.collect_reference_type_ids(remap, symbol, visited, seen, reference_ids);
-                }
-                self.collect_reference_type_ids(*value, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Index { left, index } => {
-                self.collect_reference_type_ids(*left, symbol, visited, seen, reference_ids);
-                self.collect_reference_type_ids(*index, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::TemplateLiteral { spans, .. } => {
-                for span in spans {
-                    self.collect_reference_type_ids(*span, symbol, visited, seen, reference_ids);
-                }
-            }
-            dir::Type::Infer { constraint, .. } => {
-                if let Some(constraint) = constraint {
-                    self.collect_reference_type_ids(
-                        *constraint,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-            }
-            dir::Type::Predicate { target, .. } => {
-                if let Some(target) = target {
-                    self.collect_reference_type_ids(*target, symbol, visited, seen, reference_ids);
-                }
-            }
-            dir::Type::Unary { right, .. } => {
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Mutable { right, .. } => {
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::ValueOf { right, .. } => {
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::ReferenceOf { right, .. } => {
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::PointerOf { right, .. } => {
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Binary { left, right, .. } => {
-                self.collect_reference_type_ids(*left, symbol, visited, seen, reference_ids);
-                self.collect_reference_type_ids(*right, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::ArraySized { element, .. } => {
-                self.collect_reference_type_ids(*element, symbol, visited, seen, reference_ids);
-            }
-            dir::Type::Array { element } => {
-                if let Some(element) = element {
-                    self.collect_reference_type_ids(*element, symbol, visited, seen, reference_ids);
-                }
-            }
-            dir::Type::Tuple { elements } => {
-                for element in elements {
-                    self.collect_reference_type_ids(
-                        element.ty,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-            }
-            dir::Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                for field in fields {
-                    self.collect_reference_type_ids(field.ty, symbol, visited, seen, reference_ids);
-                }
-                for signature in call_signatures {
-                    self.collect_reference_type_ids(
-                        *signature,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-                for signature in construct_signatures {
-                    self.collect_reference_type_ids(
-                        *signature,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-                for signature in index_signatures {
-                    self.collect_reference_type_ids(
-                        signature.key_type,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                    self.collect_reference_type_ids(
-                        signature.value_type,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-            }
-            dir::Type::Function {
-                static_parameters,
-                this_parameter,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                for parameter in static_parameters {
-                    self.collect_reference_type_ids(
-                        *parameter,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-                if let Some(this_parameter) = this_parameter {
-                    self.collect_reference_type_ids(
-                        *this_parameter,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-                for parameter in dynamic_parameters {
-                    self.collect_reference_type_ids(
-                        *parameter,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-                if let Some(return_type) = return_type {
-                    self.collect_reference_type_ids(
-                        *return_type,
-                        symbol,
-                        visited,
-                        seen,
-                        reference_ids,
-                    );
-                }
-            }
-            dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-                for element in elements {
-                    self.collect_reference_type_ids(*element, symbol, visited, seen, reference_ids);
-                }
-            }
-            dir::Type::TypeLiteral { .. }
-            | dir::Type::InferVar { .. }
-            | dir::Type::This
-            | dir::Type::Unevaluated(_)
-            | dir::Type::Import { .. }
-            | dir::Type::Error => {}
-        }
     }
 }

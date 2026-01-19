@@ -268,7 +268,7 @@ impl ModuleLowerer<'_> {
                 let entries = seen_methods.entry(method_name).or_default();
                 if entries
                     .iter()
-                    .any(|existing| self.types_are_equivalent(*existing, signature_type_id))
+                    .any(|existing| self.method_signatures_equivalent(*existing, signature_type_id))
                 {
                     return Ok(());
                 }

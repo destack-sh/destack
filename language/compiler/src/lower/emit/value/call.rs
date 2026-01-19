@@ -7,6 +7,24 @@ use crate::{LowerError, LowerResult};
 use crate::lower::emit::FunctionContext;
 use crate::lower::table::interface::InterfaceSlot;
 
+/// Interface dispatch target details for lowering.
+pub(super) struct InterfaceDispatchTarget {
+    /// The declared target function id for the interface method.
+    pub(super) function_id: mir::LocalNodeId<mir::Function>,
+    /// The declaring interface type id.
+    pub(super) declaring_type: mir::LocalNodeId<mir::Type>,
+    /// The itab slot id for the method.
+    pub(super) slot_id: u32,
+}
+
+/// Interface receiver values for lowering calls.
+pub(super) struct InterfaceCallReceivers {
+    /// Receiver used for argument passing.
+    pub(super) argument_receiver: mir::Value,
+    /// Receiver used for interface dispatch.
+    pub(super) dispatch_receiver: mir::Value,
+}
+
 impl FunctionContext<'_> {
     /// Lower a call expression to its result value and type.
     pub(crate) fn lower_call_expression(
@@ -35,11 +53,12 @@ impl FunctionContext<'_> {
         let resolution_receiver = resolution.and_then(|resolution| resolution.receiver());
 
         // resolve target function and receiver based on resolution or syntax
-        let (function_id, receiver_value) = match static_target {
+        let (function_id, receiver_value, receiver_type_id) = match static_target {
             // static resolution: use target_symbol from candidate
             Some(target_symbol) => {
                 // check if this is a method call (left is Member)
                 let left_expr = self.env.dir_tree.get(*left);
+                let mut receiver_type_id = resolution_receiver;
                 let receiver_value = if resolution_receiver.is_some()
                     && let Expression::Member {
                         left: receiver_id,
@@ -61,6 +80,9 @@ impl FunctionContext<'_> {
                         None
                     } else {
                         let (receiver_value, _) = self.lower_value_expression(*receiver_id)?;
+                        receiver_type_id = self
+                            .dir_type_for_expression(*receiver_id)
+                            .or(receiver_type_id);
                         Some(receiver_value)
                     }
                 } else {
@@ -79,7 +101,7 @@ impl FunctionContext<'_> {
                         message: "missing function for resolved target symbol".to_string(),
                     })?;
 
-                (function_id, receiver_value)
+                (function_id, receiver_value, receiver_type_id)
             }
 
             // no resolution: fall back to syntax-based dispatch for direct calls
@@ -113,7 +135,7 @@ impl FunctionContext<'_> {
                                     .into_anchored(Some(self.env.profile)),
                                 message: "missing function symbol".to_string(),
                             })?;
-                        (function_id, None)
+                        (function_id, None, None)
                     }
 
                     _ => {
@@ -128,10 +150,25 @@ impl FunctionContext<'_> {
             }
         };
 
+        // resolve interface receivers for dispatch and argument passing
+        let receivers =
+            if let (Some(receiver_type_id), Some(receiver)) = (receiver_type_id, receiver_value) {
+                Some(self.interface_call_receivers(expression_id, receiver_type_id, receiver)?)
+            } else {
+                None
+            };
+        let (call_receiver, dispatch_receiver) = match receivers {
+            Some(receivers) => (
+                Some(receivers.argument_receiver),
+                Some(receivers.dispatch_receiver),
+            ),
+            None => (receiver_value, receiver_value),
+        };
+
         // build arguments: receiver (if method call) + declared arguments
         let mut arguments =
-            Vec::with_capacity(dynamic_arguments.len() + receiver_value.is_some() as usize);
-        if let Some(receiver) = receiver_value {
+            Vec::with_capacity(dynamic_arguments.len() + call_receiver.is_some() as usize);
+        if let Some(receiver) = call_receiver {
             arguments.push(receiver);
         }
         for argument_id in dynamic_arguments {
@@ -150,60 +187,62 @@ impl FunctionContext<'_> {
 
         // get result type
         let result_type = self.mir_type_for_expression(expression_id)?;
+        let signature = self.signature_type_for_function(expression_id, function_id)?;
 
-        // emit call with metadata when we have a static resolution
+        // emit call when we have a static resolution
         let value = if let (Some(receiver_type_id), Some(receiver_value), Some(target_symbol)) =
-            (resolution_receiver, receiver_value, static_target)
+            (receiver_type_id, dispatch_receiver, static_target)
         {
-            // resolve interface dispatch metadata when needed
-            let interface_target = self.interface_dispatch_target(
-                expression_id,
-                receiver_type_id,
-                receiver_value,
-                target_symbol,
-                result_type,
-            )?;
+            // resolve interface dispatch when needed
+            let interface_target =
+                self.interface_dispatch_target(expression_id, receiver_type_id, target_symbol)?;
 
-            if let Some((function_id, metadata)) = interface_target {
+            if let Some(interface_target) = interface_target {
                 self.state
                     .builder
-                    .call_with_metadata(function_id, arguments, metadata)
+                    .call_interface(
+                        receiver_value,
+                        interface_target.declaring_type,
+                        interface_target.slot_id,
+                        Some(interface_target.function_id),
+                        signature,
+                        arguments,
+                    )
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.env.module_id)
                             .into_anchored(Some(self.env.profile)),
                         message: "call returned no value".to_string(),
                     })?
-            } else if let Some(slot_id) = self.virtual_method_slot_id(target_symbol)
+            }
+            // emit virtual call
+            else if let Some(slot_id) = self.virtual_method_slot_id(target_symbol)
                 && self.class_symbol_for_type(receiver_type_id).is_some()
             {
-                // emit virtual call metadata
                 let declaring_type =
                     self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
-                let signature = result_type;
-                let metadata = mir::CallMetadata::virtual_call(
-                    receiver_value,
-                    declaring_type,
-                    slot_id,
-                    signature,
-                    Some(function_id),
-                );
                 self.state
                     .builder
-                    .call_with_metadata(function_id, arguments, metadata)
+                    .call_virtual(
+                        receiver_value,
+                        declaring_type,
+                        slot_id,
+                        Some(function_id),
+                        signature,
+                        arguments,
+                    )
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.env.module_id)
                             .into_anchored(Some(self.env.profile)),
                         message: "call returned no value".to_string(),
                     })?
-            } else {
-                // emit direct call metadata
-                let signature = result_type;
-                let metadata = mir::CallMetadata::direct(function_id, signature);
+            }
+            // emit direct call
+            else {
                 self.state
                     .builder
-                    .call_with_metadata(function_id, arguments, metadata)
+                    .call(function_id, signature, arguments)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         node: expression_id
                             .into_global_any(self.env.module_id)
@@ -216,7 +255,7 @@ impl FunctionContext<'_> {
         else {
             self.state
                 .builder
-                .call(function_id, arguments)
+                .call(function_id, signature, arguments)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.env.module_id)
@@ -228,15 +267,13 @@ impl FunctionContext<'_> {
         Ok((value, result_type))
     }
 
-    /// Build interface dispatch metadata when applicable.
-    pub(crate) fn interface_dispatch_target(
+    /// Build interface dispatch targets when applicable.
+    pub(super) fn interface_dispatch_target(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         receiver_type_id: dir::LocalTypeId,
-        receiver_value: mir::Value,
         target_symbol: GlobalSymbolId,
-        result_type: mir::LocalNodeId<mir::Type>,
-    ) -> LowerResult<Option<(mir::LocalNodeId<mir::Function>, mir::CallMetadata)>> {
+    ) -> LowerResult<Option<InterfaceDispatchTarget>> {
         // resolve the interface symbol from the receiver type
         let Some(interface_symbol) = self.interface_symbol_for_type(receiver_type_id) else {
             return Ok(None);
@@ -289,17 +326,70 @@ impl FunctionContext<'_> {
                 message: "missing function for resolved target symbol".to_string(),
             })?;
 
-        // build interface call metadata
-        let signature = result_type;
-        let metadata = mir::CallMetadata::interface_call(
-            receiver_value,
+        Ok(Some(InterfaceDispatchTarget {
+            function_id,
             declaring_type,
             slot_id,
-            signature,
-            Some(function_id),
-        );
+        }))
+    }
 
-        Ok(Some((function_id, metadata)))
+    /// Resolve a MIR signature type for a lowered function.
+    pub(crate) fn signature_type_for_function(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        function_id: mir::LocalNodeId<mir::Function>,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // lookup the signature type for this function
+        let signature = self
+            .env
+            .function_signature_types
+            .get(&function_id)
+            .copied()
+            .ok_or_else(|| LowerError::MissingType {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })?;
+
+        Ok(signature)
+    }
+
+    /// Resolve receiver values for interface call lowering.
+    pub(super) fn interface_call_receivers(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        receiver_type_id: dir::LocalTypeId,
+        receiver_value: mir::Value,
+    ) -> LowerResult<InterfaceCallReceivers> {
+        // skip non-interface receivers
+        if self.interface_symbol_for_type(receiver_type_id).is_none() {
+            return Ok(InterfaceCallReceivers {
+                argument_receiver: receiver_value,
+                dispatch_receiver: receiver_value,
+            });
+        }
+
+        // resolve interface reference layout
+        let layout = self
+            .env
+            .type_lowerer
+            .interface_ref_layout(receiver_type_id)
+            .ok_or_else(|| LowerError::MissingType {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+            })?;
+
+        // extract the object pointer for argument passing
+        let object_value = self
+            .state
+            .builder
+            .field_get(receiver_value, layout.object_field_index);
+
+        Ok(InterfaceCallReceivers {
+            argument_receiver: object_value,
+            dispatch_receiver: receiver_value,
+        })
     }
 
     /// Resolve a member name and signature type for a symbol.
@@ -329,29 +419,49 @@ impl FunctionContext<'_> {
             });
         };
 
-        // resolve the member node
-        let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() else {
-            return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "member symbol is not a method".to_string(),
-            });
-        };
-
-        // load the member declaration
-        let member = self.env.dir_tree.get(member_id);
-        let dir::Member::Method { key, signature, .. } = member else {
-            return Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "member symbol is not a method".to_string(),
-            });
-        };
+        // resolve the member or property node
+        let (method_key, signature, node_id) =
+            if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
+                let member = self.env.dir_tree.get(member_id);
+                let dir::Member::Method { key, signature, .. } = member else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "member symbol is not a method".to_string(),
+                    });
+                };
+                (
+                    key,
+                    signature,
+                    member_id.into_global_any(self.env.module_id),
+                )
+            } else if let Ok(property_id) = primary.local_id.try_into_typed::<dir::Property>() {
+                let property = self.env.dir_tree.get(property_id);
+                let dir::Property::Method { key, signature, .. } = property else {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "property symbol is not a method".to_string(),
+                    });
+                };
+                (
+                    key,
+                    signature,
+                    property_id.into_global_any(self.env.module_id),
+                )
+            } else {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "member symbol is not a method".to_string(),
+                });
+            };
 
         // resolve the method name
-        let method_name = match (key, signature.mode) {
+        let method_name = match (method_key, signature.mode) {
             (Some(dir::DynamicKey::Name(name)), _) => *name,
             (None, Some(dir::FunctionMode::Call)) => self.env.dispatch_call_name,
             (None, Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)) => {
@@ -368,7 +478,6 @@ impl FunctionContext<'_> {
         };
 
         // resolve the signature type id
-        let node_id = member_id.into_global_any(self.env.module_id);
         let signature_type_id = self
             .env
             .types
@@ -381,7 +490,7 @@ impl FunctionContext<'_> {
     }
 
     /// Resolve the interface symbol for a receiver type.
-    fn interface_symbol_for_type(
+    pub(crate) fn interface_symbol_for_type(
         &self,
         receiver_type_id: dir::LocalTypeId,
     ) -> Option<GlobalSymbolId> {
@@ -445,29 +554,15 @@ impl FunctionContext<'_> {
     }
 
     /// Resolve the vtable slot id for a virtual method symbol.
-    fn virtual_method_slot_id(&self, symbol: GlobalSymbolId) -> Option<u32> {
+    pub(super) fn virtual_method_slot_id(&self, symbol: GlobalSymbolId) -> Option<u32> {
         self.env
             .virtual_method_slots_by_symbol
             .get(&symbol)
             .copied()
     }
 
-    /// Resolve the class symbol for a receiver type when possible.
-    fn class_symbol_for_type(&self, receiver_type_id: dir::LocalTypeId) -> Option<GlobalSymbolId> {
-        match self.env.types.get_type(receiver_type_id) {
-            dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Class => {
-                Some(*symbol)
-            }
-            dir::Type::Value { value } => self.class_symbol_for_type(*value),
-            dir::Type::Intersection { elements } => elements
-                .iter()
-                .find_map(|element| self.class_symbol_for_type(*element)),
-            _ => None,
-        }
-    }
-
     /// Resolve the declaring MIR type for a virtual call.
-    fn declaring_type_for_virtual_call(
+    pub(super) fn declaring_type_for_virtual_call(
         &self,
         expression_id: LocalNodeId<Expression>,
         receiver_type_id: dir::LocalTypeId,

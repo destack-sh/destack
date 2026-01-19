@@ -1,121 +1,39 @@
-# Lowering: DIR to MIR
+# Lower
 
-This document describes how Destack's high-level semantic representation (elaborated, canonical DIR) is lowered to machine-level IR (MIR) for native targets.
-
-See also:
-- [INTRINSICS.md](INTRINSICS.md) for intrinsic operations
-- [INTEROPERABILITY.md](INTEROPERABILITY.md) for JS/TS compatibility and FFI
-
----
-
-# Overview
+Lower runs after Elaborate and turns high-level "canonical" DIR into low-level, target-specific MIR.
 
 ## Objectives
 
-The overarching dream is **Rust performance with TypeScript semantics and ergonomics**.
-Naturally, performance and ergonomics are in some tension, and we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes:
-
+The _dream_ is **Rust performance with TypeScript ergonomics**.
+Of course, performance and ergonomics are in some tension, so this isn't fully achievable.
+But we want to enable *up to* Rust performance with some additional constructs while improving modern TS performance to around Go/C#-level reliable performance without _requiring_ additional changes. 
+So, basically we want:
 - **Best case (target):** Rust-tier performance (zero-cost abstractions, no GC pauses)
 - **Average case (target):** Go-tier performance (efficient GC, good concurrency)
 - **Worst case (target):** Competitive with optimized JS runtimes (V8, JSC, SpiderMonkey)
 
 AOT compilation provides predictable performance without warmup, but astounding levels of engineering have already gone into making V8's speculative optimization beat static compilation on some dynamic patterns.
 Our advantage is consistency and control, and, of course, you don't need to ship a JS runtime.
+We try to keep TS semantics as much as possible, but there are some tradeoffs and additional strictness requirements to make TS sound for AOT compilation. (These are noted in the relevant sections below.)
 
-Specifically, Destack lowering is focused on:
-1. **TypeScript semantics**: TS and Destack code behaves identically^x
-2. **Comptime**: Full compile-time evaluation
-3. **Reflection**: Types-as-values for comptime and runtime reflection
-4. **Ownership**: Manual memory or GC as needed
-5. **Erasure**: Clean codegen to JS/TS
+## Pipeline
 
-x=Where behavior differs between JS/TS runtimes and native, this difference should be obvious and misuse should have loud diagnostics. Perfect semantic equivalence in all scenarios is not required or even possible, since that would require emulating _all_ the non-standard dynamic quirks of common JS runtimes (like optimizer behavior, scheduling, etc.).
+Lower receives patched canonical DIR post-Execute and produces target-specific MIR.
 
-### Performance
+```
+... Analyze ───► Elaborate ───► Execute ───► Lower ───► Optimize ───► Generate ───► ...
+```
 
-Destack targets Go-level performance by default and Rust-level performance on-demand.
-The compiler relies on a known-good set of optimizations proven out by Go, Rust, Zig, and modern C++ compilers:
-- Escape analysis and stack promotion of managed allocations
-- Copy elision, return value optimization, and move elimination
-- Bounds check elimination with range analysis
-- Devirtualization and inlining for class calls
-- Monomorphization and specialization control per profile
-- Strict borrow mode for `&mut` to enable `noalias` and vectorization
-- Explicit SIMD types and intrinsics with scalar fallback
-- LTO and PGO for package and program scope inlining and layout decisions
+### Input: Canonical DIR
 
-Compilation units are defined by ltoMode.
-Module is the default compilation unit.
-Thin LTO uses package scope and Full LTO uses program scope.
-Auto enables Thin LTO at O4 and disables LTO at lower levels.
-Lower emits deterministic mangled symbol names into MIR.
-These names are used as the stable identity for cross module call graph stitching.
-
-SIMD follows a Zig-like model.
-Vector lane counts are static parameters and operators are elementwise.
-Lower maps vector operations to target SIMD instructions when available.
-(If the target lacks support, Lower scalarizes to loops.)
-See [INTRINSICS.md](INTRINSICS.md#simd) for details.
-
-## Pipeline Position
-
-Lower is **phase M** in the compiler pipeline (see [compiler/README.md](../README.md)).
-It receives patched DIR from Execute and produces target-specific MIR.
-
-Pipeline summary:
-
-| Stage | Output | Notes |
-| --- | --- | --- |
-| Execute | DIR (patched) | runs comptime blocks via MIR |
-| Generate/JS | JS/TS output | preserves type-erased polymorphism |
-| Lower | MIR | monomorphized, typed, target-specific |
-| Optimize | MIR | verify + transform passes |
-| Generate | native binary | Cranelift backend |
-
-Pipeline diagram:
-
-<pre>
-DIR (elaborated, canonical, profile-dependent)
- │
- ├─→ Execute: run comptime blocks via MIR, patch DIR
- │
- ├─→ Generate/JS: direct JS/TS output (preserves type-erased polymorphism)
- │
- └─→ Lower (THIS DOCUMENT)
-      │
-      MIR (monomorphized, typed, target-specific)
-       │
-       ├─→ Optimize (see optimize/README.md)
-       │    ├─→ Verify: borrow-check, move-check, drop-insert
-       │    └─→ Transform: inline, dead code elim, escape analysis, etc.
-       │
-       └─→ Generate
-            └─→ Cranelift → native binary (.exe, .dylib)
-</pre>
-
-### Input: Canonical DIR (Comptime Patched)
-
-Lower receives "canonical" typed DIR after Analyze, Elaborate, and Execute (see [analyze/](../analyze/) and [elaborate/](../elaborate/)):
-- All desugaring complete (e.g., `+=` → `+` and assign)
-- All patterns expanded to decision trees
-- All types fully inferred ("Types")
-- All overloads resolved ("Resolutions")
-- All static parameters resolved to values ("StaticExpression")
-- All polymorphic instances created ("Instances")
-- All comptime blocks executed and results patched in
-
-### Elaborate Transforms
-
-The following constructs are transformed by Elaborate before Lower sees them:
-- **Destructuring patterns** → explicit field/element access
-- **Spread/rest operators** → explicit array operations
-- **Range literals** → `RangeExclusive`/`RangeInclusive` structs
-- **Match expressions** → decision trees with `is` type checks
-- **Default arguments** → `arg === undefined ? default : arg` checks
-- **Null coalescing** (`??`, `?.`) → explicit null checks
-
-Lower receives canonical DIR with these constructs already desugared.
-See [elaborate/README.md](../elaborate/README.md) for transform details.
+Lower receives "canonical" typed DIR after Analyze and Elaborate (and Execute):
+- Desugaring complete (e.g., `+=` → `+` and assign)
+- Patterns expanded to decision trees
+- Types fully inferred ("Types")
+- Resolutions resolved ("Resolutions")
+- Static parameters resolved to values ("StaticExpression")
+- Polymorphic instances created ("Instances")
+- Comptime blocks executed and results patched in ("Execute")
 
 ### Output: Target-Specific MIR
 
@@ -655,15 +573,14 @@ Child classes inherit parent slots; overrides reuse the same slot.
 Lower populates MIR metadata tables incrementally as phases complete.
 Phase 1 records type layouts and lineages in `NodeTree.type_table.type_metadata_by_id`.
 Phase 2 records function memory effects and pointer attributes on MIR `Function`.
-Phase 3 registers dispatch tables, type descriptors, and type tags in `NodeTree.type_table.dispatch_tables` and type metadata.
-Phase 4 records callsite metadata in `NodeTree.call_table`, memory access metadata (including alias
-scopes and TBAA tags) in `NodeTree.memory_table`, and debug scopes in `NodeTree.debug_info`.
+Phase 3 registers dispatch tables, type descriptors, and type tags in `NodeTree.type_table.dispatch_registry` and type metadata.
+Phase 4 records callsite effects on call instructions (`CallEffects`), memory access metadata (including alias scopes and TBAA tags) in `NodeTree.memory_table`, and debug scopes in `NodeTree.debug_info`.
 
 MIR metadata structures live in `language/mir/src/metadata/` and define the canonical expectations
 for layout, dispatch, and memory semantics. Lower must emit metadata that matches those invariants:
 - `TypeLayout.field_offsets` length matches the field or element count
 - `DispatchSlot` order follows the vtable/itab slot rules defined below
-- Callsite `CallMetadata` uses `CallDispatchKind` and provides `receiver` when required
+- Callsite `CallEffects` captures memory effects, behavior, allocation sizing, and argument metadata
 - Memory access metadata records sizes, alignment, volatility, ordering, and alias scopes when known
 
 ## Phase 2: Declarations
@@ -1311,6 +1228,7 @@ Both lower to `Type::Struct` with computed property offsets. The key difference 
 
 RTTI (runtime type identity) is unified via `TypeTag` handles that point to `TypeDescriptor` values.
 Polymorphic classes store a vtable pointer in the object layout for virtual dispatch.
+If any class in a lineage requires virtual dispatch, every class in that lineage includes a vtable pointer at offset 0 so upcasts need no pointer adjustment.
 Vtable slot 0 stores the `TypeTag` for fast `instanceof`, `T.is`, and `typeOf`.
 Structs remain headerless and never store a vtable pointer.
 Thin-pointer checks on structs recover `TypeTag` from GC metadata when needed.
@@ -1325,10 +1243,6 @@ RTTI is only emitted when runtime type checks are possible:
 - Stored in `unknown`
 - Used in runtime reflection
 - Used in untagged unions that require runtime discrimination
-
-**JS targets:** RTTI-enabled structs/classes emit a non-enumerable symbol property
-with their `TypeId` during construction. This keeps objects "plain" for JS semantics
-while enabling `instanceof`, `T.is`, and `typeOf` without a global WeakMap.
 
 #### Struct Layout
 
@@ -1628,6 +1542,8 @@ TypeTag values are pointers to TypeDescriptor values.
 ### Union Representation
 
 Lower chooses union representation based on these rules (in order):
+Union upcasts rely on explicit `Expression::Cast` nodes inserted by Elaborate.
+When contextual typing assigns the union type to a concrete expression, Lower uses static resolution to select the correct union variant tag.
 
 1. **Niche optimization** - All members are nullable references or undefined **and** runtime
    discrimination does not require metadata lookup (or a type tag is already available).
@@ -1967,6 +1883,9 @@ Fields reuse slots only when their declared types match.
 Conflicting member signatures are errors during analysis.
 Field entries store byte offsets, and method entries store function pointers.
 The compiler generates the itab at compile time, and interface references carry a pointer to the appropriate itab.
+Interface to interface casts rebuild the fat pointer.
+The object pointer is preserved and the source itab provides the concrete type tag.
+The target itab is resolved from `(typeTag, target interface)` and stored in the new interface reference.
 
 ```ds
 function render(d: Drawable) { d.draw(); }
@@ -3109,20 +3028,6 @@ Controls how runtime profiling data is collected for tiering and optimization.
 | `Hybrid` | Counters + sampling, optional inline caches (default) |
 
 Profiling is scoped per isolate and consumed by the optimizer and runtime.
-Inline caches are optional; if not implemented, `Hybrid` behaves like counters + sampling.
-
-Profiling signals include:
-
-- Call counts per function and callsite.
-- Loop backedge counts per loop header.
-- Allocation counts and bytes per site.
-- Guard failures and deopt reasons per site.
-- Branch direction bias per conditional branch.
-- Indirect call target counts for interface dispatch.
-- PC sampling for hot instruction ranges when sampling is enabled.
-
-The runtime may expose these signals to telemetry systems, but the compiler is the source of truth for their semantics and collection points.
-Telemetry libraries should consume these signals rather than re-instrumenting hot paths.
 
 ### Tiering Triggers
 

@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use destack_workspace::format::format_unique_symbol_qualified_name;
 use {destack_dir as dir, destack_mir as mir};
 
-use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::{LowerError, LowerResult};
 
 const UNION_TAG_FIELD_NAME: &str = "@tag";
@@ -151,14 +151,10 @@ impl TypeLowerer {
         let payload_type = builder.type_managed_reference(self.ty_void);
 
         // compute field sizes and alignments
-        let pointer_bytes = self.pointer_bytes();
         let (tag_size, tag_alignment) =
-            size_and_align_of_type(builder.tree().get(tag_type), builder.tree(), pointer_bytes);
-        let (payload_size, payload_alignment) = size_and_align_of_type(
-            builder.tree().get(payload_type),
-            builder.tree(),
-            pointer_bytes,
-        );
+            self.size_and_align_of_type(builder.tree().get(tag_type), builder.tree());
+        let (payload_size, payload_alignment) =
+            self.size_and_align_of_type(builder.tree().get(payload_type), builder.tree());
 
         // assemble field inputs
         let fields = vec![
@@ -168,6 +164,7 @@ impl TypeLowerer {
                 size: tag_size,
                 alignment: tag_alignment,
                 source_index: Some(0),
+                kind: FieldLayoutKind::Synthetic,
             },
             FieldInput {
                 name: payload_name,
@@ -175,11 +172,12 @@ impl TypeLowerer {
                 size: payload_size,
                 alignment: payload_alignment,
                 source_index: Some(1),
+                kind: FieldLayoutKind::Synthetic,
             },
         ];
 
         // compute layout and create the mir struct type
-        let layout = compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type_with_copyability(&layout, copyability, builder);
 
         // cache layout and type lowering

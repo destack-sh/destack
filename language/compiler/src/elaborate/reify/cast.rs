@@ -709,7 +709,7 @@ impl Compiler {
 
         // resolve unevaluated target types for cast classification
         let target_type_id = self
-            .evaluate_unevaluated_type_id(module, profile, target_type_id, tree, symbols, types)
+            .evaluate_unevaluated_type(module, profile, target_type_id, tree, symbols, types)
             .map_err(|_| ElaborateError::UnsupportedConstruct {
                 node: types
                     .get_type_source(target_type_id)
@@ -721,18 +721,20 @@ impl Compiler {
         let value_is_concrete = self.is_concrete_resolution(module_id, value_id, types)
             || self.is_concrete_new_expression(tree, value_id)
             || self.is_tagged_expression(tree, value_id);
+        let value_type = types.get_type(value_type_id);
         let target_type = types.get_type(target_type_id);
+        let types_match = are_types_semantically_equal(value_type, target_type, types);
         let source_is_interface = self.is_interface_reference_type(types, value_type_id);
         let target_is_interface = self.is_interface_reference_type(types, target_type_id);
 
         // figure out if we need a representation change cast
-        let requires_interface_upcast = target_is_interface
-            && (!source_is_interface || value_is_concrete || value_type_id != target_type_id);
+        let requires_interface_upcast =
+            target_is_interface && (!source_is_interface || value_is_concrete || !types_match);
         let requires_union_upcast = is_union_type(target_type) && value_is_concrete;
         let requires_nullable_upcast = is_nullable_union(target_type, types) && value_is_concrete;
         let requires_representation_cast =
             requires_interface_upcast || requires_union_upcast || requires_nullable_upcast;
-        if value_type_id == target_type_id && !requires_representation_cast {
+        if types_match && !requires_representation_cast {
             return Ok(value_id);
         }
 
@@ -1729,7 +1731,6 @@ class GreeterImpl implements Greeter {
         this.value = value;
         return;
     }
-
     greet(): int32 {
         return this.value;
     }
@@ -1780,7 +1781,7 @@ interface Speaker {
 
 function test(value): Speaker {
     let assigned = value as Speaker;
-    return assigned as Speaker;
+    return assigned;
 }
 "#,
         );

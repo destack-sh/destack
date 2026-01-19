@@ -62,7 +62,7 @@ function sumFieldsNew(a: number, b: number): number {
 
 /// Lower struct construction to value initialization in MIR.
 #[test]
-fn test_struct_new_mir() {
+fn test_struct_new() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -235,6 +235,49 @@ function makePoint(a: number, b: number): Point {
     test.compile();
     test.check_no_diagnostics_up_to_excluding_phase(TaskPhase::Lower);
     test.check_has_diagnostic("EM200");
+}
+
+/// Lower struct field map metadata for nominal layouts.
+#[test]
+fn test_struct_field_map_metadata() {
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+struct FieldMapBox {
+    leftFieldMap: int32;
+    rightFieldMap: int32;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // inspect the lowered mir metadata
+    test.with_mir_tree(module_id, "native", |tree, strings| {
+        // locate the struct payload type
+        let struct_type = test.type_by_metadata_name(tree, strings, "test/test:FieldMapBox");
+
+        // resolve the field map metadata
+        let metadata = test.type_metadata(tree, struct_type);
+        let field_map = &metadata.field_map;
+        assert_eq!(field_map.len(), 2);
+
+        // assert the left field mapping
+        let left_field =
+            test.expect_field_map_entry_by_name(tree, strings, struct_type, "leftFieldMap");
+        let left_name = test.field_name(tree, strings, left_field);
+        assert_eq!(left_name, "leftFieldMap");
+
+        // assert the right field mapping
+        let right_field =
+            test.expect_field_map_entry_by_name(tree, strings, struct_type, "rightFieldMap");
+        let right_name = test.field_name(tree, strings, right_field);
+        assert_eq!(right_name, "rightFieldMap");
+    });
 }
 
 /// Lower struct method that returns a field via `this`.

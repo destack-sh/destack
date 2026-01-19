@@ -2,9 +2,7 @@ use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use super::{
-    FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, static_key_to_field_name,
-};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer, static_key_to_field_name};
 use crate::{LowerError, LowerResult};
 
 /// Compute aggregate copyability from element types.
@@ -32,7 +30,6 @@ impl TypeLowerer {
         node: AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        let pointer_bytes = self.pointer_bytes();
         let mut field_inputs = Vec::with_capacity(fields.len());
 
         for (source_index, field) in fields.iter().enumerate() {
@@ -42,8 +39,7 @@ impl TypeLowerer {
             // lower the field's type and compute size/alignment
             let field_mir_type = self.lower_type(types, field.ty, module_id, node, builder)?;
             let field_type = builder.tree().get(field_mir_type);
-            let (size, alignment) =
-                super::size_and_align_of_type(field_type, builder.tree(), pointer_bytes);
+            let (size, alignment) = self.size_and_align_of_type(field_type, builder.tree());
 
             field_inputs.push(FieldInput {
                 name,
@@ -51,11 +47,12 @@ impl TypeLowerer {
                 size,
                 alignment,
                 source_index: Some(source_index as u32),
+                kind: FieldLayoutKind::Source,
             });
         }
 
         // compute the layout and create the MIR struct type
-        let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
+        let layout = self.compute_struct_layout(field_inputs, LayoutPolicy::default());
         let mir_type = self.create_struct_type(&layout, builder);
         self.layout_cache.insert(mir_type, layout);
 

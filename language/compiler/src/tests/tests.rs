@@ -508,7 +508,6 @@ impl TestProgram {
     /// Add a build target to the package containing the given module.
     ///
     /// Uses `Target::implicit_for_name()` for known target names like "native", "js", "wasm".
-    /// Must be called before `lower_module()` for that target.
     pub fn add_target(&self, module: ModuleId, name: &str) {
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.read().package_id;
@@ -530,6 +529,16 @@ impl TestProgram {
         let module_ref = self.program.modules.get(module);
         let package_id = module_ref.read().package_id;
         let target_id = TargetId::new(package_id, target);
+        let target_config = Target::implicit_for_name(target)
+            .unwrap_or_else(|| panic!("unknown implicit target '{target}'"));
+
+        let package = self.program.packages.get(package_id);
+        let mut package = package.write();
+        package
+            .targets
+            .entry(target_id.clone())
+            .or_insert(target_config);
+
         let profile = self
             .program
             .profile_id_for_target(module, &target_id)

@@ -221,17 +221,22 @@ impl FunctionContext<'_> {
         then_id: LocalNodeId<Expression>,
         else_id: Option<LocalNodeId<Expression>>,
     ) -> LowerResult<Terminates> {
-        let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
-        self.check_type_is_bool(condition_id, condition_type, "if condition")?;
-
         let then_block = self.state.builder.create_block();
         let else_block = self.state.builder.create_block();
         let join_block = self.state.builder.create_block();
 
-        // branch
-        self.state
-            .builder
-            .branch(condition_value, then_block, else_block);
+        // branch on the condition (with union tag checks when possible)
+        let did_check = self.lower_union_tag_check(condition_id, then_block, else_block)?;
+        if !did_check {
+            // lower the condition value
+            let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
+            self.check_type_is_bool(condition_id, condition_type, "if condition")?;
+
+            // branch
+            self.state
+                .builder
+                .branch(condition_value, then_block, else_block);
+        }
 
         // then branch
         self.state.builder.switch_to_block(then_block);
@@ -316,12 +321,20 @@ impl FunctionContext<'_> {
                         .into_anchored(Some(self.env.profile)),
                     message: "while loop missing condition".to_string(),
                 })?;
-                let (condition_value, condition_type) =
-                    self.lower_value_expression(condition_id)?;
-                self.check_type_is_bool(condition_id, condition_type, "while loop condition")?;
-                self.state
-                    .builder
-                    .branch(condition_value, body_block, exit_block);
+
+                // branch on the condition (with union tag checks when possible)
+                let did_check = self.lower_union_tag_check(condition_id, body_block, exit_block)?;
+                if !did_check {
+                    // lower the condition value
+                    let (condition_value, condition_type) =
+                        self.lower_value_expression(condition_id)?;
+                    self.check_type_is_bool(condition_id, condition_type, "while loop condition")?;
+
+                    // branch
+                    self.state
+                        .builder
+                        .branch(condition_value, body_block, exit_block);
+                }
 
                 // body: execute and loop back
                 self.state.builder.switch_to_block(body_block);
@@ -349,12 +362,24 @@ impl FunctionContext<'_> {
                         .into_anchored(Some(self.env.profile)),
                     message: "do-while loop missing condition".to_string(),
                 })?;
-                let (condition_value, condition_type) =
-                    self.lower_value_expression(condition_id)?;
-                self.check_type_is_bool(condition_id, condition_type, "do-while loop condition")?;
-                self.state
-                    .builder
-                    .branch(condition_value, body_block, exit_block);
+
+                // branch on the condition (with union tag checks when possible)
+                let did_check = self.lower_union_tag_check(condition_id, body_block, exit_block)?;
+                if !did_check {
+                    // lower the condition value
+                    let (condition_value, condition_type) =
+                        self.lower_value_expression(condition_id)?;
+                    self.check_type_is_bool(
+                        condition_id,
+                        condition_type,
+                        "do-while loop condition",
+                    )?;
+
+                    // branch
+                    self.state
+                        .builder
+                        .branch(condition_value, body_block, exit_block);
+                }
             }
         }
 
@@ -421,11 +446,19 @@ impl FunctionContext<'_> {
         // header: evaluate condition (if present) and branch
         self.state.builder.switch_to_block(header_block);
         if let Some(condition_id) = condition {
-            let (condition_value, condition_type) = self.lower_value_expression(condition_id)?;
-            self.check_type_is_bool(condition_id, condition_type, "for loop condition")?;
-            self.state
-                .builder
-                .branch(condition_value, body_block, exit_block);
+            // branch on the condition (with union tag checks when possible)
+            let did_check = self.lower_union_tag_check(condition_id, body_block, exit_block)?;
+            if !did_check {
+                // lower the condition value
+                let (condition_value, condition_type) =
+                    self.lower_value_expression(condition_id)?;
+                self.check_type_is_bool(condition_id, condition_type, "for loop condition")?;
+
+                // branch
+                self.state
+                    .builder
+                    .branch(condition_value, body_block, exit_block);
+            }
         } else {
             // no condition means infinite loop (like for(;;))
             self.state.builder.jump(body_block);

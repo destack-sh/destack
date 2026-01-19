@@ -274,16 +274,23 @@ fn update_call_sites(
     for site in call_sites {
         match *site {
             DirectCallSite::Instruction(instruction_id) => {
-                let (destination, function, slice, signature, effects) = match tree.get(instruction_id) {
-                    mir::Instruction::Call {
-                        destination,
-                        function,
-                        arguments,
-                        signature,
-                        effects,
-                    } => (*destination, *function, *arguments, *signature, effects.clone()),
-                    _ => continue,
-                };
+                let (destination, function, slice, signature, effects) =
+                    match tree.get(instruction_id) {
+                        mir::Instruction::Call {
+                            destination,
+                            function,
+                            arguments,
+                            signature,
+                            effects,
+                        } => (
+                            *destination,
+                            *function,
+                            *arguments,
+                            *signature,
+                            effects.clone(),
+                        ),
+                        _ => continue,
+                    };
 
                 // filter the argument list
                 let arguments = remap.filter_by_index(tree.get_arguments(slice));
@@ -292,8 +299,7 @@ fn update_call_sites(
                 let signature = if unused.is_empty() {
                     signature
                 } else {
-                    *signature_type
-                        .get_or_insert_with(|| build_signature_type(function_id, tree))
+                    *signature_type.get_or_insert_with(|| build_signature_type(function_id, tree))
                 };
 
                 let mut effects = effects;
@@ -541,7 +547,11 @@ block0(v0: i32):
             mir::CallArgumentMetadata::default(),
         ]);
         let instruction = program.tree.get_mut(call_id);
-        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            effects: call_effects,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
         *call_effects = Some(effects);
@@ -549,9 +559,7 @@ block0(v0: i32):
         program.run_module_pass(&DeadArgEliminate);
         program.assert_output(expected);
         let instruction = program.tree.get(call_id);
-        let effects = instruction
-            .call_effects()
-            .expect("missing call effects");
+        let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.argument_metadata.len(), 1);
     }
 
@@ -649,10 +657,13 @@ block0(v0: i32):
             })
             .expect("missing call instruction");
 
-        let effects =
-            mir::CallEffects::default().with_alloc_size(mir::AllocSize::new(2, Some(0)));
+        let effects = mir::CallEffects::default().with_alloc_size(mir::AllocSize::new(2, Some(0)));
         let instruction = program.tree.get_mut(call_id);
-        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            effects: call_effects,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
         *call_effects = Some(effects);
@@ -660,9 +671,7 @@ block0(v0: i32):
         program.run_module_pass(&DeadArgEliminate);
         program.assert_output(expected);
         let instruction = program.tree.get(call_id);
-        let effects = instruction
-            .call_effects()
-            .expect("missing call effects");
+        let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.alloc_size, None);
     }
 

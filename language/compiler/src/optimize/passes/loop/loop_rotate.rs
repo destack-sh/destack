@@ -350,18 +350,14 @@ fn rotate_loop(
                 value: remap(*value, map),
                 expected: *expected,
             },
-            mir::CheckConstraint::Union { value, expected } => {
-                mir::CheckConstraint::Union {
-                    value: remap(*value, map),
-                    expected: *expected,
-                }
-            }
-            mir::CheckConstraint::Vtable { receiver, expected } => {
-                mir::CheckConstraint::Vtable {
-                    receiver: remap(*receiver, map),
-                    expected: *expected,
-                }
-            }
+            mir::CheckConstraint::Union { value, expected } => mir::CheckConstraint::Union {
+                value: remap(*value, map),
+                expected: *expected,
+            },
+            mir::CheckConstraint::Vtable { receiver, expected } => mir::CheckConstraint::Vtable {
+                receiver: remap(*receiver, map),
+                expected: *expected,
+            },
             mir::CheckConstraint::Itab { receiver, expected } => mir::CheckConstraint::Itab {
                 receiver: remap(*receiver, map),
                 expected: *expected,

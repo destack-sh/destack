@@ -395,14 +395,7 @@ fn format_check_constraint<'a>(
         }
         CheckConstraint::Type { value, expected } => write!(
             f,
-            [
-                token("type"),
-                space(),
-                value,
-                token(","),
-                space(),
-                expected
-            ]
+            [token("type"), space(), value, token(","), space(), expected]
         ),
         CheckConstraint::Union { value, expected } => write!(
             f,

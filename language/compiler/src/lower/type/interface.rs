@@ -2,7 +2,7 @@ use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use super::{FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::{LowerError, LowerResult};
 
 /// Layout metadata for interface reference types.
@@ -66,14 +66,10 @@ impl TypeLowerer {
         let itab_type = self.ty_usize;
 
         // compute field sizes and alignments
-        let pointer_bytes = self.pointer_bytes();
-        let (object_size, object_alignment) = size_and_align_of_type(
-            builder.tree().get(object_type),
-            builder.tree(),
-            pointer_bytes,
-        );
+        let (object_size, object_alignment) =
+            self.size_and_align_of_type(builder.tree().get(object_type), builder.tree());
         let (itab_size, itab_alignment) =
-            size_and_align_of_type(builder.tree().get(itab_type), builder.tree(), pointer_bytes);
+            self.size_and_align_of_type(builder.tree().get(itab_type), builder.tree());
 
         // assemble field inputs
         let fields = vec![
@@ -83,6 +79,7 @@ impl TypeLowerer {
                 size: object_size,
                 alignment: object_alignment,
                 source_index: Some(0),
+                kind: FieldLayoutKind::Synthetic,
             },
             FieldInput {
                 name: itab_name,
@@ -90,11 +87,12 @@ impl TypeLowerer {
                 size: itab_size,
                 alignment: itab_alignment,
                 source_index: Some(1),
+                kind: FieldLayoutKind::Synthetic,
             },
         ];
 
         // compute layout and create the mir struct type
-        let layout = compute_struct_layout(fields, LayoutPolicy::Source);
+        let layout = self.compute_struct_layout(fields, LayoutPolicy::Source);
         let mir_type = self.create_struct_type(&layout, builder);
         self.layout_cache.insert(mir_type, layout.clone());
 

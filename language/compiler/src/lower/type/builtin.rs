@@ -8,10 +8,7 @@ use destack_workspace::ProfileId;
 
 use crate::{Compiler, LowerError, LowerResult, TaskDependencyError};
 
-use super::{
-    FieldInput, LayoutPolicy, TypeLowerer, compute_struct_layout, size_and_align_of_type,
-    static_key_to_field_name,
-};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer, static_key_to_field_name};
 
 /// Helpers for lowering builtin type layouts.
 pub(crate) struct BuiltinTypeLayouts<'a> {
@@ -60,6 +57,9 @@ impl<'a> BuiltinTypeLayouts<'a> {
         let Some(ty_struct) = self.ensure_struct_layout_for_symbol(string_symbol, anchor)? else {
             return Ok(());
         };
+
+        // name the builtin string type metadata
+        self.assign_metadata_name_for_symbol(ty_struct, string_symbol);
 
         // cache the managed reference type
         let ty_string = self.builder.type_managed_reference(ty_struct);
@@ -151,8 +151,8 @@ impl<'a> BuiltinTypeLayouts<'a> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<Vec<FieldInput>> {
         // compute layout from declared struct fields only
-        let pointer_bytes = self.type_lowerer.pointer_bytes();
         let mut field_inputs = Vec::new();
+        let pointer_bytes = self.type_lowerer.pointer_bytes();
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
@@ -195,7 +195,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
                 field_lowerer.lower_type(types, type_id, module_id, anchor, self.builder)?;
             let field_type = self.builder.tree().get(field_mir_type);
             let (size, alignment) =
-                size_and_align_of_type(field_type, self.builder.tree(), pointer_bytes);
+                field_lowerer.size_and_align_of_type(field_type, self.builder.tree());
 
             // collect layout inputs
             field_inputs.push(FieldInput {
@@ -204,6 +204,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
                 size,
                 alignment,
                 source_index: Some(source_index as u32),
+                kind: FieldLayoutKind::Source,
             });
         }
 
@@ -241,11 +242,42 @@ impl<'a> BuiltinTypeLayouts<'a> {
             return Ok(None);
         }
 
-        let layout = compute_struct_layout(field_inputs, LayoutPolicy::default());
+        let layout = self
+            .type_lowerer
+            .compute_struct_layout(field_inputs, LayoutPolicy::default());
         let ty_struct = self.type_lowerer.create_struct_type(&layout, self.builder);
         self.type_lowerer.set_layout(ty_struct, layout);
 
         Ok(Some(ty_struct))
+    }
+
+    /// Assign a metadata name for a builtin type symbol.
+    fn assign_metadata_name_for_symbol(
+        &mut self,
+        mir_type: mir::LocalNodeId<mir::Type>,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        // resolve the module symbol name
+        let module = self.compiler.program.modules.get(symbol.module_id);
+        let module = module.read();
+        let dir = module.dir(self.profile);
+        let symbols = dir.symbols.read();
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+
+        // resolve the symbol key
+        let Some(key) = symbol_entry.key else {
+            return;
+        };
+
+        // build the name string
+        let name_id = static_key_to_field_name(&key, self.builder);
+
+        // attach the name when missing
+        let type_table = &mut self.builder.tree_mut().type_table;
+        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
+        if metadata.name.is_none() {
+            metadata.name = Some(name_id);
+        }
     }
 
     /// Resolve nominal aliases to their layout type.

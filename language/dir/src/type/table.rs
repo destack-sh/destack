@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, EnumBackingType, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage,
     LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
-    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, StaticParameterKind, Type,
+    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, StaticParameterKind,
+    SymbolTable, Type,
 };
 
 /// Select a normalization cache.
@@ -548,6 +549,28 @@ impl TypeTable {
     /// Get the value type id for a symbol.
     pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.value_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Get the declared or inferred type id for a symbol in this module.
+    pub fn get_type_id_for_symbol(
+        &self,
+        symbols: &SymbolTable,
+        symbol_id: GlobalSymbolId,
+    ) -> Option<LocalTypeId> {
+        // prefer cached value types
+        if let Some(value_type_id) = self.get_value_type_id(symbol_id) {
+            return Some(value_type_id);
+        }
+
+        // skip non local symbols
+        if symbol_id.module_id != self.module_id {
+            return None;
+        }
+
+        // fall back to declared or inferred declaration types
+        let symbol = symbols.get_symbol(symbol_id.local_id);
+        let primary_declaration = symbol.primary_declaration?;
+        self.get_declared_or_inferred_type_id(primary_declaration)
     }
 
     /// Set the declared target type id for an alias symbol.

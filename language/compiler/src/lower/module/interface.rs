@@ -88,11 +88,17 @@ impl ModuleLowerer<'_> {
                 let parameter_types =
                     self.method_parameter_types(signature, Some(interface_mir_type))?;
 
+                // resolve the signature type for direct callsites
+                let signature_type =
+                    self.signature_mir_type_for_node(member_id.into_global_any(self.module_id))?;
+
                 // declare the method stub
                 let function_id =
                     self.builder
                         .extern_function(&name_str, &parameter_types, return_type);
                 self.functions_by_symbol.insert(method_symbol, function_id);
+                self.function_signature_types
+                    .insert(function_id, signature_type);
             }
         }
 

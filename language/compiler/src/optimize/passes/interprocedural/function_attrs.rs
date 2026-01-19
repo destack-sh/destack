@@ -504,8 +504,8 @@ fn call_effects_for_instruction(
     let mut behavior = metadata.and_then(|meta| meta.behavior.clone());
 
     // fall back to direct callee summaries when available
-    if let Some(summary) = direct_callee_for_instruction(instruction)
-        .and_then(|callee_id| summaries.get(&callee_id))
+    if let Some(summary) =
+        direct_callee_for_instruction(instruction).and_then(|callee_id| summaries.get(&callee_id))
     {
         if memory_effect.is_none() {
             memory_effect = Some(summary.memory_effects.clone());
@@ -877,9 +877,7 @@ block0:
         program.run_module_pass(&FunctionAttrs);
         program.assert_output(input);
         let instruction = program.tree.get(call_inst);
-        let effects = instruction
-            .call_effects()
-            .expect("missing call effects");
+        let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.memory_effects, Some(mir::MemoryEffect::none()));
     }
 

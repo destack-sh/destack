@@ -8,7 +8,7 @@ use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::StructLayout;
-use crate::{LowerError, LowerResult};
+use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 /// Lowers DIR types into MIR types with a shared cache.
 #[derive(Debug)]
@@ -42,9 +42,9 @@ pub(crate) struct TypeLowerer {
     /// Cached MIR string reference type.
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
     /// Cached union layout metadata by DIR type id.
-    pub(crate) union_cache: HashMap<dir::LocalTypeId, super::UnionLayout>,
+    pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
     /// Cached interface reference layouts by DIR type id.
-    pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, super::InterfaceRefLayout>,
+    pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, InterfaceRefLayout>,
 }
 
 impl TypeLowerer {

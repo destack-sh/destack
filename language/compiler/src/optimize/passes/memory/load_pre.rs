@@ -335,9 +335,7 @@ fn load_can_move_to_entry(
 
         // reject side effecting instructions
         if instruction_has_side_effects(instruction) {
-            if read_only_access
-                && instruction_allows_read_only_motion(instruction)
-            {
+            if read_only_access && instruction_allows_read_only_motion(instruction) {
                 continue;
             }
             return false;

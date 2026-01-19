@@ -606,9 +606,7 @@ fn update_callsite(
     let new_slice = tree.add_arguments(&arguments);
     let (signature, effects) = match tree.get(callsite.call_instruction) {
         mir::Instruction::Call {
-            signature,
-            effects,
-            ..
+            signature, effects, ..
         } => (*signature, effects.clone()),
         _ => return false,
     };
@@ -756,7 +754,11 @@ block0:
         let argument_metadata = vec![mir::CallArgumentMetadata::default(); 2];
         let effects = mir::CallEffects::default().with_argument_metadata(argument_metadata);
         let instruction = program.tree.get_mut(call_id);
-        let mir::Instruction::Call { effects: call_effects, .. } = instruction else {
+        let mir::Instruction::Call {
+            effects: call_effects,
+            ..
+        } = instruction
+        else {
             panic!("expected call instruction");
         };
         *call_effects = Some(effects);
@@ -768,9 +770,11 @@ block0:
         let callee = program.tree.get(callee_id);
         let instruction = program.tree.get(call_id);
         let effects = instruction.call_effects().expect("missing call effects");
-        let signature = program
-            .tree
-            .get(instruction.call_signature().expect("missing call signature"));
+        let signature = program.tree.get(
+            instruction
+                .call_signature()
+                .expect("missing call signature"),
+        );
         let expected_signature = mir::Type::FunctionPointer {
             parameters: callee.parameters.iter().map(|param| param.ty).collect(),
             result: callee.return_type,

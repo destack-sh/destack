@@ -8,11 +8,25 @@ use crate::{LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
+/// Suffix for vtable global names.
+const VTABLE_GLOBAL_SUFFIX: &str = "#vtable";
+
+/// Predeclared vtable global information for lowering.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct VtableGlobal {
+    /// The global id that backs the vtable data.
+    pub(crate) global_id: mir::LocalNodeId<mir::Global>,
+    /// The raw pointer type for addressing the vtable global.
+    pub(crate) address_type: mir::LocalNodeId<mir::Type>,
+}
+
 /// A key that identifies a virtual method slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct VirtualMethodKey {
     /// The method name.
     name: StringId,
+    /// The function mode for accessor discrimination.
+    mode: Option<FunctionMode>,
     /// The signature type id for the method.
     signature: dir::LocalTypeId,
 }
@@ -47,17 +61,38 @@ impl ModuleLowerer<'_> {
         class_symbols.sort_by_key(|symbol| symbol.local_id.id);
         class_symbols.dedup();
 
-        self.vtable_class_symbols.clear();
-        self.virtual_method_slots_by_symbol.clear();
+        // collect classes that need vtable headers
+        let vtable_layout_symbols = self.collect_vtable_layout_symbols()?;
 
         for symbol in class_symbols {
+            // collect virtual method slots for this class
             let slots = self.virtual_method_slots_for_class(symbol)?;
-            if slots.is_empty() {
+            // skip classes without a vtable header
+            if !vtable_layout_symbols.contains(&symbol) {
                 continue;
             }
 
+            // register the class as a vtable owner
             self.vtable_class_symbols.push(symbol);
 
+            // resolve the declaration id for this class symbol
+            let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
+            let Some(declaration_id) = declaration_id else {
+                return Err(LowerError::Internal {
+                    module: self.module_id,
+                    message: format!("missing class declaration for vtable symbol {symbol:?}"),
+                });
+            };
+            let anchor = declaration_id
+                .into_global_any(self.module_id)
+                .into_anchored(Some(self.profile));
+
+            // predeclare the vtable storage for this class
+            let vtable_global =
+                self.create_vtable_global(symbol, slots.len() as u64 + 2, anchor)?;
+            self.vtable_globals_by_symbol.insert(symbol, vtable_global);
+
+            // record vtable slot ids for virtual call metadata
             for (index, slot) in slots.iter().enumerate() {
                 let slot_id = index as u32 + 2;
                 self.virtual_method_slots_by_symbol
@@ -80,26 +115,20 @@ impl ModuleLowerer<'_> {
 
     /// Lower the vtable for a single class symbol.
     fn lower_vtable_for_class(&mut self, symbol: GlobalSymbolId) -> LowerResult<()> {
-        // collect a diagnostic anchor
-        let anchor = self
-            .declaration_ids_for_symbol(symbol)
-            .first()
-            .copied()
-            .map(|id| {
-                id.into_global_any(self.module_id)
-                    .into_anchored(Some(self.profile))
+        // resolve the declaration id for this class symbol
+        let declaration_id = self.declaration_ids_for_symbol(symbol).first().copied();
+        let Some(declaration_id) = declaration_id else {
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: format!("missing class declaration for vtable symbol {symbol:?}"),
             });
-        let Some(anchor) = anchor else {
-            return Ok(());
         };
+        let anchor = declaration_id
+            .into_global_any(self.module_id)
+            .into_anchored(Some(self.profile));
 
         // collect virtual methods in lineage order
         let virtual_slots = self.virtual_method_slots_for_class(symbol)?;
-
-        // skip when no virtual methods exist
-        if virtual_slots.is_empty() {
-            return Ok(());
-        }
 
         // resolve the class instance mir type
         let instance_type_id = self.types.get_instance_type_id(symbol).ok_or_else(|| {
@@ -139,15 +168,23 @@ impl ModuleLowerer<'_> {
 
         // insert the dispatch table
         let table_id = {
+            let vtable_global = self
+                .vtable_globals_by_symbol
+                .get(&symbol)
+                .copied()
+                .ok_or_else(|| LowerError::Internal {
+                    module: self.module_id,
+                    message: format!("missing vtable global for class {symbol:?}"),
+                })?;
             let table = mir::DispatchTable {
                 kind: mir::DispatchTableKind::Class { ty: mir_type },
-                global: None,
+                global: Some(vtable_global.global_id),
                 slots,
             };
             self.builder
                 .tree_mut()
                 .type_table
-                .dispatch_tables
+                .dispatch_registry
                 .insert(table)
         };
 
@@ -159,6 +196,38 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
+    /// Create the global backing storage for a class vtable.
+    fn create_vtable_global(
+        &mut self,
+        symbol: GlobalSymbolId,
+        slot_count: u64,
+        anchor: dir::AnchoredGlobalNodeId,
+    ) -> LowerResult<VtableGlobal> {
+        // build the qualified name for the vtable global
+        let base_name =
+            self.qualified_symbol_name(symbol)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "missing qualified name for vtable global".to_string(),
+                })?;
+        let name = format!("{base_name}{VTABLE_GLOBAL_SUFFIX}");
+
+        // allocate the vtable storage as an array of raw pointers
+        let slot_type = self.builder.type_raw_pointer(self.type_lowerer.ty_void);
+        let vtable_type = self
+            .builder
+            .type_array(slot_type, slot_count, mir::Copyability::Trivial);
+        let global_id =
+            self.builder
+                .global_constant(&name, vtable_type, mir::GlobalInitializer::zero());
+        let address_type = self.builder.type_raw_pointer(vtable_type);
+
+        Ok(VtableGlobal {
+            global_id,
+            address_type,
+        })
+    }
+
     /// Collect the class lineage from base to derived.
     pub(crate) fn collect_class_lineage(&self, symbol: GlobalSymbolId) -> Vec<GlobalSymbolId> {
         // walk the extends chain from derived to base
@@ -167,10 +236,15 @@ impl ModuleLowerer<'_> {
         let mut current = Some(symbol);
 
         while let Some(current_symbol) = current {
+            // stop on cycles
             if !seen.insert(current_symbol) {
                 break;
             }
+
+            // record the current symbol
             lineage.push(current_symbol);
+
+            // advance to the base class
             current = self
                 .types
                 .get_lineage_for_symbol(current_symbol)
@@ -194,6 +268,7 @@ impl ModuleLowerer<'_> {
         // scan members in declaration order
         for declaration_id in declaration_ids {
             let declaration = self.dir_tree.get(declaration_id);
+            // select the class members
             let members = match declaration {
                 dir::Declaration::Class { members, .. } => members,
                 _ => continue,
@@ -201,6 +276,7 @@ impl ModuleLowerer<'_> {
 
             for member_id in members {
                 let member = self.dir_tree.get(*member_id);
+                // skip non method members
                 let dir::Member::Method {
                     modifiers,
                     key,
@@ -225,6 +301,7 @@ impl ModuleLowerer<'_> {
                 let signature_type_id = self.method_signature_type_id(*member_id)?;
                 let key = VirtualMethodKey {
                     name,
+                    mode: signature.mode,
                     signature: signature_type_id,
                 };
 
@@ -276,18 +353,26 @@ impl ModuleLowerer<'_> {
         for class_symbol in lineage {
             let class_methods = self.collect_virtual_methods_for_class(class_symbol)?;
             for method in class_methods {
+                // find an existing slot with matching signature
                 let slot_index = virtual_slots
                     .iter()
                     .position(|slot: &VirtualMethodDescriptor| {
                         slot.key.name == method.key.name
-                            && self.types_are_equivalent(slot.key.signature, method.key.signature)
+                            && slot.key.mode == method.key.mode
+                            && self.method_signatures_equivalent(
+                                slot.key.signature,
+                                method.key.signature,
+                            )
                     });
 
                 match slot_index {
+                    // reuse the slot for overrides
                     Some(index) => {
                         virtual_slots[index] = method;
                     }
+                    // append a new slot for fresh methods
                     None => {
+                        // reject overrides without a base slot
                         if matches!(
                             method.abstraction,
                             FunctionAbstraction::ConcreteOverride
@@ -313,6 +398,7 @@ impl ModuleLowerer<'_> {
 
     /// Check whether a class has any virtual methods.
     pub(crate) fn class_has_virtual_methods(&self, symbol: GlobalSymbolId) -> LowerResult<bool> {
+        // report whether any slots exist
         let slots = self.virtual_method_slots_for_class(symbol)?;
         Ok(!slots.is_empty())
     }

@@ -2,6 +2,8 @@ use destack_base::StringId;
 
 use {destack_dir as dir, destack_mir as mir};
 
+use super::TypeLowerer;
+
 /// Layout policy for struct fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[allow(dead_code)]
@@ -13,6 +15,17 @@ pub(crate) enum LayoutPolicy {
     Source,
     /// C ABI compatible layout (for `@layout("C")` / FFI).
     C,
+}
+
+/// Classification for layout fields.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FieldLayoutKind {
+    /// Field derived from source declarations.
+    Source,
+    /// Synthetic vtable header field for class layouts.
+    VtableHeader,
+    /// Synthetic field derived from lowering.
+    Synthetic,
 }
 
 /// A computed struct layout with field offsets and total size.
@@ -43,6 +56,8 @@ pub(crate) struct FieldLayout {
     pub alignment: u32,
     /// Original source index (for mapping back to source order).
     pub source_index: Option<u32>,
+    /// Field classification for layout logic.
+    pub kind: FieldLayoutKind,
 }
 
 /// Input field for layout computation (before offsets are assigned).
@@ -59,6 +74,8 @@ pub(crate) struct FieldInput {
     pub alignment: u32,
     /// Original source index.
     pub source_index: Option<u32>,
+    /// Field classification for layout logic.
+    pub kind: FieldLayoutKind,
 }
 
 /// Convert a static key to a field name.
@@ -78,7 +95,7 @@ pub(crate) fn static_key_to_field_name(
                 }
                 dir::SymbolKey::Registry(s) => {
                     let key_str = builder.strings().get(*s);
-                    format!("@Symbol.for:{}", &*key_str)
+                    format!("@Symbol.for({})", &*key_str)
                 }
                 dir::SymbolKey::Unique(global_id) => format!("@Symbol#{global_id:?}"),
             };
@@ -120,212 +137,267 @@ impl StructLayout {
     }
 }
 
-/// Compute struct layout from a list of field inputs:
-/// - Optimized: sort by alignment (desc), size (desc), source order as tiebreaker
-/// - Source/C: preserve declaration order
-pub(crate) fn compute_struct_layout(
-    mut fields: Vec<FieldInput>,
-    policy: LayoutPolicy,
-) -> StructLayout {
-    if fields.is_empty() {
-        return StructLayout::empty();
+impl TypeLowerer {
+    /// Compute struct layout from a list of field inputs:
+    /// - Optimized: sort by alignment (desc), size (desc), source order as tiebreaker
+    /// - Source/C: preserve declaration order
+    pub(crate) fn compute_struct_layout(
+        &self,
+        mut fields: Vec<FieldInput>,
+        policy: LayoutPolicy,
+    ) -> StructLayout {
+        if fields.is_empty() {
+            return StructLayout::empty();
+        }
+
+        // sort fields according to policy
+        match policy {
+            LayoutPolicy::Optimized => {
+                // sort by alignment desc, then size desc, then source order asc
+                fields.sort_by(|a, b| {
+                    let a_source = (a.source_index.is_none(), a.source_index.unwrap_or_default());
+                    let b_source = (b.source_index.is_none(), b.source_index.unwrap_or_default());
+                    b.alignment
+                        .cmp(&a.alignment)
+                        .then_with(|| b.size.cmp(&a.size))
+                        .then_with(|| a_source.cmp(&b_source))
+                });
+            }
+            LayoutPolicy::Source | LayoutPolicy::C => {
+                // keep source order
+                fields.sort_by_key(|f| {
+                    (f.source_index.is_none(), f.source_index.unwrap_or_default())
+                });
+            }
+        }
+
+        // compute struct alignment (max of all field alignments)
+        let struct_alignment = fields.iter().map(|f| f.alignment).max().unwrap_or(1);
+
+        // assign offsets
+        let mut current_offset: u32 = 0;
+        let mut layout_fields = Vec::with_capacity(fields.len());
+
+        for field in fields {
+            // align current offset to field's alignment requirement
+            let aligned_offset = self.align_up(current_offset, field.alignment);
+            layout_fields.push(FieldLayout {
+                name: field.name,
+                ty: field.ty,
+                offset: aligned_offset,
+                size: field.size,
+                alignment: field.alignment,
+                source_index: field.source_index,
+                kind: field.kind,
+            });
+            current_offset = aligned_offset + field.size;
+        }
+
+        // add trailing padding to align struct size
+        let total_size = self.align_up(current_offset, struct_alignment);
+
+        StructLayout {
+            fields: layout_fields,
+            size: total_size,
+            alignment: struct_alignment,
+        }
     }
 
-    // sort fields according to policy
-    match policy {
-        LayoutPolicy::Optimized => {
-            // sort by alignment desc, then size desc, then source order asc
-            fields.sort_by(|a, b| {
-                let a_source = (a.source_index.is_none(), a.source_index.unwrap_or_default());
-                let b_source = (b.source_index.is_none(), b.source_index.unwrap_or_default());
-                b.alignment
-                    .cmp(&a.alignment)
-                    .then_with(|| b.size.cmp(&a.size))
-                    .then_with(|| a_source.cmp(&b_source))
+    /// Compute struct layout with a fixed prefix field at offset zero.
+    pub(crate) fn compute_struct_layout_with_prefix(
+        &self,
+        prefix: FieldInput,
+        fields: Vec<FieldInput>,
+        policy: LayoutPolicy,
+    ) -> StructLayout {
+        if fields.is_empty() {
+            let size = self.align_up(prefix.size, prefix.alignment);
+            return StructLayout {
+                fields: vec![FieldLayout {
+                    name: prefix.name,
+                    ty: prefix.ty,
+                    offset: 0,
+                    size: prefix.size,
+                    alignment: prefix.alignment,
+                    source_index: prefix.source_index,
+                    kind: prefix.kind,
+                }],
+                size,
+                alignment: prefix.alignment,
+            };
+        }
+
+        let rest_layout = self.compute_struct_layout(fields, policy);
+        let base_offset = self.align_up(prefix.size, rest_layout.alignment);
+        let alignment = prefix.alignment.max(rest_layout.alignment);
+
+        let mut merged_fields = Vec::with_capacity(rest_layout.fields.len() + 1);
+        merged_fields.push(FieldLayout {
+            name: prefix.name,
+            ty: prefix.ty,
+            offset: 0,
+            size: prefix.size,
+            alignment: prefix.alignment,
+            source_index: prefix.source_index,
+            kind: prefix.kind,
+        });
+
+        for field in rest_layout.fields {
+            merged_fields.push(FieldLayout {
+                name: field.name,
+                ty: field.ty,
+                offset: base_offset + field.offset,
+                size: field.size,
+                alignment: field.alignment,
+                source_index: field.source_index,
+                kind: field.kind,
             });
         }
-        LayoutPolicy::Source | LayoutPolicy::C => {
-            // keep source order
-            fields.sort_by_key(|f| (f.source_index.is_none(), f.source_index.unwrap_or_default()));
-        }
-    }
 
-    // compute struct alignment (max of all field alignments)
-    let struct_alignment = fields.iter().map(|f| f.alignment).max().unwrap_or(1);
+        let size = self.align_up(base_offset + rest_layout.size, alignment);
 
-    // assign offsets
-    let mut current_offset: u32 = 0;
-    let mut layout_fields = Vec::with_capacity(fields.len());
-
-    for field in fields {
-        // align current offset to field's alignment requirement
-        let aligned_offset = align_up(current_offset, field.alignment);
-        layout_fields.push(FieldLayout {
-            name: field.name,
-            ty: field.ty,
-            offset: aligned_offset,
-            size: field.size,
-            alignment: field.alignment,
-            source_index: field.source_index,
-        });
-        current_offset = aligned_offset + field.size;
-    }
-
-    // add trailing padding to align struct size
-    let total_size = align_up(current_offset, struct_alignment);
-
-    StructLayout {
-        fields: layout_fields,
-        size: total_size,
-        alignment: struct_alignment,
-    }
-}
-
-/// Compute struct layout with a fixed prefix field at offset zero.
-pub(crate) fn compute_struct_layout_with_prefix(
-    prefix: FieldInput,
-    fields: Vec<FieldInput>,
-    policy: LayoutPolicy,
-) -> StructLayout {
-    if fields.is_empty() {
-        let size = align_up(prefix.size, prefix.alignment);
-        return StructLayout {
-            fields: vec![FieldLayout {
-                name: prefix.name,
-                ty: prefix.ty,
-                offset: 0,
-                size: prefix.size,
-                alignment: prefix.alignment,
-                source_index: prefix.source_index,
-            }],
+        StructLayout {
+            fields: merged_fields,
             size,
-            alignment: prefix.alignment,
-        };
+            alignment,
+        }
     }
 
-    let rest_layout = compute_struct_layout(fields, policy);
-    let base_offset = align_up(prefix.size, rest_layout.alignment);
-    let alignment = prefix.alignment.max(rest_layout.alignment);
+    /// Compute struct layout with an existing layout prefix.
+    pub(crate) fn compute_struct_layout_with_base(
+        &self,
+        base: StructLayout,
+        fields: Vec<FieldInput>,
+        policy: LayoutPolicy,
+    ) -> StructLayout {
+        // return the base layout when there are no new fields
+        if fields.is_empty() {
+            return base;
+        }
 
-    let mut merged_fields = Vec::with_capacity(rest_layout.fields.len() + 1);
-    merged_fields.push(FieldLayout {
-        name: prefix.name,
-        ty: prefix.ty,
-        offset: 0,
-        size: prefix.size,
-        alignment: prefix.alignment,
-        source_index: prefix.source_index,
-    });
+        // compute the layout for the new fields
+        let rest_layout = self.compute_struct_layout(fields, policy);
 
-    for field in rest_layout.fields {
-        merged_fields.push(FieldLayout {
-            name: field.name,
-            ty: field.ty,
-            offset: base_offset + field.offset,
-            size: field.size,
-            alignment: field.alignment,
-            source_index: field.source_index,
-        });
+        // align the derived fields after the base layout
+        let base_offset = self.align_up(base.size, rest_layout.alignment);
+        let alignment = base.alignment.max(rest_layout.alignment);
+
+        // merge the base and derived layouts
+        let mut merged_fields = Vec::with_capacity(base.fields.len() + rest_layout.fields.len());
+        merged_fields.extend(base.fields);
+        for field in rest_layout.fields {
+            merged_fields.push(FieldLayout {
+                name: field.name,
+                ty: field.ty,
+                offset: base_offset + field.offset,
+                size: field.size,
+                alignment: field.alignment,
+                source_index: field.source_index,
+                kind: field.kind,
+            });
+        }
+
+        // compute the combined size with trailing padding
+        let size = self.align_up(base_offset + rest_layout.size, alignment);
+
+        // return the merged layout
+        StructLayout {
+            fields: merged_fields,
+            size,
+            alignment,
+        }
     }
 
-    let size = align_up(base_offset + rest_layout.size, alignment);
-
-    StructLayout {
-        fields: merged_fields,
-        size,
-        alignment,
+    /// Align a value up to the given alignment.
+    /// Alignment must be a power of 2.
+    #[inline]
+    fn align_up(&self, value: u32, alignment: u32) -> u32 {
+        debug_assert!(alignment.is_power_of_two(), "alignment must be power of 2");
+        (value + alignment - 1) & !(alignment - 1)
     }
-}
 
-/// Align a value up to the given alignment.
-/// Alignment must be a power of 2.
-#[inline]
-pub(crate) fn align_up(value: u32, alignment: u32) -> u32 {
-    debug_assert!(alignment.is_power_of_two(), "alignment must be power of 2");
-    (value + alignment - 1) & !(alignment - 1)
-}
-
-/// Get the size and alignment for a MIR type.
-/// Returns (size, alignment) in bytes.
-pub(crate) fn size_and_align_of_type(
-    ty: &mir::Type,
-    tree: &mir::NodeTree,
-    pointer_bytes: u8,
-) -> (u32, u32) {
-    match ty {
-        mir::Type::Void => (0, 1),
-        mir::Type::Boolean => (1, 1),
-        mir::Type::Int { width, .. } => {
-            let bytes = u32::from(*width).div_ceil(8);
-            // natural alignment: min(size, 8) for most ABIs
-            let align = bytes.min(8);
-            (bytes, align)
-        }
-        mir::Type::Isize | mir::Type::Usize => {
-            let bytes = pointer_bytes as u32;
-            let align = bytes.min(8);
-            (bytes, align)
-        }
-        mir::Type::Float { width } => {
-            let bytes = u32::from(*width).div_ceil(8);
-            let align = bytes.min(8);
-            (bytes, align)
-        }
-        mir::Type::TypeTag | mir::Type::Reference { .. } => {
-            let bytes = pointer_bytes as u32;
-            (bytes, bytes)
-        }
-        mir::Type::Array {
-            element,
-            length,
-            copyability: _,
-        } => {
-            let element_ty = tree.get(*element);
-            let (elem_size, elem_align) = size_and_align_of_type(element_ty, tree, pointer_bytes);
-            (elem_size * (*length as u32), elem_align)
-        }
-        mir::Type::Tuple {
-            elements,
-            copyability: _,
-        } => {
-            // tuple layout is like a struct with anonymous fields
-            let mut max_align: u32 = 1;
-            let mut current_offset: u32 = 0;
-
-            for elem_id in elements {
-                let elem_ty = tree.get(*elem_id);
-                let (elem_size, elem_align) = size_and_align_of_type(elem_ty, tree, pointer_bytes);
-                max_align = max_align.max(elem_align);
-                current_offset = align_up(current_offset, elem_align) + elem_size;
+    /// Get the size and alignment for a MIR type.
+    /// Returns (size, alignment) in bytes.
+    pub(crate) fn size_and_align_of_type(
+        &self,
+        ty: &mir::Type,
+        tree: &mir::NodeTree,
+    ) -> (u32, u32) {
+        let pointer_bytes = self.pointer_bytes();
+        match ty {
+            mir::Type::Void => (0, 1),
+            mir::Type::Boolean => (1, 1),
+            mir::Type::Int { width, .. } => {
+                let bytes = u32::from(*width).div_ceil(8);
+                // natural alignment: min(size, 8) for most ABIs
+                let align = bytes.min(8);
+                (bytes, align)
             }
-
-            let total_size = align_up(current_offset, max_align);
-            (total_size, max_align)
-        }
-        mir::Type::Struct {
-            fields,
-            copyability: _,
-        } => {
-            // for already laid out structs, compute from field info
-            let mut max_align: u32 = 1;
-            let mut max_end: u32 = 0;
-
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                let field_ty = tree.get(field.ty);
-                let (field_size, field_align) =
-                    size_and_align_of_type(field_ty, tree, pointer_bytes);
-                max_align = max_align.max(field_align);
-                max_end = max_end.max(field.offset + field_size);
+            mir::Type::Isize | mir::Type::Usize => {
+                let bytes = pointer_bytes as u32;
+                let align = bytes.min(8);
+                (bytes, align)
             }
+            mir::Type::Float { width } => {
+                let bytes = u32::from(*width).div_ceil(8);
+                let align = bytes.min(8);
+                (bytes, align)
+            }
+            mir::Type::Type | mir::Type::Reference { .. } => {
+                let bytes = pointer_bytes as u32;
+                (bytes, bytes)
+            }
+            mir::Type::Array {
+                element,
+                length,
+                copyability: _,
+            } => {
+                let element_ty = tree.get(*element);
+                let (elem_size, elem_align) = self.size_and_align_of_type(element_ty, tree);
+                (elem_size * (*length as u32), elem_align)
+            }
+            mir::Type::Tuple {
+                elements,
+                copyability: _,
+            } => {
+                // tuple layout is like a struct with anonymous fields
+                let mut max_align: u32 = 1;
+                let mut current_offset: u32 = 0;
 
-            let total_size = align_up(max_end, max_align);
-            (total_size, max_align)
-        }
-        mir::Type::FunctionPointer { .. } => {
-            // function pointers are pointer sized
-            let bytes = pointer_bytes as u32;
-            (bytes, bytes)
+                for elem_id in elements {
+                    let elem_ty = tree.get(*elem_id);
+                    let (elem_size, elem_align) = self.size_and_align_of_type(elem_ty, tree);
+                    max_align = max_align.max(elem_align);
+                    current_offset = self.align_up(current_offset, elem_align) + elem_size;
+                }
+
+                let total_size = self.align_up(current_offset, max_align);
+                (total_size, max_align)
+            }
+            mir::Type::Struct {
+                fields,
+                copyability: _,
+            } => {
+                // for already laid out structs, compute from field info
+                let mut max_align: u32 = 1;
+                let mut max_end: u32 = 0;
+
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    let field_ty = tree.get(field.ty);
+                    let (field_size, field_align) = self.size_and_align_of_type(field_ty, tree);
+                    max_align = max_align.max(field_align);
+                    max_end = max_end.max(field.offset + field_size);
+                }
+
+                let total_size = self.align_up(max_end, max_align);
+                (total_size, max_align)
+            }
+            mir::Type::FunctionPointer { .. } => {
+                // function pointers are pointer sized
+                let bytes = pointer_bytes as u32;
+                (bytes, bytes)
+            }
         }
     }
 }
@@ -334,23 +406,35 @@ pub(crate) fn size_and_align_of_type(
 mod tests {
     use super::*;
     use destack_base::StringPool;
+    use destack_workspace::{ModuleRegistry, PackageRegistry};
+    use std::sync::Arc;
+
+    /// Create a type lowerer for layout tests.
+    fn test_lowerer() -> TypeLowerer {
+        let mut builder = mir::ModuleBuilder::new();
+        let modules = Arc::new(ModuleRegistry::new());
+        let packages = Arc::new(PackageRegistry::new());
+        TypeLowerer::new(&mut builder, 8, modules, packages)
+    }
 
     /// Align value up to alignment boundary.
     #[test]
     fn test_align_up() {
-        assert_eq!(align_up(0, 4), 0);
-        assert_eq!(align_up(1, 4), 4);
-        assert_eq!(align_up(4, 4), 4);
-        assert_eq!(align_up(5, 4), 8);
-        assert_eq!(align_up(7, 8), 8);
-        assert_eq!(align_up(8, 8), 8);
-        assert_eq!(align_up(9, 8), 16);
+        let lowerer = test_lowerer();
+        assert_eq!(lowerer.align_up(0, 4), 0);
+        assert_eq!(lowerer.align_up(1, 4), 4);
+        assert_eq!(lowerer.align_up(4, 4), 4);
+        assert_eq!(lowerer.align_up(5, 4), 8);
+        assert_eq!(lowerer.align_up(7, 8), 8);
+        assert_eq!(lowerer.align_up(8, 8), 8);
+        assert_eq!(lowerer.align_up(9, 8), 16);
     }
 
     /// Empty struct has zero size and alignment 1.
     #[test]
     fn test_empty_struct() {
-        let layout = compute_struct_layout(vec![], LayoutPolicy::Optimized);
+        let lowerer = test_lowerer();
+        let layout = lowerer.compute_struct_layout(vec![], LayoutPolicy::Optimized);
         assert_eq!(layout.size, 0);
         assert_eq!(layout.alignment, 1);
         assert!(layout.fields.is_empty());
@@ -364,7 +448,7 @@ mod tests {
         let b = strings.intern("b");
         let c = strings.intern("c");
 
-        // create a dummy type id (we only care about layout, not the actual type)
+        // create a dummy type id for layout only
         let dummy_ty = mir::LocalNodeId::new(0);
 
         // fields: a (1 byte, align 1), b (4 bytes, align 4), c (2 bytes, align 2)
@@ -375,6 +459,7 @@ mod tests {
                 size: 1,
                 alignment: 1,
                 source_index: Some(0),
+                kind: FieldLayoutKind::Source,
             },
             FieldInput {
                 name: b,
@@ -382,6 +467,7 @@ mod tests {
                 size: 4,
                 alignment: 4,
                 source_index: Some(1),
+                kind: FieldLayoutKind::Source,
             },
             FieldInput {
                 name: c,
@@ -389,10 +475,12 @@ mod tests {
                 size: 2,
                 alignment: 2,
                 source_index: Some(2),
+                kind: FieldLayoutKind::Source,
             },
         ];
 
-        let layout = compute_struct_layout(fields, LayoutPolicy::Optimized);
+        let lowerer = test_lowerer();
+        let layout = lowerer.compute_struct_layout(fields, LayoutPolicy::Optimized);
 
         // should be sorted: b (align 4), c (align 2), a (align 1)
         assert_eq!(layout.fields.len(), 3);
@@ -427,6 +515,7 @@ mod tests {
                 size: 1,
                 alignment: 1,
                 source_index: Some(0),
+                kind: FieldLayoutKind::Source,
             },
             FieldInput {
                 name: b,
@@ -434,10 +523,12 @@ mod tests {
                 size: 4,
                 alignment: 4,
                 source_index: Some(1),
+                kind: FieldLayoutKind::Source,
             },
         ];
 
-        let layout = compute_struct_layout(fields, LayoutPolicy::Source);
+        let lowerer = test_lowerer();
+        let layout = lowerer.compute_struct_layout(fields, LayoutPolicy::Source);
 
         // should preserve order: a, b
         assert_eq!(layout.fields[0].name, a);
@@ -496,6 +587,6 @@ mod tests {
 
         let result = static_key_to_field_name(&key, &mut builder);
         let result_str = builder.strings().get(result);
-        assert_eq!(&*result_str, "@Symbol.for:myKey");
+        assert_eq!(&*result_str, "@Symbol.for(myKey)");
     }
 }

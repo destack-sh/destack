@@ -849,10 +849,13 @@ impl Compiler {
             dir::StaticExpression::Type { ty } => {
                 self.unbind_span(module, types.get_type_source(*ty))
             }
-            _ => self.unbind_span(
-                module,
-                dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
-            ),
+            _ => {
+                // FUGU #Broken: replace placeholder nodes
+                self.unbind_span(
+                    module,
+                    dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
+                )
+            }
         };
 
         // lower the static value expression
@@ -900,7 +903,7 @@ impl Compiler {
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Expression> {
-        // use a synthetic span for static expressions
+        // FUGU #Broken: replace placeholder nodes
         let span = self.unbind_span(
             module,
             dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
@@ -1337,7 +1340,7 @@ impl Compiler {
         ast_strings: &mut StringPool,
         _context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Expression> {
-        // use a synthetic span for symbol keys
+        // FUGU #Broken: replace placeholder nodes
         let span = self.unbind_span(
             module,
             dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),

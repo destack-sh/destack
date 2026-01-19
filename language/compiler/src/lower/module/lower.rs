@@ -9,6 +9,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::LowerResult;
 
 use crate::lower::item::GlobalBinding;
+use crate::lower::table::VtableGlobal;
 use crate::lower::table::interface::InterfaceDispatchCache;
 use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
 
@@ -39,6 +40,9 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) builder: mir::ModuleBuilder,
     /// Map DIR symbols to MIR function ids.
     pub(crate) functions_by_symbol: HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+    /// Map MIR function ids to their signature types.
+    pub(crate) function_signature_types:
+        HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
     /// Map DIR symbols to MIR global bindings.
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
     /// Lower and cache DIR types into MIR types.
@@ -49,10 +53,14 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
+    /// Synthetic name for vtable header fields.
+    pub(crate) vtable_field_name: destack_base::StringId,
     /// Virtual dispatch slot ids keyed by method symbol.
     pub(crate) virtual_method_slots_by_symbol: HashMap<GlobalSymbolId, u32>,
     /// Ordered list of class symbols that require vtables.
     pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
+    /// Predeclared vtable globals keyed by class symbol.
+    pub(crate) vtable_globals_by_symbol: HashMap<GlobalSymbolId, VtableGlobal>,
     /// Ordered interface itab pairs for deterministic table ids.
     pub(crate) interface_itab_pairs: Vec<(GlobalSymbolId, GlobalSymbolId)>,
     /// Precomputed itab ids keyed by concrete and interface symbols.
@@ -89,6 +97,7 @@ impl<'a> ModuleLowerer<'a> {
         );
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
+        let vtable_field_name = builder.intern("@vtable");
 
         Self {
             compiler,
@@ -102,13 +111,16 @@ impl<'a> ModuleLowerer<'a> {
             target,
             builder,
             functions_by_symbol: HashMap::new(),
+            function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
             type_lowerer,
             interface_dispatch: InterfaceDispatchCache::new(),
             dispatch_call_name,
             dispatch_construct_name,
+            vtable_field_name,
             virtual_method_slots_by_symbol: HashMap::new(),
             vtable_class_symbols: Vec::new(),
+            vtable_globals_by_symbol: HashMap::new(),
             interface_itab_pairs: Vec::new(),
             interface_itab_ids: HashMap::new(),
         }
@@ -156,14 +168,18 @@ impl<'a> ModuleLowerer<'a> {
     ///
     /// Processes all root expressions to lower globals and function bodies.
     fn lower_items(&mut self) -> LowerResult<()> {
+        // predeclare dispatch tables and interface metadata
         self.predeclare_virtual_dispatch()?;
         self.predeclare_itab_ids()?;
         self.predeclare_interface_methods()?;
         self.predeclare_interface_dispatch()?;
         self.predeclare_external_calls()?;
+
+        // lower root expressions for globals and bodies
         for expression_id in self.dir_roots.iter().copied() {
             self.lower_root_expression(expression_id)?;
         }
+
         Ok(())
     }
 

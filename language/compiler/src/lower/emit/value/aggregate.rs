@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use destack_dir::{AnchoredGlobalNodeId, Expression, LocalNodeId};
+use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, LocalNodeId};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult, StructLayout};
+use crate::{FieldLayout, FieldLayoutKind, LowerError, LowerResult, StructLayout};
 
 use crate::lower::emit::FunctionContext;
 
@@ -141,6 +141,7 @@ impl FunctionContext<'_> {
 
                     field_values[field_index] = Some(value);
                 }
+                // reject spread properties
                 dir::Property::Spread { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -149,6 +150,7 @@ impl FunctionContext<'_> {
                         message: "spread properties not yet supported".to_string(),
                     });
                 }
+                // reject method properties
                 dir::Property::Method { .. } => {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -160,10 +162,19 @@ impl FunctionContext<'_> {
             }
         }
 
-        // fill synthetic fields with zero values
+        // resolve class symbols for vtable header defaults
+        let class_symbol = self
+            .dir_type_for_expression(expression_id)
+            .and_then(|type_id| self.class_symbol_for_type(type_id));
+
+        // fill synthetic fields with default values
+        let mut vtable_value = None;
         for (index, field) in layout.fields.iter().enumerate() {
-            if field.source_index.is_none() && field_values[index].is_none() {
-                field_values[index] = Some(self.zero_value_for_type(field.ty, node)?);
+            // fill synthetic fields that are not initialized
+            if field.kind != FieldLayoutKind::Source && field_values[index].is_none() {
+                let value =
+                    self.default_field_value(field, class_symbol, node, &mut vtable_value)?;
+                field_values[index] = Some(value);
             }
         }
 
@@ -206,17 +217,12 @@ impl FunctionContext<'_> {
             });
         }
 
-        // get the instance type from type inference
-        let result_type = self.mir_type_for_expression(expression_id)?;
-        let (instance_type, reference_kind) = match self.state.builder.tree().get(result_type) {
-            mir::Type::Reference { kind, pointee, .. } => (*pointee, Some(*kind)),
-            _ => (result_type, None),
-        };
-
         // call explicit constructors when present
         if let Some(constructor_id) = self.explicit_constructor_member_for_expression(expression_id)
         {
+            // load the constructor member
             let constructor = self.env.dir_tree.get(constructor_id);
+            // require a constructor method member
             let dir::Member::Method { symbol, .. } = constructor else {
                 return Err(LowerError::UnsupportedConstruct {
                     node: constructor_id
@@ -238,10 +244,14 @@ impl FunctionContext<'_> {
                     message: "missing constructor function".to_string(),
                 })?;
 
+            // resolve the call signature
+            let signature = self.signature_type_for_function(expression_id, function_id)?;
+
             // lower constructor arguments
             let mut arguments = Vec::with_capacity(dynamic_arguments.len());
             for argument_id in dynamic_arguments {
                 let argument = self.env.dir_tree.get(*argument_id);
+                // reject non positional constructor arguments
                 if !matches!(argument, dir::Argument::Positional { .. }) {
                     return Err(LowerError::UnsupportedConstruct {
                         node: expression_id
@@ -258,7 +268,7 @@ impl FunctionContext<'_> {
             let value = self
                 .state
                 .builder
-                .call(function_id, arguments)
+                .call(function_id, signature, arguments)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.env.module_id)
@@ -266,8 +276,17 @@ impl FunctionContext<'_> {
                     message: "constructor returned no value".to_string(),
                 })?;
 
-            return Ok((value, result_type));
+            // return the constructor value as-is
+            let constructor_return_type = self.state.builder.tree().get(function_id).return_type;
+            return Ok((value, constructor_return_type));
         }
+
+        // get the instance type from type inference
+        let result_type = self.mir_type_for_expression(expression_id)?;
+        let (instance_type, reference_kind) = match self.state.builder.tree().get(result_type) {
+            mir::Type::Reference { kind, pointee, .. } => (*pointee, Some(*kind)),
+            _ => (result_type, None),
+        };
 
         // get the cached layout for this struct type
         let layout = self.env.type_lowerer.layout_for_type_or_error(
@@ -281,8 +300,10 @@ impl FunctionContext<'_> {
         let field_count = layout
             .fields
             .iter()
-            .filter(|field| field.source_index.is_some())
+            .filter(|field| field.kind == FieldLayoutKind::Source)
             .count();
+
+        // reject mismatched argument counts
         if dynamic_arguments.len() != field_count {
             return Err(LowerError::UnsupportedConstruct {
                 node: expression_id
@@ -296,6 +317,7 @@ impl FunctionContext<'_> {
         let mut field_values: Vec<Option<mir::Value>> = vec![None; layout.fields.len()];
         for (source_index, argument_id) in dynamic_arguments.iter().enumerate() {
             let argument = self.env.dir_tree.get(*argument_id);
+            // reject non positional constructor arguments
             let dir::Argument::Positional { value, .. } = argument else {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -332,13 +354,22 @@ impl FunctionContext<'_> {
             field_values[layout_index] = Some(value);
         }
 
-        // fill synthetic fields with zero values
+        // resolve class symbols for vtable header defaults
+        let class_symbol = self
+            .dir_type_for_expression(expression_id)
+            .and_then(|type_id| self.class_symbol_for_type(type_id));
+
+        // fill synthetic fields with default values
+        let node = expression_id
+            .into_global_any(self.env.module_id)
+            .into_anchored(Some(self.env.profile));
+        let mut vtable_value = None;
         for (index, field) in layout.fields.iter().enumerate() {
-            if field.source_index.is_none() && field_values[index].is_none() {
-                let node = expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile));
-                field_values[index] = Some(self.zero_value_for_type(field.ty, node)?);
+            // fill synthetic fields that are not initialized
+            if field.kind != FieldLayoutKind::Source && field_values[index].is_none() {
+                let value =
+                    self.default_field_value(field, class_symbol, node, &mut vtable_value)?;
+                field_values[index] = Some(value);
             }
         }
 
@@ -358,12 +389,14 @@ impl FunctionContext<'_> {
 
         // construct the struct
         let instance_value = self.state.builder.struct_(instance_type, values);
+        // allocate when returning a managed reference
         let value = match reference_kind {
             Some(mir::ReferenceKind::Managed) => {
                 let pointer = self.state.builder.managed_alloc(instance_type, result_type);
                 self.state.builder.store(pointer, instance_value);
                 pointer
             }
+            // reject unsupported reference kinds
             Some(_) => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -372,6 +405,7 @@ impl FunctionContext<'_> {
                     message: "unsupported reference kind for constructor".to_string(),
                 });
             }
+            // return by value when no reference wrapper is present
             None => instance_value,
         };
         Ok((value, result_type))
@@ -429,7 +463,7 @@ impl FunctionContext<'_> {
                 })?;
                 self.state.builder.fconst(0.0, width)
             }
-            mir::Type::Isize | mir::Type::Usize | mir::Type::TypeTag => {
+            mir::Type::Isize | mir::Type::Usize | mir::Type::Type => {
                 let pointer_bits = self.env.type_lowerer.pointer_width_bits();
                 let width =
                     u8::try_from(pointer_bits).map_err(|_| LowerError::UnsupportedConstruct {
@@ -490,6 +524,55 @@ impl FunctionContext<'_> {
         Ok(value)
     }
 
+    /// Build a default value for a struct layout with vtable headers populated.
+    pub(crate) fn default_struct_value_for_layout(
+        &mut self,
+        struct_type: mir::LocalNodeId<mir::Type>,
+        layout: &StructLayout,
+        class_symbol: Option<GlobalSymbolId>,
+        node: AnchoredGlobalNodeId,
+    ) -> LowerResult<mir::Value> {
+        // initialize values in layout order
+        let mut values = Vec::with_capacity(layout.fields.len());
+        let mut vtable_value = None;
+        for field in &layout.fields {
+            let value = self.default_field_value(field, class_symbol, node, &mut vtable_value)?;
+            values.push(value);
+        }
+
+        Ok(self.state.builder.struct_(struct_type, values))
+    }
+
+    /// Build the default value for a layout field.
+    fn default_field_value(
+        &mut self,
+        field: &FieldLayout,
+        class_symbol: Option<GlobalSymbolId>,
+        node: AnchoredGlobalNodeId,
+        vtable_value: &mut Option<mir::Value>,
+    ) -> LowerResult<mir::Value> {
+        // use the vtable pointer for header fields
+        if field.kind == FieldLayoutKind::VtableHeader {
+            let class_symbol = class_symbol.ok_or_else(|| LowerError::UnsupportedConstruct {
+                node,
+                message: "vtable field missing class symbol".to_string(),
+            })?;
+
+            // reuse the cached vtable pointer when available
+            if let Some(value) = vtable_value {
+                return Ok(*value);
+            }
+
+            // compute and cache the vtable pointer
+            let value = self.vtable_pointer_for_class(class_symbol, node, field.ty)?;
+            *vtable_value = Some(value);
+            return Ok(value);
+        }
+
+        // fall back to type zero values
+        self.zero_value_for_type(field.ty, node)
+    }
+
     /// Resolve a property key to a field index in the struct using the cached layout.
     fn resolve_property_key_to_field_index(
         &self,
@@ -511,7 +594,7 @@ impl FunctionContext<'_> {
                     })
             }
             dir::DynamicKey::Number(num_str) => {
-                // numeric key - parse as source index, then map to layout index
+                // parse numeric key as source index
                 let index_str = self.env.strings.get(*num_str);
                 let source_index: u32 =
                     index_str
@@ -522,6 +605,7 @@ impl FunctionContext<'_> {
                                 .into_anchored(Some(self.env.profile)),
                             message: "invalid numeric field key".to_string(),
                         })?;
+                // map source index to layout index
                 layout
                     .field_index_by_source(source_index)
                     .map(|i| i as usize)
@@ -533,6 +617,7 @@ impl FunctionContext<'_> {
                     })
             }
             dir::DynamicKey::Expression(_) | dir::DynamicKey::NamedExpression { .. } => {
+                // reject computed property keys
                 Err(LowerError::UnsupportedConstruct {
                     node: expression_id
                         .into_global_any(self.env.module_id)
@@ -548,8 +633,18 @@ impl FunctionContext<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<LocalNodeId<dir::Member>> {
+        // prefer the constructor symbol from the new expression target
+        if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)
+            && target_symbol.module_id == self.env.module_id
+            && let Some(constructor) = self.explicit_constructor_member_for_symbol(target_symbol)
+        {
+            return Some(constructor);
+        }
+
         // resolve the nominal symbol for constructor lookup
         let type_id = self.dir_type_for_expression(expression_id)?;
+        let type_id = self.unwrap_value_type_id(type_id);
+        // require a nominal reference type
         let symbol = match self.env.types.get_type(type_id) {
             dir::Type::Reference { symbol, .. } => *symbol,
             _ => return None,
@@ -563,6 +658,23 @@ impl FunctionContext<'_> {
         self.explicit_constructor_member_for_symbol(symbol)
     }
 
+    /// Resolve the target symbol for a new expression when it is a simple reference.
+    fn constructor_target_symbol_for_expression(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> Option<GlobalSymbolId> {
+        let Expression::New { left, .. } = self.env.dir_tree.get(expression_id) else {
+            return None;
+        };
+
+        match self.env.dir_tree.get(*left) {
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
+            _ => None,
+        }
+    }
+
     /// Find explicit constructor members for a nominal symbol.
     fn explicit_constructor_member_for_symbol(
         &self,
@@ -572,6 +684,7 @@ impl FunctionContext<'_> {
         let declaration_ids = self.declaration_ids_for_symbol(symbol);
         for declaration_id in declaration_ids {
             let declaration = self.env.dir_tree.get(declaration_id);
+            // select struct or class members
             let members = match declaration {
                 dir::Declaration::Struct { members, .. }
                 | dir::Declaration::Class { members, .. } => members,
