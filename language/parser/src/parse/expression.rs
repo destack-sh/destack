@@ -1552,8 +1552,8 @@ impl Parser {
                     break;
                 }
             }
-            // maybe or ternary if
-            // (like `x?`, `x.?`, `x?.` or `cond ? then : else`)
+            // optional chaining or type conditional boundary
+            // (like `x?`, `x.?`, `x?.`)
             else if self.peek_token(TokenType::Maybe).is_ok()
                 || self.peek_token(TokenType::Dot).is_ok()
                     && self.peek_next_token(TokenType::Maybe).is_ok()
@@ -1604,66 +1604,41 @@ impl Parser {
                         self.get_span_from(start),
                     );
                 }
-                // ternary if (we already have the condition)
+                // type conditional expressions in type contexts
                 else {
-                    if self.options.in_type && !is_type_conditional {
+                    if !self.options.in_type || !is_type_conditional {
                         break;
                     }
 
                     self.bump(); // eat ?
                     self.eat_newlines_maybe()?;
-                    if self.options.in_type {
-                        let Some((left, right)) = type_conditional_operands else {
-                            break;
-                        };
-                        // type conditional expression
-                        let then_expression_id = self.with_options(
-                            self.options
-                                .not_in_position()
-                                .in_type()
-                                .in_ternary_condition(),
-                            |parser| parser.eat_expression(),
-                        )?;
-                        self.eat_newlines_maybe()?;
-                        self.eat_colon()?;
-                        self.eat_newlines_maybe()?;
-                        let mut else_options = self.options.not_in_position().in_type();
-                        if self.options.in_type_conditional_right {
-                            else_options = else_options.in_type_conditional_right();
-                        }
-                        let else_expression_id =
-                            self.with_options(else_options, |parser| parser.eat_expression())?;
-                        let expression = Expression::TypeConditional {
-                            left,
-                            right,
-                            then_type: then_expression_id,
-                            else_type: else_expression_id,
-                        };
-                        left_expression_id =
-                            self.tree.insert(expression, self.get_span_from(start));
-                    } else {
-                        let then_expression_id = self.with_options(
-                            self.options.not_in_position().in_ternary_condition(),
-                            |parser| parser.eat_expression(),
-                        )?;
-                        self.eat_newlines_maybe()?;
-                        self.eat_colon()?;
-                        self.eat_newlines_maybe()?;
-                        let else_expression_id = self
-                            .with_options(self.options.not_in_position(), |parser| {
-                                parser.eat_expression()
-                            })?;
-                        let expression = Expression::If {
-                            kind: IfKind::Ternary,
-                            condition: IfCondition::Expression {
-                                condition: left_expression_id,
-                            },
-                            then_expression: then_expression_id,
-                            else_expression: Some(else_expression_id),
-                        };
-                        left_expression_id =
-                            self.tree.insert(expression, self.get_span_from(start));
+                    let Some((left, right)) = type_conditional_operands else {
+                        break;
+                    };
+                    // type conditional expression
+                    let then_expression_id = self.with_options(
+                        self.options
+                            .not_in_position()
+                            .in_type()
+                            .in_ternary_condition(),
+                        |parser| parser.eat_expression(),
+                    )?;
+                    self.eat_newlines_maybe()?;
+                    self.eat_colon()?;
+                    self.eat_newlines_maybe()?;
+                    let mut else_options = self.options.not_in_position().in_type();
+                    if self.options.in_type_conditional_right {
+                        else_options = else_options.in_type_conditional_right();
                     }
+                    let else_expression_id =
+                        self.with_options(else_options, |parser| parser.eat_expression())?;
+                    let expression = Expression::TypeConditional {
+                        left,
+                        right,
+                        then_type: then_expression_id,
+                        else_type: else_expression_id,
+                    };
+                    left_expression_id = self.tree.insert(expression, self.get_span_from(start));
                 }
             }
             // must
@@ -1832,6 +1807,38 @@ impl Parser {
 
             // set main span to the operator
             self.tree.set_main_span(left_expression_id, operator_span)
+        }
+
+        // value ternary after infix to keep lowest precedence
+        // NOTE #Cleanup: having multiple ternary parse locations feels icky (but non-trivial to "fix")
+        if !self.options.in_type
+            && self.options.left_precedence.is_none()
+            && (self.peek_token(TokenType::Maybe).is_ok()
+                || self.peek_newline().is_ok() && self.peek_next_token(TokenType::Maybe).is_ok())
+        {
+            self.eat_newlines_maybe()?;
+            self.bump(); // eat ?
+            self.eat_newlines_maybe()?;
+            let then_expression_id = self.with_options(
+                self.options.not_in_position().in_ternary_condition(),
+                |parser| parser.eat_expression(),
+            )?;
+            self.eat_newlines_maybe()?;
+            self.eat_colon()?;
+            self.eat_newlines_maybe()?;
+            let else_expression_id = self
+                .with_options(self.options.not_in_position(), |parser| {
+                    parser.eat_expression()
+                })?;
+            let expression = Expression::If {
+                kind: IfKind::Ternary,
+                condition: IfCondition::Expression {
+                    condition: left_expression_id,
+                },
+                then_expression: then_expression_id,
+                else_expression: Some(else_expression_id),
+            };
+            left_expression_id = self.tree.insert(expression, self.get_span_from(start));
         }
 
         // type conditional expression
@@ -2597,6 +2604,29 @@ const shapes = (
             assert_node!(parser.tree, else_expression.unwrap(), Expression::ObjectExpression { ty: None, properties, .. } => {
                 assert_eq!(properties.len(), 0);
             });
+        });
+    }
+
+    /// Parse a ternary if expression with a binary condition.
+    #[test]
+    fn test_parse_if_ternary_with_binary_condition() {
+        let mut test = TestParser::new("x == 0 ? 1 : 2");
+        let mut parser = test.prepare();
+        let if_id = parser.eat_expression().unwrap();
+        assert_node!(parser.tree, if_id, Expression::If { condition, then_expression, else_expression, .. } => {
+            let condition_id = match condition {
+                IfCondition::Expression { condition } => *condition,
+                IfCondition::Let { .. } => panic!("expected expression condition"),
+            };
+            assert_node!(parser.tree, condition_id, Expression::Binary { left, operator, right } => {
+                assert_eq!(*operator, BinaryOperator::Equal);
+                assert_node!(parser.tree, *left, Expression::Path { path, .. } => {
+                    assert_path!(parser, *path, "x");
+                });
+                assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+            });
+            assert_node!(parser.tree, *then_expression, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+            assert_node!(parser.tree, else_expression.unwrap(), Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
         });
     }
 
