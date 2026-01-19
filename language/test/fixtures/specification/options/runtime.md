@@ -518,6 +518,29 @@ let same = left == right;
 { "compilerOptions": { "noReferentialEquality": false } }
 ```
 
+### noReferentialEquality allows class equality when false
+
+> Referential equality comparisons are allowed for classes when noReferentialEquality is false.
+
+```ds:main.ds
+class User {
+    name: string = ""
+}
+
+let left = new User();
+let right = new User();
+let same = left === right;
+same satisfies boolean;
+```
+
+```ds:package.json
+{ "name": "spec" }
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "noReferentialEquality": false } }
+```
+
 
 ## noImplicitDynamicDispatch
 
