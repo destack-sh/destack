@@ -712,9 +712,11 @@ impl Compiler {
                 // merge the function into the value type
                 self.merge_function_value_type(
                     module,
+                    profile,
                     declaration_id,
                     descriptor.symbol,
                     fn_ty_id,
+                    symbols,
                     types,
                     allow_merge,
                 );
