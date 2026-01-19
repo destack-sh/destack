@@ -2607,6 +2607,9 @@ type TryBranch<T, E> =
     | { kind: "err", error: E };
 ```
 
+Structural compatibility refers to structural object types; nominal types like `struct` and `newtype` do not implicitly satisfy `TryBranch`.
+Use object shapes or type aliases for branch values when implementing `Try`.
+
 Implementations must provide `Try.fromError(error: E): this` for uncaught early returns.
 `Try.fromError` is not required when a `?` is inside a `try` with `catch`.
 `Try.fromError` is not required for `??` because it does not return early.

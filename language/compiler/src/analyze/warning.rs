@@ -69,4 +69,14 @@ pub enum AnalyzeWarning {
     /// Exported value type could not be inferred.
     #[warning(code = "WA500", message = "exported value has unknown type")]
     ExportTypeUnknown { node: AnchoredGlobalNodeId },
+
+    /// Try error type does not implement Error.
+    #[warning(
+        code = "WA501",
+        message = "Try error type {ty} does not implement Error"
+    )]
+    TryErrorNotError {
+        node: AnchoredGlobalNodeId,
+        ty: destack_dir::GlobalTypeId,
+    },
 }

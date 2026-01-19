@@ -313,6 +313,14 @@ pub enum AnalyzeError {
     #[error(code = "EA307", message = "try requires a catch or finally")]
     IncompleteTry { node: AnchoredGlobalNodeId },
 
+    /// Try branch does not match the TryBranch shape.
+    #[error(code = "EA320", message = "Try.branch must return TryBranch")]
+    InvalidTryBranch { node: AnchoredGlobalNodeId },
+
+    /// Try unwrap requires a Try return type.
+    #[error(code = "EA321", message = "try unwrap requires a Try return type")]
+    MissingTryReturnType { node: AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 4xx: Pattern matching
     // -------------------------------------------------------------------------
