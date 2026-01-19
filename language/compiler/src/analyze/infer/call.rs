@@ -334,6 +334,281 @@ impl Compiler {
         })
     }
 
+    /// Resolve overloads when union arguments require a union return type.
+    fn resolve_union_argument_overload_return(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        callee_symbol: Option<GlobalSymbolId>,
+        callee_ty_id: LocalTypeId,
+        static_arguments: Option<&[LocalNodeId<Argument>]>,
+        signature_ids: &[LocalTypeId],
+        dynamic_arguments: &[LocalNodeId<Argument>],
+        call_receiver_ty_id: Option<LocalTypeId>,
+        profile: ProfileId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip union handling when no overloads exist
+        if signature_ids.len() <= 1 {
+            return Ok(None);
+        }
+
+        // resolve and filter applicable overloads
+        let candidates = self.collect_applicable_signatures(
+            module,
+            expression_id,
+            callee_symbol,
+            static_arguments,
+            signature_ids,
+            dynamic_arguments,
+            call_receiver_ty_id,
+            profile,
+            options,
+            tree,
+            symbols,
+            types,
+            infer,
+        )?;
+
+        // drop equivalent overloads introduced by declaration merging
+        let candidates = self.dedupe_signature_candidates(
+            module,
+            profile,
+            candidates,
+            symbols,
+            types,
+            options,
+        );
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+
+        // compute expected argument types when uniform across candidates
+        let mut expected_argument_types = Vec::with_capacity(dynamic_arguments.len());
+        for index in 0..dynamic_arguments.len() {
+            let mut expected = None;
+            let mut is_uniform = true;
+            for candidate in &candidates {
+                let Some(param_ty_id) = candidate.1.dynamic_parameters.get(index).copied() else {
+                    is_uniform = false;
+                    break;
+                };
+                if let Some(current) = expected {
+                    if current != param_ty_id {
+                        is_uniform = false;
+                        break;
+                    }
+                } else {
+                    expected = Some(param_ty_id);
+                }
+            }
+            expected_argument_types.push(if is_uniform { expected } else { None });
+        }
+
+        // infer arguments with contextual types when possible
+        let mut argument_ty_ids = Vec::with_capacity(dynamic_arguments.len());
+        for (index, argument_id) in dynamic_arguments.iter().enumerate() {
+            let expected_arg_ty_id = expected_argument_types.get(index).copied().flatten();
+            self.infer_argument(
+                module,
+                *argument_id,
+                expected_arg_ty_id,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )?;
+
+            let argument = tree.get(*argument_id);
+            let argument_value_id = argument.value();
+            let argument_ty_id = if let Some(ty_id) =
+                types.get_inferred_type_id(argument_value_id.into_global_any(module.id))
+            {
+                ty_id
+            } else {
+                self.infer_expression(
+                    module,
+                    argument_value_id,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?
+            };
+            argument_ty_ids.push(argument_ty_id);
+        }
+
+        // only use union overload handling when an argument is a union type
+        let has_union_argument = argument_ty_ids.iter().any(|argument_ty_id| {
+            self.union_elements_for_argument_type(*argument_ty_id, types)
+                .is_some()
+        });
+        if !has_union_argument {
+            return Ok(None);
+        }
+
+        // filter candidates that are compatible with union arguments
+        let mut union_candidates = Vec::new();
+        for (signature_id, resolved) in candidates {
+            let mut is_applicable = true;
+            for (argument_ty_id, param_ty_id) in argument_ty_ids
+                .iter()
+                .zip(resolved.dynamic_parameters.iter())
+            {
+                if !self.argument_assignable_to_parameter(
+                    module,
+                    profile,
+                    symbols,
+                    *param_ty_id,
+                    *argument_ty_id,
+                    types,
+                    options,
+                ) {
+                    is_applicable = false;
+                    break;
+                }
+            }
+            if is_applicable {
+                union_candidates.push((signature_id, resolved));
+            }
+        }
+
+        if union_candidates.is_empty() {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                receiver_ty: callee_ty_id.into_global(module.id),
+            });
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(Some(types.insert_type_from(ty, expression_id)));
+        }
+
+        // add constraints between arguments and parameters for each candidate
+        for candidate in &union_candidates {
+            for (argument_ty_id, param_ty_id) in argument_ty_ids
+                .iter()
+                .zip(candidate.1.dynamic_parameters.iter())
+            {
+                infer.push_constraint(Constraint::Subtype {
+                    sub_type: *argument_ty_id,
+                    super_type: *param_ty_id,
+                    variance: None,
+                });
+            }
+        }
+
+        // ensure each union element is covered by at least one candidate
+        let mut has_missing_element = false;
+        for (index, argument_ty_id) in argument_ty_ids.iter().enumerate() {
+            let Some(elements) = self.union_elements_for_argument_type(*argument_ty_id, types)
+            else {
+                continue;
+            };
+            for element_id in &elements {
+                let mut is_covered = false;
+                for candidate in &union_candidates {
+                    let Some(param_ty_id) = candidate.1.dynamic_parameters.get(index).copied()
+                    else {
+                        continue;
+                    };
+                    if self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        param_ty_id,
+                        *element_id,
+                        types,
+                        options,
+                    ) != Assignability::NotAssignable
+                    {
+                        is_covered = true;
+                        break;
+                    }
+                }
+                if !is_covered {
+                    has_missing_element = true;
+                    break;
+                }
+            }
+            if has_missing_element {
+                break;
+            }
+        }
+
+        if has_missing_element {
+            self.error(AnalyzeError::NoOverload {
+                node: expression_id
+                    .into_global_any(module.id)
+                    .into_anchored(Some(profile)),
+                receiver_ty: callee_ty_id.into_global(module.id),
+            });
+
+            let ty = Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            };
+            return Ok(Some(types.insert_type_from(ty, expression_id)));
+        }
+
+        // build the union return type from candidate signatures
+        let mut void_type_id = None;
+        let mut return_type_ids = Vec::new();
+        for candidate in &union_candidates {
+            let return_type_id = match candidate.1.return_type {
+                Some(return_type_id) => return_type_id,
+                None => *void_type_id.get_or_insert_with(|| {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Void,
+                    };
+                    types.insert_type_from(ty, expression_id)
+                }),
+            };
+            return_type_ids.push(return_type_id);
+        }
+
+        let return_type_id = match return_type_ids.len() {
+            0 => {
+                let ty = Type::TypeLiteral {
+                    value: TypeLiteral::Void,
+                };
+                types.insert_type_from(ty, expression_id)
+            }
+            1 => return_type_ids[0],
+            _ => self.union_type_from_list(return_type_ids, callee_ty_id, types),
+        };
+
+        // record dynamic resolution when a symbol is available
+        if let Some(callee_symbol) = callee_symbol {
+            let resolution_candidates = union_candidates
+                .into_iter()
+                .map(|candidate| ResolutionCandidate {
+                    key: None,
+                    target_symbol: callee_symbol,
+                    instance: None,
+                    resolved_signature: Some(candidate.1),
+                })
+                .collect();
+            self.record_dynamic_resolution(
+                expression_id.into_global_any(module.id),
+                call_receiver_ty_id,
+                resolution_candidates,
+                types,
+            );
+        }
+
+        Ok(Some(return_type_id))
+    }
+
     /// Resolve and filter applicable overloads for call selection.
     fn collect_applicable_signatures(
         &self,
@@ -763,6 +1038,58 @@ impl Compiler {
         }
 
         Ok(true)
+    }
+
+    /// Return union elements for a type used as an argument when possible.
+    fn union_elements_for_argument_type(
+        &self,
+        argument_ty_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> Option<Vec<LocalTypeId>> {
+        match types.get_type(argument_ty_id) {
+            Type::Union { elements } => Some(elements.clone()),
+            Type::Value { value } => match types.get_type(*value) {
+                Type::Union { elements } => Some(elements.clone()),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Return true when an argument type can flow to a parameter type, distributing unions.
+    fn argument_assignable_to_parameter(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbols: &SymbolTable,
+        param_ty_id: LocalTypeId,
+        argument_ty_id: LocalTypeId,
+        types: &mut TypeTable,
+        options: &AnalyzeOptions,
+    ) -> bool {
+        if let Some(elements) = self.union_elements_for_argument_type(argument_ty_id, types) {
+            return elements.iter().any(|element_id| {
+                self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    param_ty_id,
+                    *element_id,
+                    types,
+                    options,
+                ) != Assignability::NotAssignable
+            });
+        }
+
+        self.is_type_assignable(
+            module,
+            profile,
+            symbols,
+            param_ty_id,
+            argument_ty_id,
+            types,
+            options,
+        ) != Assignability::NotAssignable
     }
 
     /// Return true when the left signature is more specific than the right.
@@ -1431,6 +1758,27 @@ impl Compiler {
 
         let call_signatures = self.call_signatures_for_type(callee_ty_id, types);
         let ty_id = if !call_signatures.is_empty() {
+            // resolve union argument overloads before selecting a single signature
+            if let Some(return_type_id) = self.resolve_union_argument_overload_return(
+                module,
+                expression_id,
+                callee_symbol,
+                callee_ty_id,
+                effective_static_arguments,
+                &call_signatures,
+                dynamic_arguments,
+                call_receiver_ty_id,
+                ctx.profile,
+                &options,
+                tree,
+                symbols,
+                types,
+                infer,
+                ctx,
+            )? {
+                return Ok(return_type_id);
+            }
+
             // select the matching overload
             let selection = self.select_call_signature(
                 module,

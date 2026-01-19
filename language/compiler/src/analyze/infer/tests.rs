@@ -7,9 +7,9 @@ use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, Declarator, Expression, ExtensionKind, FlowEdgeKind,
     FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, InferTable, IntType,
-    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator,
+    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;

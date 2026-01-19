@@ -671,12 +671,17 @@ impl Compiler {
                 // resolve declaration merge state
                 let symbol_entry = symbols.get_symbol(descriptor.symbol);
                 let allow_merge = module.language_type.supports_declaration_merging()
+                    || module.language_type.is_destack()
                     || symbol_entry.origin.is_global_augmentation();
 
                 // declare generics for the signature
                 if let Some(generics) = signature.generics.as_ref() {
                     self.declare_generics(module, profile, generics, tree, symbols, types)?;
                 }
+
+                // load any previously cached signature for this declaration
+                let previous_signature_id =
+                    types.get_signature_type_for_node(declaration_id.into_global_any(module.id));
 
                 // evaluate the function signature
                 let ty = self.evaluate_function_signature_to_type(
@@ -716,6 +721,7 @@ impl Compiler {
                     declaration_id,
                     descriptor.symbol,
                     fn_ty_id,
+                    previous_signature_id,
                     symbols,
                     types,
                     allow_merge,

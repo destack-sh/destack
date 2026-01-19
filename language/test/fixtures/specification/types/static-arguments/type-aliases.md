@@ -112,6 +112,119 @@ let buffer: Buffer<string> = makeBuffer();
 
 - contains: static argument must be a static expression
 
+### tuple static arguments stay grouped for direct aliases
+
+> Tuple static arguments stay grouped when passed through aliases.
+
+```ds
+type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+type MutuallyExtends<Left, Right> = And<
+  [Left extends Right ? true : false, Right extends Left ? true : false]
+>;
+
+type Result = MutuallyExtends<number, number>;
+
+declare let value: Result;
+value satisfies true;
+```
+
+### tuple static arguments stay grouped for tuple types
+
+> Tuple type arguments remain grouped for direct aliases.
+
+```ds
+type Wrap<T> = T;
+type Alias = Wrap<(number, string)>;
+
+declare let value: Alias;
+value satisfies (number, string);
+```
+
+### tuple static arguments stay grouped for imported aliases
+
+> Tuple static arguments stay grouped across imported aliases.
+
+```ts:utils.d.ts
+export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+```
+
+```ts:branding.d.ts
+import type { And } from "./utils.d.ts";
+
+export type Alias = And<[true, true]>;
+```
+
+```ds:main.ds
+import type { Alias } from "./branding.d.ts";
+
+declare let value: Alias;
+value satisfies true;
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
+### tuple static arguments stay grouped for imported tuple types
+
+> Tuple type arguments stay grouped across imported aliases.
+
+```ds:utils.ds
+export type Wrap<T> = T;
+export type Alias = Wrap<(number, string)>;
+```
+
+```ds:main.ds
+import type { Alias } from "./utils.ds";
+
+declare let value: Alias;
+value satisfies (number, string);
+```
+
+### tuple static arguments stay grouped with nested aliases
+
+> Tuple static arguments remain grouped through nested alias wrappers.
+
+```ds
+type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+type Wrap<T> = T;
+type Alias = Wrap<And<[true, true]>>;
+
+declare let value: Alias;
+value satisfies true;
+```
+
+### tuple static arguments stay grouped through alias imports
+
+> Type alias references preserve tuple static arguments across declaration modules.
+
+```ts:utils.d.ts
+export type And<Types extends boolean[]> = Types[number] extends true ? true : false;
+
+export type MutuallyExtends<Left, Right> = And<
+  [Left extends Right ? true : false, Right extends Left ? true : false]
+>;
+```
+
+```ts:branding.d.ts
+import type { MutuallyExtends } from "./utils.d.ts";
+
+export type StrictEqualUsingBranding<Left, Right> = MutuallyExtends<Left, Right>;
+```
+
+```ds:main.ds
+import type { StrictEqualUsingBranding } from "./branding.d.ts";
+
+type Result = StrictEqualUsingBranding<number, number>;
+
+declare let value: Result;
+value satisfies true;
+```
+
+```ds:dsconfig.json
+{ "compilerOptions": { "allowTs": true, "checkTs": true } }
+```
+
 ## newtypes
 
 ### explicit static type arguments on newtypes
