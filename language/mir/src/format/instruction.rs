@@ -449,6 +449,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 destination,
                 function,
                 arguments,
+                signature,
+                ..
             } => {
                 if let Some(dst) = destination {
                     write!(f, [dst, space(), token("="), space()])?;
@@ -456,7 +458,80 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("call"), space()])?;
                 format_function_reference(*function, f)?;
                 let args = f.context().tree.get_arguments(*arguments);
-                format_value_list(args, f)
+                format_value_list(args, f)?;
+                write!(f, [space(), token("->"), space(), signature])
+            }
+
+            Instruction::CallVirtual {
+                destination,
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                if let Some(dst) = destination {
+                    write!(f, [dst, space(), token("="), space()])?;
+                }
+                write!(
+                    f,
+                    [
+                        token("call.virtual"),
+                        space(),
+                        receiver,
+                        token(","),
+                        space(),
+                        declaring_type,
+                        token(","),
+                        space(),
+                        text(&slot_id.to_string())
+                    ]
+                )?;
+                if let Some(target) = declared_target {
+                    write!(f, [token(","), space()])?;
+                    format_function_reference(*target, f)?;
+                }
+                let args = f.context().tree.get_arguments(*arguments);
+                format_value_list(args, f)?;
+                write!(f, [space(), token("->"), space(), signature])
+            }
+
+            Instruction::CallInterface {
+                destination,
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                if let Some(dst) = destination {
+                    write!(f, [dst, space(), token("="), space()])?;
+                }
+                write!(
+                    f,
+                    [
+                        token("call.interface"),
+                        space(),
+                        receiver,
+                        token(","),
+                        space(),
+                        declaring_type,
+                        token(","),
+                        space(),
+                        text(&slot_id.to_string())
+                    ]
+                )?;
+                if let Some(target) = declared_target {
+                    write!(f, [token(","), space()])?;
+                    format_function_reference(*target, f)?;
+                }
+                let args = f.context().tree.get_arguments(*arguments);
+                format_value_list(args, f)?;
+                write!(f, [space(), token("->"), space(), signature])
             }
 
             Instruction::CallIndirect {
@@ -464,6 +539,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 callee,
                 arguments,
                 signature,
+                ..
             } => {
                 if let Some(dst) = destination {
                     write!(f, [dst, space(), token("="), space()])?;

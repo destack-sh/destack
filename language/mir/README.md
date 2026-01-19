@@ -138,7 +138,7 @@ Each instruction defines at most one `Value`.
 | Globals | `global.addr`, `global.const` |
 | Memory | `load`, `store`, `drop` |
 | Aggregates | `aggregate`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
-| Calls | `call`, `call.indirect` |
+| Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
 | Allocation | `managed.alloc`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
 
@@ -152,7 +152,7 @@ To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new
 Pointer producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
 `global.addr` returns `ref<raw addrspace(global) T>` and `stack.alloc` returns `ref<raw addrspace(stack) T>`.
 `load` carries the loaded type inline with `->`.
-`call.indirect` carries its signature type inline with `->`.
+Call instructions carry their signature type inline with `->`.
 These annotations are required for Core MIR and enable precise alias and ownership analysis.
 
 `drop` invokes the type-specific drop glue for owned values.
@@ -161,7 +161,7 @@ Drop glue calls `Symbol.dispose` when the type implements the `Drop` marker.
 ## Memory Semantics and Metadata
 
 MIR carries precise memory semantics through explicit fields on `Function`.
-MIR carries callsite and access metadata through the `NodeTree.call_table` and `NodeTree.memory_table` tables.
+MIR carries callsite and access metadata through inline `CallEffects` on call instructions and the `NodeTree.memory_table`.
 Optimizations use it to reason about aliasing, effects, and access sizes (without having to re-derive them).
 The memory metadata includes:
 - **Function memory effects**: `readnone`, `readonly`, `writeonly`, or `readwrite`, plus a location set indicating which memory regions may be accessed (`arguments`, `heap`, `stack`, `global`, `shared`, `local`, `constant`, `inaccessible`, `io`), an optional address space mask when known, and flags for `argmemonly`, `inaccessibleMemOnly`, and `nosync`.
@@ -175,10 +175,10 @@ The memory metadata includes:
 
 Instructions with multiple memory accesses, such as `memcpy`, record multiple access descriptors.
 Function effects and pointer attributes live on `Function`.
-Callsite and per access metadata live in the call and memory tables.
+Callsite effects live on call instructions.
+Per-access metadata live in the memory table.
 Backends and optimizers query the metadata directly.
-`call.indirect` carries its signature type inline with `->`.
-Call metadata remains optional and refines effects, dispatch, and profiling data.
+Call effects remain optional and refine effects, dispatch, and profiling data.
 
 ### Metadata Structures
 
@@ -262,20 +262,7 @@ struct CallArgumentMetadata {
     tbaaTag: TbaaTagId | null,
 }
 
-enum CallDispatchKind {
-    Direct,
-    Virtual { slotId: u32 },
-    Interface { slotId: u32 },
-    Indirect,
-    Dynamic,
-}
-
-struct CallMetadata {
-    dispatch: CallDispatchKind,
-    receiver: Value | null,
-    declaredTarget: LocalNodeId<Function> | null,
-    declaringType: LocalNodeId<Type> | null,
-    signature: LocalNodeId<Type>,
+struct CallEffects {
     memoryEffects: MemoryEffect | null,
     behavior: CallBehavior | null,
     allocSize: AllocSize | null,
@@ -346,8 +333,8 @@ These invariants keep metadata sound for optimization and codegen.
 ### Metadata Update Points
 
 Lowering provides the initial metadata for types, functions, and debug scopes.
-Lowering records callsite metadata when dispatch or effects are known.
-Optimization passes may refine callsite metadata and memory access descriptors.
+Lowering records dispatch and call effects on call instructions when known.
+Optimization passes may refine call effects and memory access descriptors.
 Codegen consumes the metadata without mutating it.
 
 ### Terminators
@@ -514,7 +501,7 @@ Type metadata is stored in `NodeTree.type_table.type_metadata_by_id`.
 Layouts store size, alignment, stride, and field offsets in declaration order.
 Lineage tracks parent types, interfaces, and sealed or final flags.
 Dispatch tables describe vtables and itabs with slot ordering and targets.
-Dispatch tables are stored in `NodeTree.type_table.dispatch_tables`.
+Dispatch tables are stored in `NodeTree.type_table.dispatch_registry`.
 VTables are only emitted for classes that require virtual dispatch.
 Interface dispatch uses itabs for both struct and class implementations.
 Each itab is specific to a (Type, Interface) pair.
@@ -609,7 +596,7 @@ MIR just sees the `Yield` terminator and knows the function is a coroutine:
 
 ```mir
 block0:
-    v0 = call @compute_next()
+    v0 = call @compute_next() -> fn() -> i32
     yield v0, block1
 
 block1(v1: i32):    // resumed with value from .next(arg) or resolved promise

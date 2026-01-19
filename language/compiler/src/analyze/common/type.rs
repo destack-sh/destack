@@ -4,10 +4,31 @@ use destack_dir::{
     GlobalSymbolId, LocalTypeId, StaticArgument, StaticExpression, StaticProperty, SymbolType,
     Type, TypeLiteral, TypeTable,
 };
+use destack_dir::{
+    GlobalSymbolId, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticProperty,
+    SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+};
+use destack_workspace::{Module, ProfileId};
 
-use crate::Compiler;
+use crate::{AnalyzeResult, Compiler};
 
 impl Compiler {
+    /// Evaluate a type id in place when it is unevaluated.
+    pub(crate) fn evaluate_unevaluated_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        if matches!(types.get_type(type_id), Type::Unevaluated(_)) {
+            self.evaluate_type(module, profile, type_id, tree, symbols, types)?;
+        }
+        Ok(type_id)
+    }
+
     /// Resolve a type symbol from a type reference or type-as-value.
     pub(crate) fn unwrap_type_value_symbol(
         &self,

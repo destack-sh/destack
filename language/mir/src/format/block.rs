@@ -5,8 +5,8 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    Block, CheckConstraint, FormatMirNode, LocalNodeId, MirFormatContext, MirFormatter, Terminator,
-    Value,
+    Block, CheckConstraint, FormatMirNode, Function, LocalNodeId, MirFormatContext, MirFormatter,
+    Terminator, Value,
 };
 
 impl<'a> FormatMirNode<'a, Block> for Block {
@@ -232,6 +232,66 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_value_list(arguments, f)?;
             write!(f, [space(), token("->"), space(), signature])
         }
+
+        Terminator::TailCallVirtual {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => {
+            write!(
+                f,
+                [
+                    token("tailcall.virtual"),
+                    space(),
+                    receiver,
+                    token(","),
+                    space(),
+                    declaring_type,
+                    token(","),
+                    space(),
+                    text(&slot_id.to_string())
+                ]
+            )?;
+            if let Some(target) = declared_target {
+                write!(f, [token(","), space()])?;
+                format_function_reference(*target, f)?;
+            }
+            format_value_list(arguments, f)?;
+            write!(f, [space(), token("->"), space(), signature])
+        }
+
+        Terminator::TailCallInterface {
+            receiver,
+            arguments,
+            declaring_type,
+            slot_id,
+            declared_target,
+            signature,
+        } => {
+            write!(
+                f,
+                [
+                    token("tailcall.interface"),
+                    space(),
+                    receiver,
+                    token(","),
+                    space(),
+                    declaring_type,
+                    token(","),
+                    space(),
+                    text(&slot_id.to_string())
+                ]
+            )?;
+            if let Some(target) = declared_target {
+                write!(f, [token(","), space()])?;
+                format_function_reference(*target, f)?;
+            }
+            format_value_list(arguments, f)?;
+            write!(f, [space(), token("->"), space(), signature])
+        }
     }
 }
 
@@ -343,4 +403,14 @@ fn format_value_list<'a>(values: &[Value], f: &mut MirFormatter<'a, '_>) -> Form
         write!(f, [val])?;
     }
     write!(f, [token(")")])
+}
+
+/// Format a function reference.
+fn format_function_reference<'a>(
+    function_id: LocalNodeId<Function>,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    let function = f.context().tree.get(function_id);
+    let name = f.context().strings.get(function.name);
+    write!(f, [token("@"), text(name)])
 }

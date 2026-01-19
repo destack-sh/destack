@@ -3,8 +3,8 @@ use destack_source::FileId;
 
 use crate::parse::Parser;
 use crate::{
-    ArgumentSlice, Block, CallMetadata, Function, Instruction, Local, Mutability, Ownership, Type,
-    Value,
+    ArgumentSlice, Block, CallArgumentMetadata, CallEffects, Function, Instruction, Local,
+    Mutability, Ownership, Type, Value,
 };
 
 use super::{Verifier, VerifierOptions};
@@ -91,7 +91,7 @@ function @caller() -> i32 {
 block0:
     v0 = iconst 1i32
     v1 = iconst 2i32
-    v2 = call @callee(v0, v1)
+    v2 = call @callee(v0, v1) -> fn(i32) -> i32
     return v2
 }"#;
 
@@ -108,7 +108,7 @@ fn test_reject_call_return_value_for_void() {
     let source = r#"extern function @noop() -> void
 function @caller() -> void {
 block0:
-    v0 = call @noop()
+    v0 = call @noop() -> fn() -> void
     return
 }"#;
 
@@ -287,6 +287,8 @@ fn test_reject_argument_slice_out_of_bounds() {
         destination: None,
         function: callee_id,
         arguments: ArgumentSlice::new(0, 1),
+        signature,
+        effects: None,
     });
     let block = Block {
         parameters: Vec::new(),
@@ -300,9 +302,6 @@ fn test_reject_argument_slice_out_of_bounds() {
     function.entry = Some(block_id);
     let function_id = tree.insert(function);
 
-    tree.call_table
-        .insert_call_metadata(instruction, CallMetadata::direct(callee_id, signature));
-
     let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
     let error = verifier
         .verify_function(function_id)
@@ -313,12 +312,12 @@ fn test_reject_argument_slice_out_of_bounds() {
     );
 }
 
-/// Reject call metadata attached to non call instructions.
+/// Reject call effects with mismatched argument metadata lengths.
 #[test]
-fn test_reject_call_metadata_on_non_call() {
+fn test_reject_call_effect_argument_count_mismatch() {
     let mut tree = crate::NodeTree::new();
     let pool = StringPool::new();
-    let name = pool.intern("bad_meta");
+    let name = pool.intern("bad_effects");
 
     let void_ty = tree.insert(Type::Void);
     let signature = tree.insert(Type::FunctionPointer {
@@ -328,9 +327,16 @@ fn test_reject_call_metadata_on_non_call() {
     let callee = Function::import(name, Vec::new(), void_ty);
     let callee_id = tree.insert(callee);
 
-    let instruction = tree.insert(Instruction::Const {
-        destination: Value::new(0),
-        value: crate::Constant::int32(1),
+    let effects = CallEffects {
+        argument_metadata: vec![CallArgumentMetadata::default()],
+        ..CallEffects::default()
+    };
+    let instruction = tree.insert(Instruction::Call {
+        destination: None,
+        function: callee_id,
+        arguments: ArgumentSlice::new(0, 0),
+        signature,
+        effects: Some(effects),
     });
     let block = Block {
         parameters: Vec::new(),
@@ -342,17 +348,14 @@ fn test_reject_call_metadata_on_non_call() {
     let mut function = Function::new(name, Vec::new(), void_ty, block_id);
     function.blocks = vec![block_id];
     function.entry = Some(block_id);
-    let _function_id = tree.insert(function);
-
-    tree.call_table
-        .insert_call_metadata(instruction, CallMetadata::direct(callee_id, signature));
+    let function_id = tree.insert(function);
 
     let verifier = Verifier::new_with_options(&tree, VerifierOptions::strict());
     let error = verifier
-        .verify_module()
+        .verify_function(function_id)
         .expect_err("expected verification failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: call metadata attached to non call instruction"
+        "metadata invariant violation: call effects argument count mismatch expected 0 got 1"
     );
 }

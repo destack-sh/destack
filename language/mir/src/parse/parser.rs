@@ -898,7 +898,9 @@ impl<'a> Parser<'a> {
             Terminator::Return { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }
-            | Terminator::TailCallIndirect { .. } => {}
+            | Terminator::TailCallIndirect { .. }
+            | Terminator::TailCallVirtual { .. }
+            | Terminator::TailCallInterface { .. } => {}
             Terminator::Jump { target, .. } => {
                 *target = resolve(*target, source_to_actual);
             }
@@ -1185,10 +1187,69 @@ impl<'a> Parser<'a> {
                 let function = self.parse_function_reference()?;
                 let args = self.parse_call_arguments()?;
                 let arguments = self.tree.add_arguments(&args);
+                let signature = if self.eat_token_maybe(TokenType::Arrow) {
+                    self.parse_type()?
+                } else {
+                    self.signature_type_for_function(function)?
+                };
                 Instruction::Call {
                     destination: Some(destination),
                     function,
                     arguments,
+                    signature,
+                    effects: None,
+                }
+            }
+            "call.virtual" => {
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Instruction::CallVirtual {
+                    destination: Some(destination),
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
+                    signature,
+                    effects: None,
+                }
+            }
+            "call.interface" => {
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Instruction::CallInterface {
+                    destination: Some(destination),
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
+                    signature,
+                    effects: None,
                 }
             }
             "call.indirect" => {
@@ -1202,6 +1263,7 @@ impl<'a> Parser<'a> {
                     callee,
                     arguments,
                     signature,
+                    effects: None,
                 }
             }
 
@@ -1318,10 +1380,69 @@ impl<'a> Parser<'a> {
                 let function = self.parse_function_reference()?;
                 let args = self.parse_call_arguments()?;
                 let arguments = self.tree.add_arguments(&args);
+                let signature = if self.eat_token_maybe(TokenType::Arrow) {
+                    self.parse_type()?
+                } else {
+                    self.signature_type_for_function(function)?
+                };
                 Instruction::Call {
                     destination: None,
                     function,
                     arguments,
+                    signature,
+                    effects: None,
+                }
+            }
+            "call.virtual" => {
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Instruction::CallVirtual {
+                    destination: None,
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
+                    signature,
+                    effects: None,
+                }
+            }
+            "call.interface" => {
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let args = self.parse_call_arguments()?;
+                let arguments = self.tree.add_arguments(&args);
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Instruction::CallInterface {
+                    destination: None,
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
+                    signature,
+                    effects: None,
                 }
             }
             "call.indirect" => {
@@ -1335,6 +1456,7 @@ impl<'a> Parser<'a> {
                     callee,
                     arguments,
                     signature,
+                    effects: None,
                 }
             }
 
@@ -1533,6 +1655,56 @@ impl<'a> Parser<'a> {
                 Ok(Terminator::TailCallIndirect {
                     callee,
                     arguments,
+                    signature,
+                })
+            }
+            TokenType::TailCallVirtual => {
+                self.bump();
+                // tailcall.virtual receiver, declaring_type, slot_id[, @target](args...) -> signature
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let arguments = self.parse_call_arguments()?;
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Ok(Terminator::TailCallVirtual {
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
+                    signature,
+                })
+            }
+            TokenType::TailCallInterface => {
+                self.bump();
+                // tailcall.interface receiver, declaring_type, slot_id[, @target](args...) -> signature
+                let receiver = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let declaring_type = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let slot_id = self.parse_int_literal()? as u32;
+                let declared_target = if self.eat_token_maybe(TokenType::Comma) {
+                    Some(self.parse_function_reference()?)
+                } else {
+                    None
+                };
+                let arguments = self.parse_call_arguments()?;
+                self.eat_token(TokenType::Arrow)?;
+                let signature = self.parse_type()?;
+                Ok(Terminator::TailCallInterface {
+                    receiver,
+                    arguments,
+                    declaring_type,
+                    slot_id,
+                    declared_target,
                     signature,
                 })
             }
@@ -2076,6 +2248,19 @@ impl<'a> Parser<'a> {
         let args = self.parse_value_list()?;
         self.eat_token(TokenType::CloseParen)?;
         Ok(args)
+    }
+
+    /// Build a function pointer type for a direct call signature.
+    fn signature_type_for_function(
+        &mut self,
+        function: LocalNodeId<Function>,
+    ) -> ParseResult<LocalNodeId<Type>> {
+        let function = self.tree.get(function);
+        let parameters = function.parameters.iter().map(|param| param.ty).collect();
+        Ok(self.tree.insert(Type::FunctionPointer {
+            parameters,
+            result: function.return_type,
+        }))
     }
 
     /// Parse intrinsic arguments: (values...) or (values..., ordering) for atomics.

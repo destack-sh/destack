@@ -560,6 +560,8 @@ impl<'a> Dumper<'a> {
                 destination,
                 function,
                 arguments,
+                signature,
+                ..
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -576,6 +578,82 @@ impl<'a> Dumper<'a> {
                     self.write(&self.format_value(*arg));
                 }
                 self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+            }
+
+            Instruction::CallVirtual {
+                destination,
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                if let Some(dst) = destination {
+                    self.write_colored(&self.format_value(*dst), Color::Green);
+                    self.write(" = ");
+                }
+                self.write("call.virtual ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.to_string());
+                if let Some(target) = declared_target {
+                    self.write(", ");
+                    self.write(&self.format_function_id(*target));
+                }
+                self.write("(");
+                let args = self.tree.get_arguments(*arguments);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+            }
+
+            Instruction::CallInterface {
+                destination,
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+                ..
+            } => {
+                if let Some(dst) = destination {
+                    self.write_colored(&self.format_value(*dst), Color::Green);
+                    self.write(" = ");
+                }
+                self.write("call.interface ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.to_string());
+                if let Some(target) = declared_target {
+                    self.write(", ");
+                    self.write(&self.format_function_id(*target));
+                }
+                self.write("(");
+                let args = self.tree.get_arguments(*arguments);
+                for (i, arg) in args.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
             }
 
             Instruction::CallIndirect {
@@ -583,6 +661,7 @@ impl<'a> Dumper<'a> {
                 callee,
                 arguments,
                 signature,
+                ..
             } => {
                 if let Some(dst) = destination {
                     self.write_colored(&self.format_value(*dst), Color::Green);
@@ -963,6 +1042,68 @@ impl<'a> Dumper<'a> {
                 self.write_colored("tailcall.indirect", Color::Red);
                 self.write(" ");
                 self.write(&self.format_value(*callee));
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+            }
+
+            Terminator::TailCallVirtual {
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+            } => {
+                self.write_colored("tailcall.virtual", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.to_string());
+                if let Some(target) = declared_target {
+                    self.write(", ");
+                    self.write(&self.format_function_id(*target));
+                }
+                self.write("(");
+                for (i, arg) in arguments.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*arg));
+                }
+                self.write(")");
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*signature), Color::Magenta);
+            }
+
+            Terminator::TailCallInterface {
+                receiver,
+                arguments,
+                declaring_type,
+                slot_id,
+                declared_target,
+                signature,
+            } => {
+                self.write_colored("tailcall.interface", Color::Red);
+                self.write(" ");
+                self.write(&self.format_value(*receiver));
+                self.write(", ");
+                self.write_colored(&self.format_type_id(*declaring_type), Color::Magenta);
+                self.write(", ");
+                self.write(&slot_id.to_string());
+                if let Some(target) = declared_target {
+                    self.write(", ");
+                    self.write(&self.format_function_id(*target));
+                }
                 self.write("(");
                 for (i, arg) in arguments.iter().enumerate() {
                     if i > 0 {

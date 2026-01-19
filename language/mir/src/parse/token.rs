@@ -36,6 +36,10 @@ pub enum TokenType {
     TailCall,
     /// `tailcall.indirect`
     TailCallIndirect,
+    /// `tailcall.virtual`
+    TailCallVirtual,
+    /// `tailcall.interface`
+    TailCallInterface,
 
     // type keywords
     /// `void`
