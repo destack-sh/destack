@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use destack_source::{File, FileType, Uri};
-use destack_workspace::{Workspace, WorkspacesField};
+use destack_workspace::{DsConfig, Workspace, WorkspacesField};
 use serde::Deserialize;
 
 use crate::{ResolveError, Resolver};
@@ -39,7 +39,8 @@ impl Resolver {
                 .is_ok_and(|m| m.is_file)
             {
                 // found a package.json without workspaces, treat as single-package workspace
-                return Ok(Workspace::single_package(current));
+                let workspace = Workspace::single_package(current);
+                return self.attach_workspace_config(workspace);
             }
 
             // move up to parent
@@ -51,7 +52,28 @@ impl Resolver {
         }
 
         // no workspace found, treat the original path as a single-package workspace
-        Ok(Workspace::single_package(path.to_path_buf()))
+        let workspace = Workspace::single_package(path.to_path_buf());
+        self.attach_workspace_config(workspace)
+    }
+
+    /// Attach root dsconfig to the workspace when available.
+    fn attach_workspace_config(&self, mut workspace: Workspace) -> Result<Workspace, ResolveError> {
+        // try to load the root dsconfig when present
+        if let Some(dsconfig) = self.load_workspace_dsconfig(&workspace.root)? {
+            workspace = workspace.with_config(dsconfig);
+        }
+
+        Ok(workspace)
+    }
+
+    /// Load the workspace root dsconfig when present.
+    fn load_workspace_dsconfig(&self, root: &Path) -> Result<Option<DsConfig>, ResolveError> {
+        let dsconfig_path = root.join("dsconfig.json");
+        match self.load_dsconfig(&dsconfig_path) {
+            Ok(dsconfig) => Ok(Some(dsconfig)),
+            Err(ResolveError::DsConfigNotFound { .. }) => Ok(None),
+            Err(error) => Err(error),
+        }
     }
 
     /// Check if a directory contains an npm/yarn workspace root.
