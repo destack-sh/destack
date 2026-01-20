@@ -6,8 +6,9 @@ use destack_base::StringPool;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
-    ArtifactRegistry, Builtins, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry,
-    ProfileId, Program, SessionOptions, TsConfigRegistry, Workspace, resolve_workspace_cache_root,
+    ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions,
+    ModuleRegistry, PackageRegistry, ProfileId, Program, SessionOptions, TsConfigRegistry,
+    Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -21,6 +22,8 @@ pub struct Session {
     pub options: SessionOptions,
     /// The file system.
     pub fs: Arc<dyn FileSystem>,
+    /// The cache store.
+    pub cache_store: Arc<dyn CacheStore>,
     /// The files in the session.
     pub files: Arc<FileRegistry>,
 
@@ -58,6 +61,7 @@ impl Session {
             cwd,
             options,
             fs: Arc::new(PhysicalFileSystem::new()),
+            cache_store: Arc::new(DiskCacheStore::new()),
             files,
 
             programs: DashMap::new(),
@@ -89,6 +93,7 @@ impl Session {
             cwd,
             options,
             fs: Arc::new(PhysicalFileSystem::new()),
+            cache_store: Arc::new(DiskCacheStore::new()),
             files,
 
             programs: DashMap::new(),
@@ -104,6 +109,12 @@ impl Session {
     /// Set the file system (builder pattern).
     pub fn with_fs(mut self, fs: Arc<dyn FileSystem>) -> Self {
         self.fs = fs;
+        self
+    }
+
+    /// Set the cache store (builder pattern).
+    pub fn with_cache_store(mut self, cache_store: Arc<dyn CacheStore>) -> Self {
+        self.cache_store = cache_store;
         self
     }
 
@@ -226,13 +237,16 @@ mod tests {
     use destack_source::MemoryFileSystem;
 
     use super::Session;
+    use crate::MemoryCacheStore;
 
     /// Removes roots from the session program map.
     #[test]
     fn test_session_remove_root() {
         let fs = Arc::new(MemoryFileSystem::new());
         let root = PathBuf::from("/workspace");
-        let session = Session::new(root.clone()).with_fs(fs);
+        let session = Session::new(root.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new()));
 
         let program = session.add_root(root.clone());
         let removed = session.remove_root(&root);
@@ -248,7 +262,9 @@ mod tests {
     fn test_session_remove_root_missing() {
         let fs = Arc::new(MemoryFileSystem::new());
         let root = PathBuf::from("/workspace");
-        let session = Session::new(root).with_fs(fs);
+        let session = Session::new(root)
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new()));
 
         let missing = session.remove_root(PathBuf::from("/missing").as_path());
 

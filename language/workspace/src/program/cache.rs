@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{CACHE_FORMAT_VERSION, CACHE_MAGIC, CacheHeader, CacheKind, ModuleId};
 
-use crate::{ModuleAstData, ModuleDirData, ModuleMirData, ProfileId};
+use crate::{CacheStoreError, ModuleAstData, ModuleDirData, ModuleMirData, ProfileId};
 
 // limit cache entry size to avoid excessive memory usage
 pub const CACHE_ENTRY_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
@@ -198,6 +198,14 @@ impl fmt::Display for CacheError {
 }
 
 impl std::error::Error for CacheError {}
+
+impl From<CacheStoreError> for CacheError {
+    fn from(error: CacheStoreError) -> Self {
+        match error {
+            CacheStoreError::Io(error) => CacheError::Io(error),
+        }
+    }
+}
 
 /// Validate a cache header against the expected kind and format.
 pub fn validate_header(header: &CacheHeader, expected_kind: CacheKind) -> Result<(), CacheError> {
