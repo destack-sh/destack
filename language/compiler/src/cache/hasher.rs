@@ -96,6 +96,7 @@ impl CacheHasher {
     }
 
     /// Hash alias settings into the cache hash.
+    /// Hash alias entries into the cache hash.
     fn hash_alias(&mut self, alias: &destack_resolver::Alias) {
         // hash alias entries
         self.hash_value(&alias.len());
@@ -106,6 +107,7 @@ impl CacheHasher {
     }
 
     /// Hash resolve extension enforcement into the cache hash.
+    /// Hash extension enforcement into the cache hash.
     fn hash_enforce_extension(&mut self, value: EnforceExtension) {
         // map enum to a stable tag
         let tag = match value {
@@ -116,6 +118,7 @@ impl CacheHasher {
         self.hash_value(&tag);
     }
 
+    /// Hash tsconfig discovery settings into the cache hash.
     /// Hash tsconfig discovery settings into the cache hash.
     fn hash_tsconfig_discovery(&mut self, value: &Option<TypeScriptOptionsDiscovery>) {
         // hash discovery mode
@@ -135,6 +138,7 @@ impl CacheHasher {
     }
 
     /// Hash tsconfig reference settings into the cache hash.
+    /// Hash tsconfig reference settings into the cache hash.
     fn hash_tsconfig_references(&mut self, value: &TypeScriptOptionsReferences) {
         // hash reference mode
         match value {
@@ -151,6 +155,7 @@ impl CacheHasher {
         }
     }
 
+    /// Hash resolver restrictions into the cache hash.
     /// Hash resolver restrictions into the cache hash.
     fn hash_restrictions(&mut self, restrictions: &[Restriction]) {
         // hash restrictions in order

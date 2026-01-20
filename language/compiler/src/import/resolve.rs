@@ -3,9 +3,7 @@ use std::path::{Path, PathBuf};
 use destack_base::StringId;
 use destack_builtin::builtin_lib;
 use destack_resolver::Resolver;
-use destack_source::{
-    File, FileType, FileVersion, LanguageType, ModuleId, PackageId, PackageVersion, Uri,
-};
+use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
 
 use crate::{Compiler, ImportError, ImportResult};
@@ -255,7 +253,9 @@ impl Compiler {
             .to_string_lossy()
             .into_owned();
         let file_id = self.program.files.next_id();
-        let file = File::unloaded(file_id, name, uri.clone(), Some(path.clone()), ty);
+        let file_version = self.program.workspace_file_version_for_path(path);
+        let file = File::unloaded(file_id, name, uri.clone(), Some(path.clone()), ty)
+            .with_version(file_version);
         self.program.files.insert(file);
 
         // find tsconfig (if any)
@@ -267,7 +267,7 @@ impl Compiler {
         let module = Module::blank(
             module_id,
             file_id,
-            FileVersion::INITIAL,
+            file_version,
             uri,
             Some(path.clone()),
             package_id,
@@ -277,6 +277,11 @@ impl Compiler {
             loader,
             ModuleSource::User,
         );
+        let module_version = self
+            .program
+            .workspace_module_version_for_id(module_id, file_version);
+        let mut module = module;
+        module.version = module_version;
         self.program.modules.insert(module);
 
         // mark as registered

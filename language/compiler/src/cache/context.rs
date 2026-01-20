@@ -1,10 +1,17 @@
+use std::fs::OpenOptions;
+use std::path::Path;
+
 use destack_source::{
     CacheHeader, CacheKind, FileContent, FileId, FileVersion, ModuleId, ProfileId, ProfileVersion,
     TargetId,
 };
 use destack_workspace::{
-    CacheError, CacheScope, ModuleGraphKey, ModuleSignatureKey, resolve_global_cache_root,
+    CacheError, CacheMode, DEFAULT_COMPILER_CACHE_NAMESPACE, ModuleGraphKey, ModuleSignatureDigest,
+    ModuleSignatureKey, WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot,
+    hash_workspace_config, read_workspace_index, resolve_cache_dir, resolve_cache_root_for_scope,
+    workspace_index_path, write_workspace_index,
 };
+use fs2::FileExt;
 
 use crate::compile::Compiler;
 
@@ -12,14 +19,9 @@ use super::hash::{DSCONFIG_CACHE_IGNORED_KEYS, hash_bytes, trim_json_object};
 use super::hasher::CacheHasher;
 use super::{CacheHandle, CacheOptions};
 
-/// Default cache directory name for workspace scoped caches.
-pub const DEFAULT_CACHE_DIR: &str = ".destack";
-/// Default cache directory name for global caches.
-pub const DEFAULT_GLOBAL_CACHE_DIR: &str = "destack";
-/// Namespace for compiler cache entries.
-pub const DEFAULT_CACHE_NAMESPACE: &str = "compiler";
 /// Bytes per megabyte.
 pub(super) const BYTES_PER_MB: u64 = 1024 * 1024;
+const WORKSPACE_INDEX_LOCK_FILE: &str = "workspace.lock";
 
 /// Cache context for a module.
 #[derive(Debug, Clone)]
@@ -79,24 +81,46 @@ impl Compiler {
 
         // resolve cache root directory
         let workspace_root = self.session.workspace.root.clone();
-        let mut dir = if let Some(dsconfig) = package.dsconfig.as_ref()
-            && let Some(cache_dir) = cache_options.dir.as_ref()
-        {
-            if cache_dir.is_absolute() {
-                cache_dir.clone()
-            } else {
-                dsconfig.directory.join(cache_dir)
-            }
-        } else {
-            workspace_root.join(DEFAULT_CACHE_DIR)
-        };
+        let base_dir = package
+            .dsconfig
+            .as_ref()
+            .map(|dsconfig| dsconfig.directory.clone())
+            .unwrap_or_else(|| workspace_root.clone());
+        let mut dir = resolve_cache_root_for_scope(
+            &base_dir,
+            cache_options.dir.as_deref(),
+            cache_options.scope,
+        );
 
-        // apply global cache scope
-        if cache_options.scope == CacheScope::Global
-            && let Some(global_root) = resolve_global_cache_root(DEFAULT_GLOBAL_CACHE_DIR)
-        {
-            dir = global_root;
+        // override from session cache dir when provided
+        if let Some(cache_dir) = self.session.options.cache_dir_override.as_ref() {
+            dir = resolve_cache_dir(cache_dir, &workspace_root);
         }
+
+        // build resolved cache options
+        CacheOptions {
+            mode: cache_options.mode,
+            dir,
+            policy: cache_options.policy,
+            validate: cache_options.validate,
+            scope: cache_options.scope,
+            max_size_mb: cache_options.max_size_mb,
+        }
+    }
+
+    /// Resolve cache options for the workspace index.
+    pub(crate) fn workspace_cache_options(&self) -> CacheOptions {
+        // derive cache options from workspace config
+        let cache_options = self
+            .session
+            .workspace
+            .config
+            .as_ref()
+            .map(|config| config.options.cache.clone())
+            .unwrap_or_default();
+
+        // resolve workspace cache root
+        let dir = self.session.workspace_cache_dir();
 
         // build resolved cache options
         CacheOptions {
@@ -320,8 +344,9 @@ impl Compiler {
             });
         };
 
-        // snapshot dependency list before releasing the graph guard
+        // snapshot dependency list and module versions before releasing the graph guard
         let dependencies = graph.dependencies_for(module_id);
+        let graph_versions = graph.module_versions.clone();
         drop(graph);
 
         // resolve profile version for dependency signatures
@@ -337,35 +362,60 @@ impl Compiler {
         // hash dependency ids and signature hashes
         let mut hasher = CacheHasher::new();
         for dependency in dependencies {
+            // verify graph metadata is consistent with module versions
+            let graph_version = graph_versions.get(&dependency).copied().ok_or(
+                CacheError::MissingDependencyData {
+                    module_id,
+                    profile_id: Some(profile_id),
+                    reason: format!("missing graph version for dependency {dependency:?}"),
+                },
+            )?;
+
             let module = self.program.modules.get(dependency);
             let module = module.read();
             let module_version = module.version;
-            if module.dir_maybe(profile_id).is_none() {
+            if graph_version != module_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
                     profile_id: Some(profile_id),
-                    reason: format!("missing dir for dependency {dependency:?}"),
+                    reason: format!("stale graph version for dependency {dependency:?}"),
                 });
             }
             drop(module);
 
             let signature_key = ModuleSignatureKey::new(dependency, profile_id);
-            let Some(signature) = self.program.index.module_signatures.get(&signature_key) else {
+            let digest = if let Some(digest) = self
+                .program
+                .index
+                .module_signature_digests
+                .get(&signature_key)
+            {
+                *digest.value()
+            } else if let Some(signature) = self.program.index.module_signatures.get(&signature_key)
+            {
+                ModuleSignatureDigest::new(
+                    signature.module_id,
+                    signature.profile_id,
+                    signature.module_version,
+                    signature.profile_version,
+                    signature.hash,
+                )
+            } else {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
                     profile_id: Some(profile_id),
                     reason: format!("missing signature for dependency {dependency:?}"),
                 });
             };
-            let signature = signature.value();
-            if signature.module_version != module_version {
+
+            if digest.module_version != module_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
                     profile_id: Some(profile_id),
                     reason: format!("stale signature for dependency {dependency:?}"),
                 });
             }
-            if signature.profile_version != profile_version {
+            if digest.profile_version != profile_version {
                 return Err(CacheError::MissingDependencyData {
                     module_id,
                     profile_id: Some(profile_id),
@@ -373,9 +423,113 @@ impl Compiler {
                 });
             }
             hasher.hash_value(&dependency);
-            hasher.hash_value(&signature.hash);
+            hasher.hash_value(&digest.hash);
         }
 
         Ok(hasher.finish())
     }
+
+    /// Load the workspace index snapshot into program state.
+    pub(crate) fn load_workspace_index(&self) -> Result<(), WorkspaceIndexError> {
+        // skip loading when disk cache is disabled
+        let options = self.workspace_cache_options();
+        if options.mode != CacheMode::Disk {
+            return Ok(());
+        }
+
+        // resolve workspace index path
+        let cache_root = options.dir.clone();
+        let index_path = workspace_index_path(&cache_root);
+
+        // acquire a shared cache lock
+        let _lock = lock_workspace_cache_shared(&cache_root)?;
+        let header = self.workspace_index_header()?;
+        let Some(snapshot) = read_workspace_index(&index_path, &header)? else {
+            return Ok(());
+        };
+
+        // apply snapshot to program state
+        self.program.apply_workspace_index(snapshot);
+
+        Ok(())
+    }
+
+    /// Flush the current program state into the workspace index.
+    pub(crate) fn flush_workspace_index(&self) -> Result<(), WorkspaceIndexError> {
+        // skip writing when disk cache is disabled
+        let options = self.workspace_cache_options();
+        if options.mode != CacheMode::Disk {
+            return Ok(());
+        }
+
+        // resolve workspace index path
+        let cache_root = options.dir.clone();
+        let index_path = workspace_index_path(&cache_root);
+
+        // acquire an exclusive cache lock
+        let _lock = lock_workspace_cache_exclusive(&cache_root)?;
+        let header = self.workspace_index_header()?;
+        let snapshot = WorkspaceIndexSnapshot::from_program(&self.program, header)?;
+        write_workspace_index(&index_path, &snapshot)?;
+
+        Ok(())
+    }
+
+    /// Build a workspace index header from the current session config.
+    fn workspace_index_header(&self) -> Result<WorkspaceIndexHeader, WorkspaceIndexError> {
+        let options = self.workspace_cache_options();
+        let config_hash = hash_workspace_config(&self.session.workspace, self.session.fs.as_ref())?;
+        Ok(WorkspaceIndexHeader::new(
+            env!("CARGO_PKG_VERSION").to_string(),
+            self.session.workspace.root.clone(),
+            config_hash,
+            options.validate,
+        ))
+    }
+}
+
+/// Acquire a shared lock for the workspace cache.
+fn lock_workspace_cache_shared(
+    cache_root: &Path,
+) -> Result<Option<std::fs::File>, WorkspaceIndexError> {
+    // skip locks when the cache root is missing
+    let root = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
+    if !root.exists() {
+        return Ok(None);
+    }
+
+    // open and lock the cache lock file
+    let path = root.join(WORKSPACE_INDEX_LOCK_FILE);
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .map_err(WorkspaceIndexError::Io)?;
+    FileExt::lock_shared(&file).map_err(WorkspaceIndexError::Io)?;
+
+    Ok(Some(file))
+}
+
+/// Acquire an exclusive lock for the workspace cache.
+fn lock_workspace_cache_exclusive(
+    cache_root: &Path,
+) -> Result<Option<std::fs::File>, WorkspaceIndexError> {
+    // ensure the cache namespace exists
+    let root = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
+    std::fs::create_dir_all(&root).map_err(WorkspaceIndexError::Io)?;
+
+    // open and lock the cache lock file
+    let path = root.join(WORKSPACE_INDEX_LOCK_FILE);
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .map_err(WorkspaceIndexError::Io)?;
+    FileExt::lock_exclusive(&file).map_err(WorkspaceIndexError::Io)?;
+
+    Ok(Some(file))
 }

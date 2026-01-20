@@ -18,7 +18,8 @@ use destack_dir::{
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
 use destack_workspace::{
     ModuleContent, ModuleGraphKey, ModuleSignature, ModuleSignatureAugmentation,
-    ModuleSignatureBinding, ModuleSignatureExport, ModuleSignatureKey, ProfileId,
+    ModuleSignatureBinding, ModuleSignatureDigest, ModuleSignatureExport, ModuleSignatureKey,
+    ProfileId,
 };
 use indexmap::IndexMap;
 use rustc_hash::FxHasher;
@@ -53,6 +54,16 @@ impl Compiler {
             .module_signatures
             .get(&key)
             .map(|entry| entry.value().clone());
+        let previous_hash = previous
+            .as_ref()
+            .map(|signature| signature.hash)
+            .or_else(|| {
+                self.program
+                    .index
+                    .module_signature_digests
+                    .get(&key)
+                    .map(|entry| entry.value().hash)
+            });
 
         // update stored signature
         self.program
@@ -60,9 +71,22 @@ impl Compiler {
             .module_signatures
             .insert(key, signature.clone());
 
+        // update stored signature digest
+        let digest = ModuleSignatureDigest::new(
+            signature.module_id,
+            signature.profile_id,
+            signature.module_version,
+            signature.profile_version,
+            signature.hash,
+        );
+        self.program
+            .index
+            .module_signature_digests
+            .insert(key, digest);
+
         // invalidate dependents only when the signature hash changed
-        if let Some(previous) = previous
-            && previous.hash != signature.hash
+        if let Some(previous_hash) = previous_hash
+            && previous_hash != signature.hash
         {
             self.invalidate_module_dependents(module_id, profile_id);
         }

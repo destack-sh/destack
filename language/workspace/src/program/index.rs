@@ -7,7 +7,8 @@ use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
 
 use crate::{
-    ModuleGraph, ModuleGraphKey, ModuleSignature, ModuleSignatureKey, ProfileId, TargetId,
+    ModuleGraph, ModuleGraphKey, ModuleSignature, ModuleSignatureDigest, ModuleSignatureKey,
+    ProfileId, TargetId,
 };
 
 /// Derived indexes and tables for a Program.
@@ -21,6 +22,8 @@ pub struct ProgramIndex {
     pub module_graphs: DashMap<ModuleGraphKey, ModuleGraph>,
     /// Module signatures indexed by module and profile.
     pub module_signatures: DashMap<ModuleSignatureKey, ModuleSignature>,
+    /// Module signature digests indexed by module and profile.
+    pub module_signature_digests: DashMap<ModuleSignatureKey, ModuleSignatureDigest>,
 }
 
 impl ProgramIndex {

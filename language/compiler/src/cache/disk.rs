@@ -12,8 +12,10 @@ use destack_workspace::{
     ModuleDirCacheEntry, ModuleMirCacheEntry, read_cache_entry, write_cache_entry,
 };
 
-use super::context::{BYTES_PER_MB, DEFAULT_CACHE_NAMESPACE};
-use super::{CacheContext, CacheKey, CacheOptions, CacheRegistry};
+use super::context::BYTES_PER_MB;
+use super::{
+    CacheContext, CacheKey, CacheOptions, CacheRegistry, DEFAULT_COMPILER_CACHE_NAMESPACE,
+};
 
 const CACHE_LOCK_FILE: &str = "cache.lock";
 
@@ -111,7 +113,7 @@ impl CacheRegistry {
             return Ok(());
         }
 
-        let root = options.dir.join(DEFAULT_CACHE_NAMESPACE);
+        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
         if !root.exists() {
             self.disk_state.size_bytes.store(0, Ordering::Relaxed);
             self.disk_state.initialized.store(true, Ordering::Relaxed);
@@ -188,7 +190,7 @@ impl CacheRegistry {
         &self,
         options: &CacheOptions,
     ) -> Result<Option<std::fs::File>, CacheError> {
-        let root = options.dir.join(DEFAULT_CACHE_NAMESPACE);
+        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
         if !root.exists() {
             return Ok(None);
         }
@@ -209,7 +211,7 @@ impl CacheRegistry {
         &self,
         options: &CacheOptions,
     ) -> Result<Option<std::fs::File>, CacheError> {
-        let root = options.dir.join(DEFAULT_CACHE_NAMESPACE);
+        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
         std::fs::create_dir_all(&root).map_err(CacheError::Io)?;
         let path = root.join(CACHE_LOCK_FILE);
         let file = OpenOptions::new()
@@ -388,7 +390,7 @@ impl CacheRegistry {
         );
 
         // build the cache path
-        root.join(DEFAULT_CACHE_NAMESPACE)
+        root.join(DEFAULT_COMPILER_CACHE_NAMESPACE)
             .join(kind_dir)
             .join(package)
             .join(module)
@@ -416,7 +418,7 @@ impl CacheRegistry {
         }
 
         // resolve the cache root directory
-        let root = options.dir.join(DEFAULT_CACHE_NAMESPACE);
+        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
         if !root.exists() {
             return Ok(());
         }

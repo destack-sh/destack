@@ -68,6 +68,11 @@ impl Compiler {
         // flush remaining diagnostics
         self.flush_diagnostics();
 
+        // flush workspace index snapshot
+        if let Err(error) = self.flush_workspace_index() {
+            tracing::warn!(?error, "compile.cache.workspace_index.flush_failed");
+        }
+
         // emit compilation finished event with stats snapshot
         self.emit_event(CompilerEvent::CompilationFinished {
             stats: self.stats.snapshot_with_modules(self.program.modules.len()),

@@ -2,11 +2,12 @@ use destack_base::StringId;
 use destack_dir::{ExportKind, GlobalSymbolId, StaticKey, SymbolKind, SymbolSpace, SymbolType};
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
 
 use crate::{ProfileId, ProfileVersion};
 
 /// Unique key for a module signature.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleSignatureKey {
     /// The module id.
     pub module_id: ModuleId,
@@ -122,4 +123,38 @@ pub struct ModuleSignatureBinding {
     pub exports: Vec<ModuleSignatureExport>,
     /// Export assignment signature hash when present.
     pub export_assignment_hash: Option<u64>,
+}
+
+/// Summary of module signature hashing for cache validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModuleSignatureDigest {
+    /// The module id.
+    pub module_id: ModuleId,
+    /// The profile id.
+    pub profile_id: ProfileId,
+    /// The module version used to compute this signature.
+    pub module_version: ModuleVersion,
+    /// The profile version used to compute this signature.
+    pub profile_version: ProfileVersion,
+    /// The stable hash for the signature.
+    pub hash: u64,
+}
+
+impl ModuleSignatureDigest {
+    /// Create a new signature digest.
+    pub fn new(
+        module_id: ModuleId,
+        profile_id: ProfileId,
+        module_version: ModuleVersion,
+        profile_version: ProfileVersion,
+        hash: u64,
+    ) -> Self {
+        Self {
+            module_id,
+            profile_id,
+            module_version,
+            profile_version,
+            hash,
+        }
+    }
 }
