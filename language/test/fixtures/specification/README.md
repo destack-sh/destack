@@ -31,7 +31,7 @@ Extensions beyond standard TypeScript, organized by `LanguageFeature`:
 | Directory | Feature | Description |
 |-----------|---------|-------------|
 | `expressions/` | Expressions | Implicit returns, if-expressions, match, ranges, tuples, patterns |
-| `types/` | Types | Newtypes, structs, precise primitives, where clauses, refinements |
+| `types/` | Types | Newtypes, structs, precise primitives, where clauses |
 | `reflection/` | Reflection | Type descriptors, runtime type info, decorator metadata |
 | `dispatch/` | Dispatch | Extensions, function/operator overloading |
 | `ownership/` | Ownership | References (`&T`), values (`^T`), mutability |

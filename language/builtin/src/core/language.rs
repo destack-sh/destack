@@ -271,17 +271,11 @@ define_language_symbols! {
         /// Object type descriptor
         ObjectType => (Struct, "reflect/type", "ObjectType"),
 
-        /// Refined type descriptor
-        RefinedType => (Struct, "reflect/type", "RefinedType"),
-
         /// Property descriptor
         Property => (Struct, "reflect/property", "Property"),
 
         /// Enum variant descriptor
         Variant => (Struct, "reflect/property", "Variant"),
-
-        /// Refinement descriptor
-        Refinement => (Struct, "reflect/refinement", "Refinement"),
     }
 
     /// Decorator metadata (in reflect/).
