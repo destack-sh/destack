@@ -141,7 +141,7 @@ impl Compiler {
         let globals_by_symbol = HashMap::new();
         let interface_slots_by_symbol = HashMap::new();
         let interface_itab_ids = HashMap::new();
-        let virtual_method_slots_by_symbol = HashMap::new();
+        let virtual_method_slots_by_key = HashMap::new();
         let vtable_globals_by_symbol = HashMap::new();
         let function_signature_types = HashMap::new();
 
@@ -159,7 +159,7 @@ impl Compiler {
             globals_by_symbol: &globals_by_symbol,
             interface_slots_by_symbol: &interface_slots_by_symbol,
             interface_itab_ids: &interface_itab_ids,
-            virtual_method_slots_by_symbol: &virtual_method_slots_by_symbol,
+            virtual_method_slots_by_key: &virtual_method_slots_by_key,
             vtable_globals_by_symbol: &vtable_globals_by_symbol,
             dispatch_call_name,
             dispatch_construct_name,

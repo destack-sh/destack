@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Lower and execute fibonacci with recursion and if/else control flow.
 #[test]
-fn test_fibonacci() {
+fn test_lower_computes_fibonacci() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -58,7 +58,7 @@ block3:
 
 /// Lower and execute a simple while loop.
 #[test]
-fn test_while_loop() {
+fn test_lower_handles_while_loop() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -90,7 +90,7 @@ function sumTo(n: number): number {
 
 /// Lower and execute a for loop.
 #[test]
-fn test_for_loop() {
+fn test_lower_handles_for_loop() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -120,7 +120,7 @@ function factorial(n: number): number {
 
 /// Lower and execute unlabeled break in a while loop.
 #[test]
-fn test_unlabeled_break() {
+fn test_lower_handles_unlabeled_break() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -153,7 +153,7 @@ function findFirst(n: number): number {
 
 /// Lower and execute unlabeled continue in a for loop.
 #[test]
-fn test_unlabeled_continue() {
+fn test_lower_handles_unlabeled_continue() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -189,7 +189,7 @@ function sumSkipMiddle(n: number): number {
 
 /// Lower and execute ternary expression with boolean variable.
 #[test]
-fn test_ternary_expression() {
+fn test_lower_handles_ternary_expression() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -225,7 +225,7 @@ function abs(n: number): number {
 
 /// Lower and execute ternary with inline condition.
 #[test]
-fn test_ternary_inline_condition() {
+fn test_lower_handles_ternary_inline_condition() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -258,7 +258,7 @@ function max(a: number, b: number): number {
 
 /// Lower and execute nested ternary expressions.
 #[test]
-fn test_nested_ternary() {
+fn test_lower_handles_nested_ternary() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -299,7 +299,7 @@ function sign(n: number): number {
 
 /// Lower nested loops with inner break.
 #[test]
-fn test_nested_loops() {
+fn test_lower_handles_nested_loops() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -335,7 +335,7 @@ function nestedSum(rows: number, cols: number): number {
 
 /// Lower multiple functions that call each other.
 #[test]
-fn test_mutual_function_calls() {
+fn test_lower_handles_mutual_function_calls() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -369,7 +369,7 @@ function combine(x: number): number {
 
 /// Lower nested if-else chains.
 #[test]
-fn test_nested_if_else() {
+fn test_lower_handles_nested_if_else() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -429,7 +429,7 @@ function classify(x: number, y: number): number {
 
 /// Lower early return from loop.
 #[test]
-fn test_early_return_from_loop() {
+fn test_lower_handles_early_return_from_loop() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -461,7 +461,7 @@ function findFirst(target: number): number {
 
 /// Lower and execute a switch statement.
 #[test]
-fn test_switch_statement() {
+fn test_lower_handles_switch_statement() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

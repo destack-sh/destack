@@ -22,13 +22,38 @@ pub(crate) struct VtableGlobal {
 
 /// A key that identifies a virtual method slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct VirtualMethodKey {
+pub(crate) struct VirtualMethodKey {
     /// The method name.
     name: StringId,
     /// The function mode for accessor discrimination.
     mode: Option<FunctionMode>,
     /// The signature type id for the method.
     signature: dir::LocalTypeId,
+}
+
+impl VirtualMethodKey {
+    /// Create a virtual method key for dispatch lookups.
+    pub(crate) fn new(
+        name: StringId,
+        mode: Option<FunctionMode>,
+        signature: dir::LocalTypeId,
+    ) -> Self {
+        Self {
+            name,
+            mode,
+            signature,
+        }
+    }
+
+    /// Return the method name for this key.
+    pub(crate) fn name(&self) -> StringId {
+        self.name
+    }
+
+    /// Return the signature type id for this key.
+    pub(crate) fn signature(&self) -> dir::LocalTypeId {
+        self.signature
+    }
 }
 
 /// A virtual method candidate for vtable construction.
@@ -45,9 +70,14 @@ pub(crate) struct VirtualMethodDescriptor {
 }
 
 impl VirtualMethodDescriptor {
-    /// Return the method symbol for this slot.
-    pub(crate) fn symbol(&self) -> GlobalSymbolId {
-        self.symbol
+    /// Return the slot key for this method.
+    pub(crate) fn key(&self) -> VirtualMethodKey {
+        self.key
+    }
+
+    /// Return the member id for this slot.
+    pub(crate) fn member_id(&self) -> LocalNodeId<Member> {
+        self.member_id
     }
 }
 
@@ -143,14 +173,7 @@ impl ModuleLowerer<'_> {
                     module: self.module_id,
                     message: format!("missing vtable global for class {symbol:?}"),
                 })?;
-            let table_id = self
-                .vtable_ids_by_symbol
-                .get(&symbol)
-                .copied()
-                .ok_or_else(|| LowerError::Internal {
-                    module: self.module_id,
-                    message: format!("missing vtable id for class {symbol:?}"),
-                })?;
+            let table_id = self.require_vtable_id(symbol)?;
             let table = mir::DispatchTable {
                 kind: mir::DispatchTableKind::Class { ty: mir_type },
                 global: Some(vtable_global.global_id),
@@ -169,7 +192,8 @@ impl ModuleLowerer<'_> {
         let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
         metadata.vtable = Some(table_id);
 
-        self.vtable_by_symbol.insert(symbol, table_id);
+        // register the lowered vtable table
+        self.insert_vtable_table(symbol, table_id)?;
         self.vtable_in_progress.shift_remove(&symbol);
 
         Ok(table_id)
@@ -191,8 +215,14 @@ impl ModuleLowerer<'_> {
                 })?;
         let name = format!("{base_name}{VTABLE_GLOBAL_SUFFIX}");
 
-        // allocate the vtable storage as an array of raw pointers
-        let slot_type = self.builder.type_raw_pointer(self.type_lowerer.ty_void);
+        // allocate the vtable storage as an array of nullable raw pointers
+        let slot_type = self.builder.type_reference(
+            mir::ReferenceKind::Raw,
+            self.type_lowerer.ty_void,
+            mir::Mutability::Immutable,
+            mir::AddressSpace::Generic,
+            true,
+        );
         let vtable_type = self
             .builder
             .type_array(slot_type, slot_count, mir::Copyability::Trivial);
@@ -278,11 +308,7 @@ impl ModuleLowerer<'_> {
 
                 // resolve the signature type id
                 let signature_type_id = self.method_signature_type_id(*member_id)?;
-                let key = VirtualMethodKey {
-                    name,
-                    mode: signature.mode,
-                    signature: signature_type_id,
-                };
+                let key = VirtualMethodKey::new(name, signature.mode, signature_type_id);
 
                 let method_symbol = method_symbol.into_global(self.module_id);
                 methods.push(VirtualMethodDescriptor {

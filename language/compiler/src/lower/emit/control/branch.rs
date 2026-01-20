@@ -26,7 +26,7 @@ impl FunctionContext<'_> {
         })?;
 
         // get the result type from the expression
-        let result_type = self.mir_type_for_expression(expression_id)?;
+        let result_type = self.lower_type_for_expression(expression_id)?;
 
         // create blocks for each branch
         let then_block = self.state.builder.create_block();

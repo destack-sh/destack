@@ -45,7 +45,7 @@ impl ModuleLowerer<'_> {
             }
 
             let vtable_id = mir::DispatchTableId::new(self.vtable_class_symbols.len() as u32);
-            self.vtable_ids_by_symbol.insert(symbol, vtable_id);
+            self.insert_vtable_id(symbol, vtable_id)?;
             self.vtable_class_symbols.push(symbol);
 
             // resolve the declaration id for this class symbol
@@ -62,12 +62,11 @@ impl ModuleLowerer<'_> {
 
             let vtable_global =
                 self.create_vtable_global(symbol, slots.len() as u64 + 2, anchor)?;
-            self.vtable_globals_by_symbol.insert(symbol, vtable_global);
+            self.insert_vtable_global(symbol, vtable_global)?;
 
             for (index, slot) in slots.iter().enumerate() {
                 let slot_id = index as u32 + 2;
-                self.virtual_method_slots_by_symbol
-                    .insert(slot.symbol(), slot_id);
+                self.insert_virtual_method_slot(symbol, slot.key(), slot_id, slot.member_id())?;
             }
         }
 
@@ -100,7 +99,7 @@ impl ModuleLowerer<'_> {
         let base_offset = self.vtable_class_symbols.len() as u32;
         for (index, pair) in pairs.iter().enumerate() {
             let id = mir::DispatchTableId::new(base_offset + index as u32);
-            self.interface_itab_ids.insert(*pair, id);
+            self.insert_interface_itab_id(*pair, id)?;
         }
 
         Ok(())

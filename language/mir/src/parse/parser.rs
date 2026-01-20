@@ -77,7 +77,10 @@ impl TypeKey {
         match ty {
             Type::Void => TypeKey::Void,
             Type::Boolean => TypeKey::Boolean,
-            Type::Int { width, signed } => TypeKey::Int {
+            Type::Int {
+                width,
+                is_signed: signed,
+            } => TypeKey::Int {
                 width: *width,
                 signed: *signed,
             },
@@ -2484,51 +2487,51 @@ fn parse_primitive_type(s: &str) -> Option<Type> {
     Some(match s {
         "i8" => Type::Int {
             width: 8,
-            signed: true,
+            is_signed: true,
         },
         "i16" => Type::Int {
             width: 16,
-            signed: true,
+            is_signed: true,
         },
         "i32" => Type::Int {
             width: 32,
-            signed: true,
+            is_signed: true,
         },
         "i64" => Type::Int {
             width: 64,
-            signed: true,
+            is_signed: true,
         },
         "i128" => Type::Int {
             width: 128,
-            signed: true,
+            is_signed: true,
         },
         "i256" => Type::Int {
             width: 256,
-            signed: true,
+            is_signed: true,
         },
         "u8" => Type::Int {
             width: 8,
-            signed: false,
+            is_signed: false,
         },
         "u16" => Type::Int {
             width: 16,
-            signed: false,
+            is_signed: false,
         },
         "u32" => Type::Int {
             width: 32,
-            signed: false,
+            is_signed: false,
         },
         "u64" => Type::Int {
             width: 64,
-            signed: false,
+            is_signed: false,
         },
         "u128" => Type::Int {
             width: 128,
-            signed: false,
+            is_signed: false,
         },
         "u256" => Type::Int {
             width: 256,
-            signed: false,
+            is_signed: false,
         },
         "isize" => Type::Isize,
         "usize" => Type::Usize,

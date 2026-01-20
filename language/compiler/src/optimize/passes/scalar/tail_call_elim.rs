@@ -706,7 +706,11 @@ fn identity_constant_for_operator(
     let ty = tree.get(type_id);
 
     // only handle integer types for now
-    let mir::Type::Int { width, signed } = ty else {
+    let mir::Type::Int {
+        width,
+        is_signed: signed,
+    } = ty
+    else {
         return None;
     };
 

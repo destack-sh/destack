@@ -1,6 +1,9 @@
 mod aggregate;
 mod call;
 mod cast;
+mod dispatch;
+mod r#enum;
 mod literal;
+mod member;
 mod operator;
-mod projection;
+mod union;

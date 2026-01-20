@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_base::StringId;
+use destack_base::{StringId, StringPool};
 use destack_workspace::{Module, Package};
 use {destack_dir as dir, destack_mir as mir};
 
@@ -39,6 +39,25 @@ const LITERAL_METADATA_PREFIX: &str = "literal:";
 const REGEX_METADATA_PREFIX: &str = "regex:";
 /// Prefix for string literal metadata names.
 const STRING_METADATA_PREFIX: &str = "string:";
+
+/// Convert a static key into a canonical string.
+fn static_key_string(key: &dir::StaticKey, strings: &StringPool) -> String {
+    match key {
+        dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
+            strings.get(*name_id).to_string()
+        }
+        dir::StaticKey::Symbol(symbol_key) => match symbol_key {
+            dir::SymbolKey::WellKnown(well_known) => {
+                format!("@{}", well_known.global_symbol_name())
+            }
+            dir::SymbolKey::Registry(name_id) => {
+                let name = strings.get(*name_id);
+                format!("@Symbol.for({})", name.as_ref())
+            }
+            dir::SymbolKey::Unique(global_id) => format!("@Symbol#{global_id:?}"),
+        },
+    }
+}
 
 /// Context derived from a type source node for naming.
 #[derive(Default)]
@@ -87,6 +106,37 @@ impl ModuleLowerer<'_> {
             && let Some(name) = metadata.name
         {
             return Ok(name);
+        }
+
+        // enums lower to their backing types, so metadata names reuse backing primitives
+        if let Some(enum_symbol) = self.enum_symbol_for_type(type_id) {
+            let backing = self
+                .types
+                .get_enum_backing_type(enum_symbol)
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "enum missing backing type".to_string(),
+                })?;
+            let backing_name = match backing {
+                dir::EnumBackingType::Int(int_type) => {
+                    self.primitive_metadata_name(dir::PrimitiveType::Int(int_type))
+                }
+                dir::EnumBackingType::String => {
+                    self.primitive_metadata_name(dir::PrimitiveType::String)
+                }
+            };
+            let name_id = self.builder.intern(&backing_name);
+            let metadata = self
+                .builder
+                .tree_mut()
+                .type_table
+                .type_metadata_by_id
+                .entry(mir_type)
+                .or_default();
+            if metadata.name.is_none() {
+                metadata.name = Some(name_id);
+            }
+            return Ok(name_id);
         }
 
         // use nominal naming when the type resolves to a symbol
@@ -893,7 +943,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve a name string from a member key.
-    fn member_name_from_key(&self, key: Option<dir::DynamicKey>) -> Option<String> {
+    pub(crate) fn member_name_from_key(&self, key: Option<dir::DynamicKey>) -> Option<String> {
         // require a key for name resolution
         let key = key?;
 
@@ -907,23 +957,32 @@ impl ModuleLowerer<'_> {
         )?;
 
         // return the static key name
-        self.static_key_name(key)
+        Some(self.static_key_name(key))
     }
 
     /// Resolve a name string from a static key.
-    fn static_key_name(&self, key: dir::StaticKey) -> Option<String> {
-        // load string pool for name lookup
-        let strings = &self.compiler.program.strings;
+    fn static_key_name(&self, key: dir::StaticKey) -> String {
+        static_key_string(&key, &self.compiler.program.strings)
+    }
 
-        // map supported key types to names
-        match key {
-            // handle name and numeric keys
-            dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
-                Some(strings.get(name_id).to_string())
-            }
-            // reject symbol keys
-            dir::StaticKey::Symbol(_) => None,
+    /// Resolve a module-local static member name from an owner symbol and key.
+    pub(crate) fn static_member_name(
+        &self,
+        owner_symbol: dir::GlobalSymbolId,
+        key: Option<dir::DynamicKey>,
+    ) -> Option<String> {
+        let owner = self.symbol_path_name(owner_symbol)?;
+        let member = self.member_name_from_key(key)?;
+        Some(format!("{owner}.{member}"))
+    }
+
+    /// Resolve the module-local symbol path for a symbol.
+    pub(crate) fn symbol_path_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        if symbol_id.module_id != self.module_id {
+            return None;
         }
+
+        self.symbol_path_from_symbols(symbol_id, self.symbols)
     }
 
     /// Resolve the qualified name for a symbol in this module.
@@ -1004,7 +1063,7 @@ impl ModuleLowerer<'_> {
     ) -> Option<String> {
         // seed with the symbol name
         let symbol = symbols.get_symbol(symbol_id.into_local());
-        let symbol_name = self.static_key_name(symbol.key?)?;
+        let symbol_name = self.static_key_name(symbol.key?);
         let mut segments = vec![symbol_name];
 
         // walk owner scopes for namespaces and types
@@ -1022,9 +1081,8 @@ impl ModuleLowerer<'_> {
                 && owner_id != symbol_id.into_local()
             {
                 let owner = symbols.get_symbol(owner_id);
-                if let Some(owner_name) = owner.key
-                    && let Some(owner_name) = self.static_key_name(owner_name)
-                {
+                if let Some(owner_name) = owner.key {
+                    let owner_name = self.static_key_name(owner_name);
                     // append the owner name to the path
                     segments.push(owner_name);
                 }
@@ -1064,5 +1122,70 @@ impl ModuleLowerer<'_> {
         else {
             format!("{prefix}/{stripped}")
         }
+    }
+}
+
+/// Convert a static key to a field name.
+///
+/// For name and number keys, returns the string directly.
+/// For symbol keys, generates a synthetic name with `@` prefix to avoid conflicts.
+pub(crate) fn static_key_to_field_name(
+    key: &dir::StaticKey,
+    builder: &mut mir::ModuleBuilder,
+) -> StringId {
+    let name = static_key_string(key, builder.strings());
+    builder.intern(&name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::static_key_to_field_name;
+    use {destack_dir as dir, destack_mir as mir};
+
+    /// Name keys return the string directly.
+    #[test]
+    fn test_static_key_name() {
+        let mut builder = mir::ModuleBuilder::new();
+        let name = builder.intern("foo");
+        let key = dir::StaticKey::Name(name);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, name);
+    }
+
+    /// Number keys return the string directly.
+    #[test]
+    fn test_static_key_number() {
+        let mut builder = mir::ModuleBuilder::new();
+        let num = builder.intern("42");
+        let key = dir::StaticKey::Number(num);
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        assert_eq!(result, num);
+    }
+
+    /// Well-known symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_well_known_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::WellKnown(
+            dir::WellKnownSymbolKey::SymbolIterator,
+        ));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.iterator");
+    }
+
+    /// Registry symbol keys get synthetic names with @ prefix.
+    #[test]
+    fn test_static_key_registry_symbol() {
+        let mut builder = mir::ModuleBuilder::new();
+        let registry_key = builder.intern("myKey");
+        let key = dir::StaticKey::Symbol(dir::SymbolKey::Registry(registry_key));
+
+        let result = static_key_to_field_name(&key, &mut builder);
+        let result_str = builder.strings().get(result);
+        assert_eq!(&*result_str, "@Symbol.for(myKey)");
     }
 }

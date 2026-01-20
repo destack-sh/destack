@@ -75,7 +75,13 @@ pub fn constant_matches_type(
         (ConstantType::Float { width }, Type::Float { width: ty_width }) => {
             width == *ty_width as u8
         }
-        (ConstantType::Char, Type::Int { width, signed }) => *width == 32 && !*signed,
+        (
+            ConstantType::Char,
+            Type::Int {
+                width,
+                is_signed: signed,
+            },
+        ) => *width == 32 && !*signed,
         (
             ConstantType::String,
             Type::Reference {
@@ -240,7 +246,7 @@ fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
         tree.get(field_types[0]),
         Type::Int {
             width: 32,
-            signed: false,
+            is_signed: false,
         }
     ) {
         return false;
@@ -249,7 +255,7 @@ fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
         tree.get(field_types[1]),
         Type::Int {
             width: 32,
-            signed: false,
+            is_signed: false,
         }
     ) {
         return false;
@@ -258,7 +264,7 @@ fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
         tree.get(field_types[2]),
         Type::Int {
             width: 64,
-            signed: false,
+            is_signed: false,
         }
     ) {
         return false;
@@ -267,7 +273,7 @@ fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
         tree.get(field_types[3]),
         Type::Int {
             width: 32,
-            signed: false,
+            is_signed: false,
         }
     ) {
         return false;
@@ -276,7 +282,7 @@ fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
         tree.get(field_types[4]),
         Type::Int {
             width: 32,
-            signed: false,
+            is_signed: false,
         }
     ) {
         return false;
@@ -301,10 +307,10 @@ fn data_pointer_matches(pointer_type: LocalNodeId<Type>, tree: &NodeTree) -> boo
         tree.get(*pointee),
         Type::Int {
             width: 8,
-            signed: false,
+            is_signed: false,
         } | Type::Int {
             width: 16,
-            signed: false,
+            is_signed: false,
         }
     )
 }
@@ -798,7 +804,10 @@ fn constant_tree_from_zero(
     // build zero constants by type
     match ty {
         Type::Boolean => ConstantTree::Scalar(Constant::Boolean { value: false }),
-        Type::Int { width, signed } => {
+        Type::Int {
+            width,
+            is_signed: signed,
+        } => {
             let width = match u8::try_from(*width) {
                 Ok(width) => width,
                 Err(_) => return ConstantTree::Unknown,
@@ -918,7 +927,11 @@ fn constant_tree_from_bytes(
     }
 
     // require 8 bit integer element type
-    let Type::Int { width, signed } = tree.get(*element) else {
+    let Type::Int {
+        width,
+        is_signed: signed,
+    } = tree.get(*element)
+    else {
         return ConstantTree::Unknown;
     };
 

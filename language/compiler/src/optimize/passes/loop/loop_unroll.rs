@@ -1974,7 +1974,10 @@ fn scaled_step_constant(
     let scaled = step.checked_mul(factor as i128)?;
 
     match tree.get(type_id) {
-        mir::Type::Int { width, signed } => {
+        mir::Type::Int {
+            width,
+            is_signed: signed,
+        } => {
             let width = *width;
             if *signed {
                 let value = i64::try_from(scaled).ok()?;

@@ -280,7 +280,7 @@ fn integer_info_for_value(
             let original = tree.get(type_id);
             let mir::Type::Int {
                 width: original_width,
-                signed,
+                is_signed: signed,
             } = original
             else {
                 return None;
@@ -391,9 +391,12 @@ fn narrow_value_to_width(
     }
 
     // cache or create the narrower integer type
-    let ty_id = *type_cache
-        .entry((width, signed))
-        .or_insert_with(|| tree.insert(mir::Type::Int { width, signed }));
+    let ty_id = *type_cache.entry((width, signed)).or_insert_with(|| {
+        tree.insert(mir::Type::Int {
+            width,
+            is_signed: signed,
+        })
+    });
 
     // insert a truncating cast before the use
     let destination = function.next_value();

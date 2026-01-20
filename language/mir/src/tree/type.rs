@@ -186,7 +186,7 @@ pub enum Type {
     /// Boolean (1 bit logical, typically 1 byte).
     Boolean,
     /// Integer with explicit width and signedness.
-    Int { width: u16, signed: bool },
+    Int { width: u16, is_signed: bool },
     /// Pointer-sized signed integer.
     Isize,
     /// Pointer-sized unsigned integer.
@@ -250,52 +250,52 @@ impl Node for Type {
 impl Type {
     pub const INT8: Type = Type::Int {
         width: 8,
-        signed: true,
+        is_signed: true,
     };
     pub const INT16: Type = Type::Int {
         width: 16,
-        signed: true,
+        is_signed: true,
     };
     pub const INT32: Type = Type::Int {
         width: 32,
-        signed: true,
+        is_signed: true,
     };
     pub const INT64: Type = Type::Int {
         width: 64,
-        signed: true,
+        is_signed: true,
     };
     pub const INT128: Type = Type::Int {
         width: 128,
-        signed: true,
+        is_signed: true,
     };
     pub const INT256: Type = Type::Int {
         width: 256,
-        signed: true,
+        is_signed: true,
     };
 
     pub const UINT8: Type = Type::Int {
         width: 8,
-        signed: false,
+        is_signed: false,
     };
     pub const UINT16: Type = Type::Int {
         width: 16,
-        signed: false,
+        is_signed: false,
     };
     pub const UINT32: Type = Type::Int {
         width: 32,
-        signed: false,
+        is_signed: false,
     };
     pub const UINT64: Type = Type::Int {
         width: 64,
-        signed: false,
+        is_signed: false,
     };
     pub const UINT128: Type = Type::Int {
         width: 128,
-        signed: false,
+        is_signed: false,
     };
     pub const UINT256: Type = Type::Int {
         width: 256,
-        signed: false,
+        is_signed: false,
     };
 
     pub const FLOAT32: Type = Type::Float { width: 32 };
@@ -304,7 +304,10 @@ impl Type {
     /// Return integer width and signedness for concrete integer types.
     pub fn int_info(&self) -> Option<(u16, bool)> {
         match self {
-            Type::Int { width, signed } => Some((*width, *signed)),
+            Type::Int {
+                width,
+                is_signed: signed,
+            } => Some((*width, *signed)),
             _ => None,
         }
     }
@@ -312,7 +315,10 @@ impl Type {
     /// Return integer width and signedness with pointer-sized integers resolved.
     pub fn int_info_with_pointer_width(&self, pointer_width_bits: u16) -> Option<(u16, bool)> {
         match self {
-            Type::Int { width, signed } => Some((*width, *signed)),
+            Type::Int {
+                width,
+                is_signed: signed,
+            } => Some((*width, *signed)),
             Type::Isize => Some((pointer_width_bits, true)),
             Type::Usize => Some((pointer_width_bits, false)),
             _ => None,

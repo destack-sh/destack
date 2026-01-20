@@ -105,9 +105,8 @@ impl ModuleLowerer<'_> {
         let function_id = self
             .builder
             .extern_function(&extern_name, &parameter_types, return_type);
-        self.functions_by_symbol.insert(target_symbol, function_id);
-        self.function_signature_types
-            .insert(function_id, signature_type);
+        // register function binding
+        self.register_function_binding_for_symbol(target_symbol, function_id, signature_type)?;
 
         // return after declaration
         Ok(function_id)

@@ -66,8 +66,8 @@ impl TypeLowerer {
                 dir::IntType::Uint16 => Some(builder.type_int(16, false)),
                 dir::IntType::Uint128 => Some(builder.type_int(128, false)),
                 dir::IntType::Uint256 => Some(builder.type_int(256, false)),
-                dir::IntType::Isize => Some(builder.type_isize()),
-                dir::IntType::Usize => Some(builder.type_usize()),
+                dir::IntType::Isize => Some(self.ty_isize),
+                dir::IntType::Usize => Some(self.ty_usize),
                 dir::IntType::Arbitrary { width, is_signed } => {
                     Some(builder.type_int(width, is_signed))
                 }
@@ -105,33 +105,7 @@ impl TypeLowerer {
             },
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(int_type)),
-            } => match int_type.simplify() {
-                dir::IntType::Int8 => Some(ScalarType::SignedInt { width: 8 }),
-                dir::IntType::Int16 => Some(ScalarType::SignedInt { width: 16 }),
-                dir::IntType::Int32 => Some(ScalarType::SignedInt { width: 32 }),
-                dir::IntType::Int64 => Some(ScalarType::SignedInt { width: 64 }),
-                dir::IntType::Int128 => Some(ScalarType::SignedInt { width: 128 }),
-                dir::IntType::Int256 => Some(ScalarType::SignedInt { width: 256 }),
-                dir::IntType::Uint8 => Some(ScalarType::UnsignedInt { width: 8 }),
-                dir::IntType::Uint16 => Some(ScalarType::UnsignedInt { width: 16 }),
-                dir::IntType::Uint32 => Some(ScalarType::UnsignedInt { width: 32 }),
-                dir::IntType::Uint64 => Some(ScalarType::UnsignedInt { width: 64 }),
-                dir::IntType::Uint128 => Some(ScalarType::UnsignedInt { width: 128 }),
-                dir::IntType::Uint256 => Some(ScalarType::UnsignedInt { width: 256 }),
-                dir::IntType::Isize => Some(ScalarType::SignedInt {
-                    width: self.pointer_width_bits,
-                }),
-                dir::IntType::Usize => Some(ScalarType::UnsignedInt {
-                    width: self.pointer_width_bits,
-                }),
-                dir::IntType::Arbitrary { width, is_signed } => {
-                    if is_signed {
-                        Some(ScalarType::SignedInt { width })
-                    } else {
-                        Some(ScalarType::UnsignedInt { width })
-                    }
-                }
-            },
+            } => Some(self.scalar_type_for_int_type(*int_type)),
             dir::Type::TypeLiteral {
                 value: dir::TypeLiteral::ScalarLiteral(literal),
             } => match literal {
@@ -141,6 +115,48 @@ impl TypeLowerer {
                 _ => None,
             },
             _ => None,
+        }
+    }
+
+    /// Resolve a scalar type for an enum backing type.
+    pub(crate) fn scalar_type_for_enum_backing(
+        &self,
+        backing: dir::EnumBackingType,
+    ) -> Option<ScalarType> {
+        match backing {
+            dir::EnumBackingType::Int(int_type) => Some(self.scalar_type_for_int_type(int_type)),
+            dir::EnumBackingType::String => None,
+        }
+    }
+
+    /// Resolve a scalar type for an integer type.
+    pub(crate) fn scalar_type_for_int_type(&self, int_type: dir::IntType) -> ScalarType {
+        match int_type.simplify() {
+            dir::IntType::Int8 => ScalarType::SignedInt { width: 8 },
+            dir::IntType::Int16 => ScalarType::SignedInt { width: 16 },
+            dir::IntType::Int32 => ScalarType::SignedInt { width: 32 },
+            dir::IntType::Int64 => ScalarType::SignedInt { width: 64 },
+            dir::IntType::Int128 => ScalarType::SignedInt { width: 128 },
+            dir::IntType::Int256 => ScalarType::SignedInt { width: 256 },
+            dir::IntType::Uint8 => ScalarType::UnsignedInt { width: 8 },
+            dir::IntType::Uint16 => ScalarType::UnsignedInt { width: 16 },
+            dir::IntType::Uint32 => ScalarType::UnsignedInt { width: 32 },
+            dir::IntType::Uint64 => ScalarType::UnsignedInt { width: 64 },
+            dir::IntType::Uint128 => ScalarType::UnsignedInt { width: 128 },
+            dir::IntType::Uint256 => ScalarType::UnsignedInt { width: 256 },
+            dir::IntType::Isize => ScalarType::SignedInt {
+                width: self.pointer_width_bits,
+            },
+            dir::IntType::Usize => ScalarType::UnsignedInt {
+                width: self.pointer_width_bits,
+            },
+            dir::IntType::Arbitrary { width, is_signed } => {
+                if is_signed {
+                    ScalarType::SignedInt { width }
+                } else {
+                    ScalarType::UnsignedInt { width }
+                }
+            }
         }
     }
 }

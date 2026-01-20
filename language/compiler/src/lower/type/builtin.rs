@@ -8,7 +8,8 @@ use destack_workspace::ProfileId;
 
 use crate::{Compiler, LowerError, LowerResult, TaskDependencyError};
 
-use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer, static_key_to_field_name};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
+use crate::lower::static_key_to_field_name;
 
 /// Helpers for lowering builtin type layouts.
 pub(crate) struct BuiltinTypeLayouts<'a> {

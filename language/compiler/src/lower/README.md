@@ -47,7 +47,7 @@ MIR is generated per-target with target-specific decisions:
 
 Lower organizes the implementation by responsibility.
 
-- `module/`: orchestration and phase sequencing
+- `module/`: orchestration and caching
 - `type/`: type lowering and layout (including nominal field layouts)
 - `item/`: declaration lowering (globals, functions, methods)
 - `table/`: dispatch tables (vtables, itabs) and RTTI
@@ -831,18 +831,19 @@ interface Container<T> {
 
 ### Newtypes
 
-Newtypes are fully erased at the MIR level.
-They exist only for type checking; the runtime representation is identical to the wrapped type.
+Newtypes lower to nominal wrapper types with a single field that stores the underlying representation.
+They keep a distinct MIR type identity for metadata, drop hooks, and extension methods.
+Their layout matches the wrapped type, so optimizations can erase the wrapper when identity is not observed.
 
 ```ds
 newtype UserId = int;
-const id: UserId = UserId(42);  // lowers to: const id: int = 42
+const id: UserId = UserId(42);  // lowers to: struct { value: int } with nominal type UserId
 ```
 
-Pattern matching on newtypes extracts the inner value with no runtime cost:
+Pattern matching on newtypes unwraps the payload and can be optimized away:
 ```ds
 match (id) {
-    UserId(n) => print(n)  // lowers to: print(id)
+    UserId(n) => print(n)
 }
 ```
 
@@ -1143,7 +1144,6 @@ Lower does NOT emit RTTI for:
 - Types only used with statically-known concrete types
 - Types where all `instanceof`/`T.is` checks are eliminated by type narrowing
 - Primitives (handled by tag bits, not full TypeDescriptor)
-- Newtypes (erased at runtime)
 
 Dead code elimination in the Optimize phase removes unused RTTI entries.
 If all type operations resolve at comptime, no RTTI overhead appears in the binary.

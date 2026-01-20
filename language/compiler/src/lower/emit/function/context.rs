@@ -11,8 +11,8 @@ use crate::{LowerError, LowerResult};
 use super::constructor::ConstructorState;
 use crate::lower::emit::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
-use crate::lower::table::VtableGlobal;
 use crate::lower::table::interface::InterfaceSlot;
+use crate::lower::table::{VirtualMethodKey, VtableGlobal};
 use crate::lower::r#type::TypeLowerer;
 
 /// Shared, immutable inputs for lowering a single function body.
@@ -44,7 +44,7 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) interface_itab_ids:
         &'a HashMap<(GlobalSymbolId, GlobalSymbolId), mir::DispatchTableId>,
     /// Resolve virtual dispatch slot ids for method calls.
-    pub(crate) virtual_method_slots_by_symbol: &'a HashMap<GlobalSymbolId, u32>,
+    pub(crate) virtual_method_slots_by_key: &'a HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
     /// Resolve vtable globals for class allocations.
     pub(crate) vtable_globals_by_symbol: &'a HashMap<GlobalSymbolId, VtableGlobal>,
     /// Synthetic name for call signatures in dispatch tables.
@@ -341,7 +341,7 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Lower a variable reference expression.
-    fn lower_reference_expression(
+    pub(crate) fn lower_reference_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
         target_symbol: dir::GlobalSymbolId,
@@ -411,7 +411,7 @@ impl<'a> FunctionContext<'a> {
             | dir::CastOperator::UnknownUpcast
             | dir::CastOperator::UnknownDowncast => {
                 let (value, _) = self.lower_value_expression(value_id)?;
-                let target_type = self.mir_type_for_expression(expression_id)?;
+                let target_type = self.lower_type_for_expression(expression_id)?;
                 return Ok((value, target_type));
             }
             dir::CastOperator::NullableUpcast => {
@@ -427,7 +427,7 @@ impl<'a> FunctionContext<'a> {
         let (value, _) = self.lower_value_expression(value_id)?;
 
         // resolve the target type for the cast
-        let target_type = self.mir_type_for_expression(expression_id)?;
+        let target_type = self.lower_type_for_expression(expression_id)?;
 
         // pick the mir cast operator
         let mir_operator = self.lower_cast_operator(expression_id, operator, value_id)?;
@@ -467,7 +467,7 @@ impl<'a> FunctionContext<'a> {
         let (right_value, _) = self.lower_value_expression(right)?;
 
         // get result type
-        let result_type = self.mir_type_for_expression(expression_id)?;
+        let result_type = self.lower_type_for_expression(expression_id)?;
 
         // emit binary operation
         let op = self.lower_binary_operator(expression_id, operator, left)?;

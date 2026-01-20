@@ -1675,7 +1675,10 @@ impl<'a> ScevMaterializer<'a> {
         }
 
         // allocate a new type node
-        let ty = mir::Type::Int { width, signed };
+        let ty = mir::Type::Int {
+            width,
+            is_signed: signed,
+        };
         let type_id = self.tree.insert(ty);
         self.type_cache.insert((width, signed), type_id);
 
