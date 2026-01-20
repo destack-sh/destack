@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use parking_lot::RwLock;
 
@@ -40,9 +41,18 @@ impl std::fmt::Debug for MemoryFileSystem {
 #[derive(Debug, Default, Clone)]
 struct MemoryFileSystemState {
     /// Files by path.
-    files: HashMap<PathBuf, Vec<u8>>,
+    files: HashMap<PathBuf, MemoryFileEntry>,
     /// Directories by path.
     directories: HashSet<PathBuf>,
+}
+
+/// In-memory file entry.
+#[derive(Debug, Clone)]
+struct MemoryFileEntry {
+    /// The file contents.
+    content: Vec<u8>,
+    /// The last modification time.
+    modified_at: SystemTime,
 }
 
 impl MemoryFileSystem {
@@ -67,7 +77,13 @@ impl MemoryFileSystem {
         let path = path.as_ref();
         self.ensure_directories(path);
         let mut inner = self.inner.write();
-        inner.files.insert(path.to_path_buf(), content.to_vec());
+        inner.files.insert(
+            path.to_path_buf(),
+            MemoryFileEntry {
+                content: content.to_vec(),
+                modified_at: SystemTime::now(),
+            },
+        );
         Ok(())
     }
 
@@ -103,9 +119,15 @@ impl FileSystem for MemoryFileSystem {
         tracing::trace!(?path, "fs.memory.metadata");
         let inner = self.inner.read();
         if inner.directories.contains(path) {
-            Ok(FileMetadata::new(false, true, false))
-        } else if inner.files.contains_key(path) {
-            Ok(FileMetadata::new(true, false, false))
+            Ok(FileMetadata::new(false, true, false, 0, None))
+        } else if let Some(entry) = inner.files.get(path) {
+            Ok(FileMetadata::new(
+                true,
+                false,
+                false,
+                entry.content.len() as u64,
+                Some(entry.modified_at),
+            ))
         } else {
             Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -143,7 +165,7 @@ impl FileSystem for MemoryFileSystem {
         inner
             .files
             .get(path)
-            .cloned()
+            .map(|entry| entry.content.clone())
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, path.display().to_string()))
     }
 

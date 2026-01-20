@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::io;
 use std::path::Path;
+use std::time::{Duration, SystemTime};
 
 // Some functions are copied and adapted from Rust standard library.
 // License: https://github.com/rust-lang/rust/blob/1.89.0/LICENSE-MIT, https://github.com/rust-lang/rust/blob/1.89.0/LICENSE-APACHE
@@ -14,6 +15,10 @@ pub struct SymlinkMetadata {
     pub is_dir: bool,
     /// Whether the file is a regular file.
     pub is_file: bool,
+    /// The file size in bytes.
+    pub size_bytes: u64,
+    /// The last modified timestamp when available.
+    pub modified_at: Option<SystemTime>,
 }
 
 /// Optimized version of [std::fs::symlink_metadata] for Windows.
@@ -28,6 +33,10 @@ pub fn symlink_metadata(path: &Path) -> io::Result<SymlinkMetadata> {
         GetFileAttributesExW, GetFileExInfoStandard,
     };
     use windows::core::HSTRING;
+
+    // windows filetime offsets
+    const WINDOWS_TICK_NANOS: u64 = 100;
+    const WINDOWS_EPOCH_TO_UNIX_SECS: u64 = 11_644_473_600;
 
     let verbatim_path = maybe_verbatim(path)?;
     let lpfilename = HSTRING::from_wide(&verbatim_path);
@@ -46,10 +55,32 @@ pub fn symlink_metadata(path: &Path) -> io::Result<SymlinkMetadata> {
     // NOTE: this does not handle `is_reparse_tag_name_surrogate` which is handled by std lib
     // https://github.com/rust-lang/rust/blob/1.89.0/library/std/src/sys/fs/windows.rs#L1122-L1124
     let is_symlink = file_attrs.contains(FILE_ATTRIBUTE_REPARSE_POINT);
+    let size_bytes = ((file_info.nFileSizeHigh as u64) << 32) | (file_info.nFileSizeLow as u64);
+    let modified_at = {
+        let ticks = ((file_info.ftLastWriteTime.dwHighDateTime as u64) << 32)
+            | (file_info.ftLastWriteTime.dwLowDateTime as u64);
+        if ticks == 0 {
+            None
+        } else {
+            let nanos = ticks.checked_mul(WINDOWS_TICK_NANOS);
+            let nanos = nanos?;
+            let secs = nanos / 1_000_000_000;
+            let sub_nanos = (nanos % 1_000_000_000) as u32;
+            if secs < WINDOWS_EPOCH_TO_UNIX_SECS {
+                None
+            } else {
+                let unix_secs = secs - WINDOWS_EPOCH_TO_UNIX_SECS;
+                let duration = Duration::new(unix_secs, sub_nanos);
+                SystemTime::UNIX_EPOCH.checked_add(duration)
+            }
+        }
+    };
     Ok(SymlinkMetadata {
         is_dir: !is_symlink && is_directory,
         is_file: !is_symlink && !is_directory,
         is_symlink,
+        size_bytes,
+        modified_at,
     })
 }
 

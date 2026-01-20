@@ -1,8 +1,12 @@
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use std::{fs, io};
 
 use cfg_if::cfg_if;
+
+#[cfg(target_os = "linux")]
+use std::time::Duration;
 
 /// Metadata information about a file.
 #[derive(Debug, Clone, Copy)]
@@ -13,16 +17,28 @@ pub struct FileMetadata {
     pub is_directory: bool,
     /// Whether the file is a symlink.
     pub is_symlink: bool,
+    /// The file size in bytes.
+    pub size_bytes: u64,
+    /// The last modified timestamp when available.
+    pub modified_at: Option<SystemTime>,
 }
 
 impl FileMetadata {
     /// Create a new FileMetadata.
     #[must_use]
-    pub const fn new(is_file: bool, is_dir: bool, is_symlink: bool) -> Self {
+    pub const fn new(
+        is_file: bool,
+        is_dir: bool,
+        is_symlink: bool,
+        size_bytes: u64,
+        modified_at: Option<SystemTime>,
+    ) -> Self {
         Self {
             is_file,
             is_directory: is_dir,
             is_symlink,
+            size_bytes,
+            modified_at,
         }
     }
 }
@@ -30,14 +46,38 @@ impl FileMetadata {
 #[cfg(target_os = "windows")]
 impl From<crate::windows::SymlinkMetadata> for FileMetadata {
     fn from(value: crate::windows::SymlinkMetadata) -> Self {
-        Self::new(value.is_file, value.is_dir, value.is_symlink)
+        Self::new(
+            value.is_file,
+            value.is_dir,
+            value.is_symlink,
+            value.size_bytes,
+            value.modified_at,
+        )
     }
 }
 
 impl From<fs::Metadata> for FileMetadata {
     fn from(metadata: fs::Metadata) -> Self {
-        Self::new(metadata.is_file(), metadata.is_dir(), metadata.is_symlink())
+        Self::new(
+            metadata.is_file(),
+            metadata.is_dir(),
+            metadata.is_symlink(),
+            metadata.len(),
+            metadata.modified().ok(),
+        )
     }
+}
+
+#[cfg(target_os = "linux")]
+fn system_time_from_unix(secs: i64, nanos: u32) -> Option<SystemTime> {
+    // map negative timestamps to None
+    if secs < 0 {
+        return None;
+    }
+
+    // build system time from unix timestamp
+    let duration = Duration::new(secs as u64, nanos);
+    SystemTime::UNIX_EPOCH.checked_add(duration)
 }
 
 /// Abstract file system.
@@ -163,9 +203,16 @@ impl PhysicalFileSystem {
                 Ok(result.into())
             } else if #[cfg(target_os = "linux")] {
                 use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
-                let statx = rustix::fs::statx(CWD, path, AtFlags::STATX_DONT_SYNC, StatxFlags::TYPE)?;
+                let statx = rustix::fs::statx(CWD, path, AtFlags::STATX_DONT_SYNC, StatxFlags::TYPE | StatxFlags::SIZE | StatxFlags::MTIME)?;
                 let file_type = FileType::from_raw_mode(statx.stx_mode.into());
-                Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
+                let modified_at = system_time_from_unix(statx.stx_mtime.tv_sec, statx.stx_mtime.tv_nsec as u32);
+                Ok(FileMetadata::new(
+                    file_type.is_file(),
+                    file_type.is_dir(),
+                    file_type.is_symlink(),
+                    statx.stx_size,
+                    modified_at,
+                ))
             } else {
                 fs::metadata(path).map(FileMetadata::from)
             }
@@ -179,9 +226,16 @@ impl PhysicalFileSystem {
                 Ok(crate::windows::symlink_metadata(path)?.into())
             } else if #[cfg(target_os = "linux")] {
                 use rustix::fs::{AtFlags, CWD, FileType, StatxFlags};
-                let statx = rustix::fs::statx(CWD, path, AtFlags::SYMLINK_NOFOLLOW, StatxFlags::TYPE)?;
+                let statx = rustix::fs::statx(CWD, path, AtFlags::SYMLINK_NOFOLLOW, StatxFlags::TYPE | StatxFlags::SIZE | StatxFlags::MTIME)?;
                 let file_type = FileType::from_raw_mode(statx.stx_mode.into());
-                Ok(FileMetadata::new(file_type.is_file(), file_type.is_dir(), file_type.is_symlink()))
+                let modified_at = system_time_from_unix(statx.stx_mtime.tv_sec, statx.stx_mtime.tv_nsec as u32);
+                Ok(FileMetadata::new(
+                    file_type.is_file(),
+                    file_type.is_dir(),
+                    file_type.is_symlink(),
+                    statx.stx_size,
+                    modified_at,
+                ))
             } else {
                 fs::symlink_metadata(path).map(FileMetadata::from)
             }

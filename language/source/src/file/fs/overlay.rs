@@ -118,9 +118,15 @@ impl FileSystem for OverlayFileSystem {
 
     fn metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         let canonical = self.normalize_path(path);
-        if self.overlays.contains_key(&canonical) {
+        if let Some(entry) = self.overlays.get(&canonical) {
             // overlay files are always regular files
-            return Ok(FileMetadata::new(true, false, false));
+            return Ok(FileMetadata::new(
+                true,
+                false,
+                false,
+                entry.content.len() as u64,
+                Some(entry.modified),
+            ));
         }
         self.inner.metadata(path)
     }
@@ -203,9 +209,15 @@ impl FileSystem for OverlayFileSystem {
 
     fn symlink_metadata(&self, path: &Path) -> io::Result<FileMetadata> {
         let canonical = self.normalize_path(path);
-        if self.overlays.contains_key(&canonical) {
+        if let Some(entry) = self.overlays.get(&canonical) {
             // overlay files are always regular files, not symlinks
-            return Ok(FileMetadata::new(true, false, false));
+            return Ok(FileMetadata::new(
+                true,
+                false,
+                false,
+                entry.content.len() as u64,
+                Some(entry.modified),
+            ));
         }
         self.inner.symlink_metadata(path)
     }
