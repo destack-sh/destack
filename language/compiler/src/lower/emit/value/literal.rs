@@ -59,7 +59,7 @@ impl FunctionContext<'_> {
             ScalarLiteral::String(value) => {
                 let literal = self.env.strings.get(*value);
                 let value = self.state.builder.sconst(literal.to_string());
-                let ty = self.mir_type_for_expression(expression_id).or_else(|_| {
+                let ty = self.lower_type_for_expression(expression_id).or_else(|_| {
                     self.env
                         .type_lowerer
                         .string_type()

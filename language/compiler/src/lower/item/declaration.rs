@@ -1,7 +1,8 @@
-use destack_dir::{Declaration, LocalNodeId, Member};
+use destack_dir::{Declaration, GlobalSymbolId, LocalNodeId, Member};
 
 use crate::{LowerError, LowerResult};
 
+use crate::lower::item::{GlobalBinding, lower_mutability};
 use crate::lower::module::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
@@ -40,11 +41,20 @@ impl ModuleLowerer<'_> {
                         None
                     };
 
+                // lower static fields
+                self.lower_static_member_fields(type_symbol, members)?;
+
                 // lower methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
                     if let Member::Method { .. } = member {
-                        self.lower_method(*member_id, member, struct_mir_type, declaration_id)?;
+                        self.lower_method(
+                            *member_id,
+                            member,
+                            struct_mir_type,
+                            type_symbol,
+                            declaration_id,
+                        )?;
                     }
                 }
 
@@ -71,11 +81,59 @@ impl ModuleLowerer<'_> {
                     })?;
                 let class_mir_type = Some(self.lower_type(reference_type_id, anchor)?);
 
+                // lower static fields
+                self.lower_static_member_fields(type_symbol, members)?;
+
                 // lower methods
                 for member_id in members {
                     let member = self.dir_tree.get(*member_id);
                     if let Member::Method { .. } = member {
-                        self.lower_method(*member_id, member, class_mir_type, declaration_id)?;
+                        self.lower_method(
+                            *member_id,
+                            member,
+                            class_mir_type,
+                            type_symbol,
+                            declaration_id,
+                        )?;
+                    }
+                }
+
+                Ok(())
+            }
+
+            // enum declarations: lower the backing type and its methods
+            Declaration::Enum {
+                descriptor,
+                members,
+                ..
+            } => {
+                let type_symbol = descriptor.symbol.into_global(self.module_id);
+                let anchor = declaration_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile));
+
+                // lower the enum type so it's cached
+                let enum_mir_type =
+                    if let Some(instance_type_id) = self.types.get_instance_type_id(type_symbol) {
+                        Some(self.lower_type(instance_type_id, anchor)?)
+                    } else {
+                        None
+                    };
+
+                // lower static fields
+                self.lower_static_member_fields(type_symbol, members)?;
+
+                // lower enum methods
+                for member_id in members {
+                    let member = self.dir_tree.get(*member_id);
+                    if let Member::Method { .. } = member {
+                        self.lower_method(
+                            *member_id,
+                            member,
+                            enum_mir_type,
+                            type_symbol,
+                            declaration_id,
+                        )?;
                     }
                 }
 
@@ -90,5 +148,97 @@ impl ModuleLowerer<'_> {
                 message: "unsupported declaration".to_string(),
             }),
         }
+    }
+
+    /// Lower static member fields into globals.
+    fn lower_static_member_fields(
+        &mut self,
+        owner_symbol: GlobalSymbolId,
+        members: &[LocalNodeId<Member>],
+    ) -> LowerResult<()> {
+        // scan members for static fields
+        for member_id in members {
+            // skip static non-field members
+            let member = self.dir_tree.get(*member_id);
+            let Member::Field {
+                modifiers,
+                key,
+                default,
+                symbol,
+                ..
+            } = member
+            else {
+                continue;
+            };
+            if !self.member_is_static(modifiers.as_ref()) {
+                continue;
+            }
+
+            // require an initializer for static fields
+            let Some(value_id) = default else {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "static field requires initializer".to_string(),
+                });
+            };
+
+            // resolve the field type from the initializer expression
+            let symbol_id = symbol.into_global(self.module_id);
+            let type_id = self
+                .types
+                .get_declared_or_inferred_type_id(value_id.into_global_any(self.module_id))
+                .ok_or_else(|| LowerError::MissingType {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                })?;
+            let mir_type = self.lower_type(
+                type_id,
+                member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+            )?;
+
+            // resolve a constant initializer
+            let initializer = self
+                .lower_const_initializer(*value_id, mir_type)?
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    node: value_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "static field requires constant initializer".to_string(),
+                })?;
+
+            // decide mutability from modifiers
+            let mutability = modifiers
+                .and_then(|modifiers| modifiers.mutability)
+                .unwrap_or(destack_dir::Mutability::Immutable);
+            let mir_mutability = lower_mutability(mutability);
+
+            // resolve the global name from the static member path
+            let name = self.static_member_name(owner_symbol, *key).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "static field requires a static member name".to_string(),
+                }
+            })?;
+
+            // emit the global
+            let global_id = self
+                .builder
+                .global(&name, mir_type, mir_mutability, initializer);
+            let binding = GlobalBinding {
+                global: global_id,
+                ty: mir_type,
+                mutability: mir_mutability,
+            };
+            self.insert_global_binding(symbol_id, binding)?;
+        }
+
+        Ok(())
     }
 }

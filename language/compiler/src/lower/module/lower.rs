@@ -7,11 +7,11 @@ use destack_workspace::{Module, ProfileId, TargetId};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::LowerResult;
+use crate::{LowerError, LowerResult};
 
 use crate::lower::item::GlobalBinding;
-use crate::lower::table::VtableGlobal;
 use crate::lower::table::interface::InterfaceSlot;
+use crate::lower::table::{VirtualMethodKey, VtableGlobal};
 use crate::lower::{BuiltinTypeLayouts, TypeLowerer};
 
 /// Context for lowering a DIR module to MIR.
@@ -77,7 +77,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Track whether the dispatch registry is initialized.
     pub(crate) dispatch_registry_ready: bool,
     /// Virtual dispatch slot ids keyed by method symbol.
-    pub(crate) virtual_method_slots_by_symbol: HashMap<GlobalSymbolId, u32>,
+    pub(crate) virtual_method_slots_by_key: HashMap<(GlobalSymbolId, VirtualMethodKey), u32>,
     /// Ordered list of class symbols that require vtables.
     pub(crate) vtable_class_symbols: Vec<GlobalSymbolId>,
     /// Predeclared vtable globals keyed by class symbol.
@@ -149,12 +149,246 @@ impl<'a> ModuleLowerer<'a> {
             itab_by_pair: HashMap::new(),
             itab_in_progress: IndexSet::new(),
             dispatch_registry_ready: false,
-            virtual_method_slots_by_symbol: HashMap::new(),
+            virtual_method_slots_by_key: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
             interface_itab_pairs: Vec::new(),
             interface_itab_ids: HashMap::new(),
         }
+    }
+
+    /// Insert a global binding for a symbol.
+    pub(crate) fn insert_global_binding(
+        &mut self,
+        symbol: GlobalSymbolId,
+        binding: GlobalBinding,
+    ) -> LowerResult<()> {
+        // record the global binding once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.globals_by_symbol,
+            symbol,
+            binding,
+            "global binding",
+        )
+    }
+
+    /// Register a function binding and signature type for a symbol.
+    pub(crate) fn register_function_binding_for_symbol(
+        &mut self,
+        symbol: GlobalSymbolId,
+        function_id: mir::LocalNodeId<mir::Function>,
+        signature_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        Self::register_function_binding(
+            self.module_id,
+            &mut self.functions_by_symbol,
+            &mut self.function_signature_types,
+            symbol,
+            function_id,
+            signature_type,
+        )
+    }
+
+    /// Register a function binding and signature type for a symbol.
+    pub(crate) fn register_function_binding(
+        module_id: ModuleId,
+        functions_by_symbol: &mut HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
+        function_signature_types: &mut HashMap<
+            mir::LocalNodeId<mir::Function>,
+            mir::LocalNodeId<mir::Type>,
+        >,
+        symbol: GlobalSymbolId,
+        function_id: mir::LocalNodeId<mir::Function>,
+        signature_type: mir::LocalNodeId<mir::Type>,
+    ) -> LowerResult<()> {
+        // register the function binding
+        Self::insert_unique_entry(
+            module_id,
+            functions_by_symbol,
+            symbol,
+            function_id,
+            "function binding",
+        )?;
+
+        // register the function signature type
+        Self::insert_unique_entry(
+            module_id,
+            function_signature_types,
+            function_id,
+            signature_type,
+            "function signature type",
+        )
+    }
+
+    /// Insert interface slots for a symbol.
+    pub(crate) fn insert_interface_slots(
+        &mut self,
+        symbol: GlobalSymbolId,
+        slots: Vec<InterfaceSlot>,
+    ) -> LowerResult<()> {
+        // record interface slots once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.interface_slots_by_symbol,
+            symbol,
+            slots,
+            "interface slots",
+        )
+    }
+
+    /// Insert a vtable global for a class symbol.
+    pub(crate) fn insert_vtable_global(
+        &mut self,
+        symbol: GlobalSymbolId,
+        vtable: VtableGlobal,
+    ) -> LowerResult<()> {
+        // record the vtable global once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.vtable_globals_by_symbol,
+            symbol,
+            vtable,
+            "vtable global",
+        )
+    }
+
+    /// Insert a vtable id for a class symbol.
+    pub(crate) fn insert_vtable_id(
+        &mut self,
+        symbol: GlobalSymbolId,
+        table_id: mir::DispatchTableId,
+    ) -> LowerResult<()> {
+        // record the vtable id once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.vtable_ids_by_symbol,
+            symbol,
+            table_id,
+            "vtable id",
+        )
+    }
+
+    /// Insert a vtable table id for a class symbol.
+    pub(crate) fn insert_vtable_table(
+        &mut self,
+        symbol: GlobalSymbolId,
+        table_id: mir::DispatchTableId,
+    ) -> LowerResult<()> {
+        // record the lowered vtable table once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.vtable_by_symbol,
+            symbol,
+            table_id,
+            "vtable table",
+        )
+    }
+
+    /// Insert a virtual method slot id for a method symbol.
+    pub(crate) fn insert_virtual_method_slot(
+        &mut self,
+        class_symbol: GlobalSymbolId,
+        key: VirtualMethodKey,
+        slot_id: u32,
+        member_id: LocalNodeId<dir::Member>,
+    ) -> LowerResult<()> {
+        let slot_key = (class_symbol, key);
+        if self.virtual_method_slots_by_key.contains_key(&slot_key) {
+            return Err(LowerError::UnsupportedConstruct {
+                node: member_id
+                    .into_global_any(self.module_id)
+                    .into_anchored(Some(self.profile)),
+                message: format!("duplicate virtual method slot for {class_symbol:?} {key:?}"),
+            });
+        }
+
+        self.virtual_method_slots_by_key.insert(slot_key, slot_id);
+        Ok(())
+    }
+
+    /// Insert a precomputed itab id for an interface pair.
+    pub(crate) fn insert_interface_itab_id(
+        &mut self,
+        pair: (GlobalSymbolId, GlobalSymbolId),
+        table_id: mir::DispatchTableId,
+    ) -> LowerResult<()> {
+        // record the interface itab id once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.interface_itab_ids,
+            pair,
+            table_id,
+            "interface itab id",
+        )
+    }
+
+    /// Require a precomputed vtable id for a class symbol.
+    pub(crate) fn require_vtable_id(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> LowerResult<mir::DispatchTableId> {
+        self.vtable_ids_by_symbol
+            .get(&symbol)
+            .copied()
+            .ok_or_else(|| LowerError::Internal {
+                module: self.module_id,
+                message: format!("missing vtable id for class {symbol:?}"),
+            })
+    }
+
+    /// Require a precomputed itab id for a concrete/interface pair.
+    pub(crate) fn require_itab_id(
+        &self,
+        pair: (GlobalSymbolId, GlobalSymbolId),
+    ) -> LowerResult<mir::DispatchTableId> {
+        self.interface_itab_ids
+            .get(&pair)
+            .copied()
+            .ok_or_else(|| LowerError::Internal {
+                module: self.module_id,
+                message: "missing itab id for interface pair".to_string(),
+            })
+    }
+
+    /// Insert a lowered itab table id for an interface pair.
+    pub(crate) fn insert_itab_table(
+        &mut self,
+        pair: (GlobalSymbolId, GlobalSymbolId),
+        table_id: mir::DispatchTableId,
+    ) -> LowerResult<()> {
+        // record the lowered itab table once
+        Self::insert_unique_entry(
+            self.module_id,
+            &mut self.itab_by_pair,
+            pair,
+            table_id,
+            "itab table",
+        )
+    }
+
+    /// Insert a key into a map and reject duplicates.
+    pub(crate) fn insert_unique_entry<K, V>(
+        module_id: ModuleId,
+        map: &mut HashMap<K, V>,
+        key: K,
+        value: V,
+        label: &str,
+    ) -> LowerResult<()>
+    where
+        K: std::fmt::Debug + std::hash::Hash + Eq,
+    {
+        // reject duplicate entries
+        if map.contains_key(&key) {
+            return Err(LowerError::Internal {
+                module: module_id,
+                message: format!("duplicate {label} for {key:?}"),
+            });
+        }
+
+        // insert the new entry
+        map.insert(key, value);
+        Ok(())
     }
 
     /// Lower this entire DIR module to MIR (in-place).
@@ -290,5 +524,35 @@ impl<'a> ModuleLowerer<'a> {
         builtin_layouts.string_type_for_builtin(anchor)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use destack_source::ModuleId;
+
+    use super::ModuleLowerer;
+    use crate::LowerError;
+
+    /// Duplicates rejected by the insert helper.
+    #[test]
+    fn test_rejects_duplicate_insert_unique_entry() {
+        // seed a map with a value
+        let mut map = HashMap::new();
+        let module_id = ModuleId::EPHEMERAL;
+        ModuleLowerer::insert_unique_entry(module_id, &mut map, "key", 1_u32, "entry")
+            .expect("expected initial insert");
+
+        // reject a duplicate key
+        let error = ModuleLowerer::insert_unique_entry(module_id, &mut map, "key", 2_u32, "entry")
+            .expect_err("expected duplicate insert error");
+        match error {
+            LowerError::Internal { message, .. } => {
+                assert!(message.contains("duplicate entry"));
+            }
+            _ => panic!("expected internal lower error"),
+        }
     }
 }

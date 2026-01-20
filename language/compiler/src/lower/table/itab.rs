@@ -134,14 +134,7 @@ impl ModuleLowerer<'_> {
 
         // insert the dispatch table
         let table_id = {
-            let table_id = self
-                .interface_itab_ids
-                .get(&(concrete, interface))
-                .copied()
-                .ok_or_else(|| LowerError::Internal {
-                    module: self.module_id,
-                    message: "missing itab id for interface pair".to_string(),
-                })?;
+            let table_id = self.require_itab_id((concrete, interface))?;
             let table = mir::DispatchTable {
                 kind: mir::DispatchTableKind::Interface {
                     concrete: concrete_mir_type,
@@ -166,7 +159,8 @@ impl ModuleLowerer<'_> {
             .or_default();
         metadata.itabs.push(table_id);
 
-        self.itab_by_pair.insert((concrete, interface), table_id);
+        // register the lowered itab table
+        self.insert_itab_table((concrete, interface), table_id)?;
         self.itab_in_progress.shift_remove(&(concrete, interface));
 
         Ok(table_id)

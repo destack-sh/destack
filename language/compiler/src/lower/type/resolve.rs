@@ -12,12 +12,12 @@ impl FunctionContext<'_> {
     /// This bridges DIR type information to MIR types during value lowering.
     /// For scalar types, returns cached primitive types directly.
     /// For aggregate types, looks up the type in the type cache.
-    pub(crate) fn mir_type_for_expression(
+    pub(crate) fn lower_type_for_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the dir type id for the expression
-        let type_id = self.dir_type_for_expression_or_error(expression_id)?;
+        let type_id = self.type_for_expression_or_error(expression_id)?;
 
         // unwrap value wrappers for type cache lookup
         let type_id = self.unwrap_value_type_id(type_id);
@@ -69,13 +69,20 @@ impl FunctionContext<'_> {
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<ScalarType> {
-        let type_id = self.dir_type_for_expression(expression_id)?;
+        let type_id = self.type_for_expression(expression_id)?;
+        let type_id = self.unwrap_value_type_id(type_id);
+
+        // handle enum backing scalars
+        if let Some(backing) = self.enum_backing_type_for_type(type_id) {
+            return self.env.type_lowerer.scalar_type_for_enum_backing(backing);
+        }
+
         let dir_type = self.env.types.get_type(type_id);
         self.env.type_lowerer.scalar_type_for_dir_type(dir_type)
     }
 
     /// Resolve the DIR type id for a typed expression.
-    pub(crate) fn dir_type_for_expression(
+    pub(crate) fn type_for_expression(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> Option<dir::LocalTypeId> {
@@ -132,11 +139,11 @@ impl FunctionContext<'_> {
     }
 
     /// Resolve a DIR type id for an expression or return MissingType.
-    pub(crate) fn dir_type_for_expression_or_error(
+    pub(crate) fn type_for_expression_or_error(
         &self,
         expression_id: LocalNodeId<Expression>,
     ) -> LowerResult<dir::LocalTypeId> {
-        self.dir_type_for_expression(expression_id)
+        self.type_for_expression(expression_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
     }
 
@@ -246,6 +253,27 @@ impl FunctionContext<'_> {
             dir::Type::Value { value } => self.unwrap_value_type_id(*value),
             _ => type_id,
         }
+    }
+
+    /// Resolve the enum backing type for a type id when available.
+    fn enum_backing_type_for_type(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> Option<dir::EnumBackingType> {
+        // accept direct enum references
+        if let dir::Type::Reference { symbol, .. } = self.env.types.get_type(type_id)
+            && symbol.ty() == dir::SymbolType::Enum
+        {
+            return self.env.types.get_enum_backing_type(*symbol);
+        }
+
+        // accept enum instance types
+        let symbol = self.env.types.symbol_for_instance_type(type_id)?;
+        if symbol.ty() != dir::SymbolType::Enum {
+            return None;
+        }
+
+        self.env.types.get_enum_backing_type(symbol)
     }
 
     /// Resolve a local binding for a symbol reference.

@@ -1,6 +1,8 @@
 mod aggregate;
 mod builtin;
+mod r#enum;
 mod interface;
+mod intersection;
 mod layout;
 mod lower;
 mod nominal;
@@ -10,6 +12,7 @@ mod scalar;
 mod union;
 
 pub(crate) use builtin::*;
+pub(crate) use r#enum::*;
 pub(crate) use interface::*;
 pub(crate) use layout::*;
 pub(crate) use lower::*;

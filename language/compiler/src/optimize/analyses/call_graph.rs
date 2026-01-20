@@ -218,7 +218,10 @@ impl SignatureType {
         match ty {
             mir::Type::Void => SignatureType::Void,
             mir::Type::Boolean => SignatureType::Boolean,
-            mir::Type::Int { width, signed } => SignatureType::Int {
+            mir::Type::Int {
+                width,
+                is_signed: signed,
+            } => SignatureType::Int {
                 width: *width,
                 signed: *signed,
             },

@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Verify logical AND truth table.
 #[test]
-fn test_logical_and() {
+fn test_lower_handles_logical_and() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -57,7 +57,7 @@ function logicalAnd(a: boolean, b: boolean): boolean {
 
 /// Verify logical OR truth table.
 #[test]
-fn test_logical_or() {
+fn test_lower_handles_logical_or() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -110,7 +110,7 @@ function logicalOr(a: boolean, b: boolean): boolean {
 
 /// Verify AND generates short-circuit control flow that skips RHS when LHS is false.
 #[test]
-fn test_logical_and_short_circuit_structure() {
+fn test_lower_emits_logical_and_short_circuit() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -145,7 +145,7 @@ block3(v4: bool):
 
 /// Verify OR generates short-circuit control flow that skips RHS when LHS is true.
 #[test]
-fn test_logical_or_short_circuit_structure() {
+fn test_lower_emits_logical_or_short_circuit() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -180,7 +180,7 @@ block3(v4: bool):
 
 /// Verify logical NOT operator.
 #[test]
-fn test_logical_not() {
+fn test_lower_handles_logical_not() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

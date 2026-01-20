@@ -19,7 +19,10 @@ pub(crate) fn lower_type(
 
         mir::Type::Boolean => Ok(cir::types::I8),
 
-        mir::Type::Int { width, signed: _ } => match width {
+        mir::Type::Int {
+            width,
+            is_signed: _,
+        } => match width {
             8 => Ok(cir::types::I8),
             16 => Ok(cir::types::I16),
             32 => Ok(cir::types::I32),

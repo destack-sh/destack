@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_ast::{StringId, StringPool};
@@ -40,6 +40,8 @@ pub(crate) struct TypeLowerer {
     pub(crate) ty_i32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR i64 type.
     pub(crate) ty_i64: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR isize type.
+    pub(crate) ty_isize: mir::LocalNodeId<mir::Type>,
     /// Cached MIR u32 type.
     pub(crate) ty_u32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR usize type.
@@ -80,6 +82,7 @@ impl TypeLowerer {
             ty_bool: builder.type_bool(),
             ty_i32: builder.type_i32(),
             ty_i64: builder.type_i64(),
+            ty_isize: builder.type_isize(),
             ty_u32: builder.type_u32(),
             ty_usize: builder.type_usize(),
             ty_f32: builder.type_f32(),
@@ -247,10 +250,23 @@ impl TypeLowerer {
         self.type_cache.insert(type_id, TypeCacheEntry::InProgress);
 
         let dir_type = types.get_type(type_id);
+
+        // map enum instance types to their backing representation
+        if let Some(enum_symbol) = types.symbol_for_instance_type(type_id)
+            && enum_symbol.ty() == dir::SymbolType::Enum
+        {
+            let mir_type = self.lower_enum_backing_type(types, enum_symbol, node, builder)?;
+            self.type_cache
+                .insert(type_id, TypeCacheEntry::Ready(mir_type));
+            return Ok(mir_type);
+        }
+
         let mir_type = match dir_type {
             dir::Type::Reference { symbol, .. } => {
                 if symbol.ty() == dir::SymbolType::Interface {
                     self.lower_interface_reference_type(types, type_id, module_id, node, builder)?
+                } else if symbol.ty() == dir::SymbolType::Enum {
+                    self.lower_enum_backing_type(types, *symbol, node, builder)?
                 } else {
                     // follow the reference to its instance type
                     let instance_type_id =
@@ -368,103 +384,59 @@ impl TypeLowerer {
         Ok(mir_type)
     }
 
-    /// Select the primary type for an intersection layout.
-    fn select_intersection_primary_type(
-        &self,
+    /// Lower an enum symbol to its backing MIR type.
+    fn lower_enum_backing_type(
+        &mut self,
         types: &dir::TypeTable,
-        elements: &[dir::LocalTypeId],
-        module_id: ModuleId,
+        enum_symbol: dir::GlobalSymbolId,
         node: AnchoredGlobalNodeId,
-    ) -> LowerResult<dir::LocalTypeId> {
-        // collect intersection elements with flattening
-        let mut collected = Vec::new();
-        let mut visited = HashSet::new();
-        for element_id in elements {
-            self.collect_intersection_element(*element_id, types, &mut visited, &mut collected);
-        }
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        // load the enum backing type
+        let backing_type = types.get_enum_backing_type(enum_symbol).ok_or_else(|| {
+            LowerError::UnsupportedConstruct {
+                node,
+                message: "enum missing backing type".to_string(),
+            }
+        })?;
 
-        // track candidate primary types
-        let mut primary_nominal = None;
-        let mut primary_object = None;
-
-        // scan for nominal and object candidates
-        for element_id in collected {
-            let dir_type = types.get_type(element_id);
-            match dir_type {
-                dir::Type::Reference { symbol, .. } => {
-                    if matches!(
-                        symbol.ty(),
-                        dir::SymbolType::Struct
-                            | dir::SymbolType::Class
-                            | dir::SymbolType::Enum
-                            | dir::SymbolType::Newtype
-                    ) {
-                        if let Some(existing) = primary_nominal {
-                            if !dir::are_types_equal(existing, element_id, types) {
-                                return Err(LowerError::UnsupportedType {
-                                    node,
-                                    ty: element_id.into_global(module_id),
-                                    message: "intersection has multiple nominal primaries"
-                                        .to_string(),
-                                });
-                            }
-                        } else {
-                            primary_nominal = Some(element_id);
-                        }
-                    }
-                }
-                dir::Type::Object { .. } => {
-                    if primary_object.is_none() {
-                        primary_object = Some(element_id);
-                    }
-                }
-                _ => {}
+        // map backing types to mir
+        match backing_type {
+            dir::EnumBackingType::Int(int_type) => {
+                Ok(self.mir_type_for_int_type(int_type, builder))
+            }
+            dir::EnumBackingType::String => {
+                self.ty_string
+                    .ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node,
+                        message: "missing builtin String layout (load lib/native)".to_string(),
+                    })
             }
         }
-
-        // prefer nominal primary types
-        if let Some(primary) = primary_nominal {
-            return Ok(primary);
-        }
-
-        // fall back to object types
-        if let Some(primary) = primary_object {
-            return Ok(primary);
-        }
-
-        // report missing primary layouts
-        Err(LowerError::UnsupportedType {
-            node,
-            ty: elements
-                .first()
-                .copied()
-                .unwrap_or_else(|| dir::LocalTypeId::new(0))
-                .into_global(module_id),
-            message: "intersection missing primary layout type".to_string(),
-        })
     }
 
-    /// Collect intersection elements with flattening.
-    fn collect_intersection_element(
-        &self,
-        type_id: dir::LocalTypeId,
-        types: &dir::TypeTable,
-        visited: &mut HashSet<dir::LocalTypeId>,
-        collected: &mut Vec<dir::LocalTypeId>,
-    ) {
-        // skip already visited types
-        if !visited.insert(type_id) {
-            return;
-        }
-
-        // flatten nested intersections
-        match types.get_type(type_id) {
-            dir::Type::Intersection { elements } => {
-                for element_id in elements {
-                    self.collect_intersection_element(*element_id, types, visited, collected);
-                }
-            }
-            _ => collected.push(type_id),
+    /// Lower a DIR int type into a MIR type.
+    fn mir_type_for_int_type(
+        &mut self,
+        int_type: dir::IntType,
+        builder: &mut mir::ModuleBuilder,
+    ) -> mir::LocalNodeId<mir::Type> {
+        match int_type.simplify() {
+            dir::IntType::Int8 => builder.type_int(8, true),
+            dir::IntType::Int16 => builder.type_int(16, true),
+            dir::IntType::Int32 => self.ty_i32,
+            dir::IntType::Int64 => self.ty_i64,
+            dir::IntType::Int128 => builder.type_int(128, true),
+            dir::IntType::Int256 => builder.type_int(256, true),
+            dir::IntType::Isize => self.ty_isize,
+            dir::IntType::Uint8 => builder.type_int(8, false),
+            dir::IntType::Uint16 => builder.type_int(16, false),
+            dir::IntType::Uint32 => self.ty_u32,
+            dir::IntType::Uint64 => builder.type_int(64, false),
+            dir::IntType::Uint128 => builder.type_int(128, false),
+            dir::IntType::Uint256 => builder.type_int(256, false),
+            dir::IntType::Usize => self.ty_usize,
+            dir::IntType::Arbitrary { width, is_signed } => builder.type_int(width, is_signed),
         }
     }
 }

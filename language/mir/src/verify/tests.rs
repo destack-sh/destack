@@ -19,7 +19,7 @@ fn test_verify_rejects_local_not_in_function() {
     let ty = tree.insert(Type::Void);
     let local_ty = tree.insert(Type::Int {
         width: 32,
-        signed: true,
+        is_signed: true,
     });
     let local = tree.insert(Local::new(
         local_ty,
@@ -240,7 +240,7 @@ fn test_reject_duplicate_local_id() {
     let ty = tree.insert(Type::Void);
     let local_ty = tree.insert(Type::Int {
         width: 32,
-        signed: true,
+        is_signed: true,
     });
     let local = tree.insert(Local::new(
         local_ty,

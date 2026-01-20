@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Verify all integer comparison operators.
 #[test]
-fn test_integer_comparisons() {
+fn test_lower_compares_integers() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -12,18 +12,23 @@ fn test_integer_comparisons() {
 function lessThan(a: int32, b: int32): boolean {
     return a < b;
 }
+
 function lessEqual(a: int32, b: int32): boolean {
     return a <= b;
 }
+
 function greaterThan(a: int32, b: int32): boolean {
     return a > b;
 }
+
 function greaterEqual(a: int32, b: int32): boolean {
     return a >= b;
 }
+
 function equal(a: int32, b: int32): boolean {
     return a == b;
 }
+
 function notEqual(a: int32, b: int32): boolean {
     return a != b;
 }

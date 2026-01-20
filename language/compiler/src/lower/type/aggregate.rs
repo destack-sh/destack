@@ -2,7 +2,8 @@ use destack_dir::AnchoredGlobalNodeId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
-use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer, static_key_to_field_name};
+use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
+use crate::lower::static_key_to_field_name;
 use crate::{LowerError, LowerResult};
 
 /// Compute aggregate copyability from element types.

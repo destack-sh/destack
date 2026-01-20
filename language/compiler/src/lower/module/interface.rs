@@ -37,9 +37,8 @@ impl ModuleLowerer<'_> {
         let function_id = self
             .builder
             .extern_function(&name_str, &parameter_types, return_type);
-        self.functions_by_symbol.insert(method_symbol, function_id);
-        self.function_signature_types
-            .insert(function_id, signature_type);
+        // register function bindings
+        self.register_function_binding_for_symbol(method_symbol, function_id, signature_type)?;
 
         // ensure the interface instance type is registered
         Ok(function_id)

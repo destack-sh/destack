@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Lower class construction with `new`.
 #[test]
-fn test_class_construction_with_new() {
+fn test_lower_constructs_class_with_new() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -37,7 +37,7 @@ function sumFieldsClass(a: number, b: number): number {
 
 /// Lower class construction to managed allocation in MIR.
 #[test]
-fn test_class_new() {
+fn test_lower_allocates_class_with_new() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -91,7 +91,7 @@ block0(v0: i32):
 
 /// Lower vtable headers into class allocations in MIR.
 #[test]
-fn test_class_vtable_header() {
+fn test_lower_emits_class_vtable_header() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -122,8 +122,8 @@ function readPacketSize(value: int32): int32 {
         module_id,
         "native",
         r#"
-global @test/test:PacketHeader#vtable: [ref<raw void>; 2] = zeroinit ; const
-global @test/test:MessageHeader#vtable: [ref<raw void>; 3] = zeroinit ; const
+global @test/test:PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
+global @test/test:MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
 function @ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
 block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
     v1 = iconst 1i32
@@ -131,7 +131,7 @@ block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
 }
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = global.addr @test/test:PacketHeader#vtable -> ref<raw [ref<raw void>; 2]>
+    v1 = global.addr @test/test:PacketHeader#vtable -> ref<raw [ref?<raw void>; 2]>
     v2 = bitcast v1 -> ref<raw void>
     v3 = struct { @vtable: ref<raw void>, packetSize: i32 } (v2, v0)
     v4 = managed.alloc { @vtable: ref<raw void>, packetSize: i32 } -> ref<managed { @vtable: ref<raw void>, packetSize: i32 }>
@@ -146,7 +146,7 @@ block0(v0: i32):
 
 /// Lower explicit class constructors.
 #[test]
-fn test_class_explicit_constructor() {
+fn test_lower_handles_class_explicit_constructor() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -184,7 +184,7 @@ function sumFieldsClassExplicit(a: number, b: number): number {
 
 /// Lower class method that returns a field via `this`.
 #[test]
-fn test_class_method_returns_field() {
+fn test_lower_handles_class_method_returning_field() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -219,7 +219,7 @@ function readValueClass(value: int32): int32 {
 
 /// Lower class method with parameters.
 #[test]
-fn test_class_method_with_parameters() {
+fn test_lower_handles_class_method_with_parameters() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -254,7 +254,7 @@ function computeClass(base: int32, delta: int32): int32 {
 
 /// Lower class vtable metadata with override reuse.
 #[test]
-fn test_class_vtable_metadata() {
+fn test_lower_emits_class_vtable_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -307,7 +307,7 @@ function useDog(d: Dog): int32 {
 
 /// Lower vtable slot ordering across inheritance with multiple methods.
 #[test]
-fn test_class_vtable_slot_ordering() {
+fn test_lower_orders_class_vtable_slots() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -347,7 +347,7 @@ class Car extends Vehicle {
 
 /// Lower virtual call metadata for class dispatch.
 #[test]
-fn test_class_virtual_call_metadata() {
+fn test_lower_emits_class_virtual_call_metadata() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -393,7 +393,7 @@ function callLogger(base: Logger): int32 {
 
 /// Lower virtual dispatch calls in MIR.
 #[test]
-fn test_class_virtual_call() {
+fn test_lower_handles_class_virtual_call() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -423,8 +423,8 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
-global @test/test:Logger#vtable: [ref<raw void>; 3] = zeroinit ; const
-global @test/test:FileLogger#vtable: [ref<raw void>; 3] = zeroinit ; const
+global @test/test:Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
+global @test/test:FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 function @log(v0: ref<managed { @vtable: ref<raw void> }>) -> i32 {
 block0(v0: ref<managed { @vtable: ref<raw void> }>):
     v1 = iconst 1i32
@@ -446,7 +446,7 @@ block0(v0: ref<managed { @vtable: ref<raw void> }>):
 
 /// Execute a virtual call through a base-typed reference.
 #[test]
-fn test_class_virtual_call_output() {
+fn test_lower_executes_class_virtual_call() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -488,7 +488,7 @@ function callNotification(): int32 {
 
 /// Lower class lineage metadata for inheritance and interfaces.
 #[test]
-fn test_class_lineage_metadata() {
+fn test_lower_emits_class_lineage_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -536,7 +536,7 @@ class TaggedWidget extends WidgetBase implements Taggable {
 
 /// Lower class layout metadata for inherited fields.
 #[test]
-fn test_class_layout_inheritance() {
+fn test_lower_emits_class_layout_inheritance() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -583,7 +583,7 @@ class SavingsAccount extends Account {
 
 /// Lower vtable headers for base classes in polymorphic hierarchies.
 #[test]
-fn test_class_vtable_header_propagation() {
+fn test_lower_propagates_class_vtable_header() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -629,7 +629,7 @@ function useHeader(value: TextureHeader): int32 {
 
 /// Lower headerless layouts for non-polymorphic classes.
 #[test]
-fn test_class_layout_headerless_non_polymorphic() {
+fn test_lower_omits_header_for_non_polymorphic_class() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(

@@ -37,7 +37,10 @@ fn format_type_inner<'a>(
     match ty {
         Type::Void => write!(f, [token("void")]),
         Type::Boolean => write!(f, [token("bool")]),
-        Type::Int { width, signed } => {
+        Type::Int {
+            width,
+            is_signed: signed,
+        } => {
             let prefix = if *signed { "i" } else { "u" };
             write!(f, [text(&format!("{prefix}{width}"))])
         }

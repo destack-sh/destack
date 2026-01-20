@@ -136,7 +136,10 @@ impl<'a> Dumper<'a> {
         match ty {
             Type::Void => "void".to_string(),
             Type::Boolean => "bool".to_string(),
-            Type::Int { width, signed } => {
+            Type::Int {
+                width,
+                is_signed: signed,
+            } => {
                 if *signed {
                     format!("i{width}")
                 } else {

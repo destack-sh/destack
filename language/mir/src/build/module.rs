@@ -61,7 +61,10 @@ impl ModuleBuilder {
 
     /// Create an integer type.
     pub fn type_int(&mut self, width: u16, signed: bool) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Int { width, signed })
+        self.tree.insert(Type::Int {
+            width,
+            is_signed: signed,
+        })
     }
 
     /// Create a pointer-sized signed integer type.

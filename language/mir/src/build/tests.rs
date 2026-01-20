@@ -530,14 +530,14 @@ fn test_type_construction() {
         tree.get(i32_type),
         Type::Int {
             width: 32,
-            signed: true
+            is_signed: true
         }
     ));
     assert!(matches!(
         tree.get(i64_type),
         Type::Int {
             width: 64,
-            signed: true
+            is_signed: true
         }
     ));
     assert!(matches!(tree.get(f32_type), Type::Float { width: 32 }));

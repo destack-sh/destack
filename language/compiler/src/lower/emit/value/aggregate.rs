@@ -15,7 +15,7 @@ impl FunctionContext<'_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the tuple type
-        let tuple_type = self.mir_type_for_expression(expression_id)?;
+        let tuple_type = self.lower_type_for_expression(expression_id)?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -49,7 +49,7 @@ impl FunctionContext<'_> {
         elements: &[LocalNodeId<dir::Argument>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the array type
-        let array_type = self.mir_type_for_expression(expression_id)?;
+        let array_type = self.lower_type_for_expression(expression_id)?;
 
         // lower each element value
         let mut element_values = Vec::with_capacity(elements.len());
@@ -84,7 +84,7 @@ impl FunctionContext<'_> {
         properties: &[LocalNodeId<dir::Property>],
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // get the struct type from type inference
-        let struct_type = self.mir_type_for_expression(expression_id)?;
+        let struct_type = self.lower_type_for_expression(expression_id)?;
 
         // get the cached layout for this struct type
         let node = expression_id
@@ -164,7 +164,7 @@ impl FunctionContext<'_> {
 
         // resolve class symbols for vtable header defaults
         let class_symbol = self
-            .dir_type_for_expression(expression_id)
+            .type_for_expression(expression_id)
             .and_then(|type_id| self.class_symbol_for_type(type_id));
 
         // fill synthetic fields with default values
@@ -282,7 +282,7 @@ impl FunctionContext<'_> {
         }
 
         // get the instance type from type inference
-        let result_type = self.mir_type_for_expression(expression_id)?;
+        let result_type = self.lower_type_for_expression(expression_id)?;
         let (instance_type, reference_kind) = match self.state.builder.tree().get(result_type) {
             mir::Type::Reference { kind, pointee, .. } => (*pointee, Some(*kind)),
             _ => (result_type, None),
@@ -356,7 +356,7 @@ impl FunctionContext<'_> {
 
         // resolve class symbols for vtable header defaults
         let class_symbol = self
-            .dir_type_for_expression(expression_id)
+            .type_for_expression(expression_id)
             .and_then(|type_id| self.class_symbol_for_type(type_id));
 
         // fill synthetic fields with default values
@@ -449,12 +449,12 @@ impl FunctionContext<'_> {
                 });
             }
             mir::Type::Boolean => self.state.builder.bconst(false),
-            mir::Type::Int { width, signed } => {
+            mir::Type::Int { width, is_signed } => {
                 let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
                     node,
                     message: "unsupported integer width for constructor initialization".to_string(),
                 })?;
-                self.state.builder.iconst(0, width, signed)
+                self.state.builder.iconst(0, width, is_signed)
             }
             mir::Type::Float { width } => {
                 let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
@@ -642,7 +642,7 @@ impl FunctionContext<'_> {
         }
 
         // resolve the nominal symbol for constructor lookup
-        let type_id = self.dir_type_for_expression(expression_id)?;
+        let type_id = self.type_for_expression(expression_id)?;
         let type_id = self.unwrap_value_type_id(type_id);
         // require a nominal reference type
         let symbol = match self.env.types.get_type(type_id) {

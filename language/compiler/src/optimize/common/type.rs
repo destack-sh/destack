@@ -86,7 +86,10 @@ impl TypeKey {
         let key = match ty {
             mir::Type::Void => TypeKey::Void,
             mir::Type::Boolean => TypeKey::Boolean,
-            mir::Type::Int { width, signed } => TypeKey::Int {
+            mir::Type::Int {
+                width,
+                is_signed: signed,
+            } => TypeKey::Int {
                 width: *width,
                 signed: *signed,
             },
@@ -213,7 +216,10 @@ pub fn unsigned_int_width_for_value(
 
     // accept unsigned integer types
     match ty {
-        mir::Type::Int { width, signed } if !*signed => Some(*width),
+        mir::Type::Int {
+            width,
+            is_signed: signed,
+        } if !*signed => Some(*width),
         mir::Type::Usize => Some(pointer_width_bits),
         _ => None,
     }
@@ -295,11 +301,11 @@ fn types_are_equal_inner(
         (
             mir::Type::Int {
                 width: w1,
-                signed: s1,
+                is_signed: s1,
             },
             mir::Type::Int {
                 width: w2,
-                signed: s2,
+                is_signed: s2,
             },
         ) => w1 == w2 && s1 == s2,
         (mir::Type::Isize, mir::Type::Isize) => true,

@@ -58,8 +58,7 @@ impl ModuleLowerer<'_> {
 
         self.interface_slots_in_progress.insert(interface);
         let slots = self.collect_interface_slots(interface)?;
-        self.interface_slots_by_symbol
-            .insert(interface, slots.clone());
+        self.insert_interface_slots(interface, slots.clone())?;
         self.interface_slots_in_progress.shift_remove(&interface);
 
         Ok(slots)

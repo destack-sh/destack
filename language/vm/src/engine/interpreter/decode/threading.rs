@@ -2163,9 +2163,9 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
     match tree.get(ty) {
         mir::Type::Void => ValueKind::Void,
         mir::Type::Boolean => ValueKind::Bool,
-        mir::Type::Int { width, signed } => ValueKind::Int {
+        mir::Type::Int { width, is_signed } => ValueKind::Int {
             width: *width as u8,
-            signed: *signed,
+            signed: *is_signed,
         },
         mir::Type::Isize => ValueKind::Int {
             width: usize::BITS as u8,

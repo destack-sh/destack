@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Lower union layouts into tagged union structs.
 #[test]
-fn test_lower_union_layout() {
+fn test_lower_emits_union_layout() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -43,7 +43,11 @@ function takeShape(value: Circle | Square): int32 {
 
         // assert the tag field type
         let tag_type = tree.get(tag_type);
-        let mir::Type::Int { width, signed } = tag_type else {
+        let mir::Type::Int {
+            width,
+            is_signed: signed,
+        } = tag_type
+        else {
             panic!("expected integer type for union tag field");
         };
         assert_eq!(*width, 8);
@@ -64,7 +68,7 @@ function takeShape(value: Circle | Square): int32 {
 
 /// Lower large unions into boxed payloads.
 #[test]
-fn test_lower_union_layout_boxed() {
+fn test_lower_emits_union_layout_boxed() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -121,7 +125,7 @@ function takeFrame(value: Frame | MegaFrame): int32 {
 
 /// Lower union upcasts into tagged union payloads.
 #[test]
-fn test_lower_union_upcast() {
+fn test_lower_handles_union_upcast() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -171,7 +175,7 @@ block0(v0: { value: i32 }):
 
 /// Lower boxed union upcasts into managed payload pointers.
 #[test]
-fn test_lower_union_upcast_boxed() {
+fn test_lower_handles_union_upcast_boxed() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -221,7 +225,7 @@ block0(v0: { first: i64, second: i64, third: i64 }):
 
 /// Lower union downcasts into payload loads.
 #[test]
-fn test_lower_union_downcast() {
+fn test_lower_handles_union_downcast() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -266,7 +270,7 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 
 /// Lower union tag comparisons into check terminators.
 #[test]
-fn test_lower_union_tag_check() {
+fn test_lower_handles_union_tag_check() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -309,7 +313,7 @@ block3(v6: i32):
 
 /// Lower discriminant comparisons to tag checks.
 #[test]
-fn test_lower_union_integer_discriminant() {
+fn test_lower_handles_union_integer_discriminant() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -344,7 +348,7 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 
 /// Lower string discriminant comparisons to tag checks.
 #[test]
-fn test_lower_union_string_discriminant() {
+fn test_lower_handles_union_string_discriminant() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

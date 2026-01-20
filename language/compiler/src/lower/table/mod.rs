@@ -6,4 +6,4 @@ mod nominal;
 mod rtti;
 mod vtable;
 
-pub(crate) use vtable::VtableGlobal;
+pub(crate) use vtable::{VirtualMethodKey, VtableGlobal};

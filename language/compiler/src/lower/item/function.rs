@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, LocalNodeId, Member, NodeVisitor,
-    NodeVisitorOptions, walk_expression,
+    Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Member,
+    NodeVisitor, NodeVisitorOptions, walk_expression,
 };
 use {destack_dir as dir, destack_mir as mir};
 
@@ -201,15 +201,29 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
-        // build the function
-        let mut builder = self.builder.function(&name, &parameter_types, return_type);
-        let function_id = builder.function_id();
-        self.functions_by_symbol.insert(symbol_id, function_id);
-        self.function_signature_types
-            .insert(function_id, signature_type);
+        // build the function and register bindings
+        let module_id = self.module_id;
+        let (function_id, builder) = {
+            let functions_by_symbol = &mut self.functions_by_symbol;
+            let function_signature_types = &mut self.function_signature_types;
+            let mut builder = self.builder.function(&name, &parameter_types, return_type);
+            let function_id = builder.function_id();
 
-        // set return lifetime
-        builder.set_return_lifetime(return_lifetime);
+            // register function bindings
+            ModuleLowerer::register_function_binding(
+                module_id,
+                functions_by_symbol,
+                function_signature_types,
+                symbol_id,
+                function_id,
+                signature_type,
+            )?;
+
+            // set return lifetime
+            builder.set_return_lifetime(return_lifetime);
+
+            (function_id, builder)
+        };
 
         // build function env
         let env = FunctionEnv {
@@ -225,7 +239,7 @@ impl ModuleLowerer<'_> {
             globals_by_symbol: &self.globals_by_symbol,
             interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
-            virtual_method_slots_by_symbol: &self.virtual_method_slots_by_symbol,
+            virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
@@ -313,10 +327,12 @@ impl ModuleLowerer<'_> {
         member_id: LocalNodeId<Member>,
         member: &Member,
         this_type: Option<mir::LocalNodeId<mir::Type>>,
+        owner_symbol: GlobalSymbolId,
         parent_declaration_id: LocalNodeId<Declaration>,
     ) -> LowerResult<()> {
         // require a method member
         let Member::Method {
+            modifiers,
             key,
             signature,
             body,
@@ -333,8 +349,14 @@ impl ModuleLowerer<'_> {
             Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
         );
 
+        // determine whether this is a static method
+        let is_static = self.member_is_static(modifiers.as_ref());
+
         // track constructor declaration symbol when needed
         let mut constructor_symbol = None;
+
+        // resolve the method symbol
+        let method_symbol = symbol.into_global(self.module_id);
 
         // resolve the method name
         let name_str = if is_constructor {
@@ -367,15 +389,21 @@ impl ModuleLowerer<'_> {
             // format the constructor name
             let type_name = self.compiler.program.strings.get(name.string()).to_string();
             format!("{type_name}.constructor")
+        } else if is_static {
+            self.static_member_name(owner_symbol, *key).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
+                    node: member_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                    message: "static method requires a static member name".to_string(),
+                }
+            })?
         } else {
             // resolve the static method key or dispatch name
             let method_name =
                 self.member_dispatch_name_or_error(key.as_ref(), signature.mode, member_id)?;
             self.compiler.program.strings.get(method_name).to_string()
         };
-
-        // resolve the method symbol
-        let method_symbol = symbol.into_global(self.module_id);
 
         // capture this type for constructor initialization
         let constructor_this_type = if is_constructor {
@@ -394,8 +422,17 @@ impl ModuleLowerer<'_> {
             None
         };
 
+        // drop this type for static methods
+        let method_this_type = if is_constructor {
+            this_type
+        } else if is_static {
+            None
+        } else {
+            this_type
+        };
+
         // resolve parameter types
-        let parameter_types = self.method_parameter_types(signature, this_type)?;
+        let parameter_types = self.method_parameter_types(signature, method_this_type)?;
 
         // resolve return type from the method's inferred signature
         let member_node = member_id.into_global_any(self.module_id);
@@ -414,16 +451,28 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
-        // build the function
-        let builder = self
-            .builder
-            .function(&name_str, &parameter_types, return_type);
-        let function_id = builder.function_id();
+        // build the function and register bindings
+        let module_id = self.module_id;
+        let builder = {
+            let functions_by_symbol = &mut self.functions_by_symbol;
+            let function_signature_types = &mut self.function_signature_types;
+            let builder = self
+                .builder
+                .function(&name_str, &parameter_types, return_type);
+            let function_id = builder.function_id();
 
-        // register by symbol for direct calls via resolution
-        self.functions_by_symbol.insert(method_symbol, function_id);
-        self.function_signature_types
-            .insert(function_id, signature_type);
+            // register function bindings
+            ModuleLowerer::register_function_binding(
+                module_id,
+                functions_by_symbol,
+                function_signature_types,
+                method_symbol,
+                function_id,
+                signature_type,
+            )?;
+
+            builder
+        };
 
         // create function context
         let env = FunctionEnv {
@@ -439,7 +488,7 @@ impl ModuleLowerer<'_> {
             globals_by_symbol: &self.globals_by_symbol,
             interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
-            virtual_method_slots_by_symbol: &self.virtual_method_slots_by_symbol,
+            virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
@@ -478,7 +527,7 @@ impl ModuleLowerer<'_> {
         let mut param_index = 0;
 
         // add 'this' parameter as first local for instance methods
-        if let Some(this_ty) = this_type
+        if let Some(this_ty) = method_this_type
             && !is_constructor
         {
             let this_variable = function_ctx.state.builder.create_variable(this_ty);

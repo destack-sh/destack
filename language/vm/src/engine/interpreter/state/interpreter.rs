@@ -300,9 +300,9 @@ impl<'a> InterpreterContext<'a> {
         // build a zero value based on type
         match ty_node {
             mir::Type::Void => Ok(Value::VOID),
-            mir::Type::Int { width, signed } => {
+            mir::Type::Int { width, is_signed } => {
                 // select signed or unsigned zero
-                if signed {
+                if is_signed {
                     Ok(Value::int(0, width as u8))
                 } else {
                     Ok(Value::uint(0, width as u8))

@@ -742,7 +742,7 @@ fn array_is_u8(array: mir::Value, ownership: &OwnershipAnalysis, tree: &mir::Nod
         element_ty,
         mir::Type::Int {
             width: 8,
-            signed: false
+            is_signed: false
         }
     )
 }

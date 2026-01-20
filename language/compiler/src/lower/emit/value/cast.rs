@@ -10,7 +10,7 @@ use crate::lower::r#type::UnionPayloadKind;
 impl FunctionContext<'_> {
     /// Lower a cast operator into a MIR cast operator.
     pub(crate) fn lower_cast_operator(
-        &self,
+        &mut self,
         expression_id: LocalNodeId<Expression>,
         operator: dir::CastOperator,
         value_id: LocalNodeId<Expression>,
@@ -69,6 +69,49 @@ impl FunctionContext<'_> {
             dir::CastOperator::PointerToInt => mir::CastOperator::PointerToInt,
             dir::CastOperator::IntToPointer => mir::CastOperator::IntToPointer,
             dir::CastOperator::PointerCast => mir::CastOperator::Bitcast,
+            dir::CastOperator::EnumToInt | dir::CastOperator::IntToEnum => {
+                let source_scalar_type =
+                    source_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "unsupported enum cast source type".to_string(),
+                    })?;
+                let target_scalar_type =
+                    target_scalar_type.ok_or_else(|| LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "unsupported enum cast target type".to_string(),
+                    })?;
+                return self.int_cast_operator_for_scalar(
+                    expression_id,
+                    source_scalar_type,
+                    target_scalar_type,
+                );
+            }
+            dir::CastOperator::EnumToString | dir::CastOperator::StringToEnum => {
+                let string_type = self.env.type_lowerer.string_type().ok_or_else(|| {
+                    LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "missing builtin String layout (load lib/native)".to_string(),
+                    }
+                })?;
+                let source_type = self.lower_type_for_expression(value_id)?;
+                let target_type = self.lower_type_for_expression(expression_id)?;
+                if source_type != string_type || target_type != string_type {
+                    return Err(LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "enum string cast requires string types".to_string(),
+                    });
+                }
+
+                return Ok(None);
+            }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -91,11 +134,11 @@ impl FunctionContext<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-        let target_mir_type = self.mir_type_for_expression(expression_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the source and target dir types
-        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
-        let target_type_id = self.dir_type_for_expression_or_error(expression_id)?;
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        let target_type_id = self.type_for_expression_or_error(expression_id)?;
         let target_dir_type = self.env.types.get_type(target_type_id);
 
         // handle interface upcasts
@@ -138,10 +181,10 @@ impl FunctionContext<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-        let target_mir_type = self.mir_type_for_expression(expression_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the source dir type
-        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
         let source_dir_type = self.env.types.get_type(source_type_id);
 
         // handle interface downcasts by extracting object pointers
@@ -211,11 +254,11 @@ impl FunctionContext<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-        let target_mir_type = self.mir_type_for_expression(expression_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the source and target dir types
-        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
-        let target_type_id = self.dir_type_for_expression_or_error(expression_id)?;
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        let target_type_id = self.type_for_expression_or_error(expression_id)?;
 
         // resolve union layout metadata
         let layout = self
@@ -247,7 +290,10 @@ impl FunctionContext<'_> {
 
         // build the tag constant
         let (tag_width, tag_signed) = match self.state.builder.tree().get(layout.tag_type) {
-            mir::Type::Int { width, signed } => (*width as u8, *signed),
+            mir::Type::Int {
+                width,
+                is_signed: signed,
+            } => (*width as u8, *signed),
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     node: expression_id
@@ -298,10 +344,10 @@ impl FunctionContext<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // lower the source value and target type
         let (value, _source_mir_type) = self.lower_value_expression(value_id)?;
-        let target_mir_type = self.mir_type_for_expression(expression_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
 
         // resolve the source dir type
-        let source_type_id = self.dir_type_for_expression_or_error(value_id)?;
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
 
         // resolve union layout metadata
         let layout = self
@@ -434,6 +480,59 @@ impl FunctionContext<'_> {
 
         // return the interface value and type
         Ok((interface_value, target_mir_type))
+    }
+
+    /// Select an integer cast operator for scalar types.
+    fn int_cast_operator_for_scalar(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        source: ScalarType,
+        target: ScalarType,
+    ) -> LowerResult<Option<mir::CastOperator>> {
+        let source_signed = matches!(source, ScalarType::SignedInt { .. });
+        let target_signed = matches!(target, ScalarType::SignedInt { .. });
+
+        let source_width = match source {
+            ScalarType::SignedInt { width } | ScalarType::UnsignedInt { width } => width,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "unsupported enum cast source type".to_string(),
+                });
+            }
+        };
+        let target_width = match target {
+            ScalarType::SignedInt { width } | ScalarType::UnsignedInt { width } => width,
+            _ => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: expression_id
+                        .into_global_any(self.env.module_id)
+                        .into_anchored(Some(self.env.profile)),
+                    message: "unsupported enum cast target type".to_string(),
+                });
+            }
+        };
+
+        // select cast based on width and signedness
+        let cast = if source_width == target_width {
+            if source_signed == target_signed {
+                None
+            } else {
+                Some(mir::CastOperator::Bitcast)
+            }
+        } else if source_width < target_width {
+            Some(if source_signed {
+                mir::CastOperator::SignExtend
+            } else {
+                mir::CastOperator::ZeroExtend
+            })
+        } else {
+            Some(mir::CastOperator::Truncate)
+        };
+
+        Ok(cast)
     }
 
     /// Convert a value into a managed object pointer.

@@ -237,7 +237,10 @@ impl TypeLookup {
                         lookup.type_tag = Some(type_id);
                     }
                 }
-                Type::Int { width, signed } => {
+                Type::Int {
+                    width,
+                    is_signed: signed,
+                } => {
                     lookup.ints.entry((*width, *signed)).or_insert(type_id);
                 }
                 Type::Float { width } => {
