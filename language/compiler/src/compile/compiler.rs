@@ -345,9 +345,20 @@ impl Compiler {
                 continue;
             }
 
-            let diagnostic: CompileDiagnostic = error.into();
-            self.pending_diagnostics
-                .insert(diagnostic.to_diagnostic(&self.program));
+            // apply diagnostic directive overrides
+            let Some(severity) = self.error_effective_severity(&error) else {
+                continue;
+            };
+
+            // build the diagnostic for the error
+            let mut diagnostic = CompileDiagnostic::Error(error).to_diagnostic(&self.program);
+            if severity != DiagnosticSeverity::Error {
+                diagnostic.original_severity = Some(DiagnosticSeverity::Error);
+                diagnostic.severity = severity;
+            }
+
+            // store the diagnostic
+            self.pending_diagnostics.insert(diagnostic);
         }
 
         // convert warnings to diagnostics

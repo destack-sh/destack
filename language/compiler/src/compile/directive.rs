@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_source::DiagnosticSeverity;
 use destack_workspace::LintSeverity;
 
-use crate::{Compiler, DiagnosticAnchor, TaskWarning};
+use crate::{Compiler, DiagnosticAnchor, TaskError, TaskWarning};
 
 /// Severity override derived from a diagnostic directive decorator.
 #[derive(Debug, Clone, Copy)]
@@ -16,19 +16,43 @@ struct DiagnosticDirectiveOverride {
 }
 
 impl Compiler {
+    /// Resolve the effective error severity after diagnostic overrides.
+    pub(crate) fn error_effective_severity(&self, error: &TaskError) -> Option<DiagnosticSeverity> {
+        let TaskError::Optimize(error) = error else {
+            return Some(DiagnosticSeverity::Error);
+        };
+
+        if !error.is_directive() {
+            return Some(DiagnosticSeverity::Error);
+        }
+
+        self.diagnostic_effective_severity(error.anchor(), error.code(), LintSeverity::Error)
+    }
+
     /// Resolve the effective warning severity after diagnostic overrides.
     pub(crate) fn warning_effective_severity(
         &self,
         warning: &TaskWarning,
     ) -> Option<DiagnosticSeverity> {
-        // derive the warning code for matching
-        let warning_code = warning.full_code();
+        self.diagnostic_effective_severity(
+            warning.anchor(),
+            &warning.full_code(),
+            LintSeverity::Warning,
+        )
+    }
 
+    /// Resolve the effective diagnostic severity after directive overrides.
+    fn diagnostic_effective_severity(
+        &self,
+        anchor: DiagnosticAnchor,
+        diagnostic_code: &str,
+        base: LintSeverity,
+    ) -> Option<DiagnosticSeverity> {
         // collect decorator overrides for the anchor
-        let overrides = self.diagnostic_overrides_for_anchor(warning, &warning_code);
+        let overrides = self.diagnostic_overrides_for_anchor(anchor, diagnostic_code);
 
         // apply overrides from outermost to innermost
-        let mut effective = LintSeverity::Warning;
+        let mut effective = base;
         let mut is_forbidden = false;
         for override_info in overrides.into_iter().rev() {
             // honor forbid boundaries
@@ -48,14 +72,12 @@ impl Compiler {
         }
     }
 
-    /// Collect diagnostic directive overrides for a warning anchor.
+    /// Collect diagnostic directive overrides for an anchor.
     fn diagnostic_overrides_for_anchor(
         &self,
-        warning: &TaskWarning,
-        warning_code: &str,
+        anchor: DiagnosticAnchor,
+        diagnostic_code: &str,
     ) -> Vec<DiagnosticDirectiveOverride> {
-        let anchor = warning.anchor();
-
         // resolve a dir node from the anchor
         match anchor {
             DiagnosticAnchor::DirNode(anchored) => {
@@ -90,7 +112,12 @@ impl Compiler {
                 }
 
                 // collect overrides from the dir tree
-                self.diagnostic_overrides_for_dir_node(&tree, node_id, warning_code, &decorator_map)
+                self.diagnostic_overrides_for_dir_node(
+                    &tree,
+                    node_id,
+                    diagnostic_code,
+                    &decorator_map,
+                )
             }
             DiagnosticAnchor::MirNode(anchored) => {
                 // resolve profile for well known decorators
@@ -121,7 +148,12 @@ impl Compiler {
 
                 // collect overrides from the dir tree
                 let node_id = dir::LocalNodeIdAny::new(source_id, tree.get_node_type(source_id));
-                self.diagnostic_overrides_for_dir_node(&tree, node_id, warning_code, &decorator_map)
+                self.diagnostic_overrides_for_dir_node(
+                    &tree,
+                    node_id,
+                    diagnostic_code,
+                    &decorator_map,
+                )
             }
             _ => Vec::new(),
         }
@@ -132,7 +164,7 @@ impl Compiler {
         &self,
         tree: &dir::NodeTree,
         node_id: dir::LocalNodeIdAny,
-        warning_code: &str,
+        diagnostic_code: &str,
         decorator_map: &HashMap<dir::GlobalSymbolId, dir::WellKnownDecorator>,
     ) -> Vec<DiagnosticDirectiveOverride> {
         // walk up the parent chain collecting overrides
@@ -145,7 +177,7 @@ impl Compiler {
                 if let Some(override_info) = self.parse_diagnostic_directive(
                     tree,
                     annotation_id,
-                    warning_code,
+                    diagnostic_code,
                     decorator_map,
                 ) {
                     overrides.push(override_info);
@@ -159,12 +191,12 @@ impl Compiler {
         overrides
     }
 
-    /// Parse a diagnostic directive decorator for a specific warning code.
+    /// Parse a diagnostic directive decorator for a specific diagnostic code.
     fn parse_diagnostic_directive(
         &self,
         tree: &dir::NodeTree,
         annotation_id: dir::LocalNodeId<dir::Annotation>,
-        warning_code: &str,
+        diagnostic_code: &str,
         decorator_map: &HashMap<dir::GlobalSymbolId, dir::WellKnownDecorator>,
     ) -> Option<DiagnosticDirectiveOverride> {
         let annotation = tree.get(annotation_id);
@@ -230,9 +262,9 @@ impl Compiler {
             _ => None,
         }?;
 
-        // check the warning code match
+        // check the diagnostic code match
         let specifier = self.program.strings.get(specifier_id);
-        if !self.diagnostic_code_matches(specifier.as_ref(), warning_code) {
+        if !self.diagnostic_code_matches(specifier.as_ref(), diagnostic_code) {
             return None;
         }
 
@@ -242,14 +274,17 @@ impl Compiler {
         })
     }
 
-    /// Check if a warning code matches a decorator specifier.
-    fn diagnostic_code_matches(&self, specifier: &str, warning_code: &str) -> bool {
-        if specifier == warning_code {
+    /// Check if a diagnostic code matches a decorator specifier.
+    fn diagnostic_code_matches(&self, specifier: &str, diagnostic_code: &str) -> bool {
+        if specifier == diagnostic_code {
             return true;
         }
 
-        // allow the short form without the W prefix
-        let Some(stripped) = warning_code.strip_prefix('W') else {
+        // allow the short form without the phase prefix
+        let stripped = diagnostic_code
+            .strip_prefix('W')
+            .or_else(|| diagnostic_code.strip_prefix('E'));
+        let Some(stripped) = stripped else {
             return false;
         };
 
