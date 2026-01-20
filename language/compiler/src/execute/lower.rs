@@ -77,6 +77,11 @@ impl Compiler {
 
         // initialize MIR builder and type lowerer
         let mut builder = mir::ModuleBuilder::new();
+
+        // seed the mir string pool with program strings
+        let strings = self.program.strings.as_ref().clone().into_immutable();
+        builder.strings().copy_from_immutable(&strings);
+
         let dispatch_call_name = builder.intern("@call");
         let dispatch_construct_name = builder.intern("@new");
         let mut type_lowerer = {

@@ -17,10 +17,10 @@ mod lint;
 mod lower;
 mod optimize;
 mod resolve;
-mod r#static;
 mod unbind;
 
 pub use analyze::*;
+pub(crate) use analyze::{evaluate_binary_scalar, evaluate_unary_scalar};
 pub use cache::*;
 pub use compile::*;
 pub use elaborate::*;
@@ -33,7 +33,6 @@ pub use lint::*;
 pub use lower::*;
 pub use optimize::*;
 pub use resolve::*;
-pub(crate) use r#static::*;
 pub use unbind::*;
 
 #[cfg(test)]

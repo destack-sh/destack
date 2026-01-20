@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::StringId;
+
 /// A PrimitiveType is a primitive type node.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PrimitiveType {
@@ -30,6 +32,15 @@ pub enum EnumBackingType {
     Int(IntType),
     /// String-backed enums.
     String,
+}
+
+/// A resolved enum field value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EnumFieldValue {
+    /// Integer enum value.
+    Int(i64),
+    /// String enum value.
+    String(StringId),
 }
 
 /// An IntType represents arbitrary width integer with signedness.

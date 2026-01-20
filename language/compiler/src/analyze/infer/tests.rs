@@ -5,11 +5,11 @@ use crate::{
 };
 use destack_base::StringId;
 use destack_dir::{
-    BinaryOperator, Declaration, Declarator, Expression, ExtensionKind, FlowEdgeKind,
-    FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind, InferTable, IntType,
-    LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral, StaticArgument,
-    StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType, Type, TypeField,
-    TypeLiteral, TypeTable, TypeUnaryOperator,
+    BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
+    FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind,
+    InferTable, IntType, LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
+    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
+    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
@@ -512,6 +512,160 @@ const raw: int32 = status;
         view.types().get_type(raw_declared_id),
         view.types().get_type(status_value_id),
     );
+}
+
+/// Enum fields should resolve implicit integer values.
+#[test]
+fn test_analyze_enum_field_values_integer() {
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active
+    Inactive
+    Pending = 10
+    Disabled
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_clean();
+
+    let view = test.view(module_id);
+    let strings = &test.program.strings;
+    let active_symbol = view.expect_enum_field_symbol(strings.intern("Active"));
+    let inactive_symbol = view.expect_enum_field_symbol(strings.intern("Inactive"));
+    let pending_symbol = view.expect_enum_field_symbol(strings.intern("Pending"));
+    let disabled_symbol = view.expect_enum_field_symbol(strings.intern("Disabled"));
+
+    let active_value = view
+        .types()
+        .get_enum_field_value(active_symbol)
+        .expect("expected Active enum value");
+    let inactive_value = view
+        .types()
+        .get_enum_field_value(inactive_symbol)
+        .expect("expected Inactive enum value");
+    let pending_value = view
+        .types()
+        .get_enum_field_value(pending_symbol)
+        .expect("expected Pending enum value");
+    let disabled_value = view
+        .types()
+        .get_enum_field_value(disabled_symbol)
+        .expect("expected Disabled enum value");
+
+    assert_eq!(active_value, EnumFieldValue::Int(0));
+    assert_eq!(inactive_value, EnumFieldValue::Int(1));
+    assert_eq!(pending_value, EnumFieldValue::Int(10));
+    assert_eq!(disabled_value, EnumFieldValue::Int(11));
+}
+
+/// String-backed enum fields require explicit values.
+#[test]
+fn test_analyze_enum_field_values_string_requires_explicit() {
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active = "active"
+    Inactive
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostics(&["EA105"]);
+}
+
+/// Enum field values may use constant expressions.
+#[test]
+fn test_analyze_enum_field_values_const_expression() {
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active = 1 + 2
+    Inactive
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_clean();
+
+    let view = test.view(module_id);
+    let strings = &test.program.strings;
+    let active_symbol = view.expect_enum_field_symbol(strings.intern("Active"));
+    let inactive_symbol = view.expect_enum_field_symbol(strings.intern("Inactive"));
+
+    let active_value = view
+        .types()
+        .get_enum_field_value(active_symbol)
+        .expect("expected Active enum value");
+    let inactive_value = view
+        .types()
+        .get_enum_field_value(inactive_symbol)
+        .expect("expected Inactive enum value");
+
+    assert_eq!(active_value, EnumFieldValue::Int(3));
+    assert_eq!(inactive_value, EnumFieldValue::Int(4));
+}
+
+/// Enum field values can reference earlier enum members.
+#[test]
+fn test_analyze_enum_field_values_reference_earlier_member() {
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+enum Status {
+    Active = 1
+    Inactive = Active + 2
+    Pending = Inactive
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_clean();
+
+    let view = test.view(module_id);
+    let strings = &test.program.strings;
+    let active_symbol = view.expect_enum_field_symbol(strings.intern("Active"));
+    let inactive_symbol = view.expect_enum_field_symbol(strings.intern("Inactive"));
+    let pending_symbol = view.expect_enum_field_symbol(strings.intern("Pending"));
+
+    let active_value = view
+        .types()
+        .get_enum_field_value(active_symbol)
+        .expect("expected Active enum value");
+    let inactive_value = view
+        .types()
+        .get_enum_field_value(inactive_symbol)
+        .expect("expected Inactive enum value");
+    let pending_value = view
+        .types()
+        .get_enum_field_value(pending_symbol)
+        .expect("expected Pending enum value");
+
+    assert_eq!(active_value, EnumFieldValue::Int(1));
+    assert_eq!(inactive_value, EnumFieldValue::Int(3));
+    assert_eq!(pending_value, EnumFieldValue::Int(3));
+}
+
+/// Enum field values cannot reference non-enum values.
+#[test]
+fn test_analyze_enum_field_values_require_enum_reference() {
+    let test = TestProgram::memory_sequential();
+    let source = r#"
+const base = 1;
+
+enum Status {
+    Active = base
+    Inactive
+}
+"#;
+    let module_id = test.add_module("test.ds", source);
+    test.analyze_module(module_id);
+    test.compile();
+    test.check_has_diagnostics(&["EA105"]);
 }
 
 /// Merge global interface members across imported modules.

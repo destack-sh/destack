@@ -70,9 +70,13 @@ pub enum AnalyzeError {
         ty: GlobalTypeId,
     },
 
+    /// Enum member has an invalid value.
+    #[error(code = "EA105", message = "invalid enum field value")]
+    InvalidEnumFieldValue { node: AnchoredGlobalNodeId },
+
     /// Strict equality requires identity types.
     #[error(
-        code = "EA105",
+        code = "EA106",
         message = "strict equality not supported for non-identity type {ty}"
     )]
     InvalidStrictEquality {
@@ -81,16 +85,16 @@ pub enum AnalyzeError {
     },
 
     /// Implicit any type.
-    #[error(code = "EA106", message = "implicit any type")]
+    #[error(code = "EA107", message = "implicit any type")]
     ImplicitAny { node: AnchoredGlobalNodeId },
 
     /// Implicit this type.
-    #[error(code = "EA107", message = "implicit this type")]
+    #[error(code = "EA108", message = "implicit this type")]
     ImplicitThis { node: AnchoredGlobalNodeId },
 
     /// Static value arguments must be static expressions.
     #[error(
-        code = "EA108",
+        code = "EA109",
         message = "static argument must be a static expression"
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },

@@ -3,11 +3,12 @@ use std::collections::HashSet;
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, Expression, FunctionMode,
-    FunctionSignature, IntrinsicType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability,
-    NodeTree, PrimitiveType, Property, StaticArgument, StaticExpression, SymbolTable, Type,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
-    TypeUnaryOperator, UnaryOperator,
+    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, EnumFieldValue, Expression,
+    FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny,
+    LocalTypeId, Mutability, NodeTree, PrimitiveType, Property, Resolution, ScalarLiteral,
+    StaticArgument, StaticExpression, SymbolTable, Type, TypeElement, TypeField,
+    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -247,13 +248,14 @@ impl Compiler {
             }
 
             // evaluate static values directly when possible
-            if let Some(value) = self.evaluate_static_expression_value_for_type(
+            if let Some(value) = self.evaluate_static_expression_value(
                 module,
                 profile,
                 expression_id,
                 tree,
                 symbols,
                 types,
+                None,
             )? {
                 evaluated_arguments.push(StaticArgument::Evaluated { name, value });
                 continue;
@@ -374,8 +376,7 @@ impl Compiler {
     }
 
     /// Evaluate an expression into a static value expression.
-    #[allow(clippy::only_used_in_recursion)]
-    fn evaluate_static_expression_value_for_type(
+    pub(crate) fn evaluate_static_expression_value(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -383,6 +384,30 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
+        enum_symbol: Option<GlobalSymbolId>,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        self.evaluate_static_expression_value_inner(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            enum_symbol,
+        )
+    }
+
+    /// Evaluate an expression into a static value expression.
+    #[allow(clippy::only_used_in_recursion)]
+    fn evaluate_static_expression_value_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        enum_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         let expression = tree.get(expression_id);
 
@@ -394,16 +419,243 @@ impl Compiler {
                 value: value.clone(),
             },
             Expression::Type { value } => StaticExpression::Type { ty: *value },
+            Expression::Parenthesized { expression } => {
+                return self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *expression,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                );
+            }
+            Expression::Cast { value, .. } => {
+                return self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                );
+            }
+            Expression::OwnershipCast { value, .. } => {
+                return self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *value,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                );
+            }
+            Expression::Unary { operator, right } => {
+                let right_value = self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                )?;
+                let Some(StaticExpression::ScalarLiteral { value }) = right_value else {
+                    return Ok(None);
+                };
+                let ScalarLiteral::Integer(value) = value else {
+                    return Ok(None);
+                };
+                let value = match operator {
+                    UnaryOperator::Plus => value,
+                    UnaryOperator::Negate => -value,
+                    UnaryOperator::ElementwiseNot => !value,
+                    _ => return Ok(None),
+                };
+                StaticExpression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(value),
+                }
+            }
+            Expression::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_value = self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *left,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                )?;
+                let right_value = self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
+                )?;
+                let (left_value, right_value) = match (left_value, right_value) {
+                    (
+                        Some(StaticExpression::ScalarLiteral {
+                            value: ScalarLiteral::Integer(left_value),
+                        }),
+                        Some(StaticExpression::ScalarLiteral {
+                            value: ScalarLiteral::Integer(right_value),
+                        }),
+                    ) => (left_value, right_value),
+                    _ => return Ok(None),
+                };
+
+                let value = match operator {
+                    BinaryOperator::Add => left_value.checked_add(right_value),
+                    BinaryOperator::Subtract => left_value.checked_sub(right_value),
+                    BinaryOperator::Multiply => left_value.checked_mul(right_value),
+                    BinaryOperator::Divide => {
+                        if right_value == 0 {
+                            None
+                        } else {
+                            let remainder = left_value % right_value;
+                            if remainder != 0 {
+                                None
+                            } else {
+                                left_value.checked_div(right_value)
+                            }
+                        }
+                    }
+                    BinaryOperator::Remainder => left_value.checked_rem(right_value),
+                    BinaryOperator::ShiftLeft => u32::try_from(right_value)
+                        .ok()
+                        .and_then(|shift| left_value.checked_shl(shift)),
+                    BinaryOperator::ShiftRight => u32::try_from(right_value)
+                        .ok()
+                        .and_then(|shift| left_value.checked_shr(shift)),
+                    BinaryOperator::UnsignedShiftRight => u32::try_from(right_value)
+                        .ok()
+                        .and_then(|shift| (left_value as u64).checked_shr(shift))
+                        .and_then(|shifted| i64::try_from(shifted).ok()),
+                    BinaryOperator::ElementwiseAnd => Some(left_value & right_value),
+                    BinaryOperator::ElementwiseOr => Some(left_value | right_value),
+                    BinaryOperator::ElementwiseXor => Some(left_value ^ right_value),
+                    _ => None,
+                };
+
+                let Some(value) = value else {
+                    return Ok(None);
+                };
+                StaticExpression::ScalarLiteral {
+                    value: ScalarLiteral::Integer(value),
+                }
+            }
+            Expression::LocalReference { target_symbol, .. }
+            | Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                let Some(enum_symbol) = enum_symbol else {
+                    return Ok(None);
+                };
+                let value = self.enum_field_value_for_symbol_reference(
+                    module,
+                    enum_symbol,
+                    *target_symbol,
+                    symbols,
+                    types,
+                );
+                let Some(value) = value else {
+                    return Ok(None);
+                };
+                StaticExpression::ScalarLiteral {
+                    value: match value {
+                        EnumFieldValue::Int(value) => ScalarLiteral::Integer(value),
+                        EnumFieldValue::String(value) => ScalarLiteral::String(value),
+                    },
+                }
+            }
+            Expression::Member {
+                left,
+                name,
+                static_arguments,
+            } => {
+                if static_arguments.is_some() {
+                    return Ok(None);
+                }
+                let Some(enum_symbol) = enum_symbol else {
+                    return Ok(None);
+                };
+
+                let node_id = expression_id.into_global_any(module.id);
+                let resolution_id = types.get_resolution_for_node(node_id);
+                let target_symbol = if let Some(resolution_id) = resolution_id {
+                    let resolution = types.get_resolution(resolution_id);
+                    let Resolution::Static { candidate, .. } = resolution else {
+                        return Ok(None);
+                    };
+                    candidate.target_symbol
+                } else {
+                    let left_symbol = match tree.get(*left) {
+                        Expression::LocalReference { target_symbol, .. }
+                        | Expression::ModuleReference { target_symbol, .. }
+                        | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
+                        _ => return Ok(None),
+                    };
+
+                    if left_symbol != enum_symbol {
+                        return Ok(None);
+                    }
+
+                    let Some(field_symbol) =
+                        self.enum_field_symbol_for_name(module, enum_symbol, *name, tree, symbols)
+                    else {
+                        return Ok(None);
+                    };
+
+                    field_symbol
+                };
+
+                let value = self.enum_field_value_for_symbol_reference(
+                    module,
+                    enum_symbol,
+                    target_symbol,
+                    symbols,
+                    types,
+                );
+                let Some(value) = value else {
+                    return Ok(None);
+                };
+                StaticExpression::ScalarLiteral {
+                    value: match value {
+                        EnumFieldValue::Int(value) => ScalarLiteral::Integer(value),
+                        EnumFieldValue::String(value) => ScalarLiteral::String(value),
+                    },
+                }
+            }
             Expression::RangeExpression {
                 start,
                 end,
                 is_inclusive,
             } => {
-                let start_value = self.evaluate_static_expression_value_for_type(
-                    module, profile, *start, tree, symbols, types,
+                let start_value = self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *start,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
                 )?;
-                let end_value = self.evaluate_static_expression_value_for_type(
-                    module, profile, *end, tree, symbols, types,
+                let end_value = self.evaluate_static_expression_value_inner(
+                    module,
+                    profile,
+                    *end,
+                    tree,
+                    symbols,
+                    types,
+                    enum_symbol,
                 )?;
 
                 let (Some(start_value), Some(end_value)) = (start_value, end_value) else {
@@ -421,13 +673,14 @@ impl Compiler {
 
                 for element_id in elements {
                     let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value_for_type(
+                    let value = self.evaluate_static_expression_value_inner(
                         module,
                         profile,
                         element.value(),
                         tree,
                         symbols,
                         types,
+                        enum_symbol,
                     )?;
                     let Some(value) = value else {
                         return Ok(None);
@@ -442,13 +695,14 @@ impl Compiler {
 
                 for element_id in elements {
                     let element = tree.get(*element_id);
-                    let value = self.evaluate_static_expression_value_for_type(
+                    let value = self.evaluate_static_expression_value_inner(
                         module,
                         profile,
                         element.value(),
                         tree,
                         symbols,
                         types,
+                        enum_symbol,
                     )?;
                     let Some(value) = value else {
                         return Ok(None);

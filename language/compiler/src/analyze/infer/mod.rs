@@ -4,6 +4,7 @@ mod call;
 mod constraint;
 mod context;
 mod declaration;
+mod r#enum;
 mod expected;
 mod expression;
 mod flow;
