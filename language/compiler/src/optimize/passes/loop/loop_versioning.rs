@@ -689,9 +689,9 @@ block8:
     jump block6(v17)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(expected);
     }
 
     /// Loop versioning handles non zero induction starts.
@@ -756,9 +756,9 @@ block8:
     jump block6(v17)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(expected);
     }
 
     /// Signed bounds checks are not versioned.
@@ -787,9 +787,9 @@ block5:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(input);
     }
 
     /// Mismatched integer types prevent versioning.
@@ -818,9 +818,9 @@ block5:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(input);
     }
 
     /// Non unit strides are still versioned.
@@ -885,9 +885,9 @@ block8:
     jump block6(v17)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(expected);
     }
 
     /// Non strict loop guards are not versioned.
@@ -916,8 +916,8 @@ block5:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopVersioning);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopVersioning);
+        test.assert_output(input);
     }
 }

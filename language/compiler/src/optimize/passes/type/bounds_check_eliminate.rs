@@ -1606,7 +1606,7 @@ mod tests {
     /// Constant in bounds checks fold to an unconditional jump.
     #[test]
     fn test_eliminate_constant_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1635,15 +1635,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Constant bounds checks expressed as checks are eliminated.
     #[test]
     fn test_eliminate_constant_check_bounds() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
     v1 = iconst 2u32
@@ -1672,15 +1672,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Redundant dominated bounds checks are removed.
     #[test]
     fn test_eliminate_redundant_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1713,15 +1713,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Redundant check terminators are removed when dominated.
     #[test]
     fn test_eliminate_redundant_check_bounds() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1754,15 +1754,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Checks without provable constraints are preserved.
     #[test]
     fn test_preserve_unknown_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1776,15 +1776,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Conjoined lower and upper bound checks are recognized.
     #[test]
     fn test_eliminate_conjoined_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
     v1 = iconst 3i32
@@ -1819,15 +1819,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Assume instructions imply bounds checks in the same block.
     #[test]
     fn test_assume_implies_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 16], v1: u32) -> i32 {
 block0(v0: [i32; 16], v1: u32):
     v2 = iconst 16u32
@@ -1858,15 +1858,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Signed bounds checks use both lower and upper constraints.
     #[test]
     fn test_signed_bounds_constraints() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> i32 {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 0i32
@@ -1903,15 +1903,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Dominated checks beyond the immediate successor are removed.
     #[test]
     fn test_eliminate_dominated_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1948,15 +1948,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Block parameter aliases are honored when proving redundancy.
     #[test]
     fn test_eliminate_bounds_check_with_block_param() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -1989,15 +1989,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Bounds checks are removed when the trap target is the then branch.
     #[test]
     fn test_eliminate_bounds_check_trap_then_target() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 2u32
@@ -2026,15 +2026,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Dominating assumes eliminate bounds checks in successors.
     #[test]
     fn test_assume_in_predecessor_implies_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2069,15 +2069,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Bounds checks are preserved when both branch paths reach the target.
     #[test]
     fn test_preserve_bounds_check_when_else_reaches_target() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2096,15 +2096,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Conflicting block parameters prevent redundancy elimination.
     #[test]
     fn test_preserve_bounds_check_with_conflicting_block_param() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2124,15 +2124,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Bounds checks are preserved when the trap block has side effects.
     #[test]
     fn test_preserve_non_trap_branch() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
@@ -2147,15 +2147,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Upper inclusive guards with constant bounds imply bounds checks.
     #[test]
     fn test_eliminate_upper_inclusive_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 3u32
@@ -2190,8 +2190,8 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BoundsCheckEliminate);
+        test.assert_output(expected);
     }
 }

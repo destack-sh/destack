@@ -205,7 +205,7 @@ mod tests {
     fn test_domtree_linear() {
         // linear: block0 -> block1 -> block2
         // block0 dominates all, block1 dominates block2
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @linear() -> void {
 block0:
     jump block1
@@ -216,10 +216,10 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
@@ -247,7 +247,7 @@ block2:
     fn test_domtree_diamond() {
         // diamond: block0 -> block1, block0 -> block2, block1 -> block3, block2 -> block3
         // block0 dominates all, neither block1 nor block2 dominates block3
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @diamond(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -260,10 +260,10 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
@@ -290,7 +290,7 @@ block3:
     #[test]
     fn test_domtree_unreachable_block() {
         // unreachable block3 should have no immediate dominator
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @unreachable_block(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -303,10 +303,10 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];
@@ -318,7 +318,7 @@ block3:
 
     #[test]
     fn test_domtree_strictly_dominates() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @simple() -> void {
 block0:
     jump block1
@@ -327,10 +327,10 @@ block1:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let domtree = analyses.get::<DominatorTree>();
 
         let block0 = function.blocks[0];

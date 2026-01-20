@@ -438,9 +438,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
     }
 
     /// Tailcall arguments are trimmed for unused parameters.
@@ -464,9 +464,9 @@ block0(v0: i32):
     tailcall @callee(v0)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
     }
 
     /// Exported functions are not rewritten.
@@ -482,9 +482,9 @@ block0(v0: i32, v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(input);
     }
 
     /// Indirect signatures block argument removal.
@@ -501,9 +501,9 @@ block0(v0: fn(i32, i32) -> i32, v1: i32, v2: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(input);
     }
 
     /// Call metadata argument lists are trimmed alongside arguments.
@@ -529,14 +529,14 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let call_id = program
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let call_id = test
             .entry_instructions(root_id)
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    program.tree.get(*instruction_id),
+                    test.tree.get(*instruction_id),
                     mir::Instruction::Call { .. }
                 )
             })
@@ -546,7 +546,7 @@ block0(v0: i32):
             mir::CallArgumentMetadata::default(),
             mir::CallArgumentMetadata::default(),
         ]);
-        let instruction = program.tree.get_mut(call_id);
+        let instruction = test.tree.get_mut(call_id);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -556,9 +556,9 @@ block0(v0: i32):
         };
         *call_effects = Some(effects);
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
-        let instruction = program.tree.get(call_id);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
+        let instruction = test.tree.get(call_id);
         let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.argument_metadata.len(), 1);
     }
@@ -586,16 +586,16 @@ block0(v0: i32, v2: i32):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let callee = program.tree.get_mut(callee_id);
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get_mut(callee_id);
         callee.return_lifetime = mir::Lifetime::Parameters(vec![2]);
         callee.alloc_size = Some(mir::AllocSize::new(2, Some(0)));
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
 
-        let callee = program.tree.get(callee_id);
+        let callee = test.tree.get(callee_id);
         assert_eq!(callee.return_lifetime, mir::Lifetime::Parameters(vec![1]));
         assert_eq!(callee.alloc_size, Some(mir::AllocSize::new(1, Some(0))));
     }
@@ -608,15 +608,15 @@ block0(v0: i32, v1: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let callee = program.tree.get_mut(callee_id);
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get_mut(callee_id);
         callee.alloc_size = Some(mir::AllocSize::new(1, None));
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(input);
         assert_eq!(
-            program.tree.get(callee_id).alloc_size,
+            test.tree.get(callee_id).alloc_size,
             Some(mir::AllocSize::new(1, None))
         );
     }
@@ -644,21 +644,21 @@ block0(v0: i32):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let call_id = program
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let call_id = test
             .entry_instructions(root_id)
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    program.tree.get(*instruction_id),
+                    test.tree.get(*instruction_id),
                     mir::Instruction::Call { .. }
                 )
             })
             .expect("missing call instruction");
 
         let effects = mir::CallEffects::default().with_alloc_size(mir::AllocSize::new(2, Some(0)));
-        let instruction = program.tree.get_mut(call_id);
+        let instruction = test.tree.get_mut(call_id);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -668,9 +668,9 @@ block0(v0: i32):
         };
         *call_effects = Some(effects);
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
-        let instruction = program.tree.get(call_id);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
+        let instruction = test.tree.get(call_id);
         let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.alloc_size, None);
     }
@@ -683,15 +683,15 @@ block0(v0: i32, v1: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let callee = program.tree.get_mut(callee_id);
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get_mut(callee_id);
         callee.return_lifetime = mir::Lifetime::Parameters(vec![1]);
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(input);
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(input);
         assert_eq!(
-            program.tree.get(callee_id).return_lifetime,
+            test.tree.get(callee_id).return_lifetime,
             mir::Lifetime::Parameters(vec![1])
         );
     }
@@ -719,38 +719,38 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        let callee = program.tree.get(callee_id);
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("callee");
+        let callee = test.tree.get(callee_id);
         let param_value = callee.parameters[1].value;
         let param_type = callee.parameters[1].ty;
         let callee_name = callee.name;
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let scope_id =
-            program
+            test
                 .tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
-        program
+        test
             .tree
             .debug_info
             .function_scopes
             .insert(callee_id, scope_id);
         let var_id =
-            program
+            test
                 .tree
                 .debug_info
                 .create_variable(callee_name, param_type, scope_id, true, false);
-        program
+        test
             .tree
             .debug_info
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Value(param_value));
 
-        program.run_module_pass(&DeadArgEliminate);
-        program.assert_output(expected);
-        let location = program
+        test.run_module_pass(&DeadArgEliminate);
+        test.assert_output(expected);
+        let location = test
             .tree
             .debug_info
             .variable_locations

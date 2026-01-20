@@ -815,9 +815,9 @@ block5(v15: u32):
     jump block4(v20)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(expected);
     }
 
     /// Aliasable stores prevent distribution.
@@ -845,9 +845,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Non speculatable latch instructions prevent distribution.
@@ -877,9 +877,9 @@ block0(v0: u32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Store groups that include a load are distributed.
@@ -941,9 +941,9 @@ block5(v17: u32):
     jump block4(v23)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(expected);
     }
 
     /// Local set groups are distributed into separate loops.
@@ -997,9 +997,9 @@ block5(v11: u32):
     jump block4(v14)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(expected);
     }
 
     /// Header loads prevent distribution.
@@ -1025,9 +1025,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Single store groups are not distributed.
@@ -1052,9 +1052,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Missing preheaders prevent distribution.
@@ -1102,9 +1102,9 @@ block4:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(expected);
     }
 
     /// Unused latch instructions prevent distribution.
@@ -1134,9 +1134,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Shared group instructions prevent distribution.
@@ -1164,9 +1164,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Exit arguments prevent distribution.
@@ -1191,9 +1191,9 @@ block3(v10: u32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Multi block loops are not distributed.
@@ -1220,9 +1220,9 @@ block4:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 
     /// Non jump latches prevent distribution.
@@ -1247,8 +1247,8 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDistribute);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDistribute);
+        test.assert_output(input);
     }
 }

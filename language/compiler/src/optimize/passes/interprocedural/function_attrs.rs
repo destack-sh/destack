@@ -820,11 +820,11 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let function_id = program.function_id_by_name("pure");
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let function_id = test.function_id_by_name("pure");
+        let function = test.tree.get(function_id);
 
         assert_eq!(function.memory_effects, Some(mir::MemoryEffect::none()));
         assert!(function.call_behavior.is_some());
@@ -840,11 +840,11 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let function_id = program.function_id_by_name("alloc");
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let function_id = test.function_id_by_name("alloc");
+        let function = test.tree.get(function_id);
         let behavior = function.call_behavior.clone().expect("missing behavior");
 
         assert!(behavior.allocates);
@@ -865,18 +865,18 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let caller_id = program.function_id_by_name("caller");
-        let (call_inst, _callee_id) = program.first_call_in_entry(caller_id);
-        let instruction = program.tree.get_mut(call_inst);
+        let mut test = TestProgram::new(input);
+        let caller_id = test.function_id_by_name("caller");
+        let (call_inst, _callee_id) = test.first_call_in_entry(caller_id);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call { effects, .. } = instruction else {
             panic!("expected call instruction");
         };
         *effects = Some(mir::CallEffects::default());
 
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let instruction = program.tree.get(call_inst);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let instruction = test.tree.get(call_inst);
         let effects = instruction.call_effects().expect("missing call effects");
         assert_eq!(effects.memory_effects, Some(mir::MemoryEffect::none()));
     }
@@ -894,11 +894,11 @@ block0(v0: i32):
     tailcall @callee(v0)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let caller_id = program.function_id_by_name("caller");
-        let caller = program.tree.get(caller_id);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let caller_id = test.function_id_by_name("caller");
+        let caller = test.tree.get(caller_id);
         let behavior = caller.call_behavior.clone().expect("missing behavior");
 
         assert!(!behavior.noreturn);
@@ -916,11 +916,11 @@ block0:
     tailcall @sink()
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let caller_id = program.function_id_by_name("caller");
-        let caller = program.tree.get(caller_id);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let caller_id = test.function_id_by_name("caller");
+        let caller = test.tree.get(caller_id);
         let behavior = caller.call_behavior.clone().expect("missing behavior");
 
         assert!(behavior.noreturn);
@@ -935,11 +935,11 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&FunctionAttrs);
-        program.assert_output(input);
-        let function_id = program.function_id_by_name("callee");
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&FunctionAttrs);
+        test.assert_output(input);
+        let function_id = test.function_id_by_name("callee");
+        let function = test.tree.get(function_id);
         let effects = function.memory_effects.as_ref().expect("missing effects");
 
         assert!(effects.reads);

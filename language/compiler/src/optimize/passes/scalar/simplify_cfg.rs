@@ -2945,9 +2945,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Chains of unreachable blocks are all eliminated.
@@ -2969,9 +2969,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Branch on constant true folds to unconditional jump to then target.
@@ -2998,9 +2998,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Branch on constant false folds to unconditional jump to else target.
@@ -3027,9 +3027,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Identical void return blocks are merged.
@@ -3048,9 +3048,9 @@ block0(v0: bool):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Non void return blocks are routed through a canonical return block.
@@ -3070,9 +3070,9 @@ block0(v0: bool, v1: i32, v2: i32):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Return values from parent blocks are forwarded through the canonical return block.
@@ -3096,9 +3096,9 @@ block0(v0: bool):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Branch on a global const folds to the selected target.
@@ -3125,9 +3125,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Branch on non constant condition is preserved.
@@ -3147,9 +3147,9 @@ block2:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_unchanged(input);
     }
 
     /// Branch on a block parameter constant folds to the selected target.
@@ -3179,9 +3179,9 @@ block0(v0: bool):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Constant branch folding makes the else target unreachable.
@@ -3207,9 +3207,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Loop back edges keep loop blocks reachable.
@@ -3231,9 +3231,9 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_unchanged(input);
     }
 
     /// Single block functions with no branches are unchanged.
@@ -3245,9 +3245,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_unchanged(input);
     }
 
     /// Nested constant branches all fold, making intermediate blocks unreachable.
@@ -3279,9 +3279,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Diamond CFG with non constant condition is preserved.
@@ -3300,9 +3300,9 @@ block3(v3: i32):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_unchanged(input);
     }
 
     /// Multiple disconnected unreachable regions are all eliminated.
@@ -3329,9 +3329,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Constant branch with block arguments preserves arguments on folded jump.
@@ -3355,9 +3355,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Assume conditions fold branches to the assumed target.
@@ -3382,9 +3382,9 @@ block0(v0: bool):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Assume conditions fold checks to the success edge.
@@ -3407,9 +3407,9 @@ block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Check constraints fold even when condition ranges are unknown.
@@ -3432,9 +3432,9 @@ block0(v0: bool, v1: [u32; 4]):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Jump through empty block is threaded to final target.
@@ -3457,9 +3457,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Chain of empty jump blocks all thread to final target.
@@ -3484,9 +3484,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Block with instructions is not threaded through, but its successor can be.
@@ -3512,9 +3512,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Branch targets through empty blocks are threaded.
@@ -3542,9 +3542,9 @@ block0(v0: bool):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Check targets thread through empty jump blocks.
@@ -3567,9 +3567,9 @@ block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Switch edges thread through empty jump blocks.
@@ -3600,9 +3600,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Edge specific ranges thread through a condition only block.
@@ -3647,9 +3647,9 @@ block2:
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Block with parameters threads through its empty successor to a return.
@@ -3675,9 +3675,9 @@ block0(v0: bool):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Jump predecessors duplicate a small tail block into the jump edge.
@@ -3705,9 +3705,9 @@ block2(v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Profile guided tail duplication duplicates only the hot edge.
@@ -3745,30 +3745,30 @@ block4(v5: i32):
     return v6
 }"#;
 
-        // parse input program
-        let mut program = TestProgram::new(input);
+        // parse input test
+        let mut test = TestProgram::new(input);
 
         // gather the hot and cold jump predecessors
-        let function_id = program.first_function_id();
-        let mut function = program.tree.get(function_id).clone();
-        let (hot_pred, cold_pred) = program.entry_branch_targets(&function);
-        let tail_block = program.jump_target(hot_pred);
+        let function_id = test.first_function_id();
+        let mut function = test.tree.get(function_id).clone();
+        let (hot_pred, cold_pred) = test.entry_branch_targets(&function);
+        let tail_block = test.jump_target(hot_pred);
 
         // build dominance data for tail duplication
-        let analyses = program.function_analyses(&function);
+        let analyses = test.function_analyses(&function);
         let domtree = analyses.get::<DominatorTree>().clone();
 
         // build the profile table for jump edges
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_jump_edge_profile(&mut profile, hot_pred, tail_block, 100);
-        program.record_jump_edge_profile(&mut profile, cold_pred, tail_block, 1);
+        test.record_jump_edge_profile(&mut profile, hot_pred, tail_block, 100);
+        test.record_jump_edge_profile(&mut profile, cold_pred, tail_block, 1);
 
         // run tail duplication with the profile data
-        function.recompute_next_value_id(&program.tree);
+        function.recompute_next_value_id(&test.tree);
         let mut profiled_targets = HashSet::new();
         let changed = tail_duplicate_blocks(
             &mut function,
-            &mut program.tree,
+            &mut test.tree,
             Some(&profile),
             &domtree,
             &mut profiled_targets,
@@ -3776,8 +3776,8 @@ block4(v5: i32):
 
         // persist changes and assert the snapshot
         assert!(changed);
-        *program.tree.get_mut(function_id) = function;
-        program.assert_output(expected);
+        *test.tree.get_mut(function_id) = function;
+        test.assert_output(expected);
     }
 
     /// Critical edges are split with a dedicated block.
@@ -3806,9 +3806,9 @@ block3(v4: i32):
     jump block2(v5)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Range based branch folding collapses branches on bounded conditions.
@@ -3841,9 +3841,9 @@ block0(v0: bool):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Range based switch folding prunes impossible cases.
@@ -3885,9 +3885,9 @@ block3:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Switches with identical targets fold into a jump.
@@ -3906,9 +3906,9 @@ block0(v0: u32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Single case switches lower to conditional branches.
@@ -3943,9 +3943,9 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Boolean switches lower to branches without new compares.
@@ -3976,9 +3976,9 @@ block2:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Boolean switches preserve argument passing on lowering.
@@ -4011,9 +4011,9 @@ block2(v7: i32):
     return v8
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Boolean switches with two cases lower to a branch.
@@ -4047,9 +4047,9 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Single case switches preserve argument passing on lowering.
@@ -4088,9 +4088,9 @@ block2(v8: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Switch cases that mirror the default edge are dropped.
@@ -4117,9 +4117,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Passthrough blocks forward parameters directly to their successor.
@@ -4140,9 +4140,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     fn collect_argument_mismatches(function: &mir::Function, tree: &mir::NodeTree) -> Vec<String> {
@@ -4397,14 +4397,14 @@ block5(v9: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SimplifyCfg);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SimplifyCfg);
 
-        let function_id = program.function_id_by_name("test");
-        let function = program.tree.get(function_id);
-        let mismatches = collect_argument_mismatches(function, &program.tree);
-        let undefined = collect_undefined_uses(function, &program.tree);
-        let output = program.format();
+        let function_id = test.function_id_by_name("test");
+        let function = test.tree.get(function_id);
+        let mismatches = collect_argument_mismatches(function, &test.tree);
+        let undefined = collect_undefined_uses(function, &test.tree);
+        let output = test.format();
 
         assert!(
             mismatches.is_empty(),

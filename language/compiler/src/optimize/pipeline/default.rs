@@ -4,8 +4,8 @@ use crate::optimize::passes::{
     CopyPropagate, CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadStoreEliminate,
     DropInsert, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
     InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
-    InterproceduralDceCleanup, InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse,
-    LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
+    InterproceduralDceCleanup, InterproceduralSccp, Licm, LifetimeCheck, LoadPre, LoadStoreForward,
+    LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
     LoopInterchange, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll,
     LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck, Narrow,
     PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
@@ -60,6 +60,7 @@ fn verify() -> Vec<Box<dyn FunctionPass>> {
         Box::new(MoveCheck),
         Box::new(BorrowCheck),
         Box::new(StackCheck),
+        Box::new(LifetimeCheck),
     ]
 }
 

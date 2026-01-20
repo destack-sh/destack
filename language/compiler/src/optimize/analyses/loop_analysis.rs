@@ -416,7 +416,7 @@ mod tests {
     /// Self-loop (single block looping to itself) is detected.
     #[test]
     fn test_detect_self_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @self_loop(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block0(v0), block1
@@ -425,9 +425,9 @@ block1:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
@@ -443,7 +443,7 @@ block1:
     /// Self-loop with an outside predecessor does not pull the predecessor into the loop body.
     #[test]
     fn test_self_loop_excludes_predecessor() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @self_loop_entry(v0: bool) -> void {
 block0(v0: bool):
     jump block1
@@ -454,9 +454,9 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
@@ -472,7 +472,7 @@ block2:
     /// While-style loop with separate header and latch is detected.
     #[test]
     fn test_detect_while_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @while_loop(v0: bool) -> void {
 block0(v0: bool):
     jump block1(v0)
@@ -485,9 +485,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
@@ -512,7 +512,7 @@ block3:
     /// Nested loops have correct parent relationships and depths.
     #[test]
     fn test_detect_nested_loops() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @nested(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     jump block1(v0, v1)
@@ -527,9 +527,9 @@ block4:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 2);
@@ -559,7 +559,7 @@ block4:
     /// Loop depth query returns correct values.
     #[test]
     fn test_compute_loop_depth() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @depth(v0: bool) -> void {
 block0(v0: bool):
     jump block1(v0)
@@ -572,9 +572,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         let block0 = function.blocks[0];
@@ -600,7 +600,7 @@ block3:
     /// Function without loops returns empty analysis.
     #[test]
     fn test_handle_no_loops() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @no_loops(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -613,9 +613,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 0);
@@ -630,7 +630,7 @@ block3:
     /// Multiple back edges to the same header create a single loop.
     #[test]
     fn test_merge_multiple_latches() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @multi_latch(v0: bool) -> void {
 block0(v0: bool):
     jump block1(v0)
@@ -643,9 +643,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
@@ -659,7 +659,7 @@ block3:
     /// Exiting blocks and exit blocks are computed correctly.
     #[test]
     fn test_compute_exit_info() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @exits(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     jump block1(v0, v1)
@@ -674,9 +674,9 @@ block4:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         assert_eq!(analysis.num_loops(), 1);
@@ -703,7 +703,7 @@ block4:
     /// Innermost loop is returned for blocks in nested loops.
     #[test]
     fn test_return_innermost_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @innermost(v0: bool) -> void {
 block0(v0: bool):
     jump block1(v0)
@@ -716,9 +716,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         let block1 = function.blocks[1];
@@ -736,7 +736,7 @@ block3:
     /// Top-level loops iterator returns only outermost loops.
     #[test]
     fn test_iterate_top_level_loops() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @two_outer(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     jump block1(v0)
@@ -749,9 +749,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         let top_level: Vec<_> = analysis.top_level_loops().collect();
@@ -763,7 +763,7 @@ block3:
     /// Child loops iterator returns direct children only.
     #[test]
     fn test_iterate_child_loops() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @parent_child(v0: bool, v1: bool) -> void {
 block0(v0: bool, v1: bool):
     jump block1(v0, v1)
@@ -776,9 +776,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<LoopAnalysis>();
 
         let block1 = function.blocks[1];

@@ -743,9 +743,9 @@ block2:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Expression in block1 is not available in block2 (not dominated).
@@ -764,9 +764,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_unchanged(input);
     }
 
     /// Expression from entry is available through multiple levels of domination.
@@ -796,9 +796,9 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Commutative operands (v0 + v1 and v1 + v0) are recognized as equivalent.
@@ -822,9 +822,9 @@ block1:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Substitutions are applied transitively through multiple redundancies.
@@ -856,9 +856,9 @@ block2:
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// GVN also handles local redundancies within a single block.
@@ -878,9 +878,9 @@ block0(v0: i32, v1: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Deeply nested dominator tree is handled correctly.
@@ -910,9 +910,9 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Diamond CFG with expressions in both branches.
@@ -943,9 +943,9 @@ block3(v6: i32):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Unique expressions are preserved unchanged.
@@ -963,9 +963,9 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_unchanged(input);
     }
 
     /// Unary operations are properly GVN'd across blocks.
@@ -989,9 +989,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Field access is properly GVN'd across blocks.
@@ -1015,9 +1015,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Multiple independent expressions are all handled.
@@ -1044,9 +1044,9 @@ block1:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Tuple field extraction is forwarded across blocks.
@@ -1071,9 +1071,9 @@ block1:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Struct field extraction is forwarded across blocks.
@@ -1100,9 +1100,9 @@ block1:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Aggregate forwarding through deep dominator chain.
@@ -1132,9 +1132,9 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Aggregate in non-dominating block is not forwarded.
@@ -1168,9 +1168,9 @@ block3(v6: (i32, i32)):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Diamond CFG with aggregate extraction in both branches.
@@ -1201,9 +1201,9 @@ block3(v6: i32):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Aggregate forwarding combined with regular GVN.
@@ -1230,9 +1230,9 @@ block1:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Loads are value numbered across dominated blocks when not clobbered.
@@ -1258,9 +1258,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Loads are not value numbered across intervening stores.
@@ -1278,9 +1278,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(input);
     }
 
     /// Scoped noalias metadata keeps unrelated stores from blocking load GVN.
@@ -1304,19 +1304,19 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // create alias scope metadata for the disjoint store
-        let scope = program.create_alias_scope();
+        let scope = test.create_alias_scope();
 
         // locate the relevant instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[2];
         let load_v0 = instructions[3];
 
         // attach scoped metadata to disambiguate the store and load
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1326,7 +1326,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             None,
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1336,8 +1336,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             None,
         );
 
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Disjoint TBAA offsets allow loads to forward across unrelated stores.
@@ -1361,23 +1361,23 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // create tbaa tags with disjoint offsets
-        let root = program.create_tbaa_node(None, false);
-        let access = program.create_tbaa_node(Some(root), false);
-        let tag_a = program.create_tbaa_tag(root, access, 0, 4, false);
-        let tag_b = program.create_tbaa_tag(root, access, 8, 4, false);
+        let root = test.create_tbaa_node(None, false);
+        let access = test.create_tbaa_node(Some(root), false);
+        let tag_a = test.create_tbaa_tag(root, access, 0, 4, false);
+        let tag_b = test.create_tbaa_tag(root, access, 8, 4, false);
 
         // locate the relevant instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let load_v0 = instructions[0];
         let store_v1 = instructions[2];
         let load_v0_again = instructions[3];
 
         // attach disjoint tbaa tags to the loads and store
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1386,7 +1386,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Vec::new(),
             Some(tag_a),
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1395,7 +1395,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Vec::new(),
             Some(tag_b),
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0_again,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1405,8 +1405,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(tag_a),
         );
 
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Size mismatches prevent load forwarding.
@@ -1421,16 +1421,16 @@ block0(v0: ref<raw i32>):
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // locate the load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let load_first = instructions[0];
         let load_second = instructions[1];
 
         // attach mismatched sizes to block forwarding
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_first,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1439,7 +1439,7 @@ block0(v0: ref<raw i32>):
             Vec::new(),
             None,
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_second,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1449,8 +1449,8 @@ block0(v0: ref<raw i32>):
             None,
         );
 
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 
     /// Readnone calls do not block load value numbering.
@@ -1476,13 +1476,13 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
-        let function_id = program.entry_function_id();
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -1492,7 +1492,7 @@ block0:
         };
         *call_effects = Some(effects);
 
-        program.run_pass(&GlobalValueNumbering);
-        program.assert_output(expected);
+        test.run_pass(&GlobalValueNumbering);
+        test.assert_output(expected);
     }
 }

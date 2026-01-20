@@ -2182,7 +2182,7 @@ mod tests {
     /// MemorySSA links uses to the latest defining access in a straight line.
     #[test]
     fn test_memory_ssa_linear_def_use() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>):
     v1 = iconst 1i32
@@ -2192,14 +2192,14 @@ block0(v0: ref<raw mut i32>):
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
         // find memory accesses
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let store_id = block.instructions[1];
         let load_id = block.instructions[2];
 
@@ -2223,7 +2223,7 @@ block0(v0: ref<raw mut i32>):
     /// MemorySSA inserts phis at join points with multiple incoming defs.
     #[test]
     fn test_memory_ssa_phi_at_join() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: bool) -> i32 {
 block0(v0: ref<raw mut i32>, v1: bool):
     branch v1, block1, block2
@@ -2241,9 +2241,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
@@ -2254,7 +2254,7 @@ block3:
             .expect("missing memory phi at join");
 
         // load should depend on the phi
-        let load_inst = program.tree.get(join_block).instructions[0];
+        let load_inst = test.tree.get(join_block).instructions[0];
         let load_access = memory_ssa
             .access_for_instruction(load_inst)
             .expect("missing load access");
@@ -2271,7 +2271,7 @@ block3:
     /// MemorySSA uses alias analysis to skip non aliasing defs.
     #[test]
     fn test_memory_ssa_clobber_skips_noalias_def() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -2285,14 +2285,14 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
         // locate accesses
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let store_v0 = block.instructions[3];
         let load_v0 = block.instructions[6];
 
@@ -2304,14 +2304,14 @@ block0:
             .expect("missing load access");
 
         // clobbering access should be the store to v0
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// MemorySSA uses alias scopes to ignore disjoint accesses.
     #[test]
     fn test_memory_ssa_clobber_skips_alias_scope() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -2324,17 +2324,17 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create a scope for the disjoint access
-        let scope = program.create_alias_scope();
+        let scope = test.create_alias_scope();
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v0 = instructions[1];
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // attach alias scope metadata to the store on v1
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -2345,7 +2345,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // attach noalias metadata to the load of v0
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2356,8 +2356,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2370,14 +2370,14 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             .expect("missing store access");
 
         // clobber should skip the scoped store on v1
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// MemorySSA uses TBAA tags to ignore disjoint types.
     #[test]
     fn test_memory_ssa_clobber_skips_tbaa() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -2390,21 +2390,21 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create disjoint tbaa tags
-        let root = program.create_tbaa_node(None, false);
-        let int_node = program.create_tbaa_node(Some(root), false);
-        let float_node = program.create_tbaa_node(Some(root), false);
-        let int_tag = program.create_tbaa_tag(root, int_node, 0, 4, false);
-        let float_tag = program.create_tbaa_tag(root, float_node, 0, 4, false);
+        let root = test.create_tbaa_node(None, false);
+        let int_node = test.create_tbaa_node(Some(root), false);
+        let float_node = test.create_tbaa_node(Some(root), false);
+        let int_tag = test.create_tbaa_tag(root, int_node, 0, 4, false);
+        let float_tag = test.create_tbaa_tag(root, float_node, 0, 4, false);
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v0 = instructions[1];
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // tag store and load with disjoint tbaa metadata
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -2414,7 +2414,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(float_tag),
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2425,8 +2425,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2439,15 +2439,15 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             .expect("missing store access");
 
         // clobber should skip the tbaa disjoint store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// MemorySSA applies noalias metadata in either direction.
     #[test]
     fn test_memory_ssa_clobber_alias_scope_symmetry() {
-        // input program
-        let mut program = TestProgram::new(
+        // input test
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -2460,17 +2460,17 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create a scope for the disjoint access
-        let scope = program.create_alias_scope();
+        let scope = test.create_alias_scope();
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v0 = instructions[1];
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // attach noalias metadata to the store on v1
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -2481,7 +2481,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // attach alias scope metadata to the load of v0
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2492,8 +2492,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2506,15 +2506,15 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             .expect("missing store access");
 
         // clobber should skip the scoped store on v1
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// MemorySSA respects disjoint TBAA offsets.
     #[test]
     fn test_memory_ssa_clobber_tbaa_disjoint_offsets() {
-        // input program
-        let mut program = TestProgram::new(
+        // input test
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -2527,20 +2527,20 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create disjoint tbaa tags with the same base and access
-        let root = program.create_tbaa_node(None, false);
-        let access = program.create_tbaa_node(Some(root), false);
-        let tag_a = program.create_tbaa_tag(root, access, 0, 4, false);
-        let tag_b = program.create_tbaa_tag(root, access, 8, 4, false);
+        let root = test.create_tbaa_node(None, false);
+        let access = test.create_tbaa_node(Some(root), false);
+        let tag_a = test.create_tbaa_tag(root, access, 0, 4, false);
+        let tag_b = test.create_tbaa_tag(root, access, 8, 4, false);
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v0 = instructions[1];
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // tag store and load with disjoint tbaa metadata
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -2550,7 +2550,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(tag_b),
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2561,8 +2561,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2575,15 +2575,15 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             .expect("missing store access");
 
         // clobber should skip the disjoint tbaa store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// MemorySSA does not disambiguate overlapping TBAA offsets.
     #[test]
     fn test_memory_ssa_clobber_tbaa_overlap_offsets() {
-        // input program
-        let mut program = TestProgram::new(
+        // input test
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -2596,19 +2596,19 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // create overlapping tbaa tags with the same base and access
-        let root = program.create_tbaa_node(None, false);
-        let access = program.create_tbaa_node(Some(root), false);
-        let tag_a = program.create_tbaa_tag(root, access, 0, 8, false);
-        let tag_b = program.create_tbaa_tag(root, access, 4, 8, false);
+        let root = test.create_tbaa_node(None, false);
+        let access = test.create_tbaa_node(Some(root), false);
+        let tag_a = test.create_tbaa_tag(root, access, 0, 8, false);
+        let tag_b = test.create_tbaa_tag(root, access, 4, 8, false);
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // tag store and load with overlapping tbaa metadata
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -2618,7 +2618,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(tag_b),
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2629,8 +2629,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2643,14 +2643,14 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             .expect("missing store access");
 
         // clobber should see the overlapping tbaa store
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// Alias scopes can disambiguate memory accesses.
     #[test]
     fn test_memory_ssa_alias_scopes_disambiguate() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
     v1 = iconst 1i32
@@ -2660,14 +2660,14 @@ block0(v0: ref<raw i32>):
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_inst = instructions[1];
         let load_inst = instructions[2];
 
-        let scope = program.create_alias_scope();
+        let scope = test.create_alias_scope();
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_inst,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -2677,7 +2677,7 @@ block0(v0: ref<raw i32>):
             None,
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_inst,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -2687,8 +2687,8 @@ block0(v0: ref<raw i32>):
             None,
         );
 
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2696,14 +2696,14 @@ block0(v0: ref<raw i32>):
             .access_for_instruction(load_inst)
             .expect("missing load access");
 
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, memory_ssa.live_on_entry());
     }
 
     /// Address spaces can disambiguate memory accesses.
     #[test]
     fn test_memory_ssa_address_space_disambiguate() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
     v1 = iconst 1i32
@@ -2713,8 +2713,8 @@ block0(v0: ref<raw i32>):
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_inst = instructions[1];
         let load_inst = instructions[2];
 
@@ -2747,11 +2747,11 @@ block0(v0: ref<raw i32>):
             tbaa_tag: None,
         };
 
-        program.insert_memory_accesses(store_inst, vec![store_access]);
-        program.insert_memory_accesses(load_inst, vec![load_access]);
+        test.insert_memory_accesses(store_inst, vec![store_access]);
+        test.insert_memory_accesses(load_inst, vec![load_access]);
 
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2759,15 +2759,15 @@ block0(v0: ref<raw i32>):
             .access_for_instruction(load_inst)
             .expect("missing load access");
 
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, memory_ssa.live_on_entry());
     }
 
     /// MemorySSA respects explicit metadata over instruction semantics.
     #[test]
     fn test_memory_ssa_metadata_overrides_instruction() {
-        // input program
-        let mut program = TestProgram::new(
+        // input test
+        let mut test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -2782,13 +2782,13 @@ block0:
         );
 
         // locate store and load instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[5];
         let load_v0 = instructions[6];
 
         // attach metadata that retargets the load to v1
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
@@ -2799,8 +2799,8 @@ block0:
         );
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let alias = analyses.get::<AliasAnalysis>();
 
@@ -2813,14 +2813,14 @@ block0:
             .expect("missing store access");
 
         // clobber should follow the metadata target
-        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &program.tree);
+        let clobber = memory_ssa.clobbering_access_for_use(load_access, &alias, &test.tree);
         assert_eq!(clobber, store_access);
     }
 
     /// Local accesses are tracked independently of pointer memory.
     #[test]
     fn test_memory_ssa_local_access() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
     local0: i32
 block0:
@@ -2831,13 +2831,13 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
 
         // locate local access
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let store_inst = block.instructions[1];
         let load_inst = block.instructions[2];
 
@@ -2855,7 +2855,7 @@ block0:
     /// Memcpy produces a read followed by a write access for its operands.
     #[test]
     fn test_memory_ssa_memcpy_read_write_effects() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -2867,13 +2867,13 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
-        let memcpy_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
+        let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
         let accesses = instruction_accesses(memory_ssa, memcpy_inst);
 
         // ensure we recorded a read and a write
@@ -2892,7 +2892,7 @@ block0:
         let write_ptr =
             pointer_from_location(&write_effect.location).expect("missing write pointer");
 
-        let stack_allocs = program.stack_alloc_destinations_in_entry(function_id);
+        let stack_allocs = test.stack_alloc_destinations_in_entry(function_id);
         let dest_value = *stack_allocs.first().expect("missing stack allocation");
         let src_value = *stack_allocs.get(1).expect("missing stack allocation");
 
@@ -2909,7 +2909,7 @@ block0:
     /// Memcmp produces two read accesses for its operands.
     #[test]
     fn test_memory_ssa_memcmp_read_effects() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -2920,13 +2920,13 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
-        let memcmp_inst = program.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
+        let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
         let accesses = instruction_accesses(memory_ssa, memcmp_inst);
 
         // ensure we recorded two reads
@@ -2942,7 +2942,7 @@ block0:
     /// Volatile accesses are marked as volatile effects.
     #[test]
     fn test_memory_ssa_volatile_marks_effects() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -2952,14 +2952,14 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
         // locate volatile instructions
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let volatile_load = block.instructions[1];
         let volatile_store = block.instructions[2];
 
@@ -2981,7 +2981,7 @@ block0:
     /// Atomic fence produces a barrier access.
     #[test]
     fn test_memory_ssa_atomic_fence_barrier() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     intrinsic.atomic.fence(seq_cst)
@@ -2990,14 +2990,14 @@ block0:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
         // locate fence instruction
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let fence_inst = block.instructions[0];
         let fence_access = memory_ssa
             .access_for_instruction(fence_inst)
@@ -3014,7 +3014,7 @@ block0:
     /// Calls are modeled as unknown read write effects.
     #[test]
     fn test_memory_ssa_call_is_unknown_def() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"extern function @external(ref<raw i32>) -> void
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
@@ -3025,19 +3025,19 @@ block0(v0: ref<raw i32>):
         );
 
         // select the defined function
-        let function_id = program
+        let function_id = test
             .tree
             .iter_nodes::<mir::Function>()
             .find(|(_, function)| function.entry.is_some())
             .expect("missing function")
             .0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
         // locate call instruction
-        let block = program.tree.get(function.blocks[0]);
+        let block = test.tree.get(function.blocks[0]);
         let call_inst = block.instructions[0];
         let call_access = memory_ssa
             .access_for_instruction(call_inst)
@@ -3055,7 +3055,7 @@ block0(v0: ref<raw i32>):
     /// Call metadata readnone suppresses memory accesses.
     #[test]
     fn test_memory_ssa_call_readnone_metadata() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"extern function @external(ref<raw i32>) -> void
 function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
@@ -3065,10 +3065,10 @@ block0(v0: ref<raw i32>):
 }"#,
         );
 
-        let function_id = program.entry_function_id();
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
         let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -3078,8 +3078,8 @@ block0(v0: ref<raw i32>):
         };
         *call_effects = Some(effects);
 
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
 
         assert!(
@@ -3091,7 +3091,7 @@ block0(v0: ref<raw i32>):
     /// Call metadata argmemonly reads are modeled as pointer uses.
     #[test]
     fn test_memory_ssa_call_argmemonly_reads() {
-        let mut program = TestProgram::new(
+        let mut test = TestProgram::new(
             r#"extern function @external(ref<raw i32>, i32) -> void
 function @test(v0: ref<raw i32>, v1: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: i32):
@@ -3101,12 +3101,12 @@ block0(v0: ref<raw i32>, v1: i32):
 }"#,
         );
 
-        let function_id = program.entry_function_id();
+        let function_id = test.entry_function_id();
         let param_value = {
-            let function = program.tree.get(function_id);
+            let function = test.tree.get(function_id);
             function.parameters[0].value
         };
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let mut arg0 = mir::CallArgumentMetadata::default();
         arg0.access = mir::ArgumentAccess::Read;
@@ -3117,7 +3117,7 @@ block0(v0: ref<raw i32>, v1: i32):
         let effects = mir::CallEffects::default()
             .with_memory_effects(effects)
             .with_argument_metadata(vec![arg0, arg1]);
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -3127,8 +3127,8 @@ block0(v0: ref<raw i32>, v1: i32):
         };
         *call_effects = Some(effects);
 
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
@@ -3146,8 +3146,8 @@ block0(v0: ref<raw i32>, v1: i32):
     /// Memory access metadata overrides default instruction effects.
     #[test]
     fn test_memory_ssa_access_metadata_override() {
-        // build the test program
-        let mut program = TestProgram::new(
+        // build the test test
+        let mut test = TestProgram::new(
             r#"extern function @external(ref<raw i32>, ref<raw i32>) -> void
 function @test(v0: ref<raw i32>, v1: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>, v1: ref<raw i32>):
@@ -3158,16 +3158,16 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         );
 
         // collect parameter values and the call instruction
-        let function_id = program.entry_function_id();
+        let function_id = test.entry_function_id();
         let param_values = {
-            let function = program.tree.get(function_id);
+            let function = test.tree.get(function_id);
             function
                 .parameters
                 .iter()
                 .map(|param| param.value)
                 .collect::<Vec<_>>()
         };
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         // build explicit access metadata
         let read_access = mir::MemoryAccessMetadata {
@@ -3200,11 +3200,11 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
         };
 
         // attach memory access metadata to the call
-        program.insert_memory_accesses(call_inst, vec![read_access, write_access]);
+        test.insert_memory_accesses(call_inst, vec![read_access, write_access]);
 
         // build analyses
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
@@ -3237,7 +3237,7 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     /// Loop headers get memory phis when defs flow around the backedge.
     #[test]
     fn test_memory_ssa_loop_phi_in_header() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: ref<raw mut i32>, v1: i32) -> i32 {
 block0(v0: ref<raw mut i32>, v1: i32):
     v2 = iconst 0i32
@@ -3257,9 +3257,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
@@ -3283,7 +3283,7 @@ block3:
     /// Unreachable blocks do not contribute memory accesses.
     #[test]
     fn test_memory_ssa_ignores_unreachable_blocks() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 0i32
@@ -3296,15 +3296,15 @@ block1:
 }"#,
         );
 
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let memory_ssa = analyses.get::<MemorySSA>();
         let memory_ssa = memory_ssa.as_ref();
 
         // locate store in unreachable block
         let unreachable_block = function.blocks[1];
-        let block = program.tree.get(unreachable_block);
+        let block = test.tree.get(unreachable_block);
         let store_inst = block.instructions[2];
 
         assert!(

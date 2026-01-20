@@ -327,15 +327,15 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Instructions used in return chain are preserved.
     #[test]
     fn test_preserve_used_chain() {
-        // source program
+        // source test
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -345,9 +345,9 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Multiple unused instructions are all eliminated.
@@ -372,15 +372,15 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Calls have side effects and are preserved even when result is unused.
     #[test]
     fn test_preserve_side_effect_call() {
-        // source program
+        // source test
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -393,9 +393,9 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Dead code is eliminated from all blocks in the function.
@@ -428,15 +428,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Values used in branch terminators are preserved.
     #[test]
     fn test_preserve_terminator_uses() {
-        // source program
+        // source test
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -450,9 +450,9 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Transitive chains of dead code are all eliminated.
@@ -477,9 +477,9 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Values passed as block arguments are preserved.
@@ -507,15 +507,15 @@ block1(v4: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// All instructions are eliminated when none are used by terminator.
     #[test]
     fn test_eliminate_all_instructions() {
-        // source program
+        // source test
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -531,9 +531,9 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Dead code inside loops is eliminated.
@@ -574,9 +574,9 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Dead code in diamond CFG branches is eliminated.
@@ -614,15 +614,15 @@ block3(v6: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Multiple side-effect calls are all preserved.
     #[test]
     fn test_preserve_multiple_side_effect_calls() {
-        // source program
+        // source test
         let input = r#"function @test() -> void {
 block0:
     v0 = iconst 1i32
@@ -637,15 +637,15 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Overwritten local sets are removed when not observed.
     #[test]
     fn test_remove_overwritten_local_set() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -667,15 +667,15 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Local stores without any reads are removed.
     #[test]
     fn test_remove_unread_local_set() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> void {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -691,15 +691,15 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Stores overwritten before any read are eliminated.
     #[test]
     fn test_remove_overwritten_store() {
-        // source program
+        // source test
         let input = r#"function @test() -> void {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -720,15 +720,15 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Stores read by a load are preserved.
     #[test]
     fn test_preserve_store_used_by_load() {
-        // source program
+        // source test
         let input = r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -741,8 +741,8 @@ block0:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadCodeEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadCodeEliminate);
+        test.assert_unchanged(input);
     }
 }

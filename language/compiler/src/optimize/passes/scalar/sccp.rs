@@ -1275,9 +1275,9 @@ block2(v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Identical constants on all edges keep block parameters constant.
@@ -1311,9 +1311,9 @@ block3(v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Conflicting constants on different edges do not fold block parameters.
@@ -1333,9 +1333,9 @@ block3(v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_unchanged(input);
     }
 
     /// Multiple edges to the same target with different arguments are overdefined.
@@ -1351,9 +1351,9 @@ block1(v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_unchanged(input);
     }
 
     /// Switch on a constant value folds to the matching target.
@@ -1382,9 +1382,9 @@ block1:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Global const values fold branch conditions and remove dead blocks.
@@ -1412,9 +1412,9 @@ block1:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Mutable globals are not treated as constants.
@@ -1433,9 +1433,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_unchanged(input);
     }
 
     /// Block parameter constants are substituted in uses.
@@ -1462,9 +1462,9 @@ block2(v2: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Call arguments are substituted when constants are available.
@@ -1496,9 +1496,9 @@ block1(v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Switch constants use the same i64 cast semantics as the VM.
@@ -1524,9 +1524,9 @@ block1:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Field access folds when a struct has constant fields.
@@ -1549,9 +1549,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Field access keeps constant elements even when other fields vary.
@@ -1572,9 +1572,9 @@ block0(v0: i32):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Field set updates aggregate constants for later field access.
@@ -1601,9 +1601,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Element access folds for constant array indices.
@@ -1630,9 +1630,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Element set updates array constants for later element access.
@@ -1663,9 +1663,9 @@ block0:
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Global aggregate constants are used for field access folding.
@@ -1686,9 +1686,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Zero initializers produce aggregate constants for field access.
@@ -1709,9 +1709,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Byte initializers on u8 arrays fold element access with constant indices.
@@ -1734,9 +1734,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Constant selects are folded to the chosen value.
@@ -1759,9 +1759,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Pure intrinsics with constant operands are folded.
@@ -1780,8 +1780,8 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&SparseConditionalConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&SparseConditionalConstantPropagation);
+        test.assert_output(expected);
     }
 }

@@ -848,10 +848,10 @@ block8:
 block9:
     jump block6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop with invariant condition creates two specialized loops.
@@ -893,10 +893,10 @@ block8:
 block9:
     jump block6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop with variant condition is preserved.
@@ -917,11 +917,11 @@ block2:
 block4:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(&before);
     }
 
     /// Loop with invariant branch NOT in header is still unswitched.
@@ -953,10 +953,10 @@ block4:
 block5:
     jump block3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop where both branch targets exit is preserved.
@@ -972,11 +972,11 @@ block2:
 block3:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(&before);
     }
 
     /// Loop with identical branch targets (all branches) is preserved.
@@ -994,11 +994,11 @@ block3:
     return
 }"#;
         // no unswitchable branch: both have same targets
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(&before);
     }
 
     /// Non header branch is unswitched when header branch has same targets.
@@ -1030,10 +1030,10 @@ block4:
 block5:
     jump block3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Function without loops is unchanged.
@@ -1045,9 +1045,9 @@ block0(v0: i32):
     v2 = iadd v0, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopUnswitch);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopUnswitch);
+        test.assert_unchanged(input);
     }
 
     /// Loop with block parameters is unswitched correctly.
@@ -1105,10 +1105,10 @@ block8(v17: i32):
 block9(v21: i32):
     jump block6(v21)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop header parameters can be rewritten to preheader arguments.
@@ -1139,10 +1139,10 @@ block5:
     jump block4(v2)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop checks with invariant condition are unswitched.
@@ -1174,10 +1174,10 @@ block5:
     jump block4(v4)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop conditions computed in the header can be hoisted to the preheader.
@@ -1213,10 +1213,10 @@ block5:
     jump block4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Loop exceeding size limit is preserved.
@@ -1242,11 +1242,11 @@ block4:
     return
 }}"#
         );
-        let mut program = TestProgram::new(&input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(&input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(&before);
     }
 
     /// Inner loop is unswitched first, then an outer loop may also unswitch.
@@ -1292,10 +1292,10 @@ block9:
 block10:
     jump block9
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(expected);
     }
 
     /// Constant conditions are not unswitched.
@@ -1313,10 +1313,10 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnswitch);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnswitch);
+        test.assert_output(input);
     }
 
     /// Cold branches are not unswitched when profile data is available.
@@ -1333,12 +1333,12 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
 
-        let function_id = program.entry_function_id();
-        let entry_block = program.entry_block_id(function_id);
-        let header_block = match &program.tree.get(entry_block).terminator {
+        let function_id = test.entry_function_id();
+        let entry_block = test.entry_block_id(function_id);
+        let header_block = match &test.tree.get(entry_block).terminator {
             mir::Terminator::Jump { target, .. } => *target,
             _ => panic!("missing loop header jump"),
         };
@@ -1357,7 +1357,7 @@ block3:
             },
         );
 
-        program.run_pass_with_profile(&LoopUnswitch, profile);
-        program.assert_output(input);
+        test.run_pass_with_profile(&LoopUnswitch, profile);
+        test.assert_output(input);
     }
 }

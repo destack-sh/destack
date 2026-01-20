@@ -17,7 +17,7 @@ pub enum LocalDefinition {
     Instruction(mir::LocalNodeId<Instruction>),
 }
 
-/// Reaching definitions for locals at a program point.
+/// Reaching definitions for locals at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ReachingDefinitionMap {
     /// Definitions available for each local.
@@ -265,8 +265,7 @@ mod tests {
     /// Local set overwrites entry definition within a block.
     #[test]
     fn test_reaching_definitions_single_block() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -277,9 +276,9 @@ block0(v0: i32):
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // capture the local and entry block
@@ -294,8 +293,8 @@ block0(v0: i32):
         assert_eq!(entry_defs, &expected_entry);
 
         // confirm the local.set definition reaches the local.get
-        let before_get = reaching.definitions_before_instruction(entry_block, 1, &program.tree);
-        let local_set = program.tree.get(entry_block).instructions[0];
+        let before_get = reaching.definitions_before_instruction(entry_block, 1, &test.tree);
+        let local_set = test.tree.get(entry_block).instructions[0];
 
         let mut expected_before = HashSet::new();
         expected_before.insert(LocalDefinition::Instruction(local_set));
@@ -311,8 +310,7 @@ block0(v0: i32):
     /// Entry definitions appear before the first instruction.
     #[test]
     fn test_reaching_definitions_before_first_instruction() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -323,9 +321,9 @@ block0(v0: i32):
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // capture the local and entry block
@@ -336,7 +334,7 @@ block0(v0: i32):
         let mut expected_entry = HashSet::new();
         expected_entry.insert(LocalDefinition::Entry);
 
-        let before_state = reaching.definitions_before_instruction(entry_block, 0, &program.tree);
+        let before_state = reaching.definitions_before_instruction(entry_block, 0, &test.tree);
         let before_defs = before_state.definitions_for(local_id);
         assert_eq!(before_defs, &expected_entry);
     }
@@ -344,8 +342,7 @@ block0(v0: i32):
     /// Later local.set overwrites earlier definitions within a block.
     #[test]
     fn test_reaching_definitions_overwrite_in_block() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32, v1: i32):
@@ -357,15 +354,15 @@ block0(v0: i32, v1: i32):
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // capture the local and entry block
         let local_id = function.locals[0];
         let entry_block = function.entry.expect("missing entry block");
-        let block = program.tree.get(entry_block);
+        let block = test.tree.get(entry_block);
         let first_set = block.instructions[0];
         let second_set = block.instructions[1];
 
@@ -373,7 +370,7 @@ block0(v0: i32, v1: i32):
         let mut expected_first = HashSet::new();
         expected_first.insert(LocalDefinition::Instruction(first_set));
 
-        let before_state = reaching.definitions_before_instruction(entry_block, 1, &program.tree);
+        let before_state = reaching.definitions_before_instruction(entry_block, 1, &test.tree);
         let before_second = before_state.definitions_for(local_id);
         assert_eq!(before_second, &expected_first);
 
@@ -381,7 +378,7 @@ block0(v0: i32, v1: i32):
         let mut expected_second = HashSet::new();
         expected_second.insert(LocalDefinition::Instruction(second_set));
 
-        let after_state = reaching.definitions_before_instruction(entry_block, 2, &program.tree);
+        let after_state = reaching.definitions_before_instruction(entry_block, 2, &test.tree);
         let after_second = after_state.definitions_for(local_id);
         assert_eq!(after_second, &expected_second);
 
@@ -393,8 +390,7 @@ block0(v0: i32, v1: i32):
     /// Merge keeps entry definition when a path misses a local set.
     #[test]
     fn test_reaching_definitions_branch_with_entry() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: bool):
@@ -412,16 +408,16 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // collect ids for the join block and local
         let local_id = function.locals[0];
         let join_block = function.blocks[3];
 
-        let local_set = first_local_set_instruction(function.blocks[1], &program.tree);
+        let local_set = first_local_set_instruction(function.blocks[1], &test.tree);
 
         // expect entry and the branch definition at the join
         let mut expected = HashSet::new();
@@ -435,8 +431,7 @@ block3:
     /// Local reachability is tracked independently per local.
     #[test]
     fn test_reaching_definitions_multiple_locals() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
     local0: i32 ; owned, mut
     local1: i32 ; owned, mut
@@ -457,9 +452,9 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // collect ids for the join block and locals
@@ -467,8 +462,8 @@ block3:
         let local1 = function.locals[1];
         let join_block = function.blocks[3];
 
-        let set_local0 = first_local_set_instruction(function.blocks[1], &program.tree);
-        let set_local1 = first_local_set_instruction(function.blocks[2], &program.tree);
+        let set_local0 = first_local_set_instruction(function.blocks[1], &test.tree);
+        let set_local1 = first_local_set_instruction(function.blocks[2], &test.tree);
 
         // expect entry and local0 definition at the join
         let mut expected_local0 = HashSet::new();
@@ -490,8 +485,7 @@ block3:
     /// Merge joins definitions from both branches without entry.
     #[test]
     fn test_reaching_definitions_branch_merge() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: bool):
@@ -511,17 +505,17 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // collect ids for the join block and local
         let local_id = function.locals[0];
         let join_block = function.blocks[3];
 
-        let local_set_then = first_local_set_instruction(function.blocks[1], &program.tree);
-        let local_set_else = first_local_set_instruction(function.blocks[2], &program.tree);
+        let local_set_then = first_local_set_instruction(function.blocks[1], &test.tree);
+        let local_set_else = first_local_set_instruction(function.blocks[2], &test.tree);
 
         // expect both branch definitions at the join
         let mut expected = HashSet::new();
@@ -535,8 +529,7 @@ block3:
     /// Loop headers merge entry and backedge definitions.
     #[test]
     fn test_reaching_definitions_loop_backedge() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: bool):
@@ -554,16 +547,16 @@ block2:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // collect ids for the loop header and local
         let local_id = function.locals[0];
         let loop_header = function.blocks[1];
 
-        let local_set = first_local_set_instruction(loop_header, &program.tree);
+        let local_set = first_local_set_instruction(loop_header, &test.tree);
 
         // expect entry and backedge definitions at the loop header
         let mut expected = HashSet::new();
@@ -577,8 +570,7 @@ block2:
     /// Unreachable blocks have no reaching definitions.
     #[test]
     fn test_reaching_definitions_unreachable_block() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -594,9 +586,9 @@ block2:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let reaching = analyses.get::<ReachingDefinitions>();
 
         // capture the unreachable block

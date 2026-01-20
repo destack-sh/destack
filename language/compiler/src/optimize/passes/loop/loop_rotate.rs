@@ -528,11 +528,11 @@ block5:
 block6:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopRotate);
-        program.run_pass(&SimplifyCfg); // clean up dead header
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyCfg); // clean up dead header
+        test.assert_output(expected);
     }
 
     /// Loop with phi values and simple header (no instructions) is rotated.
@@ -580,11 +580,11 @@ block5(v15: i32, v16: bool):
 block6(v11: i32):
     return v11
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopRotate);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Loop with false-to-body (inverted condition) is rotated correctly.
@@ -618,11 +618,11 @@ block5:
 block6:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopRotate);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 
     /// Loop with instructions in header is not rotated.
@@ -641,11 +641,11 @@ block3:
     return v3
 }"#;
         // header has instructions, don't rotate
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopRotate);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopRotate);
+        test.assert_output(&before);
     }
 
     /// Single-block loop is not rotated.
@@ -660,11 +660,11 @@ block2:
     return
 }"#;
         // latch == header, don't rotate
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopRotate);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopRotate);
+        test.assert_output(&before);
     }
 
     /// Loop with unconditional header terminator is not rotated.
@@ -681,11 +681,11 @@ block3:
     return
 }"#;
         // header ends with jump, not branch - can't rotate
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopRotate);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopRotate);
+        test.assert_output(&before);
     }
 
     /// Loop where header params aren't all passed to body is not rotated.
@@ -706,11 +706,11 @@ block3:
     return v2
 }"#;
         // header has param v2, body doesn't receive v2 as argument, skip rotation
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopRotate);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopRotate);
+        test.assert_output(&before);
     }
 
     /// Function without loops is unchanged.
@@ -722,9 +722,9 @@ block0(v0: i32):
     v2 = iadd v0, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopRotate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopRotate);
+        test.assert_unchanged(input);
     }
 
     /// Loop with multiple phi values and simple header is rotated.
@@ -778,10 +778,10 @@ block6(v14: i32, v15: i32):
     v16 = iadd v14, v15
     return v16
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopRotate);
-        program.run_pass(&SimplifyCfg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopRotate);
+        test.run_pass(&SimplifyCfg);
+        test.assert_output(expected);
     }
 }

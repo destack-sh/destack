@@ -709,9 +709,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(expected);
     }
 
     /// Call metadata is remapped after specialization.
@@ -748,12 +748,12 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let (call_id, _callee_id) = program.first_call_in_entry(root_id);
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let (call_id, _callee_id) = test.first_call_in_entry(root_id);
         let argument_metadata = vec![mir::CallArgumentMetadata::default(); 2];
         let effects = mir::CallEffects::default().with_argument_metadata(argument_metadata);
-        let instruction = program.tree.get_mut(call_id);
+        let instruction = test.tree.get_mut(call_id);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -763,14 +763,14 @@ block0:
         };
         *call_effects = Some(effects);
 
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(expected);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(expected);
 
-        let (call_id, callee_id) = program.first_call_in_entry(root_id);
-        let callee = program.tree.get(callee_id);
-        let instruction = program.tree.get(call_id);
+        let (call_id, callee_id) = test.first_call_in_entry(root_id);
+        let callee = test.tree.get(callee_id);
+        let instruction = test.tree.get(call_id);
         let effects = instruction.call_effects().expect("missing call effects");
-        let signature = program.tree.get(
+        let signature = test.tree.get(
             instruction
                 .call_signature()
                 .expect("missing call signature"),
@@ -800,16 +800,16 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let (call_id, _) = program.first_call_in_entry(root_id);
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let (call_id, _) = test.first_call_in_entry(root_id);
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_function_profile(&mut profile, root_id, 100);
-        program.record_callsite_profile(&mut profile, call_id, 5);
+        test.record_function_profile(&mut profile, root_id, 100);
+        test.record_callsite_profile(&mut profile, call_id, 5);
 
-        program.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        program.assert_output(input);
+        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.assert_output(input);
     }
 
     /// Missing callsite profiles prevent specialization.
@@ -828,14 +828,14 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_function_profile(&mut profile, root_id, 100);
+        test.record_function_profile(&mut profile, root_id, 100);
 
-        program.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        program.assert_output(input);
+        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.assert_output(input);
     }
 
     /// Missing function profiles prevent specialization below the hot threshold.
@@ -854,15 +854,15 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let (call_id, _) = program.first_call_in_entry(root_id);
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let (call_id, _) = test.first_call_in_entry(root_id);
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_callsite_profile(&mut profile, call_id, 5);
+        test.record_callsite_profile(&mut profile, call_id, 5);
 
-        program.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        program.assert_output(input);
+        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.assert_output(input);
     }
 
     /// Hot callsites specialize when profile data is present.
@@ -899,16 +899,16 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let (call_id, _) = program.first_call_in_entry(root_id);
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let (call_id, _) = test.first_call_in_entry(root_id);
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_function_profile(&mut profile, root_id, 100);
-        program.record_callsite_profile(&mut profile, call_id, 25);
+        test.record_function_profile(&mut profile, root_id, 100);
+        test.record_callsite_profile(&mut profile, call_id, 25);
 
-        program.run_module_pass_with_profile(&ArgumentSpecialize, profile);
-        program.assert_output(expected);
+        test.run_module_pass_with_profile(&ArgumentSpecialize, profile);
+        test.assert_output(expected);
     }
 
     /// Required alloc size parameters are not removed.
@@ -941,12 +941,12 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("callee");
-        program.tree.get_mut(callee_id).alloc_size = Some(mir::AllocSize::new(0, None));
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("callee");
+        test.tree.get_mut(callee_id).alloc_size = Some(mir::AllocSize::new(0, None));
 
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(expected);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(expected);
     }
 
     /// Recursive callees are not specialized.
@@ -972,9 +972,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(input);
     }
 
     /// Extern callees are not specialized.
@@ -988,9 +988,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(input);
     }
 
     /// Specialization stops at the per function limit.
@@ -1054,8 +1054,8 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&ArgumentSpecialize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&ArgumentSpecialize);
+        test.assert_output(expected);
     }
 }

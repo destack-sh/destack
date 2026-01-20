@@ -202,6 +202,7 @@ These run before optimization passes.
 | `move-check` | MoveCheck | function | V | ✓ | ownership | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
 | `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and lifetime annotations |
 | `stack-check` | StackCheck | function | V | ✓ | cfg, lifetime | Verify stack safety: no returns of references to locals, no stack pointer escapes |
+| `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit lifetime annotations against returned borrows |
 | `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `raw.drop`/`stack.drop` at last-use points for owned refs |
 
 ### Scalar (S)

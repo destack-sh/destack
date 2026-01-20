@@ -29,6 +29,20 @@ pub enum OptimizeWarning {
     #[warning(code = "WO102", message = "borrow may escape scope")]
     PotentialBorrowEscape { node: mir::AnchoredGlobalNodeId },
 
+    /// Lifetime annotation does not cover the returned borrow.
+    #[warning(
+        code = "WO103",
+        message = "lifetime annotation does not cover returned borrow"
+    )]
+    PotentialLifetimeAnnotationMismatch { node: mir::AnchoredGlobalNodeId },
+
+    /// Lifetime annotation was ignored for a non borrowed return.
+    #[warning(
+        code = "WO104",
+        message = "lifetime annotation ignored for non borrowed return"
+    )]
+    LifetimeAnnotationIgnored { node: mir::AnchoredGlobalNodeId },
+
     // -------------------------------------------------------------------------
     // 2xx: Unused value warnings
     // -------------------------------------------------------------------------

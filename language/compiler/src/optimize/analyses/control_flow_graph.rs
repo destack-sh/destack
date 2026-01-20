@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_cfg_linear_flow() {
         // linear flow: block0 -> block1 -> block2
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @linear() -> void {
 block0:
     jump block1
@@ -98,10 +98,10 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
 
         // block0 has no predecessors (entry)
@@ -120,7 +120,7 @@ block2:
     #[test]
     fn test_cfg_branch() {
         // branch: block0 -> block1, block0 -> block2
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test_branch(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -131,10 +131,10 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
 
         // block1 and block2 each have block0 as predecessor
@@ -147,7 +147,7 @@ block2:
     #[test]
     fn test_cfg_diamond() {
         // diamond: block0 -> block1, block0 -> block2, block1 -> block3, block2 -> block3
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @diamond(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -160,10 +160,10 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
 
         // block3 has two predecessors: block1 and block2
@@ -174,7 +174,7 @@ block3:
     #[test]
     fn test_cfg_loop() {
         // loop: block0 -> block1, block1 -> block1, block1 -> block2
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @loop(v0: bool) -> void {
 block0(v0: bool):
     jump block1(v0)
@@ -185,10 +185,10 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
 
-        let analyses = program.function_analyses(function);
+        let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
 
         // block1 has two predecessors: block0 and block1 (self-loop)

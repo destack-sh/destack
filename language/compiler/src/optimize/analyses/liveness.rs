@@ -10,7 +10,7 @@ use crate::optimize::{
 /// Liveness analysis for SSA values.
 ///
 /// Computes which values are "live" (potentially used in the future) at each
-/// program point. A value is live at a point if there's a path from that point
+/// test point. A value is live at a point if there's a path from that point
 /// to a use of the value.
 ///
 /// This is a classic backward dataflow analysis:
@@ -302,7 +302,7 @@ mod tests {
     /// Single block: all values defined locally, none live-in, live-out empty at return.
     #[test]
     fn test_simple_liveness() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -312,9 +312,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
@@ -328,16 +328,16 @@ block0:
         assert!(liveness.live_out(entry).is_empty());
 
         // v0 is live after instruction 0 (used by iadd)
-        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &test.tree));
 
         // v2 is live after instruction 2 (used by return)
-        assert!(liveness.is_live_after_instruction(entry, 2, mir::Value::new(2), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 2, mir::Value::new(2), &test.tree));
     }
 
     /// Value defined in one block is live-in to block that uses it.
     #[test]
     fn test_live_across_blocks() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 42i32
@@ -350,9 +350,9 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
@@ -372,7 +372,7 @@ block2:
     /// Values in loop: block parameters not live-in, loop-carried values live-out.
     #[test]
     fn test_live_in_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 1i32
@@ -386,9 +386,9 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
@@ -414,7 +414,7 @@ block2:
     /// Unused value is not live after its definition.
     #[test]
     fn test_dead_value() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -423,24 +423,24 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
         // v0 is live after its definition (used by return)
-        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &test.tree));
 
         // v1 is dead (never used), not live after its definition
-        assert!(!liveness.is_live_after_instruction(entry, 1, mir::Value::new(1), &program.tree));
+        assert!(!liveness.is_live_after_instruction(entry, 1, mir::Value::new(1), &test.tree));
     }
 
     /// Block parameters are defined at entry, not live-in.
     #[test]
     fn test_block_arguments_live() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -448,9 +448,9 @@ block0(v0: i32, v1: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
@@ -463,7 +463,7 @@ block0(v0: i32, v1: i32):
     /// is_live_after_instruction correctly tracks per-instruction liveness.
     #[test]
     fn test_is_live_after_instruction() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 1i32
@@ -473,21 +473,21 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
         // after v0 = iconst, v0 is still live (used by iadd)
-        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &test.tree));
 
         // after v2 = iadd, v0 is dead (already consumed)
-        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &program.tree));
+        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &test.tree));
 
         // after v2 = iadd, v2 is live (used by return)
-        assert!(liveness.is_live_after_instruction(entry, 2, mir::Value::new(2), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 2, mir::Value::new(2), &test.tree));
     }
 
     /// Diamond control flow: value live on some paths.
@@ -496,7 +496,7 @@ block0:
     /// even if not all successors use it.
     #[test]
     fn test_diamond_control_flow() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     v1 = iconst 10i32
@@ -511,9 +511,9 @@ block3(v3: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let block0 = function.blocks[0];
@@ -540,7 +540,7 @@ block3(v3: i32):
     /// A value remains live until after its last use.
     #[test]
     fn test_multiple_uses() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 5i32
@@ -550,21 +550,21 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
         // v0 is live after instruction 0 (used by both iadds)
-        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &test.tree));
 
         // v0 is live after instruction 1 (still used by second iadd)
-        assert!(liveness.is_live_after_instruction(entry, 1, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 1, mir::Value::new(0), &test.tree));
 
         // v0 is dead after instruction 2 (all uses consumed)
-        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &program.tree));
+        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &test.tree));
     }
 
     /// Call arguments are considered uses.
@@ -572,7 +572,7 @@ block0:
     /// Values passed to function calls must be live at the call site.
     #[test]
     fn test_call_arguments_live() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"extern function @external(i32, i32) -> void
 function @test() -> void {
 block0:
@@ -584,21 +584,21 @@ block0:
         );
 
         // skip the extern function, get the test function
-        let function_id = program.tree.iter_nodes::<mir::Function>().nth(1).unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().nth(1).unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let liveness = analyses.get::<LivenessAnalysis>();
 
         let entry = function.entry.unwrap();
 
         // v0 is live after instruction 0 (used as call argument)
-        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 0, mir::Value::new(0), &test.tree));
 
         // v1 is live after instruction 1 (used as call argument)
-        assert!(liveness.is_live_after_instruction(entry, 1, mir::Value::new(1), &program.tree));
+        assert!(liveness.is_live_after_instruction(entry, 1, mir::Value::new(1), &test.tree));
 
         // both are dead after the call
-        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &program.tree));
-        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(1), &program.tree));
+        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(0), &test.tree));
+        assert!(!liveness.is_live_after_instruction(entry, 2, mir::Value::new(1), &test.tree));
     }
 }

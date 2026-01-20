@@ -150,9 +150,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalDeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalDeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Globals referenced via global.addr are preserved.
@@ -174,9 +174,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalDeadCodeEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalDeadCodeEliminate);
+        test.assert_output(expected);
     }
 
     /// Debug references keep globals alive.
@@ -190,47 +190,47 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let live_global = program
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let live_global = test
             .entry_instructions(root_id)
             .into_iter()
-            .find_map(|instruction_id| match program.tree.get(instruction_id) {
+            .find_map(|instruction_id| match test.tree.get(instruction_id) {
                 mir::Instruction::GlobalConst { global, .. } => Some(*global),
                 _ => None,
             })
             .expect("missing global.const");
-        let global_id = program
+        let global_id = test
             .tree
             .iter_nodes::<mir::Global>()
             .map(|(id, _)| id)
             .find(|id| *id != live_global)
             .expect("missing debug global");
-        let global_name = program.tree.get(global_id).name;
-        let global_type = program.tree.get(global_id).ty;
+        let global_name = test.tree.get(global_id).name;
+        let global_type = test.tree.get(global_id).ty;
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let scope_id =
-            program
+            test
                 .tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Lexical, None, span, None);
-        let var_id = program.tree.debug_info.create_variable(
+        let var_id = test.tree.debug_info.create_variable(
             global_name,
             global_type,
             scope_id,
             false,
             false,
         );
-        program
+        test
             .tree
             .debug_info
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Global(global_id));
 
-        program.run_module_pass(&GlobalDeadCodeEliminate);
-        program.assert_output(input);
-        let global = program.tree.get(global_id);
+        test.run_module_pass(&GlobalDeadCodeEliminate);
+        test.assert_output(input);
+        let global = test.tree.get(global_id);
         assert!(global.linkage.is_defined());
     }
 }

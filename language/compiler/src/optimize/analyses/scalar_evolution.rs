@@ -1358,7 +1358,7 @@ mod tests {
     /// Simple induction variable becomes an add recurrence.
     #[test]
     fn test_addrec_simple_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -1373,9 +1373,9 @@ block2(v7: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1385,7 +1385,7 @@ block2(v7: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1411,7 +1411,7 @@ block2(v7: i32):
     /// Nonlinear recurrence does not produce an add recurrence.
     #[test]
     fn test_no_addrec_for_non_linear_update() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 1i32
@@ -1425,9 +1425,9 @@ block2(v6: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1437,7 +1437,7 @@ block2(v6: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let actual = scev
@@ -1449,7 +1449,7 @@ block2(v6: i32):
     /// Subtractive induction variables produce negative steps.
     #[test]
     fn test_addrec_subtract_step() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 10i32
@@ -1464,9 +1464,9 @@ block2(v6: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1476,7 +1476,7 @@ block2(v6: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1502,7 +1502,7 @@ block2(v6: i32):
     /// Unchanged induction variables produce zero steps.
     #[test]
     fn test_addrec_zero_step() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 5i32
@@ -1517,9 +1517,9 @@ block3(v5: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1529,7 +1529,7 @@ block3(v5: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1555,7 +1555,7 @@ block3(v5: i32):
     /// Derived induction expressions are expressed in terms of add recurrences.
     #[test]
     fn test_addrec_derived_value() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -1572,9 +1572,9 @@ block2(v9: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1584,9 +1584,9 @@ block2(v9: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let block1 = program.tree.get(function.blocks[1]);
+        let block1 = test.tree.get(function.blocks[1]);
         let instruction_id = block1.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let derived_value = instruction.destination().unwrap();
 
         let expected = Scev::AddRec {
@@ -1612,7 +1612,7 @@ block2(v9: i32):
     /// Additive sums of add recurrences stay linear.
     #[test]
     fn test_addrec_addrec_sum() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1628,9 +1628,9 @@ block2(v7: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1640,8 +1640,8 @@ block2(v7: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let instruction = program.tree.get(block1.instructions[0]);
+        let block1 = test.tree.get(function.blocks[1]);
+        let instruction = test.tree.get(block1.instructions[0]);
         let derived_value = instruction.destination().unwrap();
 
         let expected = Scev::AddRec {
@@ -1667,7 +1667,7 @@ block2(v7: i32):
     /// Multiplying add recurrences by constants stays linear.
     #[test]
     fn test_addrec_mul_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1684,9 +1684,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1696,8 +1696,8 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let instruction = program.tree.get(block1.instructions[1]);
+        let block1 = test.tree.get(function.blocks[1]);
+        let instruction = test.tree.get(block1.instructions[1]);
         let derived_value = instruction.destination().unwrap();
 
         let expected = Scev::AddRec {
@@ -1723,7 +1723,7 @@ block2(v8: i32):
     /// Multiplying add recurrences by invariants stays linear.
     #[test]
     fn test_addrec_mul_invariant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -1739,9 +1739,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1751,8 +1751,8 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let instruction = program.tree.get(block1.instructions[0]);
+        let block1 = test.tree.get(function.blocks[1]);
+        let instruction = test.tree.get(block1.instructions[0]);
         let derived_value = instruction.destination().unwrap();
 
         let invariant_value = function.parameters[1].value;
@@ -1775,7 +1775,7 @@ block2(v8: i32):
     /// Nested additive chains still produce linear add recurrences.
     #[test]
     fn test_addrec_nested_additive_step() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1792,9 +1792,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1804,7 +1804,7 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1830,7 +1830,7 @@ block2(v8: i32):
     /// Nested subtractive chains still produce linear add recurrences.
     #[test]
     fn test_addrec_nested_subtract_step() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 10i32
@@ -1847,9 +1847,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1859,7 +1859,7 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
 
         let expected = Scev::AddRec {
@@ -1885,7 +1885,7 @@ block2(v8: i32):
     /// Signed division by negative one produces a negated recurrence.
     #[test]
     fn test_scev_signed_divide_by_negative_one() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1902,9 +1902,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1914,8 +1914,8 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let instruction = program.tree.get(block1.instructions[1]);
+        let block1 = test.tree.get(function.blocks[1]);
+        let instruction = test.tree.get(block1.instructions[1]);
         let divide_value = instruction.destination().unwrap();
 
         let expected = Scev::AddRec {
@@ -1941,7 +1941,7 @@ block2(v8: i32):
     /// Shift right operations are represented in SCEV.
     #[test]
     fn test_scev_shift_right_operations() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1958,9 +1958,9 @@ block2(v8: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -1970,24 +1970,16 @@ block2(v8: i32):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
         let param_scev = scev
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap()
             .clone();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let arithmetic_value = program
-            .tree
-            .get(block1.instructions[1])
-            .destination()
-            .unwrap();
-        let logical_value = program
-            .tree
-            .get(block1.instructions[2])
-            .destination()
-            .unwrap();
+        let block1 = test.tree.get(function.blocks[1]);
+        let arithmetic_value = test.tree.get(block1.instructions[1]).destination().unwrap();
+        let logical_value = test.tree.get(block1.instructions[2]).destination().unwrap();
 
         let expected_arithmetic = Scev::ArithmeticShiftRight(
             Box::new(param_scev.clone()),
@@ -2020,7 +2012,7 @@ block2(v8: i32):
     /// Extended arithmetic and casts are represented in SCEV.
     #[test]
     fn test_scev_extended_operations() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i64 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -2041,9 +2033,9 @@ block2(v13: i64):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let loops = analyses.get::<LoopAnalysis>();
         let scev = analyses.get::<ScalarEvolution>();
 
@@ -2053,39 +2045,19 @@ block2(v13: i64):
             .position(|lp| lp.header == function.blocks[1])
             .unwrap();
 
-        let header_block = program.tree.get(function.blocks[1]);
+        let header_block = test.tree.get(function.blocks[1]);
         let param_value = header_block.parameters[0].value;
         let param_scev = scev
             .scev_for_value_in_loop(loop_index, param_value)
             .unwrap()
             .clone();
 
-        let block1 = program.tree.get(function.blocks[1]);
-        let divide_value = program
-            .tree
-            .get(block1.instructions[1])
-            .destination()
-            .unwrap();
-        let shift_value = program
-            .tree
-            .get(block1.instructions[3])
-            .destination()
-            .unwrap();
-        let remainder_value = program
-            .tree
-            .get(block1.instructions[5])
-            .destination()
-            .unwrap();
-        let sext_value = program
-            .tree
-            .get(block1.instructions[6])
-            .destination()
-            .unwrap();
-        let uext_value = program
-            .tree
-            .get(block1.instructions[7])
-            .destination()
-            .unwrap();
+        let block1 = test.tree.get(function.blocks[1]);
+        let divide_value = test.tree.get(block1.instructions[1]).destination().unwrap();
+        let shift_value = test.tree.get(block1.instructions[3]).destination().unwrap();
+        let remainder_value = test.tree.get(block1.instructions[5]).destination().unwrap();
+        let sext_value = test.tree.get(block1.instructions[6]).destination().unwrap();
+        let uext_value = test.tree.get(block1.instructions[7]).destination().unwrap();
 
         let expected_divide = Scev::SignedDivide(
             Box::new(param_scev.clone()),

@@ -395,10 +395,10 @@ block0:
 block1:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopDelete);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopDelete);
+        test.assert_output(expected);
     }
 
     /// Loop computing unused value is deleted.
@@ -424,10 +424,10 @@ block0(v0: i32):
 block1:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopDelete);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopDelete);
+        test.assert_output(expected);
     }
 
     /// Loop with call is preserved (calls have side effects).
@@ -438,7 +438,7 @@ block0:
     v0 = iconst false
     jump block1
 block1:
-    v1 = call @side_effect() -> fn() -> i32
+    call @side_effect() -> fn() -> i32
     branch v0, block1, block2
 block2:
     return
@@ -449,11 +449,11 @@ block0:
     v0 = iconst 42i32
     return v0
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 
     /// Loop with store is preserved (stores have side effects).
@@ -469,11 +469,11 @@ block1:
 block2:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 
     /// Loop with live-out value is preserved.
@@ -489,11 +489,11 @@ block1:
 block2(v2: i32):
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 
     /// Loop with live-out value used in an exit block is preserved.
@@ -510,11 +510,11 @@ block2:
     v2 = iadd v1, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 
     /// Loop with multiple parameterless exits is deleted.
@@ -542,10 +542,10 @@ block1:
 block2:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopDelete);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopDelete);
+        test.assert_output(expected);
     }
 
     /// Constant backedge loop is preserved.
@@ -560,11 +560,11 @@ block1:
 block2:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 
     /// Function without loops is unchanged.
@@ -576,9 +576,9 @@ block0(v0: i32):
     v2 = iadd v0, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopDelete);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopDelete);
+        test.assert_unchanged(input);
     }
 
     /// Inner loop is deleted when outer loop has live-out.
@@ -614,10 +614,10 @@ block2:
 block3(v7: i32):
     return v7
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopDelete);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopDelete);
+        test.assert_output(expected);
     }
 
     /// Exit block parameters receive initial values.
@@ -643,10 +643,10 @@ block0(v0: i32):
 block1(v6: i32):
     return v6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopDelete);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopDelete);
+        test.assert_output(expected);
     }
 
     /// Loop with drop is preserved (drop has side effects).
@@ -662,10 +662,10 @@ block1:
 block2:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&LoopDelete);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&LoopDelete);
+        test.assert_output(&before);
     }
 }

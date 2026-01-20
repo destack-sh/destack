@@ -322,9 +322,9 @@ block3(v7: u32):
     branch v11, block1(v10), block2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopPeel);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopPeel);
+        test.assert_output(expected);
     }
 
     /// Header guarded loops are not peeled.
@@ -345,9 +345,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopPeel);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopPeel);
+        test.assert_output(input);
     }
 
     /// Multiple exits prevent peeling.
@@ -372,8 +372,8 @@ block5:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopPeel);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopPeel);
+        test.assert_output(input);
     }
 }

@@ -2845,10 +2845,10 @@ block7(v14: i32):
     jump block3(v15)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(expected);
     }
 
     /// Fully unroll a decreasing loop with constant trip count.
@@ -2898,10 +2898,10 @@ block7(v14: i32):
     jump block3(v15)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(expected);
     }
 
     /// Do not unroll loops without constant trip count.
@@ -2922,10 +2922,10 @@ block3(v7: i32):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(input);
     }
 
     /// Partially unroll loops with remainder by peeling iterations.
@@ -2978,10 +2978,10 @@ block7(v19: i32):
     branch v21, block1(v20), block2(v20)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(expected);
     }
 
     /// Header guarded loops are partially unrolled with guard chaining.
@@ -3036,10 +3036,10 @@ block9(v18: i32):
     jump block1(v19)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(expected);
     }
 
     /// Non unit stride loops can be unrolled when the trip count is constant.
@@ -3089,10 +3089,10 @@ block7(v14: i32):
     jump block3(v15)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(expected);
     }
 
     /// Multiple exits prevent unrolling.
@@ -3118,10 +3118,10 @@ block5(v10: i32):
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnroll);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnroll);
+        test.assert_output(input);
     }
 
     /// Cold profile blocks disable unrolling.
@@ -3143,20 +3143,20 @@ block3(v7: i32):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
 
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let header = function.blocks[1];
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, header, 1);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, header, 1);
 
-        program.run_pass_with_profile(&LoopUnroll, profile);
-        program.assert_output(input);
+        test.run_pass_with_profile(&LoopUnroll, profile);
+        test.assert_output(input);
     }
 
     /// Unroll and jam a perfectly nested loop.
@@ -3224,10 +3224,10 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnrollAndJam);
+        test.assert_output(expected);
     }
 
     /// Outer derived values block unroll and jam.
@@ -3262,12 +3262,12 @@ block7:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let baseline = program.format();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let baseline = test.format();
 
-        program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(&baseline);
+        test.run_pass(&LoopUnrollAndJam);
+        test.assert_output(&baseline);
     }
 
     /// Inner update instructions must be last for unroll and jam.
@@ -3302,12 +3302,12 @@ block7:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let baseline = program.format();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let baseline = test.format();
 
-        program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(&baseline);
+        test.run_pass(&LoopUnrollAndJam);
+        test.assert_output(&baseline);
     }
 
     /// Trailing invariant updates after the inner step are preserved.
@@ -3377,10 +3377,10 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnrollAndJam);
+        test.assert_output(expected);
     }
 
     /// Loops with non divisible trip counts are jammed by peeling.
@@ -3472,9 +3472,9 @@ block11(v27: u32):
     jump block1(v28)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&LoopUnrollAndJam);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&LoopUnrollAndJam);
+        test.assert_output(expected);
     }
 }

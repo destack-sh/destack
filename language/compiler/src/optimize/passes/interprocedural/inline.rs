@@ -1409,9 +1409,9 @@ block2(v5: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(expected);
     }
 
     /// Recursive calls are not inlined.
@@ -1423,9 +1423,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(input);
     }
 
     /// Tail call callees are not inlined.
@@ -1441,9 +1441,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(input);
     }
 
     /// Locals are cloned during inlining.
@@ -1481,9 +1481,9 @@ block2(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(expected);
     }
 
     /// Large callees are not inlined.
@@ -1503,9 +1503,9 @@ block2(v5: i32):
         input.push_str("    return v1\n");
         input.push_str("}\n");
 
-        let mut program = TestProgram::new(&input);
-        program.run_module_pass(&Inline);
-        program.assert_output(&input);
+        let mut test = TestProgram::new(&input);
+        test.run_module_pass(&Inline);
+        test.assert_output(&input);
     }
 
     /// Calls with unused return values inline without continuation arguments.
@@ -1537,9 +1537,9 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(expected);
     }
 
     /// Cold callsites avoid inlining under profile guidance.
@@ -1564,16 +1564,16 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let caller_id = program.function_id_by_name("caller");
-        let (call_id, _) = program.first_call_in_entry(caller_id);
+        let mut test = TestProgram::new(input);
+        let caller_id = test.function_id_by_name("caller");
+        let (call_id, _) = test.first_call_in_entry(caller_id);
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_function_profile(&mut profile, caller_id, 100);
-        program.record_callsite_profile(&mut profile, call_id, 5);
+        test.record_function_profile(&mut profile, caller_id, 100);
+        test.record_callsite_profile(&mut profile, call_id, 5);
 
-        program.run_module_pass_with_profile(&Inline, profile);
-        program.assert_output(input);
+        test.run_module_pass_with_profile(&Inline, profile);
+        test.assert_output(input);
     }
 
     /// Hot callsites enable larger inlines under profile guidance.
@@ -1643,20 +1643,20 @@ block2(v8: i32):
     return v8
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let caller_id = program.function_id_by_name("caller");
-        let callee_id = program.function_id_by_name("callee");
-        let (call_id, _) = program.first_call_in_entry(caller_id);
+        let mut test = TestProgram::new(input);
+        let caller_id = test.function_id_by_name("caller");
+        let callee_id = test.function_id_by_name("callee");
+        let (call_id, _) = test.first_call_in_entry(caller_id);
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_function_profile(&mut profile, caller_id, 100);
-        program.record_callsite_profile(&mut profile, call_id, 200);
-        for call_id in program.call_instructions_in_function(callee_id) {
-            program.record_callsite_profile(&mut profile, call_id, 1);
+        test.record_function_profile(&mut profile, caller_id, 100);
+        test.record_callsite_profile(&mut profile, call_id, 200);
+        for call_id in test.call_instructions_in_function(callee_id) {
+            test.record_callsite_profile(&mut profile, call_id, 1);
         }
 
-        program.run_module_pass_with_profile(&Inline, profile);
-        program.assert_output(expected);
+        test.run_module_pass_with_profile(&Inline, profile);
+        test.assert_output(expected);
     }
 
     /// Inline budgets scale with profile entry counts.
@@ -1701,19 +1701,19 @@ block1:
     return
 }"#;
 
-        let program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let block0 = program.entry_block_id(function_id);
+        let test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let block0 = test.entry_block_id(function_id);
         let block1 = {
-            let function = program.tree.get(function_id);
+            let function = test.tree.get(function_id);
             *function.blocks.get(1).expect("missing block1")
         };
 
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        program.record_jump_edge_profile(&mut profile, block0, block1, 42);
+        test.record_jump_edge_profile(&mut profile, block0, block1, 42);
 
-        let function = program.tree.get(function_id);
-        let counts = block_execution_counts(function, &program.tree, Some(&profile), &policy);
+        let function = test.tree.get(function_id);
+        let counts = block_execution_counts(function, &test.tree, Some(&profile), &policy);
 
         assert_eq!(counts.get(&block1), Some(&42));
     }
@@ -1762,9 +1762,9 @@ block4(v9: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(expected);
     }
 
     /// Inline forwards call results into continuation terminators.
@@ -1800,9 +1800,9 @@ block3(v5: i32):
     jump block1(v5)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&Inline);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(expected);
     }
 
     /// Call indirect sites do not inline without a direct target.
@@ -1819,9 +1819,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
-        program.run_module_pass(&Inline);
-        program.assert_output(input);
+        test.run_module_pass(&Inline);
+        test.assert_output(input);
     }
 }

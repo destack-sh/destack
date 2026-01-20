@@ -162,7 +162,7 @@ fn run_instruction_combine(
         let block_ranges = ranges.exit(block_id).clone();
         let instruction_ids: Vec<_> = tree.get(block_id).instructions.clone();
 
-        // scan instructions in program order
+        // scan instructions in test order
         for instruction_id in instruction_ids {
             // load the instruction for rewriting
             let instruction = tree.get(instruction_id).clone();
@@ -846,9 +846,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// 0 + x simplifies to x.
@@ -866,9 +866,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x * 1 simplifies to x.
@@ -886,9 +886,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x * 0 simplifies to 0.
@@ -907,9 +907,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x & 0 simplifies to 0.
@@ -928,9 +928,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x | 0 simplifies to x.
@@ -948,9 +948,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x ^ 0 simplifies to x.
@@ -968,9 +968,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x - x simplifies to 0 (when type info is available).
@@ -990,9 +990,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x ^ x simplifies to 0 (when type info is available).
@@ -1012,9 +1012,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x - x without type info is not simplified (conservative).
@@ -1027,9 +1027,9 @@ block0(v0: i32):
 }"#;
         // no simplification because we don't know the type of v0
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
     }
 
     /// x & x simplifies to x.
@@ -1045,9 +1045,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x | x simplifies to x.
@@ -1063,9 +1063,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x == x simplifies to true.
@@ -1082,9 +1082,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x != x simplifies to false.
@@ -1101,9 +1101,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x < x simplifies to false.
@@ -1120,9 +1120,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x <= x simplifies to true.
@@ -1139,9 +1139,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Range evidence folds comparisons.
@@ -1194,9 +1194,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// 0 << x simplifies to 0.
@@ -1215,9 +1215,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x / 1 simplifies to x.
@@ -1235,9 +1235,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x % 1 simplifies to 0.
@@ -1256,9 +1256,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Non-simplifiable operations are preserved.
@@ -1271,9 +1271,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
     }
 
     /// Chained simplifications work correctly.
@@ -1295,9 +1295,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Substitutions propagate through uses.
@@ -1320,9 +1320,9 @@ block0(v0: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x & all_ones simplifies to x.
@@ -1340,9 +1340,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x | all_ones simplifies to all_ones.
@@ -1361,9 +1361,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x >> 0 (arithmetic) simplifies to x.
@@ -1381,9 +1381,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// x >> 0 (logical) simplifies to x.
@@ -1401,9 +1401,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Unsigned x / 1 simplifies to x.
@@ -1421,9 +1421,9 @@ block0(v0: u32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Unsigned x % 1 simplifies to 0.
@@ -1442,9 +1442,9 @@ block0(v0: u32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// Float x + 0.0 simplifies to x.
@@ -1463,15 +1463,15 @@ block0(v0: f32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(
             &InstructionCombine,
             PipelineOptions {
                 float_math: FloatMathPolicy::Fast,
                 ..PipelineOptions::default()
             },
         );
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Float x * 1.0 simplifies to x.
@@ -1490,15 +1490,15 @@ block0(v0: f32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(
             &InstructionCombine,
             PipelineOptions {
                 float_math: FloatMathPolicy::Fast,
                 ..PipelineOptions::default()
             },
         );
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Float x / 1.0 simplifies to x.
@@ -1517,15 +1517,15 @@ block0(v0: f32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(
             &InstructionCombine,
             PipelineOptions {
                 float_math: FloatMathPolicy::Fast,
                 ..PipelineOptions::default()
             },
         );
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Float x - 0.0 simplifies to x.
@@ -1544,15 +1544,15 @@ block0(v0: f32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(
             &InstructionCombine,
             PipelineOptions {
                 float_math: FloatMathPolicy::Fast,
                 ..PipelineOptions::default()
             },
         );
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Double negation !!x simplifies to x.
@@ -1570,9 +1570,9 @@ block0(v0: bool):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// field.get(tuple(...), i) simplifies to the i-th operand.
@@ -1590,9 +1590,9 @@ block0(v0: i32, v1: i64):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// field.get(tuple(...), 1) simplifies to the second operand.
@@ -1610,9 +1610,9 @@ block0(v0: i32, v1: i64):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// field.get(struct(...), i) simplifies to the i-th field value.
@@ -1636,9 +1636,9 @@ block0(v0: i32, v1: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// element.get(array(...), const_i) simplifies to the i-th element.
@@ -1659,9 +1659,9 @@ block0(v0: i32, v1: i32, v2: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
     }
 
     /// element.get with non-constant index is not simplified.
@@ -1674,9 +1674,9 @@ block0(v0: i32, v1: i32, v2: i64):
     return v4
 }"#;
         // v2 is not a constant, cannot simplify
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
     }
 
     /// field.get from non-aggregate source is not simplified.
@@ -1688,8 +1688,8 @@ block0(v0: (i32, i32)):
     return v1
 }"#;
         // v0 is a parameter, not from tuple/struct instruction
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InstructionCombine);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
     }
 }

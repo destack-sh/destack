@@ -688,15 +688,15 @@ mod tests {
 
     /// Attach store access metadata for a store instruction.
     fn tag_store_access(
-        program: &mut TestProgram,
+        test: &mut TestProgram,
         store_id: mir::LocalNodeId<mir::Instruction>,
         size: u64,
         is_volatile: bool,
         ordering: Option<mir::MemoryOrdering>,
     ) {
-        let pointer = store_pointer(&program.tree, store_id);
+        let pointer = store_pointer(&test.tree, store_id);
 
-        program.insert_pointer_access_with_options(
+        test.insert_pointer_access_with_options(
             store_id,
             mir::MemoryAccessKind::Write,
             pointer,
@@ -735,9 +735,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Store followed by load is preserved.
@@ -757,9 +757,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store to allocation that is never read is eliminated.
@@ -783,9 +783,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Volatile store is never removed even when overwritten.
@@ -802,18 +802,18 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.entry_function_id();
-        let store_id = program
+        let mut test = TestProgram::new(input);
+        let function_id = test.entry_function_id();
+        let store_id = test
             .store_instructions_in_entry(function_id)
             .into_iter()
             .next()
             .expect("missing store instruction");
 
-        tag_store_access(&mut program, store_id, 4, true, None);
+        tag_store_access(&mut test, store_id, 4, true, None);
 
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store to escaping allocation is preserved.
@@ -832,9 +832,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store before a nocapture readnone call is removed.
@@ -860,10 +860,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
-        let function_id = program.entry_function_id();
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let mut arg0 = mir::CallArgumentMetadata::default();
         arg0.attributes.capture = mir::CaptureKind::NoCapture;
@@ -872,7 +872,7 @@ block0:
         let effects = mir::CallEffects::default()
             .with_memory_effects(mir::MemoryEffect::none())
             .with_argument_metadata(vec![arg0]);
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -882,8 +882,8 @@ block0:
         };
         *call_effects = Some(effects);
 
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Multiple consecutive overwrites - all but last are eliminated.
@@ -915,9 +915,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// No changes when no stores.
@@ -931,9 +931,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Stores to different locations are independent.
@@ -955,9 +955,9 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store before call that may read is preserved.
@@ -976,9 +976,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store after call but overwritten before read.
@@ -1011,9 +1011,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Store to returned allocation is preserved.
@@ -1029,9 +1029,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Store to allocation used in returned aggregate is preserved.
@@ -1047,9 +1047,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Stores to disjoint fields are not treated as clobbers.
@@ -1067,9 +1067,9 @@ block0(v0: ref<raw @Pair>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Partial overwrite does not kill earlier bytes.
@@ -1085,18 +1085,18 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.entry_function_id();
-        let store_ids = program.store_instructions_in_entry(function_id);
+        let mut test = TestProgram::new(input);
+        let function_id = test.entry_function_id();
+        let store_ids = test.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
 
-        tag_store_access(&mut program, *first_store, 8, false, None);
-        tag_store_access(&mut program, *second_store, 4, false, None);
+        tag_store_access(&mut test, *first_store, 8, false, None);
+        tag_store_access(&mut test, *second_store, 4, false, None);
 
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Dead memset to non escaping stack memory is removed.
@@ -1118,9 +1118,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Memset to a live location is preserved.
@@ -1137,15 +1137,15 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Dead memcpy to non escaping stack memory is removed.
     #[test]
     fn test_remove_dead_memcpy() {
-        // input program
+        // input test
         let input = r#"function @test() -> void {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -1163,15 +1163,15 @@ block0:
 }"#;
 
         // run dse
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Memcpy to a live location is preserved.
     #[test]
     fn test_preserve_memcpy_with_read() {
-        // input program
+        // input test
         let input = r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -1184,15 +1184,15 @@ block0:
         let expected = input;
 
         // run dse
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Dead memmove to non escaping stack memory is removed.
     #[test]
     fn test_remove_dead_memmove() {
-        // input program
+        // input test
         let input = r#"function @test() -> void {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -1210,15 +1210,15 @@ block0:
 }"#;
 
         // run dse
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Memmove to a live location is preserved.
     #[test]
     fn test_preserve_memmove_with_read() {
-        // input program
+        // input test
         let input = r#"function @test() -> i32 {
 block0:
     v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
@@ -1231,15 +1231,15 @@ block0:
         let expected = input;
 
         // run dse
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Stores with unknown sizes are not treated as full overwrites.
     #[test]
     fn test_preserve_unknown_size_overwrite() {
-        // input program
+        // input test
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: ref<raw mut @Point>) -> void {
 block0(v0: ref<raw mut @Point>):
@@ -1256,14 +1256,14 @@ block0(v0: ref<raw mut @Point>):
         let expected = input;
 
         // attach unknown size metadata to both stores
-        let mut program = TestProgram::new(input);
-        let function_id = program.entry_function_id();
-        let store_ids = program.store_instructions_in_entry(function_id);
+        let mut test = TestProgram::new(input);
+        let function_id = test.entry_function_id();
+        let store_ids = test.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *first_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -1272,7 +1272,7 @@ block0(v0: ref<raw mut @Point>):
             Vec::new(),
             None,
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *second_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -1283,14 +1283,14 @@ block0(v0: ref<raw mut @Point>):
         );
 
         // run dse
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Stores in disjoint alias scopes are not treated as clobbers.
     #[test]
     fn test_preserve_store_with_alias_scope_disjoint() {
-        // input program
+        // input test
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -1302,21 +1302,21 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let expected = input;
 
         // create a scope for disambiguation
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let scope = {
-            let scopes = &mut program.tree.memory_table.alias_scopes;
+            let scopes = &mut test.tree.memory_table.alias_scopes;
             let domain = scopes.create_domain(None);
             scopes.create_scope(domain, None)
         };
 
         // attach disjoint scope metadata to the stores
-        let function_id = program.entry_function_id();
-        let store_ids = program.store_instructions_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let store_ids = test.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *first_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -1325,7 +1325,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Vec::new(),
             None,
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *second_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1336,14 +1336,14 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // run dse
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Stores with disjoint tbaa offsets are not treated as clobbers.
     #[test]
     fn test_preserve_store_with_tbaa_disjoint_offsets() {
-        // input program
+        // input test
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> void {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     v2 = iconst 1i32
@@ -1355,9 +1355,9 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         let expected = input;
 
         // create disjoint tbaa tags
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let (tag_a, tag_b) = {
-            let tbaa = &mut program.tree.memory_table.tbaa;
+            let tbaa = &mut test.tree.memory_table.tbaa;
             let root = tbaa.create_node(None, None, false);
             let access = tbaa.create_node(None, Some(root), false);
             let tag_a = tbaa.create_tag(root, access, 0, 4, false);
@@ -1366,13 +1366,13 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         };
 
         // attach disjoint tbaa metadata to the stores
-        let function_id = program.entry_function_id();
-        let store_ids = program.store_instructions_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let store_ids = test.store_instructions_in_entry(function_id);
         let [first_store, second_store] = store_ids.as_slice() else {
             panic!("expected two store instructions");
         };
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *first_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -1381,7 +1381,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Vec::new(),
             Some(tag_a),
         );
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             *second_store,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1392,8 +1392,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
         );
 
         // run dse
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Cross-block dead store: store overwritten in successor block.
@@ -1426,9 +1426,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_output(expected);
     }
 
     /// Store preserved when read in one branch.
@@ -1452,9 +1452,9 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 
     /// Switch terminator: allocation passed as default argument escapes.
@@ -1475,8 +1475,8 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DeadStoreEliminate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DeadStoreEliminate);
+        test.assert_unchanged(input);
     }
 }

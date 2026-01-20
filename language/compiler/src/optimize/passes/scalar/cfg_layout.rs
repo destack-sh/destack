@@ -832,20 +832,20 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[2];
         let block2 = function.blocks[1];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 90);
-        program.record_block_profile(&mut profile, block2, 10);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 90);
+        test.record_block_profile(&mut profile, block2, 10);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Layout preserves order without profile data.
@@ -862,11 +862,11 @@ block1:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let baseline = program.format();
+        let mut test = TestProgram::new(input);
+        let baseline = test.format();
 
-        program.run_pass(&CfgLayout);
-        program.assert_output(&baseline);
+        test.run_pass(&CfgLayout);
+        test.assert_output(&baseline);
     }
 
     /// Cold blocks are split to the end of the layout.
@@ -896,20 +896,20 @@ block3:
     jump block2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[2];
         let block2 = function.blocks[1];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 80);
-        program.record_block_profile(&mut profile, block2, 1);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 80);
+        test.record_block_profile(&mut profile, block2, 1);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Switch blocks are ordered by hotness.
@@ -939,20 +939,20 @@ block3:
     jump block2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block2 = function.blocks[1];
         let block1 = function.blocks[2];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 90);
-        program.record_block_profile(&mut profile, block2, 5);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 90);
+        test.record_block_profile(&mut profile, block2, 5);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Check terminators reorder blocks by hotness.
@@ -986,20 +986,20 @@ block3:
     jump block2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block2 = function.blocks[1];
         let block1 = function.blocks[2];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 90);
-        program.record_block_profile(&mut profile, block2, 2);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 90);
+        test.record_block_profile(&mut profile, block2, 2);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Edge profiles override block counts for trace selection.
@@ -1027,23 +1027,23 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 90);
-        program.record_block_profile(&mut profile, block2, 10);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 90);
+        test.record_block_profile(&mut profile, block2, 10);
 
-        program.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block1, 20);
-        program.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block2, 80);
+        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block1, 20);
+        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block2, 80);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Hot branch edges duplicate small targets.
@@ -1072,23 +1072,23 @@ block3:
     jump block2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[1];
         let block2 = function.blocks[2];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 20);
-        program.record_block_profile(&mut profile, block2, 40);
-        program.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block2, 80);
-        program.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block1, 20);
-        program.record_edge_profile(&mut profile, block1, mir::EdgeKind::Jump, block2, 20);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 20);
+        test.record_block_profile(&mut profile, block2, 40);
+        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchThen, block2, 80);
+        test.record_edge_profile(&mut profile, entry, mir::EdgeKind::BranchElse, block1, 20);
+        test.record_edge_profile(&mut profile, block1, mir::EdgeKind::Jump, block2, 20);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 
     /// Unreachable blocks are kept last.
@@ -1122,21 +1122,21 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
         let mut profile = mir::ProfileTable::new(mir::ProfileSource::Instrumentation);
-        let function_id = program.entry_function_id();
-        let function = program.tree.get(function_id);
+        let function_id = test.entry_function_id();
+        let function = test.tree.get(function_id);
         let entry = function.entry.unwrap();
         let block1 = function.blocks[1];
         let block3 = function.blocks[2];
         let block2 = function.blocks[3];
 
-        program.record_block_profile(&mut profile, entry, 100);
-        program.record_block_profile(&mut profile, block1, 90);
-        program.record_block_profile(&mut profile, block2, 10);
-        program.record_block_profile(&mut profile, block3, 1);
+        test.record_block_profile(&mut profile, entry, 100);
+        test.record_block_profile(&mut profile, block1, 90);
+        test.record_block_profile(&mut profile, block2, 10);
+        test.record_block_profile(&mut profile, block3, 1);
 
-        program.run_pass_with_profile(&CfgLayout, profile);
-        program.assert_output(expected);
+        test.run_pass_with_profile(&CfgLayout, profile);
+        test.assert_output(expected);
     }
 }

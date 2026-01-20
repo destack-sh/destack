@@ -908,10 +908,10 @@ block1:
 block2:
     return v1
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Binary operation on invariant operands is hoisted.
@@ -936,10 +936,10 @@ block1:
 block2:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Chain of invariant operations is hoisted.
@@ -968,10 +968,10 @@ block1:
 block2:
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Operation using loop variant value is not hoisted.
@@ -999,10 +999,10 @@ block1(v2: i32):
 block2:
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Function without loops is unchanged.
@@ -1013,9 +1013,9 @@ block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Licm);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Licm);
+        test.assert_unchanged(input);
     }
 
     /// Already hoisted code is unchanged.
@@ -1030,10 +1030,10 @@ block1:
 block2:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_unchanged(input);
     }
 
     /// Invariant in inner loop is hoisted to the inner preheader.
@@ -1067,10 +1067,10 @@ block3:
 block4:
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Read only intrinsics are hoisted when invariant.
@@ -1100,10 +1100,10 @@ block2:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Calls are not hoisted (side effects).
@@ -1125,11 +1125,11 @@ block0:
     return v0
 }"#;
         // call should not be hoisted
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&Licm);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&Licm);
+        test.assert_output(&before);
     }
 
     /// Allocations are not hoisted (each iteration needs fresh allocation).
@@ -1145,11 +1145,11 @@ block2:
     return v1
 }"#;
         // managed.alloc should stay in loop: each iteration allocates a new object
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&Licm);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&Licm);
+        test.assert_output(&before);
     }
 
     /// Invariant load with no clobbering stores is hoisted.
@@ -1186,10 +1186,10 @@ block2:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Invariant load is not hoisted when the loop writes the same location.
@@ -1224,10 +1224,10 @@ block2:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Load in a conditional block is not hoisted.
@@ -1252,10 +1252,10 @@ block5:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_unchanged(input);
     }
 
     /// Invariant local get is hoisted to the preheader.
@@ -1286,10 +1286,10 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Load with a clobbering call is not hoisted.
@@ -1313,10 +1313,10 @@ block0(v0: ref<raw i32>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_unchanged(input);
     }
 
     /// Load with a disjoint alias scope is hoisted.
@@ -1345,21 +1345,21 @@ block2:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[1]);
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[1]);
         let load_v1 = block.instructions[0];
         let store_v2 = block.instructions[2];
 
-        let domain = program.tree.memory_table.alias_scopes.create_domain(None);
-        let scope_a = program
+        let domain = test.tree.memory_table.alias_scopes.create_domain(None);
+        let scope_a = test
             .tree
             .memory_table
             .alias_scopes
             .create_scope(domain, None);
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v1,
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
@@ -1369,7 +1369,7 @@ block2:
             None,
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v2,
             mir::MemoryAccessKind::Write,
             mir::Value::new(2),
@@ -1379,9 +1379,9 @@ block2:
             None,
         );
 
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Multiple independent loops each get their invariants hoisted.
@@ -1421,10 +1421,10 @@ block4:
     v6 = iadd v3, v5
     return v6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Safe division is hoisted when the divisor is proven not zero.
@@ -1465,10 +1465,10 @@ block3:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(expected);
     }
 
     /// Potentially trapping division remains in the loop.
@@ -1491,9 +1491,9 @@ block3:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.run_pass(&Licm);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.run_pass(&Licm);
+        test.assert_output(input);
     }
 }

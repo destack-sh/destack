@@ -2306,7 +2306,7 @@ mod tests {
     /// Constants appear as exact ranges at block exit.
     #[test]
     fn test_range_from_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 5i32
@@ -2315,15 +2315,15 @@ block0(v0: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
         let exit_ranges = ranges.exit(block0);
         let constant_range = exit_ranges.get(value).unwrap();
@@ -2342,7 +2342,7 @@ block0(v0: i32):
     /// Block parameters merge to a union of incoming ranges.
     #[test]
     fn test_range_param_union() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2357,13 +2357,13 @@ block3(v3: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let merge_block = function.blocks[3];
-        let merge = program.tree.get(merge_block);
+        let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
         let entry_ranges = ranges.entry(merge_block);
@@ -2383,7 +2383,7 @@ block3(v3: i32):
     /// Unknown inputs prevent ranges from being inferred.
     #[test]
     fn test_range_param_unknown() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
@@ -2397,13 +2397,13 @@ block3(v3: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let merge_block = function.blocks[3];
-        let merge = program.tree.get(merge_block);
+        let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
         let entry_ranges = ranges.entry(merge_block);
@@ -2413,7 +2413,7 @@ block3(v3: i32):
     /// Arithmetic ranges are propagated through instructions.
     #[test]
     fn test_range_arithmetic_add() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2430,15 +2430,15 @@ block3(v3: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2458,7 +2458,7 @@ block3(v3: i32):
     /// Comparisons that are always true become constant ranges.
     #[test]
     fn test_range_comparison_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2475,15 +2475,15 @@ block3(v3: i32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2501,7 +2501,7 @@ block3(v3: i32):
     /// Float constants appear as exact ranges at block exit.
     #[test]
     fn test_range_float_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1.5f32
@@ -2509,15 +2509,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
         let exit_ranges = ranges.exit(block0);
         let constant_range = exit_ranges.get(value).unwrap();
@@ -2537,7 +2537,7 @@ block0:
     /// Float arithmetic ranges are propagated through instructions.
     #[test]
     fn test_range_float_arithmetic_add() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2554,15 +2554,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2583,7 +2583,7 @@ block3(v3: f32):
     /// Infinite addition with opposite signs yields NaN only.
     #[test]
     fn test_range_float_add_infinite_nan_only() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2601,15 +2601,15 @@ block3(v5: f32, v6: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2630,7 +2630,7 @@ block3(v5: f32, v6: f32):
     /// Positive infinity plus finite values stays infinite.
     #[test]
     fn test_range_float_add_infinite_and_finite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1e1000f32
@@ -2640,15 +2640,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -2669,7 +2669,7 @@ block0:
     /// Infinite subtraction with equal signs yields NaN only.
     #[test]
     fn test_range_float_sub_infinite_nan_only() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2687,15 +2687,15 @@ block3(v5: f32, v6: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2716,7 +2716,7 @@ block3(v5: f32, v6: f32):
     /// Finite values minus positive infinity yield negative infinity.
     #[test]
     fn test_range_float_sub_finite_minus_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 2.0f32
@@ -2726,15 +2726,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -2755,7 +2755,7 @@ block0:
     /// Float comparisons that are always true become constant ranges.
     #[test]
     fn test_range_float_comparison_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2772,15 +2772,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2798,7 +2798,7 @@ block3(v3: f32):
     /// Float comparisons against full range values remain unknown.
     #[test]
     fn test_range_float_comparison_full_range() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
     v0 = iconst 1.0f32
@@ -2810,15 +2810,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[4];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -2828,7 +2828,7 @@ block0:
     /// Float division with both operands able to reach zero yields full bounds.
     #[test]
     fn test_range_float_division_by_zero() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: bool) -> f32 {
 block0(v0: bool, v1: bool):
     branch v0, block1, block2
@@ -2852,15 +2852,15 @@ block6(v7: f32, v8: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block6 = function.blocks[6];
-        let block = program.tree.get(block6);
+        let block = test.tree.get(block6);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block6);
@@ -2884,7 +2884,7 @@ block6(v7: f32, v8: f32):
     /// Nonzero divided by a range including zero yields infinities without NaN.
     #[test]
     fn test_range_float_division_nonzero_by_zero_range() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2901,15 +2901,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2933,7 +2933,7 @@ block3(v3: f32):
     /// Zero divided by a range including zero stays at zero with NaN possible.
     #[test]
     fn test_range_float_division_zero_by_zero_range() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2950,15 +2950,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -2979,7 +2979,7 @@ block3(v3: f32):
     /// Zero divided by zero or infinity stays at zero with NaN possible.
     #[test]
     fn test_range_float_division_zero_by_zero_or_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -2996,15 +2996,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3025,7 +3025,7 @@ block3(v3: f32):
     /// Zero multiplied by infinity yields NaN only.
     #[test]
     fn test_range_float_multiply_zero_by_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3043,15 +3043,15 @@ block3(v5: f32, v6: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3072,7 +3072,7 @@ block3(v5: f32, v6: f32):
     /// Infinity times a range containing zero yields NaN with infinity.
     #[test]
     fn test_range_float_multiply_infinite_by_zero_range() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3089,15 +3089,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3118,7 +3118,7 @@ block3(v3: f32):
     /// Infinite divided by infinite yields NaN only.
     #[test]
     fn test_range_float_division_infinite_by_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3136,15 +3136,15 @@ block3(v5: f32, v6: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3165,7 +3165,7 @@ block3(v5: f32, v6: f32):
     /// Infinite divided by zero yields infinities with unknown sign.
     #[test]
     fn test_range_float_division_infinite_by_zero() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1e1000f32
@@ -3175,15 +3175,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3204,7 +3204,7 @@ block0:
     /// Finite values divided by infinity yield zero.
     #[test]
     fn test_range_float_division_finite_by_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 2.0f32
@@ -3214,15 +3214,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3243,7 +3243,7 @@ block0:
     /// Positive infinity divided by negative finite values yields negative infinity.
     #[test]
     fn test_range_float_division_infinite_by_negative() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1e1000f32
@@ -3253,15 +3253,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3282,7 +3282,7 @@ block0:
     /// Zero multiplied by a range that can be infinite stays at zero with NaN possible.
     #[test]
     fn test_range_float_multiply_zero_by_full_range() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1.0f32
@@ -3294,15 +3294,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[4];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3323,7 +3323,7 @@ block0:
     /// Float to signed int casts clamp and truncate the range.
     #[test]
     fn test_range_float_to_int_cast() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 3.9f32
@@ -3332,15 +3332,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3360,7 +3360,7 @@ block0:
     /// Signed int to float casts preserve the range.
     #[test]
     fn test_range_int_to_float_cast() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 4i32
@@ -3369,15 +3369,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3398,7 +3398,7 @@ block0:
     /// Float truncation saturates large f64 values to infinity.
     #[test]
     fn test_range_float_truncate_overflow() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
     v0 = iconst 1e300f64
@@ -3407,15 +3407,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3436,7 +3436,7 @@ block0:
     /// Merging NaN only and finite values preserves finite bounds with NaN possible.
     #[test]
     fn test_range_float_union_nan_only() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3452,13 +3452,13 @@ block3(v4: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let merge_block = function.blocks[3];
-        let merge = program.tree.get(merge_block);
+        let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
         let entry_ranges = ranges.entry(merge_block);
@@ -3479,7 +3479,7 @@ block3(v4: f32):
     /// NaN comparisons against equality are always false.
     #[test]
     fn test_range_float_comparison_nan_eq_false() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
     v0 = iconst 0.0f32
@@ -3490,15 +3490,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[3];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3514,7 +3514,7 @@ block0:
     /// Positive infinity comparisons against finite values are constant.
     #[test]
     fn test_range_float_comparison_infinite_gt_finite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
     v0 = iconst 1e1000f32
@@ -3524,15 +3524,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3548,7 +3548,7 @@ block0:
     /// Positive infinity comparisons against finite values are constant for less equal.
     #[test]
     fn test_range_float_comparison_infinite_le_finite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
     v0 = iconst 1e1000f32
@@ -3558,15 +3558,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3582,7 +3582,7 @@ block0:
     /// NaN comparisons against inequality are always true.
     #[test]
     fn test_range_float_comparison_nan_ne_true() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
     v0 = iconst 0.0f32
@@ -3593,15 +3593,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[3];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3617,7 +3617,7 @@ block0:
     /// NaN mixed with finite values keeps comparisons unknown for greater equal.
     #[test]
     fn test_range_float_comparison_nan_ge_unknown() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3635,15 +3635,15 @@ block3(v4: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3653,7 +3653,7 @@ block3(v4: f32):
     /// Unions preserve finite bounds and track infinity.
     #[test]
     fn test_range_float_union_infinite_and_finite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> f32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3668,13 +3668,13 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let merge_block = function.blocks[3];
-        let merge = program.tree.get(merge_block);
+        let merge = test.tree.get(merge_block);
         let param_value = merge.parameters[0].value;
 
         let entry_ranges = ranges.entry(merge_block);
@@ -3695,7 +3695,7 @@ block3(v3: f32):
     /// Float to int casts saturate to the target range.
     #[test]
     fn test_range_float_to_int_cast_bounds() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3711,15 +3711,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3739,7 +3739,7 @@ block3(v3: f32):
     /// Float to int casts saturate positive infinity to the maximum.
     #[test]
     fn test_range_float_to_int_cast_positive_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 1e1000f32
@@ -3748,15 +3748,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3776,7 +3776,7 @@ block0:
     /// Float to int casts clamp negative ranges to the minimum.
     #[test]
     fn test_range_float_to_int_cast_negative_bounds() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
@@ -3792,15 +3792,15 @@ block3(v3: f32):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block3 = function.blocks[3];
-        let block = program.tree.get(block3);
+        let block = test.tree.get(block3);
         let instruction_id = block.instructions[0];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block3);
@@ -3820,7 +3820,7 @@ block3(v3: f32):
     /// Float to int casts saturate negative infinity to the minimum.
     #[test]
     fn test_range_float_to_int_cast_negative_infinite() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst -1e1000f32
@@ -3829,15 +3829,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[1];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);
@@ -3857,7 +3857,7 @@ block0:
     /// NaN only float to int casts yield zero.
     #[test]
     fn test_range_float_to_int_cast_nan_only() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 0.0f32
@@ -3867,15 +3867,15 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ranges = analyses.get::<RangeAnalysis>();
 
         let block0 = function.blocks[0];
-        let block = program.tree.get(block0);
+        let block = test.tree.get(block0);
         let instruction_id = block.instructions[2];
-        let instruction = program.tree.get(instruction_id);
+        let instruction = test.tree.get(instruction_id);
         let value = instruction.destination().unwrap();
 
         let exit_ranges = ranges.exit(block0);

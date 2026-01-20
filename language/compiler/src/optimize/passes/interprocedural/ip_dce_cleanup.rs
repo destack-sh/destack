@@ -112,9 +112,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralDceCleanup);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralDceCleanup);
+        test.assert_output(expected);
     }
 
     /// Live globals are preserved during cleanup.
@@ -136,8 +136,8 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralDceCleanup);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralDceCleanup);
+        test.assert_output(expected);
     }
 }

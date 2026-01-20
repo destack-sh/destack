@@ -894,9 +894,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Local accessed across blocks via jump.
@@ -918,9 +918,9 @@ block1:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Diamond CFG with block parameter needed at join point.
@@ -958,9 +958,9 @@ block3(v100: i32):
     return v100
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Multiple locals, all promotable.
@@ -983,9 +983,9 @@ block0(v0: i32, v1: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// No locals to promote.
@@ -996,9 +996,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_unchanged(input);
     }
 
     /// Local only read (never written) - should panic.
@@ -1012,8 +1012,8 @@ block0:
     return v0
 }"#;
         // reading a local before writing is a bug in the MIR
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
     }
 
     /// Loop with local - block parameter needed at loop header.
@@ -1055,9 +1055,9 @@ block3:
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Multiple definitions in the same block.
@@ -1078,9 +1078,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Existing block parameters should be preserved.
@@ -1105,9 +1105,9 @@ block1(v2: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Switch terminator with local.
@@ -1148,9 +1148,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 
     /// Call arguments are rewritten after local promotion.
@@ -1174,8 +1174,8 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Mem2Reg);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Mem2Reg);
+        test.assert_output(expected);
     }
 }

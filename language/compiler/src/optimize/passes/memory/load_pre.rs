@@ -565,9 +565,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(expected);
     }
 
     /// Loads are not moved when the pointer is defined in the join block.
@@ -586,9 +586,9 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(input);
     }
 
     /// Loads are not moved past side effecting instructions.
@@ -609,9 +609,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(input);
     }
 
     /// Read only calls do not block load PRE.
@@ -656,22 +656,22 @@ block3(v5: i32):
 }
 extern function @read_only() -> void"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let function = test.tree.get(function_id);
         let join_block = function.blocks[3];
-        let call_inst = program.instructions_in_block(join_block)[0];
+        let call_inst = test.instructions_in_block(join_block)[0];
         let call_effects = mir::CallEffects::default()
             .with_memory_effects(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY))
             .with_behavior(mir::CallBehavior::none());
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call { effects, .. } = instruction else {
             panic!("expected call instruction");
         };
         *effects = Some(call_effects);
 
-        program.run_pass(&LoadPre);
-        program.assert_output(expected);
+        test.run_pass(&LoadPre);
+        test.assert_output(expected);
     }
 
     /// Volatile loads are not moved.
@@ -690,13 +690,13 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
         let join_block = function.blocks[3];
-        let load_inst = program.instructions_in_block(join_block)[0];
+        let load_inst = test.instructions_in_block(join_block)[0];
 
-        program.insert_pointer_access_with_options(
+        test.insert_pointer_access_with_options(
             load_inst,
             mir::MemoryAccessKind::Read,
             mir::Value::new(1),
@@ -708,8 +708,8 @@ block3:
             None,
         );
 
-        program.run_pass(&LoadPre);
-        program.assert_output(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(input);
     }
 
     /// Unknown memory locations are not moved.
@@ -728,11 +728,11 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
         let join_block = function.blocks[3];
-        let load_inst = program.instructions_in_block(join_block)[0];
+        let load_inst = test.instructions_in_block(join_block)[0];
 
         let access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
@@ -748,10 +748,10 @@ block3:
             noalias_scopes: Vec::new(),
             tbaa_tag: None,
         };
-        program.insert_memory_accesses(load_inst, vec![access]);
+        test.insert_memory_accesses(load_inst, vec![access]);
 
-        program.run_pass(&LoadPre);
-        program.assert_output(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(input);
     }
 
     /// Loads with non phi defining access are not moved.
@@ -772,9 +772,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(input);
     }
 
     /// Reuse predecessor loads that already match the incoming memory state.
@@ -818,9 +818,9 @@ block4:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(expected);
     }
 
     /// Read only intrinsics do not block load PRE.
@@ -865,9 +865,9 @@ block3(v7: i32):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(expected);
     }
 
     /// Loads on edges with multiple successors use edge blocks.
@@ -916,8 +916,8 @@ block5:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadPre);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadPre);
+        test.assert_output(expected);
     }
 }

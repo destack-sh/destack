@@ -627,9 +627,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalOpt);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(expected);
     }
 
     /// Globals that are stored to remain mutable.
@@ -644,9 +644,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalOpt);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(input);
     }
 
     /// Address space casts that feed stores keep globals mutable.
@@ -662,9 +662,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalOpt);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(input);
     }
 
     /// Terminator uses prevent const rewriting.
@@ -677,9 +677,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&GlobalOpt);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(input);
     }
 
     /// Debug locations are updated when global.addr is removed.
@@ -700,20 +700,20 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let root_id = program.function_id_by_name("root");
-        let instruction_id = program
+        let mut test = TestProgram::new(input);
+        let root_id = test.function_id_by_name("root");
+        let instruction_id = test
             .entry_instructions(root_id)
             .into_iter()
             .find(|instruction_id| {
                 matches!(
-                    program.tree.get(*instruction_id),
+                    test.tree.get(*instruction_id),
                     mir::Instruction::GlobalAddr { .. }
                 )
             })
             .expect("missing global.addr");
 
-        let (destination, global_id) = match program.tree.get(instruction_id) {
+        let (destination, global_id) = match test.tree.get(instruction_id) {
             mir::Instruction::GlobalAddr {
                 destination,
                 global,
@@ -722,31 +722,31 @@ block0:
             _ => unreachable!(),
         };
 
-        let root_name = program.tree.get(root_id).name;
-        let global_type = program.tree.get(global_id).ty;
+        let root_name = test.tree.get(root_id).name;
+        let global_type = test.tree.get(global_id).ty;
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let scope_id =
-            program
+            test
                 .tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
-        program
+        test
             .tree
             .debug_info
             .function_scopes
             .insert(root_id, scope_id);
         let var_id =
-            program
+            test
                 .tree
                 .debug_info
                 .create_variable(root_name, global_type, scope_id, false, false);
-        program
+        test
             .tree
             .debug_info
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Value(destination));
-        program.tree.debug_info.instruction_locations.insert(
+        test.tree.debug_info.instruction_locations.insert(
             instruction_id,
             mir::DebugLocation {
                 span,
@@ -755,9 +755,9 @@ block0:
             },
         );
 
-        program.run_module_pass(&GlobalOpt);
-        program.assert_output(expected);
-        let location = program
+        test.run_module_pass(&GlobalOpt);
+        test.assert_output(expected);
+        let location = test
             .tree
             .debug_info
             .variable_locations
@@ -766,7 +766,7 @@ block0:
 
         assert_eq!(location, &mir::DebugValueLocation::Global(global_id));
         assert!(
-            !program
+            !test
                 .tree
                 .debug_info
                 .instruction_locations

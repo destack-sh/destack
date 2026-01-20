@@ -437,7 +437,7 @@ fn build_expression_index(
     // allocate the index map
     let mut index = HashMap::new();
 
-    // scan instructions in program order
+    // scan instructions in test order
     for &instruction_id in &block.instructions {
         // clone the instruction for inspection
         let instruction = tree.get(instruction_id).clone();
@@ -479,7 +479,7 @@ mod tests {
     /// Identical branch instructions are hoisted into the header.
     #[test]
     fn test_hoist_simple_diamond() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -507,15 +507,15 @@ block3(v5: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(expected);
     }
 
     /// Non speculatable instructions are not hoisted.
     #[test]
     fn test_hoist_skips_division() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -530,15 +530,15 @@ block3(v5: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(input);
     }
 
     /// Differing branch instructions are not hoisted.
     #[test]
     fn test_hoist_requires_equivalence() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -553,15 +553,15 @@ block3(v5: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(input);
     }
 
     /// Chains of identical instructions are hoisted together.
     #[test]
     fn test_hoist_common_prefix_chain() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -592,15 +592,15 @@ block3(v7: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(expected);
     }
 
     /// Branch parameters are rewritten before hoisting.
     #[test]
     fn test_hoist_rewrites_branch_params() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1(v0, v1), block2(v0, v1)
@@ -628,15 +628,15 @@ block3(v9: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(expected);
     }
 
     /// Identical instructions can be hoisted even when not in the prefix.
     #[test]
     fn test_hoist_non_prefix_match() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -668,15 +668,15 @@ block3(v7: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(expected);
     }
 
     /// Branches with multiple predecessors are not hoisted.
     #[test]
     fn test_hoist_requires_single_predecessor() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     branch v2, block1, block2
@@ -693,8 +693,8 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CodeHoisting);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CodeHoisting);
+        test.assert_output(input);
     }
 }

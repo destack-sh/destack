@@ -80,7 +80,11 @@ pub enum OptimizeError {
     // 2xx: Borrow errors
     // -------------------------------------------------------------------------
     /// Mutable borrow conflicts with existing borrow.
-    #[error(code = "EO200", message = "cannot borrow as mutable: already borrowed")]
+    #[error(
+        code = "EO200",
+        message = "cannot borrow as mutable: already borrowed",
+        directive
+    )]
     ConflictingBorrow {
         node: mir::AnchoredGlobalNodeId,
         existing_borrow: mir::AnchoredGlobalNodeId,
@@ -88,28 +92,32 @@ pub enum OptimizeError {
     },
 
     /// Reference used after the borrowed value was mutated through another path.
-    #[error(code = "EO201", message = "borrow invalidated by mutation")]
+    #[error(code = "EO201", message = "borrow invalidated by mutation", directive)]
     InvalidatedReference {
         node: mir::AnchoredGlobalNodeId,
         invalidated_by: mir::AnchoredGlobalNodeId,
     },
 
     /// Borrow outlives the value it borrows from.
-    #[error(code = "EO202", message = "borrow escapes scope")]
+    #[error(code = "EO202", message = "borrow escapes scope", directive)]
     BorrowEscapesScope {
         node: mir::AnchoredGlobalNodeId,
         escapes_at: mir::AnchoredGlobalNodeId,
     },
 
     /// Attempting to borrow a value that was already moved.
-    #[error(code = "EO203", message = "cannot borrow: value was moved")]
+    #[error(code = "EO203", message = "cannot borrow: value was moved", directive)]
     BorrowOfMovedValue {
         node: mir::AnchoredGlobalNodeId,
         moved_at: mir::AnchoredGlobalNodeId,
     },
 
     /// Assigning to a local variable while it is borrowed.
-    #[error(code = "EO204", message = "cannot assign to local: value is borrowed")]
+    #[error(
+        code = "EO204",
+        message = "cannot assign to local: value is borrowed",
+        directive
+    )]
     LocalSetWhileBorrowed {
         node: mir::AnchoredGlobalNodeId,
         borrowed_at: mir::AnchoredGlobalNodeId,
@@ -119,18 +127,37 @@ pub enum OptimizeError {
     // 3xx: Lifetime errors
     // -------------------------------------------------------------------------
     /// Returning a reference to a local variable.
-    #[error(code = "EO300", message = "cannot return reference to local")]
+    #[error(
+        code = "EO300",
+        message = "cannot return reference to local",
+        directive
+    )]
     ReturnReferenceToLocal { node: mir::AnchoredGlobalNodeId },
 
     /// Reference to local stored in longer-lived location.
-    #[error(code = "EO301", message = "reference to local escapes function")]
+    #[error(
+        code = "EO301",
+        message = "reference to local escapes function",
+        directive
+    )]
     LocalReferenceEscapes { node: mir::AnchoredGlobalNodeId },
+
+    /// Returned borrow does not match lifetime annotation.
+    #[error(
+        code = "EO302",
+        message = "return borrows from {origin} not covered by lifetime annotation",
+        directive
+    )]
+    LifetimeAnnotationMismatch {
+        node: mir::AnchoredGlobalNodeId,
+        origin: String,
+    },
 
     // -------------------------------------------------------------------------
     // 4xx: Drop errors
     // -------------------------------------------------------------------------
     /// Dropping a value while it is borrowed.
-    #[error(code = "EO400", message = "cannot drop: value is borrowed")]
+    #[error(code = "EO400", message = "cannot drop: value is borrowed", directive)]
     DropWhileBorrowed {
         node: mir::AnchoredGlobalNodeId,
         borrowed_at: mir::AnchoredGlobalNodeId,

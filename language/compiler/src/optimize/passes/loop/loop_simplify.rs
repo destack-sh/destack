@@ -600,9 +600,9 @@ block3:
 block4:
     jump block2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Loop already in simplified form is unchanged.
@@ -618,9 +618,9 @@ block2:
 block3:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Self-loop at entry block gets a preheader.
@@ -642,13 +642,13 @@ block1:
 block2(v1: bool):
     jump block0(v1)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
 
         // verify entry changed to preheader
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
         assert_ne!(function.entry.unwrap(), function.blocks[0]);
     }
 
@@ -678,9 +678,9 @@ block3:
 block4:
     jump block2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// While-style loop with dedicated entry is unchanged.
@@ -696,9 +696,9 @@ block2:
 block3:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Header parameters are preserved through preheader.
@@ -728,9 +728,9 @@ block3:
 block4(v4: i32):
     jump block2(v4)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Switch terminator entering loop gets redirected to preheader.
@@ -758,9 +758,9 @@ block3:
 block4:
     jump block2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Loop with no outside predecessors (infinite loop from entry) gets preheader.
@@ -778,13 +778,13 @@ block0(v0: bool):
 block1(v1: bool):
     jump block0(v1)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
 
         // verify entry changed to preheader
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
         assert_ne!(function.entry.unwrap(), function.blocks[0]);
     }
 
@@ -819,9 +819,9 @@ block4:
 block5:
     jump block1
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Multiple latches with different arguments to header are merged correctly.
@@ -869,9 +869,9 @@ block5:
 block6(v8: i32):
     jump block1(v8)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Exit block with outside predecessor gets dedicated exit inserted.
@@ -900,9 +900,9 @@ block3:
 block4:
     jump block2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Exit block with parameters gets dedicated exit with forwarded params.
@@ -935,9 +935,9 @@ block3(v7: i32):
 block4(v8: i32):
     jump block2(v8)
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Loop with dedicated exit already is unchanged.
@@ -954,9 +954,9 @@ block2:
 block3:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Nested loops both get simplified.
@@ -999,9 +999,9 @@ block6:
 block7:
     jump block1
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Triple-nested loops all get preheaders.
@@ -1044,9 +1044,9 @@ block7:
 block8:
     jump block4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Loop needing both preheader and latch merge.
@@ -1085,9 +1085,9 @@ block6:
 block7:
     jump block4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Loop needing preheader, latch merge, and dedicated exit.
@@ -1126,9 +1126,9 @@ block6:
 block7:
     jump block4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 
     /// Function without loops is unchanged.
@@ -1144,9 +1144,9 @@ block1:
 block2:
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Irreducible control flow is unchanged (not a natural loop).
@@ -1165,9 +1165,9 @@ block3:
     return
 }"#;
         // no natural loops detected, so unchanged
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Multiple independent loops are all simplified.
@@ -1208,8 +1208,8 @@ block6:
 block7:
     jump block4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        test.assert_output(expected);
     }
 }

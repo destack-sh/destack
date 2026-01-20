@@ -660,9 +660,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store to one pointer, load from different pointer: no forwarding.
@@ -679,9 +679,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Second store kills first, load forwards from second store.
@@ -707,9 +707,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Multiple loads from same pointer all forward to stored value.
@@ -734,9 +734,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Trivial memory phis forward through a merge.
@@ -772,9 +772,9 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Trivial memory phis with multiple incoming edges are forwarded.
@@ -814,9 +814,9 @@ block4:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store to non aliasing pointer does not kill available store.
@@ -844,9 +844,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store to field, load from same field forwards correctly.
@@ -872,9 +872,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store to different fields: forward each independently.
@@ -909,9 +909,9 @@ block0:
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Load followed by another load from same location uses first result.
@@ -931,9 +931,9 @@ block0(v0: ref<raw i32>):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store between loads kills the first load's availability.
@@ -957,9 +957,9 @@ block0(v0: ref<raw i32>):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store in entry block forwards to dominated block.
@@ -985,9 +985,9 @@ block1:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store in entry forwards to both branches of a diamond.
@@ -1022,9 +1022,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Store in one branch does not forward to sibling branch.
@@ -1046,9 +1046,9 @@ block3:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Deep dominator chain: store in entry reaches deeply nested block.
@@ -1082,9 +1082,9 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Load in entry forwards to dominated blocks.
@@ -1108,9 +1108,9 @@ block1:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Call with pointer argument may clobber: no forwarding.
@@ -1128,9 +1128,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Readnone calls do not block forwarding.
@@ -1156,13 +1156,13 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
-        let function_id = program.entry_function_id();
-        let (call_inst, _callee) = program.first_call_in_entry(function_id);
+        let function_id = test.entry_function_id();
+        let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
         let effects = mir::CallEffects::default().with_memory_effects(mir::MemoryEffect::none());
-        let instruction = program.tree.get_mut(call_inst);
+        let instruction = test.tree.get_mut(call_inst);
         let mir::Instruction::Call {
             effects: call_effects,
             ..
@@ -1172,8 +1172,8 @@ block0:
         };
         *call_effects = Some(effects);
 
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Call in dominator block kills forwarding to dominated blocks.
@@ -1193,9 +1193,9 @@ block1:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Volatile load acts as memory barrier: kills all forwarding.
@@ -1214,9 +1214,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Volatile store acts as memory barrier.
@@ -1235,9 +1235,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Atomic load acts as memory barrier.
@@ -1256,9 +1256,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Atomic store acts as memory barrier.
@@ -1277,9 +1277,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Atomic fence acts as memory barrier.
@@ -1296,9 +1296,9 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Scoped noalias metadata keeps stores from clobbering unrelated loads.
@@ -1322,19 +1322,19 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // create alias scope metadata for the disjoint store
-        let scope = program.create_alias_scope();
+        let scope = test.create_alias_scope();
 
         // locate the relevant instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // attach scoped metadata to disambiguate the store
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1344,7 +1344,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             None,
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1354,8 +1354,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             None,
         );
 
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// TBAA tags disambiguate unrelated accesses.
@@ -1379,23 +1379,23 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // create disjoint tbaa tags
-        let root = program.create_tbaa_node(None, false);
-        let int_node = program.create_tbaa_node(Some(root), false);
-        let float_node = program.create_tbaa_node(Some(root), false);
-        let int_tag = program.create_tbaa_tag(root, int_node, 0, 4, false);
-        let float_tag = program.create_tbaa_tag(root, float_node, 0, 4, false);
+        let root = test.create_tbaa_node(None, false);
+        let int_node = test.create_tbaa_node(Some(root), false);
+        let float_node = test.create_tbaa_node(Some(root), false);
+        let int_tag = test.create_tbaa_tag(root, int_node, 0, 4, false);
+        let float_tag = test.create_tbaa_tag(root, float_node, 0, 4, false);
 
         // locate the relevant instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // attach disjoint tbaa tags to the store and load
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1405,7 +1405,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(float_tag),
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1415,8 +1415,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(int_tag),
         );
 
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Disjoint TBAA offsets prevent clobbering stores from blocking forwarding.
@@ -1440,22 +1440,22 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // create tbaa tags with disjoint offsets
-        let root = program.create_tbaa_node(None, false);
-        let access = program.create_tbaa_node(Some(root), false);
-        let tag_a = program.create_tbaa_tag(root, access, 0, 4, false);
-        let tag_b = program.create_tbaa_tag(root, access, 8, 4, false);
+        let root = test.create_tbaa_node(None, false);
+        let access = test.create_tbaa_node(Some(root), false);
+        let tag_a = test.create_tbaa_tag(root, access, 0, 4, false);
+        let tag_b = test.create_tbaa_tag(root, access, 8, 4, false);
 
         // locate the relevant instructions
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v1 = instructions[3];
         let load_v0 = instructions[4];
 
         // attach disjoint tbaa tags to the clobbering store and load
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v1,
             mir::MemoryAccessKind::Write,
             mir::Value::new(1),
@@ -1465,7 +1465,7 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(tag_b),
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1475,8 +1475,8 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
             Some(tag_a),
         );
 
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Size mismatches prevent forwarding from matching pointers.
@@ -1492,16 +1492,16 @@ block0:
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // locate the store and load
-        let function_id = program.first_function_id();
-        let instructions = program.entry_instructions(function_id);
+        let function_id = test.first_function_id();
+        let instructions = test.entry_instructions(function_id);
         let store_v0 = instructions[2];
         let load_v0 = instructions[3];
 
         // attach mismatched sizes to block forwarding
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             store_v0,
             mir::MemoryAccessKind::Write,
             mir::Value::new(0),
@@ -1511,7 +1511,7 @@ block0:
             None,
         );
 
-        program.insert_pointer_access(
+        test.insert_pointer_access(
             load_v0,
             mir::MemoryAccessKind::Read,
             mir::Value::new(0),
@@ -1521,8 +1521,8 @@ block0:
             None,
         );
 
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Transitive substitutions are resolved correctly.
@@ -1547,9 +1547,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// Empty function (import) is handled.
@@ -1558,9 +1558,9 @@ block0:
         let input = r#"extern function @external() -> void"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 
     /// No changes returns AnalysisPreservation::all().
@@ -1573,8 +1573,8 @@ block0(v0: i32):
 }"#;
         let expected = input;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoadStoreForward);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoadStoreForward);
+        test.assert_output(expected);
     }
 }

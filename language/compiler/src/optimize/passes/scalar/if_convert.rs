@@ -525,9 +525,9 @@ block3(v9: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(expected);
     }
 
     /// Convert larger diamonds when balanced and speculatable.
@@ -609,9 +609,9 @@ block3(v22: i32):
     return v22
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(expected);
     }
 
     /// Skip conversion when branch instructions may trap.
@@ -630,9 +630,9 @@ block3(v9: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(input);
     }
 
     /// Skip conversion when a branch target has multiple predecessors.
@@ -649,15 +649,15 @@ block3(v4: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(input);
     }
 
     /// Merge blocks with extra predecessors are not converted.
     #[test]
     fn test_if_convert_requires_single_merge_pred() {
-        // source program
+        // source test
         let input = r#"function @test(v0: bool, v1: bool, v2: i32, v3: i32) -> i32 {
 block0(v0: bool, v1: bool, v2: i32, v3: i32):
     branch v0, block1(v1, v2, v3), block4(v2)
@@ -676,15 +676,15 @@ block5(v14: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(input);
     }
 
     /// Multiple merge arguments become multiple select instructions.
     #[test]
     fn test_if_convert_multiple_merge_args() {
-        // source program
+        // source test
         let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1(v1, v2), block2(v1, v2)
@@ -718,8 +718,8 @@ block3(v9: i32, v10: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&IfConvert);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&IfConvert);
+        test.assert_output(expected);
     }
 }
