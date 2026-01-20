@@ -90,4 +90,9 @@ impl NodeParentIndex {
     {
         self.walk_parents_by_id(node_id.id)
     }
+
+    /// Append a root node with no parent.
+    pub fn append_root(&mut self) {
+        self.parent_id_by_node_id.push(None);
+    }
 }

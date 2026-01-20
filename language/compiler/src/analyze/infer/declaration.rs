@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Asynchrony, Constraint, Declaration, DeclarationAbstraction, Declarator, DependencyItem,
-    DependencyMode, DynamicKey, Expression, FunctionCardinality, FunctionSignature,
-    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, IntType, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, NodeTree, Parameter, Pattern, PrimitiveType,
-    StaticKey, SymbolTable, Type, TypeLiteral, TypeTable, WhereClause,
+    Asynchrony, BindingAnchor, BindingKind, Constraint, Declaration, DeclarationAbstraction,
+    Declarator, DependencyItem, DependencyMode, DynamicKey, Expression, FunctionCardinality,
+    FunctionSignature, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
+    IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, ModuleTarget, Mutability, NodeTree,
+    Parameter, Pattern, PrimitiveType, StaticKey, SymbolTable, Type, TypeField, TypeLiteral,
+    TypeTable, WhereClause,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -218,10 +219,20 @@ impl Compiler {
                     declaration_id,
                 ));
 
+                // prepare nominal context for enum members
+                let mut ctx = ctx.fork().in_nominal_symbol_maybe(Some(enum_symbol));
+
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
                     self.infer_member(
-                        module, *member_id, tree, symbols, types, infer, ctx, this_ty_id,
+                        module,
+                        *member_id,
+                        tree,
+                        symbols,
+                        types,
+                        infer,
+                        &mut ctx,
+                        this_ty_id,
                     )?;
                 }
             }
@@ -496,9 +507,9 @@ impl Compiler {
                     return Ok(());
                 }
 
-                // evaluate the field type
-                let _value_ty_id = if let Some(value) = value {
-                    self.try_evaluate_expression_to_type(
+                // evaluate the declared field type when present
+                let declared_ty_id = if let Some(value) = value {
+                    Some(self.try_evaluate_expression_to_type(
                         module,
                         ctx.profile,
                         *value,
@@ -507,18 +518,51 @@ impl Compiler {
                         types,
                         true,
                         true,
-                    )?
+                    )?)
                 } else {
-                    // no value, return unknown type
-                    let ty = Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    };
-                    types.insert_type_from_any(ty, member_id.into_any())
+                    None
                 };
 
-                // analyze default if present
-                if let Some(default) = default {
-                    self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
+                // infer the default expression when present
+                let default_ty_id = if let Some(default) = default {
+                    Some(self.infer_expression(
+                        module, *default, tree, symbols, types, infer, ctx,
+                    )?)
+                } else {
+                    None
+                };
+
+                // update the value shape for inferred static fields
+                let is_static = modifiers
+                    .as_ref()
+                    .is_some_and(|modifiers| modifiers.anchor == Some(BindingAnchor::Static));
+                let static_key = key.and_then(|key| {
+                    self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
+                });
+                if is_static
+                    && declared_ty_id.is_none()
+                    && let Some(default_ty_id) = default_ty_id
+                    && let Some(static_key) = static_key
+                    && let Some(owner_symbol) = ctx.in_nominal_symbol
+                {
+                    let is_optional = modifiers
+                        .as_ref()
+                        .is_some_and(|modifiers| matches!(modifiers.kind, Some(BindingKind::Maybe)));
+                    let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
+                        matches!(modifiers.mutability, Some(Mutability::Immutable))
+                    });
+                    let field = TypeField {
+                        key: static_key,
+                        ty: default_ty_id,
+                        is_optional,
+                        is_readonly,
+                    };
+                    self.update_value_shape_with_field(
+                        member_id.into_any(),
+                        owner_symbol,
+                        field,
+                        types,
+                    );
                 }
 
                 Ok(())

@@ -32,14 +32,40 @@ impl Compiler {
         if let Some(dir) = module.dir_maybe(profile) {
             let tree = dir.tree.read();
             let symbols = dir.symbols.read();
-            return self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, profile);
+            let fallback_node = dir
+                .roots
+                .first()
+                .copied()
+                .map(dir::LocalNodeId::into_any)
+                .unwrap_or(dir.anchor_node);
+            return self.unbind_module_from_parts(
+                module,
+                &tree,
+                &symbols,
+                &dir.roots,
+                fallback_node,
+                profile,
+            );
         }
 
         // fall back to the base dir
         let dir = module.dir_base();
         let tree = dir.tree.read();
         let symbols = dir.symbols.read();
-        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, profile)
+        let fallback_node = dir
+            .roots
+            .first()
+            .copied()
+            .map(dir::LocalNodeId::into_any)
+            .unwrap_or(dir.anchor_node);
+        self.unbind_module_from_parts(
+            module,
+            &tree,
+            &symbols,
+            &dir.roots,
+            fallback_node,
+            profile,
+        )
     }
 
     /// Unbind module parts into an AST tree.
@@ -49,10 +75,11 @@ impl Compiler {
         tree: &dir::NodeTree,
         symbols: &dir::SymbolTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
+        fallback_node: dir::LocalNodeIdAny,
         profile: ProfileId,
     ) -> UnboundModule {
         // initialize the unbind context
-        let mut context = UnbindContext::new(profile);
+        let mut context = UnbindContext::new(profile, fallback_node);
 
         // rebuild the AST tree
         let mut ast_tree = ast::NodeTree::new();

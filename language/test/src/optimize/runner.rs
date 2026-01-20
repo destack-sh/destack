@@ -759,7 +759,7 @@ fn find_instruction_block(
 ) -> Option<(mir::LocalNodeId<mir::Block>, mir::Block)> {
     // scan blocks to find the instruction
     for (block_id, block) in tree.iter_nodes::<mir::Block>() {
-        if block.instructions.iter().any(|id| *id == instruction_id) {
+        if block.instructions.contains(&instruction_id) {
             return Some((block_id, block.clone()));
         }
     }
@@ -935,7 +935,7 @@ fn diagnose_mismatch(
 
     // run each pass in order using a pass major traversal
     let pipeline = default_pipeline(level);
-    match diagnose_pipeline(
+    diagnose_pipeline(
         program,
         &mut tree,
         &strings_pool,
@@ -945,10 +945,8 @@ fn diagnose_mismatch(
         max_instruction_limit,
         0,
         None,
-    ) {
-        Ok(_) => None,
-        Err(reason) => Some(reason),
-    }
+    )
+    .err()
 }
 
 /// Format a diagnostic mismatch message.
@@ -962,6 +960,7 @@ fn format_pass_context(depth: usize, iteration: Option<(usize, usize)>, pass_nam
 }
 
 /// Walk a pipeline and return whether any changes occurred.
+#[allow(clippy::too_many_arguments)]
 fn diagnose_pipeline(
     program: &program::Program,
     tree: &mut mir::NodeTree,
@@ -1215,17 +1214,17 @@ fn build_execute_failure(
     }
 
     // run prefix diagnostics when enabled or requested by the matrix
-    if run_options.diagnostic || run_options.matrix {
-        if let Some(reason) = diagnose_mismatch(
+    if (run_options.diagnostic || run_options.matrix)
+        && let Some(reason) = diagnose_mismatch(
             program,
             level,
             target_id,
             options,
             baseline_output,
             run_options.max_instruction_limit,
-        ) {
-            return reason;
-        }
+        )
+    {
+        return reason;
     }
 
     message

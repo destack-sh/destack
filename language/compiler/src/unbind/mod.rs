@@ -28,15 +28,18 @@ pub(super) struct UnbindContext {
     pub node_map: HashMap<dir::LocalNodeIdAny, ast::LocalNodeIdAny>,
     /// The profile id for this unbind run.
     pub profile: ProfileId,
+    /// Fallback node for diagnostics when no source node exists.
+    pub fallback_node: dir::LocalNodeIdAny,
 }
 
 impl UnbindContext {
     /// Create a new unbind context.
-    pub(super) fn new(profile: ProfileId) -> Self {
+    pub(super) fn new(profile: ProfileId, fallback_node: dir::LocalNodeIdAny) -> Self {
         // build the context defaults
         Self {
             node_map: HashMap::new(),
             profile,
+            fallback_node,
         }
     }
 

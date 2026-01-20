@@ -524,7 +524,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_source::{
-        FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion,
+        FileId, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion,
     };
 
     use crate::{ModuleAst, ModuleDir, ModuleMir, TargetId};
@@ -567,6 +567,13 @@ mod tests {
         )
     }
 
+    fn test_anchor_source_id() -> u32 {
+        // create a minimal anchor for dir cache entries
+        let mut ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let anchor_id = ast.ensure_anchor_expression(FileId::new(0));
+        anchor_id.id
+    }
+
     #[test]
     fn test_module_ast_cache_roundtrip() {
         // roundtrip module ast cache entries through disk
@@ -590,7 +597,12 @@ mod tests {
     #[test]
     fn test_module_dir_base_cache_roundtrip() {
         // roundtrip module dir base cache entries through disk
-        let module_dir = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let anchor_source_id = test_anchor_source_id();
+        let module_dir = ModuleDir::new_base(
+            ModuleId::EPHEMERAL,
+            ModuleVersion::INITIAL,
+            anchor_source_id,
+        );
         let entry = ModuleDirCacheEntry::new(test_header(CacheKind::DirBase), module_dir.to_data())
             .unwrap();
         let path = temp_cache_path("dir-base");
@@ -610,7 +622,12 @@ mod tests {
     #[test]
     fn test_module_dir_resolved_cache_roundtrip() {
         // roundtrip module dir resolved cache entries through disk
-        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let anchor_source_id = test_anchor_source_id();
+        let base = ModuleDir::new_base(
+            ModuleId::EPHEMERAL,
+            ModuleVersion::INITIAL,
+            anchor_source_id,
+        );
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirResolved), module_dir.to_data())
@@ -632,7 +649,12 @@ mod tests {
     #[test]
     fn test_module_dir_analyzed_cache_roundtrip() {
         // roundtrip analyzed dir cache entries through disk
-        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let anchor_source_id = test_anchor_source_id();
+        let base = ModuleDir::new_base(
+            ModuleId::EPHEMERAL,
+            ModuleVersion::INITIAL,
+            anchor_source_id,
+        );
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirAnalyzed), module_dir.to_data())
@@ -654,7 +676,12 @@ mod tests {
     #[test]
     fn test_module_dir_executed_cache_roundtrip() {
         // roundtrip executed dir cache entries through disk
-        let base = ModuleDir::new_base(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
+        let anchor_source_id = test_anchor_source_id();
+        let base = ModuleDir::new_base(
+            ModuleId::EPHEMERAL,
+            ModuleVersion::INITIAL,
+            anchor_source_id,
+        );
         let module_dir = ModuleDir::from_base(&base, ProfileId::new(1));
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirExecuted), module_dir.to_data())

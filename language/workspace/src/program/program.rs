@@ -265,7 +265,7 @@ impl Program {
 
         // root module (uses ephemeral module id)
         let root_module_id = ModuleId::EPHEMERAL;
-        let root_module_ast = ModuleAst::from_tree(
+        let mut root_module_ast = ModuleAst::from_tree(
             root_module_id,
             ModuleVersion::INITIAL,
             root_ast,
@@ -274,6 +274,7 @@ impl Program {
             Vec::new(),
             Vec::new(),
         );
+        root_module_ast.ensure_anchor_expression(root_file_id);
         let root_file = files.get(root_file_id);
         let root_module = Module::from_ast(
             root_module_id,

@@ -45,8 +45,14 @@ impl Compiler {
             self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
             let mut module = module.write();
             self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
+            let file_id = module.file_id;
+            let anchor_id = module.ast_mut().ensure_anchor_expression(file_id);
             let code = module.code_mut();
-            code.dir_base = Some(ModuleDir::new_base(module_id, module_version));
+            code.dir_base = Some(ModuleDir::new_base(
+                module_id,
+                module_version,
+                anchor_id.id,
+            ));
             code.dirs.clear();
         }
 

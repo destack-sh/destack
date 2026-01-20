@@ -849,13 +849,7 @@ impl Compiler {
             dir::StaticExpression::Type { ty } => {
                 self.unbind_span(module, types.get_type_source(*ty))
             }
-            _ => {
-                // FUGU #Broken: replace placeholder nodes
-                self.unbind_span(
-                    module,
-                    dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
-                )
-            }
+            _ => self.unbind_span(module, context.fallback_node),
         };
 
         // lower the static value expression
@@ -903,11 +897,7 @@ impl Compiler {
         ast_strings: &mut StringPool,
         context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Expression> {
-        // FUGU #Broken: replace placeholder nodes
-        let span = self.unbind_span(
-            module,
-            dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
-        );
+        let span = self.unbind_span(module, context.fallback_node);
 
         // reuse type expressions when possible
         if let dir::StaticExpression::Type { ty } = value {
@@ -1338,13 +1328,9 @@ impl Compiler {
         symbol: dir::SymbolKey,
         ast_tree: &mut ast::NodeTree,
         ast_strings: &mut StringPool,
-        _context: &mut UnbindContext,
+        context: &mut UnbindContext,
     ) -> ast::LocalNodeId<ast::Expression> {
-        // FUGU #Broken: replace placeholder nodes
-        let span = self.unbind_span(
-            module,
-            dir::LocalNodeIdAny::new(0, dir::NodeType::Expression),
-        );
+        let span = self.unbind_span(module, context.fallback_node);
 
         // handle well known symbol keys as Symbol.<member>
         if let dir::SymbolKey::WellKnown(key) = symbol {

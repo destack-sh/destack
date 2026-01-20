@@ -1,6 +1,6 @@
 use destack_ast::{self as ast};
 use destack_base::StringPool;
-use destack_source::{ModuleId, ModuleVersion};
+use destack_source::{FileId, ModuleId, ModuleVersion, Span};
 use serde::{Deserialize, Serialize};
 
 /// AST-level module data.
@@ -24,6 +24,8 @@ pub struct ModuleAst {
     pub tokens: Vec<ast::TokenSpan>,
     /// The side tokens (comments, whitespace) of the Module.
     pub side_tokens: Vec<ast::TokenSpan>,
+    /// Stable anchor expression for diagnostics.
+    pub anchor_expression: Option<ast::LocalNodeId<ast::Expression>>,
 }
 
 /// Serializable snapshot of ModuleAst data.
@@ -46,6 +48,8 @@ pub struct ModuleAstData {
     pub tokens: Vec<ast::TokenSpan>,
     /// The side tokens (comments, whitespace) of the Module.
     pub side_tokens: Vec<ast::TokenSpan>,
+    /// Stable anchor expression for diagnostics.
+    pub anchor_expression: Option<ast::LocalNodeId<ast::Expression>>,
 }
 
 impl ModuleAst {
@@ -61,6 +65,7 @@ impl ModuleAst {
             strings: StringPool::new(),
             tokens: Vec::new(),
             side_tokens: Vec::new(),
+            anchor_expression: None,
         }
     }
 
@@ -87,7 +92,29 @@ impl ModuleAst {
             strings,
             tokens,
             side_tokens,
+            anchor_expression: None,
         }
+    }
+
+    /// Ensure a stable anchor expression exists for diagnostics.
+    pub fn ensure_anchor_expression(
+        &mut self,
+        file_id: FileId,
+    ) -> ast::LocalNodeId<ast::Expression> {
+        // reuse existing anchor when already present
+        if let Some(anchor_id) = self.anchor_expression {
+            return anchor_id;
+        }
+
+        // insert a synthetic literal anchored at the file start
+        let span = Span::empty(file_id);
+        let anchor_id = self
+            .tree
+            .insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)), span);
+        self.parents.append_root();
+        self.anchor_expression = Some(anchor_id);
+
+        anchor_id
     }
 
     /// Create a serializable snapshot of this module ast.
@@ -102,6 +129,7 @@ impl ModuleAst {
             strings: self.strings.clone(),
             tokens: self.tokens.clone(),
             side_tokens: self.side_tokens.clone(),
+            anchor_expression: self.anchor_expression,
         }
     }
 
@@ -117,6 +145,7 @@ impl ModuleAst {
             strings: data.strings,
             tokens: data.tokens,
             side_tokens: data.side_tokens,
+            anchor_expression: data.anchor_expression,
         }
     }
 }

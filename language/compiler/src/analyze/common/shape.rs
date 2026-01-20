@@ -8,6 +8,23 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+// value shape source used to keep type ids anchored consistently
+enum ValueShapeSource {
+    /// Declaration node.
+    Declaration(LocalNodeId<Declaration>),
+    /// Any node.
+    Any(LocalNodeIdAny),
+}
+
+impl ValueShapeSource {
+    fn insert_type(&self, types: &mut TypeTable, ty: Type) -> LocalTypeId {
+        match self {
+            Self::Declaration(node_id) => types.insert_type_from(ty, *node_id),
+            Self::Any(node_id) => types.insert_type_from_any(ty, *node_id),
+        }
+    }
+}
+
 /// Object shape builder and identity.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct ObjectShape {
@@ -162,6 +179,60 @@ struct SignatureShape {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    // build a value type from a merged shape and extras
+    fn build_value_shape_type(
+        &self,
+        source: &ValueShapeSource,
+        symbol: GlobalSymbolId,
+        merged_shape: ObjectShape,
+        mut extras: Vec<LocalTypeId>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // build the merged object type when members exist
+        let object_ty_id = if merged_shape.is_empty() {
+            None
+        } else {
+            Some(source.insert_type(types, merged_shape.into_object_type()))
+        };
+
+        // always include the nominal type descriptor
+        let nominal_reference = Type::Reference {
+            symbol,
+            static_arguments: None,
+        };
+        let nominal_reference_id = source.insert_type(types, nominal_reference);
+        let descriptor_ty_id = source.insert_type(
+            types,
+            Type::Value {
+                value: nominal_reference_id,
+            },
+        );
+
+        // keep only non object extras to avoid duplicate shapes
+        extras.retain(|extra_id| {
+            !matches!(
+                types.get_type(*extra_id),
+                Type::Object { .. } | Type::Function { .. } | Type::Value { .. }
+            )
+        });
+
+        // assemble the final value type
+        let mut elements = Vec::new();
+        if let Some(object_ty_id) = object_ty_id {
+            elements.push(object_ty_id);
+        }
+        elements.push(descriptor_ty_id);
+        elements.extend(extras);
+        let value_ty_id = if elements.len() == 1 {
+            elements[0]
+        } else {
+            source.insert_type(types, Type::Intersection { elements })
+        };
+        types.set_value_type(symbol, value_ty_id);
+
+        value_ty_id
+    }
+
     /// Check whether a symbol should receive merged instance members.
     fn symbol_supports_instance_merge(&self, symbol: &destack_dir::Symbol) -> bool {
         // only structured nominal symbols support instance merging
@@ -306,49 +377,37 @@ impl Compiler {
         // merge the new shape into the value shape
         merged_shape.extend_from_shape(shape);
 
-        // build the merged object type when members exist
-        let object_ty_id = if merged_shape.is_empty() {
-            None
-        } else {
-            Some(types.insert_type_from(merged_shape.into_object_type(), declaration_id))
-        };
+        let source = ValueShapeSource::Declaration(declaration_id);
+        self.build_value_shape_type(&source, symbol, merged_shape, extras, types)
+    }
 
-        // always include the nominal type descriptor
-        let nominal_reference = Type::Reference {
-            symbol,
-            static_arguments: None,
-        };
-        let nominal_reference_id = types.insert_type_from(nominal_reference, declaration_id);
-        let descriptor_ty_id = types.insert_type_from(
-            Type::Value {
-                value: nominal_reference_id,
-            },
-            declaration_id,
-        );
-
-        // keep only non object extras to avoid duplicate shapes
-        extras.retain(|extra_id| {
-            !matches!(
-                types.get_type(*extra_id),
-                Type::Object { .. } | Type::Function { .. } | Type::Value { .. }
-            )
-        });
-
-        // assemble the final value type
-        let mut elements = Vec::new();
-        if let Some(object_ty_id) = object_ty_id {
-            elements.push(object_ty_id);
+    /// Update a symbol value shape with an inferred static field.
+    pub(crate) fn update_value_shape_with_field(
+        &self,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        field: TypeField,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // seed with existing value members
+        let mut merged_shape = ObjectShape::default();
+        let mut extras = Vec::new();
+        if let Some(existing_id) = types.get_value_type_id(symbol) {
+            let mut visited = Vec::new();
+            self.collect_value_shape_from_type(
+                existing_id,
+                types,
+                &mut merged_shape,
+                &mut extras,
+                &mut visited,
+            );
         }
-        elements.push(descriptor_ty_id);
-        elements.extend(extras);
 
-        let value_ty_id = if elements.len() == 1 {
-            elements[0]
-        } else {
-            types.insert_type_from(Type::Intersection { elements }, declaration_id)
-        };
-        types.set_value_type(symbol, value_ty_id);
-        value_ty_id
+        // override the field in the current value shape
+        merged_shape.apply_field(field);
+
+        let source = ValueShapeSource::Any(source_id);
+        self.build_value_shape_type(&source, symbol, merged_shape, extras, types)
     }
 
     /// Merge a function declaration into the symbol value type.

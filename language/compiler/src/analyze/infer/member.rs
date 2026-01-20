@@ -3,10 +3,9 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext}
 use destack_base::StringId;
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferOrigin,
-    InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType,
-    StaticArgument, StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
-    Visibility,
+    Argument, BindingAnchor, BindingModifier, Declaration, Expression, GlobalSymbolId, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Member, NodeTree, NodeType, StaticArgument,
+    StaticKey, SymbolSpace, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable, Visibility,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -185,24 +184,6 @@ impl Compiler {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
         };
-        if let Some(member_symbol) = member_symbol
-            && matches!(lookup_mode, MemberLookupMode::Value)
-            && types.get_value_type_id(member_symbol).is_none()
-        {
-            let scope = InferScope {
-                owner: member_symbol,
-                function_id: ctx.in_function.map(|function_id| function_id.into_global(module.id)),
-            };
-            let placeholder_ty_id = self.infer_var_type_for_symbol(
-                infer,
-                types,
-                member_symbol,
-                expression_id.into_any(),
-                InferOrigin::Expression(expression_id.into_global_any(module.id)),
-                scope,
-            );
-            types.set_value_type(member_symbol, placeholder_ty_id);
-        }
 
         // enforce member visibility for resolved symbols
         match &member_resolution {
@@ -299,12 +280,6 @@ impl Compiler {
             types,
             &mut member_type_visited,
         )?;
-        // prefer declared or inferred symbol types for resolved members
-        let member_ty_id = if let Some(member_symbol) = member_symbol {
-            types.get_value_type_id(member_symbol).or(member_ty_id)
-        } else {
-            member_ty_id
-        };
         let has_member = member_ty_id.is_some();
         let resolved_member_ty_id = if let Some(enum_field_value_ty_id) = enum_field_value_ty_id {
             enum_field_value_ty_id
