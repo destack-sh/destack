@@ -1,6 +1,5 @@
 import { Property, Variant } from "./property.ds";
 import { DecoratorInfo } from "./decorator.ds";
-import { Refinement } from "./refinement.ds";
 import { intrinsic } from "../intrinsic/decorator.ds";
 
 /// Stable unique identifier for a type.
@@ -223,21 +222,6 @@ export struct ObjectType<T> implements TypeBase<T> {
     properties: readonly Property[],
 }
 
-/// Refined type descriptor (a type with additional constraints).
-/// 
-/// Refinements are metadata only, the compiler does not validate them.
-export struct RefinedType<T> implements TypeBase<T> {
-    kind: "refined" = "refined",
-    name: string,
-    id: TypeId,
-
-    /// The base type being refined.
-    base: Type<unknown>,
-
-    /// Refinements (constraints) on this type.
-    refinements: readonly Refinement[],
-}
-
 /// A type descriptor.
 /// Type is the union of all possible type variants.
 /// 
@@ -255,8 +239,7 @@ export newtype Type<T> = PrimitiveType<T>
     | UnionType<T>
     | IntersectionType<T>
     | FunctionType<T>
-    | ObjectType<T>
-    | RefinedType<T>;
+    | ObjectType<T>;
 
 /// Get the type descriptor for a value.
 /// 

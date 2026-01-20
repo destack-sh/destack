@@ -19,14 +19,3 @@ newtype OrderId = int64;
 ```ds
 struct Point { x: float32, y: float32 }
 ```
-
-### refinements express constraints
-
-> Refinements attach constraints to base types.
-
-```ds
-type User = {
-    name: string.minLength(1).maxLength(100),
-    age: uint.max(150),
-}
-```

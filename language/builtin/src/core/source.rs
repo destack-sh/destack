@@ -74,7 +74,6 @@ builtin_source!(CONTROL_ITERABLE, "control", "iterable.ds");
 builtin_source!(REFLECT_INDEX, "reflect", "index.ds");
 builtin_source!(REFLECT_TYPE, "reflect", "type.ds");
 builtin_source!(REFLECT_PROPERTY, "reflect", "property.ds");
-builtin_source!(REFLECT_REFINEMENT, "reflect", "refinement.ds");
 builtin_source!(REFLECT_DECORATOR, "reflect", "decorator.ds");
 
 // intrinsic
@@ -126,7 +125,6 @@ pub const CORE_SOURCES: &[BuiltinSource] = &[
     INTRINSIC_INDEX,
     // reflect
     REFLECT_PROPERTY,
-    REFLECT_REFINEMENT,
     REFLECT_DECORATOR,
     REFLECT_TYPE,
     REFLECT_INDEX,

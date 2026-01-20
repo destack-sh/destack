@@ -29,7 +29,7 @@ Unlike with C++, our "C" - both JavaScript and TypeScript -- still work perfectl
 | [Errors](#errors) | `Result`-first error handling with `?` and `??` propagation, no exceptions | |
 | [Types](#types) | Type system extensions: newtypes, primitives, structs, tuples, constraints | [types/](test/fixtures/specification/types/) |
 | [Comptime](#comptime) | Compile-time evaluation: precomputation, conditional compilation | |
-| [Reflection](#reflection) | Types as values, runtime type descriptors, refinement metadata, schema validation | [reflection/](test/fixtures/specification/reflection/) |
+| [Reflection](#reflection) | Types as values, runtime type descriptors, schema validation | [reflection/](test/fixtures/specification/reflection/) |
 | [Dispatch](#dispatch) | Type-dependent dispatch: `extension`s and operator overloading | [dispatch/](test/fixtures/specification/dispatch/) |
 | [Ownership](#ownership) | Value ownership / borrowing (`&T`, `^T`) and explicit mutability (`const`/`var`) | [ownership/](test/fixtures/specification/ownership/) |
 
@@ -550,29 +550,12 @@ function oldAPI() { }
 oldAPI.decorators       // [{ name: "deprecated", arguments: ["use newAPI"] }]
 ```
 
-### Refinements
-
-Refinements attach metadata to types for schema and validation tooling.
-The compiler treats refinements as opaque metadata and does not validate them.
-Refinement methods are defined via extensions on types:
-
-```
-type User = {
-    name: string.minLength(1).maxLength(100),
-    age: uint.max(150),
-    email: string.describe("Contact email"),
-}
-```
-
-Refinements do not affect type checking or narrowing.
-Use explicit `where` clauses or guards for static enforcement, and runtime validation when needed.
-
 ### Standard Library Schema
 
 The language provides the reflection primitives; the standard library `@destack-sh/schema` provides validation utilities:
 
 1. **Built-in (no imports)**: `Type<T>`, `.name`, `.fields`, `.is()`, decorator access
-2. **Standard library**: `parse()`, `safeParse()`, refinements `.min()`, `.max()`
+2. **Standard library**: `parse()`, `safeParse()`
 
 ```
 import { parse } from "@destack-sh/schema";

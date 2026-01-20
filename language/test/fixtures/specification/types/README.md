@@ -14,13 +14,12 @@ Destack extends TypeScript's type system with precise primitives, nominal types,
 | `structs/` | Data-oriented object types |
 | `primitives/` | Precise numeric types (`int32`, `float64`, etc.) |
 | `where/` | Readable generic constraints |
-| `refinements/` | Constrained types with validation |
 | `references/` | Reference and value type annotations |
 | `generics/` | Type operators and conditional inference |
 | `static-arguments/` | Static arguments for type and value parameters |
 
 ## Files
 
-- `overview.md`: Nominal types, structs, and refinements
+- `overview.md`: Nominal types and structs
 
 See [DESIGN.md](../../../../../DESIGN.md#types) for full documentation.
