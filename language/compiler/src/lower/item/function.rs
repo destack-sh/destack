@@ -174,6 +174,7 @@ impl ModuleLowerer<'_> {
 
         // resolve parameter types
         let mut parameter_types = Vec::new();
+        let mut parameter_names = Vec::new();
         for parameter_id in &signature.dynamic_parameters {
             let parameter_node = GlobalNodeId::new(self.module_id, *parameter_id).into();
             let parameter_ty = self
@@ -187,6 +188,16 @@ impl ModuleLowerer<'_> {
                 parameter_node.into_anchored(Some(self.profile)),
             )?;
             parameter_types.push(parameter_ty);
+
+            // track parameter names for diagnostics
+            let parameter = self.dir_tree.get(*parameter_id);
+            let name = match parameter {
+                dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+                    Some(*name)
+                }
+                dir::Parameter::Pattern { .. } => None,
+            };
+            parameter_names.push(name);
         }
 
         // extract return lifetime from @lifetime decorator
@@ -207,6 +218,11 @@ impl ModuleLowerer<'_> {
             let functions_by_symbol = &mut self.functions_by_symbol;
             let function_signature_types = &mut self.function_signature_types;
             let mut builder = self.builder.function(&name, &parameter_types, return_type);
+            for (index, name) in parameter_names.iter().enumerate() {
+                if let Some(name_id) = name {
+                    builder.set_parameter_name(index, *name_id);
+                }
+            }
             let function_id = builder.function_id();
 
             // register function bindings
@@ -456,9 +472,33 @@ impl ModuleLowerer<'_> {
         let builder = {
             let functions_by_symbol = &mut self.functions_by_symbol;
             let function_signature_types = &mut self.function_signature_types;
-            let builder = self
+            let mut builder = self
                 .builder
                 .function(&name_str, &parameter_types, return_type);
+
+            // track parameter names for diagnostics
+            let mut parameter_names = Vec::new();
+            if !is_constructor && this_type.is_some() {
+                let name_id = self.compiler.program.strings.intern("this");
+                parameter_names.push(Some(name_id));
+            }
+            for parameter_id in &signature.dynamic_parameters {
+                let parameter = self.dir_tree.get(*parameter_id);
+                let name = match parameter {
+                    dir::Parameter::Named { name, .. } | dir::Parameter::Variadic { name, .. } => {
+                        Some(*name)
+                    }
+                    dir::Parameter::Pattern { .. } => None,
+                };
+                parameter_names.push(name);
+            }
+
+            // apply parameter names to the MIR function
+            for (index, name) in parameter_names.iter().enumerate() {
+                if let Some(name_id) = name {
+                    builder.set_parameter_name(index, *name_id);
+                }
+            }
             let function_id = builder.function_id();
 
             // register function bindings

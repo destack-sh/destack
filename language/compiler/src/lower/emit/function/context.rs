@@ -302,6 +302,14 @@ impl<'a> FunctionContext<'a> {
                 self.lower_unary_expression(expression_id, *operator, *right)
             }
 
+            Expression::ReferenceOf {
+                mutability, right, ..
+            } => self.lower_reference_of_expression(expression_id, *mutability, *right),
+
+            Expression::ValueOf {
+                mutability, right, ..
+            } => self.lower_value_of_expression(expression_id, *mutability, *right),
+
             Expression::If {
                 condition,
                 then_expression,

@@ -9,6 +9,19 @@ use destack_workspace::{Module, ProfileId};
 use crate::{AnalyzeResult, Compiler};
 
 impl Compiler {
+    /// Return true when a type is wrapped in explicit ownership modifiers.
+    pub(crate) fn type_is_explicit_ownership_wrapper(
+        &self,
+        types: &TypeTable,
+        type_id: LocalTypeId,
+    ) -> bool {
+        match types.get_type(type_id) {
+            Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => true,
+            Type::Value { value } => self.type_is_explicit_ownership_wrapper(types, *value),
+            _ => false,
+        }
+    }
+
     /// Evaluate a type id in place when it is unevaluated.
     pub(crate) fn evaluate_unevaluated_type(
         &self,

@@ -533,12 +533,10 @@ extern function @dead(i32) -> i32"#;
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let function_scope =
-            test
-                .tree
+            test.tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
-        test
-            .tree
+        test.tree
             .debug_info
             .function_scopes
             .insert(dead_id, function_scope);
@@ -565,13 +563,7 @@ extern function @dead(i32) -> i32"#;
         test.run_module_pass(&DeadFunctionEliminate);
         test.assert_output(expected);
 
-        assert!(
-            !test
-                .tree
-                .debug_info
-                .function_scopes
-                .contains_key(&dead_id)
-        );
+        assert!(!test.tree.debug_info.function_scopes.contains_key(&dead_id));
         assert_eq!(
             test.tree.debug_info.variable_locations.get(&variable_id),
             Some(&mir::DebugValueLocation::Undefined)

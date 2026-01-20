@@ -904,13 +904,19 @@ fn instruction_collect_types(
                 reference_infos,
             );
         }
-        // raw allocs produce raw pointers (copy semantics)
+        // raw allocs are copy only for raw or borrowed references
         Instruction::RawAlloc {
             destination,
             result_type,
             ..
         } => {
-            copy_values.insert(*destination);
+            if let Type::Reference { kind, .. } = tree.get(*result_type) {
+                if matches!(kind, ReferenceKind::Raw | ReferenceKind::Borrowed) {
+                    copy_values.insert(*destination);
+                }
+            } else {
+                copy_values.insert(*destination);
+            }
             register_value_type(
                 *destination,
                 *result_type,

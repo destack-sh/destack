@@ -518,11 +518,16 @@ impl Compiler {
         target: &Target,
         level: OptimizationLevel,
     ) -> PipelineOptions {
-        // resolve strict borrow mode from config
-        let strict_borrow_mode = self
+        // resolve compiler options and derived restrictions for this target
+        let compiler_options = self
             .program
-            .with_dsconfig_options(module, |opts| opts.compiler.borrow_mode.is_strict())
-            .unwrap_or(false);
+            .with_dsconfig_options(module, |opts| opts.compiler.clone())
+            .unwrap_or_default();
+        let compiler_options =
+            destack_workspace::Program::compiler_options_for_target(target, &compiler_options);
+
+        // resolve strict borrow mode from effective options
+        let strict_borrow_mode = compiler_options.borrow_mode.is_strict();
 
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);

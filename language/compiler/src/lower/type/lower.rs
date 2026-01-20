@@ -8,6 +8,7 @@ use destack_workspace::{ModuleRegistry, PackageRegistry};
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{StructLayout, TypeLayoutPolicy};
+use crate::lower::item::lower_mutability;
 use crate::{InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
 
 /// Cached entry for lowered types.
@@ -313,6 +314,26 @@ impl TypeLowerer {
                         instance_type
                     }
                 }
+            }
+            dir::Type::ValueOf {
+                mutability, right, ..
+            } => {
+                // lower the owned reference pointee type
+                let pointee = self.lower_type(types, *right, module_id, node, builder)?;
+                let mutability = mutability
+                    .map(lower_mutability)
+                    .unwrap_or(mir::Mutability::Immutable);
+                builder.type_owned_reference(pointee, mutability)
+            }
+            dir::Type::ReferenceOf {
+                mutability, right, ..
+            } => {
+                // lower the borrowed reference pointee type
+                let pointee = self.lower_type(types, *right, module_id, node, builder)?;
+                let mutability = mutability
+                    .map(lower_mutability)
+                    .unwrap_or(mir::Mutability::Immutable);
+                builder.type_borrowed_reference(pointee, mutability)
             }
             dir::Type::PointerOf { right, .. } => {
                 let pointee = self.lower_type(types, *right, module_id, node, builder)?;

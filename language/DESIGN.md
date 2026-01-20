@@ -724,8 +724,8 @@ In addition to the default `T`, there are four other ownership options:
 T            // type default (value or managed reference)
 &T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
-^T           // ownership transfer (caller gives up ownership)
-^mut T       // ownership transfer (explicitly mutable)
+^T           // owned reference (move-only)
+^mut T       // owned reference (explicitly mutable)
 ```
 
 Raw pointers are separate from ownership modifiers:
@@ -776,6 +776,11 @@ const node = AstNode { ... }
 consume(^node)    // ownership transferred
 print(node.value) // ERROR: use after ownership transfer
 ```
+
+`^T` is the owned reference type.
+Passing a `^T` by value transfers ownership to the callee.
+Use `^expr` to convert a value `T` into an owned reference `^T`.
+(If you already have `^T`, pass it directly, no `^expr` needed.)
 
 `^T` values are dropped at their last proven use (non lexical), not just at end of scope:
 
@@ -847,7 +852,7 @@ Implicit conversions:
 - `&mut T` → `&T` to reborrow as shared
 
 Explicit conversions:
-- `T` ↔ `^T` require explicit ownership operators or helper calls
+- `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
 - `&T` → `T` requires `Copy` or an explicit clone
 - `&T` → `^T` requires an explicit clone and ownership transfer
 - `*T` conversions require explicit unsafe operations

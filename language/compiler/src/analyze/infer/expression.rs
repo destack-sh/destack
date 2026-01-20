@@ -682,6 +682,16 @@ impl Compiler {
                     &mut ownership_ctx,
                 )?;
 
+                // reject ownership conversions on explicit ownership types
+                if self.type_is_explicit_ownership_wrapper(types, right_ty_id) {
+                    self.error(AnalyzeError::InvalidOwnershipOperand {
+                        node: expression_id
+                            .into_global_any(module.id)
+                            .into_anchored(Some(ctx.profile)),
+                        actual_ty: right_ty_id.into_global(module.id),
+                    });
+                }
+
                 let ty = self.infer_value_of_operation(*mutability, *variance, right_ty_id);
                 types.insert_type_from(ty, expression_id)
             }

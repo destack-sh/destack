@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_base::StringPool;
 use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use destack_source::ModuleId;
@@ -161,16 +162,15 @@ impl FunctionPass for LifetimeCheck {
         tree: &mut mir::NodeTree,
         ctx: &PipelineContext<'_>,
     ) -> AnalysisPreservation {
-        // select explicit lifetimes only
-        let return_lifetime = match &function.return_lifetime {
-            mir::Lifetime::Inferred => return AnalysisPreservation::all(),
-            lifetime => lifetime.clone(),
-        };
+        // resolve the declared return lifetime
+        let return_lifetime = function.return_lifetime.clone();
 
         // warn on annotations for non borrowed returns
         let return_type = tree.get(function.return_type);
         if !type_contains_borrowed_refs(return_type, tree) {
-            if let Some(block_id) = function.blocks.first() {
+            if !matches!(return_lifetime, mir::Lifetime::Inferred)
+                && let Some(block_id) = function.blocks.first()
+            {
                 ctx.emit_warning(OptimizeWarning::LifetimeAnnotationIgnored {
                     node: anchor_block(ctx.module_id(), ctx.target_id().clone(), *block_id),
                 });
@@ -241,7 +241,31 @@ impl FunctionPass for LifetimeCheck {
             }
 
             // report disallowed origins
-            let Some(disallowed) = disallowed_origins(&origins, &return_lifetime) else {
+            // inferred lifetimes only reject local or unknown origins
+            if matches!(return_lifetime, mir::Lifetime::Inferred) {
+                let has_invalid_origin = origins
+                    .iter()
+                    .any(|origin| matches!(origin, BorrowOrigin::Local | BorrowOrigin::Unknown));
+                if has_invalid_origin {
+                    if strict_mode {
+                        ctx.emit_error(OptimizeError::ReturnReferenceToLocal {
+                            node: anchor_block(module_id, target_id.clone(), *block_id),
+                        });
+                    } else {
+                        ctx.emit_warning(OptimizeWarning::PotentialBorrowEscape {
+                            node: anchor_block(module_id, target_id.clone(), *block_id),
+                        });
+                    }
+                }
+                continue;
+            }
+
+            let Some(disallowed) = disallowed_origins(
+                &origins,
+                &return_lifetime,
+                &function.parameter_names,
+                ctx.strings,
+            ) else {
                 continue;
             };
 
@@ -915,7 +939,12 @@ fn origins_for_signature(
     origins
 }
 
-fn disallowed_origins(origins: &BorrowOriginSet, lifetime: &mir::Lifetime) -> Option<String> {
+fn disallowed_origins(
+    origins: &BorrowOriginSet,
+    lifetime: &mir::Lifetime,
+    parameter_names: &[Option<destack_base::StringId>],
+    strings: &StringPool,
+) -> Option<String> {
     // collect disallowed origins
     let mut disallowed = Vec::new();
     for origin in origins.iter() {
@@ -929,7 +958,7 @@ fn disallowed_origins(origins: &BorrowOriginSet, lifetime: &mir::Lifetime) -> Op
         };
 
         if !allowed {
-            disallowed.push(format_origin(origin));
+            disallowed.push(format_origin(origin, parameter_names, strings));
         }
     }
 
@@ -940,10 +969,18 @@ fn disallowed_origins(origins: &BorrowOriginSet, lifetime: &mir::Lifetime) -> Op
     Some(disallowed.join(", "))
 }
 
-fn format_origin(origin: &BorrowOrigin) -> String {
+fn format_origin(
+    origin: &BorrowOrigin,
+    parameter_names: &[Option<destack_base::StringId>],
+    strings: &StringPool,
+) -> String {
     // format origin descriptions
     match origin {
-        BorrowOrigin::Parameter(index) => format!("parameter {index}"),
+        BorrowOrigin::Parameter(index) => parameter_names
+            .get(*index as usize)
+            .and_then(|name| *name)
+            .map(|name_id| strings.get(name_id).to_string())
+            .unwrap_or_else(|| format!("parameter {index}")),
         BorrowOrigin::Static => "static".to_string(),
         BorrowOrigin::Local => "local".to_string(),
         BorrowOrigin::Unknown => "unknown".to_string(),

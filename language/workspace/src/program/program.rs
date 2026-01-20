@@ -119,6 +119,8 @@ pub struct Program {
 
 #[allow(clippy::too_many_arguments)]
 impl Program {
+    const DIAGNOSTIC_TARGET_NAME: &'static str = "__diagnostic";
+
     /// Create a new Program with default options.
     pub fn from_fs(cwd: PathBuf, fs: Arc<dyn FileSystem>, files: Arc<FileRegistry>) -> Self {
         Self::from_options(
@@ -521,6 +523,7 @@ impl Program {
 
         // get target and profile config from package dsconfig
         let (target, profile_config) = if let Some(dsconfig) = package.dsconfig.as_ref() {
+            // resolve the configured or fallback target
             let target = dsconfig
                 .options
                 .default_target
@@ -529,21 +532,83 @@ impl Program {
                     let target_id = TargetId::new(package.id, name);
                     package.targets.get(&target_id)
                 })
-                .or_else(|| package.targets.values().next())
+                .or_else(|| package.targets.values().find(|target| !target.synthetic))
                 .cloned()
-                .unwrap_or_else(|| Target::js("default"));
+                .unwrap_or_else(|| self.fallback_target_for_module(&module));
             let profile_config = compiler_options
                 .profile
                 .as_ref()
                 .and_then(|name| dsconfig.options.profiles.get(name));
             (target, profile_config)
         } else {
-            (Target::js("default"), None)
+            // pick a target based on the module language when no dsconfig exists
+            (self.fallback_target_for_module(&module), None)
             // FUGU #Cleanup: should we default profiles at all?
         };
 
         let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
         self.profiles.get_or_create(key)
+    }
+
+    /// Ensure a target exists for a module and return its id.
+    pub fn ensure_target_for_module(&self, module_id: ModuleId) -> TargetId {
+        let module = self.modules.get(module_id);
+        let module = module.read();
+        let package_id = module.package_id;
+        let diagnostic_id = TargetId::new(package_id, Self::DIAGNOSTIC_TARGET_NAME);
+
+        let package = self.packages.get(package_id);
+        let mut package = package.write();
+
+        if package.targets.contains_key(&diagnostic_id) {
+            return diagnostic_id;
+        }
+
+        if let Some((existing_id, _)) = package.targets.iter().find(|(_, target)| {
+            !target.synthetic && (target.output.is_native() || target.output.is_wasm())
+        }) {
+            return existing_id.clone();
+        }
+
+        // resolve base target for diagnostics
+        let base_target = if let Some(dsconfig) = package.dsconfig.as_ref() {
+            dsconfig
+                .options
+                .default_target
+                .as_ref()
+                .and_then(|name| {
+                    let target_id = TargetId::new(package_id, name);
+                    package
+                        .targets
+                        .get(&target_id)
+                        .filter(|target| !target.synthetic)
+                })
+                .or_else(|| package.targets.values().find(|target| !target.synthetic))
+                .cloned()
+                .unwrap_or_else(|| self.fallback_target_for_module(&module))
+        } else {
+            self.fallback_target_for_module(&module)
+        };
+
+        let synthetic_target = Target::synthetic_for(&base_target, Self::DIAGNOSTIC_TARGET_NAME);
+        package
+            .targets
+            .insert(diagnostic_id.clone(), synthetic_target);
+
+        drop(package);
+        let _ = self.packages.bump_version(package_id);
+
+        diagnostic_id
+    }
+
+    /// Pick a fallback target based on the module language type.
+    fn fallback_target_for_module(&self, module: &Module) -> Target {
+        // map destack to native, compatibility modules to js
+        if module.language_type.is_destack() {
+            Target::native("default")
+        } else {
+            Target::js("default")
+        }
     }
 
     /// Get the profile data for a profile id.

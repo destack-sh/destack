@@ -402,6 +402,7 @@ impl<'a> Parser<'a> {
                             let placeholder = Function {
                                 name: name_id,
                                 parameters: Vec::new(),
+                                parameter_names: Vec::new(),
                                 return_type: void_ty,
                                 return_lifetime: Lifetime::Inferred,
                                 memory_effects: None,
@@ -662,9 +663,11 @@ impl<'a> Parser<'a> {
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
             let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+            let parameter_count = parameters.len();
             let function = Function {
                 name: name_id,
                 parameters,
+                parameter_names: vec![None; parameter_count],
                 return_type,
                 return_lifetime: Lifetime::Inferred,
                 memory_effects: None,
@@ -701,6 +704,7 @@ impl<'a> Parser<'a> {
         let function = self.tree.get_mut(id);
         function.name = name_id;
         function.parameters = parameters.clone();
+        function.parameter_names = vec![None; parameters.len()];
         function.return_type = return_type;
         function.linkage = linkage;
         function.memory_effects = None;

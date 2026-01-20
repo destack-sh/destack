@@ -108,6 +108,11 @@ impl ModuleLowerer<'_> {
             return Ok(name);
         }
 
+        // unwrap type-as-value nodes to reuse the underlying metadata name
+        if let dir::Type::Value { value } = dir_type {
+            return self.metadata_name_for_type(*value, mir_type, anchor);
+        }
+
         // enums lower to their backing types, so metadata names reuse backing primitives
         if let Some(enum_symbol) = self.enum_symbol_for_type(type_id) {
             let backing = self
@@ -138,7 +143,6 @@ impl ModuleLowerer<'_> {
             }
             return Ok(name_id);
         }
-
         // use nominal naming when the type resolves to a symbol
         if let dir::Type::Reference { symbol, .. } = dir_type
             && matches!(
@@ -194,6 +198,7 @@ impl ModuleLowerer<'_> {
         // resolve the suffix for anonymous types
         let name = if let Some(suffix) = self.anonymous_metadata_suffix(dir_type) {
             self.anonymous_metadata_name(type_id, suffix)
+                .or_else(|| self.fallback_reference_metadata_name(dir_type))
         } else {
             self.reference_metadata_name(dir_type)
                 .or_else(|| self.alias_metadata_name(type_id))
@@ -202,7 +207,7 @@ impl ModuleLowerer<'_> {
         let Some(name) = name else {
             return Err(LowerError::Internal {
                 module: self.module_id,
-                message: format!("missing metadata name for type {type_id:?}"),
+                message: format!("missing metadata name for type {type_id:?} ({dir_type:?})"),
             });
         };
 
@@ -421,6 +426,9 @@ impl ModuleLowerer<'_> {
             dir::Type::Function { .. } => Some(FUNCTION_METADATA_SUFFIX),
             dir::Type::ArraySized { .. } | dir::Type::Array { .. } => Some(ARRAY_METADATA_SUFFIX),
             dir::Type::PointerOf { .. } => Some(POINTER_METADATA_SUFFIX),
+            dir::Type::ValueOf { .. } | dir::Type::ReferenceOf { .. } => {
+                Some(REFERENCE_METADATA_SUFFIX)
+            }
             _ => None,
         }
     }
@@ -530,6 +538,44 @@ impl ModuleLowerer<'_> {
         }
 
         Some(name)
+    }
+
+    /// Resolve a metadata name for value or borrowed reference types without context.
+    fn fallback_reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
+        // resolve the referenced type id
+        let referenced_type = match dir_type {
+            dir::Type::ValueOf { right, .. } | dir::Type::ReferenceOf { right, .. } => *right,
+            _ => return None,
+        };
+
+        // use the base metadata name when possible
+        let base_name = self.metadata_base_name_for_type(referenced_type)?;
+        Some(format!("{base_name}{REFERENCE_METADATA_SUFFIX}"))
+    }
+
+    /// Resolve the base metadata name for a type id without context.
+    fn metadata_base_name_for_type(&self, type_id: dir::LocalTypeId) -> Option<String> {
+        let dir_type = self.types.get_type(type_id);
+
+        // unwrap type-as-value nodes
+        if let dir::Type::Value { value } = dir_type {
+            return self.metadata_base_name_for_type(*value);
+        }
+
+        // use nominal names without suffix adjustments
+        if let dir::Type::Reference { symbol, .. } = dir_type {
+            return self.qualified_symbol_name(*symbol).or_else(|| {
+                let module = self.compiler.program.modules.get(symbol.module_id);
+                let module = module.read();
+                let dir = module.dir(self.profile);
+                let symbols = dir.symbols.read();
+                self.symbol_path_from_symbols(*symbol, &symbols)
+            });
+        }
+
+        // fall back to aliases and literal metadata names
+        self.alias_metadata_name(type_id)
+            .or_else(|| self.type_literal_metadata_name(dir_type))
     }
 
     /// Resolve a metadata name for primitive types.

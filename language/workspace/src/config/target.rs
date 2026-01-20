@@ -1238,6 +1238,8 @@ pub const DEFAULT_OUT_DIR: &str = "dist";
 pub struct Target {
     /// Target name (e.g., "npm", "wasm", "dev").
     pub name: String,
+    /// Whether this target exists only for synthetic purposes.
+    pub synthetic: bool,
 
     // discovery
     /// How modules are discovered for this target.
@@ -1483,6 +1485,21 @@ impl Target {
             "native" => Some(Self::native(name)),
             _ => None,
         }
+    }
+
+    /// Create a synthetic target based on an existing target.
+    pub fn synthetic_for(base: &Target, name: impl Into<String>) -> Self {
+        let mut target = base.clone();
+        target.name = name.into();
+        target.output = OutputFormat::Native;
+        target.optimize = false;
+        target.optimize_level = OptimizeLevel::O0;
+        target.lto_mode = LtoMode::None;
+        target.declaration = false;
+        target.source_map = false;
+        target.emit.clear();
+        target.synthetic = true;
+        target
     }
 
     /// Derive the output mode from the target configuration.

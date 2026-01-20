@@ -24,6 +24,7 @@ struct ErrorVariant {
     code: LitStr,
     yield_marker: YieldMarker,
     message: Option<String>,
+    directive: bool,
     fields: Vec<(Ident, Type)>,
 }
 
@@ -238,6 +239,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         let mut code: Option<LitStr> = None;
         let mut yield_marker = YieldMarker::None;
         let mut message: Option<String> = None;
+        let mut directive = false;
 
         error_attr.parse_nested_meta(|meta| {
             // code
@@ -260,6 +262,10 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             // yield_failed
             else if meta.path.is_ident("yield_failed") {
                 yield_marker = YieldMarker::YieldFailed;
+            }
+            // directive
+            else if meta.path.is_ident("directive") {
+                directive = true;
             }
             // unknown attribute
             else {
@@ -299,6 +305,7 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             code,
             yield_marker,
             message,
+            directive,
             fields,
         });
     }
@@ -354,6 +361,11 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
 
     // collect all codes for the ALL_CODES array
     let all_codes: Vec<String> = variants.iter().map(|v| v.code.value()).collect();
+    let directive_codes: Vec<String> = variants
+        .iter()
+        .filter(|v| v.directive)
+        .map(|v| v.code.value())
+        .collect();
 
     // generate DiagnosticDefinition entries
     let diagnostic_defs: Vec<TokenStream2> = variants
@@ -463,6 +475,15 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
         })
         .collect();
 
+    let directive_arms: Vec<TokenStream2> = variants
+        .iter()
+        .map(|v| {
+            let name = &v.name;
+            let is_directive = v.directive;
+            quote! { Self::#name { .. } => #is_directive }
+        })
+        .collect();
+
     // find yield variants for TryFrom impl
     let yield_variant = variants
         .iter()
@@ -548,10 +569,21 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
                 #(#all_codes),*
             ];
 
+            /// All codes that can be controlled by directives.
+            pub const DIRECTIVE_CODES: &'static [&'static str] = &[
+                #(#directive_codes),*
+            ];
+
             /// Check if a code string is valid for this error type.
             #[inline]
             pub fn is_valid_code(code: &str) -> bool {
                 Self::ALL_CODES.contains(&code)
+            }
+
+            /// Check if a code string can be controlled by directives.
+            #[inline]
+            pub fn is_directive_code(code: &str) -> bool {
+                Self::DIRECTIVE_CODES.contains(&code)
             }
 
             /// Get the definition for a code, if valid.
@@ -572,6 +604,14 @@ fn define_error_inner(input: DeriveInput) -> Result<TokenStream2> {
             pub fn code(&self) -> &'static str {
                 match self {
                     #(#code_arms),*
+                }
+            }
+
+            /// Check whether directives are allowed for this error.
+            #[inline]
+            pub fn is_directive(&self) -> bool {
+                match self {
+                    #(#directive_arms),*
                 }
             }
 
