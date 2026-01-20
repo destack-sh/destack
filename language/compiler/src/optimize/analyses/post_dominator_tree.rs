@@ -270,7 +270,7 @@ mod tests {
     /// Linear flow postdominators follow the chain to the exit.
     #[test]
     fn test_postdom_linear_flow() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @linear() -> void {
 block0:
     jump block1
@@ -281,9 +281,9 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let postdom = analyses.get::<PostDominatorTree>();
 
         let block0 = function.blocks[0];
@@ -299,7 +299,7 @@ block2:
     /// Diamond control flow postdominates through the merge block.
     #[test]
     fn test_postdom_diamond() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @diamond(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -312,9 +312,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let postdom = analyses.get::<PostDominatorTree>();
 
         let block0 = function.blocks[0];
@@ -331,7 +331,7 @@ block3:
     /// Multiple exits yield no shared postdominator for the branch block.
     #[test]
     fn test_postdom_multiple_exits() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @multi_exit(v0: bool) -> void {
 block0(v0: bool):
     branch v0, block1, block2
@@ -342,9 +342,9 @@ block2:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let postdom = analyses.get::<PostDominatorTree>();
 
         let block0 = function.blocks[0];
@@ -361,7 +361,7 @@ block2:
     /// Loops postdominate through the unique exit block.
     #[test]
     fn test_postdom_loop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @loop(v0: i32) -> void {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -378,9 +378,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let postdom = analyses.get::<PostDominatorTree>();
 
         let block0 = function.blocks[0];
@@ -397,7 +397,7 @@ block3:
     /// Exitless loops do not assign postdominators beyond self.
     #[test]
     fn test_postdom_no_exit() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @no_exit() -> void {
 block0:
     jump block1
@@ -406,9 +406,9 @@ block1:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let postdom = analyses.get::<PostDominatorTree>();
 
         let block0 = function.blocks[0];

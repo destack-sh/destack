@@ -1362,9 +1362,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Memset loops with a separate latch are lowered.
@@ -1413,9 +1413,9 @@ block4:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Memcpy loops are lowered to intrinsic.memcpy.
@@ -1462,9 +1462,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Overlapping copy loops use memmove.
@@ -1509,9 +1509,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Memcpy uses byte length when element size exceeds one byte.
@@ -1562,9 +1562,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Non zero starts scale byte length for wider elements.
@@ -1616,9 +1616,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Loops with non zero starts insert a guard.
@@ -1667,9 +1667,9 @@ block4:
     jump block3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Non zero starts guard memcpy lowering.
@@ -1718,9 +1718,9 @@ block4:
     jump block3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Non zero starts guard memmove lowering.
@@ -1767,9 +1767,9 @@ block4:
     jump block3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(expected);
     }
 
     /// Loops with non unit stride are not lowered.
@@ -1793,9 +1793,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with conditional stores are not lowered.
@@ -1823,9 +1823,9 @@ block5:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with nested stores are not lowered.
@@ -1859,9 +1859,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with variant arrays are not lowered.
@@ -1886,9 +1886,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with non constant stores are left unchanged.
@@ -1911,9 +1911,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with side effects are not lowered.
@@ -1942,9 +1942,9 @@ block0(v0: u32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 
     /// Loops with multiple stores are not lowered.
@@ -1970,8 +1970,8 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopIdiomRecognize);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopIdiomRecognize);
+        test.assert_output(input);
     }
 }

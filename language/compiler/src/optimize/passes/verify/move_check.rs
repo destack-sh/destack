@@ -314,9 +314,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Binary operation using same value twice is valid (copy semantics).
@@ -329,9 +329,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Value used after being dropped is detected.
@@ -345,9 +345,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Copy types can be used after store.
@@ -361,9 +361,9 @@ block0(v0: ref<raw i32>):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Copy types can be used after local.set.
@@ -378,9 +378,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Copy types can be used after call.
@@ -396,9 +396,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Value used in branch after drop is detected.
@@ -417,9 +417,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Block parameters receive fresh ownership.
@@ -434,9 +434,9 @@ block1(v2: i32, v3: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Moved value passed to jump is detected.
@@ -450,9 +450,9 @@ block1(v1: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Return value used after move is detected.
@@ -465,9 +465,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Diamond control flow: value moved on one path, used after merge.
@@ -485,10 +485,10 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
         // v1 is moved on block1 path but not block2, so it's "maybe moved" at block3
-        program.assert_error(|e| matches!(e, OptimizeError::MaybeUseAfterMove { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::MaybeUseAfterMove { .. }));
     }
 
     /// Diamond control flow: value moved on both paths is definitely moved.
@@ -507,10 +507,10 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
         // v1 is definitely moved on all paths
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Diamond control flow: value NOT moved on either path is OK.
@@ -528,9 +528,9 @@ block3:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Loop with value used in body is OK if not moved.
@@ -548,9 +548,9 @@ block2:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Raw pointers have copy semantics.
@@ -565,9 +565,9 @@ block0(v0: ref<raw ref<raw i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Pointer used after raw.free is detected.
@@ -582,9 +582,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Cast doesn't move its argument.
@@ -600,9 +600,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Unary operation doesn't move its argument.
@@ -616,9 +616,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Multiple sequential operations work correctly.
@@ -636,9 +636,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Owned reference used after store is detected.
@@ -652,9 +652,9 @@ block0(v0: ref<raw ref<owned i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Owned reference can be used before store.
@@ -669,9 +669,9 @@ block0(v0: ref<raw ref<owned i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Managed reference used after store is detected.
@@ -686,9 +686,9 @@ block0(v0: ref<raw ref<managed i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Owned reference used after local.set is detected.
@@ -703,9 +703,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Owned reference used after call is detected.
@@ -721,9 +721,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Borrowed reference can be used after store (copy semantics).
@@ -737,9 +737,9 @@ block0(v0: ref<raw ref<borrowed i32>>, v1: ref<borrowed i32>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     // Tests for aggregate construction
@@ -755,9 +755,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Tuple construction with copy type doesn't move.
@@ -771,9 +771,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     /// Struct construction moves owned field.
@@ -787,9 +787,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Array construction moves owned elements.
@@ -803,9 +803,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     // Tests for field.set/element.set
@@ -821,9 +821,9 @@ block0(v0: { ref<owned i32> }):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// element.set moves owned value.
@@ -838,9 +838,9 @@ block0(v0: [ref<owned i32>; 2]):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Loop that moves value on back edge is detected.
@@ -857,9 +857,9 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Loop with fresh value each iteration is OK.
@@ -876,9 +876,9 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_no_errors();
     }
 
     // Tests for terminators
@@ -894,9 +894,9 @@ block0(v0: fn(ref<owned i32>) -> void):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Switch uses value correctly.
@@ -917,9 +917,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Jump with moved owned argument is detected.
@@ -935,9 +935,9 @@ block1(v1: ref<owned i32>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Return with moved owned value is detected.
@@ -950,9 +950,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
     }
 
     /// Multiple use-after-move errors are all reported.
@@ -967,11 +967,11 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MoveCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
 
         // count use-after-move errors
-        let use_after_move_count = program
+        let use_after_move_count = test
             .errors()
             .iter()
             .filter(|e| matches!(e, OptimizeError::UseAfterMove { .. }))

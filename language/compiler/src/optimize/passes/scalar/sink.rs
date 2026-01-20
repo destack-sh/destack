@@ -379,9 +379,9 @@ block1:
 block2:
     return v0
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 
     /// Instruction used in terminator is not sunk.
@@ -399,13 +399,13 @@ block1:
 block2:
     return v0
 }"#;
-        let mut program = TestProgram::new(input);
-        let before = program.format();
-        program.run_pass(&Sink);
+        let mut test = TestProgram::new(input);
+        let before = test.format();
+        test.run_pass(&Sink);
 
         // v4 is used in the terminator, can't sink
         // v2 is used in both terminator AND block1, can't sink
-        program.assert_output(&before);
+        test.assert_output(&before);
     }
 
     /// Instruction with side effects is preserved.
@@ -437,9 +437,9 @@ block2:
     v3 = iconst 0i32
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 
     /// Instruction used in multiple successors is preserved.
@@ -455,10 +455,10 @@ block1:
 block2:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        let before = program.format();
-        program.run_pass(&Sink);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        let before = test.format();
+        test.run_pass(&Sink);
+        test.assert_output(&before);
     }
 
     /// Only the final instruction sinks when intermediate values have same-block uses.
@@ -488,9 +488,9 @@ block1:
     v4 = iadd v2, v3
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 
     /// Instruction is not sunk into block with multiple predecessors.
@@ -508,10 +508,10 @@ block2:
 block3:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        let before = program.format();
-        program.run_pass(&Sink);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        let before = test.format();
+        test.run_pass(&Sink);
+        test.assert_output(&before);
     }
 
     /// Instruction is not sunk from outside a loop to inside a loop.
@@ -530,14 +530,14 @@ block2:
 block3:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&Sink);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&Sink);
 
         // v3 is used in block2 (inside loop) but defined in block0 (outside loop)
         // sinking would increase execution frequency
-        program.assert_output(&before);
+        test.assert_output(&before);
     }
 
     /// Empty function is unchanged.
@@ -547,9 +547,9 @@ block3:
 block0:
     return
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_unchanged(input);
     }
 
     /// Instruction used in same block is not sunk.
@@ -580,9 +580,9 @@ block1:
 block2:
     return v0
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 
     /// Function with no sinkable instructions is unchanged.
@@ -594,10 +594,10 @@ block0(v0: i32):
     v2 = iadd v0, v1
     return v2
 }"#;
-        let mut program = TestProgram::new(input);
-        let before = program.format();
-        program.run_pass(&Sink);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        let before = test.format();
+        test.run_pass(&Sink);
+        test.assert_output(&before);
     }
 
     /// Sinking within a loop is allowed (same execution frequency).
@@ -616,15 +616,15 @@ block2:
 block3:
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&Sink);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&Sink);
 
         // v3 is used in both block2 and block3, so can't sink
         // v2 is used in block1 (same block) and block2, so can't sink
         // no sinking should occur here
-        program.assert_output(&before);
+        test.assert_output(&before);
     }
 
     /// Sinking from loop block to single-predecessor successor within loop.
@@ -646,13 +646,13 @@ block3:
         // sinking v3 from inside the loop to outside would be beneficial,
         // but block3 has predecessor block2 which is inside the loop
         // the pass checks loop depth mismatch and prevents this
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopSimplify);
-        let before = program.format();
-        program.run_pass(&Sink);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopSimplify);
+        let before = test.format();
+        test.run_pass(&Sink);
         // no sinking should occur: sinking into the exit block would require
         // passing through the loop, and v2 is used by v3 in the same block
-        program.assert_output(&before);
+        test.assert_output(&before);
     }
 
     /// Loads are not sunk when there's an intervening store.
@@ -670,10 +670,10 @@ block2:
 }"#;
         // v3 is only used in block1, but there's a store after the load
         // sinking past the store could change the loaded value
-        let mut program = TestProgram::new(input);
-        let before = program.format();
-        program.run_pass(&Sink);
-        program.assert_output(&before);
+        let mut test = TestProgram::new(input);
+        let before = test.format();
+        test.run_pass(&Sink);
+        test.assert_output(&before);
     }
 
     /// Loads CAN be sunk when there are no intervening memory operations.
@@ -702,9 +702,9 @@ block2:
     v3 = iconst 0i32
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 
     /// Pure instructions can still be sunk past side-effectful instructions.
@@ -734,8 +734,8 @@ block1:
 block2:
     return v0
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sink);
+        test.assert_output(expected);
     }
 }

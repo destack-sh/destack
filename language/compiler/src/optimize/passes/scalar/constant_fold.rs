@@ -491,9 +491,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Chained arithmetic operations fold through intermediate results.
@@ -519,9 +519,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Comparison of constants folds to boolean result.
@@ -542,9 +542,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Operations with non-constant operands are not folded.
@@ -558,9 +558,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_unchanged(input);
     }
 
     /// Unary negation instruction folds constant to negated value.
@@ -579,9 +579,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Boolean not folds true to false.
@@ -600,9 +600,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Unsigned integer division folds correctly.
@@ -623,9 +623,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Division by zero is not folded to avoid compile-time UB.
@@ -639,9 +639,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_unchanged(input);
     }
 
     /// Constants from earlier blocks are available for folding in later blocks.
@@ -672,9 +672,9 @@ block2:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Global constants fold through unary operations.
@@ -695,9 +695,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Mutable globals do not fold through constant operations.
@@ -711,9 +711,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_unchanged(input);
     }
 
     /// Block parameter constants fold within successor blocks.
@@ -736,9 +736,9 @@ block1(v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Sign extend casts fold to constants.
@@ -757,9 +757,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Truncate casts fold to constants.
@@ -778,9 +778,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Bitwise and, or, xor fold correctly on integer constants.
@@ -806,9 +806,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Shift left and arithmetic shift right fold correctly.
@@ -832,9 +832,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Boolean and/or operations fold correctly.
@@ -858,9 +858,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Select with constant true condition folds to then_value.
@@ -883,9 +883,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Select with constant false condition folds to else_value.
@@ -908,9 +908,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Select with non-constant condition is preserved.
@@ -924,9 +924,9 @@ block0(v0: bool):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_unchanged(input);
     }
 
     /// Select with constant condition forwards non constant values.
@@ -946,9 +946,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Branches with constant conditions are folded to jumps.
@@ -977,9 +977,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 
     /// Pure intrinsics with constant arguments fold to constants.
@@ -998,8 +998,8 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ConstantFold);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ConstantFold);
+        test.assert_output(expected);
     }
 }

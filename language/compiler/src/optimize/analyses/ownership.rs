@@ -59,7 +59,7 @@ impl OwnershipState {
     }
 }
 
-/// Ownership state for all values at a program point.
+/// Ownership state for all values at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OwnershipMap(pub HashMap<Value, OwnershipState>);
 
@@ -334,7 +334,7 @@ impl TypeLookup {
     }
 }
 
-/// Ownership analysis computes ownership state for each value at every program point.
+/// Ownership analysis computes ownership state for each value at every test point.
 ///
 /// This analysis uses forward dataflow to track which values have been moved
 /// and where. At control flow join points, states are merged using a lattice
@@ -1815,7 +1815,7 @@ mod tests {
 
     #[test]
     fn test_ownership_simple() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
@@ -1823,9 +1823,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ownership = analyses.get::<OwnershipAnalysis>();
 
         let entry = function.entry.unwrap();
@@ -1837,7 +1837,7 @@ block0:
 
     #[test]
     fn test_ownership_drop() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
@@ -1847,9 +1847,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ownership = analyses.get::<OwnershipAnalysis>();
 
         let entry = function.entry.unwrap();
@@ -1863,7 +1863,7 @@ block0:
 
     #[test]
     fn test_ownership_diamond_maybe_moved() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
@@ -1878,9 +1878,9 @@ block3:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let ownership = analyses.get::<OwnershipAnalysis>();
 
         // block3 is the merge point (index 3 in blocks list)

@@ -395,9 +395,9 @@ block0:
 }
 extern function @dead() -> void"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadFunctionEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
+        test.assert_output(expected);
     }
 
     /// Unknown indirect calls keep all functions.
@@ -417,9 +417,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadFunctionEliminate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
+        test.assert_output(input);
     }
 
     /// Modules without exports keep all definitions.
@@ -434,9 +434,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadFunctionEliminate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
+        test.assert_output(input);
     }
 
     /// Signature constrained indirect calls keep matching functions only.
@@ -456,8 +456,8 @@ block0(v0: i64):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadFunctionEliminate);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
     v2 = call.indirect v0(v1) -> fn(i32) -> i32
@@ -469,7 +469,7 @@ block0(v0: i32):
 }
 extern function @drop(i64) -> i64"#;
 
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Tailcall indirect sites keep all functions.
@@ -488,9 +488,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&DeadFunctionEliminate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&DeadFunctionEliminate);
+        test.assert_output(input);
     }
 
     /// Debug metadata for stripped functions is cleared.
@@ -522,10 +522,10 @@ block0:
 }
 extern function @dead(i32) -> i32"#;
 
-        let mut program = TestProgram::new(input);
-        let dead_id = program.function_id_by_name("dead");
-        let dead_block = program.entry_block_id(dead_id);
-        let dead_instruction = program
+        let mut test = TestProgram::new(input);
+        let dead_id = test.function_id_by_name("dead");
+        let dead_block = test.entry_block_id(dead_id);
+        let dead_instruction = test
             .instructions_in_block(dead_block)
             .first()
             .copied()
@@ -533,27 +533,27 @@ extern function @dead(i32) -> i32"#;
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let function_scope =
-            program
+            test
                 .tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
-        program
+        test
             .tree
             .debug_info
             .function_scopes
             .insert(dead_id, function_scope);
-        let variable_id = program.tree.debug_info.create_variable(
-            program.tree.get(dead_id).name,
-            program.tree.get(dead_id).parameters[0].ty,
+        let variable_id = test.tree.debug_info.create_variable(
+            test.tree.get(dead_id).name,
+            test.tree.get(dead_id).parameters[0].ty,
             function_scope,
             true,
             false,
         );
-        program.tree.debug_info.variable_locations.insert(
+        test.tree.debug_info.variable_locations.insert(
             variable_id,
-            mir::DebugValueLocation::Value(program.tree.get(dead_id).parameters[0].value),
+            mir::DebugValueLocation::Value(test.tree.get(dead_id).parameters[0].value),
         );
-        program.tree.debug_info.instruction_locations.insert(
+        test.tree.debug_info.instruction_locations.insert(
             dead_instruction,
             mir::DebugLocation {
                 span,
@@ -562,22 +562,22 @@ extern function @dead(i32) -> i32"#;
             },
         );
 
-        program.run_module_pass(&DeadFunctionEliminate);
-        program.assert_output(expected);
+        test.run_module_pass(&DeadFunctionEliminate);
+        test.assert_output(expected);
 
         assert!(
-            !program
+            !test
                 .tree
                 .debug_info
                 .function_scopes
                 .contains_key(&dead_id)
         );
         assert_eq!(
-            program.tree.debug_info.variable_locations.get(&variable_id),
+            test.tree.debug_info.variable_locations.get(&variable_id),
             Some(&mir::DebugValueLocation::Undefined)
         );
         assert!(
-            !program
+            !test
                 .tree
                 .debug_info
                 .instruction_locations

@@ -8,7 +8,7 @@ use crate::optimize::{Analysis, AnalysisId, ControlFlowGraph, FunctionAnalyses, 
 
 use super::{Lattice, forward_dataflow};
 
-/// Set of expressions available at a program point.
+/// Set of expressions available at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct AvailableExpressionSet {
     /// Expression keys available on all paths.
@@ -221,8 +221,7 @@ mod tests {
     /// Single predecessor makes expressions available to successors.
     #[test]
     fn test_available_expressions_linear_flow() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -234,15 +233,15 @@ block1:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // capture the expression key and successor block
         let block0 = function.blocks[0];
         let block1 = function.blocks[1];
-        let expression_key = first_expression_key(block0, &program.tree);
+        let expression_key = first_expression_key(block0, &test.tree);
 
         // confirm entry block starts empty
         assert!(available.entry(block0).is_empty());
@@ -254,8 +253,7 @@ block1:
     /// Missing expression on one branch prevents availability at merge.
     #[test]
     fn test_available_expressions_branch_missing() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
@@ -271,15 +269,15 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
         let merge_block = function.blocks[3];
-        let expression_key = first_expression_key(block1, &program.tree);
+        let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the expression is not available at the merge
         assert!(!available.entry(merge_block).contains(&expression_key));
@@ -288,8 +286,7 @@ block3:
     /// Matching expressions on both branches are available at merge.
     #[test]
     fn test_available_expressions_branch_merge() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
@@ -306,15 +303,15 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
         let merge_block = function.blocks[3];
-        let expression_key = first_expression_key(block1, &program.tree);
+        let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the expression is available at the merge
         assert!(available.entry(merge_block).contains(&expression_key));
@@ -323,8 +320,7 @@ block3:
     /// Non expression instructions do not populate the available set.
     #[test]
     fn test_available_expressions_non_expression() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
@@ -335,9 +331,9 @@ block0(v0: i32):
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // confirm the exit set is empty
@@ -348,8 +344,7 @@ block0(v0: i32):
     /// Commutative expressions are treated as the same key across branches.
     #[test]
     fn test_available_expressions_commutative_merge() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
@@ -366,15 +361,15 @@ block3:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // capture the expression key and merge block
         let block1 = function.blocks[1];
         let merge_block = function.blocks[3];
-        let expression_key = first_expression_key(block1, &program.tree);
+        let expression_key = first_expression_key(block1, &test.tree);
 
         // confirm the commutative expression is available at the merge
         assert!(available.entry(merge_block).contains(&expression_key));
@@ -383,8 +378,7 @@ block3:
     /// Prefix queries expose only the expressions computed so far.
     #[test]
     fn test_available_expressions_prefix_query() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
     v3 = iadd v0, v1
@@ -394,31 +388,31 @@ block0(v0: i32, v1: i32, v2: i32):
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // capture the expression keys
         let entry_block = function.entry.expect("missing entry block");
-        let block_data = program.tree.get(entry_block);
+        let block_data = test.tree.get(entry_block);
         let first_key = expression_key_from_instruction(
-            program.tree.get(block_data.instructions[0]),
-            &program.tree,
+            test.tree.get(block_data.instructions[0]),
+            &test.tree,
         )
         .expect("missing first expression");
         let second_key = expression_key_from_instruction(
-            program.tree.get(block_data.instructions[1]),
-            &program.tree,
+            test.tree.get(block_data.instructions[1]),
+            &test.tree,
         )
         .expect("missing second expression");
 
         // confirm no expressions are available before the first instruction
-        let before_first = available.expressions_before_instruction(entry_block, 0, &program.tree);
+        let before_first = available.expressions_before_instruction(entry_block, 0, &test.tree);
         assert!(before_first.is_empty());
 
         // confirm only the first expression is available after the first instruction
-        let after_first = available.expressions_after_instruction(entry_block, 0, &program.tree);
+        let after_first = available.expressions_after_instruction(entry_block, 0, &test.tree);
         assert!(after_first.contains(&first_key));
         assert!(!after_first.contains(&second_key));
 
@@ -431,8 +425,7 @@ block0(v0: i32, v1: i32, v2: i32):
     /// Unreachable blocks report no available expressions.
     #[test]
     fn test_available_expressions_unreachable_block() {
-        // build the test program
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
@@ -447,9 +440,9 @@ block2:
         );
 
         // fetch the function and analysis
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let available = analyses.get::<AvailableExpressions>();
 
         // confirm unreachable block has empty entry

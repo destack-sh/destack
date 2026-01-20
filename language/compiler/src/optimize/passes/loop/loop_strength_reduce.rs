@@ -1816,7 +1816,7 @@ mod tests {
     /// Loop derived multiplications are rewritten as recurrences.
     #[test]
     fn test_strength_reduce_multiply() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1856,15 +1856,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Loop derived multiplications with invariant factors are rewritten.
     #[test]
     fn test_strength_reduce_invariant_multiplier() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -1902,15 +1902,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Loop invariant selects are materialized in the preheader.
     #[test]
     fn test_strength_reduce_invariant_select_multiplier() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
     v3 = iconst 0i32
@@ -1953,15 +1953,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Multiple loop derived values are strength reduced.
     #[test]
     fn test_strength_reduce_multiple_candidates() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -2008,15 +2008,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Strength reduction requires a canonical preheader.
     #[test]
     fn test_strength_reduce_requires_preheader() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
     v3 = icmp_eq v0, v0
@@ -2038,15 +2038,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_unchanged(input);
     }
 
     /// Strength reduction updates branch preheaders.
     #[test]
     fn test_strength_reduce_branch_preheader() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -2092,15 +2092,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Strength reduction updates switch preheaders.
     #[test]
     fn test_strength_reduce_switch_preheader() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -2142,15 +2142,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Values used outside the loop are still strength reduced.
     #[test]
     fn test_strength_reduce_exit_use() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -2188,15 +2188,15 @@ block3(v8: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Strength reduction updates check backedges.
     #[test]
     fn test_strength_reduce_check_latch() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
     v1 = iconst 0u32
@@ -2242,15 +2242,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_output(expected);
     }
 
     /// Cheap induction adds are not strength reduced.
     #[test]
     fn test_strength_reduce_skip_add() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -2268,15 +2268,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_unchanged(input);
     }
 
     /// Strength reduction skips unsafe invariant divisions.
     #[test]
     fn test_strength_reduce_skip_unsafe_division() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
@@ -2295,15 +2295,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_unchanged(input);
     }
 
     /// Strength reduction skips signed division with potential min overflow.
     #[test]
     fn test_strength_reduce_skip_signed_divide_min_overflow() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -2321,8 +2321,8 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopStrengthReduce);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopStrengthReduce);
+        test.assert_unchanged(input);
     }
 }

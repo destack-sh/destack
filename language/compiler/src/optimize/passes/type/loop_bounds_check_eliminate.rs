@@ -912,7 +912,7 @@ mod tests {
     /// Loop guard eliminates redundant bounds checks.
     #[test]
     fn test_eliminate_loop_bounds_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -957,15 +957,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Latch guards do not eliminate earlier checks.
     #[test]
     fn test_preserve_pre_guard_checks() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -1006,15 +1006,15 @@ block4:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Unsigned greater equal guards eliminate redundant checks.
     #[test]
     fn test_eliminate_ge_guard_checks() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -1059,15 +1059,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Signed guards require non negative indices.
     #[test]
     fn test_preserve_signed_negative_indices() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
     v2 = iconst 1i32
@@ -1110,15 +1110,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Forwarded loop parameters are matched against guards.
     #[test]
     fn test_eliminate_forwarded_param_checks() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -1163,15 +1163,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Signed guards with non negative preconditions remove checks.
     #[test]
     fn test_eliminate_signed_bounds_with_non_negative_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 0i32
@@ -1222,15 +1222,15 @@ block6:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Positive lower bounds imply non negative indices.
     #[test]
     fn test_eliminate_signed_bounds_with_positive_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 2i32
@@ -1281,15 +1281,15 @@ block6:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Flipped signed guards still imply non negative indices.
     #[test]
     fn test_eliminate_signed_bounds_with_flipped_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> void {
 block0(v0: [i32; 8], v1: i32):
     v2 = iconst 0i32
@@ -1340,15 +1340,15 @@ block6:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Negated guards still eliminate bounds checks.
     #[test]
     fn test_eliminate_bounds_with_negated_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [u32; 4]) -> void {
 block0(v0: [u32; 4]):
     v1 = iconst 0u32
@@ -1394,15 +1394,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Guard checks inside the loop header remove redundant checks.
     #[test]
     fn test_eliminate_bounds_guard_check() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -1447,15 +1447,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Mismatched signedness guards do not remove checks.
     #[test]
     fn test_preserve_mismatched_signed_guard() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4], v1: i32) -> void {
 block0(v0: [i32; 4], v1: i32):
     v2 = iconst 0i32
@@ -1498,15 +1498,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Guard offsets still eliminate redundant bounds checks.
     #[test]
     fn test_eliminate_guard_with_positive_offset() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
     v1 = iconst 0u32
@@ -1553,15 +1553,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Checks with larger offsets are preserved.
     #[test]
     fn test_preserve_check_with_positive_offset() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
     v1 = iconst 0u32
@@ -1608,15 +1608,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Guards with smaller length offsets eliminate checks.
     #[test]
     fn test_eliminate_guard_with_length_offset() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
     v1 = iconst 0u32
@@ -1663,15 +1663,15 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 
     /// Guards with larger length offsets preserve checks.
     #[test]
     fn test_preserve_guard_with_larger_length_offset() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
     v1 = iconst 0u32
@@ -1718,8 +1718,8 @@ block5:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopBoundsCheckEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopBoundsCheckEliminate);
+        test.assert_output(expected);
     }
 }

@@ -752,9 +752,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(expected);
     }
 
     /// Pure constant returns replace call results.
@@ -782,13 +782,13 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let callee_id = program.function_id_by_name("pure");
-        program.tree.get_mut(callee_id).memory_effects = Some(mir::MemoryEffect::none());
-        program.tree.get_mut(callee_id).call_behavior = Some(mir::CallBehavior::none());
+        let mut test = TestProgram::new(input);
+        let callee_id = test.function_id_by_name("pure");
+        test.tree.get_mut(callee_id).memory_effects = Some(mir::MemoryEffect::none());
+        test.tree.get_mut(callee_id).call_behavior = Some(mir::CallBehavior::none());
 
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(expected);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(expected);
     }
 
     /// Mismatched constants do not propagate into the callee.
@@ -811,9 +811,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(input);
     }
 
     /// Non constant callsites prevent parameter propagation.
@@ -831,9 +831,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(input);
     }
 
     /// Tailcalls participate in interprocedural SCCP.
@@ -860,9 +860,9 @@ block0:
     tailcall @callee(v0)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(expected);
     }
 
     /// Calls without effect metadata are not replaced.
@@ -879,9 +879,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(input);
     }
 
     /// Indirect signatures mark callees as exposed.
@@ -899,8 +899,8 @@ block0(v0: fn(i32) -> i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralSccp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralSccp);
+        test.assert_output(input);
     }
 }

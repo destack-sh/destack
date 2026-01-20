@@ -608,9 +608,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store with equivalent constants is removed.
@@ -636,9 +636,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store with equivalent binary value is removed.
@@ -668,9 +668,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store with commuted binary value is removed.
@@ -700,9 +700,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store with constant propagated value is removed.
@@ -732,9 +732,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store across a read only call is removed.
@@ -768,14 +768,14 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let (_, callee) = program.first_call_in_entry(function_id);
-        program.tree.get_mut(callee).memory_effects =
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let (_, callee) = test.first_call_in_entry(function_id);
+        test.tree.get_mut(callee).memory_effects =
             Some(mir::MemoryEffect::read_only(mir::MemoryLocationSet::ANY));
 
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Store across a write call is preserved.
@@ -796,14 +796,14 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let (_, callee) = program.first_call_in_entry(function_id);
-        program.tree.get_mut(callee).memory_effects =
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let (_, callee) = test.first_call_in_entry(function_id);
+        test.tree.get_mut(callee).memory_effects =
             Some(mir::MemoryEffect::read_write(mir::MemoryLocationSet::ANY));
 
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Redundant store across heap only call is removed.
@@ -837,14 +837,14 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let (_, callee) = program.first_call_in_entry(function_id);
-        program.tree.get_mut(callee).memory_effects =
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let (_, callee) = test.first_call_in_entry(function_id);
+        test.tree.get_mut(callee).memory_effects =
             Some(mir::MemoryEffect::write_only(mir::MemoryLocationSet::HEAP));
 
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant store across disjoint address space call is removed.
@@ -878,16 +878,16 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.function_id_by_name("test");
-        let (_, callee) = program.first_call_in_entry(function_id);
-        program.tree.get_mut(callee).memory_effects = Some(
+        let mut test = TestProgram::new(input);
+        let function_id = test.function_id_by_name("test");
+        let (_, callee) = test.first_call_in_entry(function_id);
+        test.tree.get_mut(callee).memory_effects = Some(
             mir::MemoryEffect::write_only(mir::MemoryLocationSet::ANY)
                 .with_address_spaces(mir::AddressSpaceSet::new(vec![mir::AddressSpace::Shared])),
         );
 
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Distinct store values are preserved.
@@ -904,9 +904,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Store after an intervening clobber is preserved.
@@ -924,9 +924,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Volatile stores are never removed.
@@ -942,17 +942,17 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let pointer = *program
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[0]);
+        let pointer = *test
             .stack_alloc_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
         let volatile_store = block.instructions[3];
-        program.insert_pointer_access_with_options(
+        test.insert_pointer_access_with_options(
             volatile_store,
             mir::MemoryAccessKind::Write,
             pointer,
@@ -964,8 +964,8 @@ block0:
             None,
         );
 
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Atomic stores are never removed.
@@ -981,17 +981,17 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let function_id = program.first_function_id();
-        let function = program.tree.get(function_id);
-        let block = program.tree.get(function.blocks[0]);
-        let pointer = *program
+        let mut test = TestProgram::new(input);
+        let function_id = test.first_function_id();
+        let function = test.tree.get(function_id);
+        let block = test.tree.get(function.blocks[0]);
+        let pointer = *test
             .stack_alloc_destinations_in_entry(function_id)
             .first()
             .expect("missing stack allocation");
 
         let ordered_store = block.instructions[3];
-        program.insert_pointer_access_with_options(
+        test.insert_pointer_access_with_options(
             ordered_store,
             mir::MemoryAccessKind::Write,
             pointer,
@@ -1003,8 +1003,8 @@ block0:
             Some(mir::MemoryOrdering::SeqCst),
         );
 
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Redundant store after identical incoming stores is removed.
@@ -1042,9 +1042,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Store after divergent incoming values is preserved.
@@ -1068,9 +1068,9 @@ block3:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Redundant local sets are removed.
@@ -1094,9 +1094,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant memset is removed.
@@ -1120,9 +1120,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Redundant memcpy is removed.
@@ -1146,9 +1146,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Memcpy with differing size is preserved.
@@ -1165,9 +1165,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Memcpy with source changes is preserved.
@@ -1185,9 +1185,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 
     /// Redundant memmove is removed when source is stable.
@@ -1211,9 +1211,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_output(expected);
     }
 
     /// Memmove with overlapping regions is preserved.
@@ -1233,8 +1233,8 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&MemCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MemCse);
+        test.assert_unchanged(input);
     }
 }

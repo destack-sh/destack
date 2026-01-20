@@ -496,10 +496,10 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Stack allocation used locally passes verification.
@@ -514,10 +514,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Returning a stack pointer directly is detected.
@@ -529,9 +529,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Returning field address of stack allocation is detected.
@@ -544,9 +544,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Returning element address of stack allocation is detected.
@@ -560,9 +560,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Loading from stack pointer and returning value is valid.
@@ -577,9 +577,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Storing stack pointer to heap location is detected.
@@ -592,9 +592,9 @@ block0(v0: ref<raw ref<raw i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
     }
 
     /// Storing stack pointer to another stack location is valid.
@@ -612,9 +612,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Cast of stack pointer still tracks as stack pointer.
@@ -627,9 +627,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Heap pointer can be returned.
@@ -641,9 +641,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Function parameter pointer can be returned.
@@ -654,9 +654,9 @@ block0(v0: ref<raw i32>):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// field.set with stack pointer into non-stack aggregate is detected.
@@ -669,9 +669,9 @@ block0(v0: ref<raw ref<raw i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
     }
 
     /// element.set with stack pointer into non-stack array is detected.
@@ -685,9 +685,9 @@ block0(v0: ref<raw ref<raw i32>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalReferenceEscapes { .. }));
     }
 
     /// Nested field addresses of stack are tracked.
@@ -701,9 +701,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Control flow with stack pointer used locally is valid.
@@ -726,9 +726,9 @@ block3:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Multiple stack allocations used locally are valid.
@@ -748,9 +748,9 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Void return with stack allocation used locally is valid.
@@ -764,9 +764,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Stack pointer passed through block parameter is tracked.
@@ -780,9 +780,9 @@ block1(v1: ref<raw i32>):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Stack pointer through multiple jump hops is tracked.
@@ -798,9 +798,9 @@ block2(v2: ref<raw i32>):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Stack pointer used locally through block params is valid.
@@ -817,9 +817,9 @@ block1(v2: ref<raw i32>):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Loop with stack pointer used locally is valid.
@@ -847,9 +847,9 @@ block3:
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
+        test.assert_no_errors();
     }
 
     /// Diamond control flow: stack on one branch, heap on other = maybe stack at merge.
@@ -868,10 +868,10 @@ block3(v3: ref<raw i32>):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
         // v3 might be stack (from block1) so returning it is an error
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Diamond control flow: stack pointers on both branches used locally is valid.
@@ -895,22 +895,10 @@ block3(v5: ref<raw i32>):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
         // loading and returning the *value* is fine, only returning the pointer is bad
-        program.assert_no_errors();
-    }
-
-    /// Set the return lifetime for a function by name.
-    fn set_function_lifetime(program: &mut TestProgram, name: &str, lifetime: mir::Lifetime) {
-        let fn_id = program
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, f)| program.get_string(f.name) == name)
-            .map(|(id, _)| id)
-            .unwrap_or_else(|| panic!("function '{name}' not found"));
-        let function = program.tree.get_mut(fn_id);
-        function.return_lifetime = lifetime;
+        test.assert_no_errors();
     }
 
     /// Stack pointer escapes through identity function call.
@@ -933,13 +921,13 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StackCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StackCheck);
 
         // v2 = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> where v0 is stack pointer
         // @identity returns borrowed ref from param 0, so v2 is stack pointer
         // returning v2 is a stack escape
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 
     /// Static lifetime prevents stack pointer propagation through call.
@@ -962,14 +950,14 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        set_function_lifetime(&mut program, "getStatic", mir::Lifetime::Static);
-        program.run_pass(&StackCheck);
+        let mut test = TestProgram::new(input);
+        test.set_function_lifetime("getStatic", mir::Lifetime::Static);
+        test.run_pass(&StackCheck);
 
         // with static lifetime, v2 doesn't inherit stack pointer status from v0
         // so returning v2 is allowed (from stack-check's perspective)
         // (this may still be incorrect at runtime, but that's a different issue)
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Stack pointer propagates through call with explicit param lifetime.
@@ -994,15 +982,15 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // explicit lifetime: return borrows from param 0 only
-        set_function_lifetime(&mut program, "pick", mir::Lifetime::param(0));
-        program.run_pass(&StackCheck);
+        test.set_function_lifetime("pick", mir::Lifetime::param(0));
+        test.run_pass(&StackCheck);
 
         // v3 borrows from v0 (param 0) which is managed, not stack
         // v1 (param 1) is stack but not borrowed from, so v3 is not stack
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Stack pointer propagates through call when borrowing from stack arg.
@@ -1027,14 +1015,14 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // explicit lifetime: return borrows from param 1 only
-        set_function_lifetime(&mut program, "pick", mir::Lifetime::param(1));
-        program.run_pass(&StackCheck);
+        test.set_function_lifetime("pick", mir::Lifetime::param(1));
+        test.run_pass(&StackCheck);
 
         // v3 borrows from v1 (param 1) which is stack
         // returning v3 is a stack escape
-        program.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnReferenceToLocal { .. }));
     }
 }

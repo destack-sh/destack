@@ -423,31 +423,6 @@ mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Register a drop function for all types matching a predicate.
-    ///
-    /// The MIR parser creates separate type nodes for each type occurrence,
-    /// so this helper registers the drop function for all matching types.
-    fn register_drop_function_for<F>(
-        program: &mut TestProgram,
-        drop_fn: mir::LocalNodeId<mir::Function>,
-        predicate: F,
-    ) where
-        F: Fn(&mir::Type) -> bool,
-    {
-        let type_ids: Vec<_> = program
-            .tree
-            .iter_nodes::<mir::Type>()
-            .filter_map(|(id, ty)| if predicate(ty) { Some(id) } else { None })
-            .collect();
-        for type_id in type_ids {
-            program
-                .tree
-                .type_table
-                .drop_function_by_type_id
-                .insert(type_id, drop_fn);
-        }
-    }
-
     /// Function with no droppable values is unchanged.
     #[test]
     fn test_verify_no_drops_needed() {
@@ -457,10 +432,10 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Primitive types don't need drops.
@@ -474,10 +449,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Boolean comparison doesn't need drops.
@@ -491,10 +466,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Float values don't need drops.
@@ -508,9 +483,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
     }
 
     /// Void function is unchanged.
@@ -521,10 +496,10 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Stack allocation with primitive doesn't need drop.
@@ -539,10 +514,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Managed allocations are not dropped explicitly.
@@ -556,10 +531,10 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Multiple arithmetic operations don't need drops.
@@ -576,10 +551,10 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Control flow with primitives doesn't need drops.
@@ -596,10 +571,10 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Loop with primitives doesn't need drops.
@@ -620,10 +595,10 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Cast operations don't need drops.
@@ -636,10 +611,10 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Load/store with primitives don't need drops.
@@ -655,10 +630,10 @@ block0(v0: ref<raw i32>):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Function calls with primitive args don't need drops.
@@ -674,9 +649,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
     }
 
     /// Local variables with primitives don't need drops.
@@ -691,9 +666,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
     }
 
     /// Unreachable terminator doesn't need special handling.
@@ -704,10 +679,10 @@ block0:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Switch with primitives doesn't need drops.
@@ -727,10 +702,10 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Managed allocation is not dropped explicitly.
@@ -745,10 +720,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Managed allocation returned is not dropped.
@@ -762,10 +737,10 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Owned parameter gets drop inserted before return.
@@ -784,10 +759,10 @@ block0(v0: ref<owned i32>):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_output(expected);
     }
 
     /// Raw allocation does not get automatic drop.
@@ -803,10 +778,10 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Type with drop function gets call emitted before raw.drop.
@@ -823,15 +798,15 @@ block0(v0: ref<owned i32>):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        let drop_fn = program
+        let mut test = TestProgram::new(input);
+        let drop_fn = test
             .tree
             .iter_nodes::<mir::Function>()
-            .find(|(_, f)| program.get_string(f.name) == "my_drop")
+            .find(|(_, f)| test.get_string(f.name) == "my_drop")
             .map(|(id, _)| id)
             .expect("drop function not found");
 
-        register_drop_function_for(&mut program, drop_fn, |ty| {
+        test.register_drop_function_for(drop_fn, |ty| {
             matches!(
                 ty,
                 mir::Type::Reference {
@@ -841,8 +816,8 @@ block0(v0: ref<owned i32>):
             )
         });
 
-        program.run_pass(&DropInsert);
-        program.assert_no_errors();
+        test.run_pass(&DropInsert);
+        test.assert_no_errors();
 
         let expected = r#"function @my_drop(v0: ref<raw i32>) -> void {
 block0(v0: ref<raw i32>):
@@ -855,6 +830,6 @@ block0(v0: ref<owned i32>):
     raw.drop v0
     return v1
 }"#;
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 }

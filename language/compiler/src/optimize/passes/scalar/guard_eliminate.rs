@@ -602,9 +602,9 @@ block4:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Assume instructions feed redundant checks.
@@ -631,9 +631,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Constant conditions eliminate checks.
@@ -658,9 +658,9 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Negated conditions are resolved using edge facts.
@@ -695,9 +695,9 @@ block4:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Condition facts transfer through block parameters.
@@ -730,9 +730,9 @@ block4:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Check edges propagate condition facts to successors.
@@ -763,9 +763,9 @@ block4:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Bounds constraints eliminate checks when always in range.
@@ -792,9 +792,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Bounds constraints jump to failure when always out of range.
@@ -821,9 +821,9 @@ block2:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Div zero constraints eliminate checks with non zero divisors.
@@ -848,9 +848,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Div zero constraints eliminate checks with zero divisors.
@@ -875,9 +875,9 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Shift range constraints eliminate checks with in range shifts.
@@ -902,9 +902,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Shift range constraints jump to failure on out of range shifts.
@@ -929,9 +929,9 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Narrow constraints eliminate checks for values in range.
@@ -956,9 +956,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Narrow constraints jump to failure for out of range values.
@@ -983,9 +983,9 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Overflow constraints eliminate checks when no overflow is possible.
@@ -1012,9 +1012,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 
     /// Overflow constraints jump to failure when overflow is guaranteed.
@@ -1041,8 +1041,8 @@ block2:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&GuardEliminate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&GuardEliminate);
+        test.assert_output(expected);
     }
 }

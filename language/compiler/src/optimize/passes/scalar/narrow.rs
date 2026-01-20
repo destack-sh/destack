@@ -443,9 +443,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(expected);
     }
 
     /// Signed comparisons are narrowed with signed types.
@@ -469,9 +469,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(expected);
     }
 
     /// Bounds checks are narrowed when indices fit within smaller widths.
@@ -505,9 +505,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(expected);
     }
 
     /// Comparisons with unknown ranges are left unchanged.
@@ -519,9 +519,9 @@ block0(v0: u32, v1: u32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(input);
     }
 
     /// Mismatched integer widths are not narrowed.
@@ -539,9 +539,9 @@ block2:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(input);
     }
 
     /// Full range signed values are not narrowed.
@@ -555,8 +555,8 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Narrow);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Narrow);
+        test.assert_output(input);
     }
 }

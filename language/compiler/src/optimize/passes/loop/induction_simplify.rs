@@ -660,7 +660,7 @@ mod tests {
     /// Redundant induction parameters are removed.
     #[test]
     fn test_simplify_redundant_induction_params() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -691,15 +691,15 @@ block2(v8: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Distinct induction parameters are preserved.
     #[test]
     fn test_preserve_distinct_induction_params() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -716,15 +716,15 @@ block2(v9: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Multiple redundant induction parameters are merged.
     #[test]
     fn test_simplify_multiple_redundant_params() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -757,15 +757,15 @@ block2(v10: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Forwarded predecessor arguments still permit signature matching.
     #[test]
     fn test_simplify_forwarded_signature_match() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -800,15 +800,15 @@ block3(v10: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Recurrences with different types are preserved.
     #[test]
     fn test_preserve_different_typed_recurrences() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -826,15 +826,15 @@ block2(v10: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_unchanged(input);
     }
 
     /// Redundant parameters are removed from check terminators.
     #[test]
     fn test_simplify_check_terminator() {
-        // source program
+        // source test
         let input = r#"function @test(v0: [i32; 4]) -> void {
 block0(v0: [i32; 4]):
     v1 = iconst 0u32
@@ -865,15 +865,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Redundant parameters are removed from switch terminators.
     #[test]
     fn test_simplify_switch_terminator() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -904,15 +904,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Affine offset induction variables are rewritten to a canonical base.
     #[test]
     fn test_simplify_affine_offset_induction() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -946,15 +946,15 @@ block2(v9: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Equivalent recurrences merge even with distinct latch values.
     #[test]
     fn test_simplify_equivalent_recurrence_distinct_latch_values() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -985,15 +985,15 @@ block2(v8: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&InductionVariableSimplify);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InductionVariableSimplify);
+        test.assert_output(expected);
     }
 
     /// Parameter signatures identify equivalent header arguments.
     #[test]
     fn test_param_signature_equivalence() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 0i32
@@ -1009,19 +1009,19 @@ block2(v8: i32):
 }"#;
 
         // resolve header signatures
-        let program = TestProgram::new(input);
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let test = TestProgram::new(input);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let cfg = analyses.get::<ControlFlowGraph>();
         let loops = analyses.get::<LoopAnalysis>();
-        let forwarding = BlockParamForwarding::build(function, &program.tree, &cfg);
+        let forwarding = BlockParamForwarding::build(function, &test.tree, &cfg);
         let header = function.blocks[1];
-        let header_block = program.tree.get(header);
+        let header_block = test.tree.get(header);
         let param_left = header_block.parameters[0];
         let param_right = header_block.parameters[1];
-        let signature_left = param_signature(header, 0, &program.tree, &cfg, &forwarding);
-        let signature_right = param_signature(header, 1, &program.tree, &cfg, &forwarding);
+        let signature_left = param_signature(header, 0, &test.tree, &cfg, &forwarding);
+        let signature_right = param_signature(header, 1, &test.tree, &cfg, &forwarding);
 
         assert!(signature_left.is_some());
         assert_eq!(signature_left, signature_right);
@@ -1031,11 +1031,11 @@ block2(v8: i32):
         let mut canonical_signatures = Vec::new();
         canonical_signatures.push(CanonicalSignature {
             signature: signature_left.unwrap(),
-            ty: TypeKey::from_type(param_left.ty, &program.tree),
+            ty: TypeKey::from_type(param_left.ty, &test.tree),
             value: param_left.value,
         });
         let canonical_value = signature_right.and_then(|signature| {
-            let param_right_ty = TypeKey::from_type(param_right.ty, &program.tree);
+            let param_right_ty = TypeKey::from_type(param_right.ty, &test.tree);
             canonical_signatures.iter().find_map(|entry| {
                 if entry.ty == param_right_ty && entry.signature == signature {
                     Some(entry.value)

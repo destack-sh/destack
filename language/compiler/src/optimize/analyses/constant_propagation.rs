@@ -491,7 +491,7 @@ mod tests {
     /// Constant from global.const is propagated.
     #[test]
     fn test_constant_from_global_const() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"global @flag: bool = true
 function @test() -> bool {
 block0:
@@ -500,9 +500,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
@@ -515,7 +515,7 @@ block0:
     /// Mutable globals are not treated as constants.
     #[test]
     fn test_mutable_global_not_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"global @flag: bool = true ; mut
 function @test() -> bool {
 block0:
@@ -524,9 +524,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
@@ -539,7 +539,7 @@ block0:
     /// Non scalar globals are not treated as constants.
     #[test]
     fn test_non_scalar_global_not_constant() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"global @flag: bool = zeroinit ; const
 function @test() -> bool {
 block0:
@@ -548,9 +548,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
@@ -563,7 +563,7 @@ block0:
     /// Constant results of binary operations are propagated.
     #[test]
     fn test_constant_from_binary() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
     v0 = iconst 2i32
@@ -573,9 +573,9 @@ block0:
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block0 = function.blocks[0];
@@ -595,7 +595,7 @@ block0:
     /// Block parameters become constant when all predecessors agree.
     #[test]
     fn test_constant_from_block_param() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = iconst true
@@ -609,9 +609,9 @@ block3(v4: bool):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block3 = function.blocks[3];
@@ -624,7 +624,7 @@ block3(v4: bool):
     /// Block parameters are not constant when predecessors disagree.
     #[test]
     fn test_conflicting_block_param() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = iconst true
@@ -639,9 +639,9 @@ block3(v5: bool):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block3 = function.blocks[3];
@@ -654,7 +654,7 @@ block3(v5: bool):
     /// Conflicting arguments to a single target are not treated as constants.
     #[test]
     fn test_conflicting_target_arguments() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
     v1 = iconst true
@@ -665,9 +665,9 @@ block1(v3: bool):
 }"#,
         );
 
-        let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        let function = program.tree.get(function_id);
-        let analyses = program.function_analyses(function);
+        let function_id = test.tree.iter_nodes::<mir::Function>().next().unwrap().0;
+        let function = test.tree.get(function_id);
+        let analyses = test.function_analyses(function);
         let analysis = analyses.get::<ConstantPropagation>();
 
         let block1 = function.blocks[1];

@@ -479,9 +479,9 @@ block3:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_output(expected);
     }
 
     /// Block parameter with different values from predecessors is NOT eliminated.
@@ -501,9 +501,9 @@ block3(v2: i32):
 
         // v2 gets different values from different predecessors, so no change
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_unchanged(input);
     }
 
     /// Single predecessor block parameter is a trivial copy.
@@ -523,9 +523,9 @@ block1:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_output(expected);
     }
 
     /// Chained copies are resolved transitively.
@@ -550,9 +550,9 @@ block2:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_output(expected);
     }
 
     /// Multiple parameters, only some are copies.
@@ -587,9 +587,9 @@ block3(v5: i32):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_output(expected);
     }
 
     /// No copies means no changes.
@@ -602,9 +602,9 @@ block0(v0: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_unchanged(input);
     }
 
     /// Selects with identical arms are removed.
@@ -621,8 +621,8 @@ block0(v0: bool, v1: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CopyPropagate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CopyPropagate);
+        test.assert_output(expected);
     }
 }

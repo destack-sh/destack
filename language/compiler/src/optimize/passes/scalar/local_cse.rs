@@ -116,7 +116,7 @@ fn eliminate_common_subexpressions_in_block(
     let block = tree.get(block_id);
     let instruction_ids: Vec<_> = block.instructions.clone();
 
-    // scan instructions in program order
+    // scan instructions in test order
     for instruction_id in instruction_ids {
         let instruction = tree.get(instruction_id);
 
@@ -321,9 +321,9 @@ block0(v0: i32, v1: i32):
     v4 = iadd v2, v2
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Commutative operands are recognized as equivalent (v0 + v1 == v1 + v0).
@@ -342,9 +342,9 @@ block0(v0: i32, v1: i32):
     v4 = iadd v2, v2
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Transitive chains of redundant expressions are all eliminated.
@@ -367,9 +367,9 @@ block0(v0: i32, v1: i32):
     v6 = iadd v4, v4
     return v6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Constants are not CSE'd by this pass (handled by constant folding).
@@ -383,9 +383,9 @@ block0:
     return v2
 }"#;
         // should be unchanged: constant CSE is not done by this pass
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 
     /// Expressions are not CSE'd across basic blocks (that's GVN's job).
@@ -401,9 +401,9 @@ block1:
     return v4
 }"#;
         // should be unchanged: v3 is in a different block
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 
     /// Non-commutative operations with swapped operands are distinct.
@@ -417,9 +417,9 @@ block0(v0: i32, v1: i32):
     return v4
 }"#;
         // should be unchanged: v0 - v1 != v1 - v0
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 
     /// Unary operations are properly CSE'd.
@@ -438,9 +438,9 @@ block0(v0: i32):
     v3 = iadd v1, v1
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Multiple redundant expressions in sequence are all eliminated.
@@ -462,9 +462,9 @@ block0(v0: i32, v1: i32):
     v6 = iadd v2, v2
     return v6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Field accesses with same base and index are CSE'd.
@@ -483,9 +483,9 @@ block0(v0: (i32, i32)):
     v3 = iadd v1, v1
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Redundant loads in a block are eliminated when not clobbered.
@@ -507,9 +507,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Loads are not CSE'd across clobbering stores.
@@ -526,9 +526,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(input);
     }
 
     /// Different field indices are not CSE'd.
@@ -542,9 +542,9 @@ block0(v0: (i32, i32)):
     return v3
 }"#;
         // should be unchanged: different field indices
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 
     /// Element accesses with same base and index are CSE'd.
@@ -563,9 +563,9 @@ block0(v0: [i32; 10], v1: i64):
     v4 = iadd v2, v2
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Casts to identical types are CSE'd.
@@ -584,9 +584,9 @@ block0(v0: i32):
     v3 = iadd v1, v1
     return v3
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 
     /// Unique expressions are preserved unchanged.
@@ -599,9 +599,9 @@ block0(v0: i32, v1: i32):
     v4 = imul v2, v3
     return v4
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_unchanged(input);
     }
 
     /// Substitutions propagate to terminator.
@@ -627,8 +627,8 @@ block1(v5: i32):
 block2(v6: i32):
     return v6
 }"#;
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LocalCse);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LocalCse);
+        test.assert_output(expected);
     }
 }

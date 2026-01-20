@@ -338,9 +338,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Differing constants across callsites do not propagate.
@@ -364,9 +364,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralConstantPropagation);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.assert_output(input);
     }
 
     /// Indirect call signatures prevent propagation.
@@ -385,9 +385,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralConstantPropagation);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.assert_output(input);
     }
 
     /// Globals constants can be propagated across calls.
@@ -418,9 +418,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.assert_output(expected);
     }
 
     /// Tailcalls participate in constant propagation.
@@ -447,8 +447,8 @@ block0:
     tailcall @callee(v0)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&InterproceduralConstantPropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&InterproceduralConstantPropagation);
+        test.assert_output(expected);
     }
 }

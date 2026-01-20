@@ -1331,9 +1331,9 @@ block2:
     jump block0(v6, v4)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1365,9 +1365,9 @@ block2:
     jump block0(v4)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1400,9 +1400,9 @@ block2:
     jump block0(v3, v7)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1423,9 +1423,9 @@ block2:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1449,9 +1449,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1481,9 +1481,9 @@ block2:
     jump block0(v1, v4)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1499,9 +1499,9 @@ block0:
     jump block0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1514,9 +1514,9 @@ block0(v0: i32):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1550,9 +1550,9 @@ block2:
     jump block0(v6, v2, v7)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1597,9 +1597,9 @@ block4:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1625,9 +1625,9 @@ block2:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1638,9 +1638,9 @@ block0(v0: i32):
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1655,9 +1655,9 @@ block0(v0: i32):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1718,9 +1718,9 @@ block2:
     tailcall @even(v5)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1754,9 +1754,9 @@ block2:
     jump block0(v4, v8)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1790,9 +1790,9 @@ block2:
     jump block0(v4, v8)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1830,9 +1830,9 @@ block2:
     jump block0(v5, v9)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1853,9 +1853,9 @@ block2:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1883,10 +1883,10 @@ block4:
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
         // should not transform: different operators in different paths
-        program.assert_unchanged(input);
+        test.assert_unchanged(input);
     }
 
     #[test]
@@ -1932,9 +1932,9 @@ block0:
     tailcall @factorial(v0, v7)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1973,9 +1973,9 @@ block2:
     jump block0(v3, v7)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -1991,9 +1991,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
     tailcall.indirect v0(v1) -> fn(i32) -> i32
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -2017,9 +2017,9 @@ block0(v0: i32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -2056,9 +2056,9 @@ block2:
     jump block0(v5, v9)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 
     #[test]
@@ -2092,8 +2092,8 @@ block2:
     jump block0(v4, v8)
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_module_pass(&TailCallElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_module_pass(&TailCallElim);
+        test.assert_output(expected);
     }
 }

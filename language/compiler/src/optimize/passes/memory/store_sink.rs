@@ -499,9 +499,9 @@ block3:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StoreSink);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StoreSink);
+        test.assert_output(expected);
     }
 
     /// Stores needed on both edges are not sunk.
@@ -521,9 +521,9 @@ block2:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StoreSink);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StoreSink);
+        test.assert_output(input);
     }
 
     /// Stores to escaping memory are not sunk.
@@ -540,8 +540,8 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StoreSink);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StoreSink);
+        test.assert_output(input);
     }
 }

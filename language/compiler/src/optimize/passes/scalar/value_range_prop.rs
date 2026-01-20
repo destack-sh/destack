@@ -157,9 +157,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ValueRangePropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ValueRangePropagation);
+        test.assert_output(expected);
     }
 
     /// Constant equality folds to true.
@@ -180,9 +180,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ValueRangePropagation);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ValueRangePropagation);
+        test.assert_output(expected);
     }
 
     /// Non-constant comparisons are preserved.
@@ -194,8 +194,8 @@ block0(v0: i32, v1: i32):
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&ValueRangePropagation);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&ValueRangePropagation);
+        test.assert_output(input);
     }
 }

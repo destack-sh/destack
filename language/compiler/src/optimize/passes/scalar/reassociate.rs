@@ -581,9 +581,9 @@ block0(v0: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 
     /// Float arithmetic is not reassociated.
@@ -598,9 +598,9 @@ block0(v0: f64):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(input);
     }
 
     /// Float reassociation runs with reassociate policy.
@@ -624,15 +624,15 @@ block0(v0: f64):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(
             &Reassociate,
             PipelineOptions {
                 float_math: FloatMathPolicy::Reassociate,
                 ..PipelineOptions::default()
             },
         );
-        program.assert_output(expected);
+        test.assert_output(expected);
     }
 
     /// Reassociation does not fire without adjacent constants.
@@ -645,15 +645,15 @@ block0(v0: i32, v1: i32, v2: i32):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(input);
     }
 
     /// Multiple constants are combined across associative chains.
     #[test]
     fn test_reassociate_combines_multiple_constants() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -678,15 +678,15 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 
     /// Constant folding combines around a non constant subtree.
     #[test]
     fn test_reassociate_combines_constants_with_nonconstant_subtree() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 4i32
@@ -709,15 +709,15 @@ block0(v0: i32, v1: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 
     /// Constant folding rebuilds chains with multiple mixed operands.
     #[test]
     fn test_reassociate_rebuilds_chain_with_multiple_operands() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 1i32
@@ -741,15 +741,15 @@ block0(v0: i32, v1: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 
     /// Multiplication constants are reassociated for folding.
     #[test]
     fn test_reassociate_multiply_constants() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 2i32
@@ -770,15 +770,15 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 
     /// Bitwise constants are reassociated for folding.
     #[test]
     fn test_reassociate_bitwise_constants() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = iconst 1i32
@@ -799,8 +799,8 @@ block0(v0: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Reassociate);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Reassociate);
+        test.assert_output(expected);
     }
 }

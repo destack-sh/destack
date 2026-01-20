@@ -948,18 +948,6 @@ mod tests {
     use crate::OptimizeError;
     use crate::optimize::common::tests::TestProgram;
 
-    /// Set the return lifetime for a function by name.
-    fn set_function_lifetime(program: &mut TestProgram, name: &str, lifetime: mir::Lifetime) {
-        let fn_id = program
-            .tree
-            .iter_nodes::<mir::Function>()
-            .find(|(_, f)| program.get_string(f.name) == name)
-            .map(|(id, _)| id)
-            .unwrap_or_else(|| panic!("function '{name}' not found"));
-        let function = program.tree.get_mut(fn_id);
-        function.return_lifetime = lifetime;
-    }
-
     /// Simple function with no borrows passes verification.
     #[test]
     fn test_verify_no_borrows() {
@@ -969,10 +957,10 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
+        test.assert_unchanged(input);
     }
 
     /// Field address with no other borrows is valid.
@@ -987,9 +975,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Sequential loads from same pointer is valid.
@@ -1003,9 +991,9 @@ block0(v0: ref<raw i32>):
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Store through pointer is valid.
@@ -1017,9 +1005,9 @@ block0(v0: ref<raw i32>, v1: i32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Dropping while borrowed is detected.
@@ -1034,9 +1022,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// raw.free while borrowed is detected.
@@ -1051,9 +1039,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// local.set without existing borrows is valid.
@@ -1068,9 +1056,9 @@ block0:
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Multiple parameters with no conflicts is valid.
@@ -1084,9 +1072,9 @@ block0(v0: ref<raw i32>, v1: ref<raw i32>):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Drop while borrowed in strict mode emits error.
@@ -1106,9 +1094,9 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Drop while borrowed is always an error, even in lenient mode.
@@ -1125,9 +1113,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Single field access is valid.
@@ -1142,9 +1130,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Load through reference is valid.
@@ -1156,9 +1144,9 @@ block0(v0: ref<raw i32>):
     return v1
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Multiple sequential stores to same location are valid.
@@ -1171,9 +1159,9 @@ block0(v0: ref<raw i32>, v1: i32, v2: i32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
-        program.assert_no_errors();
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
     }
 
     /// Borrow expires when reference is no longer used.
@@ -1193,11 +1181,11 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // borrow of v0 through v2 expires after v3 = load v2 (v2 is dead)
         // so drop v0 is valid
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Borrow does not expire if reference is still live.
@@ -1214,11 +1202,11 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v2 is still live at drop v0 (used in v3 = load v2)
         // so this should be an error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Element address also creates borrow that tracks lifetime.
@@ -1236,10 +1224,10 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // borrow expires after v4 = load v3
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Direct field address borrow is tracked even with intermediate operations.
@@ -1257,10 +1245,10 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v2 is still live at drop v0 (used in v4 = load v2)
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Chained field.addr tracks transitive provenance.
@@ -1281,10 +1269,10 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v3 transitively borrows from v0 via v2, so drop v0 is error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Deep transitive chain (v0 -> v2 -> v3 -> v4) tracks correctly.
@@ -1303,10 +1291,10 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v4 transitively borrows from v0 via v3 -> v2 -> v0
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Transitive borrow expires when intermediate references are dead.
@@ -1324,11 +1312,11 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v3 is dead after v4 = load v3, so transitive borrow expires
         // drop v0 is valid
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Dropping intermediate value in chain is still error if final ref is live.
@@ -1346,10 +1334,10 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // dropping v2 while v3 (which borrows from v2) is live is error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Mutable borrow while existing mutable borrow is detected in strict mode.
@@ -1368,11 +1356,11 @@ block0(v0: ref<borrowed mut i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // v2 = field.addr while v1 still borrows v0 - both are mutable since v0 is mut
         // mutable borrow while existing mutable borrow is conflict
-        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 
     /// Shared borrows don't conflict with each other.
@@ -1388,10 +1376,10 @@ block0(v0: ref<borrowed i32>):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // multiple shared borrows of same origin is valid
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Borrow that flows through diamond control flow.
@@ -1414,10 +1402,10 @@ block3:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v3 is still live at drop v1 after both paths converge
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Borrow created on one branch only - dropping after merge is error.
@@ -1447,13 +1435,13 @@ block3(v6: ref<raw i32>):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v1 is borrowed via v4 on block1 path only
         // v1 is NOT borrowed on block2 path (v5 borrows v2 instead)
         // at merge (block3), v1 is MaybeBorrowed
         // drop v1 while MaybeBorrowed should error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Borrow expires before merge - drop after merge is ok.
@@ -1478,11 +1466,11 @@ block3(v7: i32):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // borrows v3 and v5 are consumed by loads before the jumps
         // v7 is just an i32, not a reference, so no borrow at drop
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Loop with borrow - borrow created and used within loop body.
@@ -1510,11 +1498,11 @@ block3:
     return v8
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v2 borrow is used immediately by v3=load, then dead
         // loop is fine because borrow doesn't escape iteration
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Borrow escapes loop iteration - error.
@@ -1537,12 +1525,12 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v3 is a borrow of v1 that escapes via return
         // (this is actually a stack escape, but borrow check sees it too)
         // The borrow flows through the loop and returns
-        program.assert_no_errors(); // borrow check doesn't catch return escape (stack_check does)
+        test.assert_no_errors(); // borrow check doesn't catch return escape (stack_check does)
     }
 
     /// Different allocations don't alias - borrows from separate allocations don't conflict.
@@ -1572,10 +1560,10 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // v4 borrows v0, v5 borrows v1 - different allocations don't conflict
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Store through one pointer doesn't invalidate borrow through unrelated pointer.
@@ -1600,10 +1588,10 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // store to v1 doesn't invalidate borrow of v0 - different allocations
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Concurrent mutable borrows of different allocations are valid.
@@ -1628,11 +1616,11 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // noalias params in strict mode means v0 and v1 don't alias
         // so mutable borrows from both don't conflict
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Drop of unrelated allocation while another allocation is borrowed is valid.
@@ -1654,10 +1642,10 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // dropping v1 while v0 is borrowed via v3 is fine - different allocations
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Global address doesn't alias stack allocation.
@@ -1685,10 +1673,10 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // global and stack allocation don't alias - no conflict
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Managed and raw allocations don't alias each other.
@@ -1715,10 +1703,10 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // managed and raw allocations don't alias - no conflict
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Multiple sequential allocations in same block don't alias.
@@ -1755,10 +1743,10 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // all three allocations are independent - no conflicts
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Same allocation, same field access - detects conflict for mutable borrows.
@@ -1781,10 +1769,10 @@ block0(v0: ref<borrowed mut i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input_mut);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input_mut);
+        test.run_pass_with_options(&BorrowCheck, options);
         // v1 and v2 both borrow from v0 mutably - same allocation, same field
-        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 
     /// Store through aliasing pointer invalidates borrow.
@@ -1804,11 +1792,11 @@ block0(v0: ref<borrowed mut i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
         // store to v0 may alias v1's origin (v0), so it invalidates the borrow
         // this should emit an error in strict mode
-        program.assert_error(|e| matches!(e, OptimizeError::InvalidatedReference { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::InvalidatedReference { .. }));
     }
 
     /// Drop of aliasing value while borrowed is detected.
@@ -1830,10 +1818,10 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // dropping v0 while v2 and v3 borrow from it is detected
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Cast doesn't break alias tracking.
@@ -1853,11 +1841,11 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
         // v3 borrows from v2 which is a cast of v0
         // dropping v0 while v3 is live should be detected
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Call to function with inferred single-param lifetime tracks borrow correctly.
@@ -1883,12 +1871,12 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
 
         // v3 = call @identity(v2) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a borrow of v2 which borrows from v0
         // dropping v0 while v3 is live should be an error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Call result with static lifetime doesn't track borrow from arguments.
@@ -1914,14 +1902,14 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        set_function_lifetime(&mut program, "getStatic", mir::Lifetime::Static);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.set_function_lifetime("getStatic", mir::Lifetime::Static);
+        test.run_pass(&BorrowCheck);
 
         // with static lifetime, v3 doesn't borrow from v2
         // so dropping v0 while v3 is live is okay (from borrow perspective)
         // (the load v4 would be use-after-free, but borrow check doesn't catch that, see move-check)
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Call with explicit param lifetime tracks only specified params.
@@ -1951,13 +1939,13 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        set_function_lifetime(&mut program, "pickFirst", mir::Lifetime::param(0));
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.set_function_lifetime("pickFirst", mir::Lifetime::param(0));
+        test.run_pass(&BorrowCheck);
 
         // v5 only borrows from v3 (param 0), not v4 (param 1)
         // so dropping v1 while v5 is live is okay (v5 doesn't borrow from v4 which borrows v1)
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Call with conservative multi-param inference tracks all borrowed params.
@@ -1987,12 +1975,12 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
 
         // with conservative inference, v5 may borrow from both v3 and v4
         // dropping v1 while v5 is live is an error (v5 may borrow from v4 which borrows v1)
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Call returning non-borrowed type doesn't track any borrows.
@@ -2018,12 +2006,12 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
 
         // v3 is an i32, not a reference, so no borrow tracking needed
         // dropping v0 after v2 is consumed by the call is okay
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Borrow expires after call return is consumed.
@@ -2049,12 +2037,12 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&BorrowCheck);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
 
         // v3 borrow expires after v4 = load v3 (v3 is dead)
         // dropping v0 is okay
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Explicit multi-param lifetime tracks all specified parameters.
@@ -2084,14 +2072,14 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // explicit lifetime: borrows from both param 0 and param 1
-        set_function_lifetime(&mut program, "pickEither", mir::Lifetime::params([0, 1]));
-        program.run_pass(&BorrowCheck);
+        test.set_function_lifetime("pickEither", mir::Lifetime::params([0, 1]));
+        test.run_pass(&BorrowCheck);
 
         // v5 may borrow from v3 (param 0), dropping v0 while v5 is live is an error
-        program.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::DropWhileBorrowed { .. }));
     }
 
     /// Explicit lifetime param(1) allows dropping param 0's origin.
@@ -2121,15 +2109,15 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
+        let mut test = TestProgram::new(input);
 
         // explicit lifetime: borrows only from param 1
-        set_function_lifetime(&mut program, "pickSecond", mir::Lifetime::param(1));
-        program.run_pass(&BorrowCheck);
+        test.set_function_lifetime("pickSecond", mir::Lifetime::param(1));
+        test.run_pass(&BorrowCheck);
 
         // v5 borrows from v4 (param 1), not v3 (param 0)
         // dropping v0 is okay, v1 must stay live until after v5 is used
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Call returning mutable borrowed reference propagates mutability.
@@ -2156,13 +2144,13 @@ block0(v0: ref<borrowed mut i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
 
         // v1 = call @getMut(v0) -> fn(ref<borrowed mut i32>) -> ref<borrowed mut i32> returns a mutable borrow from v0
         // v2 = field.addr v0, 0 creates another mutable borrow of v0
         // these should conflict in strict mode
-        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 
     /// Call returning shared borrowed reference allows concurrent shared borrows.
@@ -2189,13 +2177,13 @@ block0(v0: ref<borrowed i32>):
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
 
         // v1 = call @getShared(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32> returns a shared borrow from v0
         // v2 = field.addr v0, 0 creates another shared borrow of v0
         // shared + shared is okay
-        program.assert_no_errors();
+        test.assert_no_errors();
     }
 
     /// Mutable borrow from call conflicts with subsequent mutable field.addr.
@@ -2227,13 +2215,13 @@ block0:
         let mut options = crate::optimize::PipelineOptions::default();
         options.strict_borrow_mode = true;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass_with_options(&BorrowCheck, options);
+        let mut test = TestProgram::new(input);
+        test.run_pass_with_options(&BorrowCheck, options);
 
         // v2 is a mutable borrow returned from call
         // v3 = field.addr v0 creates another borrow from v0
         // since v0 is stack.alloc (not mut ref param), the field.addr creates
         // a mutable borrow (conservative default), so this should conflict
-        program.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 }

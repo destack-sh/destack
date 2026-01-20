@@ -762,7 +762,7 @@ mod tests {
     /// Equality branches substitute the dominated value.
     #[test]
     fn test_cvp_substitutes_equal_values() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -793,15 +793,15 @@ block3(v5: i32):
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Not equal conditions propagate equality on the false edge.
     #[test]
     fn test_cvp_inverts_not_equal() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_ne v0, v1
@@ -828,15 +828,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Constant equalities substitute the non constant operand.
     #[test]
     fn test_cvp_prefers_constant_operand() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 7i32
@@ -863,15 +863,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Float equality is not substituted.
     #[test]
     fn test_cvp_skips_float_equal() {
-        // source program
+        // source test
         let input = r#"function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
     v2 = fcmp_eq v0, v1
@@ -885,15 +885,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(input);
     }
 
     /// Substitution flows into blocks dominated by the equality edge.
     #[test]
     fn test_cvp_propagates_into_dominated_blocks() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -922,15 +922,15 @@ block3:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Negated equality conditions substitute on the else edge.
     #[test]
     fn test_cvp_handles_negated_equal() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -959,15 +959,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Check terminators propagate equality on the success edge.
     #[test]
     fn test_cvp_handles_check_terminator() {
-        // source program
+        // source test
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
     v3 = icmp_eq v0, v1
@@ -992,15 +992,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Equality blocks with extra predecessors are not substituted.
     #[test]
     fn test_cvp_requires_single_predecessor() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = icmp_eq v0, v1
@@ -1013,15 +1013,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(input);
     }
 
     /// Range constraints fold comparisons on dominated paths.
     #[test]
     fn test_cvp_range_constraint_then_edge() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = iconst 5i32
@@ -1048,15 +1048,15 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 
     /// Range constraints fold comparisons on the false edge.
     #[test]
     fn test_cvp_range_constraint_else_edge() {
-        // source program
+        // source test
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
     v1 = iconst 5i32
@@ -1083,8 +1083,8 @@ block2:
 }"#;
 
         // run the pass and verify output
-        let mut program = TestProgram::new(input);
-        program.run_pass(&CorrelatedValueProp);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&CorrelatedValueProp);
+        test.assert_output(expected);
     }
 }

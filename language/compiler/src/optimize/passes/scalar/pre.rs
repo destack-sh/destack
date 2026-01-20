@@ -772,9 +772,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Critical edges receive a split block for inserted expressions.
@@ -812,9 +812,9 @@ block5:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Switch default edges receive inserted expressions.
@@ -844,9 +844,9 @@ block3(v5: i32):
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Switch cases keep their existing arguments when adding expressions.
@@ -884,9 +884,9 @@ block4(v6: i32, v8: i32):
     return v8
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Check edges receive inserted expressions.
@@ -926,9 +926,9 @@ block5:
     unreachable
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Check failure edges receive inserted expressions.
@@ -968,9 +968,9 @@ block5(v7: u32):
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Yield resume edges receive inserted expressions.
@@ -1006,9 +1006,9 @@ block3(v6: i32, v7: i32, v9: i32):
     return v9
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(expected);
     }
 
     /// Non speculatable expressions are not inserted on new paths.
@@ -1027,9 +1027,9 @@ block3:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(input);
     }
 
     /// Float to int casts are not speculated.
@@ -1048,9 +1048,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(input);
     }
 
     /// Calls are not considered for PRE.
@@ -1074,9 +1074,9 @@ block0:
     return v0
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(input);
     }
 
     /// Expressions with unavailable operands are not hoisted.
@@ -1096,9 +1096,9 @@ block3:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(input);
     }
 
     /// Expressions already available on all paths are left to GVN.
@@ -1117,8 +1117,8 @@ block3:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&PartialRedundancyElim);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&PartialRedundancyElim);
+        test.assert_output(input);
     }
 }

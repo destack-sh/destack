@@ -1404,7 +1404,7 @@ mod tests {
     /// Direct calls create edges in the call graph.
     #[test]
     fn test_call_graph_direct_call() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @callee() -> i32 {
 block0:
     v0 = iconst 7i32
@@ -1417,10 +1417,10 @@ block0:
 }"#,
         );
 
-        let callee_id = program.function_id_by_name("callee");
-        let test_id = program.function_id_by_name("test");
+        let callee_id = test.function_id_by_name("callee");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         let outgoing = callgraph.outgoing(test_id);
@@ -1437,7 +1437,7 @@ block0:
     /// Call graph SCCs detect recursive functions.
     #[test]
     fn test_call_graph_scc_recursion() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @a() -> void {
 block0:
     call @b() -> fn() -> void
@@ -1459,12 +1459,12 @@ block0:
 }"#,
         );
 
-        let a_id = program.function_id_by_name("a");
-        let b_id = program.function_id_by_name("b");
-        let c_id = program.function_id_by_name("c");
-        let d_id = program.function_id_by_name("d");
+        let a_id = test.function_id_by_name("a");
+        let b_id = test.function_id_by_name("b");
+        let c_id = test.function_id_by_name("c");
+        let d_id = test.function_id_by_name("d");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let scc = analyses.get::<CallGraphScc>();
 
         assert!(scc.is_recursive_function(a_id));
@@ -1476,7 +1476,7 @@ block0:
     /// Indirect calls without metadata remain unresolved.
     #[test]
     fn test_call_graph_indirect_unknown() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
     v2 = call.indirect v0(v1) -> fn(i32) -> i32
@@ -1484,9 +1484,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
 }"#,
         );
 
-        let test_id = program.function_id_by_name("test");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         assert!(callgraph.outgoing(test_id).is_empty());
@@ -1500,7 +1500,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Tail calls are tracked as call edges.
     #[test]
     fn test_call_graph_tailcall_direct() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -1511,10 +1511,10 @@ block0(v0: i32):
 }"#,
         );
 
-        let callee_id = program.function_id_by_name("callee");
-        let test_id = program.function_id_by_name("test");
+        let callee_id = test.function_id_by_name("callee");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         let outgoing = callgraph.outgoing(test_id);
@@ -1526,16 +1526,16 @@ block0(v0: i32):
     /// Tailcall.indirect remains unresolved without metadata.
     #[test]
     fn test_call_graph_tailcall_indirect_unknown() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
     tailcall.indirect v0(v1) -> fn(i32) -> i32
 }"#,
         );
 
-        let test_id = program.function_id_by_name("test");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         let unknown = callgraph.unknown_calls(test_id);
@@ -1547,7 +1547,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Call.indirect remains unresolved without a declared target.
     #[test]
     fn test_call_graph_call_indirect_unknown() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -1559,9 +1559,9 @@ block0(v0: fn(i32) -> i32, v1: i32):
 }"#,
         );
 
-        let test_id = program.function_id_by_name("test");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         let unknown = callgraph.unknown_calls(test_id);
@@ -1572,7 +1572,7 @@ block0(v0: fn(i32) -> i32, v1: i32):
     /// Virtual dispatch keeps a call edge and records an unknown target.
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {
-        let program = TestProgram::new(
+        let test = TestProgram::new(
             r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
     return v0
@@ -1584,10 +1584,10 @@ block0(v0: i32):
 }"#,
         );
 
-        let callee_id = program.function_id_by_name("callee");
-        let test_id = program.function_id_by_name("test");
+        let callee_id = test.function_id_by_name("callee");
+        let test_id = test.function_id_by_name("test");
 
-        let analyses = ModuleAnalyses::new(&program.tree);
+        let analyses = ModuleAnalyses::new(&test.tree);
         let callgraph = analyses.get::<CallGraph>();
 
         assert_eq!(callgraph.outgoing(test_id).len(), 1);

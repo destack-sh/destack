@@ -637,9 +637,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StorePre);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StorePre);
+        test.assert_output(expected);
     }
 
     /// Stores are not moved when no predecessor already stores.
@@ -658,9 +658,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StorePre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StorePre);
+        test.assert_output(input);
     }
 
     /// Stores are not moved when values are defined in the join block.
@@ -680,9 +680,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StorePre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StorePre);
+        test.assert_output(input);
     }
 
     /// Stores are not moved when earlier instructions are not speculatable.
@@ -702,8 +702,8 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&StorePre);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&StorePre);
+        test.assert_output(input);
     }
 }

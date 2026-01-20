@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
-use destack_mir::{self as mir, Lifetime, Type};
+use destack_mir::{self as mir, Lifetime};
 
-use crate::optimize::{Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis};
+use crate::optimize::{
+    Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, borrowed_parameter_indices_for_function,
+    type_contains_borrowed_refs,
+};
 
 /// Resolved lifetime bounds for a function's return value.
 ///
@@ -92,7 +95,7 @@ impl LifetimeAnalysis {
     ) -> ResolvedLifetime {
         // check if return type contains borrowed references
         let return_ty = tree.get(function.return_type);
-        if !Self::type_may_contain_borrowed_refs(return_ty, tree) {
+        if !type_contains_borrowed_refs(return_ty, tree) {
             return ResolvedLifetime::None;
         }
 
@@ -108,13 +111,7 @@ impl LifetimeAnalysis {
         }
 
         // find all borrowed reference parameters for inference
-        let borrowed_params: Vec<u32> = function
-            .parameters
-            .iter()
-            .enumerate()
-            .filter(|(_, param)| tree.get(param.ty).is_borrowed_reference())
-            .map(|(i, _)| i as u32)
-            .collect();
+        let borrowed_params = borrowed_parameter_indices_for_function(function, tree);
 
         // no borrowed parameters: might be a global/static borrow or an error
         // (assume static, stack borrows are checked by stack-check)
@@ -131,37 +128,7 @@ impl LifetimeAnalysis {
         ResolvedLifetime::Parameters(borrowed_params)
     }
 
-    /// Check if a type may contain borrowed references.
-    fn type_may_contain_borrowed_refs(ty: &Type, tree: &mir::NodeTree) -> bool {
-        // direct borrowed reference
-        if ty.is_borrowed_reference() {
-            return true;
-        }
-
-        match ty {
-            // struct may contain borrowed refs in fields
-            Type::Struct { fields, .. } => fields.iter().any(|field_id| {
-                let field = tree.get(*field_id);
-                let field_ty = tree.get(field.ty);
-                Self::type_may_contain_borrowed_refs(field_ty, tree)
-            }),
-
-            // tuple may contain borrowed refs in elements
-            Type::Tuple { elements, .. } => elements.iter().any(|elem_ty| {
-                let elem = tree.get(*elem_ty);
-                Self::type_may_contain_borrowed_refs(elem, tree)
-            }),
-
-            // array element type may contain borrowed refs
-            Type::Array { element, .. } => {
-                let elem_ty = tree.get(*element);
-                Self::type_may_contain_borrowed_refs(elem_ty, tree)
-            }
-
-            // other types (including non-borrowed references) don't contain borrowed refs
-            _ => false,
-        }
-    }
+    // type_contains_borrowed_refs is shared in optimize::common::borrow
 }
 
 impl Analysis for LifetimeAnalysis {

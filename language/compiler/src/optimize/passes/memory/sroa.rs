@@ -814,9 +814,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Tuple splitting.
@@ -843,9 +843,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Small array splitting.
@@ -876,9 +876,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Array too large to split.
@@ -897,9 +897,9 @@ block0:
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Escaping allocation should not be split.
@@ -917,9 +917,9 @@ block0:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Non-constant array index should not be split.
@@ -938,9 +938,9 @@ block0(v0: i64):
     return v4
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Multiple fields accessed.
@@ -979,9 +979,9 @@ block0:
     return v7
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Nested struct - only top level is split.
@@ -1013,9 +1013,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// No changes when no aggregates.
@@ -1032,9 +1032,9 @@ block0:
     return v2
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Allocation escaping via store is not split.
@@ -1051,9 +1051,9 @@ block0(v0: ref<raw ref<raw @Point>>):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Single-field struct can be split.
@@ -1082,9 +1082,9 @@ block0:
     return v3
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Block argument escaping prevents splitting.
@@ -1103,9 +1103,9 @@ block2:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_unchanged(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_unchanged(input);
     }
 
     /// Constant propagation resolves array indices across block parameters.
@@ -1136,9 +1136,9 @@ block1(v2: i64):
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Base pointer loads and stores are rebuilt from scalar slots.
@@ -1175,9 +1175,9 @@ block0:
     return v5
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 
     /// Base pointer array loads and stores are rebuilt from scalar slots.
@@ -1216,8 +1216,8 @@ block0:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&Sroa);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&Sroa);
+        test.assert_output(expected);
     }
 }

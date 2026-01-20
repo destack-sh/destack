@@ -486,9 +486,9 @@ block5:
     return v12
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(expected);
     }
 
     /// Loops with stores are not interchanged.
@@ -518,9 +518,9 @@ block5:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Inner exits that do not target the outer latch prevent interchange.
@@ -552,9 +552,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Inner header values unavailable at the outer preheader prevent interchange.
@@ -586,9 +586,9 @@ block5:
     return v12
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Non jump inner latches prevent interchange.
@@ -620,9 +620,9 @@ block5:
     return v12
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Inner latch parameters prevent interchange.
@@ -653,9 +653,9 @@ block5:
     return v12
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Missing outer preheaders prevent interchange.
@@ -715,9 +715,9 @@ block6:
     return v6
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(expected);
     }
 
     /// Non perfect nesting prevents interchange.
@@ -750,9 +750,9 @@ block6:
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(input);
     }
 
     /// Inner exit arguments prevent interchange.
@@ -808,9 +808,9 @@ block5:
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(expected);
     }
 
     /// Outer exit arguments prevent interchange.
@@ -866,8 +866,8 @@ block5(v13: u32):
     return v10
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopInterchange);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopInterchange);
+        test.assert_output(expected);
     }
 }

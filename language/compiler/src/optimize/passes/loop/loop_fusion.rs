@@ -962,9 +962,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(expected);
     }
 
     /// Loops with matching carry arguments are fused.
@@ -1022,9 +1022,9 @@ block3:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(expected);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(expected);
     }
 
     /// Loops with aliasing stores are not fused.
@@ -1060,9 +1060,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Non empty preheaders prevent fusion.
@@ -1100,9 +1100,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Loops with mismatched bounds are not fused.
@@ -1139,9 +1139,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Header reads in the second loop prevent fusion.
@@ -1179,9 +1179,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Header defined values used in the second latch prevent fusion.
@@ -1219,9 +1219,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Non speculatable latch instructions prevent fusion.
@@ -1263,9 +1263,9 @@ block0(v0: u32):
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Non adjacent loops are not fused.
@@ -1304,9 +1304,9 @@ block7:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Mismatched loop carried arguments prevent fusion.
@@ -1345,9 +1345,9 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 
     /// Mismatched steps prevent fusion.
@@ -1385,8 +1385,8 @@ block6:
     return
 }"#;
 
-        let mut program = TestProgram::new(input);
-        program.run_pass(&LoopFusion);
-        program.assert_output(input);
+        let mut test = TestProgram::new(input);
+        test.run_pass(&LoopFusion);
+        test.assert_output(input);
     }
 }
