@@ -15,7 +15,7 @@ impl FunctionContext<'_> {
         right: LocalNodeId<Expression>,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the reference result type
-        let pointee_type = self.mir_type_for_expression(right)?;
+        let pointee_type = self.lower_type_for_expression(right)?;
         let mutability = mutability
             .map(lower_mutability)
             .unwrap_or(mir::Mutability::Immutable);

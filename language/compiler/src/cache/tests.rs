@@ -19,6 +19,7 @@ use crate::{
     AnalyzeTask, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
     ImportTask, TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
 };
+use super::hasher::CacheHasher;
 
 impl TestProgram {
     /// Compile and analyze the provided modules.
@@ -651,14 +652,15 @@ fn test_cache_disk_access_markers() {
         .write_ast_cache(&cache_store, &options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
-    let entry = registry
+    let read_registry = CacheRegistry::new();
+    let entry = read_registry
         .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
     let key = CacheKey::new(CacheKind::Ast, module_id, &context);
-    let entry_path = registry.cache_entry_path(&options, &key);
-    let access_path = registry.cache_access_path(&entry_path);
+    let entry_path = read_registry.cache_entry_path(&options, &key);
+    let access_path = read_registry.cache_access_path(&entry_path);
 
     // assertion block
     assert!(access_path.exists(), "expected access marker to be written");
@@ -726,12 +728,20 @@ fn test_workspace_index_roundtrip_disk() {
     let index_store = WorkspaceIndexStore::new(session.cache_store.as_ref(), &cache_root);
     let config_hash = hash_workspace_config(&session.workspace, session.fs.as_ref())
         .unwrap_or_else(|error| panic!("failed to hash config: {error}"));
+    let mut compiler_hasher = CacheHasher::new();
+    compiler_hasher.hash_compiler_options(&compiler.options);
+    let compiler_options_hash = compiler_hasher.finish();
+
+    let mut resolve_hasher = CacheHasher::new();
+    resolve_hasher.hash_resolve_options(&compiler.options.import_resolve);
+    let resolve_options_hash = resolve_hasher.finish();
+
     let header = WorkspaceIndexHeader::new(
         env!("CARGO_PKG_VERSION").to_string(),
         root.clone(),
         config_hash,
-        0,
-        0,
+        compiler_options_hash,
+        resolve_options_hash,
         CacheValidate::Strict,
     );
     let snapshot = index_store

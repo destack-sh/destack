@@ -101,7 +101,7 @@ pub enum AnalyzeError {
 
     /// Ownership operators require an unowned value.
     #[error(
-        code = "EA109",
+        code = "EA110",
         message = "ownership operator requires an unowned value, found {actual_ty}"
     )]
     InvalidOwnershipOperand {

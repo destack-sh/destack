@@ -77,16 +77,32 @@ impl Compiler {
             };
 
             if let Some(existing) = backing_type {
+                // reject mismatched backing types across enum fields
                 let matches = match (existing, field_backing_type) {
                     (EnumBackingType::Int(left), EnumBackingType::Int(right)) => left == right,
                     (EnumBackingType::String, EnumBackingType::String) => true,
                     _ => false,
                 };
                 if !matches {
-                    return Err(AnalyzeError::InvalidEnumFieldValue {
+                    let backing_type_id = match field_backing_type {
+                        EnumBackingType::Int(int_type) => types.insert_type_from(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Primitive(PrimitiveType::Int(int_type)),
+                            },
+                            *field_id,
+                        ),
+                        EnumBackingType::String => types.insert_type_from(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Primitive(PrimitiveType::String),
+                            },
+                            *field_id,
+                        ),
+                    };
+                    return Err(AnalyzeError::InvalidEnumBackingType {
                         node: field_id
                             .into_global_any(module.id)
                             .into_anchored(Some(profile)),
+                        ty: backing_type_id.into_global(module.id),
                     });
                 }
             } else {
