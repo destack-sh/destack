@@ -1,7 +1,7 @@
-mod cache;
 mod index;
+mod store;
 mod workspace;
 
-pub use cache::*;
 pub use index::*;
+pub use store::*;
 pub use workspace::*;

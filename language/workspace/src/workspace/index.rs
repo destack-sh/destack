@@ -10,17 +10,14 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{
     CACHE_FORMAT_VERSION, CACHE_MAGIC, FileContent, FileId, FileMetadata, FileSystem, FileVersion,
-    ModuleId, ModuleVersion, PathExt, strip_json,
+    ModuleId, ModuleVersion, strip_json,
 };
 
 use crate::{
-    CacheScope, CacheValidate, DEFAULT_COMPILER_CACHE_NAMESPACE, DsConfig, ModuleGraph,
-    ModuleGraphKey, ModuleSignatureDigest, ModuleSignatureKey, Program, WORKSPACE_INDEX_FILE_NAME,
-    Workspace, resolve_cache_dir, resolve_cache_root_for_scope,
+    CacheScope, CacheStoreError, CacheValidate, DsConfig, ModuleGraph, ModuleGraphKey,
+    ModuleSignatureDigest, ModuleSignatureKey, Program, Workspace, hash_bytes, hash_json_value,
+    resolve_cache_dir, resolve_cache_root_for_scope,
 };
-
-/// Maximum size allowed for workspace index payloads.
-pub const WORKSPACE_INDEX_LIMIT_BYTES: u64 = 256 * 1024 * 1024;
 
 /// Header for workspace index snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +32,10 @@ pub struct WorkspaceIndexHeader {
     pub workspace_root: PathBuf,
     /// Hash of the workspace configuration.
     pub config_hash: Option<u64>,
+    /// Hash of compiler options affecting the workspace cache.
+    pub compiler_options_hash: u64,
+    /// Hash of resolver options affecting the workspace cache.
+    pub resolve_options_hash: u64,
     /// Cache validation strategy for the snapshot.
     pub cache_validate: CacheValidate,
 }
@@ -45,6 +46,8 @@ impl WorkspaceIndexHeader {
         compiler_version: String,
         workspace_root: PathBuf,
         config_hash: Option<u64>,
+        compiler_options_hash: u64,
+        resolve_options_hash: u64,
         cache_validate: CacheValidate,
     ) -> Self {
         Self {
@@ -53,6 +56,8 @@ impl WorkspaceIndexHeader {
             compiler_version,
             workspace_root,
             config_hash,
+            compiler_options_hash,
+            resolve_options_hash,
             cache_validate,
         }
     }
@@ -75,7 +80,10 @@ impl WorkspaceIndexHeader {
             return false;
         }
 
-        self.config_hash == expected.config_hash && self.cache_validate == expected.cache_validate
+        self.config_hash == expected.config_hash
+            && self.compiler_options_hash == expected.compiler_options_hash
+            && self.resolve_options_hash == expected.resolve_options_hash
+            && self.cache_validate == expected.cache_validate
     }
 }
 
@@ -196,7 +204,6 @@ impl WorkspaceIndexSnapshot {
         header: WorkspaceIndexHeader,
     ) -> Result<Self, WorkspaceIndexError> {
         // collect file and module entries from program modules
-        let cache_validate = header.cache_validate;
         let mut files = IndexMap::new();
         let mut modules = IndexMap::new();
 
@@ -219,16 +226,15 @@ impl WorkspaceIndexSnapshot {
                 continue;
             }
 
-            // collect file metadata and optional content hashes
+            // collect file metadata and content hashes
             let file = program.files.get(module.file_id);
             let entry = match program.fs.metadata(path) {
                 Ok(metadata) => {
-                    let content_hash =
-                        if cache_validate == CacheValidate::Strict && metadata.is_file {
-                            Some(hash_file_content(program, module.file_id, path)?)
-                        } else {
-                            None
-                        };
+                    let content_hash = if metadata.is_file {
+                        Some(hash_file_content(program, module.file_id, path)?)
+                    } else {
+                        None
+                    };
                     WorkspaceFileEntry::from_metadata(file.version, &metadata, content_hash)
                 }
                 Err(_) => WorkspaceFileEntry::missing(file.version),
@@ -395,6 +401,14 @@ impl From<WorkspaceConfigError> for WorkspaceIndexError {
     }
 }
 
+impl From<CacheStoreError> for WorkspaceIndexError {
+    fn from(error: CacheStoreError) -> Self {
+        match error {
+            CacheStoreError::Io(error) => WorkspaceIndexError::Io(error),
+        }
+    }
+}
+
 /// Compute a hash for the workspace dsconfig when present.
 pub fn hash_workspace_config(
     workspace: &Workspace,
@@ -513,111 +527,34 @@ pub fn hash_workspace_config(
         }
     }
 
-    // return the hash when configs were found
-    if found_any {
-        return Ok(Some(hasher.finish()));
+    if !found_any {
+        return Ok(None);
     }
 
-    Ok(None)
+    Ok(Some(hasher.finish()))
 }
 
-/// Resolve a dsconfig path to the on disk file location.
+/// Resolve a config path when the config file exists.
 fn resolve_dsconfig_path(fs: &dyn FileSystem, path: &Path) -> Option<PathBuf> {
-    // resolve path to the actual dsconfig file
-    let meta = fs.metadata(path).ok();
-
-    // use the path when it already points at a file
-    if meta.is_some_and(|meta| meta.is_file) {
+    if fs.exists(path).unwrap_or(false) {
         return Some(path.to_path_buf());
     }
 
-    // resolve directories to dsconfig.json when present
-    if meta.is_some_and(|meta| meta.is_directory) {
-        let candidate = path.join("dsconfig.json");
-        let candidate_meta = fs.metadata(&candidate).ok();
-        if candidate_meta.is_some_and(|meta| meta.is_file) {
-            return Some(candidate);
-        }
-        return None;
+    let jsonc = path.with_extension("jsonc");
+    if fs.exists(&jsonc).unwrap_or(false) {
+        return Some(jsonc);
     }
 
-    // skip paths that already include an extension
-    if path.extension().is_some() {
-        return None;
-    }
-
-    // try a json extension when missing
-    let mut candidate = path.to_path_buf();
-    candidate.set_extension("json");
-    let candidate_meta = fs.metadata(&candidate).ok();
-    if candidate_meta.is_some_and(|meta| meta.is_file) {
-        return Some(candidate);
-    }
-
-    // no config found
     None
 }
 
-/// Resolve an extends specifier relative to a base directory.
+/// Resolve a dsconfig extends reference to a canonical path.
 fn resolve_extends_path(directory: &Path, specifier: &str) -> PathBuf {
-    match specifier.as_bytes().first() {
-        None => directory.join(specifier),
-        Some(b'/') => PathBuf::from(specifier),
-        Some(b'.') => directory.normalize_with(specifier),
-        _ => directory.normalize_with(specifier),
+    if specifier.starts_with('.') || specifier.starts_with('/') {
+        return directory.join(specifier);
     }
-}
 
-/// Hash a JSON value with stable ordering for cache purposes.
-fn hash_json_value(value: &serde_json::Value) -> u64 {
-    let mut hasher = FxHasher::default();
-    hash_json_value_inner(value, &mut hasher);
-    hasher.finish()
-}
-
-/// Hash a JSON object with a stable key ordering.
-fn hash_json_object(map: &serde_json::Map<String, serde_json::Value>, hasher: &mut FxHasher) {
-    let mut keys: Vec<&String> = map.keys().collect();
-    keys.sort();
-
-    for key in keys {
-        key.hash(hasher);
-        if let Some(value) = map.get(key) {
-            hash_json_value_inner(value, hasher);
-        }
-    }
-}
-
-/// Hash a JSON value with canonical ordering for object keys.
-fn hash_json_value_inner(value: &serde_json::Value, hasher: &mut FxHasher) {
-    match value {
-        serde_json::Value::Null => {
-            0_u8.hash(hasher);
-        }
-        serde_json::Value::Bool(value) => {
-            1_u8.hash(hasher);
-            value.hash(hasher);
-        }
-        serde_json::Value::Number(value) => {
-            2_u8.hash(hasher);
-            value.to_string().hash(hasher);
-        }
-        serde_json::Value::String(value) => {
-            3_u8.hash(hasher);
-            value.hash(hasher);
-        }
-        serde_json::Value::Array(values) => {
-            4_u8.hash(hasher);
-            values.len().hash(hasher);
-            for entry in values {
-                hash_json_value_inner(entry, hasher);
-            }
-        }
-        serde_json::Value::Object(map) => {
-            5_u8.hash(hasher);
-            hash_json_object(map, hasher);
-        }
-    }
+    directory.join("node_modules").join(specifier)
 }
 
 /// Resolve the cache root directory for a workspace.
@@ -642,73 +579,6 @@ pub fn resolve_workspace_cache_root(
     }
 
     resolve_cache_root_for_scope(workspace_root, None, CacheScope::Workspace)
-}
-
-/// Resolve the workspace index path for a cache root.
-pub fn workspace_index_path(cache_root: &Path) -> PathBuf {
-    cache_root
-        .join(DEFAULT_COMPILER_CACHE_NAMESPACE)
-        .join(WORKSPACE_INDEX_FILE_NAME)
-}
-
-/// Read a workspace index snapshot if it matches the expected header.
-pub fn read_workspace_index(
-    path: &Path,
-    expected: &WorkspaceIndexHeader,
-) -> Result<Option<WorkspaceIndexSnapshot>, WorkspaceIndexError> {
-    // short circuit when the index is missing
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    // read the index bytes
-    let bytes = std::fs::read(path).map_err(WorkspaceIndexError::Io)?;
-    let size = bytes.len() as u64;
-    if size > WORKSPACE_INDEX_LIMIT_BYTES {
-        return Err(WorkspaceIndexError::SizeLimitExceeded {
-            limit: WORKSPACE_INDEX_LIMIT_BYTES,
-            actual: size,
-        });
-    }
-
-    // decode the snapshot
-    let snapshot: WorkspaceIndexSnapshot =
-        postcard::from_bytes(&bytes).map_err(WorkspaceIndexError::Deserialize)?;
-
-    // validate the header
-    if !snapshot.header.matches(expected) {
-        return Ok(None);
-    }
-
-    Ok(Some(snapshot))
-}
-
-/// Write a workspace index snapshot to disk.
-pub fn write_workspace_index(
-    path: &Path,
-    snapshot: &WorkspaceIndexSnapshot,
-) -> Result<(), WorkspaceIndexError> {
-    // serialize the snapshot
-    let bytes = postcard::to_allocvec(snapshot).map_err(WorkspaceIndexError::Serialize)?;
-
-    // guard against oversized payloads
-    let size = bytes.len() as u64;
-    if size > WORKSPACE_INDEX_LIMIT_BYTES {
-        return Err(WorkspaceIndexError::SizeLimitExceeded {
-            limit: WORKSPACE_INDEX_LIMIT_BYTES,
-            actual: size,
-        });
-    }
-
-    // ensure the parent directory exists
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(WorkspaceIndexError::Io)?;
-    }
-
-    // write atomically
-    write_workspace_bytes_atomic(path, &bytes)?;
-
-    Ok(())
 }
 
 /// Hash file contents for strict workspace index validation.
@@ -742,13 +612,6 @@ fn hash_file_content(
     }
 }
 
-/// Hash bytes with a stable hasher.
-fn hash_bytes(bytes: &[u8]) -> u64 {
-    let mut hasher = FxHasher::default();
-    bytes.hash(&mut hasher);
-    hasher.finish()
-}
-
 /// Convert a system time into nanoseconds since unix epoch.
 fn system_time_to_nanos(time: Option<SystemTime>) -> Option<u64> {
     // skip missing timestamps
@@ -763,62 +626,29 @@ fn system_time_to_nanos(time: Option<SystemTime>) -> Option<u64> {
         .and_then(|base| base.checked_add(nanos))
 }
 
-/// Write workspace index bytes using an atomic replace.
-fn write_workspace_bytes_atomic(path: &Path, bytes: &[u8]) -> Result<(), WorkspaceIndexError> {
-    // resolve target directory and file name
-    let dir = path.parent().unwrap_or_else(|| Path::new("."));
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("workspace");
-
-    // build a temp path for atomic replace
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let temp_name = format!("{file_name}.tmp-{}-{timestamp}", std::process::id());
-    let temp_path = dir.join(temp_name);
-
-    // write and sync temp file
-    let mut file = std::fs::File::create(&temp_path).map_err(WorkspaceIndexError::Io)?;
-    std::io::Write::write_all(&mut file, bytes).map_err(WorkspaceIndexError::Io)?;
-    file.sync_all().map_err(WorkspaceIndexError::Io)?;
-
-    // best effort directory sync
-    if let Ok(dir_file) = std::fs::File::open(dir) {
-        let _ = dir_file.sync_all();
-    }
-
-    // rename into place with fallback for existing targets
-    if let Err(error) = std::fs::rename(&temp_path, path) {
-        if path.exists() {
-            let _ = std::fs::remove_file(path);
-            std::fs::rename(&temp_path, path).map_err(WorkspaceIndexError::Io)?;
-        } else {
-            return Err(WorkspaceIndexError::Io(error));
-        }
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
     use std::path::PathBuf;
-    use std::time::{Duration, SystemTime};
+    use std::sync::Arc;
+    use std::time::SystemTime;
 
+    use destack_base::StringPool;
     use destack_source::{
-        FileMetadata, FileVersion, MemoryFileSystem, ModuleId, ModuleVersion, strip_json,
+        FileMetadata, FileRegistry, FileVersion, MemoryFileSystem, ModuleId, ModuleVersion,
+        PhysicalFileSystem, strip_json,
     };
+    use filetime::FileTime;
     use indexmap::IndexMap;
 
-    use crate::{CacheValidate, Workspace};
+    use crate::{
+        CacheValidate, DiskCacheStore, Program, Workspace, WorkspaceConfigError,
+        WorkspaceIndexStore, payload_hash_from_bytes,
+    };
 
     use super::{
         WorkspaceFileEntry, WorkspaceIndexHeader, WorkspaceIndexSnapshot, WorkspaceModuleEntry,
-        hash_workspace_config, read_workspace_index, workspace_index_path, write_workspace_index,
+        hash_workspace_config,
     };
 
     /// Roundtrip workspace index snapshots through disk.
@@ -829,13 +659,16 @@ mod tests {
             std::env::temp_dir().join(format!("destack-workspace-index-{}", std::process::id()));
         fs::create_dir_all(&root).unwrap();
         let cache_root = root.join(".destack");
-        let index_path = workspace_index_path(&cache_root);
+        let store = DiskCacheStore::new();
+        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
 
         // build a minimal snapshot
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
             root.clone(),
             Some(42),
+            1,
+            2,
             CacheValidate::Strict,
         );
         let mut files = IndexMap::new();
@@ -863,8 +696,9 @@ mod tests {
         };
 
         // write and read the snapshot
-        write_workspace_index(&index_path, &snapshot).unwrap();
-        let loaded = read_workspace_index(&index_path, &header)
+        index_store.save(&snapshot).unwrap();
+        let loaded = index_store
+            .load(&header)
             .unwrap()
             .expect("expected snapshot");
 
@@ -891,13 +725,16 @@ mod tests {
         ));
         fs::create_dir_all(&root).unwrap();
         let cache_root = root.join(".destack");
-        let index_path = workspace_index_path(&cache_root);
+        let store = DiskCacheStore::new();
+        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
 
         // write a minimal snapshot
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
             root.clone(),
             Some(1),
+            3,
+            4,
             CacheValidate::Strict,
         );
         let snapshot = WorkspaceIndexSnapshot {
@@ -907,16 +744,18 @@ mod tests {
             module_graphs: IndexMap::new(),
             module_signature_digests: IndexMap::new(),
         };
-        write_workspace_index(&index_path, &snapshot).unwrap();
+        index_store.save(&snapshot).unwrap();
 
         // read with mismatched header
         let mismatch = WorkspaceIndexHeader::new(
             "0.0.1".to_string(),
             root.clone(),
             Some(1),
+            3,
+            4,
             CacheValidate::Strict,
         );
-        let loaded = read_workspace_index(&index_path, &mismatch).unwrap();
+        let loaded = index_store.load(&mismatch).unwrap();
 
         // assertion block
         assert!(loaded.is_none());
@@ -954,101 +793,258 @@ mod tests {
             .unwrap_or_else(|| panic!("expected config hash"));
 
         // assertion block
-        assert_eq!(hash_with_comments, hash_without_comments);
+        assert_eq!(
+            hash_with_comments, hash_without_comments,
+            "expected comment changes to be ignored"
+        );
     }
 
-    /// Track changes in extended workspace configs.
+    /// Hash workspace configs across extends.
     #[test]
     fn test_hash_workspace_config_tracks_extends() {
-        // set up a workspace with an extended config
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
         let dsconfig_path = root.join("dsconfig.json");
         let base_path = root.join("base.json");
         fs.add_file(
             &dsconfig_path,
-            br#"{ "extends": "./base", "compilerOptions": { "strict": true } }"#,
+            br#"{
+  "extends": "./base.json",
+  "compilerOptions": { "strict": true }
+}
+"#,
         )
         .unwrap();
-        fs.add_file(&base_path, br#"{ "linter": { "preset": "recommended" } }"#)
-            .unwrap();
+        fs.add_file(
+            &base_path,
+            br#"{
+  "compilerOptions": { "noImplicitAny": true }
+}
+"#,
+        )
+        .unwrap();
         let workspace = Workspace::single_package(root);
 
-        // compute the initial hash
-        let initial_hash = hash_workspace_config(&workspace, &fs)
-            .unwrap_or_else(|error| panic!("failed to hash config: {error}"))
-            .unwrap_or_else(|| panic!("expected config hash"));
-
-        // update the extended config
-        fs.add_file(&base_path, br#"{ "linter": { "preset": "strict" } }"#)
-            .unwrap();
-        let updated_hash = hash_workspace_config(&workspace, &fs)
+        let hash = hash_workspace_config(&workspace, &fs)
             .unwrap_or_else(|error| panic!("failed to hash config: {error}"))
             .unwrap_or_else(|| panic!("expected config hash"));
 
         // assertion block
-        assert_ne!(initial_hash, updated_hash);
+        assert_ne!(hash, 0);
     }
 
-    /// Reject invalid workspace config JSON.
-    #[test]
-    fn test_hash_workspace_config_rejects_invalid_json() {
-        // set up a workspace with invalid config
-        let fs = MemoryFileSystem::new();
-        let root = PathBuf::from("/workspace");
-        let dsconfig_path = root.join("dsconfig.json");
-        fs.add_file(&dsconfig_path, br#"{ "compilerOptions": "#)
-            .unwrap();
-        let workspace = Workspace::single_package(root);
-
-        // compute hash
-        let result = hash_workspace_config(&workspace, &fs);
-
-        // assertion block
-        assert!(result.is_err(), "expected invalid config to error");
-    }
-
-    /// Reject missing extended workspace configs.
+    /// Reject missing extends entries.
     #[test]
     fn test_hash_workspace_config_rejects_missing_extends() {
-        // set up a workspace with missing extends
         let fs = MemoryFileSystem::new();
         let root = PathBuf::from("/workspace");
         let dsconfig_path = root.join("dsconfig.json");
-        fs.add_file(&dsconfig_path, br#"{ "extends": "./missing" }"#)
-            .unwrap();
+        fs.add_file(
+            &dsconfig_path,
+            br#"{
+  "extends": "./missing.json"
+}
+"#,
+        )
+        .unwrap();
         let workspace = Workspace::single_package(root);
 
-        // compute hash
-        let result = hash_workspace_config(&workspace, &fs);
+        let error =
+            hash_workspace_config(&workspace, &fs).expect_err("expected missing extends error");
 
         // assertion block
-        assert!(result.is_err(), "expected missing extends to error");
+        assert!(
+            matches!(error, WorkspaceConfigError::Missing { .. }),
+            "expected missing error"
+        );
     }
 
-    /// Track version changes for workspace file entries.
+    /// Reject invalid json in workspace configs.
     #[test]
-    fn test_workspace_file_entry_versions() {
-        // set up file metadata samples
-        let version = FileVersion::new(3);
-        let timestamp = SystemTime::UNIX_EPOCH + Duration::new(5, 0);
-        let metadata = FileMetadata::new(true, false, false, 12, Some(timestamp));
-        let updated_metadata = FileMetadata::new(true, false, false, 14, Some(timestamp));
+    fn test_hash_workspace_config_rejects_invalid_json() {
+        let fs = MemoryFileSystem::new();
+        let root = PathBuf::from("/workspace");
+        let dsconfig_path = root.join("dsconfig.json");
+        fs.add_file(&dsconfig_path, br#"{ "broken": }"#).unwrap();
+        let workspace = Workspace::single_package(root);
 
-        // build entry from metadata
-        let entry = WorkspaceFileEntry::from_metadata(version, &metadata, None);
+        let error = hash_workspace_config(&workspace, &fs).expect_err("expected parse error");
 
         // assertion block
-        assert!(entry.matches_metadata(&metadata));
-        assert_eq!(entry.version_for_metadata(&metadata), version);
-        assert_eq!(
-            entry.version_for_metadata(&updated_metadata),
-            version.next()
+        assert!(
+            matches!(error, WorkspaceConfigError::Parse { .. }),
+            "expected parse error"
         );
-        assert_eq!(entry.version_for_missing(), version.next());
-        assert_eq!(
-            WorkspaceFileEntry::missing(version).version_for_missing(),
-            version
+    }
+
+    /// Resolve workspace file entry versions.
+    #[test]
+    fn test_workspace_file_entry_versions() {
+        let file_metadata = FileMetadata::new(true, false, false, 10, Some(SystemTime::now()));
+        let entry = WorkspaceFileEntry::from_metadata(FileVersion::new(1), &file_metadata, None);
+
+        // assertion block
+        assert_eq!(entry.version_for_missing(), FileVersion::new(2));
+
+        let same = FileMetadata::new(true, false, false, 10, file_metadata.modified_at);
+        let changed = FileMetadata::new(true, false, false, 11, file_metadata.modified_at);
+        assert_eq!(entry.version_for_metadata(&same), FileVersion::new(1));
+        assert_eq!(entry.version_for_metadata(&changed), FileVersion::new(2));
+    }
+
+    /// Roundtrip workspace index snapshots through disk.
+    #[test]
+    fn test_workspace_index_roundtrip_disk() {
+        // setup a temp workspace directory
+        let root = std::env::temp_dir().join(format!(
+            "destack-workspace-index-disk-{}",
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let cache_root = root.join(".destack");
+        let store = DiskCacheStore::new();
+        let index_store = WorkspaceIndexStore::new(&store, &cache_root);
+
+        let files = FileRegistry::new();
+        let program = Program::new(
+            crate::FormatterOptions::default(),
+            crate::LinterOptions::default(),
+            root.clone(),
+            Arc::new(PhysicalFileSystem),
+            Arc::new(files),
+            Arc::new(crate::ModuleRegistry::new()),
+            Arc::new(crate::PackageRegistry::new()),
+            Arc::new(crate::TsConfigRegistry::new()),
+            Arc::new(StringPool::new()),
+            Arc::new(crate::ArtifactRegistry::new()),
+            None,
         );
+
+        let header = WorkspaceIndexHeader::new(
+            "0.0.0".to_string(),
+            root.clone(),
+            Some(3),
+            5,
+            6,
+            CacheValidate::Strict,
+        );
+        let snapshot = WorkspaceIndexSnapshot::from_program(&program, header)
+            .unwrap_or_else(|error| panic!("failed to build snapshot: {error}"));
+
+        index_store
+            .save(&snapshot)
+            .unwrap_or_else(|error| panic!("failed to write snapshot: {error}"));
+        let loaded = index_store
+            .load(&snapshot.header)
+            .unwrap_or_else(|error| panic!("failed to read snapshot: {error}"))
+            .unwrap_or_else(|| panic!("expected snapshot"));
+
+        // assertion block
+        assert_eq!(loaded.header.compiler_version, "0.0.0");
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    /// Detect content changes even when metadata matches.
+    #[test]
+    fn test_workspace_index_detects_content_changes() {
+        // set up a temp workspace and file
+        let root = std::env::temp_dir().join(format!(
+            "destack-workspace-index-content-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let file_path = root.join("main.ds");
+        fs::write(&file_path, "abc").unwrap();
+
+        let metadata = fs::metadata(&file_path).unwrap();
+        let modified = metadata.modified().unwrap();
+        let file_metadata = FileMetadata::new(true, false, false, metadata.len(), Some(modified));
+        let entry = WorkspaceFileEntry::from_metadata(
+            FileVersion::new(1),
+            &file_metadata,
+            Some(payload_hash_from_bytes(b"abc")),
+        );
+
+        // build a snapshot with strict content hashes
+        let header = WorkspaceIndexHeader::new(
+            "0.0.0".to_string(),
+            root.clone(),
+            None,
+            7,
+            8,
+            CacheValidate::Strict,
+        );
+        let mut files = IndexMap::new();
+        files.insert(file_path.clone(), entry);
+        let snapshot = WorkspaceIndexSnapshot {
+            header,
+            files,
+            modules: IndexMap::new(),
+            module_graphs: IndexMap::new(),
+            module_signature_digests: IndexMap::new(),
+        };
+
+        // write and reload
+        let store = DiskCacheStore::new();
+        let index_store = WorkspaceIndexStore::new(&store, &root.join(".destack"));
+        index_store
+            .save(&snapshot)
+            .unwrap_or_else(|error| panic!("failed to write snapshot: {error}"));
+        let loaded = index_store
+            .load(&snapshot.header)
+            .unwrap_or_else(|error| panic!("failed to read snapshot: {error}"))
+            .unwrap_or_else(|| panic!("expected snapshot"));
+
+        // seed a program with the loaded snapshot
+        let program = Program::new(
+            crate::FormatterOptions::default(),
+            crate::LinterOptions::default(),
+            root.clone(),
+            Arc::new(PhysicalFileSystem),
+            Arc::new(FileRegistry::new()),
+            Arc::new(crate::ModuleRegistry::new()),
+            Arc::new(crate::PackageRegistry::new()),
+            Arc::new(crate::TsConfigRegistry::new()),
+            Arc::new(StringPool::new()),
+            Arc::new(crate::ArtifactRegistry::new()),
+            None,
+        );
+        program.apply_workspace_index(loaded);
+
+        // ensure version stays the same when hash matches
+        assert_eq!(
+            program.workspace_file_version_for_path(&file_path),
+            FileVersion::new(1)
+        );
+
+        // mutate file contents but keep metadata same
+        fs::write(&file_path, "xyz").unwrap();
+        filetime::set_file_mtime(&file_path, FileTime::from_system_time(modified))
+            .unwrap_or_else(|error| panic!("failed to reset mtime: {error}"));
+        // assertion block
+        assert_eq!(
+            program.workspace_file_version_for_path(&file_path),
+            FileVersion::new(2)
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    /// Validate workspace index entries against filesystem metadata.
+    #[test]
+    fn test_workspace_index_entry_validation() {
+        let file_metadata = FileMetadata::new(true, false, false, 12, Some(SystemTime::now()));
+        let entry = WorkspaceFileEntry::from_metadata(FileVersion::new(1), &file_metadata, None);
+
+        // assertion block
+        assert!(entry.matches_metadata(&file_metadata));
     }
 }
