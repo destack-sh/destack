@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use super::member::{MemberLookupMode, MemberResolution};
-use crate::{
-    analyze::common::CanonicalSymbolMode, AnalyzeError, AnalyzeOptions, AnalyzeResult,
-    Assignability, Compiler, InferContext,
-};
+use crate::analyze::common::CanonicalSymbolMode;
+use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
     InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
@@ -2033,8 +2031,8 @@ impl Compiler {
                 CanonicalSymbolMode::FollowAliases,
             )
         });
-        let is_struct_constructor = struct_constructor_symbol
-            .is_some_and(|symbol| symbol.ty() == SymbolType::Struct);
+        let is_struct_constructor =
+            struct_constructor_symbol.is_some_and(|symbol| symbol.ty() == SymbolType::Struct);
 
         // resolve construct signatures for the callee type
         let construct_signatures = self.construct_signatures_for_type(callee_ty_id, types);

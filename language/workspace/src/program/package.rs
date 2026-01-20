@@ -59,7 +59,7 @@ impl Package {
 
     /// Get the default target (first one, if any).
     pub fn default_target(&self) -> Option<&Target> {
-        self.targets.values().next()
+        self.targets.values().find(|target| !target.synthetic)
     }
 }
 

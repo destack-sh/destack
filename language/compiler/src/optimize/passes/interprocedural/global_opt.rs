@@ -727,22 +727,18 @@ block0:
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let scope_id =
-            test
-                .tree
+            test.tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Function, None, span, None);
-        test
-            .tree
+        test.tree
             .debug_info
             .function_scopes
             .insert(root_id, scope_id);
         let var_id =
-            test
-                .tree
+            test.tree
                 .debug_info
                 .create_variable(root_name, global_type, scope_id, false, false);
-        test
-            .tree
+        test.tree
             .debug_info
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Value(destination));

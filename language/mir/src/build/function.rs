@@ -91,6 +91,7 @@ impl<'a> FunctionBuilder<'a> {
         let function = Function {
             name,
             parameters,
+            parameter_names: vec![None; parameter_types.len()],
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,
@@ -120,6 +121,15 @@ impl<'a> FunctionBuilder<'a> {
             incomplete_phis: IndexMap::new(),
             variable_types: IndexMap::new(),
             blocks: Vec::new(),
+        }
+    }
+
+    /// Set a debug parameter name on the function signature.
+    pub fn set_parameter_name(&mut self, index: usize, name: destack_base::StringId) {
+        // record parameter names for diagnostics
+        let function = self.tree.get_mut(self.function_id);
+        if let Some(slot) = function.parameter_names.get_mut(index) {
+            *slot = Some(name);
         }
     }
 
@@ -1100,6 +1110,23 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Get the address of a field from a struct or tuple.
+    pub fn field_addr(
+        &mut self,
+        aggregate: Value,
+        index: u32,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FieldAddr {
+            destination,
+            aggregate,
+            index,
+            result_type,
+        });
+        destination
+    }
+
     /// Insert a value into a struct or tuple field.
     pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
@@ -1119,6 +1146,23 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             array,
             index,
+        });
+        destination
+    }
+
+    /// Get the address of an element from an array.
+    pub fn element_addr(
+        &mut self,
+        array: Value,
+        index: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::ElementAddr {
+            destination,
+            array,
+            index,
+            result_type,
         });
         destination
     }

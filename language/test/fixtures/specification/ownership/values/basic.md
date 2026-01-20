@@ -28,6 +28,21 @@ let value: Point = ^Point { x: 1 };
 
 - contains: not assignable
 
+### owned conversion rejects owned values
+
+> `^expr` only applies to unowned values.
+
+```ds
+struct Data {
+    value: int32,
+}
+
+let data = ^Data { value: 1 };
+let again = ^data;
+```
+
+- contains: ownership operator requires an unowned value
+
 ### owned fields are allowed in structs
 
 > Structs can store owned fields directly.

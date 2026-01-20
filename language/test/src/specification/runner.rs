@@ -4,12 +4,14 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
+use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask};
 use destack_parser::source_colorizer;
 use destack_source::{
     File, FileType, MemoryFileSystem, ModuleStamp, PrintOptions, ProfileStamp, Uri,
 };
-use destack_workspace::{DsConfig, MemoryCacheStore, TargetId};
+use destack_workspace::{
+    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, TargetId,
+};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -168,7 +170,8 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     };
 
     // apply dsconfig.json for compiler options and targets
-    if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path) {
+    let prefer_native = test_option_bool(test, "native").unwrap_or(false);
+    if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native) {
         return TestResult::Failed { message: error };
     }
 
@@ -185,6 +188,24 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         module: ModuleStamp::new(module_id, module_version),
         profile: ProfileStamp::new(profile, profile_version),
     });
+
+    // run optimize passes only for native spec tests
+    let run_optimize = prefer_native;
+    if run_optimize {
+        let diagnostic_target = program.ensure_target_for_module(module_id);
+        let diagnostic_profile =
+            program.profile_id_for_target_or_default(module_id, &diagnostic_target);
+        let diagnostic_profile_version = program
+            .profiles
+            .get(diagnostic_profile)
+            .unwrap_or_else(|| panic!("missing profile data for {diagnostic_profile:?}"))
+            .version;
+        compiler.enqueue(OptimizeTask::OptimizeModule {
+            module: ModuleStamp::new(module_id, module_version),
+            profile: ProfileStamp::new(diagnostic_profile, diagnostic_profile_version),
+            target: diagnostic_target,
+        });
+    }
     compiler.compile();
     drop(compiler);
 
@@ -218,10 +239,21 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     }
 }
 
+fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
+    // parse boolean test options
+    let value = test.options.get(key)?;
+    match value.trim().to_lowercase().as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
 fn apply_dsconfig_for_spec(
     program: &destack_workspace::Program,
     module_id: destack_source::ModuleId,
     main_path: &Path,
+    prefer_native: bool,
 ) -> Result<(), String> {
     // locate dsconfig.json in the test root
     let root = main_path.parent().unwrap_or_else(|| Path::new("/"));
@@ -233,6 +265,41 @@ fn apply_dsconfig_for_spec(
         .exists(&dsconfig_path)
         .map_err(|e| format!("failed to stat dsconfig.json: {e}"))?;
     if !has_dsconfig {
+        // default spec tests to js unless explicitly marked native
+        if prefer_native {
+            return Ok(());
+        }
+
+        let file_id = program.files.next_id();
+        let mut options = DsConfigOptions::default();
+        let mut target = DsConfigTargetOptions::default();
+        target.output = OutputFormat::Js;
+        options.targets.insert("default".to_string(), target);
+        options.default_target = Some("default".to_string());
+
+        let dsconfig = DsConfig {
+            file_id,
+            path: dsconfig_path.clone(),
+            directory: root.to_path_buf(),
+            options,
+            content: Default::default(),
+        };
+
+        let package_id = {
+            let module = program.modules.get(module_id);
+            let module = module.read();
+            module.package_id
+        };
+        let package = program.packages.get(package_id);
+        let mut package = package.write();
+        package.dsconfig = Some(dsconfig.clone());
+        package.targets.clear();
+        for (name, options) in dsconfig.options.targets.iter() {
+            let target = options.to_target(name);
+            let target_id = TargetId::new(package_id, name);
+            package.targets.insert(target_id, target);
+        }
+
         return Ok(());
     }
 
@@ -258,7 +325,18 @@ fn apply_dsconfig_for_spec(
     )
     .map_err(|e| format!("failed to parse dsconfig.json: {e}"))?;
     let file = Arc::new(file);
-    let dsconfig = DsConfig::parse(&file).map_err(|e| e.to_string())?;
+    let mut dsconfig = DsConfig::parse(&file).map_err(|e| e.to_string())?;
+
+    // prefer js defaults for spec tests unless a native target is required
+    if !prefer_native && dsconfig.options.targets.is_empty() {
+        let mut target = DsConfigTargetOptions::default();
+        target.output = OutputFormat::Js;
+        dsconfig
+            .options
+            .targets
+            .insert("default".to_string(), target);
+        dsconfig.options.default_target = Some("default".to_string());
+    }
 
     // attach dsconfig and targets to the module package
     let package_id = {

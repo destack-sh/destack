@@ -145,6 +145,17 @@ impl<'a> BorrowCheckContext<'a> {
         true
     }
 
+    /// Determine mutability directly from a reference type.
+    fn mutability_from_reference_type(&self, ty_id: mir::LocalNodeId<Type>) -> bool {
+        let ty = self.tree.get(ty_id);
+        if let Type::Reference { mutability, .. } = ty {
+            return *mutability == Mutability::Mutable;
+        }
+
+        // conservative: assume mutable if type unknown
+        true
+    }
+
     /// Reset borrows for a new block and seed from BorrowAnalysis.
     ///
     /// This ensures borrows created in predecessor blocks are visible.
@@ -294,8 +305,8 @@ impl<'a> BorrowCheckContext<'a> {
 
     /// Check creating a new borrow for conflicts.
     ///
-    /// Uses alias analysis to detect may-alias relationships between the new
-    /// borrow's origin and existing borrow origins. This enables more precise
+    /// Uses alias analysis to detect may-alias relationships between reference
+    /// values. This enables more precise
     /// conflict detection:
     /// - Two field.addr to different fields of same struct: NoAlias (no conflict)
     /// - Two field.addr to same field: MayAlias/MustAlias (conflict if mutable)
@@ -308,30 +319,26 @@ impl<'a> BorrowCheckContext<'a> {
         at: mir::LocalNodeId<Instruction>,
         context: &impl DiagnosticEmitter,
     ) {
-        let new_loc = MemoryLocation::from_ptr(origin);
+        let new_loc = MemoryLocation::from_ptr(new_reference);
 
         // find conflicting borrows using alias analysis
         let conflict = self.active_borrows.values().find_map(|borrow| {
-            if let Some(borrow_origin) = borrow.origin {
-                let borrow_loc = MemoryLocation::from_ptr(borrow_origin);
+            let borrow_loc = MemoryLocation::from_ptr(borrow.reference);
 
-                // check if locations may alias
-                if !self.alias_analysis.alias(&new_loc, &borrow_loc).may_alias() {
-                    return None; // no alias, no conflict
-                }
+            // check if locations may alias
+            if !self.alias_analysis.alias(&new_loc, &borrow_loc).may_alias() {
+                return None; // no alias, no conflict
+            }
 
-                // aliasing exists - check borrow rules
-                if is_mutable {
-                    // mutable borrow conflicts with any existing borrow of same location
-                    Some((borrow.created_at, borrow.is_mutable))
-                } else if borrow.is_mutable {
-                    // shared borrow conflicts with existing mutable borrow
-                    Some((borrow.created_at, borrow.is_mutable))
-                } else {
-                    None // shared + shared is ok
-                }
+            // aliasing exists - check borrow rules
+            if is_mutable {
+                // mutable borrow conflicts with any existing borrow of same location
+                Some((borrow.created_at, borrow.is_mutable))
+            } else if borrow.is_mutable {
+                // shared borrow conflicts with existing mutable borrow
+                Some((borrow.created_at, borrow.is_mutable))
             } else {
-                None
+                None // shared + shared is ok
             }
         });
 
@@ -700,10 +707,14 @@ fn check_instruction(
         Instruction::FieldAddr {
             destination,
             aggregate,
+            result_type,
             ..
         } => {
-            // derive mutability from source aggregate type
-            let is_mutable = checker.derive_mutability(*aggregate);
+            // track reference type for later borrow lookups
+            checker.register_value_type(*destination, *result_type);
+
+            // derive mutability from reference type
+            let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(
                 *destination,
                 *aggregate,
@@ -715,10 +726,16 @@ fn check_instruction(
 
         // element.addr creates a borrow of the array
         Instruction::ElementAddr {
-            destination, array, ..
+            destination,
+            array,
+            result_type,
+            ..
         } => {
-            // derive mutability from source array type
-            let is_mutable = checker.derive_mutability(*array);
+            // track reference type for later borrow lookups
+            checker.register_value_type(*destination, *result_type);
+
+            // derive mutability from reference type
+            let is_mutable = checker.mutability_from_reference_type(*result_type);
             checker.check_new_borrow(*destination, *array, is_mutable, instruction_id, context);
         }
 
@@ -1345,8 +1362,8 @@ block0:
     fn test_detect_mutable_borrow_conflict_strict() {
         let input = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v1 = field.addr v0, 0 -> ref<borrowed mut i32>
+    v2 = field.addr v0, 0 -> ref<borrowed mut i32>
     v3 = load v1 -> i32
     v4 = load v2 -> i32
     v5 = iadd v3, v4
@@ -1758,8 +1775,8 @@ block0:
         // in strict mode with mutable ref, same field access conflicts
         let input_mut = r#"function @test(v0: ref<borrowed mut i32>) -> i32 {
 block0(v0: ref<borrowed mut i32>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
+    v1 = field.addr v0, 0 -> ref<borrowed mut i32>
+    v2 = field.addr v0, 0 -> ref<borrowed mut i32>
     v3 = load v1 -> i32
     v4 = load v2 -> i32
     v5 = iadd v3, v4

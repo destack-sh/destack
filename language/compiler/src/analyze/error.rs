@@ -99,6 +99,16 @@ pub enum AnalyzeError {
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },
 
+    /// Ownership operators require an unowned value.
+    #[error(
+        code = "EA109",
+        message = "ownership operator requires an unowned value, found {actual_ty}"
+    )]
+    InvalidOwnershipOperand {
+        node: AnchoredGlobalNodeId,
+        actual_ty: GlobalTypeId,
+    },
+
     // -------------------------------------------------------------------------
     // 2xx: Callable / member / operator errors
     // -------------------------------------------------------------------------

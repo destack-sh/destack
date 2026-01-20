@@ -1191,6 +1191,7 @@ impl DsConfigTargetOptions {
     pub fn to_target(&self, name: &str) -> Target {
         Target {
             name: name.to_string(),
+            synthetic: false,
             discovery: self.discovery,
             entry: self.entry.clone(),
             include: self.include.clone(),

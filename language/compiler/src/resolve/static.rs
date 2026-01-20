@@ -1244,14 +1244,25 @@ fn runtime_name(runtime: Runtime) -> &'static str {
 #[cfg(test)]
 mod tests {
     use destack_dir::{FunctionMode, Member};
+    use destack_workspace::OutputFormat;
 
     use crate::tests::TestProgram;
+
+    fn test_program_js() -> TestProgram {
+        let mut test = TestProgram::memory_sequential();
+        let default_profile = test.program.profile(test.default_profile_id_for_root());
+        let mut key = default_profile.key.clone();
+        key.output = OutputFormat::Js;
+        let profile_id = test.program.profiles.get_or_create(key);
+        test.default_profile_override = Some(profile_id);
+        test
+    }
 
     /// Gate declarations based on static if conditions.
     #[test]
     fn test_static_if_gates_declaration() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1277,7 +1288,7 @@ struct Visible {}
     #[test]
     fn test_static_if_gates_statement() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1300,7 +1311,7 @@ const value = 1;
     #[test]
     fn test_static_if_gates_block_statement() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1322,7 +1333,7 @@ function demo(): number {
     #[test]
     fn test_static_if_errors_when_true() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1343,7 +1354,7 @@ missing_symbol();
     #[test]
     fn test_static_if_requires_boolean() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1364,7 +1375,7 @@ const value = 1;
     #[test]
     fn test_static_if_requires_argument() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1385,7 +1396,7 @@ const value = 1;
     #[test]
     fn test_static_if_gates_members() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1407,7 +1418,7 @@ class Box {
     #[test]
     fn test_static_if_combines_conditions() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"
@@ -1426,7 +1437,7 @@ const value = missing_symbol();
     #[test]
     fn test_static_if_attaches_to_accessor_members() {
         // build the test program
-        let test = TestProgram::memory_sequential();
+        let test = test_program_js();
         let module_id = test.add_module(
             "test.ds",
             r#"

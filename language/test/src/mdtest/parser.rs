@@ -110,6 +110,7 @@ fn normalize_test_option_key(key: &str) -> Option<&'static str> {
         "runtime" => Some("runtime"),
         "runtime_version" | "runtime-version" | "runtimeVersion" => Some("runtime_version"),
         "platform" => Some("platform"),
+        "native" => Some("native"),
         "debug" => Some("debug"),
         _ => None,
     }

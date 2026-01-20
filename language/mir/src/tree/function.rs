@@ -90,6 +90,8 @@ pub struct Function {
     pub name: StringId,
     /// Function parameters as typed SSA values.
     pub parameters: Vec<TypedValue>,
+    /// Optional parameter names for diagnostics.
+    pub parameter_names: Vec<Option<StringId>>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
@@ -143,6 +145,7 @@ impl Function {
     ) -> Self {
         // seed parameter attributes
         let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_names = vec![None; parameters.len()];
 
         // compute the next value id from parameters
         let next_value_id = parameters.iter().map(|p| p.value.0 + 1).max().unwrap_or(0);
@@ -151,6 +154,7 @@ impl Function {
         Self {
             name,
             parameters,
+            parameter_names,
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,
@@ -176,11 +180,13 @@ impl Function {
     ) -> Self {
         // seed parameter attributes
         let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
+        let parameter_names = vec![None; parameters.len()];
 
         // construct the imported function
         Self {
             name,
             parameters,
+            parameter_names,
             return_type,
             return_lifetime: Lifetime::Inferred,
             memory_effects: None,

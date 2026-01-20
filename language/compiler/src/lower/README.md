@@ -755,11 +755,11 @@ Tradeoffs:
 - Predictable object layouts and smaller per object overhead
 - Thin pointer RTTI queries require a metadata lookup
 
-**Explicit value semantics:**
-Use `^T` to force value/copy semantics:
+**Explicit ownership semantics:**
+Use `^T` to request an owned reference (move-only):
 ```ds
-function process(point: ^Point) {    // ^Point = value type, point is copied
-    // modifications don't affect caller
+function process(point: ^Point) {    // ^Point is owned, caller gives up ownership
+    // point is now owned by this function
 }
 ```
 
@@ -1612,8 +1612,8 @@ To preserve TypeScript semantics, a plain type `T` always follows the same rules
 | `T` | GC managed (implicit) | `x` still valid | GC |
 | `&T` | Borrow (read only) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutable) | `x` still valid, maybe changed | Original owner |
-| `^T` | Ownership transfer | `x` **invalid** | New owner (or GC fallback) |
-| `^mut T` | Ownership transfer (mutable) | `x` **invalid** | New owner (or GC fallback) |
+| `^T` | Owned reference (move-only) | `x` **invalid** | New owner (or GC fallback) |
+| `^mut T` | Owned reference (mutable) | `x` **invalid** | New owner (or GC fallback) |
 
 For the default (`T`), the compiler optimizes automatically:
 - Small values are passed by copy (registers)

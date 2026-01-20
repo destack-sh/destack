@@ -117,15 +117,63 @@ impl ModuleBuilder {
         self.tree.insert(Type::Type)
     }
 
+    /// Create a reference type.
+    pub fn type_reference(
+        &mut self,
+        kind: ReferenceKind,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        })
+    }
+
+    /// Create a borrowed reference type.
+    pub fn type_borrowed_reference(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Type> {
+        self.type_reference(
+            ReferenceKind::Borrowed,
+            pointee,
+            mutability,
+            AddressSpace::Generic,
+            false,
+        )
+    }
+
+    /// Create an owned reference type.
+    pub fn type_owned_reference(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+    ) -> LocalNodeId<Type> {
+        self.type_reference(
+            ReferenceKind::Owned,
+            pointee,
+            mutability,
+            AddressSpace::Generic,
+            false,
+        )
+    }
+
     /// Create a raw pointer type (manual memory management).
     pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Reference {
-            kind: ReferenceKind::Raw,
-            address_space: AddressSpace::Generic,
-            mutability: Mutability::Immutable,
+        self.type_reference(
+            ReferenceKind::Raw,
             pointee,
-            is_nullable: false,
-        })
+            Mutability::Immutable,
+            AddressSpace::Generic,
+            false,
+        )
     }
 
     /// Create a reference type with explicit metadata.
@@ -148,13 +196,13 @@ impl ModuleBuilder {
 
     /// Create a managed reference type (runtime-tracked).
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Reference {
-            kind: ReferenceKind::Managed,
-            address_space: AddressSpace::Generic,
-            mutability: Mutability::Immutable,
+        self.type_reference(
+            ReferenceKind::Managed,
             pointee,
-            is_nullable: false,
-        })
+            Mutability::Immutable,
+            AddressSpace::Generic,
+            false,
+        )
     }
 
     /// Create a nullable managed reference type.
@@ -162,13 +210,13 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.tree.insert(Type::Reference {
-            kind: ReferenceKind::Managed,
-            address_space: AddressSpace::Generic,
-            mutability: Mutability::Immutable,
+        self.type_reference(
+            ReferenceKind::Managed,
             pointee,
-            is_nullable: true,
-        })
+            Mutability::Immutable,
+            AddressSpace::Generic,
+            true,
+        )
     }
 
     /// Create an array type with explicit copyability.

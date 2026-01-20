@@ -211,19 +211,14 @@ block0:
         let file_id = FileId::new(0);
         let span = Span::empty(file_id);
         let scope_id =
-            test
-                .tree
+            test.tree
                 .debug_info
                 .create_scope(mir::DebugScopeKind::Lexical, None, span, None);
-        let var_id = test.tree.debug_info.create_variable(
-            global_name,
-            global_type,
-            scope_id,
-            false,
-            false,
-        );
-        test
-            .tree
+        let var_id =
+            test.tree
+                .debug_info
+                .create_variable(global_name, global_type, scope_id, false, false);
+        test.tree
             .debug_info
             .variable_locations
             .insert(var_id, mir::DebugValueLocation::Global(global_id));

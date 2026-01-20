@@ -396,16 +396,12 @@ block0(v0: i32, v1: i32, v2: i32):
         // capture the expression keys
         let entry_block = function.entry.expect("missing entry block");
         let block_data = test.tree.get(entry_block);
-        let first_key = expression_key_from_instruction(
-            test.tree.get(block_data.instructions[0]),
-            &test.tree,
-        )
-        .expect("missing first expression");
-        let second_key = expression_key_from_instruction(
-            test.tree.get(block_data.instructions[1]),
-            &test.tree,
-        )
-        .expect("missing second expression");
+        let first_key =
+            expression_key_from_instruction(test.tree.get(block_data.instructions[0]), &test.tree)
+                .expect("missing first expression");
+        let second_key =
+            expression_key_from_instruction(test.tree.get(block_data.instructions[1]), &test.tree)
+                .expect("missing second expression");
 
         // confirm no expressions are available before the first instruction
         let before_first = available.expressions_before_instruction(entry_block, 0, &test.tree);

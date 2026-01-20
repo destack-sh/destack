@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::{
     AnalyzeTask, Compiler, CompilerEventHandler, CompilerOptions, GenerateTask, LintTask,
-    LowerTask, StatsSnapshot,
+    LowerTask, OptimizeTask, StatsSnapshot,
 };
 use destack_source::{DiagnosticOptions, FileType, ModuleId, Uri};
 use destack_workspace::{Program, Session, TargetId};
@@ -236,6 +236,18 @@ impl CompilerContext {
                 let profile = self.compiler.profile_stamp(profile);
                 self.compiler
                     .enqueue(AnalyzeTask::AnalyzeModule { module, profile });
+
+                // FUGU #Cleanup: revisit this
+                let diagnostic_target = self.program.ensure_target_for_module(module.id);
+                let diagnostic_profile = self
+                    .program
+                    .profile_id_for_target_or_default(module.id, &diagnostic_target);
+                let diagnostic_profile = self.compiler.profile_stamp(diagnostic_profile);
+                self.compiler.enqueue(OptimizeTask::OptimizeModule {
+                    module,
+                    profile: diagnostic_profile,
+                    target: diagnostic_target,
+                });
             }
             CompilerMode::Lint => {
                 let profile = self.program.default_profile_id_for_module(module);

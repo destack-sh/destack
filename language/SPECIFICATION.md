@@ -473,8 +473,8 @@ Destack additionally supports explicit ownership control:
 T            // type default (value or managed reference)
 &T           // borrow (read only reference)
 &mut T       // borrow (mutable reference)
-^T           // ownership transfer (caller gives up ownership)
-^mut T       // ownership transfer (explicitly mutable)
+^T           // owned reference (move-only)
+^mut T       // owned reference (explicitly mutable)
 ```
 Raw pointers are separate from ownership modifiers:
 ```
@@ -505,7 +505,7 @@ Raw pointers are separate from ownership modifiers:
 | `T` | Type default (value or managed reference) | `x` still valid | Type default |
 | `&T` | Borrow (read) | `x` still valid | Original owner |
 | `&mut T` | Borrow (mutate) | `x` still valid, maybe changed | Original owner |
-| `^T` | Ownership transfer | `x` **invalid** | New owner (raw allocation) |
+| `^T` | Owned reference (move-only) | `x` **invalid** | New owner (raw allocation) |
 
 Managed reference types are collected by the GC.
 Value types only drop when owned or used with `using`.
@@ -533,6 +533,11 @@ const node = AstNode { ... };
 consume(^node);    // ownership transferred
 print(node.value); // error: use after ownership transfer
 ```
+
+`^T` is the owned reference type.
+Passing a `^T` by value transfers ownership to the callee.
+Use `^expr` to convert a value `T` into an owned reference `^T`.
+If you already have `^T`, pass it directly instead of writing `^expr`.
 
 Using a value after ownership transfer is an error (suppressible to warning).
 
@@ -646,7 +651,7 @@ Implicit conversions:
 - `&mut T` → `&T` to reborrow as shared
 
 Explicit conversions:
-- `T` ↔ `^T` require explicit ownership operators or helper calls
+- `T` ↔ `^T` require explicit ownership operators or helper calls (use `^expr` for `T` → `^T`)
 - `&T` → `T` requires `Copy` or an explicit clone
 - `&T` → `^T` requires an explicit clone and ownership transfer
 - `*T` conversions require explicit unsafe operations
@@ -660,7 +665,7 @@ const value = Item { size: 10 };
 read(value);
 ```
 
-Example (explicit ownership transfer):
+Example (explicit ownership conversion):
 
 ```
 function consume(value: ^Item) { ... }
@@ -668,6 +673,8 @@ function consume(value: ^Item) { ... }
 const value = Item { size: 10 };
 consume(^value);
 ```
+
+If you already have `^Item`, pass it directly without `^`.
 
 Example (scope-end drop):
 
