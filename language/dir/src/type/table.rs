@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, EnumBackingType, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance, Lineage,
-    LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
+    Arena, EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance,
+    Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
     LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, StaticParameterKind,
     SymbolTable, Type,
 };
@@ -75,9 +75,11 @@ pub struct TypeTable {
     pub(crate) value_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
     /// The target type id for alias symbols (the declared alias value type).
     pub(crate) alias_target_type_by_symbol_id: IndexMap<GlobalSymbolId, LocalTypeId>,
-    // TODO #Architecture: move enum backing type into Type::Enum
+    // #Architecture: move enum backing type into Type::Enum (?)
     /// The backing type of enum symbols.
     pub(crate) enum_backing_type_by_symbol_id: IndexMap<GlobalSymbolId, EnumBackingType>,
+    /// The resolved enum field values by enum field symbol.
+    pub(crate) enum_field_value_by_symbol_id: IndexMap<GlobalSymbolId, EnumFieldValue>,
 
     // instances (statically parameterised types)
     /// The next instance id to allocate.
@@ -146,6 +148,7 @@ impl TypeTable {
             value_type_by_symbol_id: IndexMap::new(),
             alias_target_type_by_symbol_id: IndexMap::new(),
             enum_backing_type_by_symbol_id: IndexMap::new(),
+            enum_field_value_by_symbol_id: IndexMap::new(),
             // instances
             next_instance_id: 0,
             instances: Arena::new(),
@@ -623,6 +626,16 @@ impl TypeTable {
     /// Get the enum backing type for a symbol.
     pub fn get_enum_backing_type(&self, symbol_id: GlobalSymbolId) -> Option<EnumBackingType> {
         self.enum_backing_type_by_symbol_id.get(&symbol_id).copied()
+    }
+
+    /// Set the enum field value for a symbol.
+    pub fn set_enum_field_value(&mut self, symbol_id: GlobalSymbolId, value: EnumFieldValue) {
+        self.enum_field_value_by_symbol_id.insert(symbol_id, value);
+    }
+
+    /// Get the enum field value for a symbol.
+    pub fn get_enum_field_value(&self, symbol_id: GlobalSymbolId) -> Option<EnumFieldValue> {
+        self.enum_field_value_by_symbol_id.get(&symbol_id).copied()
     }
 
     /// Insert a new instance.

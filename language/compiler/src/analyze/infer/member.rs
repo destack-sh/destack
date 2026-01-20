@@ -1287,13 +1287,13 @@ impl Compiler {
         types: &TypeTable,
     ) -> AnalyzeResult<MemberResolution> {
         // prefer static-only lookup for direct class values
-        if let Some(class_symbol) =
-            self.class_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+        if let Some(nominal_symbol) =
+            self.nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
         {
             let mut visited = Vec::new();
             let member_symbol = self.resolve_member_symbol_for_symbol(
                 module,
-                class_symbol,
+                nominal_symbol,
                 member_key,
                 MemberLookupMode::Value,
                 profile,
@@ -1329,9 +1329,9 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> MemberLookupMode {
-        // class values only expose static members
+        // nominal values only expose static members
         if self
-            .class_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
+            .nominal_value_symbol_for_expression(module, receiver_id, profile, tree, symbols)
             .is_some()
         {
             return MemberLookupMode::Value;
@@ -1346,8 +1346,8 @@ impl Compiler {
         MemberLookupMode::Any
     }
 
-    /// Return a class symbol when the expression refers to a class value.
-    fn class_value_symbol_for_expression(
+    /// Return a nominal symbol when the expression refers to a type value.
+    fn nominal_value_symbol_for_expression(
         &self,
         module: &Module,
         receiver_id: LocalNodeId<Expression>,
@@ -1362,8 +1362,11 @@ impl Compiler {
         let symbol =
             self.reference_symbol_for_expression(module, receiver_id, profile, tree, symbols)?;
 
-        // keep only class symbols in value space
-        if symbol.ty() != SymbolType::Class {
+        // keep only nominal symbols in value space
+        if !matches!(
+            symbol.ty(),
+            SymbolType::Class | SymbolType::Struct | SymbolType::Enum
+        ) {
             return None;
         }
         let space = self.infer_symbol_space_for_global(module, profile, symbol, symbols);

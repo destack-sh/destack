@@ -329,7 +329,9 @@ impl Compiler {
             (StaticParameterKind::Type, StaticArgument::Unevaluated { node }) => {
                 // prefer value literals when type arguments stay unconverted
                 if !treat_type_arguments_as_types
-                    && let Some(value) = self.evaluate_static_argument_as_value(node, tree)
+                    && let Some(value) = self.evaluate_static_argument_as_value(
+                        module, profile, node, tree, symbols, types,
+                    )?
                 {
                     return Ok(value);
                 }
@@ -341,7 +343,9 @@ impl Compiler {
             }
             (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
                 // prefer static value evaluation, then static parameter references
-                if let Some(value) = self.evaluate_static_argument_as_value(node, tree) {
+                if let Some(value) = self.evaluate_static_argument_as_value(
+                    module, profile, node, tree, symbols, types,
+                )? {
                     value
                 } else if let Some(StaticArgument::Evaluated { name, value }) = self
                     .evaluate_static_argument_as_type(module, profile, node, tree, symbols, types)?
@@ -975,7 +979,15 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
         // treat value expressions as value defaults
-        if let Some(value) = self.evaluate_static_expression_value(default_expression, tree) {
+        if let Some(value) = self.evaluate_static_expression_value(
+            module,
+            profile,
+            default_expression,
+            tree,
+            symbols,
+            types,
+            None,
+        )? {
             match value {
                 StaticExpression::Type { .. } | StaticExpression::TypeLiteral { .. } => {
                     return Ok(true);
@@ -1882,9 +1894,13 @@ impl Compiler {
     /// Evaluate a static argument as a value.
     pub(super) fn evaluate_static_argument_as_value(
         &self,
+        module: &Module,
+        profile: ProfileId,
         argument_id: LocalNodeId<Argument>,
         tree: &NodeTree,
-    ) -> Option<StaticArgument> {
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<StaticArgument>> {
         let argument = tree.get(argument_id);
         let argument_name = match argument {
             Argument::Named { name, .. } => Some(*name),
@@ -1892,12 +1908,23 @@ impl Compiler {
         };
 
         let expression_id = argument.value();
-        let value = self.evaluate_static_expression_value(expression_id, tree)?;
+        let value = self.evaluate_static_expression_value(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            None,
+        )?;
+        let Some(value) = value else {
+            return Ok(None);
+        };
 
-        Some(StaticArgument::Evaluated {
+        Ok(Some(StaticArgument::Evaluated {
             name: argument_name,
             value,
-        })
+        }))
     }
 
     /// Convert a static argument into a type id for substitution.
@@ -2047,7 +2074,15 @@ impl Compiler {
     ) -> AnalyzeResult<StaticArgument> {
         // prefer value defaults when type arguments stay unconverted
         if !treat_type_arguments_as_types
-            && let Some(value) = self.evaluate_static_expression_value(default_expression, tree)
+            && let Some(value) = self.evaluate_static_expression_value(
+                module,
+                profile,
+                default_expression,
+                tree,
+                symbols,
+                types,
+                None,
+            )?
         {
             return Ok(StaticArgument::Evaluated { name, value });
         }
@@ -2081,8 +2116,15 @@ impl Compiler {
                 StaticExpression::Type { ty: ty_id }
             }
             StaticParameterKind::Value => {
-                if let Some(value) = self.evaluate_static_expression_value(default_expression, tree)
-                {
+                if let Some(value) = self.evaluate_static_expression_value(
+                    module,
+                    profile,
+                    default_expression,
+                    tree,
+                    symbols,
+                    types,
+                    None,
+                )? {
                     value
                 } else {
                     StaticExpression::Unevaluated {

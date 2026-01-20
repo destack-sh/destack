@@ -125,6 +125,24 @@ impl ModuleBuilder {
         })
     }
 
+    /// Create a reference type with explicit metadata.
+    pub fn type_reference(
+        &mut self,
+        kind: ReferenceKind,
+        pointee: LocalNodeId<Type>,
+        mutability: Mutability,
+        address_space: AddressSpace,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.tree.insert(Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        })
+    }
+
     /// Create a managed reference type (runtime-tracked).
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
         self.tree.insert(Type::Reference {

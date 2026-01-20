@@ -289,6 +289,7 @@ newtype UserId = int64;                     // nominal (distinct type)
 ```
 
 A `newtype` creates a distinct type—`UserId` and `OrderId` won't mix even if both are `int64`.
+Newtypes are nominal and share the runtime representation of their wrapped type.
 Newtypes can wrap scalars, tuples, or objects:
 
 ```
@@ -441,7 +442,8 @@ match (divide(10, 2)) {
 }
 ```
 
-Both approaches are compatible—the newtype erases at runtime to the underlying discriminated union, so you can still use structural matching like `{ kind: 'ok', value }` if preferred.
+Both approaches are compatible.
+Newtypes share the underlying runtime representation, so you can still use structural matching like `{ kind: 'ok', value }` if preferred.
 
 ### Arrays and Tuples
 
@@ -1758,6 +1760,10 @@ Enum values do _not_ implicitly coerce to their backing type.
 Explicit casts are required to convert between enums and their backing types.
 The backing type is inferred from member values and is either an integer or string type.
 When member values are omitted, the backing type defaults to the configured integer width.
+Enum member values are constant expressions.
+Integer-backed enums allow constant integer expressions using literals, unary +/-, binary arithmetic or bitwise operators, casts, parentheses, and references to earlier enum members.
+Integer-backed enums assign implicit values starting at zero, and explicit values advance the next implicit value by one.
+String-backed enums require explicit string values for every member.
 
 ```
 enum Status {
