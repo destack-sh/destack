@@ -1,21 +1,23 @@
 use std::collections::HashSet;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_ast as ast;
 use destack_base::StringPool;
 use destack_source::{
-    DiagnosticCollector, File, FileId, FileRegistry, FileSystem, FileType, LanguageType, ModuleId,
-    ModuleVersion, PackageId, PackageVersion, Uri,
+    DiagnosticCollector, File, FileContent, FileId, FileRegistry, FileSystem, FileType,
+    FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,
 };
 use indexmap::IndexMap;
+use parking_lot::RwLock;
 
 use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
     FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleRegistry, ModuleSource,
     Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
     ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, SourceType, Target, TargetId,
-    TsConfigOptions, TsConfigRegistry,
+    TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
+    WorkspaceModuleEntry, payload_hash_from_bytes,
 };
 
 /// Unique identifier for Programs.
@@ -101,6 +103,8 @@ pub struct Program {
     pub profiles: Arc<ProfileRegistry>,
     /// Derived tables and indexes for the program.
     pub index: Arc<ProgramIndex>,
+    /// Loaded workspace index snapshot for cache rehydration.
+    pub workspace_index: RwLock<Option<Arc<WorkspaceIndexSnapshot>>>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
 
@@ -143,6 +147,7 @@ impl Program {
         let index = Arc::new(ProgramIndex::new());
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
+        let workspace_index = RwLock::new(None);
 
         // create and insert the root package and module (for global caching)
         let (root_module_id, fallback_file_id) =
@@ -162,6 +167,7 @@ impl Program {
             profiles,
             index,
             strings,
+            workspace_index,
             diagnostics,
             builtins: None,
 
@@ -187,6 +193,7 @@ impl Program {
         let diagnostics = DiagnosticCollector::new();
         let profiles = Arc::new(ProfileRegistry::new());
         let index = Arc::new(ProgramIndex::new());
+        let workspace_index = RwLock::new(None);
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
@@ -206,6 +213,7 @@ impl Program {
             profiles,
             index,
             strings,
+            workspace_index,
             diagnostics,
             builtins,
 
@@ -282,6 +290,123 @@ impl Program {
 
         modules.insert(root_module);
         (root_module_id, root_file_id)
+    }
+
+    /// Load a workspace index snapshot into program state.
+    pub fn apply_workspace_index(&self, snapshot: WorkspaceIndexSnapshot) {
+        // update the program-visible snapshot
+        let snapshot = Arc::new(snapshot);
+        *self.workspace_index.write() = Some(snapshot.clone());
+
+        // reset cached graphs and signatures
+        self.index.module_graphs.clear();
+        self.index.module_signatures.clear();
+        self.index.module_signature_digests.clear();
+
+        // seed module graphs from the snapshot
+        for (key, graph) in &snapshot.module_graphs {
+            self.index.module_graphs.insert(*key, graph.clone());
+        }
+
+        // seed signature digests from the snapshot
+        for (key, digest) in &snapshot.module_signature_digests {
+            self.index.module_signature_digests.insert(*key, *digest);
+        }
+    }
+
+    /// Get the workspace index file entry for a path.
+    pub fn workspace_file_entry(&self, path: &Path) -> Option<WorkspaceFileEntry> {
+        // read the workspace index snapshot when available
+        let snapshot = self.workspace_index.read();
+        let snapshot = snapshot.as_ref()?;
+        snapshot.files.get(path).copied()
+    }
+
+    /// Get the workspace index module entry for a module id.
+    pub fn workspace_module_entry(&self, module_id: ModuleId) -> Option<WorkspaceModuleEntry> {
+        // read the workspace index snapshot when available
+        let snapshot = self.workspace_index.read();
+        let snapshot = snapshot.as_ref()?;
+        snapshot.modules.get(&module_id).copied()
+    }
+
+    /// Compute a hash for the file contents at a path.
+    fn file_content_hash_for_path(&self, path: &Path) -> Option<u64> {
+        // reuse loaded file contents when available
+        if let Some(file) = self.files.get_by_path(path) {
+            match &file.content {
+                FileContent::Text { content } => {
+                    return Some(payload_hash_from_bytes(content.as_bytes()));
+                }
+                FileContent::Json { content, .. } => {
+                    return Some(payload_hash_from_bytes(content.as_bytes()));
+                }
+                FileContent::Binary { content } => {
+                    return Some(payload_hash_from_bytes(content));
+                }
+                FileContent::Missing => return None,
+                FileContent::Unloaded => {}
+            }
+        }
+
+        // fall back to reading from the file system
+        let bytes = self.fs.read(path).ok()?;
+        Some(payload_hash_from_bytes(&bytes))
+    }
+
+    /// Resolve a cached file version for a path using the workspace index.
+    pub fn workspace_file_version_for_path(&self, path: &Path) -> FileVersion {
+        // return the initial version when no snapshot exists
+        let Some(entry) = self.workspace_file_entry(path) else {
+            return FileVersion::INITIAL;
+        };
+
+        // compare against filesystem metadata when available
+        let metadata = self.fs.metadata(path).ok();
+        let Some(metadata) = metadata else {
+            return entry.version_for_missing();
+        };
+
+        // return early when metadata changes
+        let version = entry.version_for_metadata(&metadata);
+        if version != entry.version {
+            return version;
+        }
+
+        // skip content hashing when no hash is recorded
+        let Some(expected_hash) = entry.content_hash else {
+            return entry.version;
+        };
+
+        // compare against the current content hash
+        let Some(current_hash) = self.file_content_hash_for_path(path) else {
+            return entry.version.next();
+        };
+
+        if current_hash == expected_hash {
+            entry.version
+        } else {
+            entry.version.next()
+        }
+    }
+
+    /// Resolve a cached module version using the workspace index and file version.
+    pub fn workspace_module_version_for_id(
+        &self,
+        module_id: ModuleId,
+        file_version: FileVersion,
+    ) -> ModuleVersion {
+        // return the initial version when no snapshot exists
+        let Some(entry) = self.workspace_module_entry(module_id) else {
+            return ModuleVersion::INITIAL;
+        };
+
+        // use the stored version when the source version matches
+        if entry.source_version == file_version {
+            return entry.version;
+        }
+
+        entry.version.next()
     }
 
     /// Register a module with inline content (pre-loaded, no filesystem read needed).

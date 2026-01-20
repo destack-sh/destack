@@ -1,20 +1,23 @@
 use std::collections::HashSet;
+use std::fs;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_resolver::TypeScriptOptionsDiscovery;
 use destack_source::{
-    CacheKind, DiagnosticSeverity, FileVersion, ModuleId, ModuleStamp, ModuleVersion, PackageId,
-    ProfileStamp,
+    CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleStamp,
+    ModuleVersion, PackageId, ProfileStamp, Uri,
 };
 use destack_workspace::{
-    CacheMode, CachePolicy, CacheScope, CacheValidate, FileUpdate, ModuleAst, ModuleDir,
-    ModuleGraphKey, ModuleMir, ModuleSignatureKey, TargetId,
+    CacheMode, CachePolicy, CacheScope, CacheValidate, DsConfig, FileUpdate, ModuleAst, ModuleDir,
+    ModuleGraphKey, ModuleMir, ModuleSignatureKey, Session, TargetId, Workspace,
+    WorkspaceIndexHeader, hash_workspace_config, read_workspace_index, workspace_index_path,
 };
 use indexmap::IndexMap;
 
 use crate::{
-    AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, ImportTask, TaskOutcome,
-    TaskStatus, TestFileSystem, TestProgram,
+    AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, CompilerOptions, ImportTask,
+    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
 };
 
 impl TestProgram {
@@ -605,6 +608,105 @@ fn test_cache_roundtrip_disk() {
     assert!(entry.is_some(), "expected ast cache entry from disk");
 
     let _ = std::fs::remove_dir_all(cache_root);
+}
+
+/// Workspace index snapshots roundtrip through disk.
+#[test]
+fn test_workspace_index_roundtrip_disk() {
+    // set up a physical workspace
+    let root = std::env::temp_dir().join(format!(
+        "destack-workspace-index-disk-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("package.json"),
+        br#"{ "name": "workspace-index-test" }"#,
+    )
+    .unwrap();
+    let dsconfig_path = root.join("dsconfig.json");
+    let dsconfig_content = r#"{ "cache": { "mode": "disk" } }"#;
+    fs::write(&dsconfig_path, dsconfig_content).unwrap();
+    let module_path = root.join("main.ts");
+    fs::write(&module_path, "export const value: number = 1;").unwrap();
+
+    // parse workspace config
+    let dsconfig_file = File::from_text_as_jsonc(
+        FileId::new(1),
+        "dsconfig.json".to_string(),
+        Uri::from_path(&dsconfig_path),
+        Some(dsconfig_path.clone()),
+        FileType::Json,
+        dsconfig_content.to_string(),
+    )
+    .unwrap_or_else(|error| panic!("failed to parse dsconfig: {error}"));
+    let dsconfig = DsConfig::parse(&Arc::new(dsconfig_file))
+        .unwrap_or_else(|error| panic!("failed to build dsconfig: {error}"));
+
+    // register a module and flush the workspace index
+    let workspace = Workspace::single_package(root.clone()).with_config(dsconfig.clone());
+    let session = Arc::new(Session::workspace(root.clone(), Arc::new(workspace)));
+    let program = session.add_root(root.clone());
+    let compiler = Compiler::new(
+        session.clone(),
+        program.clone(),
+        CompilerOptions {
+            workers: 1,
+            ..CompilerOptions::default()
+        },
+    );
+    let module_id = compiler
+        .resolve_path_to_module(&module_path)
+        .unwrap_or_else(|error| panic!("failed to register module: {error:?}"));
+    compiler
+        .flush_workspace_index()
+        .unwrap_or_else(|error| panic!("failed to flush workspace index: {error}"));
+
+    // load workspace index from disk
+    let cache_root = session.workspace_cache_dir();
+    let index_path = workspace_index_path(&cache_root);
+    let config_hash = hash_workspace_config(&session.workspace, session.fs.as_ref())
+        .unwrap_or_else(|error| panic!("failed to hash config: {error}"));
+    let header = WorkspaceIndexHeader::new(
+        env!("CARGO_PKG_VERSION").to_string(),
+        root.clone(),
+        config_hash,
+        CacheValidate::Strict,
+    );
+    let snapshot = read_workspace_index(&index_path, &header)
+        .unwrap_or_else(|error| panic!("failed to read workspace index: {error}"))
+        .unwrap_or_else(|| panic!("expected workspace index snapshot"));
+
+    // assertion block
+    assert!(
+        snapshot.files.contains_key(&module_path),
+        "expected snapshot to include module file"
+    );
+    assert!(
+        snapshot.modules.contains_key(&module_id),
+        "expected snapshot to include module id"
+    );
+
+    // reload workspace index into a new program
+    let workspace = Workspace::single_package(root.clone()).with_config(dsconfig);
+    let session = Arc::new(Session::workspace(root.clone(), Arc::new(workspace)));
+    let program = session.add_root(root.clone());
+    let _compiler = Compiler::new(session, program.clone(), CompilerOptions::default());
+
+    // assertion block
+    assert!(
+        program.workspace_file_entry(&module_path).is_some(),
+        "expected workspace index to load file entry"
+    );
+    assert!(
+        program.workspace_module_entry(module_id).is_some(),
+        "expected workspace index to load module entry"
+    );
+
+    let _ = fs::remove_dir_all(root);
 }
 
 /// Memory cache entries roundtrip within the same registry.

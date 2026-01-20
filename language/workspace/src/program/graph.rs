@@ -1,11 +1,12 @@
 use destack_source::{ModuleId, ModuleVersion};
 use indexmap::map::Entry;
 use indexmap::{IndexMap, IndexSet};
+use serde::{Deserialize, Serialize};
 
 use crate::ProfileId;
 
 /// Unique key for a module graph.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ModuleGraphKey {
     /// The profile id for the graph.
     pub profile_id: ProfileId,
@@ -19,7 +20,7 @@ impl ModuleGraphKey {
 }
 
 /// Module dependency graph for a profile.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleGraph {
     /// The profile id for this graph.
     pub profile_id: ProfileId,

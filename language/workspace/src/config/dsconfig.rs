@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use indexmap::IndexMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use destack_source::{File, FileContent, FileId, IndentStyle, LineEnding};
 
@@ -410,7 +410,7 @@ pub enum CachePolicy {
 }
 
 /// Cache validation policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum CacheValidate {
     /// Always validate cache entries strictly.
     #[default]

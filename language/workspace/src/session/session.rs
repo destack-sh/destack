@@ -7,7 +7,7 @@ use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
 
 use crate::{
     ArtifactRegistry, Builtins, FormatterOptions, LinterOptions, ModuleRegistry, PackageRegistry,
-    ProfileId, Program, TsConfigRegistry, Workspace,
+    ProfileId, Program, SessionOptions, TsConfigRegistry, Workspace, resolve_workspace_cache_root,
 };
 
 /// A session is the persistent state for a workspace.
@@ -17,15 +17,12 @@ pub struct Session {
     pub workspace: Arc<Workspace>,
     /// The current working directory.
     pub cwd: PathBuf,
+    /// Session options for default tooling behavior.
+    pub options: SessionOptions,
     /// The file system.
     pub fs: Arc<dyn FileSystem>,
     /// The files in the session.
     pub files: Arc<FileRegistry>,
-
-    /// Default formatter options.
-    pub formatter: FormatterOptions,
-    /// Default linter options.
-    pub linter: LinterOptions,
 
     /// The programs in the session, keyed by root path.
     pub programs: DashMap<PathBuf, Arc<Program>>,
@@ -46,6 +43,7 @@ pub struct Session {
 impl Session {
     /// Create a new session with builtins loaded.
     pub fn new(cwd: PathBuf) -> Self {
+        let options = SessionOptions::default();
         let files = Arc::new(FileRegistry::new());
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
@@ -58,11 +56,9 @@ impl Session {
         Self {
             workspace: Arc::new(Workspace::single_package(cwd.clone())),
             cwd,
+            options,
             fs: Arc::new(PhysicalFileSystem::new()),
             files,
-
-            formatter: FormatterOptions::default(),
-            linter: LinterOptions::default(),
 
             programs: DashMap::new(),
             packages,
@@ -76,6 +72,9 @@ impl Session {
 
     /// Create a session for a workspace with builtins loaded.
     pub fn workspace(cwd: PathBuf, workspace: Arc<Workspace>) -> Self {
+        // create session options with defaults
+        let options = SessionOptions::default();
+
         let files = Arc::new(FileRegistry::new());
         let modules = Arc::new(ModuleRegistry::new());
         let packages = Arc::new(PackageRegistry::new());
@@ -88,11 +87,9 @@ impl Session {
         Self {
             workspace,
             cwd,
+            options,
             fs: Arc::new(PhysicalFileSystem::new()),
             files,
-
-            formatter: FormatterOptions::default(),
-            linter: LinterOptions::default(),
 
             programs: DashMap::new(),
             packages,
@@ -110,16 +107,43 @@ impl Session {
         self
     }
 
+    /// Set session options (builder pattern).
+    pub fn with_options(mut self, options: SessionOptions) -> Self {
+        self.options = options;
+        self
+    }
+
+    /// Set the workspace for this session (builder pattern).
+    pub fn with_workspace(mut self, workspace: Workspace) -> Self {
+        self.workspace = Arc::new(workspace);
+        self
+    }
+
+    /// Set the cache dir override (builder pattern).
+    pub fn with_cache_dir(mut self, cache_dir: PathBuf) -> Self {
+        self.options.cache_dir_override = Some(cache_dir);
+        self
+    }
+
     /// Set formatter options (builder pattern).
     pub fn with_formatter(mut self, formatter: FormatterOptions) -> Self {
-        self.formatter = formatter;
+        self.options.formatter = formatter;
         self
     }
 
     /// Set linter options (builder pattern).
     pub fn with_linter(mut self, linter: LinterOptions) -> Self {
-        self.linter = linter;
+        self.options.linter = linter;
         self
+    }
+
+    /// Resolve the cache root directory for this workspace.
+    pub fn workspace_cache_dir(&self) -> PathBuf {
+        resolve_workspace_cache_root(
+            &self.workspace.root,
+            self.workspace.config.as_deref(),
+            self.options.cache_dir_override.as_deref(),
+        )
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").
@@ -133,8 +157,8 @@ impl Session {
     /// Creates a new Program for the given root path.
     pub fn add_root(&self, root: PathBuf) -> Arc<Program> {
         let program = Arc::new(Program::new(
-            self.formatter,
-            self.linter.clone(),
+            self.options.formatter,
+            self.options.linter.clone(),
             root.clone(),
             self.fs.clone(),
             self.files.clone(),

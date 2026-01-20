@@ -200,7 +200,7 @@ impl Compiler {
     pub fn new(session: Arc<Session>, program: Arc<Program>, options: CompilerOptions) -> Self {
         let comptime_target = destack_workspace::Target::comptime("comptime");
 
-        Self {
+        let compiler = Self {
             session,
             program,
             options,
@@ -213,7 +213,14 @@ impl Compiler {
             stats: Arc::new(CompilerStats::new()),
             cache: CacheRegistry::new(),
             signature_strings: Mutex::new(None),
+        };
+
+        // load workspace index snapshot when available
+        if let Err(error) = compiler.load_workspace_index() {
+            tracing::warn!(?error, "compiler.cache.workspace_index.load_failed");
         }
+
+        compiler
     }
 
     /// Emit a compiler event to the event handler (if configured).

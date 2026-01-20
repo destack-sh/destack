@@ -89,6 +89,7 @@ impl Program {
         update: FileUpdate,
     ) -> Result<InvalidationPlan, InvalidationError> {
         // update file content and version
+        let is_removed = matches!(update, FileUpdate::Removed);
         let file_version = self.update_file_content(file_id, update)?;
 
         // initialize invalidation sets
@@ -104,7 +105,8 @@ impl Program {
             modules.insert(module_id);
 
             // invalidate module caches and collect profiles
-            let module_profiles = self.invalidate_module_source(module_id, file_version);
+            let module_profiles =
+                self.invalidate_module_source(module_id, file_version, is_removed);
             profiles.extend(module_profiles);
 
             // track packages for module source invalidation
@@ -260,6 +262,7 @@ impl Program {
         &self,
         module_id: ModuleId,
         file_version: FileVersion,
+        is_removed: bool,
     ) -> HashSet<ProfileId> {
         // collect profiles touched by the module
         let module_profiles = self.collect_module_profiles(module_id);
@@ -303,6 +306,32 @@ impl Program {
         self.index.global_symbol_tables.clear();
         self.index.module_binding_tables.clear();
 
+        // drop cached signatures for this module
+        let signature_keys: Vec<_> = self
+            .index
+            .module_signatures
+            .iter()
+            .filter(|entry| entry.key().module_id == module_id)
+            .map(|entry| *entry.key())
+            .collect();
+        for key in signature_keys {
+            self.index.module_signatures.remove(&key);
+        }
+
+        // drop cached signature digests for removed modules
+        if is_removed {
+            let digest_keys: Vec<_> = self
+                .index
+                .module_signature_digests
+                .iter()
+                .filter(|entry| entry.key().module_id == module_id)
+                .map(|entry| *entry.key())
+                .collect();
+            for key in digest_keys {
+                self.index.module_signature_digests.remove(&key);
+            }
+        }
+
         module_profiles
     }
 
@@ -323,6 +352,18 @@ impl Program {
         for profile_id in &profile_ids {
             let graph_key = ModuleGraphKey::new(*profile_id);
             self.index.module_graphs.remove(&graph_key);
+        }
+
+        // drop cached signatures for affected profiles
+        let signature_keys: Vec<_> = self
+            .index
+            .module_signatures
+            .iter()
+            .filter(|entry| profile_ids.contains(&entry.key().profile_id))
+            .map(|entry| *entry.key())
+            .collect();
+        for key in signature_keys {
+            self.index.module_signatures.remove(&key);
         }
 
         // collect modules that share the profile ids
@@ -412,6 +453,14 @@ impl Program {
 
         // collect profiles from cached signatures
         for entry in self.index.module_signatures.iter() {
+            let key = entry.key();
+            if key.module_id == module_id {
+                profiles.insert(key.profile_id);
+            }
+        }
+
+        // collect profiles from signature digests
+        for entry in self.index.module_signature_digests.iter() {
             let key = entry.key();
             if key.module_id == module_id {
                 profiles.insert(key.profile_id);
