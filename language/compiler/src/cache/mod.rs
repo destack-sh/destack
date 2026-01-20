@@ -1,7 +1,6 @@
 mod context;
 mod disk;
 mod handle;
-mod hash;
 mod hasher;
 mod memory;
 mod options;

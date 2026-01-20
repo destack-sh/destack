@@ -287,7 +287,7 @@ pub fn run(args: &FmtArgs) -> i32 {
     let suppress_output = args.report.is_json();
     let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
     let session = args.program.setup();
-    let default_formatting = session.formatter;
+    let default_formatting = session.options.formatter;
 
     // get the program from the session
     let program = session

@@ -22,7 +22,10 @@ use destack_source::{
     print_diagnostics, print_diff,
 };
 use destack_vm::{Isolate, IsolateOptions, Value};
-use destack_workspace::{CacheMode, Module, ProfileId, Program, Session, Target, TargetId};
+use destack_workspace::{
+    CacheMode, CacheStore, DiskCacheStore, MemoryCacheStore, Module, ProfileId, Program, Session,
+    Target, TargetId,
+};
 use parking_lot::RwLock;
 use serde_json::json;
 
@@ -78,6 +81,14 @@ impl TestFileSystem {
         match self {
             Self::Memory { fs } => fs.clone(),
             Self::Physical { fs, .. } => fs.clone(),
+        }
+    }
+
+    /// Return a cache store suited to this file system.
+    pub fn cache_store(&self) -> Arc<dyn CacheStore> {
+        match self {
+            Self::Memory { .. } => Arc::new(MemoryCacheStore::new()),
+            Self::Physical { .. } => Arc::new(DiskCacheStore::new()),
         }
     }
 }
@@ -180,7 +191,12 @@ impl TestProgram {
                 });
         }
 
-        let session = Arc::new(Session::new(root_directory.clone()).with_fs(fs.fs()));
+        let cache_store = fs.cache_store();
+        let session = Arc::new(
+            Session::new(root_directory.clone())
+                .with_fs(fs.fs())
+                .with_cache_store(cache_store),
+        );
         let program = session.add_root(root_directory);
 
         let compiler_options = CompilerOptions {

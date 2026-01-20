@@ -2,7 +2,7 @@ use dashmap::DashMap;
 
 use destack_source::{CacheKind, FileVersion, ModuleId, ProfileId, ProfileVersion};
 use destack_workspace::{
-    CacheError, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
+    CacheError, CacheStore, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
     ModuleMirCacheEntry, ModuleMirData,
 };
 
@@ -81,12 +81,13 @@ impl CacheRegistry {
     /// Read an AST cache entry if available.
     pub fn read_ast_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleAstCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_ast_cache_outcome(options, context, module_id)?;
+        let outcome = self.read_ast_cache_outcome(cache_store, options, context, module_id)?;
 
         // map cache outcome to response
         match outcome {
@@ -98,6 +99,7 @@ impl CacheRegistry {
     /// Write an AST cache entry.
     pub fn write_ast_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -130,19 +132,25 @@ impl CacheRegistry {
         }
 
         // write to disk
-        self.write_cache_entry(options, &key, &entry)
+        self.write_cache_entry(cache_store, options, &key, &entry)
     }
 
     /// Read a base DIR cache entry if available.
     pub fn read_dir_base_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome =
-            self.read_dir_cache_outcome_with_kind(options, context, module_id, CacheKind::DirBase)?;
+        let outcome = self.read_dir_cache_outcome(
+            cache_store,
+            options,
+            context,
+            module_id,
+            CacheKind::DirBase,
+        )?;
 
         // map cache outcome to response
         match outcome {
@@ -154,23 +162,33 @@ impl CacheRegistry {
     /// Write a base DIR cache entry.
     pub fn write_dir_base_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
-        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirBase, payload)
+        self.write_dir_cache_with_kind(
+            cache_store,
+            options,
+            context,
+            module_id,
+            CacheKind::DirBase,
+            payload,
+        )
     }
 
     /// Read a resolved DIR cache entry if available.
     pub fn read_dir_resolved_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_dir_cache_outcome_with_kind(
+        let outcome = self.read_dir_cache_outcome(
+            cache_store,
             options,
             context,
             module_id,
@@ -187,23 +205,33 @@ impl CacheRegistry {
     /// Write a resolved DIR cache entry.
     pub fn write_dir_resolved_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
-        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirResolved, payload)
+        self.write_dir_cache_with_kind(
+            cache_store,
+            options,
+            context,
+            module_id,
+            CacheKind::DirResolved,
+            payload,
+        )
     }
 
     /// Read an analyzed DIR cache entry if available.
     pub fn read_dir_analyzed_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_dir_cache_outcome_with_kind(
+        let outcome = self.read_dir_cache_outcome(
+            cache_store,
             options,
             context,
             module_id,
@@ -220,23 +248,33 @@ impl CacheRegistry {
     /// Write an analyzed DIR cache entry.
     pub fn write_dir_analyzed_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
-        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirAnalyzed, payload)
+        self.write_dir_cache_with_kind(
+            cache_store,
+            options,
+            context,
+            module_id,
+            CacheKind::DirAnalyzed,
+            payload,
+        )
     }
 
     /// Read an executed DIR cache entry if available.
     pub fn read_dir_executed_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleDirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_dir_cache_outcome_with_kind(
+        let outcome = self.read_dir_cache_outcome(
+            cache_store,
             options,
             context,
             module_id,
@@ -253,17 +291,26 @@ impl CacheRegistry {
     /// Write an executed DIR cache entry.
     pub fn write_dir_executed_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
-        self.write_dir_cache_with_kind(options, context, module_id, CacheKind::DirExecuted, payload)
+        self.write_dir_cache_with_kind(
+            cache_store,
+            options,
+            context,
+            module_id,
+            CacheKind::DirExecuted,
+            payload,
+        )
     }
 
     /// Write a DIR cache entry for a specific stage.
     pub(super) fn write_dir_cache_with_kind(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -297,18 +344,19 @@ impl CacheRegistry {
         }
 
         // write to disk
-        self.write_cache_entry(options, &key, &entry)
+        self.write_cache_entry(cache_store, options, &key, &entry)
     }
 
     /// Read a MIR cache entry if available.
     pub fn read_mir_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
     ) -> Result<Option<ModuleMirCacheEntry>, CacheError> {
         // read entry outcome from cache
-        let outcome = self.read_mir_cache_outcome(options, context, module_id)?;
+        let outcome = self.read_mir_cache_outcome(cache_store, options, context, module_id)?;
 
         // map cache outcome to response
         match outcome {
@@ -320,6 +368,7 @@ impl CacheRegistry {
     /// Read an AST cache entry with its source.
     pub(super) fn read_ast_cache_outcome(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -360,13 +409,13 @@ impl CacheRegistry {
 
         // try disk cache
         let path = self.cache_entry_path(options, &key);
-        if !path.exists() {
+        if !cache_store.exists(&path).map_err(CacheError::from)? {
             return Ok(CacheReadOutcome::Miss);
         }
-        let entry: ModuleAstCacheEntry = match self.read_disk_entry(options, &path) {
+        let entry: ModuleAstCacheEntry = match self.read_disk_entry(cache_store, options, &path) {
             Ok(entry) => entry,
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         };
@@ -380,17 +429,17 @@ impl CacheRegistry {
                     );
                     self.evict_memory_entries(options)?;
                 }
-                self.touch_disk_entry(options, &path);
+                self.touch_disk_entry(cache_store, options, &path);
                 return Ok(CacheReadOutcome::Hit {
                     entry,
                     source: CacheReadSource::Disk,
                 });
             }
             Ok(false) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
             }
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         }
@@ -399,8 +448,9 @@ impl CacheRegistry {
     }
 
     /// Read a DIR cache entry with its source for a specific stage.
-    pub(super) fn read_dir_cache_outcome_with_kind(
+    pub(super) fn read_dir_cache_outcome(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -442,13 +492,13 @@ impl CacheRegistry {
 
         // try disk cache
         let path = self.cache_entry_path(options, &key);
-        if !path.exists() {
+        if !cache_store.exists(&path).map_err(CacheError::from)? {
             return Ok(CacheReadOutcome::Miss);
         }
-        let entry: ModuleDirCacheEntry = match self.read_disk_entry(options, &path) {
+        let entry: ModuleDirCacheEntry = match self.read_disk_entry(cache_store, options, &path) {
             Ok(entry) => entry,
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         };
@@ -462,17 +512,17 @@ impl CacheRegistry {
                     );
                     self.evict_memory_entries(options)?;
                 }
-                self.touch_disk_entry(options, &path);
+                self.touch_disk_entry(cache_store, options, &path);
                 return Ok(CacheReadOutcome::Hit {
                     entry,
                     source: CacheReadSource::Disk,
                 });
             }
             Ok(false) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
             }
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         }
@@ -483,6 +533,7 @@ impl CacheRegistry {
     /// Read a MIR cache entry with its source.
     pub(super) fn read_mir_cache_outcome(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -523,13 +574,13 @@ impl CacheRegistry {
 
         // try disk cache
         let path = self.cache_entry_path(options, &key);
-        if !path.exists() {
+        if !cache_store.exists(&path).map_err(CacheError::from)? {
             return Ok(CacheReadOutcome::Miss);
         }
-        let entry: ModuleMirCacheEntry = match self.read_disk_entry(options, &path) {
+        let entry: ModuleMirCacheEntry = match self.read_disk_entry(cache_store, options, &path) {
             Ok(entry) => entry,
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         };
@@ -543,17 +594,17 @@ impl CacheRegistry {
                     );
                     self.evict_memory_entries(options)?;
                 }
-                self.touch_disk_entry(options, &path);
+                self.touch_disk_entry(cache_store, options, &path);
                 return Ok(CacheReadOutcome::Hit {
                     entry,
                     source: CacheReadSource::Disk,
                 });
             }
             Ok(false) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
             }
             Err(_) => {
-                self.remove_disk_entry(options, &path).ok();
+                self.remove_disk_entry(cache_store, options, &path).ok();
                 return Ok(CacheReadOutcome::Error);
             }
         }
@@ -564,6 +615,7 @@ impl CacheRegistry {
     /// Write a MIR cache entry.
     pub fn write_mir_cache(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         context: &CacheContext,
         module_id: ModuleId,
@@ -596,7 +648,7 @@ impl CacheRegistry {
         }
 
         // write to disk
-        self.write_cache_entry(options, &key, &entry)
+        self.write_cache_entry(cache_store, options, &key, &entry)
     }
 }
 

@@ -4,11 +4,10 @@ use destack_resolver::{
     EnforceExtension, ResolveOptions, Restriction, TypeScriptOptionsDiscovery,
     TypeScriptOptionsReferences,
 };
+use destack_workspace::{hash_bytes, hash_json_value};
 use rustc_hash::FxHasher;
 
 use crate::compile::CompilerOptions;
-
-use super::hash::{hash_bytes, hash_json_value};
 
 /// Hasher for cache context data.
 pub(super) struct CacheHasher {

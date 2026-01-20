@@ -1,11 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use destack_workspace::DsConfig;
+use destack_workspace::{CacheScope, DsConfig, resolve_cache_root_for_scope};
 
 use crate::common::ProgramArgs;
-
-/// Default cache directory name.
-pub const DEFAULT_CACHE_DIR: &str = ".destack";
 
 /// Source of a resolved cache location.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,10 +41,12 @@ pub fn resolve_cache_location(
     }
 
     // fall back to dsconfig cache settings
-    if let Some(dsconfig) = dsconfig
-        && let Some(cache_dir) = dsconfig.options.cache.dir.as_ref()
-    {
-        let dir = resolve_path(cache_dir, &dsconfig.directory);
+    if let Some(dsconfig) = dsconfig {
+        let dir = resolve_cache_root_for_scope(
+            &dsconfig.directory,
+            dsconfig.options.cache.dir.as_deref(),
+            dsconfig.options.cache.scope,
+        );
         return CacheLocation {
             dir,
             source: CacheSource::DsConfig,
@@ -56,7 +55,7 @@ pub fn resolve_cache_location(
 
     // default to workspace root
     CacheLocation {
-        dir: workspace_root.join(DEFAULT_CACHE_DIR),
+        dir: resolve_cache_root_for_scope(workspace_root, None, CacheScope::Workspace),
         source: CacheSource::Default,
     }
 }

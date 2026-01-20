@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_source::{FileRegistry, FileSystem, PhysicalFileSystem};
-use destack_workspace::{PackageRegistry, Program, TsConfigRegistry};
+use destack_workspace::{PackageRegistry, Program, Session, TsConfigRegistry};
 
 use crate::ResolveOptions;
 
@@ -52,6 +52,17 @@ impl Resolver {
             files: program.files.clone(),
             packages: program.packages.clone(),
             tsconfigs: program.tsconfigs.clone(),
+            options,
+        }
+    }
+
+    /// Create a new resolver from a Session (unpacks its registries).
+    pub fn from_session(session: &Session, options: ResolveOptions) -> Self {
+        Self {
+            fs: session.fs.clone(),
+            files: session.files.clone(),
+            packages: session.packages.clone(),
+            tsconfigs: session.tsconfigs.clone(),
             options,
         }
     }

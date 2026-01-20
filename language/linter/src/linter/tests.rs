@@ -12,8 +12,8 @@ use destack_source::{
     print_diagnostics, print_diff,
 };
 use destack_workspace::{
-    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, OutputFormat, Platform, ProfileFlags,
-    ProfileId, ProfileKey, Program, Runtime, Session,
+    EnvSnapshot, LintCategory, LintSeverity, LinterOptions, MemoryCacheStore, OutputFormat,
+    Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, Session,
 };
 
 use crate::{BoxedLintRule, Fixability, LintDiagnostic, LintLevel, LintRequirement, LintRunner};
@@ -61,7 +61,11 @@ impl TestProgram {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = current_dir().unwrap();
 
-        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(cwd.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         let program = session.add_root(cwd);
 
         // libs

@@ -31,7 +31,7 @@ pub fn workspace_context(
         args.cwd = Some(cwd);
     }
 
-    // initialize the session and program
+    // initialize
     let session = args.setup();
     let program = session
         .programs
@@ -39,17 +39,7 @@ pub fn workspace_context(
         .next()
         .map(|entry| entry.value().clone())
         .ok_or_else(|| "session did not create a program".to_string())?;
-
-    // create a resolver for workspace queries
-    let resolver = Resolver::new(
-        session.fs.clone(),
-        session.files.clone(),
-        session.packages.clone(),
-        session.tsconfigs.clone(),
-        ResolveOptions::default(),
-    );
-
-    // capture the workspace handle
+    let resolver = Resolver::from_session(&session, ResolveOptions::default());
     let workspace = session.workspace.clone();
 
     Ok(WorkspaceContext {

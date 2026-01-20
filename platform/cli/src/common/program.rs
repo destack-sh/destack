@@ -8,7 +8,7 @@ use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, LintPreset, LintSeverity, LinterOptions,
-    OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma, TsConfigRegistry,
+    MemoryCacheStore, OrganizeImports, QuoteProperty, QuoteStyle, Session, TrailingComma,
 };
 
 use crate::common::{ReportArgs, report_error};
@@ -500,34 +500,43 @@ impl ProgramArgs {
         let workspace_root = self.workspace.clone().unwrap_or_else(|| cwd.clone());
         let formatter_options: FormatterOptions = self.formatter.clone().into();
         let linter_options: LinterOptions = self.linter.clone().into();
+        let has_fs_override = fs_override.is_some();
         let fs: Arc<dyn FileSystem> = fs_override.unwrap_or_else(|| {
             let fs: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
             fs
         });
 
         // create session (builtins are always loaded)
-        let session = Session::new(cwd.clone())
+        let mut session = Session::new(cwd.clone())
             .with_fs(fs.clone())
             .with_formatter(formatter_options)
             .with_linter(linter_options);
 
-        // create shared tsconfig registry for resolver
-        let tsconfigs = Arc::new(TsConfigRegistry::new());
+        // prefer in memory cache stores for test file systems
+        if has_fs_override {
+            session = session.with_cache_store(Arc::new(MemoryCacheStore::new()));
+        }
 
         // discover workspace
-        let resolver = Resolver::new(
-            session.fs.clone(),
-            session.files.clone(),
-            session.packages.clone(),
-            tsconfigs.clone(),
-            ResolveOptions::default(),
-        );
+        let resolver = Resolver::from_session(&session, ResolveOptions::default());
         let workspace = resolver
             .discover_workspace(&workspace_root)
             .unwrap_or_else(|_| destack_workspace::Workspace::single_package(workspace_root));
         let root = workspace.root.clone();
+        let workspace_kind = workspace.kind;
 
-        tracing::trace!(?cwd, ?root, workspace_kind = ?workspace.kind, workers = self.workers, "program.setup");
+        // apply workspace configuration
+        let mut session = session.with_workspace(workspace);
+        if let Some(cache_dir) = self.cache_dir.as_ref() {
+            let cache_dir = if cache_dir.is_absolute() {
+                cache_dir.clone()
+            } else {
+                cwd.join(cache_dir)
+            };
+            session = session.with_cache_dir(cache_dir);
+        }
+
+        tracing::trace!(?cwd, ?root, workspace_kind = ?workspace_kind, workers = self.workers, "program.setup");
 
         // add the root to create a program
         session.add_root(root);

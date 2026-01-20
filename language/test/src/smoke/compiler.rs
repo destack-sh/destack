@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_source::{FileSystem, MemoryFileSystem, ModuleStamp, ProfileStamp};
-use destack_workspace::Session;
+use destack_workspace::{MemoryCacheStore, Session};
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, check_diagnostics,
@@ -52,7 +52,11 @@ fn run_compiler_case(test: &TestCase) -> TestResult {
         .add_file(&test.path, content.as_bytes())
         .expect("failed to add test file to memory fs");
     let fs: Arc<dyn FileSystem> = memory_fs;
-    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+    let session = Arc::new(
+        Session::new(cwd.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
     let program = session.add_root(cwd);
 
     // compile the file

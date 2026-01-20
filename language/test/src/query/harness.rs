@@ -6,7 +6,7 @@ use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
 use destack_source::{
     FileId, FileSystem, FileType, MemoryFileSystem, ModuleStamp, ProfileStamp, Uri,
 };
-use destack_workspace::Session;
+use destack_workspace::{MemoryCacheStore, Session};
 
 use super::{TestMarkers, parse_markers};
 use crate::mdtest::{MdTestCase, select_profile_for_mdtest};
@@ -43,7 +43,11 @@ impl QueryTestSession {
     /// Create a test session from source with markers.
     pub fn from_source(source: &str) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(Session::new(PathBuf::from("/test")).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(PathBuf::from("/test"))
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
 
         // register the test file
         let uri = Uri::from_string("file:///test/test.ds");
@@ -82,7 +86,11 @@ impl QueryTestSession {
     /// Create a test session from multiple files.
     pub fn from_files(input_files: &[(&str, &str)]) -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(Session::new(PathBuf::from("/test")).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(PathBuf::from("/test"))
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         let program = session.add_root(PathBuf::from("/test"));
 
         let mut primary_file_id = None;
@@ -137,7 +145,11 @@ impl QueryTestSession {
         let memory_fs = Arc::new(MemoryFileSystem::new());
         let root = PathBuf::from("/test");
         let fs: Arc<dyn FileSystem> = memory_fs.clone();
-        let session = Arc::new(Session::new(root.clone()).with_fs(fs));
+        let session = Arc::new(
+            Session::new(root.clone())
+                .with_fs(fs)
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
 
         Self::from_mdtest_with_session(test, session, memory_fs, root)
     }

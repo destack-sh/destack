@@ -9,15 +9,15 @@ use destack_source::{
     ModuleVersion, PackageId, ProfileStamp, Uri,
 };
 use destack_workspace::{
-    CacheMode, CachePolicy, CacheScope, CacheValidate, DsConfig, FileUpdate, ModuleAst, ModuleDir,
-    ModuleGraphKey, ModuleMir, ModuleSignatureKey, Session, TargetId, Workspace,
-    WorkspaceIndexHeader, hash_workspace_config, read_workspace_index, workspace_index_path,
+    CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig, FileUpdate,
+    MemoryCacheStore, ModuleAst, ModuleDir, ModuleGraphKey, ModuleMir, ModuleSignatureKey, Session,
+    TargetId, Workspace, WorkspaceIndexHeader, WorkspaceIndexStore, hash_workspace_config,
 };
 use indexmap::IndexMap;
 
 use crate::{
-    AnalyzeTask, CacheContext, CacheOptions, CacheRegistry, Compiler, CompilerOptions, ImportTask,
-    TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
+    AnalyzeTask, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
+    ImportTask, TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
 };
 
 impl TestProgram {
@@ -588,24 +588,80 @@ fn test_cache_roundtrip_disk() {
     let module_id = ModuleId::new(PackageId::new(1), 1);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
 
+    let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&options, &context, module_id, payload.clone())
+        .write_ast_cache(&cache_store, &options, &context, module_id, payload.clone())
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &context, module_id)
+        .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
     let fresh_registry = CacheRegistry::new();
     let entry = fresh_registry
-        .read_ast_cache(&options, &context, module_id)
+        .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
 
     // assertion block
     assert!(entry.is_some(), "expected ast cache entry from disk");
+
+    let _ = std::fs::remove_dir_all(cache_root);
+}
+
+/// Disk cache hits should update access markers for LRU eviction.
+#[test]
+fn test_cache_disk_access_markers() {
+    let cache_root = std::env::temp_dir().join(format!(
+        "destack-cache-access-{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&cache_root)
+        .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
+
+    let options = CacheOptions {
+        mode: CacheMode::Disk,
+        dir: cache_root.clone(),
+        policy: CachePolicy::Lru,
+        validate: CacheValidate::Strict,
+        scope: CacheScope::Workspace,
+        max_size_mb: None,
+    };
+    let context = CacheContext {
+        compiler_version: "test".to_string(),
+        file_version: FileVersion::INITIAL,
+        profile_id: None,
+        profile_version: None,
+        source_hash: 10,
+        config_hash: 20,
+        target_hash: 30,
+        dependency_hash: 0,
+    };
+    let module_id = ModuleId::new(PackageId::new(2), 3);
+    let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
+
+    let cache_store = DiskCacheStore::new();
+    let registry = CacheRegistry::new();
+    registry
+        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
+        .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
+
+    let entry = registry
+        .read_ast_cache(&cache_store, &options, &context, module_id)
+        .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
+    assert!(entry.is_some(), "expected ast cache entry");
+
+    let key = CacheKey::new(CacheKind::Ast, module_id, &context);
+    let entry_path = registry.cache_entry_path(&options, &key);
+    let access_path = registry.cache_access_path(&entry_path);
+
+    // assertion block
+    assert!(access_path.exists(), "expected access marker to be written");
 
     let _ = std::fs::remove_dir_all(cache_root);
 }
@@ -667,16 +723,19 @@ fn test_workspace_index_roundtrip_disk() {
 
     // load workspace index from disk
     let cache_root = session.workspace_cache_dir();
-    let index_path = workspace_index_path(&cache_root);
+    let index_store = WorkspaceIndexStore::new(session.cache_store.as_ref(), &cache_root);
     let config_hash = hash_workspace_config(&session.workspace, session.fs.as_ref())
         .unwrap_or_else(|error| panic!("failed to hash config: {error}"));
     let header = WorkspaceIndexHeader::new(
         env!("CARGO_PKG_VERSION").to_string(),
         root.clone(),
         config_hash,
+        0,
+        0,
         CacheValidate::Strict,
     );
-    let snapshot = read_workspace_index(&index_path, &header)
+    let snapshot = index_store
+        .load(&header)
         .unwrap_or_else(|error| panic!("failed to read workspace index: {error}"))
         .unwrap_or_else(|| panic!("expected workspace index snapshot"));
 
@@ -733,21 +792,22 @@ fn test_cache_roundtrip_memory() {
     let module_id = ModuleId::new(PackageId::new(2), 2);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
 
+    let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&options, &context, module_id, payload)
+        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &context, module_id)
+        .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
     // assertion block
     let fresh_registry = CacheRegistry::new();
     let entry = fresh_registry
-        .read_ast_cache(&options, &context, module_id)
+        .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(
         entry.is_none(),
@@ -789,9 +849,10 @@ fn test_cache_miss_on_context_change() {
     let module_id = ModuleId::new(PackageId::new(3), 3);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
 
+    let cache_store = DiskCacheStore::new();
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&options, &context, module_id, payload)
+        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     let mismatched_context = CacheContext {
@@ -807,7 +868,7 @@ fn test_cache_miss_on_context_change() {
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &mismatched_context, module_id)
+        .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(
         entry.is_none(),
@@ -841,9 +902,10 @@ fn test_cache_miss_on_dependency_change() {
     let module_id = ModuleId::new(PackageId::new(4), 4);
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
 
+    let cache_store = MemoryCacheStore::new();
     let registry = CacheRegistry::new();
     registry
-        .write_ast_cache(&options, &context, module_id, payload)
+        .write_ast_cache(&cache_store, &options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
     let mismatched_context = CacheContext {
@@ -859,7 +921,7 @@ fn test_cache_miss_on_dependency_change() {
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &mismatched_context, module_id)
+        .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(
         entry.is_none(),
@@ -889,10 +951,11 @@ fn test_cache_miss_on_file_version_bump() {
         scope: CacheScope::Workspace,
         max_size_mb: None,
     };
+    let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
     registry
-        .write_ast_cache(&options, &context_before, module_id, payload)
+        .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
 
     // update file content and rebuild cache context
@@ -914,7 +977,7 @@ fn test_cache_miss_on_file_version_bump() {
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &context_after, module_id)
+        .read_ast_cache(cache_store, &options, &context_after, module_id)
         .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
     assert!(
         entry.is_none(),
@@ -957,10 +1020,11 @@ fn test_cache_miss_on_tsconfig_change() {
         scope: CacheScope::Workspace,
         max_size_mb: None,
     };
+    let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
     let payload = ModuleAst::new(module_id, ModuleVersion::INITIAL).to_data();
     registry
-        .write_ast_cache(&options, &context_before, module_id, payload)
+        .write_ast_cache(cache_store, &options, &context_before, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write ast cache entry: {error}"));
 
     // update tsconfig content
@@ -997,7 +1061,7 @@ fn test_cache_miss_on_tsconfig_change() {
 
     // assertion block
     let entry = registry
-        .read_ast_cache(&options, &context_after, module_id)
+        .read_ast_cache(cache_store, &options, &context_after, module_id)
         .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
     assert!(entry.is_none(), "expected cache miss after tsconfig change");
 }
@@ -1101,6 +1165,7 @@ value;
         scope: CacheScope::Workspace,
         max_size_mb: None,
     };
+    let cache_store = test.session.cache_store.as_ref();
     let registry = CacheRegistry::new();
     let dir_payload = {
         let module = test.program.modules.get(module_b_id);
@@ -1108,7 +1173,13 @@ value;
         module.dir(profile_id).to_data()
     };
     registry
-        .write_dir_resolved_cache(&options, &context_before, module_b_id, dir_payload)
+        .write_dir_resolved_cache(
+            cache_store,
+            &options,
+            &context_before,
+            module_b_id,
+            dir_payload,
+        )
         .unwrap_or_else(|error| panic!("failed to write dir cache entry: {error}"));
 
     // update dependency signature to simulate export change
@@ -1142,7 +1213,7 @@ value;
 
     // assertion block
     let entry = registry
-        .read_dir_resolved_cache(&options, &context_after, module_b_id)
+        .read_dir_resolved_cache(cache_store, &options, &context_after, module_b_id)
         .unwrap_or_else(|error| panic!("failed to read dir cache entry: {error}"));
     assert!(
         entry.is_none(),

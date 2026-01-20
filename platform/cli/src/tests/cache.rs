@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
 use destack_source::FileId;
-use destack_workspace::{DsConfig, DsConfigCacheJson, DsConfigJson, DsConfigOptions};
+use destack_workspace::{
+    DEFAULT_CACHE_DIR, DsConfig, DsConfigCacheJson, DsConfigJson, DsConfigOptions,
+};
 
 use crate::common::ProgramArgs;
-use crate::pipeline::cache::{CacheSource, DEFAULT_CACHE_DIR, resolve_cache_location};
+use crate::pipeline::cache::{CacheSource, resolve_cache_location};
 
 /// Resolves CLI cache overrides before dsconfig or defaults.
 #[test]

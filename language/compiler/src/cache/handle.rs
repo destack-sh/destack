@@ -1,6 +1,6 @@
 use destack_source::{CacheKind, ModuleId};
 use destack_workspace::{
-    CacheError, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
+    CacheError, CacheStore, ModuleAstCacheEntry, ModuleAstData, ModuleDirCacheEntry, ModuleDirData,
     ModuleMirCacheEntry, ModuleMirData,
 };
 
@@ -33,6 +33,8 @@ pub(super) enum CacheReadOutcome<T> {
 pub struct CacheHandle<'a> {
     /// The cache registry.
     pub(super) registry: &'a CacheRegistry,
+    /// The cache store.
+    pub(super) cache_store: &'a dyn CacheStore,
     /// The cache stats.
     pub(super) stats: &'a CompilerStats,
     /// The cache options.
@@ -52,9 +54,12 @@ impl CacheHandle<'_> {
         }
 
         // read from cache registry
-        let outcome =
-            self.registry
-                .read_ast_cache_outcome(&self.options, &self.context, self.module_id);
+        let outcome = self.registry.read_ast_cache_outcome(
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+        );
 
         // record cache outcome
         match &outcome {
@@ -105,9 +110,12 @@ impl CacheHandle<'_> {
         }
 
         // read from cache registry
-        let outcome =
-            self.registry
-                .read_mir_cache_outcome(&self.options, &self.context, self.module_id);
+        let outcome = self.registry.read_mir_cache_outcome(
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+        );
 
         // record cache outcome
         match &outcome {
@@ -132,8 +140,13 @@ impl CacheHandle<'_> {
 
     /// Write an AST cache entry if enabled.
     pub fn write_ast(&self, payload: ModuleAstData) -> Result<(), CacheError> {
-        self.registry
-            .write_ast_cache(&self.options, &self.context, self.module_id, payload)
+        self.registry.write_ast_cache(
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+            payload,
+        )
     }
 
     /// Write a base DIR cache entry if enabled.
@@ -158,8 +171,13 @@ impl CacheHandle<'_> {
 
     /// Write a MIR cache entry if enabled.
     pub fn write_mir(&self, payload: ModuleMirData) -> Result<(), CacheError> {
-        self.registry
-            .write_mir_cache(&self.options, &self.context, self.module_id, payload)
+        self.registry.write_mir_cache(
+            self.cache_store,
+            &self.options,
+            &self.context,
+            self.module_id,
+            payload,
+        )
     }
 
     /// Read a DIR cache entry for a specific stage if available.
@@ -173,7 +191,8 @@ impl CacheHandle<'_> {
         }
 
         // read from cache registry
-        let outcome = self.registry.read_dir_cache_outcome_with_kind(
+        let outcome = self.registry.read_dir_cache_outcome(
+            self.cache_store,
             &self.options,
             &self.context,
             self.module_id,
@@ -208,6 +227,7 @@ impl CacheHandle<'_> {
         payload: ModuleDirData,
     ) -> Result<(), CacheError> {
         self.registry.write_dir_cache_with_kind(
+            self.cache_store,
             &self.options,
             &self.context,
             self.module_id,
