@@ -11,6 +11,7 @@ use crate::mdtest::{
 };
 use crate::query::{QueryTestSession, runner};
 use destack_source::MemoryFileSystem;
+use destack_workspace::MemoryCacheStore;
 
 /// Type of query test.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -246,7 +247,11 @@ impl SharedQueryEnvironment {
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = PathBuf::from("/test/query");
-        let session = Arc::new(destack_workspace::Session::new(cwd.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            destack_workspace::Session::new(cwd.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         Self {
             session,
             fs,

@@ -9,7 +9,7 @@ use destack_compiler::{
 use destack_source::{
     DiagnosticSeverity, FileType, MemoryFileSystem, ModuleStamp, ProfileStamp, Uri,
 };
-use destack_workspace::Session;
+use destack_workspace::{MemoryCacheStore, Session};
 
 /// Outcome of checking a file for conformance testing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,7 +92,11 @@ impl SharedConformanceEnvironment {
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = PathBuf::from("/test/conformance");
-        let session = Arc::new(Session::new(cwd.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(cwd.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         Self {
             session,
             fs,

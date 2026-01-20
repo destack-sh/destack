@@ -5,7 +5,7 @@ use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
-use destack_workspace::{Program, Session};
+use destack_workspace::{MemoryCacheStore, Program, Session};
 
 use crate::{Daemon, DaemonUpdate, WatchBatch, WatchCoordinator, WatchPolicy};
 
@@ -62,7 +62,11 @@ impl TestDaemon {
         // build shared state
         let fs = Arc::new(MemoryFileSystem::new());
         let watcher = Arc::new(MemoryFileWatcher::new());
-        let session = Arc::new(Session::new(root.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(root.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         for root_path in &roots {
             session.add_root(root_path.clone());
         }

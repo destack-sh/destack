@@ -1,15 +1,12 @@
-use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use filetime::{FileTime, set_file_mtime};
-use fs2::FileExt;
-
 use destack_source::{CacheHeader, CacheKind};
 use destack_workspace::{
-    CACHE_ENTRY_LIMIT_BYTES, CacheError, CachePolicy, CacheValidate, ModuleAstCacheEntry,
-    ModuleDirCacheEntry, ModuleMirCacheEntry, read_cache_entry, write_cache_entry,
+    CACHE_ENTRY_LIMIT_BYTES, CacheError, CacheLock, CachePolicy, CacheStore, CacheStoreKind,
+    CacheValidate, ModuleAstCacheEntry, ModuleDirCacheEntry, ModuleMirCacheEntry,
+    deserialize_cache_entry, serialize_cache_entry,
 };
 
 use super::context::BYTES_PER_MB;
@@ -18,6 +15,7 @@ use super::{
 };
 
 const CACHE_LOCK_FILE: &str = "cache.lock";
+const CACHE_ACCESS_SUFFIX: &str = ".access";
 
 /// Disk cache size tracking state.
 #[derive(Debug)]
@@ -56,7 +54,7 @@ impl CacheFileEntry {
     fn eviction_key(&self, policy: CachePolicy) -> u128 {
         // pick the time source for eviction
         let preferred = match policy {
-            CachePolicy::Lru => self.modified.or(self.accessed),
+            CachePolicy::Lru => self.accessed.or(self.modified),
             CachePolicy::Ttl => self.modified.or(self.accessed),
         };
 
@@ -73,33 +71,64 @@ impl CacheRegistry {
     /// Read a cache entry from disk with size limits and locking.
     pub(super) fn read_disk_entry<T: serde::de::DeserializeOwned>(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         path: &Path,
     ) -> Result<T, CacheError> {
-        let _lock = self.lock_cache_shared(options)?;
-        self.check_disk_entry_size(path)?;
-        read_cache_entry(path)
+        // acquire shared cache lock
+        let _lock = self.lock_cache_shared(cache_store, options)?;
+
+        // preflight entry size when metadata is available
+        if let Some(metadata) = cache_store.metadata(path).map_err(CacheError::from)?
+            && metadata.size_bytes > CACHE_ENTRY_LIMIT_BYTES
+        {
+            return Err(CacheError::SizeLimitExceeded {
+                limit: CACHE_ENTRY_LIMIT_BYTES,
+                actual: metadata.size_bytes,
+            });
+        }
+
+        // read cache bytes
+        let Some(bytes) = cache_store.read(path).map_err(CacheError::from)? else {
+            return Err(CacheError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "cache entry missing",
+            )));
+        };
+
+        // guard against oversized entries
+        let size = bytes.len() as u64;
+        if size > CACHE_ENTRY_LIMIT_BYTES {
+            return Err(CacheError::SizeLimitExceeded {
+                limit: CACHE_ENTRY_LIMIT_BYTES,
+                actual: size,
+            });
+        }
+
+        // decode cached entry
+        deserialize_cache_entry(&bytes)
     }
 
     /// Remove a cache entry from disk and update size tracking.
     pub(super) fn remove_disk_entry(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         path: &Path,
     ) -> Result<(), CacheError> {
-        let _lock = self.lock_cache_exclusive(options)?;
+        let _lock = self.lock_cache_exclusive(cache_store, options)?;
         let size = if options.max_size_mb.is_some() {
-            std::fs::metadata(path)
-                .map(|metadata| metadata.len())
+            cache_store
+                .metadata(path)
+                .map_err(CacheError::from)?
+                .map(|metadata| metadata.size_bytes)
                 .unwrap_or_default()
         } else {
             0
         };
-        match std::fs::remove_file(path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(CacheError::Io(error)),
-        }
+        cache_store.remove(path).map_err(CacheError::from)?;
+        let access_path = self.cache_access_path(path);
+        let _ = cache_store.remove(&access_path);
 
         if size > 0 {
             self.decrement_disk_size(size);
@@ -108,8 +137,18 @@ impl CacheRegistry {
     }
 
     /// Ensure the disk cache size is tracked before eviction.
-    fn ensure_disk_size_initialized(&self, options: &CacheOptions) -> Result<(), CacheError> {
+    fn ensure_disk_size_initialized(
+        &self,
+        cache_store: &dyn CacheStore,
+        options: &CacheOptions,
+    ) -> Result<(), CacheError> {
         if self.disk_state.initialized.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        if cache_store.kind() != CacheStoreKind::Disk {
+            self.disk_state.size_bytes.store(0, Ordering::Relaxed);
+            self.disk_state.initialized.store(true, Ordering::Relaxed);
             return Ok(());
         }
 
@@ -161,68 +200,43 @@ impl CacheRegistry {
         }
     }
 
-    /// Check whether a cache entry exceeds the size limit.
-    fn check_disk_entry_size(&self, path: &Path) -> Result<(), CacheError> {
-        let metadata = std::fs::metadata(path).map_err(CacheError::Io)?;
-        let size = metadata.len();
-        if size > CACHE_ENTRY_LIMIT_BYTES {
-            return Err(CacheError::SizeLimitExceeded {
-                limit: CACHE_ENTRY_LIMIT_BYTES,
-                actual: size,
-            });
-        }
-
-        Ok(())
-    }
-
     /// Touch a disk cache entry for LRU policies.
-    pub(super) fn touch_disk_entry(&self, options: &CacheOptions, path: &Path) {
+    pub(super) fn touch_disk_entry(
+        &self,
+        cache_store: &dyn CacheStore,
+        options: &CacheOptions,
+        path: &Path,
+    ) {
         if options.policy != CachePolicy::Lru {
             return;
         }
-
-        let now = FileTime::from_system_time(SystemTime::now());
-        let _ = set_file_mtime(path, now);
+        let access_path = self.cache_access_path(path);
+        let access_exists = cache_store.exists(&access_path).unwrap_or(false);
+        if access_exists {
+            let _ = cache_store.touch(&access_path);
+        } else {
+            let _ = cache_store.write_atomic(&access_path, &[]);
+        }
     }
 
     /// Acquire a shared disk cache lock.
-    fn lock_cache_shared(
+    fn lock_cache_shared<'a>(
         &self,
+        cache_store: &'a dyn CacheStore,
         options: &CacheOptions,
-    ) -> Result<Option<std::fs::File>, CacheError> {
-        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
-        if !root.exists() {
-            return Ok(None);
-        }
-        let path = root.join(CACHE_LOCK_FILE);
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(path)
-            .map_err(CacheError::Io)?;
-        FileExt::lock_shared(&file).map_err(CacheError::Io)?;
-        Ok(Some(file))
+    ) -> Result<CacheLock<'a>, CacheError> {
+        let path = self.cache_lock_path(options);
+        cache_store.lock_shared(&path).map_err(CacheError::from)
     }
 
     /// Acquire an exclusive disk cache lock.
-    fn lock_cache_exclusive(
+    fn lock_cache_exclusive<'a>(
         &self,
+        cache_store: &'a dyn CacheStore,
         options: &CacheOptions,
-    ) -> Result<Option<std::fs::File>, CacheError> {
-        let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
-        std::fs::create_dir_all(&root).map_err(CacheError::Io)?;
-        let path = root.join(CACHE_LOCK_FILE);
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(path)
-            .map_err(CacheError::Io)?;
-        FileExt::lock_exclusive(&file).map_err(CacheError::Io)?;
-        Ok(Some(file))
+    ) -> Result<CacheLock<'a>, CacheError> {
+        let path = self.cache_lock_path(options);
+        cache_store.lock_exclusive(&path).map_err(CacheError::from)
     }
 
     /// Validate an AST cache entry against the context.
@@ -309,35 +323,34 @@ impl CacheRegistry {
     /// Write a cache entry to disk after ensuring its directory exists.
     pub(super) fn write_cache_entry<T: serde::Serialize>(
         &self,
+        cache_store: &dyn CacheStore,
         options: &CacheOptions,
         key: &CacheKey,
         entry: &T,
     ) -> Result<(), CacheError> {
-        let _lock = self.lock_cache_exclusive(options)?;
+        let _lock = self.lock_cache_exclusive(cache_store, options)?;
 
         // ensure cache directory exists
         let path = self.cache_entry_path_from_root(&options.dir, key);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(CacheError::Io)?;
-        }
-
-        // capture size before write
-        let previous_size = std::fs::metadata(&path)
-            .map(|metadata| metadata.len())
+        let previous_size = cache_store
+            .metadata(&path)
+            .map_err(CacheError::from)?
+            .map(|metadata| metadata.size_bytes)
             .unwrap_or_default();
 
         let track_disk_size = options.max_size_mb.is_some();
         if track_disk_size {
-            self.ensure_disk_size_initialized(options)?;
+            self.ensure_disk_size_initialized(cache_store, options)?;
         }
 
         // write cache entry to disk
-        write_cache_entry(&path, entry)?;
+        let bytes = serialize_cache_entry(entry)?;
+        cache_store
+            .write_atomic(&path, &bytes)
+            .map_err(CacheError::from)?;
 
         // update disk cache size tracking
-        let new_size = std::fs::metadata(&path)
-            .map(|metadata| metadata.len())
-            .unwrap_or_default();
+        let new_size = bytes.len() as u64;
         if track_disk_size {
             if new_size > previous_size {
                 self.increment_disk_size(new_size - previous_size);
@@ -347,7 +360,7 @@ impl CacheRegistry {
         }
 
         // enforce cache size limits when configured
-        self.evict_cache_entries(options)?;
+        self.evict_cache_entries(cache_store, options)?;
 
         Ok(())
     }
@@ -355,6 +368,14 @@ impl CacheRegistry {
     /// Build the cache entry path for a key.
     pub(super) fn cache_entry_path(&self, options: &CacheOptions, key: &CacheKey) -> PathBuf {
         self.cache_entry_path_from_root(&options.dir, key)
+    }
+
+    /// Build the cache lock path for the configured root.
+    fn cache_lock_path(&self, options: &CacheOptions) -> PathBuf {
+        options
+            .dir
+            .join(DEFAULT_COMPILER_CACHE_NAMESPACE)
+            .join(CACHE_LOCK_FILE)
     }
 
     /// Build the cache entry path for a root directory.
@@ -397,8 +418,22 @@ impl CacheRegistry {
             .join(file_name)
     }
 
+    /// Build the cache access path for a cache entry.
+    pub(super) fn cache_access_path(&self, path: &Path) -> PathBuf {
+        let file_name = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("cache");
+        let access_name = format!("{file_name}{CACHE_ACCESS_SUFFIX}");
+        path.with_file_name(access_name)
+    }
+
     /// Evict cache entries when size limits are exceeded.
-    pub(super) fn evict_cache_entries(&self, options: &CacheOptions) -> Result<(), CacheError> {
+    pub(super) fn evict_cache_entries(
+        &self,
+        cache_store: &dyn CacheStore,
+        options: &CacheOptions,
+    ) -> Result<(), CacheError> {
         // skip when no size limit is configured
         let Some(max_size_mb) = options.max_size_mb else {
             return Ok(());
@@ -409,14 +444,12 @@ impl CacheRegistry {
             return Ok(());
         }
 
-        // compute the size limit in bytes
-        let limit_bytes = max_size_mb.saturating_mul(BYTES_PER_MB);
-        self.ensure_disk_size_initialized(options)?;
-        let mut total_size = self.disk_state.size_bytes.load(Ordering::Relaxed);
-        if total_size <= limit_bytes {
+        if cache_store.kind() != CacheStoreKind::Disk {
             return Ok(());
         }
 
+        // compute the size limit in bytes
+        let limit_bytes = max_size_mb.saturating_mul(BYTES_PER_MB);
         // resolve the cache root directory
         let root = options.dir.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
         if !root.exists() {
@@ -427,7 +460,17 @@ impl CacheRegistry {
         let mut entries = Vec::new();
         self.collect_cache_entries(&root, &mut entries)?;
 
-        // sum cache size across entries
+        // compute total cache size for eviction
+        let mut total_size = entries.iter().map(|entry| entry.size).sum::<u64>();
+        self.disk_state
+            .size_bytes
+            .store(total_size, Ordering::Relaxed);
+        self.disk_state.initialized.store(true, Ordering::Relaxed);
+
+        if total_size <= limit_bytes {
+            return Ok(());
+        }
+
         // sort entries by eviction key
         entries.sort_by_key(|entry| entry.eviction_key(options.policy));
 
@@ -443,6 +486,8 @@ impl CacheRegistry {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => return Err(CacheError::Io(error)),
             }
+            let access_path = self.cache_access_path(&entry.path);
+            let _ = std::fs::remove_file(access_path);
 
             total_size = total_size.saturating_sub(entry.size);
             self.decrement_disk_size(entry.size);
@@ -484,13 +529,26 @@ impl CacheRegistry {
                 continue;
             }
 
+            // skip access marker files
+            if entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| name.ends_with(CACHE_ACCESS_SUFFIX))
+            {
+                continue;
+            }
+
             // collect cache file entry metadata
             let accessed = metadata.accessed().ok();
             let modified = metadata.modified().ok();
+            let access_path = self.cache_access_path(&path);
+            let access_modified = std::fs::metadata(access_path)
+                .ok()
+                .and_then(|metadata| metadata.modified().ok());
             entries.push(CacheFileEntry {
                 path,
                 size: metadata.len(),
-                accessed,
+                accessed: access_modified.or(accessed),
                 modified,
             });
         }

@@ -9,11 +9,12 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
+use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
     DiagnosticSeverity, File, FileId, FileSystem, FileType, LanguageType, OverlayFileSystem,
     PhysicalFileSystem, Span, Uri,
 };
-use destack_workspace::{FormatterOptions, Session, query};
+use destack_workspace::{FormatterOptions, Session, Workspace, query};
 use serde_json::to_value;
 
 use crate::query::assist::{code_lens_to_lsp, inlay_hint_to_lsp};
@@ -212,8 +213,16 @@ impl LanguageServer for DestackLanguageServer {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
         // create session with overlay filesystem
-        let session = Arc::new(Session::new(cwd.clone()).with_fs(self.overlay_fs.clone()));
-        session.add_root(cwd);
+        let session = Session::new(cwd.clone()).with_fs(self.overlay_fs.clone());
+
+        // discover workspace and attach configuration
+        let resolver = Resolver::from_session(&session, ResolveOptions::default());
+        let workspace = resolver
+            .discover_workspace(&cwd)
+            .unwrap_or_else(|_| Workspace::single_package(cwd.clone()));
+        let root = workspace.root.clone();
+        let session = Arc::new(session.with_workspace(workspace));
+        session.add_root(root);
         let _ = self.session.set(session.clone());
 
         // create daemon for the session

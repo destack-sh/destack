@@ -6,7 +6,9 @@ use std::time::Duration;
 use std::{io, thread};
 
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target};
+use destack_workspace::{
+    MemoryCacheStore, Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target,
+};
 
 use crate::harness::{TestResult, discover_test_files};
 
@@ -223,7 +225,11 @@ pub fn setup_test_environment(
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
-    let session = Arc::new(Session::new(cwd.clone()).with_fs(fs));
+    let session = Arc::new(
+        Session::new(cwd.clone())
+            .with_fs(fs)
+            .with_cache_store(Arc::new(MemoryCacheStore::new())),
+    );
 
     setup_test_environment_with_session(test, session, memory_fs, cwd)
 }

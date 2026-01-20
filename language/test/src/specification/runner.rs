@@ -9,7 +9,7 @@ use destack_parser::source_colorizer;
 use destack_source::{
     File, FileType, MemoryFileSystem, ModuleStamp, PrintOptions, ProfileStamp, Uri,
 };
-use destack_workspace::{DsConfig, TargetId};
+use destack_workspace::{DsConfig, MemoryCacheStore, TargetId};
 
 use crate::harness::print::color;
 use crate::harness::{
@@ -114,7 +114,11 @@ impl SharedSpecEnvironment {
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = PathBuf::from("/test/spec");
-        let session = Arc::new(destack_workspace::Session::new(cwd.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            destack_workspace::Session::new(cwd.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
         Self {
             session,
             fs,

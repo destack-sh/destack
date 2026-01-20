@@ -1,27 +1,21 @@
-use std::fs::OpenOptions;
-use std::path::Path;
-
 use destack_source::{
     CacheHeader, CacheKind, FileContent, FileId, FileVersion, ModuleId, ProfileId, ProfileVersion,
     TargetId,
 };
 use destack_workspace::{
-    CacheError, CacheMode, DEFAULT_COMPILER_CACHE_NAMESPACE, ModuleGraphKey, ModuleSignatureDigest,
+    CacheError, CacheMode, DSCONFIG_CACHE_IGNORED_KEYS, ModuleGraphKey, ModuleSignatureDigest,
     ModuleSignatureKey, WorkspaceIndexError, WorkspaceIndexHeader, WorkspaceIndexSnapshot,
-    hash_workspace_config, read_workspace_index, resolve_cache_dir, resolve_cache_root_for_scope,
-    workspace_index_path, write_workspace_index,
+    WorkspaceIndexStore, hash_bytes, hash_workspace_config, resolve_cache_dir,
+    resolve_cache_root_for_scope, trim_json_object,
 };
-use fs2::FileExt;
 
 use crate::compile::Compiler;
 
-use super::hash::{DSCONFIG_CACHE_IGNORED_KEYS, hash_bytes, trim_json_object};
 use super::hasher::CacheHasher;
 use super::{CacheHandle, CacheOptions};
 
 /// Bytes per megabyte.
 pub(super) const BYTES_PER_MB: u64 = 1024 * 1024;
-const WORKSPACE_INDEX_LOCK_FILE: &str = "workspace.lock";
 
 /// Cache context for a module.
 #[derive(Debug, Clone)]
@@ -202,6 +196,7 @@ impl Compiler {
 
         Some(CacheHandle {
             registry: &self.cache,
+            cache_store: self.session.cache_store.as_ref(),
             stats: self.stats.as_ref(),
             options,
             context,
@@ -439,12 +434,12 @@ impl Compiler {
 
         // resolve workspace index path
         let cache_root = options.dir.clone();
-        let index_path = workspace_index_path(&cache_root);
+        let cache_store = self.session.cache_store.as_ref();
+        let index_store = WorkspaceIndexStore::new(cache_store, &cache_root);
 
-        // acquire a shared cache lock
-        let _lock = lock_workspace_cache_shared(&cache_root)?;
         let header = self.workspace_index_header()?;
-        let Some(snapshot) = read_workspace_index(&index_path, &header)? else {
+        let snapshot = index_store.load(&header)?;
+        let Some(snapshot) = snapshot else {
             return Ok(());
         };
 
@@ -464,13 +459,12 @@ impl Compiler {
 
         // resolve workspace index path
         let cache_root = options.dir.clone();
-        let index_path = workspace_index_path(&cache_root);
+        let cache_store = self.session.cache_store.as_ref();
+        let index_store = WorkspaceIndexStore::new(cache_store, &cache_root);
 
-        // acquire an exclusive cache lock
-        let _lock = lock_workspace_cache_exclusive(&cache_root)?;
         let header = self.workspace_index_header()?;
         let snapshot = WorkspaceIndexSnapshot::from_program(&self.program, header)?;
-        write_workspace_index(&index_path, &snapshot)?;
+        index_store.save(&snapshot)?;
 
         Ok(())
     }
@@ -479,57 +473,20 @@ impl Compiler {
     fn workspace_index_header(&self) -> Result<WorkspaceIndexHeader, WorkspaceIndexError> {
         let options = self.workspace_cache_options();
         let config_hash = hash_workspace_config(&self.session.workspace, self.session.fs.as_ref())?;
+        let mut compiler_hasher = CacheHasher::new();
+        compiler_hasher.hash_compiler_options(&self.options);
+        let compiler_options_hash = compiler_hasher.finish();
+
+        let mut resolve_hasher = CacheHasher::new();
+        resolve_hasher.hash_resolve_options(&self.options.import_resolve);
+        let resolve_options_hash = resolve_hasher.finish();
         Ok(WorkspaceIndexHeader::new(
             env!("CARGO_PKG_VERSION").to_string(),
             self.session.workspace.root.clone(),
             config_hash,
+            compiler_options_hash,
+            resolve_options_hash,
             options.validate,
         ))
     }
-}
-
-/// Acquire a shared lock for the workspace cache.
-fn lock_workspace_cache_shared(
-    cache_root: &Path,
-) -> Result<Option<std::fs::File>, WorkspaceIndexError> {
-    // skip locks when the cache root is missing
-    let root = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
-    if !root.exists() {
-        return Ok(None);
-    }
-
-    // open and lock the cache lock file
-    let path = root.join(WORKSPACE_INDEX_LOCK_FILE);
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(path)
-        .map_err(WorkspaceIndexError::Io)?;
-    FileExt::lock_shared(&file).map_err(WorkspaceIndexError::Io)?;
-
-    Ok(Some(file))
-}
-
-/// Acquire an exclusive lock for the workspace cache.
-fn lock_workspace_cache_exclusive(
-    cache_root: &Path,
-) -> Result<Option<std::fs::File>, WorkspaceIndexError> {
-    // ensure the cache namespace exists
-    let root = cache_root.join(DEFAULT_COMPILER_CACHE_NAMESPACE);
-    std::fs::create_dir_all(&root).map_err(WorkspaceIndexError::Io)?;
-
-    // open and lock the cache lock file
-    let path = root.join(WORKSPACE_INDEX_LOCK_FILE);
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(false)
-        .open(path)
-        .map_err(WorkspaceIndexError::Io)?;
-    FileExt::lock_exclusive(&file).map_err(WorkspaceIndexError::Io)?;
-
-    Ok(Some(file))
 }

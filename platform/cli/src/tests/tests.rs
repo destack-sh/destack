@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_daemon::WatchPolicy;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::Session;
+use destack_workspace::{MemoryCacheStore, Session};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -37,16 +37,14 @@ impl TestProgram {
 
         // initialize the file system and session
         let fs = Arc::new(MemoryFileSystem::new());
-        let session = Arc::new(Session::new(root.clone()).with_fs(fs.clone()));
+        let session = Arc::new(
+            Session::new(root.clone())
+                .with_fs(fs.clone())
+                .with_cache_store(Arc::new(MemoryCacheStore::new())),
+        );
 
         // create a resolver for workspace lookups
-        let resolver = Resolver::new(
-            session.fs.clone(),
-            session.files.clone(),
-            session.packages.clone(),
-            session.tsconfigs.clone(),
-            ResolveOptions::default(),
-        );
+        let resolver = Resolver::from_session(&session, ResolveOptions::default());
 
         // return the test harness
         Self {
