@@ -27,6 +27,8 @@ pub struct ModuleDir {
     pub types: RwLock<dir::TypeTable>,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
 
     /// Metadata exposed via import.meta.
     pub import_meta: Option<ImportMeta>,
@@ -75,6 +77,8 @@ pub struct ModuleDirData {
     pub types: dir::TypeTable,
     /// The top-level expressions of the Module.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+    /// Stable fallback node for diagnostics and synthetic types.
+    pub anchor_node: dir::LocalNodeIdAny,
 
     /// Metadata exposed via import.meta.
     pub import_meta: Option<ImportMeta>,
@@ -104,8 +108,24 @@ pub struct ModuleDirData {
 }
 
 impl ModuleDir {
+    /// Create a stable anchor node for module-level diagnostics.
+    fn create_anchor_node(
+        tree: &mut dir::NodeTree,
+        scope_id: dir::LocalScopeId,
+        anchor_source_id: u32,
+    ) -> dir::LocalNodeIdAny {
+        // anchor nodes should always point to a real AST id
+        let scope = (scope_id, dir::LocalScopeMark::end());
+        let anchor_slot =
+            tree.reserve_from_source(dir::NodeType::Expression, anchor_source_id, scope, None);
+        let expression = dir::Expression::TypeLiteral {
+            value: dir::TypeLiteral::Void,
+        };
+        tree.insert(anchor_slot, expression).into_any()
+    }
+
     /// Create a new base DIR.
-    pub fn new_base(id: ModuleId, version: ModuleVersion) -> Self {
+    pub fn new_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
         // set up default namespace, symbol, scopes, etc.
         let mut symbols = dir::SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
@@ -143,14 +163,17 @@ impl ModuleDir {
             None,
         );
 
+        let mut tree = dir::NodeTree::new(id);
+        let anchor_node = Self::create_anchor_node(&mut tree, namespace_scope_id, anchor_source_id);
         Self {
             profile_id: None,
             id,
             version,
-            tree: RwLock::new(dir::NodeTree::new(id)),
+            tree: RwLock::new(tree),
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+            anchor_node,
             import_meta: None,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
@@ -169,10 +192,10 @@ impl ModuleDir {
     /// Create a minimal base DIR for data modules (JSON, TOML, text, binary).
     ///
     /// Data modules have a simpler structure than code modules:
-    /// - No AST to parse
+    /// - No syntax tree, but a diagnostic anchor is still provided
     /// - Single default export (the data value itself)
     /// - No named exports
-    pub fn new_data_base(id: ModuleId, version: ModuleVersion) -> Self {
+    pub fn new_data_base(id: ModuleId, version: ModuleVersion, anchor_source_id: u32) -> Self {
         // create minimal symbol table with namespace and default symbols
         let mut symbols = dir::SymbolTable::new(id);
         let namespace_scope_id = symbols.insert_scope(dir::ScopeKind::Namespace, None, None);
@@ -218,14 +241,19 @@ impl ModuleDir {
 
         // (exported_symbols will be populated during resolve phase when string pool is available)
 
+        // create a stable anchor node for diagnostics
+        let mut tree = dir::NodeTree::new(id);
+        let anchor_node = Self::create_anchor_node(&mut tree, namespace_scope_id, anchor_source_id);
+
         Self {
             profile_id: None,
             id,
             version,
-            tree: RwLock::new(dir::NodeTree::new(id)),
+            tree: RwLock::new(tree),
             symbols: RwLock::new(symbols),
             types: RwLock::new(dir::TypeTable::new(id)),
             roots: Vec::new(),
+            anchor_node,
             import_meta: None,
             namespace_symbol: namespace_symbol_id,
             namespace_scope: namespace_scope_id,
@@ -254,6 +282,7 @@ impl ModuleDir {
             symbols: RwLock::new(base.symbols.read().clone()),
             types: RwLock::new(base.types.read().clone()),
             roots: base.roots.clone(),
+            anchor_node: base.anchor_node,
             import_meta: None,
             namespace_symbol: base.namespace_symbol,
             namespace_scope: base.namespace_scope,
@@ -280,6 +309,7 @@ impl ModuleDir {
             symbols: self.symbols.read().clone(),
             types: self.types.read().clone(),
             roots: self.roots.clone(),
+            anchor_node: self.anchor_node,
             import_meta: self.import_meta.clone(),
             namespace_symbol: self.namespace_symbol,
             namespace_scope: self.namespace_scope,
@@ -306,6 +336,7 @@ impl ModuleDir {
             symbols: RwLock::new(data.symbols),
             types: RwLock::new(data.types),
             roots: data.roots,
+            anchor_node: data.anchor_node,
             import_meta: data.import_meta,
             namespace_symbol: data.namespace_symbol,
             namespace_scope: data.namespace_scope,

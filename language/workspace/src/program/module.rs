@@ -60,6 +60,8 @@ pub enum ModuleContent {
     Data {
         source: String,
         value: serde_json::Value,
+        /// The AST anchor for diagnostics.
+        ast: ModuleAst,
         /// Base DIR for the data module (profile-independent).
         dir_base: Option<ModuleDir>,
         /// Profile-specific DIRs for the data module.
@@ -68,6 +70,8 @@ pub enum ModuleContent {
     /// Text module (plain string content).
     Text {
         content: String,
+        /// The AST anchor for diagnostics.
+        ast: ModuleAst,
         /// Base DIR for the text module (profile-independent).
         dir_base: Option<ModuleDir>,
         /// Profile-specific DIRs for the text module.
@@ -76,6 +80,8 @@ pub enum ModuleContent {
     /// Binary module (raw bytes).
     Binary {
         bytes: Vec<u8>,
+        /// The AST anchor for diagnostics.
+        ast: ModuleAst,
         /// Base DIR for the binary module (profile-independent).
         dir_base: Option<ModuleDir>,
         /// Profile-specific DIRs for the binary module.
@@ -262,6 +268,9 @@ impl Module {
     pub fn ast_maybe(&self) -> Option<&ModuleAst> {
         match &self.content {
             ModuleContent::Code(code) => code.ast.as_ref(),
+            ModuleContent::Data { ast, .. } => Some(ast),
+            ModuleContent::Text { ast, .. } => Some(ast),
+            ModuleContent::Binary { ast, .. } => Some(ast),
             _ => None,
         }
     }

@@ -64,6 +64,19 @@ const value = Counter.defaultValue;
 value satisfies int32;
 ```
 
+### static field inference uses initializer
+
+> Static fields without annotations infer from their initializer.
+
+```ds
+class Counter {
+    static defaultValue = 1;
+}
+
+const value = Counter.defaultValue;
+value satisfies int32;
+```
+
 ### static fields are not available on instances
 
 > Static fields are not accessible from instances.
@@ -100,7 +113,7 @@ counter satisfies Counter;
 
 ### static methods are not available on instances
 
-> Static methods are not accessible from instances.
+> Static methods are not accessible from instances.-æ
 
 ```ds
 class Counter {

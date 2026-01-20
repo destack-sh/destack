@@ -5,10 +5,11 @@ use crate::{
     TaskResultCollector,
 };
 use destack_dir::{
-    FlowGraphBuilder, InferTable, LocalNodeIdAny, NodeType, PrimitiveType, Type, TypeLiteral,
+    Declaration, Expression, FlowGraphBuilder, InferTable, IntType, PrimitiveType, Type,
+    TypeLiteral,
 };
 use destack_source::{ModuleId, ModuleVersion, ProfileVersion};
-use destack_workspace::{ModuleContent, ModuleType, ProfileId};
+use destack_workspace::{ModuleContent, ModuleSource, ModuleType, ProfileId};
 
 use super::super::common::json_value_to_type;
 
@@ -60,13 +61,45 @@ impl Compiler {
         let symbols = dir.symbols.read();
         let mut types = dir.types.write();
         let mut collector = TaskResultCollector::new();
+        let options = self.analyze_context_options_for_module(module.id);
+        let module_checks = self.module_check_options_for_module(module.id);
 
-        // require builtins for analysis (#Architecture: should we?)
+        // skip full inference for declaration-only modules
+        if module.language_type.is_declaration()
+            && (module_checks.skip_lib_check || matches!(module.source, ModuleSource::Builtin(_)))
+        {
+            // infer enum backing types (still required even for declaration-only modules)
+            for root_id in dir.roots.iter() {
+                let Expression::Declaration { declaration } = tree.get(*root_id) else {
+                    continue;
+                };
+                let Declaration::Enum {
+                    descriptor, fields, ..
+                } = tree.get(*declaration)
+                else {
+                    continue;
+                };
+                let enum_symbol = descriptor.symbol.into_global(module.id);
+                let backing_type = self.infer_enum_field_values(
+                    &module,
+                    profile,
+                    enum_symbol,
+                    fields,
+                    &tree,
+                    &symbols,
+                    &mut types,
+                )?;
+                types.set_enum_backing_type(enum_symbol, backing_type);
+            }
+
+            return Ok(());
+        }
+
+        // require builtins for inference
         self.require_resolve_builtins(profile)?;
 
         // analyze all expressions
         let mut infer = InferTable::default();
-        let options = self.analyze_context_options_for_module(module.id);
         let mut ctx = InferContext::new(profile, options);
 
         // build a module level flow graph and flow table
@@ -118,26 +151,17 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let module_ref = self.program.modules.get(module_id);
         let module = module_ref.read();
-
-        // get the profile DIR and default symbol
         let dir = module.dir(profile);
         let default_symbol = dir.default_symbol;
-
-        // FUGU #Broken: replace placeholder nodes
-        let source_id = LocalNodeIdAny::new(0, NodeType::Expression);
-
-        // extract module type and content
+        let source_id = dir.anchor_node;
         let module_type = module.module_type;
 
         match module_type {
             ModuleType::Data => {
-                // get the parsed JSON value
                 let value = match &module.content {
                     ModuleContent::Data { value, .. } => value.clone(),
                     _ => return Ok(()),
                 };
-
-                // drop the read lock before taking the write lock
                 drop(module);
 
                 // re-acquire the module and infer type
@@ -168,9 +192,7 @@ impl Compiler {
                 let mut types = dir.types.write();
                 let element = types.insert_type_from_any(
                     Type::TypeLiteral {
-                        value: TypeLiteral::Primitive(PrimitiveType::Int(
-                            destack_dir::IntType::Uint8,
-                        )),
+                        value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
                     },
                     source_id,
                 );

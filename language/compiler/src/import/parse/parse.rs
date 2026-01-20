@@ -140,7 +140,8 @@ impl Compiler {
         {
             // skip stale tasks before applying cached data
             self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-            let ast = ModuleAst::from_data(entry.payload);
+            let mut ast = ModuleAst::from_data(entry.payload);
+            ast.ensure_anchor_expression(file_id);
             let mut module = module.write();
             self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
             module.code_mut().ast = Some(ast);
@@ -165,7 +166,7 @@ impl Compiler {
         let mut module = module.write();
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         let strings = StringPool::from_local(parser.strings);
-        module.code_mut().ast = Some(ModuleAst::from_tree(
+        let mut ast = ModuleAst::from_tree(
             module_id,
             module_version,
             parser.tree,
@@ -173,7 +174,9 @@ impl Compiler {
             strings,
             parser.tokens,
             parser.side_tokens,
-        ));
+        );
+        ast.ensure_anchor_expression(file_id);
+        module.code_mut().ast = Some(ast);
         drop(module);
 
         // write AST to cache
@@ -232,7 +235,9 @@ impl Compiler {
 
         // create base DIR for data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -241,6 +246,7 @@ impl Compiler {
         module.content = ModuleContent::Data {
             source: content,
             value,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };
@@ -297,7 +303,9 @@ impl Compiler {
 
         // create base DIR for data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -306,6 +314,7 @@ impl Compiler {
         module.content = ModuleContent::Data {
             source: content,
             value,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };
@@ -362,7 +371,9 @@ impl Compiler {
 
         // create base DIR for data module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -371,6 +382,7 @@ impl Compiler {
         module.content = ModuleContent::Data {
             source: content,
             value,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };
@@ -411,7 +423,9 @@ impl Compiler {
 
         // create base DIR for text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -419,6 +433,7 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Text {
             content,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };
@@ -433,7 +448,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
-        _file_id: destack_source::FileId,
+        file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
     ) -> ImportResult<()> {
@@ -454,7 +469,9 @@ impl Compiler {
 
         // create base DIR for binary module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -462,6 +479,7 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Binary {
             bytes,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };
@@ -476,7 +494,7 @@ impl Compiler {
         &self,
         module_id: ModuleId,
         module_version: ModuleVersion,
-        _file_id: destack_source::FileId,
+        file_id: destack_source::FileId,
         path: Option<std::path::PathBuf>,
         uri: destack_source::Uri,
     ) -> ImportResult<()> {
@@ -503,7 +521,9 @@ impl Compiler {
 
         // create base DIR for text module
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
-        let dir_base = ModuleDir::new_data_base(module_id, module_version);
+        let mut ast = ModuleAst::new(module_id, module_version);
+        let anchor_id = ast.ensure_anchor_expression(file_id);
+        let dir_base = ModuleDir::new_data_base(module_id, module_version, anchor_id.id);
 
         // update module content (stored as Text since it produces a string)
         self.ensure_module_version_matches::<ImportError>(module_id, module_version)?;
@@ -511,6 +531,7 @@ impl Compiler {
         self.ensure_module_version_matches_guard::<ImportError>(&module, module_version)?;
         module.content = ModuleContent::Text {
             content,
+            ast,
             dir_base: Some(dir_base),
             dirs: Vec::new(),
         };

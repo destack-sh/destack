@@ -613,8 +613,9 @@ mod tests {
     };
 
     use crate::{
-        DsConfig, EnvSnapshot, Loader, Module, ModuleDir, ModuleSource, OutputFormat, Package,
-        PackageKind, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime, SourceType,
+        DsConfig, EnvSnapshot, Loader, Module, ModuleAst, ModuleDir, ModuleSource, OutputFormat,
+        Package, PackageKind, Platform, ProfileFlags, ProfileId, ProfileKey, Program, Runtime,
+        SourceType,
     };
 
     use super::{FileUpdate, InvalidationError};
@@ -848,7 +849,17 @@ mod tests {
         // add a minimal dir entry for the profile
         let module = program.modules.get(module_id);
         let mut module = module.write();
-        let mut dir = ModuleDir::new_base(module_id, module.version);
+        let anchor_id = match module.code_mut().ast.as_mut() {
+            Some(ast) => ast.ensure_anchor_expression(module.file_id),
+            None => {
+                // synthesize a minimal AST for diagnostics
+                let mut ast = ModuleAst::new(module_id, module.version);
+                let anchor_id = ast.ensure_anchor_expression(module.file_id);
+                module.code_mut().ast = Some(ast);
+                anchor_id
+            }
+        };
+        let mut dir = ModuleDir::new_base(module_id, module.version, anchor_id.id);
         dir.profile_id = Some(profile_id);
         module.code_mut().dirs.push(dir);
     }

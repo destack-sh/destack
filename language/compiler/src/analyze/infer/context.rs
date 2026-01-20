@@ -40,7 +40,7 @@ pub struct InferContext {
     pub is_generator: bool,
     /// Whether we're in an abstract class/struct (abstract methods allowed).
     pub in_abstract_class: bool,
-    /// The enclosing nominal class/struct symbol, if any.
+    /// The enclosing nominal type symbol, if any.
     pub in_nominal_symbol: Option<GlobalSymbolId>,
     /// Track nested try frames for error propagation.
     pub try_stack: Vec<TryContextFrame>,

@@ -862,7 +862,7 @@ fn resolve_lib_dependency_name(name: &str, version_overrides: &HashMap<String, S
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     use destack_builtin::{LIBS, LanguageSymbol, STD_LIB};
     use destack_dir::{WellKnownSymbol, WellKnownSymbolKey};
@@ -983,9 +983,10 @@ mod tests {
     #[test]
     fn test_analyze_all_builtin_libs() {
         for lib in std::iter::once(&STD_LIB).chain(LIBS.iter()) {
-            let start = Instant::now();
             let test = TestProgram::memory_sequential_with_prelude_and_libs()
                 .with_profile_libs(&[lib.name]);
+
+            // resolve builtins and libs
             test.resolve_builtins();
             test.resolve_libs();
             let timeout = Duration::from_secs(60);
@@ -1000,13 +1001,13 @@ mod tests {
                     test.program.modules.clone(),
                 )
                 .unwrap();
+
+            // analyze the lib modules
             for module_id in lib_modules {
                 test.analyze_module(module_id);
             }
             test.compile_with_timeout(timeout);
             test.check_no_diagnostic(DiagnosticSeverity::Note);
-
-            eprintln!("builtin lib {} analyzed in {:?}", lib.name, start.elapsed());
         }
     }
 }

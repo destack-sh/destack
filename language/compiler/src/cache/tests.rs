@@ -1105,7 +1105,9 @@ value;
     {
         let module = test.program.modules.get(module_a_id);
         let mut module = module.write();
-        let base = ModuleDir::new_base(module_a_id, module.version);
+        let file_id = module.file_id;
+        let anchor_id = module.ast_mut().ensure_anchor_expression(file_id);
+        let base = ModuleDir::new_base(module_a_id, module.version, anchor_id.id);
         let dir = ModuleDir::from_base(&base, profile_id);
         module.code_mut().dir_base = Some(base);
         module.code_mut().dirs.push(dir);
@@ -1113,7 +1115,9 @@ value;
     {
         let module = test.program.modules.get(module_b_id);
         let mut module = module.write();
-        let base = ModuleDir::new_base(module_b_id, module.version);
+        let file_id = module.file_id;
+        let anchor_id = module.ast_mut().ensure_anchor_expression(file_id);
+        let base = ModuleDir::new_base(module_b_id, module.version, anchor_id.id);
         let dir = ModuleDir::from_base(&base, profile_id);
         module.code_mut().dir_base = Some(base);
         module.code_mut().dirs.push(dir);

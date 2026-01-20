@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use destack_dir::{
     Declaration, DependencyItem, DependencyKind, DependencyMode, Export, Expression, LocalNodeId,
-    LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleTarget, NamespaceExport, NodeTree, NodeType,
-    StaticKey, SymbolSpace, TypeField, TypeTable,
+    LocalNodeIdAny, LocalScopeId, LocalTypeId, ModuleTarget, NamespaceExport, NodeTree, StaticKey,
+    SymbolSpace, TypeField, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -23,14 +23,13 @@ impl Compiler {
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // pick a stable source node for module imports
-        // FUGU #Broken: replace placeholder nodes
-        let module_source_id = module
-            .dir(profile)
+        let module_dir = module.dir(profile);
+        let module_source_id = module_dir
             .roots
             .first()
             .copied()
             .map(LocalNodeId::into_any)
-            .unwrap_or_else(|| LocalNodeIdAny::new(0, NodeType::Expression));
+            .unwrap_or(module_dir.anchor_node);
 
         // register the module namespace value type
         let namespace_symbol = module.dir(profile).namespace_symbol.into_global(module.id);
