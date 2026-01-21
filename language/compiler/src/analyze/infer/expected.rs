@@ -347,7 +347,7 @@ impl Compiler {
         };
 
         match types.get_type(expected_ty_id) {
-            Type::Tuple { elements } => {
+            Type::Tuple { elements, .. } => {
                 for (index, element) in elements.iter().enumerate().take(element_count) {
                     expected[index] = Some(element.ty);
                 }

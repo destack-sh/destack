@@ -858,7 +858,11 @@ impl<'a> SignatureHasher<'a> {
                     .map(|ty| self.hash_type_id_in_tables(module_id, ty, types))
                     .hash(&mut hasher);
             }
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
+                is_readonly.hash(&mut hasher);
                 elements.len().hash(&mut hasher);
                 for element in elements {
                     self.hash_type_element(module_id, types, element)

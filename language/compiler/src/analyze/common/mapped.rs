@@ -164,7 +164,7 @@ impl Compiler {
                 // collect literal keys and index signatures
                 self.key_set_for_object(&fields, &index_signatures, types)
             }
-            Type::Tuple { elements } => {
+            Type::Tuple { elements, .. } => {
                 let mut keys = KeySet::default();
                 // seed number index kind
                 keys.insert_index_kind(MappedIndexKind::Number);
@@ -870,7 +870,7 @@ impl Compiler {
                         }
                     }
                 }
-                Type::Tuple { elements } => {
+                Type::Tuple { elements, .. } => {
                     // map numeric tuple keys to element types
                     let StaticKey::Number(name) = key else {
                         continue;
@@ -938,7 +938,7 @@ impl Compiler {
                         }
                     }
                 }
-                Type::Tuple { elements } => {
+                Type::Tuple { elements, .. } => {
                     // map numeric tuple indices to element types
                     if kind == MappedIndexKind::Number {
                         for element in elements {
@@ -1459,7 +1459,7 @@ impl Compiler {
             Type::ArraySized { element, .. } => self.find_type_reference_symbol(
                 module, profile, name, *element, symbols, types, visited,
             ),
-            Type::Tuple { elements } => elements.iter().find_map(|element| {
+            Type::Tuple { elements, .. } => elements.iter().find_map(|element| {
                 self.find_type_reference_symbol(
                     module, profile, name, element.ty, symbols, types, visited,
                 )

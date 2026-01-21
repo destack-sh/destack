@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
-    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
-    TypeTable,
+    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -454,12 +453,17 @@ impl Compiler {
                 Type::ArraySized {
                     element: target_elem,
                     count: target_count,
+                    is_readonly: target_readonly,
                 },
                 Type::ArraySized {
                     element: source_elem,
                     count: source_count,
+                    is_readonly: source_readonly,
                 },
             ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
                 if !self
                     .is_type_assignable(
                         module,
@@ -493,7 +497,7 @@ impl Compiler {
                     is_readonly: source_readonly,
                 },
             ) => {
-                if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
                 if target_elems.len() != source_elems.len() {
@@ -501,9 +505,9 @@ impl Compiler {
                 }
                 for (target_elem, source_elem) in target_elems.iter().zip(source_elems.iter()) {
                     let target_elem_readonly =
-                        *target_readonly || target_elem.is_readonly;
+                        target_readonly || target_elem.is_readonly;
                     let source_elem_readonly =
-                        *source_readonly || source_elem.is_readonly;
+                        source_readonly || source_elem.is_readonly;
                     if !self.tuple_element_readonly_assignable(
                         target_elem_readonly,
                         source_elem_readonly,
@@ -539,8 +543,7 @@ impl Compiler {
                     is_readonly: source_readonly,
                 },
             ) => {
-                let source_readonly =
-                    self.tuple_is_readonly(*source_readonly, &source_elems);
+                let source_readonly = self.tuple_is_readonly(source_readonly);
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
@@ -1219,12 +1222,9 @@ impl Compiler {
         true
     }
 
-    /// Check if any tuple elements are readonly.
-    fn tuple_is_readonly(&self, tuple_is_readonly: bool, elements: &[TypeElement]) -> bool {
-        if tuple_is_readonly {
-            return true;
-        }
-        elements.iter().any(|element| element.is_readonly)
+    /// Check if a tuple is readonly.
+    fn tuple_is_readonly(&self, tuple_is_readonly: bool) -> bool {
+        tuple_is_readonly
     }
 
     /// Check type literal assignability.
@@ -2770,6 +2770,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Tuple {
                 elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
+                is_readonly: false,
             },
         );
 
@@ -2817,6 +2818,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Tuple {
                 elements: vec![TypeElement::new(number_ty)],
+                is_readonly: false,
             },
         );
         let tuple_long = insert_test_type(
@@ -2824,6 +2826,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Tuple {
                 elements: vec![TypeElement::new(number_ty), TypeElement::new(string_ty)],
+                is_readonly: false,
             },
         );
 
@@ -2911,6 +2914,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Tuple {
                 elements: vec![TypeElement::new(number_ty), TypeElement::new(number_ty)],
+                is_readonly: false,
             },
         );
         let array_ty = insert_test_type(

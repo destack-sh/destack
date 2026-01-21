@@ -970,7 +970,7 @@ impl Compiler {
                     self.collect_type_reference_symbols(*element, types, symbols, visited);
                 }
             }
-            Type::Tuple { elements } => {
+            Type::Tuple { elements, .. } => {
                 for element in elements {
                     self.collect_type_reference_symbols(element.ty, types, symbols, visited);
                 }

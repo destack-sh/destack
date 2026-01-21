@@ -356,7 +356,7 @@ impl TypeLowerer {
 
                 self.lower_object_type(types, fields, module_id, node, builder)?
             }
-            dir::Type::Tuple { elements } => {
+            dir::Type::Tuple { elements, .. } => {
                 self.lower_tuple_type(types, elements, module_id, node, builder)?
             }
             dir::Type::ArraySized {

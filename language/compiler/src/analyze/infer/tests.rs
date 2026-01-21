@@ -1110,7 +1110,7 @@ let (x, y, ...rest, z) = (123, 'abc', true, 456);
 
     // value_type[rest] = (true,)
     let rest_ty_id = view.types().get_value_type_id(rest_symbol).unwrap();
-    assert_type!(view.types(), rest_ty_id, Type::Tuple { elements } => {
+    assert_type!(view.types(), rest_ty_id, Type::Tuple { elements, is_readonly: _ } => {
         assert_eq!(elements.len(), 1);
         assert_type!(view.types(), elements[0].ty, Type::TypeLiteral {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(true))

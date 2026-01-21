@@ -258,7 +258,7 @@ impl Compiler {
             Type::Array { element, .. } => element.is_some_and(|element| {
                 self.type_contains_unresolved_reference(element, types, visited)
             }),
-            Type::Tuple { elements } => elements
+            Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_contains_unresolved_reference(element.ty, types, visited)),
             Type::Object {
