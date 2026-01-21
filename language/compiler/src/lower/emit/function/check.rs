@@ -175,7 +175,6 @@ impl FunctionContext<'_> {
     }
 
     /// Emit a null check for a nullable reference when enabled.
-    /// FUGU: ensure we're actually lowering T | null and | undefined properly (?)
     pub(crate) fn emit_null_check(
         &mut self,
         expression_id: LocalNodeId<Expression>,

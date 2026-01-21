@@ -726,7 +726,8 @@ Dynamic property addition must use explicit map/dictionary types.
 Managed objects have no per object GC header.
 GC metadata is stored out of line in allocator side tables, similar to Go.
 TypeTag values are pointers to TypeDescriptor values, not integer ids.
-Null and undefined use niche optimization in the pointer (e.g., 0x0 for null, 0x1 for undefined).
+Null references use 0x0 for the pointer value.
+Undefined is represented through tagged unions, not pointer tagging.
 
 Per span metadata includes:
 - Mark bits for GC tracing
@@ -960,21 +961,13 @@ Lower chooses union representation based on these rules (in order):
 Union upcasts rely on explicit `Expression::Cast` nodes inserted by Elaborate.
 When contextual typing assigns the union type to a concrete expression, Lower uses static resolution to select the correct union variant tag.
 
-1. **Niche optimization** - All members are nullable references or undefined **and** runtime
-   discrimination does not require metadata lookup (or a type tag is already available).
+1. **Nullable reference** - A union of a single reference type and `null` lowers to a nullable reference.
    Examples:
 
    ```ds
    type MaybeString = string | null
-   // layout: same size as string reference, null = 0x0, no tag
-
-   type MaybeStringOrUndefined = string | undefined
-   // layout: same size as string reference, undefined = 0x1, no tag
-
-   type MaybeUser = User | null | undefined
-   // layout: same size as User reference, null = 0x0, undefined = 0x1, no tag
+   // layout: ref?<managed string>
    ```
-   This requires managed references with at least 2-byte alignment.
 
 2. **Inline tagged** - Total size ≤ 2×pointer_size (16 bytes on 64-bit).
    Examples:

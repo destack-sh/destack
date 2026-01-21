@@ -450,7 +450,7 @@ fn format_function_reference<'a>(
     function_id: LocalNodeId<Function>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let function = f.context().tree.get(function_id);
-    let name = f.context().strings.get(function.name);
-    write!(f, [token("@"), text(name)])
+    // resolve the function name before formatting
+    let name = f.context().function_name(function_id).to_string();
+    write!(f, [token("@"), text(&name)])
 }

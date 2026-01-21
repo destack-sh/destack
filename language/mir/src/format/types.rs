@@ -30,8 +30,8 @@ fn format_type_inner<'a>(
     use_alias: bool,
 ) -> FormatResult<()> {
     if use_alias && let Some(alias_name) = f.context().type_alias_name(id) {
-        let name = f.context().strings.get(alias_name);
-        return write!(f, [token("@"), text(name)]);
+        let alias_name = alias_name.to_string();
+        return write!(f, [token("@"), text(&alias_name)]);
     }
 
     match ty {

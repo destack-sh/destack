@@ -279,6 +279,58 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
+    /// Parse a symbol name after `@`.
+    fn parse_symbol_name(&mut self) -> ParseResult<(String, usize)> {
+        // read the base identifier segment
+        let name_token = self.eat_token(TokenType::Identifier)?;
+        let mut name = name_token.text.to_string();
+        let start = name_token.start;
+
+        // consume additional colon segments
+        while self.peek_token(TokenType::Colon)
+            && self
+                .peek_nth_token(1)
+                .is_some_and(|token| token.ty == TokenType::Identifier)
+        {
+            self.eat_token(TokenType::Colon)?;
+            let segment = self.eat_token(TokenType::Identifier)?;
+            name.push(':');
+            name.push_str(segment.text);
+        }
+
+        // return the complete name and start offset
+        Ok((name, start))
+    }
+
+    /// Scan a symbol name without emitting errors.
+    fn scan_symbol_name(&mut self) -> Option<String> {
+        // ensure the next token is a symbol segment
+        let token = self.peek()?;
+        if token.ty != TokenType::Identifier {
+            return None;
+        }
+
+        // capture the base segment
+        let mut name = token.text.to_string();
+        self.bump();
+
+        // consume additional colon segments
+        while self.peek_token(TokenType::Colon)
+            && self
+                .peek_nth_token(1)
+                .is_some_and(|token| token.ty == TokenType::Identifier)
+        {
+            self.bump();
+            let token = self.peek()?;
+            name.push(':');
+            name.push_str(token.text);
+            self.bump();
+        }
+
+        // return the scanned name
+        Some(name)
+    }
+
     /// Pre register all function names to allow forward references.
     ///
     /// This scans for `function @name` patterns without parsing anything else.
@@ -297,11 +349,7 @@ impl<'a> Parser<'a> {
                 self.bump();
                 if self.peek_token(TokenType::At) {
                     self.bump();
-                    if let Some(token) = self.peek()
-                        && token.ty == TokenType::Identifier
-                    {
-                        let name = token.text.to_string();
-
+                    if let Some(name) = self.scan_symbol_name() {
                         // register placeholder if not already known
                         if !self.function_map.contains_key(&name) {
                             let name_id = self.strings.intern(&name);
@@ -329,6 +377,7 @@ impl<'a> Parser<'a> {
                             let id = self.tree.insert(placeholder);
                             self.function_map.insert(name, id);
                         }
+                        continue;
                     }
                 }
             }
@@ -357,16 +406,13 @@ impl<'a> Parser<'a> {
                 self.bump();
                 if self.peek_token(TokenType::At) {
                     self.bump();
-                    if let Some(token) = self.peek()
-                        && token.ty == TokenType::Identifier
-                    {
-                        let name = token.text.to_string();
-
+                    if let Some(name) = self.scan_symbol_name() {
                         // register placeholder if not already known
                         if !self.type_alias_map.contains_key(&name) {
                             let placeholder = self.tree.insert(Type::Void);
                             self.type_alias_map.insert(name, placeholder);
                         }
+                        continue;
                     }
                 }
             }
@@ -383,15 +429,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::Type)?;
         self.eat_token(TokenType::At)?;
 
-        let (name, name_start, name_span) = {
-            let file_id = self.file_id;
-            let name_token = self.eat_token(TokenType::Identifier)?;
-            (
-                name_token.text.to_string(),
-                name_token.start,
-                Self::span_for_token(file_id, name_token),
-            )
-        };
+        let file_id = self.file_id;
+        let (name, name_start) = self.parse_symbol_name()?;
+        let name_span = Self::span_at(file_id, name_start, name.len());
         if self.type_alias_definitions.contains(&name) {
             return Err(ParseError::invalid(
                 &format!("duplicate type alias '@{name}'"),
@@ -441,14 +481,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // global name
-        let (name, name_span) = {
-            let file_id = self.file_id;
-            let name_token = self.eat_token(TokenType::Identifier)?;
-            (
-                name_token.text.to_string(),
-                Self::span_for_token(file_id, name_token),
-            )
-        };
+        let file_id = self.file_id;
+        let (name, name_start) = self.parse_symbol_name()?;
+        let name_span = Self::span_at(file_id, name_start, name.len());
 
         // type
         self.eat_token(TokenType::Colon)?;
@@ -544,14 +579,9 @@ impl<'a> Parser<'a> {
         self.eat_token(TokenType::At)?;
 
         // function name
-        let (name, name_span) = {
-            let file_id = self.file_id;
-            let name_token = self.eat_token(TokenType::Identifier)?;
-            (
-                name_token.text.to_string(),
-                Self::span_for_token(file_id, name_token),
-            )
-        };
+        let file_id = self.file_id;
+        let (name, name_start) = self.parse_symbol_name()?;
+        let name_span = Self::span_at(file_id, name_start, name.len());
 
         // parameters (with types for imports, typed values for definitions)
         self.eat_token(TokenType::OpenParen)?;
@@ -861,10 +891,9 @@ impl<'a> Parser<'a> {
         for inst_id in instructions {
             let inst = self.tree.get_mut(inst_id);
             match inst {
-                Instruction::LocalGet { local, .. } => {
-                    *local = resolve(*local, source_to_actual);
-                }
-                Instruction::LocalSet { local, .. } => {
+                Instruction::LocalGet { local, .. }
+                | Instruction::LocalAddr { local, .. }
+                | Instruction::LocalSet { local, .. } => {
                     *local = resolve(*local, source_to_actual);
                 }
                 _ => {}
@@ -1953,8 +1982,7 @@ impl<'a> Parser<'a> {
         let ty = match token_ty {
             TokenType::At => {
                 self.bump();
-                let name_token = self.eat_token(TokenType::Identifier)?;
-                let name = name_token.text.to_string();
+                let (name, _) = self.parse_symbol_name()?;
                 let ty = self.type_alias_map.get(&name).copied().ok_or_else(|| {
                     ParseError::invalid(&format!("unknown type alias '@{name}'"), token_start)
                 })?;
@@ -2119,7 +2147,24 @@ impl<'a> Parser<'a> {
                 let mut offset = 0u32;
                 while !self.peek_token(TokenType::CloseBrace) {
                     let mut name = None;
-                    if self.peek_token(TokenType::Identifier)
+                    if self.peek_token(TokenType::At)
+                        && self
+                            .peek_nth_token(1)
+                            .is_some_and(|token| token.ty == TokenType::Identifier)
+                        && self
+                            .peek_nth_token(2)
+                            .is_some_and(|token| token.ty == TokenType::Colon)
+                    {
+                        // allow synthetic field names like @tag and @payload
+                        self.eat_token(TokenType::At)?;
+                        let name_text = {
+                            let name_token = self.eat_token(TokenType::Identifier)?;
+                            name_token.text.to_string()
+                        };
+                        self.eat_token(TokenType::Colon)?;
+                        let name_text = format!("@{name_text}");
+                        name = Some(self.strings.intern(&name_text));
+                    } else if self.peek_token(TokenType::Identifier)
                         && let Some(next_token) = self.peek_nth_token(1)
                         && next_token.ty == TokenType::Colon
                     {
@@ -2238,9 +2283,7 @@ impl<'a> Parser<'a> {
     /// The function must be declared (either defined or extern) in this module.
     fn parse_function_reference(&mut self) -> ParseResult<LocalNodeId<Function>> {
         self.eat_token(TokenType::At)?;
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
-        let start = name_token.start;
+        let (name, start) = self.parse_symbol_name()?;
 
         self.function_map
             .get(&name)
@@ -2253,9 +2296,7 @@ impl<'a> Parser<'a> {
     /// The global must be declared (either defined or extern) in this module.
     fn parse_global_reference(&mut self) -> ParseResult<LocalNodeId<Global>> {
         self.eat_token(TokenType::At)?;
-        let name_token = self.eat_token(TokenType::Identifier)?;
-        let name = name_token.text.to_string();
-        let start = name_token.start;
+        let (name, start) = self.parse_symbol_name()?;
 
         self.global_map
             .get(&name)

@@ -696,9 +696,9 @@ fn format_function_reference<'a>(
     function_id: LocalNodeId<Function>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let function = f.context().tree.get(function_id);
-    let name = f.context().strings.get(function.name);
-    write!(f, [token("@"), text(name)])
+    // resolve the function name before formatting
+    let name = f.context().function_name(function_id).to_string();
+    write!(f, [token("@"), text(&name)])
 }
 
 /// Format a global reference.
@@ -706,9 +706,9 @@ fn format_global_reference<'a>(
     global_id: LocalNodeId<Global>,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    let global = f.context().tree.get(global_id);
-    let name = f.context().strings.get(global.name);
-    write!(f, [token("@"), text(name)])
+    // resolve the global name before formatting
+    let name = f.context().global_name(global_id).to_string();
+    write!(f, [token("@"), text(&name)])
 }
 
 /// Format a parenthesized, comma-separated list of values.

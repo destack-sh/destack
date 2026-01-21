@@ -12,10 +12,11 @@ use crate::{
 impl<'a> FormatMirNode<'a, Global> for Global {
     fn format_node(
         &self,
-        _id: LocalNodeId<Global>,
+        id: LocalNodeId<Global>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
-        let name = f.context().strings.get(self.name);
+        // resolve the global name before formatting
+        let name = f.context().global_name(id).to_string();
 
         // imported globals: extern global @name: type ; mut
         if self.linkage.is_import() {
@@ -27,7 +28,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                     token("global"),
                     space(),
                     token("@"),
-                    text(name),
+                    text(&name),
                     token(":"),
                     space(),
                     self.ty
@@ -46,7 +47,7 @@ impl<'a> FormatMirNode<'a, Global> for Global {
                     token("global"),
                     space(),
                     token("@"),
-                    text(name),
+                    text(&name),
                     token(":"),
                     space(),
                     self.ty,
