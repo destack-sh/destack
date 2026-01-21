@@ -1,5 +1,6 @@
 //! Cranelift codegen tests.
 
+mod aggregate;
 mod allocate;
 mod arithmetic;
 mod block;

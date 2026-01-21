@@ -41,7 +41,7 @@ use cranelift_object::ObjectModule;
 use destack_base::StringPool;
 use destack_mir as mir;
 
-use super::layout::compute_tuple_element_offset;
+use super::layout::{compute_tuple_element_offset, compute_type_layout};
 use super::r#type::lower_type;
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, trap};
 
@@ -669,7 +669,13 @@ impl<'a> FunctionLowerer<'a> {
         }
 
         // now add MIR block parameters for non-entry blocks
+        // (entry block parameters are already handled via function parameters above)
         for &block_id in &self.function.blocks {
+            // skip entry block, its parameters come from function parameters
+            if block_id == entry_block_id {
+                continue;
+            }
+
             let mir_block = self.tree.get(block_id);
             let target_block = block_map[&block_id];
 
@@ -1311,14 +1317,152 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // struct/tuple/array: construct aggregate from components (#Incomplete)
-            mir::Instruction::Struct { .. }
-            | mir::Instruction::Tuple { .. }
-            | mir::Instruction::Array { .. } => {
-                return Err(CodegenCraneliftError::unsupported_instruction(
-                    "aggregate construction",
-                    instruction_id.into_any(),
+            // struct: allocate stack slot and store each field at its offset
+            mir::Instruction::Struct {
+                destination,
+                ty,
+                fields,
+            } => {
+                let struct_type = self.tree.get(*ty);
+
+                // get field definitions and values
+                let field_defs = match struct_type {
+                    mir::Type::Struct { fields, .. } => fields,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "Struct instruction with non-struct type".into(),
+                        });
+                    }
+                };
+                let field_values = self.tree.get_arguments(*fields);
+
+                // compute layout and allocate stack slot
+                let layout = compute_type_layout(self.tree, *ty, self.pointer_bytes)?;
+                let align_shift = layout.alignment.trailing_zeros() as u8;
+                let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
+                    cir::StackSlotKind::ExplicitSlot,
+                    layout.size,
+                    align_shift,
                 ));
+                let slot_addr = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+
+                // store each field at its offset
+                // NOTE: we compute offsets here rather than using field.offset because
+                // the MIR parser doesn't always provide correct offsets for inline types
+                let mut offset = 0u32;
+                for (field_def_id, field_value) in field_defs.iter().zip(field_values.iter()) {
+                    let field_def = self.tree.get(*field_def_id);
+                    let field_layout =
+                        compute_type_layout(self.tree, field_def.ty, self.pointer_bytes)?;
+
+                    // align to field's alignment
+                    if field_layout.alignment > 0 {
+                        let misalignment = offset % field_layout.alignment;
+                        if misalignment != 0 {
+                            offset += field_layout.alignment - misalignment;
+                        }
+                    }
+
+                    let value = value_map[field_value];
+                    builder
+                        .ins()
+                        .store(cir::MemFlags::new(), value, slot_addr, offset as i32);
+
+                    offset += field_layout.size;
+                }
+
+                value_map.insert(*destination, slot_addr);
+            }
+
+            // tuple: allocate stack slot and store each element at computed offset
+            mir::Instruction::Tuple {
+                destination,
+                ty,
+                elements,
+            } => {
+                let tuple_type = self.tree.get(*ty);
+
+                // get element type definitions
+                let element_types = match tuple_type {
+                    mir::Type::Tuple { elements, .. } => elements,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "Tuple instruction with non-tuple type".into(),
+                        });
+                    }
+                };
+                let element_values = self.tree.get_arguments(*elements);
+
+                // compute layout and allocate stack slot
+                let layout = compute_type_layout(self.tree, *ty, self.pointer_bytes)?;
+                let align_shift = layout.alignment.trailing_zeros() as u8;
+                let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
+                    cir::StackSlotKind::ExplicitSlot,
+                    layout.size,
+                    align_shift,
+                ));
+                let slot_addr = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+
+                // store each element at its computed offset
+                for (i, element_value) in element_values.iter().enumerate() {
+                    let offset = compute_tuple_element_offset(
+                        self.tree,
+                        element_types,
+                        i as u32,
+                        self.pointer_bytes,
+                    )?;
+                    let value = value_map[element_value];
+                    builder
+                        .ins()
+                        .store(cir::MemFlags::new(), value, slot_addr, offset as i32);
+                }
+
+                value_map.insert(*destination, slot_addr);
+            }
+
+            // array: allocate stack slot and store each element at index * element_size
+            mir::Instruction::Array {
+                destination,
+                ty,
+                elements,
+            } => {
+                let array_type = self.tree.get(*ty);
+
+                // get element type
+                let element_type_id = match array_type {
+                    mir::Type::Array { element, .. } => *element,
+                    _ => {
+                        return Err(CodegenCraneliftError::Internal {
+                            message: "Array instruction with non-array type".into(),
+                        });
+                    }
+                };
+                let element_values = self.tree.get_arguments(*elements);
+
+                // compute layout and allocate stack slot
+                let layout = compute_type_layout(self.tree, *ty, self.pointer_bytes)?;
+                let align_shift = layout.alignment.trailing_zeros() as u8;
+                let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
+                    cir::StackSlotKind::ExplicitSlot,
+                    layout.size,
+                    align_shift,
+                ));
+                let slot_addr = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+
+                // compute element size
+                let element_type = lower_type(self.tree, element_type_id, self.pointer_bytes)?;
+                let element_size = element_type.bytes();
+
+                // store each element at index * element_size
+                for (i, element_value) in element_values.iter().enumerate() {
+                    let offset = (i as u32) * element_size;
+                    let value = value_map[element_value];
+                    builder
+                        .ins()
+                        .store(cir::MemFlags::new(), value, slot_addr, offset as i32);
+                }
+
+                value_map.insert(*destination, slot_addr);
             }
 
             // intrinsic: depends on the specific intrinsic

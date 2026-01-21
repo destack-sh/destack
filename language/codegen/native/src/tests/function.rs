@@ -24,7 +24,7 @@ block0:
 fn test_function_with_i32_params() {
     let mir = r#"
 function @add(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }"#;

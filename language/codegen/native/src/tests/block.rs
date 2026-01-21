@@ -6,7 +6,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_conditional_branch() {
     let mir = r#"
 function @select(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 
 block1:
@@ -72,7 +72,7 @@ block1:
 fn test_block_parameters() {
     let mir = r#"
 function @phi_test(v0: bool) -> i32 {
-block0:
+block0(v0: bool):
     branch v0, block1, block2
 block1:
     v1 = iconst 10i32
@@ -110,7 +110,7 @@ block3(v1: i32):
 fn test_switch_simple() {
     let mir = r#"
 function @dispatch(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     switch v0, block3, 0 => block1, 1 => block2
 block1:
     v1 = iconst 100i32

@@ -10,7 +10,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_integer_arithmetic_chain() {
     let mir = r#"
 function @arithmetic(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     v3 = isub v2, v0
     v4 = imul v3, v1
@@ -37,7 +37,7 @@ block0(v0: i32, v1: i32):
 fn test_signed_division() {
     let mir = r#"
 function @divide(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = sdiv v0, v1
     v3 = srem v0, v1
     v4 = iadd v2, v3
@@ -64,7 +64,7 @@ block0(v0: i32, v1: i32):
 fn test_bitwise_operations() {
     let mir = r#"
 function @bitwise(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = band v0, v1
     v3 = bor v2, v0
     v4 = bxor v3, v1
@@ -91,7 +91,7 @@ block0(v0: i32, v1: i32):
 fn test_signed_comparison() {
     let mir = r#"
 function @compare(v0: i32, v1: i32) -> bool {
-block0:
+block0(v0: i32, v1: i32):
     v2 = icmp_slt v0, v1
     return v2
 }"#;
@@ -114,7 +114,7 @@ block0(v0: i32, v1: i32):
 fn test_unary_negation() {
     let mir = r#"
 function @negate(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     v1 = ineg v0
     return v1
 }"#;
