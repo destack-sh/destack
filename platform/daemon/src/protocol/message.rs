@@ -133,6 +133,24 @@ pub struct ProtocolError {
     pub retry_after_ms: Option<u64>,
 }
 
+impl std::fmt::Display for ProtocolError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // format protocol errors
+        match &self.detail {
+            Some(detail) => write!(
+                formatter,
+                "{}: {} ({})",
+                self.code.as_str(),
+                self.message,
+                detail
+            ),
+            None => write!(formatter, "{}: {}", self.code.as_str(), self.message),
+        }
+    }
+}
+
+impl std::error::Error for ProtocolError {}
+
 /// Error code classification for protocol errors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProtocolErrorCode {
@@ -162,6 +180,27 @@ pub enum ProtocolErrorCode {
     Forbidden,
     /// An internal error occurred.
     Internal,
+}
+
+impl ProtocolErrorCode {
+    /// Return the string identifier for this error code.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ProtocolErrorCode::InvalidRequest => "invalid_request",
+            ProtocolErrorCode::InvalidPayload => "invalid_payload",
+            ProtocolErrorCode::UnsupportedVersion => "unsupported_version",
+            ProtocolErrorCode::NotFound => "not_found",
+            ProtocolErrorCode::Conflict => "conflict",
+            ProtocolErrorCode::Busy => "busy",
+            ProtocolErrorCode::NotReady => "not_ready",
+            ProtocolErrorCode::Timeout => "timeout",
+            ProtocolErrorCode::Canceled => "canceled",
+            ProtocolErrorCode::TooLarge => "too_large",
+            ProtocolErrorCode::Unauthorized => "unauthorized",
+            ProtocolErrorCode::Forbidden => "forbidden",
+            ProtocolErrorCode::Internal => "internal",
+        }
+    }
 }
 
 /// Request options for daemon calls.
@@ -1094,9 +1133,15 @@ pub enum CacheRequest {
     /// Clear all cache entries for a workspace.
     Clear { handle: WorkspaceHandleId },
     /// Evict cache entries for a workspace.
-    Evict { handle: WorkspaceHandleId, targets: Vec<TargetId> },
+    Evict {
+        handle: WorkspaceHandleId,
+        targets: Vec<TargetId>,
+    },
     /// Warm cache entries for a workspace.
-    Warm { handle: WorkspaceHandleId, targets: Vec<TargetId> },
+    Warm {
+        handle: WorkspaceHandleId,
+        targets: Vec<TargetId>,
+    },
 }
 
 /// Cache control response payloads.
@@ -1112,14 +1157,20 @@ pub struct CacheResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArtifactRequest {
     /// Fetch artifact content by id.
-    Fetch { handle: WorkspaceHandleId, artifact_id: u64 },
+    Fetch {
+        handle: WorkspaceHandleId,
+        artifact_id: u64,
+    },
 }
 
 /// Artifact fetch response payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ArtifactResponse {
     /// Artifact fetch accepted.
-    FetchAccepted { handle: WorkspaceHandleId, artifact_id: u64 },
+    FetchAccepted {
+        handle: WorkspaceHandleId,
+        artifact_id: u64,
+    },
 }
 
 /// Watch subscription request payloads.

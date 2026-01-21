@@ -30,16 +30,7 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<Vec<DaemonUpdate>, DaemonError> {
-        // update the filesystem content
-        self.session
-            .fs
-            .write_string(path, &content)
-            .map_err(|error| DaemonError::FileWrite {
-                path: path.to_path_buf(),
-                error,
-            })?;
-
-        self.update_virtual_file(path, content)
+        self.apply_file_update(path, FileUpdate::Text { content }, true)
     }
 
     /// Apply a text update without writing to the filesystem.
@@ -48,97 +39,7 @@ impl Daemon {
         path: &Path,
         content: String,
     ) -> Result<Vec<DaemonUpdate>, DaemonError> {
-        // locate daemon handle for the path
-        let handle = self.program_handle_for_path(path);
-        let _compile_guard = handle.compile_lock.lock();
-        let program = handle.program.clone();
-        let compiler = handle.compiler.clone();
-
-        // resolve config file ids before registering modules
-        let config_file_id = if self.is_config_filename(path) {
-            let mut file_id = program.files.get_id_by_path(path);
-            if file_id.is_none() {
-                // load config files to preserve stable file ids
-                let resolver = Resolver::from_program(&program, ResolveOptions::default());
-                if path
-                    .file_name()
-                    .and_then(|name| name.to_str())
-                    .is_some_and(|name| name == "dsconfig.json")
-                {
-                    let _ = resolver.load_dsconfig(path, CachePolicy::Reload);
-                } else {
-                    let _ = resolver.reload_tsconfig(path);
-                }
-                file_id = program.files.get_id_by_path(path);
-            }
-            file_id
-        } else {
-            None
-        };
-
-        // resolve path to module or fall back to tracked files
-        let module_id = if config_file_id.is_some() {
-            None
-        } else {
-            match compiler.resolve_path_to_module(&path.to_path_buf()) {
-                Ok(module_id) => Some(module_id),
-                Err(error) => {
-                    if program.files.get_id_by_path(path).is_some() {
-                        None
-                    } else {
-                        return Err(DaemonError::Resolve {
-                            path: path.to_path_buf(),
-                            error: Box::new(error),
-                        });
-                    }
-                }
-            }
-        };
-
-        // resolve file id for invalidation
-        let file_id = if let Some(file_id) = config_file_id {
-            file_id
-        } else {
-            match module_id {
-                Some(module_id) => program.modules.get(module_id).read().file_id,
-                None => match program.files.get_id_by_path(path) {
-                    Some(file_id) => file_id,
-                    None => {
-                        return Err(DaemonError::FileNotTracked {
-                            path: path.to_path_buf(),
-                        });
-                    }
-                },
-            }
-        };
-        let invalidation = program
-            .invalidate_file(file_id, FileUpdate::Text { content })
-            .map_err(|error| DaemonError::Invalidation {
-                path: path.to_path_buf(),
-                error: Box::new(error),
-            })?;
-
-        // refresh configs when config files change
-        if self.should_refresh_configs(&program, &invalidation, path) {
-            let resolver = Resolver::from_program(&program, ResolveOptions::default());
-            for message in self.refresh_program_configs(&resolver, &program) {
-                tracing::warn!(code = message.code(), message = %message, "daemon.config.refresh_failed");
-            }
-        }
-
-        let mut updates = Vec::new();
-        let update = DaemonUpdate {
-            module_id,
-            file_id,
-            invalidation,
-            diagnostics: Vec::new(),
-        };
-        updates.push(update);
-
-        // analyze the updated module when available
-        self.analyze_updates(&program, &compiler, &mut updates);
-
-        Ok(updates)
+        self.apply_virtual_file_update(path, FileUpdate::Text { content })
     }
 
     /// Apply a watch event through the daemon.
@@ -464,6 +365,36 @@ impl Daemon {
 
     /// Mark a file as removed without touching the filesystem.
     pub fn remove_virtual_file(&self, path: &Path) -> Result<Vec<DaemonUpdate>, DaemonError> {
+        self.apply_virtual_file_update(path, FileUpdate::Removed)
+    }
+
+    /// Apply a file update and optionally write to the filesystem.
+    pub fn apply_file_update(
+        &self,
+        path: &Path,
+        update: FileUpdate,
+        write_to_disk: bool,
+    ) -> Result<Vec<DaemonUpdate>, DaemonError> {
+        // write the update to disk when requested
+        if write_to_disk {
+            self.write_update_to_disk(path, &update)?;
+        }
+
+        self.apply_virtual_file_update(path, update)
+    }
+
+    /// Return the compiler for a workspace root.
+    pub(crate) fn compiler_for_root(&self, root: &Path) -> Arc<Compiler> {
+        let handle = self.program_handle_for_path(root);
+        handle.compiler.clone()
+    }
+
+    /// Apply a file update without writing to the filesystem.
+    fn apply_virtual_file_update(
+        &self,
+        path: &Path,
+        update: FileUpdate,
+    ) -> Result<Vec<DaemonUpdate>, DaemonError> {
         // locate daemon handle for the path
         let handle = self.program_handle_for_path(path);
         let _compile_guard = handle.compile_lock.lock();
@@ -472,7 +403,22 @@ impl Daemon {
 
         // resolve config file ids before registering modules
         let config_file_id = if self.is_config_filename(path) {
-            program.files.get_id_by_path(path)
+            let mut file_id = program.files.get_id_by_path(path);
+            if file_id.is_none() {
+                // load config files to preserve stable file ids
+                let resolver = Resolver::from_program(&program, ResolveOptions::default());
+                if path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name == "dsconfig.json")
+                {
+                    let _ = resolver.load_dsconfig(path, CachePolicy::Reload);
+                } else {
+                    let _ = resolver.reload_tsconfig(path);
+                }
+                file_id = program.files.get_id_by_path(path);
+            }
+            file_id
         } else {
             None
         };
@@ -481,7 +427,19 @@ impl Daemon {
         let module_id = if config_file_id.is_some() {
             None
         } else {
-            program.modules.get_id_by_path(path)
+            match compiler.resolve_path_to_module(&path.to_path_buf()) {
+                Ok(module_id) => Some(module_id),
+                Err(error) => {
+                    if program.files.get_id_by_path(path).is_some() {
+                        None
+                    } else {
+                        return Err(DaemonError::Resolve {
+                            path: path.to_path_buf(),
+                            error: Box::new(error),
+                        });
+                    }
+                }
+            }
         };
 
         // resolve file id for invalidation
@@ -500,12 +458,12 @@ impl Daemon {
                 },
             }
         };
-        let invalidation = program
-            .invalidate_file(file_id, FileUpdate::Removed)
-            .map_err(|error| DaemonError::Invalidation {
+        let invalidation = program.invalidate_file(file_id, update).map_err(|error| {
+            DaemonError::Invalidation {
                 path: path.to_path_buf(),
                 error: Box::new(error),
-            })?;
+            }
+        })?;
 
         // refresh configs when config files change
         if self.should_refresh_configs(&program, &invalidation, path) {
@@ -528,6 +486,54 @@ impl Daemon {
         self.analyze_updates(&program, &compiler, &mut updates);
 
         Ok(updates)
+    }
+
+    /// Write a file update to disk before applying it.
+    fn write_update_to_disk(&self, path: &Path, update: &FileUpdate) -> Result<(), DaemonError> {
+        let parent = path.parent();
+        if let Some(parent) = parent {
+            self.session
+                .fs
+                .create_dir_all(parent)
+                .map_err(|error| DaemonError::FileWrite {
+                    path: parent.to_path_buf(),
+                    error,
+                })?;
+        }
+
+        match update {
+            FileUpdate::Text { content } => {
+                self.session
+                    .fs
+                    .write_string(path, content)
+                    .map_err(|error| DaemonError::FileWrite {
+                        path: path.to_path_buf(),
+                        error,
+                    })?;
+            }
+            FileUpdate::Bytes { content } => {
+                self.session
+                    .fs
+                    .write(path, content)
+                    .map_err(|error| DaemonError::FileWrite {
+                        path: path.to_path_buf(),
+                        error,
+                    })?;
+            }
+            FileUpdate::Removed => {
+                if let Err(error) = self.session.fs.remove_file(path)
+                    && error.kind() != io::ErrorKind::NotFound
+                {
+                    return Err(DaemonError::FileWrite {
+                        path: path.to_path_buf(),
+                        error,
+                    });
+                }
+            }
+            FileUpdate::Touch => {}
+        }
+
+        Ok(())
     }
 
     /// Ensure a module for the given path is analyzed.

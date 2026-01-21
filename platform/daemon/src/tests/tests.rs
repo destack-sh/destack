@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 
 use destack_source::{
     FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
@@ -7,12 +8,17 @@ use destack_source::{
 };
 use destack_workspace::{MemoryCacheStore, Program, Session};
 
+use crate::protocol::{
+    DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,
+    ProtocolServer, ProtocolServerError, WorkspaceHandleId, WorkspaceOpenOptions,
+    loopback_transport_pair,
+};
 use crate::{
     Daemon, DaemonUpdate, DaemonWatchBatchResult, WatchBatch, WatchCoordinator, WatchPolicy,
 };
 
 /// Test harness for daemon flows.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TestDaemon {
     /// The in memory file system.
     pub fs: Arc<MemoryFileSystem>,
@@ -42,6 +48,17 @@ pub struct TestWatchHarness {
 pub struct TestWatchBatch {
     /// The captured watch batch.
     batch: WatchBatch,
+}
+
+/// Harness for daemon protocol server/client.
+#[derive(Debug)]
+pub struct TestProtocolHarness {
+    /// The daemon test state.
+    pub test: TestDaemon,
+    /// The protocol client.
+    pub client: ProtocolClient,
+    /// Server thread handle.
+    server_handle: Option<JoinHandle<Result<(), ProtocolServerError>>>,
 }
 
 impl TestDaemon {
@@ -164,6 +181,11 @@ impl TestDaemon {
         self.daemon.apply_watch_batch(batch)
     }
 
+    /// Build a protocol harness for this daemon.
+    pub fn protocol(&self) -> TestProtocolHarness {
+        TestProtocolHarness::from_test(self.clone())
+    }
+
     /// Resolve a path relative to the primary root when needed.
     fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
         resolve_test_path(&self.root, path)
@@ -250,6 +272,72 @@ impl TestWatchBatch {
                 .any(|event| event.path.ends_with(suffix)),
             "expected {suffix} to be present"
         );
+    }
+}
+
+impl TestProtocolHarness {
+    /// Create a protocol harness with a default daemon.
+    pub fn new() -> Self {
+        Self::from_test(TestDaemon::new())
+    }
+
+    /// Create a protocol harness from an existing test daemon.
+    pub fn from_test(test: TestDaemon) -> Self {
+        // create loopback transports
+        let (client_transport, server_transport) = loopback_transport_pair(16);
+        let daemon = Arc::new(test.daemon.clone());
+
+        // start the protocol server
+        let server = ProtocolServer::new(daemon);
+        let server_handle = thread::spawn(move || server.serve(&server_transport));
+
+        // create protocol client
+        let client = ProtocolClient::new(Arc::new(client_transport));
+
+        Self {
+            test,
+            client,
+            server_handle: Some(server_handle),
+        }
+    }
+
+    /// Perform a handshake and return the response.
+    pub fn handshake(&self) -> crate::protocol::HandshakeResponse {
+        self.client
+            .handshake(ProtocolClientOptions::default())
+            .expect("handshake")
+    }
+
+    /// Send a daemon request through the protocol client.
+    pub fn send_request(&self, request: DaemonRequest) -> DaemonResponse {
+        self.client.send_request(request).expect("request")
+    }
+
+    /// Open the default workspace and return the handle id.
+    pub fn open_workspace(&self) -> WorkspaceHandleId {
+        let open = OpenWorkspaceRequest {
+            root: self.test.root.clone(),
+            options: WorkspaceOpenOptions::default(),
+        };
+        match self.send_request(DaemonRequest::OpenWorkspace(open)) {
+            DaemonResponse::WorkspaceOpened(response) => response.handle,
+            other => panic!("unexpected response: {other:?}"),
+        }
+    }
+
+    /// Shutdown the server and join the thread.
+    pub fn shutdown(mut self) {
+        let _ = self.send_request(DaemonRequest::Shutdown);
+        if let Some(handle) = self.server_handle.take() {
+            let _ = handle.join().expect("server join").expect("serve");
+        }
+    }
+
+    /// Join the server thread without sending a shutdown request.
+    pub fn join(mut self) {
+        if let Some(handle) = self.server_handle.take() {
+            let _ = handle.join().expect("server join").expect("serve");
+        }
     }
 }
 

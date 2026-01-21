@@ -87,6 +87,7 @@ where
         let mut writer = self.writer.lock();
         let writer = writer.as_mut().ok_or(TransportError::Closed)?;
         self.codec.write_to(writer, payload)?;
+        writer.flush()?;
 
         Ok(())
     }
@@ -184,10 +185,7 @@ impl std::fmt::Debug for BufferedTransport {
 
 impl BufferedTransport {
     /// Create a buffered transport with bounded queues.
-    pub fn new(
-        inner: std::sync::Arc<dyn Transport>,
-        outbound_capacity: usize,
-    ) -> Self {
+    pub fn new(inner: std::sync::Arc<dyn Transport>, outbound_capacity: usize) -> Self {
         // allocate bounded queues
         let (outbound_tx, outbound_rx): (Sender<Vec<u8>>, Receiver<Vec<u8>>) =
             bounded(outbound_capacity);
