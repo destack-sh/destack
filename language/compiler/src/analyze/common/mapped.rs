@@ -418,6 +418,7 @@ impl Compiler {
         profile: ProfileId,
         type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
+        distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         then_type: LocalTypeId,
@@ -460,6 +461,7 @@ impl Compiler {
 
             return types.insert_type_from_any(
                 Type::Conditional {
+                    distributive,
                     left,
                     right,
                     then_type: normalized_then,
@@ -470,14 +472,14 @@ impl Compiler {
         }
 
         // distribute over unions for conditional typing
-        if let Type::Union { elements } = types.get_type(left).clone() {
+        if distributive && let Type::Union { elements } = types.get_type(left).clone() {
             let mut branch_types = Vec::new();
 
             // evaluate each union element independently
             for element_id in elements {
                 let branch = self.normalize_conditional_type(
-                    module, profile, type_id, source_id, element_id, right, then_type, else_type,
-                    symbols, types, mode, visited,
+                    module, profile, type_id, source_id, false, element_id, right, then_type,
+                    else_type, symbols, types, mode, visited,
                 );
                 branch_types.push(branch);
             }
@@ -505,10 +507,34 @@ impl Compiler {
             };
         }
 
+        // distribute over never as an empty union
+        if distributive
+            && matches!(
+                types.get_type(left),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                }
+            )
+        {
+            return types.insert_type_from_any(
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                },
+                source_id,
+            );
+        }
+
         // infer conditional bindings before choosing a branch
         if self.type_contains_infer(right, types, &mut HashSet::new()) {
             if let Some(substitutions) = self.infer_conditional_type_substitutions(
-                module, profile, left, right, source_id, symbols, types,
+                module,
+                profile,
+                distributive,
+                left,
+                right,
+                source_id,
+                symbols,
+                types,
             ) {
                 let substituted = self.substitute_infer_types(
                     module,
@@ -1380,6 +1406,7 @@ impl Compiler {
                     )
                 }),
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,

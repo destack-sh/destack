@@ -174,6 +174,82 @@ impl Compiler {
         types.insert_type_from_any(union, types.get_type_source(source_type_id))
     }
 
+    /// Build an intersection type from a list of elements.
+    pub(crate) fn intersection_type_from_list(
+        &self,
+        elements: Vec<LocalTypeId>,
+        source_type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // flatten nested intersections and keep elements unique
+        let mut flattened = Vec::new();
+        for element_id in elements {
+            match types.get_type(element_id) {
+                Type::Intersection { elements } => {
+                    for element_id in elements {
+                        if !flattened.contains(element_id) {
+                            flattened.push(*element_id);
+                        }
+                    }
+                }
+                _ => {
+                    if !flattened.contains(&element_id) {
+                        flattened.push(element_id);
+                    }
+                }
+            }
+        }
+
+        // collapse any or unknown and handle never
+        let mut any_type = None;
+        let mut unknown_type = None;
+        let mut never_type = None;
+        let mut filtered = Vec::new();
+        for element_id in flattened {
+            match types.get_type(element_id) {
+                Type::TypeLiteral {
+                    value: TypeLiteral::Any,
+                } => any_type = Some(element_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown,
+                } => unknown_type = Some(element_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Never,
+                } => never_type = Some(element_id),
+                _ => filtered.push(element_id),
+            }
+        }
+
+        // honor dominating never or any
+        if let Some(never_type) = never_type {
+            return never_type;
+        }
+        if let Some(any_type) = any_type {
+            return any_type;
+        }
+
+        // fall back to unknown when the intersection is empty
+        if filtered.is_empty() {
+            return unknown_type.unwrap_or_else(|| {
+                types.insert_type_from_any(
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    },
+                    types.get_type_source(source_type_id),
+                )
+            });
+        }
+
+        // avoid rebuilding when a single element remains
+        if filtered.len() == 1 {
+            return filtered[0];
+        }
+
+        // construct the intersection type
+        let intersection = Type::Intersection { elements: filtered };
+        types.insert_type_from_any(intersection, types.get_type_source(source_type_id))
+    }
+
     /// Check whether a type contains references without resolved instance types.
     pub(crate) fn type_contains_unresolved_reference(
         &self,
@@ -205,6 +281,7 @@ impl Compiler {
                 self.type_contains_unresolved_reference(*value, types, visited)
             }
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,

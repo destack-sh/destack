@@ -725,11 +725,13 @@ impl<'a> SignatureHasher<'a> {
                     .hash(&mut hasher);
             }
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
                 else_type,
             } => {
+                distributive.hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *left, types)
                     .hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *right, types)

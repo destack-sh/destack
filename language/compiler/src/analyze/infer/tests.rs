@@ -2837,7 +2837,17 @@ fn test_analyze_type_infer_scope() {
         .get_instance_type_id(foo_symbol)
         .expect("expected Foo instance type");
 
-    assert_type!(view.types(), foo_instance_id, Type::Conditional { left, right, then_type, else_type } => {
+    assert_type!(
+        view.types(),
+        foo_instance_id,
+        Type::Conditional {
+            distributive,
+            left,
+            right,
+            then_type,
+            else_type
+        } => {
+        assert!(*distributive);
         assert_type!(view.types(), *left, Type::Reference { symbol, .. } => {
             let symbol = view.symbols().get_symbol(symbol.into_local());
             assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");

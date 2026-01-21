@@ -403,8 +403,63 @@ impl Compiler {
                 Type::TypeLiteral {
                     value: TypeLiteral::Primitive(PrimitiveType::String),
                 },
-                Type::TemplateLiteral { .. }, // #Incomplete: is template string to string always assignable?
+                Type::TemplateLiteral { .. },
             ) => Assignability::Assignable,
+            (
+                Type::TemplateLiteral { strings, spans },
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                },
+            ) => {
+                if self.template_literal_is_string_supertype(
+                    module, profile, &strings, &spans, symbols, types,
+                ) {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+            (
+                Type::TemplateLiteral { strings, spans },
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
+                },
+            ) => {
+                let value = self.program.strings.get(string_id).to_string();
+                if self.template_literal_matches_string(
+                    module, profile, &strings, &spans, &value, symbols, types,
+                ) {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
+            (
+                Type::TemplateLiteral {
+                    strings: target_strings,
+                    spans: target_spans,
+                },
+                Type::TemplateLiteral {
+                    strings: source_strings,
+                    spans: source_spans,
+                },
+            ) => {
+                if self.template_literal_matches_template(
+                    module,
+                    profile,
+                    &target_strings,
+                    &target_spans,
+                    &source_strings,
+                    &source_spans,
+                    symbols,
+                    types,
+                    options,
+                ) {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
 
             // arrays: covariant in element type
             (
@@ -1321,7 +1376,7 @@ impl Compiler {
     }
 
     /// Check if an integer literal value fits within the range of a specific int type.
-    fn is_integer_literal_assignable(&self, value: i128, int_type: &IntType) -> bool {
+    pub(crate) fn is_integer_literal_assignable(&self, value: i128, int_type: &IntType) -> bool {
         let (min, max) = match int_type {
             IntType::Int8 => (i8::MIN as i128, i8::MAX as i128),
             IntType::Int16 => (i16::MIN as i128, i16::MAX as i128),

@@ -1212,6 +1212,8 @@ impl Compiler {
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
+                let distributive =
+                    self.conditional_left_is_distributive(module, profile, left_id, symbols, types);
                 let should_validate_branches = !self.type_contains_static_parameters(
                     module,
                     profile,
@@ -1241,6 +1243,7 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?;
                 Type::Conditional {
+                    distributive,
                     left: left_id,
                     right: right_id,
                     then_type: then_type_id,

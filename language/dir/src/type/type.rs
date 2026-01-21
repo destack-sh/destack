@@ -132,6 +132,8 @@ pub enum Type {
 
     /// Type conditional expression.
     Conditional {
+        /// Whether the conditional distributes over unions.
+        distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         then_type: LocalTypeId,

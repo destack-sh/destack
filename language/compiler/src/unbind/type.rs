@@ -177,6 +177,7 @@ impl Compiler {
                 }
             }
             dir::Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,

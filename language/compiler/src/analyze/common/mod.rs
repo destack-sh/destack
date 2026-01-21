@@ -10,6 +10,7 @@ mod normalize;
 mod scalar;
 mod shape;
 mod strict;
+mod template;
 mod r#type;
 
 pub(crate) use argument::{StaticParameterReferencePosition, StaticParameterReferences};

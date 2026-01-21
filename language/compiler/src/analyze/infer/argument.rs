@@ -2315,6 +2315,7 @@ impl Compiler {
                 }
             }
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
@@ -2337,6 +2338,7 @@ impl Compiler {
                 } else {
                     types.insert_type_from_type(
                         Type::Conditional {
+                            distributive,
                             left: mapped_left,
                             right: mapped_right,
                             then_type: mapped_then,

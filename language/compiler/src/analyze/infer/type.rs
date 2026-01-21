@@ -244,6 +244,7 @@ impl Compiler {
                 module, profile, node_id, value, types, visited,
             ),
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,
@@ -2425,6 +2426,7 @@ impl Compiler {
             Type::Error => types.insert_type_from_any(Type::Error, node_id),
             Type::This => types.insert_type_from_any(Type::This, node_id),
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
@@ -2460,6 +2462,7 @@ impl Compiler {
                 );
                 types.insert_type_from_any(
                     Type::Conditional {
+                        distributive: *distributive,
                         left: local_left,
                         right: local_right,
                         then_type: local_then,
@@ -3505,6 +3508,7 @@ impl Compiler {
                 }
             }
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
@@ -3523,6 +3527,7 @@ impl Compiler {
                 } else {
                     types.insert_type_from_type(
                         Type::Conditional {
+                            distributive,
                             left: mapped_left,
                             right: mapped_right,
                             then_type: mapped_then,

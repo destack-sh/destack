@@ -104,6 +104,7 @@ impl Compiler {
                 visited_symbols,
             ),
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,

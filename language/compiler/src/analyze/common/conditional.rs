@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, NormalizationMode, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable, SymbolType, Type,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeType, NormalizationMode, PrimitiveType,
+    ScalarLiteral, StaticArgument, StaticExpression, StaticProperty, StringId, SymbolTable,
+    SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -14,6 +15,15 @@ use crate::Compiler;
 pub(crate) struct InferSubstitutions {
     /// Inferred bindings keyed by infer name.
     by_name: HashMap<StringId, LocalTypeId>,
+}
+
+/// Merge mode for inferred bindings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InferMergeMode {
+    /// Union inferred candidates (covariant positions).
+    Union,
+    /// Intersect inferred candidates (contravariant positions).
+    Intersection,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -53,6 +63,28 @@ impl Compiler {
         symbol
             .primary_declaration
             .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
+    }
+
+    /// Check whether a conditional left side is distributive.
+    pub(crate) fn conditional_left_is_distributive(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &TypeTable,
+    ) -> bool {
+        // only naked static parameters distribute
+        match types.get_type(type_id) {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                static_arguments.is_none()
+                    && self.symbol_is_static_parameter(module, profile, *symbol, symbols, types)
+            }
+            _ => false,
+        }
     }
 
     /// Check whether a type contains a static parameter reference.
@@ -102,6 +134,7 @@ impl Compiler {
                 })
             }),
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,
@@ -292,6 +325,7 @@ impl Compiler {
                     .any(|argument| self.static_argument_contains_infer(argument, types, visited))
             }),
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,
@@ -536,6 +570,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         source_id: LocalNodeIdAny,
@@ -547,6 +582,7 @@ impl Compiler {
         self.infer_conditional_type_substitutions_inner(
             module,
             profile,
+            distributive,
             left,
             right,
             source_id,
@@ -561,6 +597,7 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
+        distributive: bool,
         left: LocalTypeId,
         right: LocalTypeId,
         source_id: LocalNodeIdAny,
@@ -594,7 +631,7 @@ impl Compiler {
                 },
                 _,
             ) => {
-                return Some(InferSubstitutions::default());
+                return None;
             }
             (
                 Type::TypeLiteral {
@@ -602,9 +639,30 @@ impl Compiler {
                 },
                 _,
             ) => {
-                return Some(InferSubstitutions::default());
+                return self.infer_substitutions_for_any_left(
+                    module,
+                    profile,
+                    distributive,
+                    left,
+                    right,
+                    source_id,
+                    symbols,
+                    types,
+                );
             }
             _ => {}
+        }
+
+        // infer defaults for never inputs
+        if matches!(
+            left_type,
+            Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            }
+        ) {
+            return self.infer_substitutions_for_never_left(
+                module, profile, right, source_id, symbols, types,
+            );
         }
 
         // resolve static parameter constraints for the left side
@@ -618,6 +676,7 @@ impl Compiler {
                 return self.infer_conditional_type_substitutions_inner(
                     module,
                     profile,
+                    distributive,
                     constraint_id,
                     right,
                     source_id,
@@ -639,6 +698,7 @@ impl Compiler {
                 return self.infer_conditional_type_substitutions_inner(
                     module,
                     profile,
+                    distributive,
                     left,
                     constraint_id,
                     source_id,
@@ -678,6 +738,7 @@ impl Compiler {
             return self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 left_instance_id,
                 right,
                 source_id,
@@ -694,6 +755,7 @@ impl Compiler {
             return self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 left_instance_id,
                 right,
                 source_id,
@@ -710,6 +772,7 @@ impl Compiler {
             return self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 left,
                 right_instance_id,
                 source_id,
@@ -735,6 +798,7 @@ impl Compiler {
                 return self.infer_conditional_type_substitutions_inner(
                     module,
                     profile,
+                    distributive,
                     normalized_left,
                     right,
                     source_id,
@@ -761,6 +825,7 @@ impl Compiler {
                 return self.infer_conditional_type_substitutions_inner(
                     module,
                     profile,
+                    distributive,
                     left,
                     normalized_right,
                     source_id,
@@ -778,6 +843,7 @@ impl Compiler {
             return self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 function_id,
                 right,
                 source_id,
@@ -794,6 +860,7 @@ impl Compiler {
             return self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 left,
                 function_id,
                 source_id,
@@ -811,10 +878,34 @@ impl Compiler {
             (Type::Union { elements }, _) => {
                 let mut combined = InferSubstitutions::default();
                 for element_id in elements {
-                    if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        module, profile, element_id, right, source_id, symbols, types, visited,
-                    ) {
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                    let inferred = self.infer_conditional_type_substitutions_inner(
+                        module,
+                        profile,
+                        distributive,
+                        element_id,
+                        right,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
+                    );
+                    match inferred {
+                        Some(inferred) => {
+                            self.merge_infer_substitutions(
+                                module,
+                                profile,
+                                &mut combined,
+                                inferred,
+                                symbols,
+                                types,
+                                InferMergeMode::Union,
+                            );
+                        }
+                        None => {
+                            if !distributive {
+                                return None;
+                            }
+                        }
                     }
                 }
                 Some(combined)
@@ -823,9 +914,25 @@ impl Compiler {
                 let mut combined = InferSubstitutions::default();
                 for element_id in elements {
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        module, profile, left, element_id, source_id, symbols, types, visited,
+                        module,
+                        profile,
+                        distributive,
+                        left,
+                        element_id,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
                     ) {
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                        self.merge_infer_substitutions(
+                            module,
+                            profile,
+                            &mut combined,
+                            inferred,
+                            symbols,
+                            types,
+                            InferMergeMode::Union,
+                        );
                     }
                 }
                 Some(combined)
@@ -834,20 +941,85 @@ impl Compiler {
                 let mut combined = InferSubstitutions::default();
                 for element_id in elements {
                     if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
-                        module, profile, element_id, right, source_id, symbols, types, visited,
+                        module,
+                        profile,
+                        distributive,
+                        element_id,
+                        right,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
                     ) {
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                        self.merge_infer_substitutions(
+                            module,
+                            profile,
+                            &mut combined,
+                            inferred,
+                            symbols,
+                            types,
+                            InferMergeMode::Union,
+                        );
                     }
                 }
                 Some(combined)
             }
+            (
+                Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
+                },
+                Type::TemplateLiteral { strings, spans },
+            ) => {
+                let value = self.program.strings.get(string_id).to_string();
+                self.infer_template_literal_substitutions_from_string(
+                    module, profile, &value, &strings, &spans, source_id, symbols, types,
+                )
+            }
+            (
+                Type::TemplateLiteral {
+                    strings: left_strings,
+                    spans: left_spans,
+                },
+                Type::TemplateLiteral {
+                    strings: right_strings,
+                    spans: right_spans,
+                },
+            ) => self.infer_template_literal_substitutions_from_template(
+                module,
+                profile,
+                distributive,
+                &left_strings,
+                &left_spans,
+                &right_strings,
+                &right_spans,
+                source_id,
+                symbols,
+                types,
+                visited,
+            ),
             (_, Type::Intersection { elements }) => {
                 let mut combined = InferSubstitutions::default();
                 for element_id in elements {
                     let inferred = self.infer_conditional_type_substitutions_inner(
-                        module, profile, left, element_id, source_id, symbols, types, visited,
+                        module,
+                        profile,
+                        distributive,
+                        left,
+                        element_id,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -867,6 +1039,7 @@ impl Compiler {
                 self.infer_conditional_type_substitutions_inner(
                     module,
                     profile,
+                    distributive,
                     left_element,
                     right_element,
                     source_id,
@@ -884,6 +1057,7 @@ impl Compiler {
             ) => self.infer_conditional_type_substitutions_inner(
                 module,
                 profile,
+                distributive,
                 element,
                 right_element,
                 source_id,
@@ -912,6 +1086,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         left_element.ty,
                         right_element.ty,
                         source_id,
@@ -919,7 +1094,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -957,7 +1140,14 @@ impl Compiler {
                                 source_id,
                             );
                             return self.infer_conditional_type_substitutions_inner(
-                                module, profile, tuple_type, only, source_id, symbols, types,
+                                module,
+                                profile,
+                                distributive,
+                                tuple_type,
+                                only,
+                                source_id,
+                                symbols,
+                                types,
                                 visited,
                             );
                         }
@@ -971,6 +1161,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         *left_parameter,
                         *right_parameter,
                         source_id,
@@ -978,13 +1169,22 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 let inferred = match (this_parameter, right_this_parameter) {
                     (Some(left_parameter), Some(right_parameter)) => self
                         .infer_conditional_type_substitutions_inner(
                             module,
                             profile,
+                            distributive,
                             left_parameter,
                             right_parameter,
                             source_id,
@@ -995,7 +1195,15 @@ impl Compiler {
                     (None, None) => Some(InferSubstitutions::default()),
                     _ => None,
                 }?;
-                self.merge_infer_substitutions(&mut combined, inferred);
+                self.merge_infer_substitutions(
+                    module,
+                    profile,
+                    &mut combined,
+                    inferred,
+                    symbols,
+                    types,
+                    InferMergeMode::Intersection,
+                );
                 for (left_parameter, right_parameter) in dynamic_parameters
                     .iter()
                     .zip(right_dynamic_parameters.iter())
@@ -1003,6 +1211,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         *left_parameter,
                         *right_parameter,
                         source_id,
@@ -1010,7 +1219,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Intersection,
+                    );
                 }
                 if let (Some(left_return), Some(right_return)) = (return_type, right_return_type)
                     && self.type_contains_infer(right_return, types, &mut HashSet::new())
@@ -1018,6 +1235,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         left_return,
                         right_return,
                         source_id,
@@ -1025,7 +1243,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -1047,6 +1273,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         left,
                         right_signature,
                         source_id,
@@ -1054,7 +1281,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -1076,6 +1311,7 @@ impl Compiler {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         left_signature,
                         right,
                         source_id,
@@ -1083,7 +1319,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -1109,6 +1353,7 @@ impl Compiler {
                         let inferred = self.infer_conditional_type_substitutions_inner(
                             module,
                             profile,
+                            distributive,
                             left_field.ty,
                             right_field.ty,
                             source_id,
@@ -1116,7 +1361,15 @@ impl Compiler {
                             types,
                             visited,
                         )?;
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                        self.merge_infer_substitutions(
+                            module,
+                            profile,
+                            &mut combined,
+                            inferred,
+                            symbols,
+                            types,
+                            InferMergeMode::Union,
+                        );
                     }
                 }
                 for right_signature in right_calls {
@@ -1124,6 +1377,7 @@ impl Compiler {
                         let inferred = self.infer_conditional_type_substitutions_inner(
                             module,
                             profile,
+                            distributive,
                             *left_signature,
                             right_signature,
                             source_id,
@@ -1131,7 +1385,15 @@ impl Compiler {
                             types,
                             visited,
                         )?;
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                        self.merge_infer_substitutions(
+                            module,
+                            profile,
+                            &mut combined,
+                            inferred,
+                            symbols,
+                            types,
+                            InferMergeMode::Union,
+                        );
                     }
                 }
                 for right_signature in right_constructs {
@@ -1139,6 +1401,7 @@ impl Compiler {
                         let inferred = self.infer_conditional_type_substitutions_inner(
                             module,
                             profile,
+                            distributive,
                             *left_signature,
                             right_signature,
                             source_id,
@@ -1146,13 +1409,22 @@ impl Compiler {
                             types,
                             visited,
                         )?;
-                        self.merge_infer_substitutions(&mut combined, inferred);
+                        self.merge_infer_substitutions(
+                            module,
+                            profile,
+                            &mut combined,
+                            inferred,
+                            symbols,
+                            types,
+                            InferMergeMode::Union,
+                        );
                     }
                 }
                 for right_signature in right_indexes {
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         right_signature.key_type,
                         right_signature.key_type,
                         source_id,
@@ -1160,10 +1432,19 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                     let inferred = self.infer_conditional_type_substitutions_inner(
                         module,
                         profile,
+                        distributive,
                         right_signature.value_type,
                         right_signature.value_type,
                         source_id,
@@ -1171,7 +1452,15 @@ impl Compiler {
                         types,
                         visited,
                     )?;
-                    self.merge_infer_substitutions(&mut combined, inferred);
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
                 }
                 Some(combined)
             }
@@ -1217,11 +1506,655 @@ impl Compiler {
         }
     }
 
-    /// Merge inferred substitutions from a new branch into the base set.
-    fn merge_infer_substitutions(&self, base: &mut InferSubstitutions, other: InferSubstitutions) {
-        for (name, ty) in other.by_name {
-            base.by_name.entry(name).or_insert(ty);
+    /// Infer substitutions for conditional patterns when the left side is `any`.
+    fn infer_substitutions_for_any_left(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        distributive: bool,
+        left: LocalTypeId,
+        right: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<InferSubstitutions> {
+        // handle union patterns by merging successful branches
+        if let Type::Union { elements } = types.get_type(right).clone() {
+            let mut combined = InferSubstitutions::default();
+            let mut matched = false;
+
+            for element_id in elements {
+                let mut branch_visited = HashSet::new();
+                if let Some(inferred) = self.infer_conditional_type_substitutions_inner(
+                    module,
+                    profile,
+                    distributive,
+                    left,
+                    element_id,
+                    source_id,
+                    symbols,
+                    types,
+                    &mut branch_visited,
+                ) {
+                    matched = true;
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
+                }
+            }
+
+            if matched {
+                return Some(combined);
+            }
+            return None;
         }
+
+        // reject template literal patterns for `any`
+        if matches!(types.get_type(right), Type::TemplateLiteral { .. }) {
+            return None;
+        }
+
+        // collect infer names from the pattern
+        let mut names = HashSet::new();
+        let mut visited = HashSet::new();
+        self.collect_infer_names_from_type(right, types, &mut visited, &mut names);
+
+        // default to an empty substitution when there are no infer names
+        if names.is_empty() {
+            return Some(InferSubstitutions::default());
+        }
+
+        // map infer bindings to unknown for `any` patterns
+        let unknown_type = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Unknown,
+            },
+            source_id,
+        );
+        let mut substitutions = InferSubstitutions::default();
+        for name in names {
+            substitutions.by_name.insert(name, unknown_type);
+        }
+
+        Some(substitutions)
+    }
+
+    /// Collect infer bindings from a pattern type.
+    fn collect_infer_names_from_type(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+        names: &mut HashSet<StringId>,
+    ) {
+        // stop on recursion cycles
+        if !visited.insert(type_id) {
+            return;
+        }
+
+        // walk infer-bearing type shapes
+        match types.get_type(type_id) {
+            Type::Infer { name, .. } => {
+                names.insert(*name);
+            }
+            Type::Reference {
+                static_arguments, ..
+            }
+            | Type::Import {
+                static_arguments, ..
+            } => {
+                if let Some(arguments) = static_arguments {
+                    for argument in arguments {
+                        self.collect_infer_names_from_static_argument(
+                            argument, types, visited, names,
+                        );
+                    }
+                }
+            }
+            Type::Conditional {
+                distributive: _,
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                self.collect_infer_names_from_type(*left, types, visited, names);
+                self.collect_infer_names_from_type(*right, types, visited, names);
+                self.collect_infer_names_from_type(*then_type, types, visited, names);
+                self.collect_infer_names_from_type(*else_type, types, visited, names);
+            }
+            Type::Mapped {
+                parameter, value, ..
+            } => {
+                self.collect_infer_names_from_type(parameter.constraint, types, visited, names);
+                if let Some(key_remap) = parameter.key_remap {
+                    self.collect_infer_names_from_type(key_remap, types, visited, names);
+                }
+                self.collect_infer_names_from_type(*value, types, visited, names);
+            }
+            Type::Index { left, index } => {
+                self.collect_infer_names_from_type(*left, types, visited, names);
+                self.collect_infer_names_from_type(*index, types, visited, names);
+            }
+            Type::TemplateLiteral { spans, .. } => {
+                for span in spans {
+                    self.collect_infer_names_from_type(*span, types, visited, names);
+                }
+            }
+            Type::Array { element, .. } => {
+                if let Some(element) = element {
+                    self.collect_infer_names_from_type(*element, types, visited, names);
+                }
+            }
+            Type::ArraySized { element, .. } => {
+                self.collect_infer_names_from_type(*element, types, visited, names);
+            }
+            Type::Tuple { elements, .. } => {
+                for element in elements {
+                    self.collect_infer_names_from_type(element.ty, types, visited, names);
+                }
+            }
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                for field in fields {
+                    self.collect_infer_names_from_type(field.ty, types, visited, names);
+                }
+                for signature in call_signatures {
+                    self.collect_infer_names_from_type(*signature, types, visited, names);
+                }
+                for signature in construct_signatures {
+                    self.collect_infer_names_from_type(*signature, types, visited, names);
+                }
+                for signature in index_signatures {
+                    self.collect_infer_names_from_type(signature.key_type, types, visited, names);
+                    self.collect_infer_names_from_type(signature.value_type, types, visited, names);
+                }
+            }
+            Type::Function {
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+                ..
+            } => {
+                for parameter in static_parameters {
+                    self.collect_infer_names_from_type(*parameter, types, visited, names);
+                }
+                if let Some(parameter) = this_parameter {
+                    self.collect_infer_names_from_type(*parameter, types, visited, names);
+                }
+                for parameter in dynamic_parameters {
+                    self.collect_infer_names_from_type(*parameter, types, visited, names);
+                }
+                if let Some(return_type) = return_type {
+                    self.collect_infer_names_from_type(*return_type, types, visited, names);
+                }
+            }
+            Type::Unary { right, .. }
+            | Type::ValueOf { right, .. }
+            | Type::ReferenceOf { right, .. }
+            | Type::PointerOf { right, .. } => {
+                self.collect_infer_names_from_type(*right, types, visited, names);
+            }
+            Type::Binary { left, right, .. } => {
+                self.collect_infer_names_from_type(*left, types, visited, names);
+                self.collect_infer_names_from_type(*right, types, visited, names);
+            }
+            Type::Predicate { target, .. } => {
+                if let Some(target) = target {
+                    self.collect_infer_names_from_type(*target, types, visited, names);
+                }
+            }
+            Type::Union { elements } | Type::Intersection { elements } => {
+                for element in elements {
+                    self.collect_infer_names_from_type(*element, types, visited, names);
+                }
+            }
+            Type::Value { value } => {
+                self.collect_infer_names_from_type(*value, types, visited, names);
+            }
+            Type::TypeLiteral { .. }
+            | Type::InferVar { .. }
+            | Type::Unevaluated(_)
+            | Type::This
+            | Type::Error => {}
+        }
+    }
+
+    /// Collect infer bindings from a static argument.
+    fn collect_infer_names_from_static_argument(
+        &self,
+        argument: &StaticArgument,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+        names: &mut HashSet<StringId>,
+    ) {
+        // inspect static argument expressions
+        match argument {
+            StaticArgument::Unevaluated { .. } => {}
+            StaticArgument::Evaluated { value, .. } => {
+                self.collect_infer_names_from_static_expression(value, types, visited, names);
+            }
+        }
+    }
+
+    /// Collect infer bindings from a static expression.
+    fn collect_infer_names_from_static_expression(
+        &self,
+        expression: &StaticExpression,
+        types: &TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+        names: &mut HashSet<StringId>,
+    ) {
+        // walk static expression shapes
+        match expression {
+            StaticExpression::Type { ty } => {
+                self.collect_infer_names_from_type(*ty, types, visited, names);
+            }
+            StaticExpression::Declaration {
+                static_arguments, ..
+            } => {
+                if let Some(arguments) = static_arguments {
+                    for argument in arguments {
+                        self.collect_infer_names_from_static_argument(
+                            argument, types, visited, names,
+                        );
+                    }
+                }
+            }
+            StaticExpression::ArrayExpression { elements }
+            | StaticExpression::TupleExpression { elements } => {
+                for element in elements {
+                    self.collect_infer_names_from_static_expression(element, types, visited, names);
+                }
+            }
+            StaticExpression::ObjectExpression { properties } => {
+                for property in properties {
+                    match property {
+                        StaticProperty::Unevaluated { .. } => {}
+                        StaticProperty::Field { value, default, .. } => {
+                            self.collect_infer_names_from_static_expression(
+                                value, types, visited, names,
+                            );
+                            if let Some(default) = default {
+                                self.collect_infer_names_from_static_expression(
+                                    default, types, visited, names,
+                                );
+                            }
+                        }
+                        StaticProperty::Method { body, .. } => {
+                            self.collect_infer_names_from_static_expression(
+                                body, types, visited, names,
+                            );
+                        }
+                    }
+                }
+            }
+            StaticExpression::RangeExpression { start, end, .. } => {
+                self.collect_infer_names_from_static_expression(start, types, visited, names);
+                self.collect_infer_names_from_static_expression(end, types, visited, names);
+            }
+            StaticExpression::ScalarLiteral { .. }
+            | StaticExpression::TypeLiteral { .. }
+            | StaticExpression::Unevaluated { .. } => {}
+        }
+    }
+
+    /// Infer substitutions for `never` inputs.
+    fn infer_substitutions_for_never_left(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        right: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<InferSubstitutions> {
+        // read the target pattern
+        let right_type = types.get_type(right).clone();
+
+        // infer defaults for template literal spans
+        if let Type::TemplateLiteral { spans, .. } = right_type {
+            let substitutions = self.infer_template_literal_substitutions_for_never(
+                module, profile, &spans, source_id, symbols, types,
+            );
+            return Some(substitutions);
+        }
+
+        // merge inferred defaults across union branches
+        if let Type::Union { elements } = right_type {
+            let mut combined = InferSubstitutions::default();
+            for element_id in elements {
+                if let Some(inferred) = self.infer_substitutions_for_never_left(
+                    module, profile, element_id, source_id, symbols, types,
+                ) {
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
+                }
+            }
+            return Some(combined);
+        }
+
+        // merge inferred defaults across intersection branches
+        if let Type::Intersection { elements } = right_type {
+            let mut combined = InferSubstitutions::default();
+            for element_id in elements {
+                if let Some(inferred) = self.infer_substitutions_for_never_left(
+                    module, profile, element_id, source_id, symbols, types,
+                ) {
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut combined,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Intersection,
+                    );
+                }
+            }
+            return Some(combined);
+        }
+
+        // default infer bindings to never
+        let mut infer_names = HashSet::new();
+        self.collect_infer_names_from_type(right, types, &mut HashSet::new(), &mut infer_names);
+        let mut substitutions = InferSubstitutions::default();
+        let never_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Never,
+            },
+            source_id,
+        );
+
+        for name in infer_names {
+            substitutions.by_name.insert(name, never_id);
+        }
+
+        Some(substitutions)
+    }
+
+    /// Infer substitutions by matching a template literal type against a string literal.
+    pub(crate) fn infer_template_literal_substitutions_from_string(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        value: &str,
+        strings: &[StringId],
+        spans: &[LocalTypeId],
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<InferSubstitutions> {
+        // match template literal parts to the string
+        let span_values = self.match_template_literal_to_string(strings, value)?;
+
+        // require span counts to match
+        if span_values.len() != spans.len() {
+            return None;
+        }
+
+        // collect inferred substitutions
+        let mut substitutions = InferSubstitutions::default();
+        let mut visited = HashSet::new();
+
+        // apply each span constraint
+        for (span_ty_id, span_value) in spans.iter().zip(span_values.iter()) {
+            // resolve span type
+            let span_ty = types.get_type(*span_ty_id).clone();
+            match span_ty {
+                Type::Infer { name, constraint } => {
+                    // infer literal type for the span
+                    let inferred_ty =
+                        self.template_infer_literal_type(constraint, span_value, source_id, types)?;
+                    if let Some(existing) = substitutions.by_name.get(&name).copied() {
+                        if !self.inferred_type_ids_equivalent(
+                            module,
+                            profile,
+                            existing,
+                            inferred_ty,
+                            symbols,
+                            types,
+                        ) {
+                            let union_id = self.union_type_from_list(
+                                vec![existing, inferred_ty],
+                                existing,
+                                types,
+                            );
+                            substitutions.by_name.insert(name, union_id);
+                        }
+                    } else {
+                        substitutions.by_name.insert(name, inferred_ty);
+                    }
+                }
+                _ => {
+                    // enforce non infer span constraints
+                    if !self.template_span_matches_string(
+                        module,
+                        profile,
+                        *span_ty_id,
+                        span_value,
+                        symbols,
+                        types,
+                        &mut visited,
+                    ) {
+                        return None;
+                    }
+                }
+            }
+        }
+
+        Some(substitutions)
+    }
+
+    /// Infer substitutions for template literals when the input is never.
+    fn infer_template_literal_substitutions_for_never(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        spans: &[LocalTypeId],
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> InferSubstitutions {
+        // default to string spans when unconstrained
+        let string_id = types.insert_type_from_any(
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            },
+            source_id,
+        );
+
+        // collect inferred substitutions
+        let mut substitutions = InferSubstitutions::default();
+
+        // collect inferred bindings from each span
+        for span_ty_id in spans {
+            let span_ty = types.get_type(*span_ty_id).clone();
+            let Type::Infer { name, constraint } = span_ty else {
+                continue;
+            };
+
+            let inferred_ty = constraint.unwrap_or(string_id);
+            if let Some(existing) = substitutions.by_name.get(&name).copied() {
+                if !self.inferred_type_ids_equivalent(
+                    module,
+                    profile,
+                    existing,
+                    inferred_ty,
+                    symbols,
+                    types,
+                ) {
+                    let union_id =
+                        self.union_type_from_list(vec![existing, inferred_ty], existing, types);
+                    substitutions.by_name.insert(name, union_id);
+                }
+            } else {
+                substitutions.by_name.insert(name, inferred_ty);
+            }
+        }
+
+        substitutions
+    }
+
+    /// Infer substitutions by matching a template literal type against another template literal.
+    pub(crate) fn infer_template_literal_substitutions_from_template(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        distributive: bool,
+        left_strings: &[StringId],
+        left_spans: &[LocalTypeId],
+        right_strings: &[StringId],
+        right_spans: &[LocalTypeId],
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut HashSet<LocalTypeId>,
+    ) -> Option<InferSubstitutions> {
+        // require aligned literal parts
+        if left_strings.len() != right_strings.len() || left_spans.len() != right_spans.len() {
+            return None;
+        }
+
+        // ensure literal parts match exactly
+        for (left_string, right_string) in left_strings.iter().zip(right_strings.iter()) {
+            if left_string != right_string {
+                return None;
+            }
+        }
+
+        // collect inferred substitutions
+        let mut substitutions = InferSubstitutions::default();
+
+        // apply each span mapping
+        for (left_span, right_span) in left_spans.iter().zip(right_spans.iter()) {
+            // resolve right span type
+            let right_ty = types.get_type(*right_span).clone();
+            match right_ty {
+                Type::Infer { name, .. } => {
+                    // map inferred spans directly
+                    if let Some(existing) = substitutions.by_name.get(&name).copied() {
+                        if !self.inferred_type_ids_equivalent(
+                            module, profile, existing, *left_span, symbols, types,
+                        ) {
+                            let union_id = self.union_type_from_list(
+                                vec![existing, *left_span],
+                                existing,
+                                types,
+                            );
+                            substitutions.by_name.insert(name, union_id);
+                        }
+                    } else {
+                        substitutions.by_name.insert(name, *left_span);
+                    }
+                }
+                _ => {
+                    // recursively infer nested substitutions
+                    let inferred = self.infer_conditional_type_substitutions_inner(
+                        module,
+                        profile,
+                        distributive,
+                        *left_span,
+                        *right_span,
+                        source_id,
+                        symbols,
+                        types,
+                        visited,
+                    )?;
+                    self.merge_infer_substitutions(
+                        module,
+                        profile,
+                        &mut substitutions,
+                        inferred,
+                        symbols,
+                        types,
+                        InferMergeMode::Union,
+                    );
+                }
+            }
+        }
+
+        Some(substitutions)
+    }
+
+    /// Merge inferred substitutions by unioning divergent bindings.
+    fn merge_infer_substitutions(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        base: &mut InferSubstitutions,
+        other: InferSubstitutions,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: InferMergeMode,
+    ) {
+        // merge inferred bindings across branches
+        for (name, ty) in other.by_name {
+            let entry = base.by_name.entry(name);
+            match entry {
+                std::collections::hash_map::Entry::Vacant(vacant) => {
+                    vacant.insert(ty);
+                }
+                std::collections::hash_map::Entry::Occupied(mut occupied) => {
+                    let existing = *occupied.get();
+                    if self
+                        .inferred_type_ids_equivalent(module, profile, existing, ty, symbols, types)
+                    {
+                        continue;
+                    }
+
+                    let merged = match mode {
+                        InferMergeMode::Union => {
+                            self.union_type_from_list(vec![existing, ty], existing, types)
+                        }
+                        InferMergeMode::Intersection => {
+                            self.intersection_type_from_list(vec![existing, ty], existing, types)
+                        }
+                    };
+                    occupied.insert(merged);
+                }
+            }
+        }
+    }
+
+    /// Check whether two inferred type ids are equivalent for merging.
+    fn inferred_type_ids_equivalent(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left: LocalTypeId,
+        right: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        // compare assignability in both directions
+        let options = self.analyze_context_options_for_module(module.id);
+        let left_to_right = self
+            .is_type_assignable(module, profile, symbols, right, left, types, &options)
+            .is_assignable();
+        let right_to_left = self
+            .is_type_assignable(module, profile, symbols, left, right, types, &options)
+            .is_assignable();
+
+        left_to_right && right_to_left
     }
 
     /// Apply inferred bindings to a type id.
@@ -1325,6 +2258,7 @@ impl Compiler {
                 )
             }
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
@@ -1375,6 +2309,7 @@ impl Compiler {
                 } else {
                     types.insert_type_from_type(
                         Type::Conditional {
+                            distributive,
                             left: mapped_left,
                             right: mapped_right,
                             then_type: mapped_then,
