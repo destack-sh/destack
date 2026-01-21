@@ -1,9 +1,10 @@
 use destack_base::Color;
+use serde::{Deserialize, Serialize};
 
 use crate::{FileId, LabeledSpan, Suggestion};
 
 /// The level of a diagnostic.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum DiagnosticSeverity {
     /// Note (informative message).
     Note = 1,
@@ -43,7 +44,7 @@ impl DiagnosticSeverity {
 }
 
 /// A Diagnostic.
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Diagnostic {
     /// The stable identifier of the diagnostic (like `E001` or `W017`).
     pub code: String,

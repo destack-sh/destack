@@ -1,6 +1,8 @@
+use serde::{Deserialize, Serialize};
+
 use crate::LabeledSpan;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SuggestionStyle {
     Normal,
     Short,
@@ -8,7 +10,7 @@ pub enum SuggestionStyle {
     Verbose,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Applicability {
     /// The suggestion is machine-applicable.
     Automatic,
@@ -16,7 +18,7 @@ pub enum Applicability {
     Dangerous,
 }
 
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Suggestion {
     /// The spans involved in the replacement.
     pub spans: Vec<LabeledSpan>,

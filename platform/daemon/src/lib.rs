@@ -5,6 +5,7 @@
 
 mod daemon;
 mod diagnostic;
+pub mod protocol;
 mod repl;
 mod watch;
 
