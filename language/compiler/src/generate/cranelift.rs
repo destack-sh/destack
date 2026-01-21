@@ -1,5 +1,5 @@
 use crate::{Compiler, GenerateError, GenerateResult, GenerateWarning};
-use destack_codegen_cranelift::{CodegenCraneliftError, CodegenCraneliftWarning};
+use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_dir::{AnchoredGlobalNodeId, GlobalNodeIdAny, LocalNodeIdAny};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Target, TargetId};
@@ -22,7 +22,7 @@ impl Compiler {
 
         // generate artifact
         let registry_next_id = || self.program.artifacts.next_id();
-        let output = destack_codegen_cranelift::generate_module(
+        let output = destack_codegen_native::generate_module(
             self.program.clone(),
             module_id,
             target,
