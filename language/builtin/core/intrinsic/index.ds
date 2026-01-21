@@ -12,7 +12,7 @@
 /// - **memory.ds** - Memory operations (memcpy, volatile, transmute)
 /// - **atomic.ds** - Atomic operations with memory ordering
 /// - **math.ds** - Floating-point math functions
-/// - **control.ds** - Control flow (unreachable, breakpoint, abort)
+/// - **control.ds** - Control flow (unreachable, breakpoint, abort, panic)
 /// - **simd.ds** - SIMD vector operations
 
 export * from "./import-meta.ds";
