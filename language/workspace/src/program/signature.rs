@@ -26,7 +26,7 @@ impl ModuleSignatureKey {
 }
 
 /// Summary of a module's exported surface for a profile.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleSignature {
     /// The module id.
     pub module_id: ModuleId,
@@ -81,7 +81,7 @@ impl ModuleSignature {
 }
 
 /// Export signature data for a single export entry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleSignatureExport {
     /// The export key.
     pub key: StaticKey,
@@ -100,7 +100,7 @@ pub struct ModuleSignatureExport {
 }
 
 /// Signature data for a global augmentation symbol.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleSignatureAugmentation {
     /// The symbol key when available.
     pub key: Option<StaticKey>,
@@ -115,7 +115,7 @@ pub struct ModuleSignatureAugmentation {
 }
 
 /// Signature data for a `declare module` binding.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModuleSignatureBinding {
     /// The module specifier string.
     pub specifier: StringId,

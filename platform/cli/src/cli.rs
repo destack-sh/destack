@@ -7,9 +7,9 @@ use crate::console;
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
 use crate::command::{
-    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DocArgs,
-    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, ReplArgs,
-    RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
+    BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, ConfigArgs, DaemonArgs,
+    DocArgs, DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
+    ReplArgs, RunArgs, TargetsArgs, TaskArgs, TestArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -115,6 +115,9 @@ pub enum Command {
 
     /// Start the language server (for editor integration).
     Lsp(LspArgs),
+
+    /// Start the daemon service (for CLI/LSP integration).
+    Daemon(DaemonArgs),
 
     /// Start a REPL session.
     Repl(ReplArgs),
@@ -305,6 +308,12 @@ fn build_commands_help(color_enabled: bool) -> String {
             name: "lsp",
             example: "",
             help: "Start the language server (for editor integration)",
+            group: 3,
+        },
+        CommandEntry {
+            name: "daemon",
+            example: "",
+            help: "Start the daemon service (for CLI/LSP integration)",
             group: 3,
         },
         CommandEntry {

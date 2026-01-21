@@ -31,10 +31,11 @@ impl FrameHeader {
     /// Create a new frame header for a payload.
     pub fn new(payload_len: usize) -> Result<Self, FrameError> {
         // validate payload length
-        let payload_len = u32::try_from(payload_len).map_err(|_| FrameError::SizeLimitExceeded {
-            limit: u32::MAX as usize,
-            actual: payload_len,
-        })?;
+        let payload_len =
+            u32::try_from(payload_len).map_err(|_| FrameError::SizeLimitExceeded {
+                limit: u32::MAX as usize,
+                actual: payload_len,
+            })?;
 
         Ok(Self {
             magic: FRAME_MAGIC,
@@ -110,13 +111,22 @@ impl std::fmt::Display for FrameError {
         // format frame errors
         match self {
             FrameError::InvalidMagic { expected, found } => {
-                write!(f, "invalid frame magic, expected {expected:?}, found {found:?}")
+                write!(
+                    f,
+                    "invalid frame magic, expected {expected:?}, found {found:?}"
+                )
             }
             FrameError::UnsupportedVersion { expected, found } => {
-                write!(f, "unsupported frame version, expected {expected}, found {found}")
+                write!(
+                    f,
+                    "unsupported frame version, expected {expected}, found {found}"
+                )
             }
             FrameError::SizeLimitExceeded { limit, actual } => {
-                write!(f, "frame size limit exceeded, limit {limit}, actual {actual}")
+                write!(
+                    f,
+                    "frame size limit exceeded, limit {limit}, actual {actual}"
+                )
             }
             FrameError::UnexpectedEof => write!(f, "unexpected eof while reading frame"),
             FrameError::Io(error) => write!(f, "frame io error: {error}"),
@@ -329,7 +339,7 @@ impl ProtocolCodec {
     }
 
     /// Send a protocol message via transport.
-    pub fn send_message<T: Transport>(
+    pub fn send_message<T: Transport + ?Sized>(
         &self,
         transport: &T,
         message: &ProtocolMessage,
@@ -345,7 +355,7 @@ impl ProtocolCodec {
     }
 
     /// Receive a protocol message via transport.
-    pub fn recv_message<T: Transport>(
+    pub fn recv_message<T: Transport + ?Sized>(
         &self,
         transport: &T,
     ) -> Result<ProtocolMessage, ProtocolCodecError> {
@@ -369,12 +379,12 @@ impl Default for ProtocolCodec {
 mod tests {
     use destack_source::{PackageId, ProfileId, TargetId};
 
-    use super::{FrameCodec, ProtocolCodec, ProtocolMessage, DEFAULT_MAX_FRAME_SIZE_BYTES};
+    use super::{DEFAULT_MAX_FRAME_SIZE_BYTES, FrameCodec, ProtocolCodec, ProtocolMessage};
     use crate::protocol::{
         CommandKind, CommandOptions, CommandRequest, DaemonRequest, FileUpdate, FileUpdateKind,
         FileUpdateRequest, ProtocolRequest, RequestId, RequestOptions, WorkspaceHandleId,
+        loopback_transport_pair,
     };
-    use crate::protocol::loopback_transport_pair;
 
     #[test]
     fn test_frame_roundtrip() {
@@ -444,15 +454,15 @@ mod tests {
             id: RequestId::new(4),
             options: RequestOptions::default(),
             payload: DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
-                    handle: WorkspaceHandleId::new(1),
-                    update: FileUpdate {
-                        path: "/workspace/app.ds".into(),
-                        update: FileUpdateKind::Text {
-                            content: "let x = 1".to_string(),
-                        },
-                        write_to_disk: false,
+                handle: WorkspaceHandleId::new(1),
+                update: FileUpdate {
+                    path: "/workspace/app.ds".into(),
+                    update: FileUpdateKind::Text {
+                        content: "let x = 1".to_string(),
                     },
-                }),
+                    write_to_disk: false,
+                },
+            }),
         };
         let message = ProtocolMessage::Request(request);
         let codec = ProtocolCodec::default();
