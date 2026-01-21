@@ -142,6 +142,9 @@ pub enum Error {
 
     /// Unsupported zero initialization for a MIR type.
     UnsupportedZeroValue { ty: String } = 33,
+
+    /// Panic intrinsic called.
+    Panic { message: String } = 34,
 }
 
 impl Error {
@@ -230,6 +233,14 @@ impl Error {
             }
             Self::UnsupportedZeroValue { ty } => {
                 format!("unsupported zero initialization for type {ty}")
+            }
+            Self::Panic { message } => {
+                // normalize empty messages
+                if message.is_empty() {
+                    "panic".to_string()
+                } else {
+                    format!("panic: {message}")
+                }
             }
         }
     }

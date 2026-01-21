@@ -137,6 +137,21 @@ impl<'a> InterpreterContext<'a> {
             mir::Intrinsic::Unreachable => Err(self.make_error(Error::Unreachable)),
             mir::Intrinsic::Breakpoint => Ok(Value::VOID),
             mir::Intrinsic::Abort => Err(self.make_error(Error::Abort)),
+            mir::Intrinsic::Panic => {
+                // load panic message
+                let message_value = args.first().copied().ok_or_else(|| {
+                    self.make_error(Error::InvalidIntrinsicArguments {
+                        intrinsic: intrinsic.to_str().to_string(),
+                    })
+                })?;
+                let message = self
+                    .isolate
+                    .string_value(message_value)
+                    .map_err(|error| self.make_error(error))?;
+
+                // surface panic as a runtime error
+                Err(self.make_error(Error::Panic { message }))
+            }
 
             // reflection (should be resolved at compile time)
             mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => Err(self

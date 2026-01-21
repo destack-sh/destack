@@ -189,6 +189,13 @@ impl<'a> FunctionBuilder<'a> {
         function.return_attributes = attributes;
     }
 
+    /// Set allocation mode for this function.
+    pub fn set_allocation_mode(&mut self, allocation: AllocationMode) {
+        // update allocation mode
+        let function = self.tree.get_mut(self.function_id);
+        function.allocation = allocation;
+    }
+
     /// Get the function id being built.
     pub fn function_id(&self) -> LocalNodeId<Function> {
         self.function_id
