@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_dir::{
-    GlobalSymbolId, IntType, LocalTypeId, PrimitiveType, ScalarLiteral, SymbolTable, SymbolType,
-    Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
+    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -426,6 +426,39 @@ impl Compiler {
 
             // empty array is assignable to any array (including itself)
             (Type::Array { .. }, Type::Array { element: None }) => Assignability::Assignable,
+
+            // fixed arrays: covariant in element type and size
+            (
+                Type::ArraySized {
+                    element: target_elem,
+                    count: target_count,
+                },
+                Type::ArraySized {
+                    element: source_elem,
+                    count: source_count,
+                },
+            ) => {
+                if !self
+                    .is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        target_elem,
+                        source_elem,
+                        types,
+                        options,
+                    )
+                    .is_assignable()
+                {
+                    return Assignability::NotAssignable;
+                }
+
+                if self.array_sized_counts_match(target_count, source_count, types) {
+                    Assignability::Assignable
+                } else {
+                    Assignability::NotAssignable
+                }
+            }
 
             // tuples: same length and each element assignable
             (
@@ -1585,22 +1618,33 @@ impl Compiler {
         type_id: LocalTypeId,
         types: &TypeTable,
     ) -> LocalTypeId {
-        let mut visited_symbols: Vec<GlobalSymbolId> = Vec::new();
+        let mut visited: Vec<GlobalSymbolId> = Vec::new();
         let mut current_id = type_id;
 
         loop {
-            let Type::Reference { symbol, .. } = types.get_type(current_id) else {
+            let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(current_id)
+            else {
                 break;
             };
 
             if symbol.ty() != SymbolType::TypeAlias {
                 break;
             }
-
-            if visited_symbols.contains(symbol) {
+            // avoid unwrapping alias instances with explicit static arguments
+            if static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+            {
                 break;
             }
-            visited_symbols.push(*symbol);
+
+            if visited.contains(symbol) {
+                break;
+            }
+            visited.push(*symbol);
 
             let Some(instance_ty_id) = types.get_instance_type_id(*symbol) else {
                 break;
@@ -1668,6 +1712,40 @@ impl Compiler {
         }
 
         constraint_id
+    }
+
+    /// Check whether two fixed array counts match.
+    fn array_sized_counts_match(
+        &self,
+        target_count: LocalNodeId<Expression>,
+        source_count: LocalNodeId<Expression>,
+        types: &TypeTable,
+    ) -> bool {
+        if target_count == source_count {
+            return true;
+        }
+
+        let target_id = types.get_inferred_type_id(target_count.into_global_any(types.module_id));
+        let source_id = types.get_inferred_type_id(source_count.into_global_any(types.module_id));
+        let (Some(target_id), Some(source_id)) = (target_id, source_id) else {
+            return false;
+        };
+
+        let target_ty = types.get_type(target_id);
+        let source_ty = types.get_type(source_id);
+        let (
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(target_value)),
+            },
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(source_value)),
+            },
+        ) = (target_ty, source_ty)
+        else {
+            return false;
+        };
+
+        target_value == source_value
     }
 
     /// Expand type alias references that include static arguments.

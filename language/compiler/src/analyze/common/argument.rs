@@ -129,12 +129,10 @@ impl Compiler {
                     tree, *value, references, position,
                 );
             }
-            Expression::TypeIndex { left, index } => {
+            Expression::TypeIndex { left, index: _ } => {
+                // only record the left side, index position is handled during type evaluation
                 self.collect_static_parameter_references_from_expression(
                     tree, *left, references, position,
-                );
-                self.collect_static_parameter_references_from_expression(
-                    tree, *index, references, position,
                 );
             }
             Expression::TypeTemplateLiteral { spans, .. } => {

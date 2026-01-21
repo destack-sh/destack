@@ -86,14 +86,7 @@ impl Compiler {
             StaticParameterReferences::default()
         } else {
             self.collect_static_parameter_reference_symbols(
-                module,
-                profile,
-                node_id,
-                symbol,
-                &parameter_symbols,
-                tree,
-                symbols,
-                types,
+                module, profile, node_id, symbol, tree, symbols, types,
             )?
         };
 
@@ -139,7 +132,7 @@ impl Compiler {
             let constraint_kind_hint = if force_type_parameters {
                 None
             } else {
-                self.static_parameter_constraint_kind_hint(
+                self.static_parameter_kind_hint(
                     module, profile, symbol_id, node_id, symbols, types,
                 )
             };
@@ -239,7 +232,7 @@ impl Compiler {
             let constraint_kind_hint = if force_type_parameters {
                 None
             } else {
-                self.static_parameter_constraint_kind_hint(
+                self.static_parameter_kind_hint(
                     module, profile, symbol_id, node_id, symbols, types,
                 )
             };
@@ -313,14 +306,14 @@ impl Compiler {
             return StaticParameterKind::Value;
         }
 
-        // treat defaults as their hinted kind
-        if let Some(default_kind) = default_kind_hint {
-            return default_kind;
-        }
-
         // treat referenced parameters as type parameters
         if usage.type_symbols.contains(&symbol_id) {
             return StaticParameterKind::Type;
+        }
+
+        // treat defaults as their hinted kind
+        if let Some(default_kind) = default_kind_hint {
+            return default_kind;
         }
 
         // treat constraints as a value hint when provided
@@ -332,7 +325,7 @@ impl Compiler {
     }
 
     /// Infer a static parameter kind from its declared constraint.
-    pub(super) fn static_parameter_constraint_kind_hint(
+    pub(crate) fn static_parameter_kind_hint(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -356,14 +349,190 @@ impl Compiler {
             }
         }
 
-        // treat scalar constraints as value hints
-        match types.get_type(constraint_id) {
-            Type::TypeLiteral { value } => match value {
-                TypeLiteral::Unknown | TypeLiteral::Any | TypeLiteral::Infer => None,
-                _ => Some(StaticParameterKind::Value),
-            },
-            _ => None,
+        let is_value_like = self.static_parameter_kind_is_value_like(
+            module,
+            profile,
+            constraint_id,
+            source_id,
+            symbols,
+            types,
+        );
+        if is_value_like {
+            Some(StaticParameterKind::Value)
+        } else {
+            None
         }
+    }
+
+    /// Return true when a constraint type implies a value static parameter kind.
+    fn static_parameter_kind_is_value_like(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        constraint_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let mut in_progress = HashSet::new();
+        self.static_parameter_kind_is_value_like_inner(
+            module,
+            profile,
+            constraint_id,
+            source_id,
+            symbols,
+            types,
+            &mut in_progress,
+        )
+    }
+
+    /// Return true when the literal is valid for a value static parameter kind.
+    fn static_parameter_literal_is_value_like(&self, value: &TypeLiteral) -> bool {
+        matches!(
+            value,
+            TypeLiteral::Primitive(_)
+                | TypeLiteral::ScalarLiteral(_)
+                | TypeLiteral::Null
+                | TypeLiteral::Undefined
+        )
+    }
+
+    /// Resolve the alias target type for a constraint reference.
+    fn static_parameter_alias_target_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // verify alias symbols and load local targets
+        if symbol.module_id == module.id {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                return None;
+            }
+
+            return types.get_alias_target_type_id(symbol);
+        }
+
+        // resolve alias targets from remote modules
+        let remote_module = self.program.modules.get(symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        if !matches!(
+            remote_symbols.get_symbol(symbol.local_id).ty,
+            SymbolType::TypeAlias | SymbolType::Newtype
+        ) {
+            return None;
+        }
+
+        let remote_types = remote_module.dir(profile).types.read();
+        let alias_target = remote_types.get_alias_target_type_id(symbol)?;
+        let alias_type = remote_types.get_type(alias_target);
+        Some(self.import_type_from_remote_for_node(
+            source_id,
+            alias_type,
+            &remote_types,
+            symbol,
+            types,
+        ))
+    }
+
+    /// Walk a constraint type and decide if it enforces a value parameter.
+    fn static_parameter_kind_is_value_like_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        in_progress: &mut HashSet<LocalTypeId>,
+    ) -> bool {
+        // reject recursive constraints
+        if !in_progress.insert(type_id) {
+            return false;
+        }
+
+        // inspect the constraint shape
+        let ty = types.get_type(type_id).clone();
+        let is_value_like = match ty {
+            Type::TypeLiteral { value } => self.static_parameter_literal_is_value_like(&value),
+            Type::Union { elements } => {
+                // unions must be uniformly value like
+                if elements.is_empty() {
+                    false
+                } else {
+                    elements.iter().all(|element_id| {
+                        self.static_parameter_kind_is_value_like_inner(
+                            module,
+                            profile,
+                            *element_id,
+                            source_id,
+                            symbols,
+                            types,
+                            in_progress,
+                        )
+                    })
+                }
+            }
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                // reject explicit static arguments
+                if static_arguments
+                    .as_ref()
+                    .is_some_and(|arguments| !arguments.is_empty())
+                {
+                    false
+                } else {
+                    let alias_target = self.static_parameter_alias_target_type(
+                        module, profile, symbol, source_id, symbols, types,
+                    );
+                    if let Some(alias_target) = alias_target {
+                        self.static_parameter_kind_is_value_like_inner(
+                            module,
+                            profile,
+                            alias_target,
+                            source_id,
+                            symbols,
+                            types,
+                            in_progress,
+                        )
+                    } else {
+                        false
+                    }
+                }
+            }
+            Type::Unevaluated(_) => {
+                // evaluate lazily and retry when possible
+                let tree = module.dir(profile).tree.read();
+                if self
+                    .evaluate_type(module, profile, type_id, &tree, symbols, types)
+                    .is_ok()
+                {
+                    self.static_parameter_kind_is_value_like_inner(
+                        module,
+                        profile,
+                        type_id,
+                        source_id,
+                        symbols,
+                        types,
+                        in_progress,
+                    )
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        };
+
+        // clear recursion guard before returning
+        in_progress.remove(&type_id);
+        is_value_like
     }
 
     /// Build static parameter placeholders for a function signature.

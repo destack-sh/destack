@@ -99,6 +99,14 @@ pub enum AnalyzeError {
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },
 
+    /// Array size expressions must be constant integers.
+    #[error(code = "EA111", message = "array size must be a constant integer")]
+    InvalidArraySize { node: AnchoredGlobalNodeId },
+
+    /// Static arguments cannot form a cycle.
+    #[error(code = "EA112", message = "static argument cycle")]
+    CircularStaticArgument { node: AnchoredGlobalNodeId },
+
     /// Ownership operators require an unowned value.
     #[error(
         code = "EA110",

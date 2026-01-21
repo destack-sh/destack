@@ -6,8 +6,8 @@ use destack_dir::{
     Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, EnumFieldValue, Expression,
     FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny,
     LocalTypeId, Mutability, NodeTree, PrimitiveType, Property, Resolution, ScalarLiteral,
-    StaticArgument, StaticExpression, SymbolTable, Type, TypeElement, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
+    StaticArgument, StaticExpression, StaticParameterKind, SymbolTable, Type, TypeElement,
+    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
     UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
@@ -105,6 +105,181 @@ impl Compiler {
             )?
             .unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
+    }
+
+    /// Evaluate an expression into a static integer literal when possible.
+    fn evaluate_integer_static_literal(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<i64>> {
+        let value = self.evaluate_static_expression_value(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            None,
+        )?;
+        let literal = match value {
+            Some(StaticExpression::ScalarLiteral {
+                value: ScalarLiteral::Integer(value),
+            }) => Some(value),
+            _ => None,
+        };
+        Ok(literal)
+    }
+
+    /// Register a scalar literal type for a static integer expression.
+    fn set_integer_literal_type(
+        &self,
+        module_id: destack_source::ModuleId,
+        expression_id: LocalNodeId<Expression>,
+        value: i64,
+        types: &mut TypeTable,
+    ) {
+        let literal_type = Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
+        };
+        let literal_type_id = types.insert_type_from(literal_type, expression_id);
+        types.set_inferred_type(expression_id.into_global_any(module_id), literal_type_id);
+    }
+
+    /// Resolve the inferred type for a static value parameter used as an array size.
+    fn resolve_array_size_parameter_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip non static value parameter references
+        if !self.is_static_value_parameter_reference(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+        ) {
+            return Ok(None);
+        }
+
+        // resolve the parameter type and cache it as the inferred type
+        let index_id = self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        )?;
+        types.set_inferred_type(expression_id.into_global_any(module.id), index_id);
+        Ok(Some(index_id))
+    }
+
+    /// Check whether a type supports indexed access in a type expression.
+    fn type_supports_index_access(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<bool> {
+        // track visited types to avoid cycles
+        let mut visited = HashSet::new();
+        let mut current_type_id = type_id;
+
+        loop {
+            // stop on cycles
+            if !visited.insert(current_type_id) {
+                return Ok(false);
+            }
+
+            // resolve the current type
+            let ty = types.get_type(current_type_id).clone();
+            match ty {
+                Type::Tuple { .. } | Type::Array { .. } | Type::ArraySized { .. } => {
+                    return Ok(true);
+                }
+                Type::Object {
+                    index_signatures, ..
+                } => {
+                    return Ok(!index_signatures.is_empty());
+                }
+                Type::Reference { symbol, .. } => {
+                    // follow static parameter constraints when available
+                    if let Some(constraint) = types.get_static_parameter_constraint_type(symbol) {
+                        current_type_id = constraint;
+                        continue;
+                    }
+
+                    // follow alias targets when available
+                    if let Some(alias_target) = types.get_alias_target_type_id(symbol) {
+                        current_type_id = alias_target;
+                        continue;
+                    }
+
+                    // follow instance types when available
+                    if let Some(instance_type) = types.get_instance_type_id(symbol) {
+                        current_type_id = instance_type;
+                        continue;
+                    }
+
+                    return Ok(false);
+                }
+                Type::Unevaluated(_) => {
+                    // evaluate before checking index support
+                    self.evaluate_type(module, profile, current_type_id, tree, symbols, types)?;
+                }
+                _ => return Ok(false),
+            }
+        }
+    }
+
+    /// Check whether an expression references a static value parameter.
+    pub(crate) fn is_static_value_parameter_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        let (Expression::LocalReference { target_symbol, .. }
+        | Expression::ModuleReference { target_symbol, .. }
+        | Expression::GlobalReference { target_symbol, .. }) = tree.get(expression_id)
+        else {
+            return false;
+        };
+
+        if let Some(kind) = types.get_static_parameter_kind(*target_symbol) {
+            return kind == StaticParameterKind::Value;
+        }
+
+        let constraint_kind = self.static_parameter_kind_hint(
+            module,
+            profile,
+            *target_symbol,
+            expression_id.into_any(),
+            symbols,
+            types,
+        );
+        matches!(constraint_kind, Some(StaticParameterKind::Value))
     }
 
     /// Try to evaluate an Expression as a Type id.
@@ -556,6 +731,23 @@ impl Compiler {
             Expression::LocalReference { target_symbol, .. }
             | Expression::ModuleReference { target_symbol, .. }
             | Expression::GlobalReference { target_symbol, .. } => {
+                // static parameter references
+                if self.is_static_value_parameter_reference(
+                    module,
+                    profile,
+                    expression_id,
+                    tree,
+                    symbols,
+                    types,
+                ) {
+                    let reference_type = Type::Reference {
+                        symbol: *target_symbol,
+                        static_arguments: None,
+                    };
+                    let ty = types.insert_type_from(reference_type, expression_id);
+                    return Ok(Some(StaticExpression::Type { ty }));
+                }
+
                 let Some(enum_symbol) = enum_symbol else {
                     return Ok(None);
                 };
@@ -1103,6 +1295,7 @@ impl Compiler {
                 }
             }
             Expression::TypeIndex { left, index } => {
+                // resolve the left type
                 let left_id = self.try_evaluate_expression_to_type(
                     module,
                     profile,
@@ -1113,19 +1306,77 @@ impl Compiler {
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                let index_id = self.try_evaluate_expression_to_type(
-                    module,
-                    profile,
-                    index,
-                    tree,
-                    symbols,
-                    types,
-                    validate_static_argument_bounds,
-                    enforce_implicit_managed,
-                )?;
-                Type::Index {
-                    left: left_id,
-                    index: index_id,
+
+                // check whether the left type supports index access
+                let is_index_access = self
+                    .type_supports_index_access(module, profile, left_id, tree, symbols, types)?;
+
+                // compute the type index result
+                if !is_index_access {
+                    // treat static integer literals as array sizes
+                    if let Some(value) = self.evaluate_integer_static_literal(
+                        module, profile, index, tree, symbols, types,
+                    )? {
+                        if value < 0 {
+                            return Err(AnalyzeError::InvalidArraySize {
+                                node: index
+                                    .into_global_any(module.id)
+                                    .into_anchored(Some(profile)),
+                            });
+                        }
+                        self.set_integer_literal_type(module.id, index, value, types);
+                        Type::ArraySized {
+                            element: left_id,
+                            count: index,
+                        }
+                    } else if self
+                        .resolve_array_size_parameter_type(
+                            module,
+                            profile,
+                            index,
+                            tree,
+                            symbols,
+                            types,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )?
+                        .is_some()
+                    {
+                        Type::ArraySized {
+                            element: left_id,
+                            count: index,
+                        }
+                    } else {
+                        let index_id = self.try_evaluate_expression_to_type(
+                            module,
+                            profile,
+                            index,
+                            tree,
+                            symbols,
+                            types,
+                            validate_static_argument_bounds,
+                            enforce_implicit_managed,
+                        )?;
+                        Type::Index {
+                            left: left_id,
+                            index: index_id,
+                        }
+                    }
+                } else {
+                    let index_id = self.try_evaluate_expression_to_type(
+                        module,
+                        profile,
+                        index,
+                        tree,
+                        symbols,
+                        types,
+                        validate_static_argument_bounds,
+                        enforce_implicit_managed,
+                    )?;
+                    Type::Index {
+                        left: left_id,
+                        index: index_id,
+                    }
                 }
             }
             Expression::TypeTemplateLiteral { strings, spans } => {
@@ -1608,6 +1859,7 @@ impl Compiler {
             Expression::Index { left, right } => {
                 // array with static length
                 if let Some(right) = right {
+                    // resolve the element type
                     let left_id = self.try_evaluate_expression_to_type(
                         module,
                         profile,
@@ -1618,6 +1870,25 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
+
+                    // require a literal length for array types
+                    let value = self
+                        .evaluate_integer_static_literal(
+                            module, profile, right, tree, symbols, types,
+                        )?
+                        .ok_or_else(|| AnalyzeError::InvalidArraySize {
+                            node: right
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        })?;
+                    if value < 0 {
+                        return Err(AnalyzeError::InvalidArraySize {
+                            node: right
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
+                    self.set_integer_literal_type(module.id, right, value, types);
                     Type::ArraySized {
                         element: left_id,
                         count: right,
@@ -1625,6 +1896,7 @@ impl Compiler {
                 }
                 // slice
                 else {
+                    // resolve the element type
                     let left_id = self.try_evaluate_expression_to_type(
                         module,
                         profile,

@@ -467,6 +467,9 @@ impl Compiler {
                 default,
                 symbol: _,
             } => {
+                // resolve the member symbol
+                let member_symbol = member.symbol().into_global(module.id);
+
                 // infer index signatures and defaults
                 if let Some(DynamicKey::NamedExpression { name: _, key }) = key {
                     let _key_type = self.try_evaluate_expression_to_type(
@@ -504,11 +507,30 @@ impl Compiler {
                         self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?;
                     }
 
+                    // assign a placeholder value type for computed fields
+                    if types.get_value_type_id(member_symbol).is_none() {
+                        let scope = InferScope {
+                            owner: member_symbol,
+                            function_id: ctx
+                                .in_function
+                                .map(|function_id| function_id.into_global(module.id)),
+                        };
+                        let placeholder_ty_id = self.infer_var_type_for_symbol(
+                            infer,
+                            types,
+                            member_symbol,
+                            member_id.into_any(),
+                            InferOrigin::Expression(member_id.into_global_any(module.id)),
+                            scope,
+                        );
+                        types.set_value_type(member_symbol, placeholder_ty_id);
+                    }
+
                     return Ok(());
                 }
 
-                // evaluate the declared field type when present
-                let declared_ty_id = if let Some(value) = value {
+                // evaluate the field type
+                let value_ty_id = if let Some(value) = value {
                     Some(self.try_evaluate_expression_to_type(
                         module,
                         ctx.profile,
@@ -523,11 +545,9 @@ impl Compiler {
                     None
                 };
 
-                // infer the default expression when present
+                // infer the default value when present
                 let default_ty_id = if let Some(default) = default {
-                    Some(self.infer_expression(
-                        module, *default, tree, symbols, types, infer, ctx,
-                    )?)
+                    Some(self.infer_expression(module, *default, tree, symbols, types, infer, ctx)?)
                 } else {
                     None
                 };
@@ -540,7 +560,7 @@ impl Compiler {
                     self.static_key_from_dynamic_key(ctx.profile, key, tree, symbols, types)
                 });
                 if is_static
-                    && declared_ty_id.is_none()
+                    && value_ty_id.is_none()
                     && let Some(default_ty_id) = default_ty_id
                     && let Some(static_key) = static_key
                     && let Some(owner_symbol) = ctx.in_nominal_symbol
@@ -563,6 +583,40 @@ impl Compiler {
                         field,
                         types,
                     );
+                }
+
+                // infer member types from defaults when no annotation exists
+                if value_ty_id.is_none()
+                    && let Some(default_ty_id) = default_ty_id
+                    && types.get_value_type_id(member_symbol).is_none()
+                {
+                    types.set_value_type(member_symbol, default_ty_id);
+                }
+
+                // attach declared member types when available
+                if let Some(value_ty_id) = value_ty_id
+                    && types.get_value_type_id(member_symbol).is_none()
+                {
+                    types.set_value_type(member_symbol, value_ty_id);
+                }
+
+                // seed an inference variable when no value type metadata exists
+                if types.get_value_type_id(member_symbol).is_none() {
+                    let scope = InferScope {
+                        owner: member_symbol,
+                        function_id: ctx
+                            .in_function
+                            .map(|function_id| function_id.into_global(module.id)),
+                    };
+                    let placeholder_ty_id = self.infer_var_type_for_symbol(
+                        infer,
+                        types,
+                        member_symbol,
+                        member_id.into_any(),
+                        InferOrigin::Expression(member_id.into_global_any(module.id)),
+                        scope,
+                    );
+                    types.set_value_type(member_symbol, placeholder_ty_id);
                 }
 
                 Ok(())
@@ -1067,6 +1121,13 @@ impl Compiler {
         infer: &mut InferTable,
         ctx: &mut InferContext,
     ) -> AnalyzeResult<()> {
+        // evaluate declared parameter types before use
+        if let Some(binding_ty_id) = binding_ty_id
+            && matches!(types.get_type(binding_ty_id), Type::Unevaluated(_))
+        {
+            self.evaluate_type(module, ctx.profile, binding_ty_id, tree, symbols, types)?;
+        }
+
         let parameter = tree.get(parameter_id);
         match parameter {
             Parameter::Named {
