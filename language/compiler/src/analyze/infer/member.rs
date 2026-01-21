@@ -571,7 +571,7 @@ impl Compiler {
             if let Some(index_signature_ty_id) = index_signature_ty_id {
                 let options = ctx.options;
                 if options.no_property_access_from_index_signature
-                    && !self.is_import_meta_chain(tree, left_id)
+                    && !self.is_import_meta_chain_member(tree, left_id, "env")
                 {
                     self.error(AnalyzeError::PropertyAccessFromIndexSignature {
                         node: expression_id
@@ -594,15 +594,13 @@ impl Compiler {
 
                 index_signature_ty_id
             } else {
-                if !self.is_import_meta_chain(tree, left_id) {
-                    self.error(AnalyzeError::MissingMember {
-                        node: expression_id
-                            .into_global_any(module.id)
-                            .into_anchored(Some(ctx.profile)),
-                        receiver_ty: left_ty_id.into_global(module.id),
-                        member_key,
-                    });
-                }
+                self.error(AnalyzeError::MissingMember {
+                    node: expression_id
+                        .into_global_any(module.id)
+                        .into_anchored(Some(ctx.profile)),
+                    receiver_ty: left_ty_id.into_global(module.id),
+                    member_key,
+                });
 
                 // record unresolved member resolution
                 self.record_member_resolution(
@@ -1427,6 +1425,22 @@ impl Compiler {
                 }
                 _ => return false,
             }
+        }
+    }
+
+    /// Return true when the expression is rooted at import.meta.<member>.
+    fn is_import_meta_chain_member(
+        &self,
+        tree: &NodeTree,
+        expression_id: LocalNodeId<Expression>,
+        member: &str,
+    ) -> bool {
+        let member_key = self.program.strings.intern(member);
+        match tree.get(expression_id) {
+            Expression::Member { left, name, .. } => {
+                *name == member_key && self.is_import_meta_chain(tree, *left)
+            }
+            _ => false,
         }
     }
 

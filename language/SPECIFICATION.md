@@ -920,6 +920,8 @@ The values are fixed for the profile and are not runtime dependent.
 `import.meta.platform` is one of `web`, `windows`, `macos`, `linux`, `ios`, `android`, `wasi`, `bare-metal`, or `universal`.
 `import.meta.debug` is true in debug builds.
 `import.meta.test` is true in test builds.
+`import.meta.url` is the module URL and is always present.
+`import.meta.path`, `file`, `filename`, `dir`, and `dirname` are file-system paths when available, otherwise `undefined`.
 `import.meta.env` exposes profile-selected environment variables as a string map.
 
 ### Comptime Expressions

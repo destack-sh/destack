@@ -11,5 +11,6 @@ ES module imports and exports.
 - **Type-only**: `import type`, `export type`
 - **Namespace values**: `import * as` shapes and `export *` merging
 - **Resolution**: Module path resolution
+- **import.meta**: Module metadata and environment values
 
 Destack uses the same module system as TypeScript/JavaScript.
