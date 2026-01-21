@@ -67,6 +67,44 @@ block0:
     assert_eq!(output, expected);
 }
 
+/// Function with a local address.
+#[test]
+fn test_format_local_addr() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let void_type = module.type_void();
+
+    // build function with local address
+    let mut builder = module.function("local_addr", &[], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let local = builder.create_local(i32_type, Mutability::Mutable);
+    let ref_type = builder.type_reference(
+        ReferenceKind::Borrowed,
+        i32_type,
+        Mutability::Mutable,
+        AddressSpace::Stack,
+        false,
+    );
+    let _addr = builder.local_addr(local, ref_type);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @local_addr() -> void {
+    local0: i32 ; owned, mut
+block0:
+    v0 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
+    return
+}";
+    assert_eq!(output, expected);
+}
+
 /// Function with conditional branch.
 #[test]
 fn test_format_branch() {

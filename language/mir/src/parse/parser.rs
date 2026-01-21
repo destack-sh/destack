@@ -1053,6 +1053,16 @@ impl<'a> Parser<'a> {
                 let local = self.parse_local_ref()?;
                 Instruction::LocalGet { destination, local }
             }
+            "local.addr" => {
+                let local = self.parse_local_ref()?;
+                self.eat_token(TokenType::Arrow)?;
+                let result_type = self.parse_type()?;
+                Instruction::LocalAddr {
+                    destination,
+                    local,
+                    result_type,
+                }
+            }
 
             // global operations
             "global.addr" => {

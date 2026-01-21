@@ -472,6 +472,7 @@ impl<'a> FunctionBuilder<'a> {
             match instruction {
                 Instruction::Const { .. }
                 | Instruction::LocalGet { .. }
+                | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
                 | Instruction::GlobalConst { .. }
                 | Instruction::ManagedAlloc { .. }
@@ -1052,6 +1053,21 @@ impl<'a> FunctionBuilder<'a> {
     pub fn local_get(&mut self, local: LocalNodeId<Local>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalGet { destination, local });
+        destination
+    }
+
+    /// Get the address of a local variable.
+    pub fn local_addr(
+        &mut self,
+        local: LocalNodeId<Local>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::LocalAddr {
+            destination,
+            local,
+            result_type,
+        });
         destination
     }
 

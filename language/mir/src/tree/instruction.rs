@@ -127,13 +127,22 @@ pub enum Instruction {
         else_value: Value,
     },
 
-    // local variables (local.get, local.set)
+    // local variables (local.get, local.set, local.addr)
     /// Load from a local variable (stack slot).
     LocalGet {
         /// The SSA value to define with the loaded value.
         destination: Value,
         /// The local variable to load from.
         local: LocalNodeId<Local>,
+    },
+    /// Get the address of a local variable (stack slot).
+    LocalAddr {
+        /// The SSA value to define with the local address.
+        destination: Value,
+        /// The local variable to take the address of.
+        local: LocalNodeId<Local>,
+        /// The result type of the address.
+        result_type: LocalNodeId<Type>,
     },
     /// Store to a local variable (stack slot).
     LocalSet {
@@ -397,7 +406,7 @@ pub enum Instruction {
         value: Value,
     },
 
-    // allocation (stack - automatic, scoped to function: stack.alloc, stack.drop)
+    // allocation (stack, automatic, scoped to function: stack.alloc, stack.drop)
     /// Allocate on the stack (lives until function returns) (stack.alloc).
     /// Returns a `ref<raw T>`. Freed automatically when frame exits.
     StackAlloc {
@@ -455,6 +464,7 @@ impl Instruction {
             Instruction::Cast { destination, .. } => Some(*destination),
             Instruction::Select { destination, .. } => Some(*destination),
             Instruction::LocalGet { destination, .. } => Some(*destination),
+            Instruction::LocalAddr { destination, .. } => Some(*destination),
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::GlobalConst { destination, .. } => Some(*destination),
@@ -502,6 +512,7 @@ impl Instruction {
                 ..
             } => smallvec![*condition, *then_value, *else_value],
             Instruction::LocalGet { .. } => smallvec![],
+            Instruction::LocalAddr { .. } => smallvec![],
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::GlobalConst { .. } => smallvec![],
