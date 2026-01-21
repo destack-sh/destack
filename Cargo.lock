@@ -923,6 +923,7 @@ dependencies = [
  "destack_source",
  "destack_workspace",
  "parking_lot",
+ "postcard",
  "rayon",
  "serde",
  "serde_json",
