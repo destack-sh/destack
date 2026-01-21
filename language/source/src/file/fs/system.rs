@@ -162,6 +162,44 @@ pub trait FileSystem: Send + Sync + Debug {
     ///
     /// See [std::fs::remove_dir].
     fn remove_dir(&self, path: &Path) -> io::Result<()>;
+
+    /// Remove a file or directory recursively if it exists.
+    fn remove_path(&self, path: &Path) -> io::Result<bool> {
+        // fetch metadata without following symlinks
+        let metadata = match self.symlink_metadata(path) {
+            Ok(metadata) => metadata,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(false),
+            Err(err) => return Err(err),
+        };
+
+        // remove symlinks and files directly
+        if metadata.is_symlink || metadata.is_file {
+            self.remove_file(path)?;
+            return Ok(true);
+        }
+
+        // remove directories recursively
+        if metadata.is_directory {
+            self.remove_dir_all(path)?;
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    /// Remove a directory and all of its entries.
+    fn remove_dir_all(&self, dir: &Path) -> io::Result<()> {
+        // collect directory entries
+        let entries = self.read_dir(dir)?;
+
+        // remove child entries
+        for entry in entries {
+            self.remove_path(&entry)?;
+        }
+
+        // remove the directory itself
+        self.remove_dir(dir)
+    }
 }
 
 #[inline]

@@ -323,10 +323,10 @@ impl File {
     /// Get the text content of the File (empty if not text).
     #[inline]
     pub fn text(&self) -> &str {
-        if let FileContent::Text { content } = &self.content {
-            content
-        } else {
-            ""
+        match &self.content {
+            FileContent::Text { content } => content,
+            FileContent::Json { content, .. } => content,
+            _ => "",
         }
     }
 
