@@ -865,6 +865,15 @@ impl Compiler {
 
                 for element_id in elements {
                     let element = tree.get(*element_id);
+                    // reject sparse array holes
+                    if matches!(tree.get(element.value()), Expression::Stub) {
+                        return Err(AnalyzeError::ArrayLiteralHole {
+                            node: element
+                                .value()
+                                .into_global_any(module.id)
+                                .into_anchored(Some(profile)),
+                        });
+                    }
                     let value = self.evaluate_static_expression_value_inner(
                         module,
                         profile,
@@ -1892,6 +1901,7 @@ impl Compiler {
                     Type::ArraySized {
                         element: left_id,
                         count: right,
+                        is_readonly: false,
                     }
                 }
                 // slice
@@ -1909,6 +1919,7 @@ impl Compiler {
                     )?;
                     Type::Array {
                         element: Some(left_id),
+                        is_readonly: false,
                     }
                 }
             }

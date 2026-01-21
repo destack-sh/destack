@@ -59,6 +59,7 @@ pub(crate) fn json_value_to_type(
             types.insert_type_from_any(
                 Type::Array {
                     element: Some(element_type),
+                    is_readonly: false,
                 },
                 source_id,
             )
@@ -240,6 +241,7 @@ mod tests {
         let ty_id = json_value_to_type(&value, test_node_id(), &mut types, &strings);
         let Type::Array {
             element: Some(elem_id),
+            ..
         } = types.get_type(ty_id)
         else {
             panic!("expected array type");
@@ -260,6 +262,7 @@ mod tests {
         let ty_id = json_value_to_type(&value, test_node_id(), &mut types, &strings);
         let Type::Array {
             element: Some(elem_id),
+            ..
         } = types.get_type(ty_id)
         else {
             panic!("expected array type");

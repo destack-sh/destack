@@ -957,8 +957,7 @@ impl Compiler {
                     self.collect_type_reference_symbols(*target, types, symbols, visited);
                 }
             }
-            Type::Mutable { right, .. }
-            | Type::ValueOf { right, .. }
+            Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
                 self.collect_type_reference_symbols(*right, types, symbols, visited);
@@ -966,7 +965,7 @@ impl Compiler {
             Type::ArraySized { element, .. } => {
                 self.collect_type_reference_symbols(*element, types, symbols, visited);
             }
-            Type::Array { element } => {
+            Type::Array { element, .. } => {
                 if let Some(element) = element {
                     self.collect_type_reference_symbols(*element, types, symbols, visited);
                 }

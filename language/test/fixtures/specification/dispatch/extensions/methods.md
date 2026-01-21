@@ -134,6 +134,23 @@ logger.log("info");
 logger.log("warn", 2);
 ```
 
+### extension method with explicit this parameter
+
+> Extension methods can declare an explicit this parameter to constrain the receiver.
+
+```ds
+struct Counter { value: number }
+
+extension for Counter {
+    increment(this: &mut Counter): void {
+        this.value = this.value + 1
+    }
+}
+
+let counter = Counter { value: 0 };
+counter.increment();
+```
+
 ## Method Chaining
 
 ### extension methods can be chained
@@ -154,4 +171,3 @@ declare function getStringBuilder(): StringBuilder;
 const builder = getStringBuilder();
 builder.append("a").append("b").append("c") satisfies StringBuilder;
 ```
-

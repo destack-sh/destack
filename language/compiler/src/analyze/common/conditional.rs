@@ -149,7 +149,7 @@ impl Compiler {
                     module, profile, *span, symbols, types, visited,
                 )
             }),
-            Type::Array { element } => element.is_some_and(|element| {
+            Type::Array { element, .. } => element.is_some_and(|element| {
                 self.type_contains_static_parameters(
                     module, profile, element, symbols, types, visited,
                 )
@@ -157,7 +157,7 @@ impl Compiler {
             Type::ArraySized { element, .. } => self.type_contains_static_parameters(
                 module, profile, *element, symbols, types, visited,
             ),
-            Type::Tuple { elements } => elements.iter().any(|element| {
+            Type::Tuple { elements, .. } => elements.iter().any(|element| {
                 self.type_contains_static_parameters(
                     module, profile, element.ty, symbols, types, visited,
                 )
@@ -229,7 +229,6 @@ impl Compiler {
                 })
             }
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => self
@@ -321,11 +320,11 @@ impl Compiler {
             Type::TemplateLiteral { spans, .. } => spans
                 .iter()
                 .any(|span| self.type_contains_infer(*span, types, visited)),
-            Type::Array { element } => {
+            Type::Array { element, .. } => {
                 element.is_some_and(|element| self.type_contains_infer(element, types, visited))
             }
             Type::ArraySized { element, .. } => self.type_contains_infer(*element, types, visited),
-            Type::Tuple { elements } => elements
+            Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_contains_infer(element.ty, types, visited)),
             Type::Object {
@@ -369,7 +368,6 @@ impl Compiler {
                     })
             }
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => self.type_contains_infer(*right, types, visited),
@@ -854,9 +852,10 @@ impl Compiler {
                 Some(combined)
             }
             (
-                Type::Array { element },
+                Type::Array { element, .. },
                 Type::Array {
                     element: right_element,
+                    ..
                 },
             ) => {
                 let Some(left_element) = element else {
@@ -893,11 +892,18 @@ impl Compiler {
                 visited,
             ),
             (
-                Type::Tuple { elements },
+                Type::Tuple {
+                    elements,
+                    is_readonly,
+                },
                 Type::Tuple {
                     elements: right_elements,
+                    is_readonly: right_is_readonly,
                 },
             ) => {
+                if is_readonly != right_is_readonly {
+                    return None;
+                }
                 if elements.len() != right_elements.len() {
                     return None;
                 }
@@ -946,6 +952,7 @@ impl Compiler {
                                         .iter()
                                         .map(|parameter| TypeElement::new(*parameter))
                                         .collect(),
+                                    is_readonly: false,
                                 },
                                 source_id,
                             );
@@ -1486,7 +1493,10 @@ impl Compiler {
                     type_id,
                 )
             }
-            Type::Array { element } => {
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
                 let mapped_element = element.map(|element| {
                     self.substitute_infer_types_inner(
                         module,
@@ -1504,12 +1514,17 @@ impl Compiler {
                     types.insert_type_from_type(
                         Type::Array {
                             element: mapped_element,
+                            is_readonly,
                         },
                         type_id,
                     )
                 }
             }
-            Type::ArraySized { element, count } => {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
                 let mapped_element = self.substitute_infer_types_inner(
                     module,
                     profile,
@@ -1526,12 +1541,16 @@ impl Compiler {
                         Type::ArraySized {
                             element: mapped_element,
                             count,
+                            is_readonly,
                         },
                         type_id,
                     )
                 }
             }
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 let mapped_elements = elements
                     .iter()
                     .map(|element| {
@@ -1557,6 +1576,7 @@ impl Compiler {
                 types.insert_type_from_type(
                     Type::Tuple {
                         elements: mapped_elements,
+                        is_readonly,
                     },
                     type_id,
                 )
@@ -1729,28 +1749,6 @@ impl Compiler {
                     },
                     type_id,
                 )
-            }
-            Type::Mutable { mutability, right } => {
-                let mapped_right = self.substitute_infer_types_inner(
-                    module,
-                    profile,
-                    right,
-                    substitutions,
-                    symbols,
-                    types,
-                    cache,
-                );
-                if mapped_right == right {
-                    type_id
-                } else {
-                    types.insert_type_from_type(
-                        Type::Mutable {
-                            mutability,
-                            right: mapped_right,
-                        },
-                        type_id,
-                    )
-                }
             }
             Type::ValueOf {
                 mutability,

@@ -177,7 +177,21 @@ impl Compiler {
             let element = static_arguments
                 .and_then(|arguments| arguments.first())
                 .map(|argument| self.static_argument_type(argument, source_id, types));
-            return Some(Type::Array { element });
+            return Some(Type::Array {
+                element,
+                is_readonly: false,
+            });
+        }
+
+        // check readonly array reference
+        if self.is_well_known_symbol(profile, canonical_symbol, WellKnownSymbol::ReadonlyArray) {
+            let element = static_arguments
+                .and_then(|arguments| arguments.first())
+                .map(|argument| self.static_argument_type(argument, source_id, types));
+            return Some(Type::Array {
+                element,
+                is_readonly: true,
+            });
         }
 
         None

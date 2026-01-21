@@ -176,11 +176,6 @@ pub enum Type {
         operator: TypeUnaryOperator,
         right: LocalTypeId,
     },
-    /// Mutable or immutable type `T`.
-    Mutable {
-        mutability: Mutability,
-        right: LocalTypeId,
-    },
     /// Value `^T` of a `T`. Or `^mut T` for a mutable value.
     ValueOf {
         mutability: Option<Mutability>,
@@ -209,11 +204,18 @@ pub enum Type {
     ArraySized {
         element: LocalTypeId,
         count: LocalNodeId<Expression>,
+        is_readonly: bool,
     },
     /// Array type with dynamically sized elements (like `T[]`).
-    Array { element: Option<LocalTypeId> },
+    Array {
+        element: Option<LocalTypeId>,
+        is_readonly: bool,
+    },
     /// Tuple type `(T1, T2, ...)`.
-    Tuple { elements: Vec<TypeElement> },
+    Tuple {
+        elements: Vec<TypeElement>,
+        is_readonly: bool,
+    },
     /// Object type `{ a: T1, b: T2, ... }`.
     Object {
         fields: Vec<TypeField>,

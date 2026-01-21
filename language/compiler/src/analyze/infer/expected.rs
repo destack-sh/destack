@@ -354,6 +354,7 @@ impl Compiler {
             }
             Type::Array {
                 element: Some(element_ty_id),
+                ..
             } => {
                 expected.fill(Some(*element_ty_id));
             }
@@ -373,6 +374,7 @@ impl Compiler {
         match types.get_type(expected_ty_id) {
             Type::Array {
                 element: Some(element_ty_id),
+                ..
             } => Some(*element_ty_id),
             _ => None,
         }

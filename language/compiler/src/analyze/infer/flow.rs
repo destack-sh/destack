@@ -1284,14 +1284,6 @@ impl Compiler {
         )
     }
 
-    /// Unwrap a Type::Value wrapper to a usable guard target.
-    fn unwrap_type_value(&self, type_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
-        match types.get_type(type_id) {
-            Type::Value { value } => *value,
-            _ => type_id,
-        }
-    }
-
     /// Derive guard types for a symbol based on a target type.
     fn type_guard_types(
         &self,

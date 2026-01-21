@@ -925,8 +925,8 @@ mod tests {
     /// Resolve well known symbols from builtin libs.
     #[test]
     fn test_resolve_well_known_symbols() {
-        let test =
-            TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es2020"]);
+        let test = TestProgram::memory_sequential_with_prelude_and_libs()
+            .with_profile_libs(&["es2020", "js"]);
         test.resolve_builtins();
         test.resolve_libs();
         test.compile();

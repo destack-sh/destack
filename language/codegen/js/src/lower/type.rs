@@ -200,13 +200,28 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
 
-            dir::Type::Array { element } => {
+            dir::Type::Array {
+                element,
+                is_readonly,
+            } => {
                 let element = element
                     .map(|element| self.lower_type(element))
                     .transpose()?;
-                let ty = Type::Array { element };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
+                let mut array_id = self.tree.insert_from_source_any(
+                    Type::Array { element },
+                    self.module.id,
+                    source_id,
+                );
+                if *is_readonly {
+                    let readonly = Type::Unary {
+                        operator: TypeUnaryOperator::Readonly,
+                        right: array_id,
+                    };
+                    array_id =
+                        self.tree
+                            .insert_from_source_any(readonly, self.module.id, source_id);
+                }
+                array_id
             }
             dir::Type::Tuple { elements } => {
                 let elements = elements

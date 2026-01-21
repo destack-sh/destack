@@ -1056,7 +1056,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             visitor.visit_type(tree, *right, right_ty);
         }
 
-        Type::Array { element } => {
+        Type::Array { element, .. } => {
             if let Some(element) = element {
                 let element_ty = tree.get(*element);
                 visitor.visit_type(tree, *element, element_ty);

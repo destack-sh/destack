@@ -19,6 +19,42 @@ const bad: Keys = "title";
 
 - contains: not assignable
 
+## in returns true for existing keys
+
+> `in` checks whether a key type is assignable to `keyof`.
+
+```ds
+interface Person {
+    name: string
+    age: number
+}
+
+type HasName = "name" in Person;
+
+const ok: HasName = true;
+const bad: HasName = false;
+```
+
+- contains: not assignable
+
+## in returns false for missing keys
+
+> Missing keys result in `false`.
+
+```ds
+interface Person {
+    name: string
+    age: number
+}
+
+type HasTitle = "title" in Person;
+
+const ok: HasTitle = false;
+const bad: HasTitle = true;
+```
+
+- contains: not assignable
+
 ## indexed access returns property types
 
 > Indexed access resolves to the property type.
@@ -32,6 +68,124 @@ type Name = Person["name"];
 
 const ok: Name = "Ada";
 const bad: Name = 42;
+```
+
+- contains: not assignable
+
+## readonly arrays accept mutable arrays
+
+> Mutable arrays are assignable to readonly arrays.
+
+```ds
+declare let values: number[];
+let frozen: readonly number[] = values;
+frozen satisfies readonly number[];
+```
+
+## readonly arrays reject mutable assignment
+
+> Readonly arrays are not assignable to mutable arrays.
+
+```ds
+declare let frozen: readonly number[];
+let bad: number[] = frozen;
+```
+
+- contains: not assignable
+
+## readonly tuples accept mutable tuples
+
+> Mutable tuples are assignable to readonly tuples.
+
+```ds
+type Pair = (number, string);
+type ReadonlyPair = readonly (number, string);
+
+declare let pair: Pair;
+let frozen: ReadonlyPair = pair;
+frozen satisfies ReadonlyPair;
+```
+
+## readonly tuples reject mutable assignment
+
+> Readonly tuples are not assignable to mutable tuples.
+
+```ds
+type Pair = (number, string);
+type ReadonlyPair = readonly (number, string);
+
+declare let frozen: ReadonlyPair;
+let bad: Pair = frozen;
+```
+
+- contains: not assignable
+
+## extends returns true for assignable types
+
+> `extends` returns `true` when the left type is assignable to the right type.
+
+```ds
+type IsNumber = int32 extends number;
+
+const ok: IsNumber = true;
+const bad: IsNumber = false;
+```
+
+- contains: not assignable
+
+## extends returns false for non assignable types
+
+> `extends` returns `false` when the left type is not assignable to the right type.
+
+```ds
+type IsString = string extends int32;
+
+const ok: IsString = false;
+const bad: IsString = true;
+```
+
+- contains: not assignable
+
+## implements returns true for compatible types
+
+> `implements` returns `true` when the left type implements the right type.
+
+```ds
+interface Drawable {
+    draw(): void
+}
+
+struct DrawnPoint implements Drawable {
+    x: int32
+
+    draw(): void {}
+}
+
+type IsDrawable = DrawnPoint implements Drawable;
+
+const ok: IsDrawable = true;
+const bad: IsDrawable = false;
+```
+
+- contains: not assignable
+
+## implements returns false for incompatible types
+
+> `implements` returns `false` when the left type does not satisfy the right type.
+
+```ds
+interface Drawable {
+    draw(): void
+}
+
+struct PlainPoint {
+    x: int32
+}
+
+type IsDrawable = PlainPoint implements Drawable;
+
+const ok: IsDrawable = false;
+const bad: IsDrawable = true;
 ```
 
 - contains: not assignable

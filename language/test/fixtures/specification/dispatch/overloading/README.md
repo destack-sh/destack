@@ -1,7 +1,5 @@
 # Overloading
 
-> NOTE #Incomplete: implement/mdtest function overloading
-
 Function and operator overloading with distinct implementations.
 
 ## Coverage

@@ -199,6 +199,7 @@ impl Compiler {
                 let array_type = types.insert_type_from_any(
                     Type::Array {
                         element: Some(element),
+                        is_readonly: false,
                     },
                     source_id,
                 );

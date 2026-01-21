@@ -1195,7 +1195,7 @@ let x = items;
     let x_symbol = test.resolve_to_symbol("main.ds", "x").unwrap();
     let x_ty_id = view.types().get_value_type_id(x_symbol).unwrap();
 
-    assert_type!(view.types(), x_ty_id, Type::Array { element: Some(element_id) } => {
+    assert_type!(view.types(), x_ty_id, Type::Array { element: Some(element_id), .. } => {
         assert_type!(view.types(), *element_id, Type::Union { elements } => {
             // union has three literal elements
             assert_eq!(elements.len(), 3);
@@ -2771,7 +2771,7 @@ const numbers: number[] = [1, 2];
     let value_ty_id = view.expect_inferred_type_id(value_id);
 
     // array element type is number from number[] context
-    assert_type!(view.types(), value_ty_id, Type::Array { element: Some(element_id) } => {
+    assert_type!(view.types(), value_ty_id, Type::Array { element: Some(element_id), .. } => {
         assert_type!(view.types(), *element_id, Type::TypeLiteral {
             value: TypeLiteral::Primitive(PrimitiveType::Number)
         });

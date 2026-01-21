@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use destack_dir::{
     Expression, GlobalSymbolId, IntType, LocalNodeId, LocalTypeId, PrimitiveType, ScalarLiteral,
-    SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -410,22 +411,43 @@ impl Compiler {
             (
                 Type::Array {
                     element: Some(target_elem),
+                    is_readonly: target_readonly,
                 },
                 Type::Array {
                     element: Some(source_elem),
+                    is_readonly: source_readonly,
                 },
-            ) => self.is_type_assignable(
-                module,
-                profile,
-                symbols,
-                target_elem,
-                source_elem,
-                types,
-                options,
-            ),
+            ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
+                self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    target_elem,
+                    source_elem,
+                    types,
+                    options,
+                )
+            }
 
             // empty array is assignable to any array (including itself)
-            (Type::Array { .. }, Type::Array { element: None }) => Assignability::Assignable,
+            (
+                Type::Array {
+                    is_readonly: target_readonly,
+                    ..
+                },
+                Type::Array {
+                    element: None,
+                    is_readonly: source_readonly,
+                },
+            ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
+                Assignability::Assignable
+            }
 
             // fixed arrays: covariant in element type and size
             (
@@ -464,15 +486,30 @@ impl Compiler {
             (
                 Type::Tuple {
                     elements: target_elems,
+                    is_readonly: target_readonly,
                 },
                 Type::Tuple {
                     elements: source_elems,
+                    is_readonly: source_readonly,
                 },
             ) => {
+                if !self.array_readonly_assignable(*target_readonly, *source_readonly) {
+                    return Assignability::NotAssignable;
+                }
                 if target_elems.len() != source_elems.len() {
                     return Assignability::NotAssignable;
                 }
                 for (target_elem, source_elem) in target_elems.iter().zip(source_elems.iter()) {
+                    let target_elem_readonly =
+                        *target_readonly || target_elem.is_readonly;
+                    let source_elem_readonly =
+                        *source_readonly || source_elem.is_readonly;
+                    if !self.tuple_element_readonly_assignable(
+                        target_elem_readonly,
+                        source_elem_readonly,
+                    ) {
+                        return Assignability::NotAssignable;
+                    }
                     if !self
                         .is_type_assignable(
                             module,
@@ -495,11 +532,18 @@ impl Compiler {
             (
                 Type::Array {
                     element: Some(target_elem),
+                    is_readonly: target_readonly,
                 },
                 Type::Tuple {
                     elements: source_elems,
+                    is_readonly: source_readonly,
                 },
             ) => {
+                let source_readonly =
+                    self.tuple_is_readonly(*source_readonly, &source_elems);
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
                 for source_elem in source_elems {
                     if !self
                         .is_type_assignable(
@@ -1157,6 +1201,30 @@ impl Compiler {
             // everything else: not assignable
             _ => Assignability::NotAssignable,
         }
+    }
+
+    /// Check readonly assignability for array types.
+    fn array_readonly_assignable(&self, target_readonly: bool, source_readonly: bool) -> bool {
+        if source_readonly && !target_readonly {
+            return false;
+        }
+        true
+    }
+
+    /// Check readonly assignability for tuple elements.
+    fn tuple_element_readonly_assignable(&self, target_readonly: bool, source_readonly: bool) -> bool {
+        if source_readonly && !target_readonly {
+            return false;
+        }
+        true
+    }
+
+    /// Check if any tuple elements are readonly.
+    fn tuple_is_readonly(&self, tuple_is_readonly: bool, elements: &[TypeElement]) -> bool {
+        if tuple_is_readonly {
+            return true;
+        }
+        elements.iter().any(|element| element.is_readonly)
     }
 
     /// Check type literal assignability.
@@ -2233,7 +2301,7 @@ impl Compiler {
 
         let param_type = types.get_type(target_params[0]);
         let element = match param_type {
-            Type::Array { element } => *element,
+            Type::Array { element, .. } => *element,
             Type::ArraySized { element, .. } => Some(*element),
             _ => None,
         };
@@ -2802,6 +2870,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Array {
                 element: Some(number_ty),
+                is_readonly: false,
             },
         );
 
@@ -2849,6 +2918,7 @@ type ArrayBufferLike = ArrayBufferTypes[keyof ArrayBufferTypes]
             source_id,
             Type::Array {
                 element: Some(number_ty),
+                is_readonly: false,
             },
         );
 
@@ -4547,6 +4617,7 @@ class Document implements Printable, Saveable {
             source_id,
             Type::Array {
                 element: Some(number_ty),
+                is_readonly: false,
             },
         );
 

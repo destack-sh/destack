@@ -2,7 +2,7 @@ use destack_base::StringId;
 use destack_dir::{AnchoredGlobalNodeId, CastSource, Expression, LocalNodeId, StaticKey, Type};
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::{LowerError, LowerResult};
+use crate::{LowerError, LowerResult, ScalarType};
 
 use crate::lower::emit::FunctionContext;
 use crate::lower::r#type::{
@@ -574,7 +574,7 @@ impl FunctionContext<'_> {
                 let dir_type = self.env.types.get_type(literal.type_id);
                 let scalar = self.env.type_lowerer.scalar_type_for_dir_type(dir_type);
                 match scalar {
-                    Some(crate::lower::ScalarType::SignedInt { width }) => {
+                    Some(ScalarType::SignedInt { width }) => {
                         let value = self.state.builder.iconst(*value as i64, width as u8, true);
                         let ty = if width == 64 {
                             self.env.type_lowerer.ty_i64
@@ -583,7 +583,7 @@ impl FunctionContext<'_> {
                         };
                         Ok((value, ty))
                     }
-                    Some(crate::lower::ScalarType::Float { width }) => {
+                    Some(ScalarType::Float { width }) => {
                         let value = self.state.builder.fconst(*value, width as u8);
                         let ty = if width == 32 {
                             self.env.type_lowerer.ty_f32
