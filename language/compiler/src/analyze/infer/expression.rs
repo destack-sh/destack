@@ -11,13 +11,13 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration, Declarator,
-    DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionKind,
-    GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny,
-    LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource, Mutability,
-    NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, Resolution, StaticKey,
-    StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement, TypeField,
-    TypeKind, TypeLiteral, TypeTable,
+    Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration,
+    Declarator, DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding,
+    FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId,
+    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource,
+    Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, Resolution,
+    StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
+    TypeField, TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -324,11 +324,12 @@ impl Compiler {
     ) -> AnalyzeResult<LocalTypeId> {
         // reuse an inferred result when caching is enabled
         let has_flow = ctx.flow.is_some();
+        let node_id = expression_id.into_global_any(module.id);
         if !ctx.is_surface_inference
             && !has_flow
-            && let Some(ty_id) =
-                types.get_inferred_type_id(expression_id.into_global_any(module.id))
+            && let Some(ty_id) = types.get_inferred_type_id(node_id)
         {
+            self.ensure_expression_addressability(module, expression_id, tree, types);
             return Ok(ty_id);
         }
 
@@ -2346,12 +2347,55 @@ impl Compiler {
             }
         };
 
-            if !ctx.is_surface_inference {
-                types.set_inferred_type(expression_id.into_global_any(module.id), ty_id);
-            }
+        // determine addressability for the expression
+        self.ensure_expression_addressability(module, expression_id, tree, types);
 
-            Ok(ty_id)
+        if !ctx.is_surface_inference {
+            types.set_inferred_type(node_id, ty_id);
         }
+
+        Ok(ty_id)
+    }
+    }
+
+    /// Ensure addressability is cached for an expression.
+    fn ensure_expression_addressability(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        types: &mut TypeTable,
+    ) -> Addressability {
+        let node_id = expression_id.into_global_any(module.id);
+        if let Some(addressability) = types.get_addressability_for_node(node_id) {
+            return addressability;
+        }
+
+        // walk the expression to compute addressability
+        let expression = tree.get(expression_id);
+        let addressability = match expression {
+            Expression::Parenthesized { expression } => {
+                self.ensure_expression_addressability(module, *expression, tree, types)
+            }
+            Expression::LocalReference { .. }
+            | Expression::ModuleReference { .. }
+            | Expression::GlobalReference { .. }
+            | Expression::This => Addressability::Place,
+            Expression::Member {
+                static_arguments, ..
+            } => {
+                if static_arguments.is_some() {
+                    Addressability::Value
+                } else {
+                    Addressability::Place
+                }
+            }
+            Expression::Index { .. } => Addressability::Place,
+            _ => Addressability::Value,
+        };
+
+        types.set_addressability_for_node(node_id, addressability);
+        addressability
     }
 
     /// Infer a block.
