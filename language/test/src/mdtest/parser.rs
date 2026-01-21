@@ -48,7 +48,8 @@ pub struct MdTestCase {
 /// Parse a markdown file and extract test cases.
 pub fn parse_mdtest_file(path: &Path) -> std::io::Result<Vec<MdTestCase>> {
     let content = std::fs::read_to_string(path)?;
-    Ok(parse_mdtest(&content))
+    parse_mdtest(&content)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))
 }
 
 /// Parsed language tag with base language, optional filename, markers, and options.
@@ -183,11 +184,11 @@ fn is_data_language(language: &str) -> bool {
 }
 
 /// Parse markdown content and extract test cases.
-pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
+pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
     let parser = Parser::new(content);
 
     let mut tests = Vec::new();
-    let mut current_section = String::new();
+    let mut current_section: Option<String> = None;
     let mut current_test_name: Option<String> = None;
     let mut current_test_skip = false;
     let mut current_options: HashMap<String, String> = HashMap::new();
@@ -203,26 +204,24 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     let mut in_list_item = false;
     let mut list_item_text = String::new();
     let mut current_line = 1;
+    let mut errors = Vec::new();
 
     for event in parser {
         match event {
             Event::Start(Tag::Heading { level, .. }) => {
-                // finalize pending test before starting a new heading
-                if let Some(name) = current_test_name.take()
-                    && !current_files.is_empty()
-                {
-                    tests.push(MdTestCase {
-                        name,
-                        section: current_section.clone(),
-                        options: std::mem::take(&mut current_options),
-                        files: std::mem::take(&mut current_files),
-                        bullet_items: std::mem::take(&mut current_bullets),
-                        extra_blocks: std::mem::take(&mut current_extra_blocks),
-                        line: current_line,
-                        skip: current_test_skip,
-                    });
-                    current_test_skip = false;
-                }
+                // finalize the previous test before a new heading
+                finalize_pending_test(
+                    &mut tests,
+                    current_section.as_ref(),
+                    &mut current_test_name,
+                    &mut current_test_skip,
+                    &mut current_options,
+                    &mut current_files,
+                    &mut current_bullets,
+                    &mut current_extra_blocks,
+                    current_line,
+                    &mut errors,
+                );
 
                 in_heading = true;
                 heading_level = Some(level);
@@ -234,9 +233,18 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
 
                 match heading_level {
                     Some(HeadingLevel::H2) => {
-                        current_section = text;
+                        current_section = Some(text);
+                        current_test_name = None;
+                        current_test_skip = false;
+                        current_options.clear();
+                        current_files.clear();
+                        current_bullets.clear();
+                        current_extra_blocks.clear();
                     }
                     Some(HeadingLevel::H3 | HeadingLevel::H4) => {
+                        if current_section.is_none() {
+                            errors.push(format!("test '{text}' appears before a section heading"));
+                        }
                         let (name, skip) = if let Some(stripped) = text.strip_prefix('_') {
                             (stripped.to_string(), true)
                         } else {
@@ -280,13 +288,17 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
 
-                if current_test_name.is_none() {
-                    continue;
-                }
-
                 // check if it's a source code block
                 let parsed = parse_language_tag(&code_block_language);
                 let is_expected = parsed.markers.contains(&"expected");
+
+                if current_test_name.is_none()
+                    && (is_code_language(parsed.base) || is_data_language(parsed.base))
+                {
+                    errors.push(format!(
+                        "code block '{code_block_language}' appears outside a test heading"
+                    ));
+                }
 
                 if parsed.base.eq_ignore_ascii_case("test") {
                     if current_test_name.is_some() {
@@ -350,22 +362,67 @@ pub fn parse_mdtest(content: &str) -> Vec<MdTestCase> {
     }
 
     // finalize remaining test
-    if let Some(name) = current_test_name
-        && !current_files.is_empty()
-    {
-        tests.push(MdTestCase {
-            name,
-            section: current_section,
-            options: current_options,
-            files: current_files,
-            bullet_items: current_bullets,
-            extra_blocks: current_extra_blocks,
-            line: current_line,
-            skip: current_test_skip,
-        });
+    finalize_pending_test(
+        &mut tests,
+        current_section.as_ref(),
+        &mut current_test_name,
+        &mut current_test_skip,
+        &mut current_options,
+        &mut current_files,
+        &mut current_bullets,
+        &mut current_extra_blocks,
+        current_line,
+        &mut errors,
+    );
+
+    if errors.is_empty() {
+        Ok(tests)
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+fn finalize_pending_test(
+    tests: &mut Vec<MdTestCase>,
+    current_section: Option<&String>,
+    current_test_name: &mut Option<String>,
+    current_test_skip: &mut bool,
+    current_options: &mut HashMap<String, String>,
+    current_files: &mut Vec<MdTestFile>,
+    current_bullets: &mut Vec<String>,
+    current_extra_blocks: &mut Vec<RawCodeBlock>,
+    current_line: usize,
+    errors: &mut Vec<String>,
+) {
+    // bail if no pending test
+    let Some(name) = current_test_name.take() else {
+        return;
+    };
+
+    // require a section heading
+    let Some(section) = current_section else {
+        errors.push(format!("test '{name}' appears before a section heading"));
+        return;
+    };
+
+    // require at least one code block
+    if current_files.is_empty() {
+        errors.push(format!("test '{name}' is missing a code block"));
+        return;
     }
 
-    tests
+    // materialize the parsed test case
+    tests.push(MdTestCase {
+        name,
+        section: section.clone(),
+        options: std::mem::take(current_options),
+        files: std::mem::take(current_files),
+        bullet_items: std::mem::take(current_bullets),
+        extra_blocks: std::mem::take(current_extra_blocks),
+        line: current_line,
+        skip: *current_test_skip,
+    });
+    *current_test_skip = false;
 }
 
 #[cfg(test)]
@@ -386,7 +443,7 @@ const x: string = 5
 - type 5 is not assignable to type string
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert_eq!(tests[0].name, "Variable type mismatch");
         assert_eq!(tests[0].section, "Variables");
@@ -414,7 +471,7 @@ const y: boolean = "hello"
 - type "hello" is not assignable to type boolean
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].bullet_items.len(), 2);
@@ -432,7 +489,7 @@ const x: number = 5
 ```
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].bullet_items.len(), 0);
@@ -466,7 +523,7 @@ let c = 3
 ```
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 3);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].name, "Test A");
@@ -497,7 +554,7 @@ const x = 1
 - expected error
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].files.len(), 1);
@@ -526,7 +583,7 @@ const f: Foo = Foo {}
 - some error
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].name, "Multi-file test");
@@ -590,7 +647,7 @@ const x = 1;
 ```
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].files.len(), 1);
@@ -619,7 +676,7 @@ p.$0
 ```
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert!(tests[0].options.is_empty());
         assert_eq!(tests[0].extra_blocks.len(), 1);
@@ -640,7 +697,7 @@ const x = 1
 ```
 "#;
 
-        let tests = parse_mdtest(md);
+        let tests = parse_mdtest(md).expect("parse");
         assert_eq!(tests.len(), 1);
         assert_eq!(
             tests[0].options.get("libs"),
@@ -671,6 +728,6 @@ const y = 2
 ```
 "#;
 
-        let _tests = parse_mdtest(md);
+        let _tests = parse_mdtest(md).expect("parse");
     }
 }
