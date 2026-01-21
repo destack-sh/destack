@@ -7,6 +7,7 @@ pub(crate) const NATIVE_DECLARED_SYMBOLS: &[&str] = &[
     "String",
     // array types
     "Array",
+    "ReadonlyArray",
     "arrayOf",
     "arrayFill",
     // slice types

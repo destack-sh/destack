@@ -6,7 +6,7 @@ struct Slice<T> {
     length: uint32,
 }
 
-extension<T> for Slice<T> implements Index<number, T>, Iterable<T> {
+extension<T> for Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the slice.
     get length(): number {
         this.length as number
@@ -71,30 +71,9 @@ extension<T> for Slice<T> implements Index<number, T>, Iterable<T> {
         // #Incomplete
         []
     }
-}
-
-extension<T> for &mut Slice<T> implements IndexSet<number, T>, Iterable<T> {
-    /// Get the length of the slice.
-    get length(): number {
-        this.length as number
-    }
-
-    /// Check if the slice is empty.
-    get isEmpty(): boolean {
-        this.length == 0
-    }
-
-    /// Get the element at the index with bounds checks.
-    index(i: number): T {
-        if i < 0 || i >= this.length as number {
-            undefined!
-        }
-        // #Incomplete
-        undefined!
-    }
 
     /// Set the element at the index with bounds checks.
-    indexSet(i: number, value: T): void {
+    indexSet(this: &mut Slice<T>, i: number, value: T): void {
         if i < 0 || i >= this.length as number {
             undefined!
         }
@@ -102,33 +81,27 @@ extension<T> for &mut Slice<T> implements IndexSet<number, T>, Iterable<T> {
     }
 
     /// Fill the slice with a value.
-    fill(value: T): void {
+    fill(this: &mut Slice<T>, value: T): void {
         // #Incomplete
     }
 
     /// Copy from another slice.
-    copyFrom(src: Slice<T>): void {
+    copyFrom(this: &mut Slice<T>, src: Slice<T>): void {
         // #Incomplete
     }
 
     /// Swap two elements.
-    swap(i: number, j: number): void {
+    swap(this: &mut Slice<T>, i: number, j: number): void {
         // #Incomplete
     }
 
     /// Reverse in place.
-    reverse(): void {
+    reverse(this: &mut Slice<T>): void {
         // #Incomplete
     }
 
     /// Create an iterator.
     [Symbol.iterator](): Iterator<T> {
-        // #Incomplete
-        undefined!
-    }
-
-    /// Get as immutable slice.
-    asSlice(): Slice<T> {
         // #Incomplete
         undefined!
     }
