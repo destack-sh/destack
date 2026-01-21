@@ -12,19 +12,6 @@ use crate::{
     VarianceBound,
 };
 
-/// A mapped type parameter for expressions.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TypeMappedParameterExpression {
-    /// The parameter name (like `K`).
-    pub name: StringId,
-    /// The parameter symbol.
-    pub symbol: LocalSymbolId,
-    /// The constraint type (like `keyof T`).
-    pub constraint: LocalNodeId<Expression>,
-    /// The optional key remap (like `as Foo<K>`).
-    pub key_remap: Option<LocalNodeId<Expression>>,
-}
-
 /// An Expression is a generic container for all constructs.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Expression {
@@ -734,4 +721,33 @@ pub enum WhereClause {
 
 impl Node for WhereClause {
     const TYPE: NodeType = NodeType::WhereClause;
+}
+
+/// A mapped type parameter for expressions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TypeMappedParameterExpression {
+    /// The parameter name (like `K`).
+    pub name: StringId,
+    /// The parameter symbol.
+    pub symbol: LocalSymbolId,
+    /// The constraint type (like `keyof T`).
+    pub constraint: LocalNodeId<Expression>,
+    /// The optional key remap (like `as Foo<K>`).
+    pub key_remap: Option<LocalNodeId<Expression>>,
+}
+
+/// The addressability of an expression.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Addressability {
+    /// A place expression that refers to storage.
+    Place,
+    /// A value expression that does not refer to storage.
+    Value,
+}
+
+impl Addressability {
+    /// Return true when the expression is a place.
+    pub fn is_place(self) -> bool {
+        matches!(self, Addressability::Place)
+    }
 }
