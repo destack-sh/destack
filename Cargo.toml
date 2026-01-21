@@ -6,7 +6,23 @@ members = [
 	"language/ast",
 	"language/builtin",
 	"language/test/mirbench",
-	"language/codegen/cranelift",
+	"language/codegen/native",
+	"language/codegen/native/cranelift/assembler-x64",
+	"language/codegen/native/cranelift/bforest",
+	"language/codegen/native/cranelift/bitset",
+	"language/codegen/native/cranelift/codegen",
+	"language/codegen/native/cranelift/control",
+	"language/codegen/native/cranelift/entity",
+	"language/codegen/native/cranelift/frontend",
+	"language/codegen/native/cranelift/isle",
+	"language/codegen/native/cranelift/module",
+	"language/codegen/native/cranelift/native",
+	"language/codegen/native/cranelift/object",
+	"language/codegen/native/cranelift/reader",
+	"language/codegen/native/cranelift/serde",
+	"language/codegen/native/cranelift/srcgen",
+	"language/codegen/native/regalloc2",
+	"language/codegen/native/wasmtime-math",
 	"language/codegen/lib",
 	"language/codegen/js",
 	"language/compiler",
@@ -51,7 +67,7 @@ destack_base = { path = "language/base" }
 destack_ast = { path = "language/ast" }
 destack_test_mirbench = { path = "language/test/mirbench" }
 destack_builtin = { path = "language/builtin" }
-destack_codegen_cranelift = { path = "language/codegen/cranelift" }
+destack_codegen_native = { path = "language/codegen/native" }
 destack_codegen_js = { path = "language/codegen/js" }
 destack_codegen_lib = { path = "language/codegen/lib" }
 destack_compiler = { path = "language/compiler" }
@@ -85,12 +101,39 @@ destack_lsp_types = { path = "platform/lsp/types" }
 destack_vscode = { path = "platform/vscode" }
 
 # codegen
-cranelift-codegen = "0.127"
-cranelift-frontend = "0.127"
-cranelift-module = "0.127"
-cranelift-native = "0.127"
-cranelift-object = "0.127"
+cranelift-assembler-x64 = { path = "language/codegen/native/cranelift/assembler-x64" }
+cranelift-bforest = { path = "language/codegen/native/cranelift/bforest" }
+cranelift-bitset = { path = "language/codegen/native/cranelift/bitset" }
+cranelift-codegen = { path = "language/codegen/native/cranelift/codegen" }
+cranelift-control = { path = "language/codegen/native/cranelift/control" }
+cranelift-entity = { path = "language/codegen/native/cranelift/entity" }
+cranelift-frontend = { path = "language/codegen/native/cranelift/frontend" }
+cranelift-isle = { path = "language/codegen/native/cranelift/isle" }
+cranelift-module = { path = "language/codegen/native/cranelift/module" }
+cranelift-native = { path = "language/codegen/native/cranelift/native" }
+cranelift-object = { path = "language/codegen/native/cranelift/object" }
+cranelift-reader = { path = "language/codegen/native/cranelift/reader" }
+cranelift-serde = { path = "language/codegen/native/cranelift/serde" }
+cranelift-srcgen = { path = "language/codegen/native/cranelift/srcgen" }
+regalloc2 = { path = "language/codegen/native/regalloc2" }
+wasmtime-math = { path = "language/codegen/native/wasmtime-math" }
 target-lexicon = "0.13.4"
+
+# cranelift external deps (from wasmtime workspace)
+anyhow = "1.0.100"
+bumpalo = "3"
+capstone = "0.13.0"
+env_logger = "0.11"
+gimli = { version = "0.32.3", default-features = false }
+hashbrown = { version = "0.15", default-features = false }
+libc = "0.2"
+libm = "0.2.15"
+log = "0.4.28"
+object = { version = "0.37", default-features = false, features = ["write"] }
+proptest = "1.6.0"
+serde_derive = "1.0.228"
+similar = "2.1.0"
+slice-group-by = "0.3.1"
 
 # general
 base64 = "0.22"
@@ -124,6 +167,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5.8"
 
 # dev
+arbtest = "0.3.2"
 arbitrary = { version = "1.4.2", features = ["derive"] }
 clap = { version = "4.5", features = ["derive"] }
 libfuzzer-sys = "0.4.10"

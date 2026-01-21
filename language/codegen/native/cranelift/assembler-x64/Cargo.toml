@@ -1,0 +1,22 @@
+[package]
+name = "cranelift-assembler-x64"
+description = "A Cranelift-specific x64 assembler"
+version = "0.127.0"
+license = "Apache-2.0 WITH LLVM-exception"
+edition = "2021"
+
+[dependencies]
+arbitrary = { workspace = true, features = ["derive"], optional = true }
+capstone = { workspace = true, optional = true }
+
+[dev-dependencies]
+arbitrary = { workspace = true, features = ["derive"] }
+arbtest = { workspace = true }
+capstone = { workspace = true }
+
+[build-dependencies]
+cranelift-assembler-x64-meta = { path = "meta", version = "0.127.0" }
+
+
+[features]
+fuzz = ['dep:arbitrary', 'dep:capstone']
