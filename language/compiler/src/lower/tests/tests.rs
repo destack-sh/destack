@@ -464,6 +464,28 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing field name for '{field_id:?}'"))
     }
 
+    /// Resolve a MIR function id by name or panic.
+    pub(crate) fn function_id_by_name(
+        &self,
+        tree: &mir::NodeTree,
+        strings: &ImmutableStringPool,
+        name: &str,
+    ) -> mir::LocalNodeId<mir::Function> {
+        self.find_function_by_name(tree, strings, name)
+            .unwrap_or_else(|| panic!("missing function '{name}'"))
+    }
+
+    /// Resolve a MIR function by name or panic.
+    pub(crate) fn function_by_name<'a>(
+        &self,
+        tree: &'a mir::NodeTree,
+        strings: &ImmutableStringPool,
+        name: &str,
+    ) -> &'a mir::Function {
+        let function_id = self.function_id_by_name(tree, strings, name);
+        tree.get(function_id)
+    }
+
     /// Find a MIR function id by name.
     pub(crate) fn find_function_by_name(
         &self,

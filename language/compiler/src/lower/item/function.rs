@@ -212,6 +212,9 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
+        // resolve allocation mode before borrowing the builder
+        let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
+
         // build the function and register bindings
         let module_id = self.module_id;
         let (function_id, builder) = {
@@ -238,6 +241,9 @@ impl ModuleLowerer<'_> {
             // set return lifetime
             builder.set_return_lifetime(return_lifetime);
 
+            // set allocation mode
+            builder.set_allocation_mode(allocation_mode);
+
             (function_id, builder)
         };
 
@@ -259,6 +265,7 @@ impl ModuleLowerer<'_> {
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
+            runtime_checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
         let state = FunctionState::new(builder);
@@ -532,6 +539,7 @@ impl ModuleLowerer<'_> {
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
+            runtime_checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
         let state = FunctionState::new(builder);

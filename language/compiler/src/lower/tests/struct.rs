@@ -110,7 +110,7 @@ block0(v0: i32, v1: i32):
 
 /// Lower explicit struct constructors.
 #[test]
-fn test_lower_handles_struct_explicit_constructor() {
+fn test_lower_struct_explicit_constructor() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -239,7 +239,7 @@ function makePoint(a: number, b: number): Point {
 
 /// Lower struct field map metadata for nominal layouts.
 #[test]
-fn test_lower_emits_struct_field_map_metadata() {
+fn test_lower_struct_field_map_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -282,7 +282,7 @@ struct FieldMapBox {
 
 /// Lower struct method that returns a field via `this`.
 #[test]
-fn test_lower_handles_struct_method_returning_field() {
+fn test_lower_struct_method_returning_field() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -317,7 +317,7 @@ function readValue(value: int32): int32 {
 
 /// Lower struct with multiple field accesses.
 #[test]
-fn test_lower_handles_multiple_struct_field_access() {
+fn test_lower_multiple_struct_field_access() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -350,7 +350,7 @@ function accessAll(x: number, y: number, z: number): number {
 
 /// Lower struct with fields initialized in different order than declaration.
 #[test]
-fn test_lower_handles_struct_field_order_independence() {
+fn test_lower_struct_field_order_independence() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -380,7 +380,7 @@ function makeReversed(a: number, b: number): number {
 
 /// Lower nested struct construction and field access.
 #[test]
-fn test_lower_handles_nested_struct_access() {
+fn test_lower_nested_struct_access() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -411,7 +411,7 @@ function getScaledValue(v: number, s: number): number {
 
 /// Lower struct with multiple nested levels.
 #[test]
-fn test_lower_handles_deeply_nested_struct() {
+fn test_lower_deeply_nested_struct() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -444,7 +444,7 @@ function deepAccess(val: number): number {
 
 /// Lower struct with a simple method call.
 #[test]
-fn test_lower_handles_struct_method_call() {
+fn test_lower_struct_method_call() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -480,7 +480,7 @@ function getSum(a: int32, b: int32): int32 {
 
 /// Lower struct method that returns a new instance of the same type.
 #[test]
-fn test_lower_handles_struct_method_returning_self() {
+fn test_lower_struct_method_returning_self() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -516,7 +516,7 @@ function bump(n: int32): int32 {
 
 /// Lower struct method with parameters.
 #[test]
-fn test_lower_handles_struct_method_with_parameters() {
+fn test_lower_struct_method_with_parameters() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -551,7 +551,7 @@ function compute(base: int32, delta: int32): int32 {
 
 /// Lower chained method calls.
 #[test]
-fn test_lower_handles_struct_chained_method_calls() {
+fn test_lower_struct_chained_method_calls() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

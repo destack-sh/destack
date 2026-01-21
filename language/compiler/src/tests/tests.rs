@@ -23,8 +23,8 @@ use destack_source::{
 };
 use destack_vm::{Isolate, IsolateOptions, Value};
 use destack_workspace::{
-    CacheMode, CacheStore, DiskCacheStore, MemoryCacheStore, Module, ProfileId, Program, Session,
-    Target, TargetId,
+    CacheMode, CacheStore, DiskCacheStore, DsConfig, DsConfigJson, DsConfigOptions,
+    MemoryCacheStore, Module, ProfileId, Program, Session, Target, TargetId,
 };
 use parking_lot::RwLock;
 use serde_json::json;
@@ -536,6 +536,58 @@ impl TestProgram {
         package.targets.insert(target_id, target_config);
 
         // bump package version for target updates
+        drop(package);
+        let _ = self.program.packages.bump_version(package_id);
+    }
+
+    /// Configure a build target for the package containing the given module.
+    ///
+    /// Adds the target when missing.
+    pub fn configure_target(
+        &self,
+        module: ModuleId,
+        name: &str,
+        configure: impl FnOnce(&mut Target),
+    ) {
+        let module_ref = self.program.modules.get(module);
+        let package_id = module_ref.read().package_id;
+        let target_id = TargetId::new(package_id, name);
+        let target_config = Target::implicit_for_name(name)
+            .unwrap_or_else(|| panic!("unknown implicit target '{name}'"));
+
+        let package = self.program.packages.get(package_id);
+        let mut package = package.write();
+        let target = package.targets.entry(target_id).or_insert(target_config);
+        configure(target);
+
+        // bump package version for target updates
+        drop(package);
+        let _ = self.program.packages.bump_version(package_id);
+    }
+
+    /// Apply a dsconfig.json blob to the package containing the given module.
+    pub fn apply_dsconfig(&self, module: ModuleId, content: &str) {
+        let dsconfig_json: DsConfigJson = serde_json::from_str(content)
+            .unwrap_or_else(|error| panic!("invalid dsconfig json: {error}"));
+        let options = DsConfigOptions::from(&dsconfig_json);
+        let directory = self.program.cwd.clone();
+        let path = directory.join("dsconfig.json");
+        let file_id = self.program.files.next_id();
+        let dsconfig = DsConfig {
+            file_id,
+            path,
+            directory,
+            options,
+            content: dsconfig_json,
+        };
+
+        let module_ref = self.program.modules.get(module);
+        let package_id = module_ref.read().package_id;
+        let package = self.program.packages.get(package_id);
+        let mut package = package.write();
+        package.dsconfig = Some(dsconfig);
+
+        // bump package version for config updates
         drop(package);
         let _ = self.program.packages.bump_version(package_id);
     }

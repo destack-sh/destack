@@ -1,5 +1,4 @@
 mod context;
-mod control;
 mod function;
 mod value;
 

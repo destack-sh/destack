@@ -47,6 +47,9 @@ impl FunctionContext<'_> {
                 // lower the aggregate value
                 let (aggregate_value, aggregate_type) = self.lower_value_expression(*left)?;
 
+                // emit null checks when enabled
+                self.emit_null_check(expression_id, aggregate_value, aggregate_type)?;
+
                 // resolve field index through the type lowerer
                 let field_index = self
                     .env
@@ -82,6 +85,19 @@ impl FunctionContext<'_> {
                 // lower array and index expressions
                 let (array_value, _) = self.lower_value_expression(*left)?;
                 let (index_value, _) = self.lower_value_expression(index_expr)?;
+
+                // emit null checks when enabled
+                let array_type = self.lower_type_for_expression(*left)?;
+                self.emit_null_check(expression_id, array_value, array_type)?;
+
+                // emit bounds checks when enabled
+                self.emit_bounds_check(
+                    expression_id,
+                    array_value,
+                    array_type,
+                    index_value,
+                    index_expr,
+                )?;
 
                 // emit element.addr
                 let value = self

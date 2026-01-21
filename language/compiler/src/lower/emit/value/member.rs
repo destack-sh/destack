@@ -97,6 +97,7 @@ impl FunctionContext<'_> {
             let aggregate_mir_type = self.state.builder.tree().get(aggregate_type).clone();
             match aggregate_mir_type {
                 mir::Type::Reference { pointee, .. } => {
+                    self.emit_null_check(expression_id, aggregate_value, aggregate_type)?;
                     aggregate_value = self.state.builder.load(aggregate_value, pointee);
                     aggregate_type = pointee;
                 }
@@ -492,6 +493,16 @@ impl FunctionContext<'_> {
         // lower the array value and index
         let (array_value, _array_type) = self.lower_value_expression(left_id)?;
         let (index_value, _index_type) = self.lower_value_expression(index_id)?;
+
+        // emit bounds checks when enabled
+        let array_type = self.lower_type_for_expression(left_id)?;
+        self.emit_bounds_check(
+            expression_id,
+            array_value,
+            array_type,
+            index_value,
+            index_id,
+        )?;
 
         // get the result type (element type)
         let result_type = self.lower_type_for_expression(expression_id)?;

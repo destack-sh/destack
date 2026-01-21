@@ -91,7 +91,7 @@ block0(v0: i32):
 
 /// Lower vtable headers into class allocations in MIR.
 #[test]
-fn test_lower_emits_class_vtable_header() {
+fn test_lower_class_vtable_header() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -146,7 +146,7 @@ block0(v0: i32):
 
 /// Lower explicit class constructors.
 #[test]
-fn test_lower_handles_class_explicit_constructor() {
+fn test_lower_class_explicit_constructor() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -184,7 +184,7 @@ function sumFieldsClassExplicit(a: number, b: number): number {
 
 /// Lower class method that returns a field via `this`.
 #[test]
-fn test_lower_handles_class_method_returning_field() {
+fn test_lower_class_method_returning_field() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -219,7 +219,7 @@ function readValueClass(value: int32): int32 {
 
 /// Lower class method with parameters.
 #[test]
-fn test_lower_handles_class_method_with_parameters() {
+fn test_lower_class_method_with_parameters() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -254,7 +254,7 @@ function computeClass(base: int32, delta: int32): int32 {
 
 /// Lower class vtable metadata with override reuse.
 #[test]
-fn test_lower_emits_class_vtable_metadata() {
+fn test_lower_class_vtable_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -347,7 +347,7 @@ class Car extends Vehicle {
 
 /// Lower virtual call metadata for class dispatch.
 #[test]
-fn test_lower_emits_class_virtual_call_metadata() {
+fn test_lower_class_virtual_call_metadata() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -393,7 +393,7 @@ function callLogger(base: Logger): int32 {
 
 /// Lower virtual dispatch calls in MIR.
 #[test]
-fn test_lower_handles_class_virtual_call() {
+fn test_lower_class_virtual_call() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -488,7 +488,7 @@ function callNotification(): int32 {
 
 /// Lower class lineage metadata for inheritance and interfaces.
 #[test]
-fn test_lower_emits_class_lineage_metadata() {
+fn test_lower_class_lineage_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -536,7 +536,7 @@ class TaggedWidget extends WidgetBase implements Taggable {
 
 /// Lower class layout metadata for inherited fields.
 #[test]
-fn test_lower_emits_class_layout_inheritance() {
+fn test_lower_class_layout_inheritance() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(

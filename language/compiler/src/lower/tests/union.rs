@@ -4,7 +4,7 @@ use crate::TestProgram;
 
 /// Lower union layouts into tagged union structs.
 #[test]
-fn test_lower_emits_union_layout() {
+fn test_lower_union_layout() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -63,12 +63,22 @@ function takeShape(value: Circle | Square): int32 {
         };
         assert_eq!(*length, 1);
         assert!(matches!(tree.get(*element), mir::Type::Usize));
+
+        let metadata = test.type_metadata(tree, union_type);
+        let union_layout = metadata
+            .union_layout
+            .as_ref()
+            .expect("missing union layout metadata");
+        assert!(matches!(
+            union_layout.payload_kind,
+            mir::UnionPayloadKind::Inline
+        ));
     });
 }
 
 /// Lower large unions into boxed payloads.
 #[test]
-fn test_lower_emits_union_layout_boxed() {
+fn test_lower_union_layout_boxed() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -105,11 +115,9 @@ function takeFrame(value: Frame | MegaFrame): int32 {
         // find the union struct type
         let union_type = test.type_by_metadata_name(tree, strings, &union_metadata_name);
 
-        // resolve the payload field type
+        // assert the payload field is a managed pointer
         let payload_type =
             test.expect_struct_field_type_by_name(tree, strings, union_type, "@payload");
-
-        // assert the payload field is a managed pointer
         let payload_type = tree.get(payload_type);
         let mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
@@ -120,12 +128,22 @@ function takeFrame(value: Frame | MegaFrame): int32 {
             panic!("expected managed reference payload for boxed union");
         };
         assert!(matches!(tree.get(*pointee), mir::Type::Void));
+
+        let metadata = test.type_metadata(tree, union_type);
+        let union_layout = metadata
+            .union_layout
+            .as_ref()
+            .expect("missing union layout metadata");
+        assert!(matches!(
+            union_layout.payload_kind,
+            mir::UnionPayloadKind::Boxed
+        ));
     });
 }
 
 /// Lower union upcasts into tagged union payloads.
 #[test]
-fn test_lower_handles_union_upcast() {
+fn test_lower_union_upcast() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -175,7 +193,7 @@ block0(v0: { value: i32 }):
 
 /// Lower boxed union upcasts into managed payload pointers.
 #[test]
-fn test_lower_handles_union_upcast_boxed() {
+fn test_lower_union_upcast_boxed() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -225,7 +243,7 @@ block0(v0: { first: i64, second: i64, third: i64 }):
 
 /// Lower union downcasts into payload loads.
 #[test]
-fn test_lower_handles_union_downcast() {
+fn test_lower_union_downcast() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -270,7 +288,7 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 
 /// Lower union tag comparisons into check terminators.
 #[test]
-fn test_lower_handles_union_tag_check() {
+fn test_lower_union_tag_check() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -313,7 +331,7 @@ block3(v6: i32):
 
 /// Lower discriminant comparisons to tag checks.
 #[test]
-fn test_lower_handles_union_integer_discriminant() {
+fn test_lower_union_integer_discriminant() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -348,7 +366,7 @@ block0(v0: { @tag: u8, @payload: [usize; 1] }):
 
 /// Lower string discriminant comparisons to tag checks.
 #[test]
-fn test_lower_handles_union_string_discriminant() {
+fn test_lower_union_string_discriminant() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -373,6 +391,76 @@ function @isA(v0: { @tag: u8, @payload: ref<managed void> }) -> bool {
 block0(v0: { @tag: u8, @payload: ref<managed void> }):
     v1 = field.get v0, 0
     v2 = iconst 0u8
+    v3 = icmp_eq v1, v2
+    return v3
+}
+        "#,
+    );
+}
+
+/// Lower boolean discriminant comparisons to tag checks.
+#[test]
+fn test_lower_union_boolean_discriminant() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function isReady(value: { kind: true, value: int32 } | { kind: false, value: int32 }): boolean {
+    return value.kind == true;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+function @isReady(v0: { @tag: u8, @payload: [usize; 1] }) -> bool {
+block0(v0: { @tag: u8, @payload: [usize; 1] }):
+    v1 = field.get v0, 0
+    v2 = iconst 1u8
+    v3 = icmp_eq v1, v2
+    return v3
+}
+        "#,
+    );
+}
+
+/// Lower float discriminant comparisons to tag checks.
+#[test]
+fn test_lower_union_float_discriminant() {
+    // set up the test program
+    let test = TestProgram::memory_sequential_with_prelude_and_libs();
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 }): boolean {
+    return value.kind == 1.5;
+}
+"#,
+    );
+
+    // lower the module
+    test.add_target(module_id, "native");
+    test.lower_module(module_id, "native");
+    test.compile_check_clean();
+
+    // assert the lowered mir
+    test.assert_mir(
+        module_id,
+        "native",
+        r#"
+function @isLarge(v0: { @tag: u8, @payload: [usize; 2] }) -> bool {
+block0(v0: { @tag: u8, @payload: [usize; 2] }):
+    v1 = field.get v0, 0
+    v2 = iconst 1u8
     v3 = icmp_eq v1, v2
     return v3
 }

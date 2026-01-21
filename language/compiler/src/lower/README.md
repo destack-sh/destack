@@ -380,38 +380,23 @@ MIR representation:
 
 ### Null and Undefined
 
-TypeScript has both `null` and `undefined`. For native targets, both use the same runtime representation:
-- `null`: Zero/null pointer (0x0)
-- `undefined`: Distinguished sentinel value (0x1)
+TypeScript has both `null` and `undefined`, and native lowering preserves the distinction.
+`null` is represented as a null reference for reference types and remains distinct from `undefined`.
+`undefined` is represented only through tagged unions and never aliases `null` at runtime.
 
-The distinction between `null` and `undefined` exists only at the type system level.
-At runtime, code that needs to distinguish them (rare) uses the sentinel values.
-Most code treats them equivalently: "no value present."
-
-For pointer types, we use **niche optimization** (like Rust's `Option<&T>`).
-The null pointer (0x0) is an invalid address for valid objects, so we can use it
-as the "none" discriminant without adding a tag byte:
-
+A union of a single reference type and `null` lowers to a nullable reference:
 ```ds
 type MaybeRef<T> = T | null  // T is a reference type
-// layout: same size as T, null = 0x0
+// layout: ref?<managed T>
 ```
 
-This is the same optimization Rust uses for `Option<Box<T>>`, `Option<&T>`, etc.
-The "niche" is the invalid bit pattern (null pointer) that we repurpose as a discriminant.
-
-For value types, there's no invalid bit pattern to exploit, so we need a tag:
+All other unions that include `null` or `undefined` lower to tagged union layouts:
 ```ds
 type MaybeInt = int | null
-// layout: { tag: u8, value: int }  // 2 bytes overhead minimum
+type MaybeRefOrUndefined<T> = T | null | undefined
 ```
 
-**Niche optimizations:**
-
-Like Rust, we can exploit invalid bit patterns to save space in type layouts:
-- `boolean | null` → use value 2 for null (bool only uses 0 and 1)
-- `character | null` → use invalid Unicode scalar values
-- Enums with < 256 variants → use unused discriminant values
+Optional parameters (`x?: T`) lower as `x: T | undefined` and remain explicit in the type system.
 
 ### BigInt
 

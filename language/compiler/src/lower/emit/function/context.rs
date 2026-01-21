@@ -9,6 +9,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
+use super::policy::RuntimeCheckConfig;
 use crate::lower::emit::{BreakContext, LocalBinding, LoopContext, Terminates};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
@@ -51,6 +52,8 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
+    /// Runtime check configuration for this target.
+    pub(crate) runtime_checks: RuntimeCheckConfig,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: &'a TypeLowerer,
 }
@@ -423,10 +426,10 @@ impl<'a> FunctionContext<'a> {
                 return Ok((value, target_type));
             }
             dir::CastOperator::NullableUpcast => {
-                return self.lower_union_upcast(expression_id, value_id);
+                return self.lower_nullable_upcast(expression_id, value_id);
             }
             dir::CastOperator::NullableDowncast => {
-                return self.lower_union_downcast(expression_id, value_id);
+                return self.lower_nullable_downcast(expression_id, value_id);
             }
             _ => {}
         }
@@ -448,47 +451,6 @@ impl<'a> FunctionContext<'a> {
         };
 
         Ok((value, target_type))
-    }
-
-    /// Lower a binary expression.
-    fn lower_binary_expression(
-        &mut self,
-        expression_id: LocalNodeId<Expression>,
-        left: LocalNodeId<Expression>,
-        operator: dir::BinaryOperator,
-        right: LocalNodeId<Expression>,
-    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // short-circuit logical operators need special control flow
-        if matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) {
-            return self.lower_logical_operator(expression_id, operator, left, right);
-        }
-
-        // handle union discriminant comparisons
-        if let Some(value) =
-            self.lower_union_discriminant_comparison(expression_id, left, operator, right)?
-        {
-            return Ok((value, self.env.type_lowerer.ty_bool));
-        }
-
-        // lower operands
-        let (left_value, _) = self.lower_value_expression(left)?;
-        let (right_value, _) = self.lower_value_expression(right)?;
-
-        // get result type
-        let result_type = self.lower_type_for_expression(expression_id)?;
-
-        // emit binary operation
-        let op = self.lower_binary_operator(expression_id, operator, left)?;
-        let value = self.state.builder.binary_op(op, left_value, right_value);
-
-        // comparisons produce bool, others preserve operand type
-        let ty = if op.is_comparison() {
-            self.env.type_lowerer.ty_bool
-        } else {
-            result_type
-        };
-
-        Ok((value, ty))
     }
 
     /// Lower an assignment expression.
@@ -587,24 +549,26 @@ impl<'a> FunctionContext<'a> {
 
                 // update the aggregate value
                 let current = self.state.builder.use_variable(binding.variable);
-                match self.state.builder.tree().get(binding.ty) {
-                    mir::Type::Reference { pointee, .. } => {
-                        let aggregate = self.state.builder.load(current, *pointee);
-                        let updated =
-                            self.state
-                                .builder
-                                .field_set(aggregate, field_index as u32, value);
-                        self.state.builder.store(current, updated);
-                    }
-                    _ => {
-                        let updated =
-                            self.state
-                                .builder
-                                .field_set(current, field_index as u32, value);
+                let reference_pointee = match self.state.builder.tree().get(binding.ty) {
+                    mir::Type::Reference { pointee, .. } => Some(*pointee),
+                    _ => None,
+                };
+                if let Some(pointee) = reference_pointee {
+                    self.emit_null_check(expression_id, current, binding.ty)?;
+                    let aggregate = self.state.builder.load(current, pointee);
+                    let updated =
                         self.state
                             .builder
-                            .define_variable(binding.variable, updated);
-                    }
+                            .field_set(aggregate, field_index as u32, value);
+                    self.state.builder.store(current, updated);
+                } else {
+                    let updated = self
+                        .state
+                        .builder
+                        .field_set(current, field_index as u32, value);
+                    self.state
+                        .builder
+                        .define_variable(binding.variable, updated);
                 };
                 self.mark_constructor_field_initialized(field_index as u32);
             }

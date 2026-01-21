@@ -433,7 +433,7 @@ fn is_trap_block(block_id: mir::LocalNodeId<mir::Block>, tree: &mir::NodeTree) -
         let instruction = tree.get(instruction_id);
         match instruction {
             mir::Instruction::Intrinsic { intrinsic, .. } => match intrinsic {
-                mir::Intrinsic::Abort | mir::Intrinsic::Unreachable => {}
+                mir::Intrinsic::Abort | mir::Intrinsic::Panic | mir::Intrinsic::Unreachable => {}
                 _ => return false,
             },
             _ => return false,
