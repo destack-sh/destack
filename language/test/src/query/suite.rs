@@ -166,8 +166,7 @@ impl QuerySuite {
         let cases = match parse_mdtest_file(md_path) {
             Ok(cases) => cases,
             Err(error) => {
-                eprintln!("failed to parse {}: {error}", md_path.display());
-                return;
+                panic!("failed to parse {}: {error}", md_path.display());
             }
         };
 
