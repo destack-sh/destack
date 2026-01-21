@@ -26,6 +26,13 @@ export declare function breakpoint(): void;
 @intrinsic("abort")
 export declare function abort(): never;
 
+/// Trigger a panic with a message.
+///
+/// Terminates the program with a diagnostic message.
+/// Does not return.
+@intrinsic("panic")
+export declare function panic(message: string): never;
+
 /// Get the return address.
 ///
 /// Returns the address to which the current function will return.
