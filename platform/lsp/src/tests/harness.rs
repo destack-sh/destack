@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use destack_lsp_server::jsonrpc::{Request, Response};
-use destack_lsp_server::{ClientSocket, LspService};
+use destack_lsp_server::{ClientSocket, LspService, UriExt};
 use destack_lsp_types as lsp;
+use destack_source::TemporaryPhysicalFileSystem;
 use futures::{SinkExt, StreamExt};
 use serde::Serialize;
 use tokio::sync::mpsc;
@@ -12,10 +12,10 @@ use tower::Service;
 
 use crate::DestackLanguageServer;
 
-static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 const MAX_CLIENT_REQUESTS: usize = 16;
+const DEFAULT_DIAGNOSTICS_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// LSP test harness for driving the in-process server.
+/// LSP test harness for driving the in process server.
 #[derive(Debug)]
 pub struct LspHarness {
     /// The LSP service under test.
@@ -28,22 +28,17 @@ pub struct LspHarness {
 
 impl LspHarness {
     /// Create a new harness with the given workspace root.
-    pub async fn new(root: PathBuf) -> Self {
+    pub fn new(root: PathBuf) -> Self {
         // create the server and client socket
         let (service, client) = LspService::new(DestackLanguageServer::new);
 
         // build the harness state
         let client_rx = spawn_client_drain(client);
-        let mut harness = Self {
+        Self {
             service,
             client_rx,
             root,
-        };
-
-        // initialize the server session
-        harness.initialize().await;
-
-        harness
+        }
     }
 
     /// Send a JSON-RPC request to the server.
@@ -111,15 +106,32 @@ impl LspHarness {
 
     /// Receive the next publish diagnostics notification for a URI.
     pub async fn next_diagnostics_for(&mut self, uri: &lsp::Uri) -> lsp::PublishDiagnosticsParams {
-        // drain diagnostics until a matching uri is found
-        for _ in 0..MAX_CLIENT_REQUESTS {
-            let diagnostics = self.next_diagnostics().await;
+        self.next_diagnostics_for_timeout(uri, DEFAULT_DIAGNOSTICS_TIMEOUT)
+            .await
+    }
+
+    /// Receive diagnostics for a uri within the timeout window.
+    pub async fn next_diagnostics_for_timeout(
+        &mut self,
+        uri: &lsp::Uri,
+        timeout: Duration,
+    ) -> lsp::PublishDiagnosticsParams {
+        // wait until the deadline expires
+        let deadline = tokio::time::Instant::now() + timeout;
+        loop {
+            let now = tokio::time::Instant::now();
+            let remaining = deadline.checked_duration_since(now).unwrap_or_default();
+            if remaining.is_zero() {
+                panic!("timeout waiting for diagnostics for uri {uri:?}");
+            }
+
+            let diagnostics = tokio::time::timeout(remaining, self.next_diagnostics())
+                .await
+                .unwrap_or_else(|_| panic!("timeout waiting for diagnostics for uri {uri:?}"));
             if &diagnostics.uri == uri {
                 return diagnostics;
             }
         }
-
-        panic!("missing diagnostics for uri {uri:?}");
     }
 
     /// Send a didOpen notification with full text.
@@ -201,7 +213,7 @@ impl LspHarness {
     }
 
     /// Initialize the LSP server with a workspace root.
-    async fn initialize(&mut self) {
+    pub async fn initialize(&mut self) {
         // build initialize params
         #[allow(deprecated)]
         let params = lsp::InitializeParams {
@@ -270,20 +282,17 @@ pub fn notification_with_params<T: Serialize>(method: &str, params: T) -> Reques
 /// Build a file URI for a path.
 pub fn uri_for_path(path: &Path) -> lsp::Uri {
     // format a file URI from a path
-    let uri = format!("file://{}", path.to_string_lossy());
-    uri.parse().expect("file uri parse")
+    lsp::Uri::from_file_path(path).expect("file uri parse")
 }
 
-/// Create a new temporary workspace root path.
-pub fn temp_root(prefix: &str) -> PathBuf {
-    // derive a unique suffix for the test
-    let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos();
-    let name = format!("destack_lsp_{prefix}_{nanos}_{counter}");
+/// Create a new temporary filesystem for LSP tests.
+pub fn test_fs(prefix: &str) -> TemporaryPhysicalFileSystem {
+    TemporaryPhysicalFileSystem::new_with_prefix(prefix)
+}
 
-    // build the full temp path
-    std::env::temp_dir().join(name)
+/// Build and initialize an LSP harness for a temp filesystem.
+pub async fn harness_for_fs(fs: &TemporaryPhysicalFileSystem) -> LspHarness {
+    let mut harness = LspHarness::new(fs.root().to_path_buf());
+    harness.initialize().await;
+    harness
 }

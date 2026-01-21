@@ -14,6 +14,6 @@ fn test_daemon_tracks_program_handles_per_root() {
     test.update_file(&file_a, "export const a = 1;");
     test.update_file(&file_b, "export const b = 2;");
 
-    // assertion block: each root has its own handle
+    // check that each root has its own handle
     assert_eq!(test.daemon.program_handle_count(), 2);
 }

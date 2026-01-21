@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use destack_source::FileWatchEventKind;
+use destack_source::{FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 
 use crate::WatchPolicy;
 use crate::tests::TestWatchHarness;
@@ -20,7 +20,7 @@ fn test_watch_coalesces_events() {
 
     let batch = harness.next_batch();
 
-    // assertion block: batch captures events without overflow
+    // check that the batch captures events without overflow
     assert_eq!(batch.event_count(), 2);
     assert!(!batch.has_status(), "expected no status updates");
     batch.assert_event_suffix("a.ds");
@@ -44,7 +44,7 @@ fn test_watch_marks_overflow() {
 
     let batch = harness.next_batch();
 
-    // assertion block: overflow is flagged
+    // check that the overflow is flagged
     assert_eq!(batch.event_count(), 1);
     assert!(batch.overflowed(), "expected overflow to be flagged");
 
@@ -68,14 +68,64 @@ fn test_watch_batch_updates_daemon() {
     harness.emit("watched.ds", FileWatchEventKind::Modified);
 
     let batch = harness.next_batch();
-    let updates = harness.apply_batch(&batch);
+    let result = harness.apply_batch(&batch);
 
-    // assertion block: daemon updates include diagnostics
-    assert_eq!(updates.len(), 1);
+    // check that the daemon updates include diagnostics
     assert!(
-        !updates[0].diagnostics.is_empty(),
+        result
+            .updates
+            .iter()
+            .any(|update| !update.diagnostics.is_empty()),
         "expected diagnostics for watched update"
     );
+
+    harness.stop();
+}
+
+/// Requests rescan when configuration files change.
+#[test]
+fn test_watch_batch_requests_rescan_for_config() {
+    let policy = WatchPolicy {
+        coalesce_window: Duration::from_millis(50),
+        max_batch_size: 8,
+    };
+    let harness = TestWatchHarness::new(policy);
+
+    harness.skip_startup();
+
+    harness
+        .test
+        .write_text("dsconfig.json", "{ \"compilerOptions\": {} }");
+    harness.emit("dsconfig.json", FileWatchEventKind::Modified);
+
+    let batch = harness.next_batch();
+    let result = harness.apply_batch(&batch);
+
+    // check that the rescan is requested for config updates
+    assert!(!result.updated());
+    assert!(result.rescan);
+
+    harness.stop();
+}
+
+/// Surfaces rescan status updates from watchers.
+#[test]
+fn test_watch_batch_handles_status_rescan() {
+    let harness = TestWatchHarness::new(WatchPolicy::default());
+
+    let mut batch = crate::WatchBatch::new(Instant::now());
+    batch.status.push(FileWatchStatus::RescanRequested {
+        roots: vec![],
+        reason: FileWatchRescanReason::Manual,
+    });
+    batch.ended_at = Instant::now();
+
+    let result = harness.test.apply_watch_batch(&batch);
+
+    // check that the status rescan is surfaced without updates
+    assert!(!result.updated());
+    assert!(result.rescan);
+    assert!(!result.messages.is_empty());
 
     harness.stop();
 }

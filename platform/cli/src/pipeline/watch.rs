@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_compiler::{CompilerEventHandler, CompilerOptions, StatsSnapshot};
-use destack_daemon::{Daemon, WatchCoordinator, WatchPolicy};
+use destack_daemon::{Daemon, DaemonMessage, DaemonMessageKind, WatchCoordinator, WatchPolicy};
 use destack_source::{
-    DiagnosticOptions, FileType, FileWatchEvent, FileWatchEventKind, FileWatchFilter,
-    FileWatchOptions, FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
+    DiagnosticOptions, FileType, FileWatchFilter, FileWatchOptions, FileWatcher,
+    PhysicalFileWatcher,
 };
 use destack_workspace::{Program, Session};
 
@@ -16,26 +16,6 @@ use crate::common::{
     CommandStats, WatchCompileJson, WatchCompileReason, WatchReporter, collect_diagnostics_json,
 };
 use crate::console;
-
-/// Result from applying a watch event.
-#[derive(Debug, Clone, Default)]
-pub struct WatchEventResult {
-    /// Whether a file update was applied.
-    pub updated: bool,
-    /// Whether a rescan is required.
-    pub rescan: bool,
-    /// Optional warning message to surface.
-    pub message: Option<String>,
-}
-
-/// Result from handling a watcher status update.
-#[derive(Debug, Clone, Default)]
-pub struct WatchStatusResult {
-    /// Whether a rescan is required.
-    pub rescan: Option<bool>,
-    /// Optional warning message to surface.
-    pub message: Option<String>,
-}
 
 /// Options for the shared watch loop.
 #[derive(Clone)]
@@ -148,204 +128,6 @@ pub fn is_watchable_path(path: &Path) -> bool {
     file_type.is_code() || file_type.is_data() || file_type.is_text()
 }
 
-/// Check if a path should trigger a rescan for configuration changes.
-pub fn is_config_path(path: &Path) -> bool {
-    // detect dsconfig.json or tsconfig json variants
-    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-        return false;
-    };
-
-    if file_name == "dsconfig.json" {
-        return true;
-    }
-
-    file_name.starts_with("tsconfig") && file_name.ends_with(".json")
-}
-
-/// Apply a file watch event and update the daemon.
-pub fn apply_watch_event(
-    daemon: &Daemon,
-    session: &Session,
-    event: &FileWatchEvent,
-) -> WatchEventResult {
-    // handle overflow events by forcing a rescan
-    if matches!(event.kind, FileWatchEventKind::Overflow) {
-        return WatchEventResult {
-            updated: false,
-            rescan: true,
-            message: Some("watch: rescan required after overflow".to_string()),
-        };
-    }
-
-    // handle delete by marking the file missing
-    if matches!(event.kind, FileWatchEventKind::Deleted) {
-        let requires_rescan = is_config_path(&event.path);
-        if !is_watchable_path(&event.path) {
-            return WatchEventResult {
-                updated: false,
-                rescan: requires_rescan,
-                message: None,
-            };
-        }
-
-        if let Err(error) = daemon.remove_virtual_file(&event.path) {
-            return WatchEventResult {
-                updated: false,
-                rescan: requires_rescan,
-                message: Some(format!(
-                    "watch: failed to remove {}: {error}",
-                    event.path.display()
-                )),
-            };
-        }
-
-        return WatchEventResult {
-            updated: true,
-            rescan: requires_rescan,
-            message: None,
-        };
-    }
-
-    // handle rename as a delete plus create
-    if matches!(event.kind, FileWatchEventKind::Renamed) {
-        let mut requires_rescan = false;
-        let mut updated = false;
-        let mut message = None;
-
-        if let Some(previous) = event.previous_path.as_ref() {
-            requires_rescan |= is_config_path(previous);
-            if is_watchable_path(previous)
-                && let Err(error) = daemon.remove_virtual_file(previous)
-            {
-                message = Some(format!(
-                    "watch: failed to remove {}: {error}",
-                    previous.display()
-                ));
-            }
-        } else {
-            requires_rescan = true;
-        }
-
-        requires_rescan |= is_config_path(&event.path);
-        if is_watchable_path(&event.path) {
-            let content = match session.fs.read_to_string(&event.path) {
-                Ok(content) => content,
-                Err(error) => {
-                    return WatchEventResult {
-                        updated: false,
-                        rescan: requires_rescan,
-                        message: Some(format!(
-                            "watch: failed to read {}: {error}",
-                            event.path.display()
-                        )),
-                    };
-                }
-            };
-
-            if let Err(error) = daemon.update_virtual_file(&event.path, content) {
-                return WatchEventResult {
-                    updated: false,
-                    rescan: requires_rescan,
-                    message: Some(format!(
-                        "watch: failed to update {}: {error}",
-                        event.path.display()
-                    )),
-                };
-            }
-
-            updated = true;
-        }
-
-        return WatchEventResult {
-            updated,
-            rescan: requires_rescan,
-            message,
-        };
-    }
-
-    // ignore paths outside the watch filter
-    if !is_watchable_path(&event.path) {
-        return WatchEventResult {
-            updated: false,
-            rescan: false,
-            message: None,
-        };
-    }
-
-    // rescan when configuration files change
-    let requires_rescan = is_config_path(&event.path);
-
-    // read file content for updates
-    let content = match session.fs.read_to_string(&event.path) {
-        Ok(content) => content,
-        Err(error) => {
-            return WatchEventResult {
-                updated: false,
-                rescan: requires_rescan,
-                message: Some(format!(
-                    "watch: failed to read {}: {error}",
-                    event.path.display()
-                )),
-            };
-        }
-    };
-
-    // update via daemon and report errors
-    if let Err(error) = daemon.update_virtual_file(&event.path, content) {
-        return WatchEventResult {
-            updated: false,
-            rescan: requires_rescan,
-            message: Some(format!(
-                "watch: failed to update {}: {error}",
-                event.path.display()
-            )),
-        };
-    }
-
-    WatchEventResult {
-        updated: true,
-        rescan: requires_rescan,
-        message: None,
-    }
-}
-
-/// Handle watch status updates and report whether a rescan is required.
-pub fn handle_watch_status(status: &FileWatchStatus) -> WatchStatusResult {
-    // report watcher errors
-    if let FileWatchStatus::Error { message } = status {
-        return WatchStatusResult {
-            rescan: Some(false),
-            message: Some(format!("watch: {message}")),
-        };
-    }
-
-    // ignore startup rescan because the initial compile already ran
-    if let FileWatchStatus::RescanRequested { reason, .. } = status
-        && matches!(reason, FileWatchRescanReason::Startup)
-    {
-        return WatchStatusResult {
-            rescan: Some(false),
-            message: None,
-        };
-    }
-
-    // report rescan requests that require a full compile
-    if let FileWatchStatus::RescanRequested { reason, .. } = status {
-        let message = match reason {
-            FileWatchRescanReason::Startup => "watch: rescan requested at startup",
-            FileWatchRescanReason::Overflow => "watch: rescan requested after overflow",
-            FileWatchRescanReason::Manual => "watch: rescan requested",
-            FileWatchRescanReason::Update => "watch: rescan requested after update",
-        };
-        return WatchStatusResult {
-            rescan: Some(true),
-            message: Some(message.to_string()),
-        };
-    }
-
-    WatchStatusResult::default()
-}
-
 /// Prefix a message with the watch label.
 pub fn watch_error(message: &str) -> String {
     format!("watch: {message}")
@@ -432,7 +214,6 @@ pub fn emit_watch_compile_report(
 #[allow(clippy::too_many_arguments)]
 pub fn run_watch_loop<State, StartFn, RescanFn, CompileFn>(
     daemon: &Daemon,
-    session: &Session,
     roots: Vec<PathBuf>,
     reporter: &mut Option<WatchReporter>,
     loop_options: WatchLoopOptions,
@@ -454,6 +235,9 @@ where
         bool,
     ) -> WatchLoopAction,
 {
+    // retain roots for rescans
+    let watch_roots = roots.clone();
+
     // start the file watcher
     let coordinator = WatchCoordinator::new(
         loop_options.watcher,
@@ -482,33 +266,27 @@ where
             reporter.emit_batch(batch_id, &batch);
         }
 
-        // handle status updates and overflow
-        let mut requires_rescan = batch.overflowed;
-        for status in &batch.status {
-            let status_result = handle_watch_status(status);
-            if let Some(rescan) = status_result.rescan {
-                requires_rescan = requires_rescan || rescan;
-            }
-            if let Some(message) = status_result.message {
-                emit_watch_warning(reporter, &message);
-            }
+        // apply daemon watch updates
+        let result = daemon.apply_watch_batch(&batch);
+        let requires_rescan = result.rescan;
+        for message in &result.messages {
+            emit_watch_message(reporter, message);
         }
 
-        // apply file updates from events
-        let mut updated = false;
-        for event in &batch.events {
-            let result = apply_watch_event(daemon, session, event);
-            updated = updated || result.updated;
-            requires_rescan = requires_rescan || result.rescan;
-            if let Some(message) = result.message {
-                emit_watch_warning(reporter, &message);
-            }
-        }
+        let mut updated = result.updated();
 
         // refresh sources when a rescan is requested
-        if requires_rescan && let Err(message) = on_rescan(state) {
-            emit_watch_warning(reporter, &message);
-            continue;
+        if requires_rescan {
+            let rescan_result = daemon.rescan_roots(&watch_roots);
+            updated = updated || rescan_result.updated();
+            for message in &rescan_result.messages {
+                emit_watch_message(reporter, message);
+            }
+
+            if let Err(message) = on_rescan(state) {
+                emit_watch_warning(reporter, &message);
+                continue;
+            }
         }
 
         // compile on updates or rescans
@@ -552,6 +330,22 @@ pub fn print_watch_diagnostics(
         module_count,
         line_writer,
     )
+}
+
+/// Emit a watch message through the reporter or console.
+fn emit_watch_message(reporter: &mut Option<WatchReporter>, message: &DaemonMessage) {
+    // report to json watchers when available
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_warning(&message.render());
+        return;
+    }
+
+    let rendered = message.render();
+    match message.kind() {
+        DaemonMessageKind::Info => console::info(&rendered),
+        DaemonMessageKind::Warning => console::warn(&rendered),
+        DaemonMessageKind::Error => console::error(&rendered),
+    }
 }
 
 /// Emit a watch warning through the reporter or console.

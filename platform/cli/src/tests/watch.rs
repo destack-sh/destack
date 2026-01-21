@@ -3,16 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use destack_daemon::{Daemon, WatchPolicy};
-use destack_source::{
-    File, FileType, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus,
-    MemoryFileWatcher, Uri,
-};
+use destack_source::{File, FileType, FileWatchEvent, FileWatchEventKind, MemoryFileWatcher, Uri};
 use destack_workspace::Program;
 
 use crate::common::WatchCompileReason;
 use crate::pipeline::watch::{
-    WatchLoopAction, WatchLoopOptions, apply_watch_event, build_watch_options, handle_watch_status,
-    is_config_path, is_watchable_path, run_watch_loop,
+    WatchLoopAction, WatchLoopOptions, build_watch_options, is_watchable_path, run_watch_loop,
 };
 
 use super::tests::TestProgram;
@@ -92,12 +88,7 @@ impl WatchLoopHarness {
     }
 
     /// Run a watch loop cycle while emitting a single event.
-    fn run_once(
-        &self,
-        session: &destack_workspace::Session,
-        root: PathBuf,
-        event: FileWatchEvent,
-    ) -> (i32, WatchLoopState) {
+    fn run_once(&self, root: PathBuf, event: FileWatchEvent) -> (i32, WatchLoopState) {
         // set up watch state
         let mut state = WatchLoopState::default();
         let mut reporter = None;
@@ -105,7 +96,6 @@ impl WatchLoopHarness {
         // execute the loop and emit the event immediately after startup
         let exit_code = run_watch_loop(
             &self.daemon,
-            session,
             vec![root],
             &mut reporter,
             self.options.clone(),
@@ -149,21 +139,6 @@ fn test_is_watchable_path_filters_extensions() {
     assert!(!is_watchable_path(&image));
 }
 
-/// Confirm dsconfig and tsconfig patterns are recognized.
-#[test]
-fn test_is_config_path_matches_configs() {
-    let dsconfig = PathBuf::from("dsconfig.json");
-    let tsconfig = PathBuf::from("tsconfig.json");
-    let tsconfig_base = PathBuf::from("tsconfig.base.json");
-    let other = PathBuf::from("package.json");
-
-    // assert config matches
-    assert!(is_config_path(&dsconfig));
-    assert!(is_config_path(&tsconfig));
-    assert!(is_config_path(&tsconfig_base));
-    assert!(!is_config_path(&other));
-}
-
 /// Ensure watch options include a usable filter.
 #[test]
 fn test_build_watch_options_filters_paths() {
@@ -199,10 +174,10 @@ fn test_apply_watch_event_updates_file() {
         kind: FileWatchEventKind::Modified,
     };
 
-    let result = apply_watch_event(&daemon, &test.session, &event);
+    let result = daemon.apply_watch_event(&event);
 
     // assert the update is applied without rescan
-    assert!(result.updated);
+    assert!(result.updated());
     assert!(!result.rescan);
 }
 
@@ -227,14 +202,14 @@ fn test_apply_watch_event_deletes_file() {
         kind: FileWatchEventKind::Deleted,
     };
 
-    let result = apply_watch_event(&daemon, &test.session, &event);
+    let result = daemon.apply_watch_event(&event);
     let file = program
         .files
         .get_by_path(&path)
         .expect("file should be tracked");
 
-    // assertion block: deleted files are marked missing
-    assert!(result.updated);
+    // check that the deleted files are marked missing
+    assert!(result.updated());
     assert!(!result.rescan);
     assert!(file.is_missing());
 }
@@ -268,7 +243,7 @@ fn test_apply_watch_event_renames_file() {
         kind: FileWatchEventKind::Renamed,
     };
 
-    let result = apply_watch_event(&daemon, &test.session, &event);
+    let result = daemon.apply_watch_event(&event);
     let old_file = program
         .files
         .get_by_path(&old_path)
@@ -278,8 +253,8 @@ fn test_apply_watch_event_renames_file() {
         .get_by_path(&new_path)
         .expect("new file should be tracked");
 
-    // assertion block: rename removes the old file and updates the new one
-    assert!(result.updated);
+    // check that the rename removes the old file and updates the new one
+    assert!(result.updated());
     assert!(!result.rescan);
     assert!(old_file.is_missing());
     assert!(!new_file.is_missing());
@@ -306,48 +281,11 @@ fn test_apply_watch_event_requests_rescan_for_config() {
         kind: FileWatchEventKind::Modified,
     };
 
-    let result = apply_watch_event(&daemon, &test.session, &event);
+    let result = daemon.apply_watch_event(&event);
 
-    // assert the rescan is requested
-    assert!(result.updated);
+    // check that the rescan is requested
+    assert!(!result.updated());
     assert!(result.rescan);
-}
-
-/// Ensure watch status handling returns rescan flags.
-#[test]
-fn test_handle_watch_status_rescan() {
-    let roots = vec![PathBuf::from("/test")];
-
-    let startup = FileWatchStatus::RescanRequested {
-        roots: roots.clone(),
-        reason: FileWatchRescanReason::Startup,
-    };
-    let manual = FileWatchStatus::RescanRequested {
-        roots,
-        reason: FileWatchRescanReason::Manual,
-    };
-
-    // assert startup rescan is ignored
-    let startup_result = handle_watch_status(&startup);
-    assert_eq!(startup_result.rescan, Some(false));
-    assert!(startup_result.message.is_none());
-
-    let manual_result = handle_watch_status(&manual);
-    assert_eq!(manual_result.rescan, Some(true));
-    assert!(manual_result.message.is_some());
-}
-
-/// Ensure watcher errors are reported.
-#[test]
-fn test_handle_watch_status_error() {
-    let status = FileWatchStatus::Error {
-        message: "watcher failed".to_string(),
-    };
-
-    // assert error status is surfaced
-    let result = handle_watch_status(&status);
-    assert_eq!(result.rescan, Some(false));
-    assert!(result.message.is_some());
 }
 
 /// Exercise the shared watch loop for config updates.
@@ -370,9 +308,9 @@ fn test_run_watch_loop_handles_config_update() {
         previous_path: None,
         kind: FileWatchEventKind::Modified,
     };
-    let (exit_code, state) = harness.run_once(&test.session, test.root.clone(), event);
+    let (exit_code, state) = harness.run_once(test.root.clone(), event);
 
-    // assertion block: verify config updates trigger rescan compiles
+    // check that the config updates trigger rescan compiles
     assert_eq!(exit_code, 0);
     assert_eq!(state.rescan_calls, 1);
     assert_eq!(state.compile_calls, 1);
@@ -401,9 +339,9 @@ fn test_run_watch_loop_handles_source_update() {
         previous_path: None,
         kind: FileWatchEventKind::Modified,
     };
-    let (exit_code, state) = harness.run_once(&test.session, test.root.clone(), event);
+    let (exit_code, state) = harness.run_once(test.root.clone(), event);
 
-    // assertion block: verify source updates skip rescan
+    // check that the source updates skip rescan
     assert_eq!(exit_code, 0);
     assert_eq!(state.rescan_calls, 0);
     assert_eq!(state.compile_calls, 1);

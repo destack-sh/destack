@@ -1,15 +1,1142 @@
-use destack_source::{Diagnostic, FileId, ModuleId};
-use destack_workspace::InvalidationPlan;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-/// Summary of a daemon update.
-#[derive(Debug, Clone)]
-pub struct DaemonUpdate {
-    /// The module id that was updated.
-    pub module_id: Option<ModuleId>,
-    /// The file id for the updated module.
-    pub file_id: FileId,
-    /// The invalidation summary for the update.
-    pub invalidation: InvalidationPlan,
-    /// Diagnostics for the updated file.
-    pub diagnostics: Vec<Diagnostic>,
+use dashmap::mapref::entry::Entry;
+use destack_compiler::{AnalyzeTask, Compiler, ResolveTask};
+use destack_resolver::{CachePolicy, ResolveError, ResolveOptions, Resolver};
+use destack_source::{
+    Diagnostic, FileContent, FileId, FileType, FileWatchEvent, FileWatchEventKind,
+    FileWatchRescanReason, FileWatchStatus, ModuleId, ModuleStamp,
+};
+use destack_workspace::{
+    FileUpdate, InvalidationKind, ModuleGraphKey, ProfileId, Program, TargetId,
+};
+use parking_lot::Mutex;
+
+use crate::{
+    DaemonError, DaemonMessage, DaemonRescanResult, DaemonUpdate, DaemonWatchBatchResult,
+    DaemonWatchEventResult,
+};
+
+use super::Daemon;
+use super::program::ProgramHandle;
+
+impl Daemon {
+    /// Apply a text update and reanalyze the owning module.
+    pub fn update_file(
+        &self,
+        path: &Path,
+        content: String,
+    ) -> Result<Vec<DaemonUpdate>, DaemonError> {
+        // update the filesystem content
+        self.session
+            .fs
+            .write_string(path, &content)
+            .map_err(|error| DaemonError::FileWrite {
+                path: path.to_path_buf(),
+                error,
+            })?;
+
+        self.update_virtual_file(path, content)
+    }
+
+    /// Apply a text update without writing to the filesystem.
+    pub fn update_virtual_file(
+        &self,
+        path: &Path,
+        content: String,
+    ) -> Result<Vec<DaemonUpdate>, DaemonError> {
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
+
+        // resolve config file ids before registering modules
+        let config_file_id = if self.is_config_filename(path) {
+            let mut file_id = program.files.get_id_by_path(path);
+            if file_id.is_none() {
+                // load config files to preserve stable file ids
+                let resolver = Resolver::from_program(&program, ResolveOptions::default());
+                if path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name == "dsconfig.json")
+                {
+                    let _ = resolver.load_dsconfig(path, CachePolicy::Reload);
+                } else {
+                    let _ = resolver.reload_tsconfig(path);
+                }
+                file_id = program.files.get_id_by_path(path);
+            }
+            file_id
+        } else {
+            None
+        };
+
+        // resolve path to module or fall back to tracked files
+        let module_id = if config_file_id.is_some() {
+            None
+        } else {
+            match compiler.resolve_path_to_module(&path.to_path_buf()) {
+                Ok(module_id) => Some(module_id),
+                Err(error) => {
+                    if program.files.get_id_by_path(path).is_some() {
+                        None
+                    } else {
+                        return Err(DaemonError::Resolve {
+                            path: path.to_path_buf(),
+                            error: Box::new(error),
+                        });
+                    }
+                }
+            }
+        };
+
+        // resolve file id for invalidation
+        let file_id = if let Some(file_id) = config_file_id {
+            file_id
+        } else {
+            match module_id {
+                Some(module_id) => program.modules.get(module_id).read().file_id,
+                None => match program.files.get_id_by_path(path) {
+                    Some(file_id) => file_id,
+                    None => {
+                        return Err(DaemonError::FileNotTracked {
+                            path: path.to_path_buf(),
+                        });
+                    }
+                },
+            }
+        };
+        let invalidation = program
+            .invalidate_file(file_id, FileUpdate::Text { content })
+            .map_err(|error| DaemonError::Invalidation {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })?;
+
+        // refresh configs when config files change
+        if self.should_refresh_configs(&program, &invalidation, path) {
+            let resolver = Resolver::from_program(&program, ResolveOptions::default());
+            for message in self.refresh_program_configs(&resolver, &program) {
+                tracing::warn!(code = message.code(), message = %message, "daemon.config.refresh_failed");
+            }
+        }
+
+        let mut updates = Vec::new();
+        let update = DaemonUpdate {
+            module_id,
+            file_id,
+            invalidation,
+            diagnostics: Vec::new(),
+        };
+        updates.push(update);
+
+        // analyze the updated module when available
+        self.analyze_updates(&program, &compiler, &mut updates);
+
+        Ok(updates)
+    }
+
+    /// Apply a watch event through the daemon.
+    pub fn apply_watch_event(&self, event: &FileWatchEvent) -> DaemonWatchEventResult {
+        // handle overflow events by forcing a rescan
+        if matches!(event.kind, FileWatchEventKind::Overflow) {
+            return DaemonWatchEventResult {
+                updates: Vec::new(),
+                rescan: true,
+                messages: vec![DaemonMessage::WatchOverflowRescan],
+            };
+        }
+
+        let requires_rescan = self.config_change_requires_rescan(&event.path);
+
+        // handle delete by marking the file missing
+        if matches!(event.kind, FileWatchEventKind::Deleted) {
+            // guard on non watchable deletes and config rescans
+            if !self.is_watchable_path(&event.path) {
+                return DaemonWatchEventResult {
+                    updates: Vec::new(),
+                    rescan: requires_rescan,
+                    messages: Vec::new(),
+                };
+            }
+            if requires_rescan {
+                return DaemonWatchEventResult {
+                    updates: Vec::new(),
+                    rescan: true,
+                    messages: Vec::new(),
+                };
+            }
+
+            // apply delete invalidation
+            let updates = match self.remove_virtual_file(&event.path) {
+                Ok(updates) => updates,
+                Err(error) => {
+                    return DaemonWatchEventResult {
+                        updates: Vec::new(),
+                        rescan: requires_rescan,
+                        messages: vec![DaemonMessage::WatchRemoveFailed {
+                            path: event.path.clone(),
+                            error: error.to_string(),
+                        }],
+                    };
+                }
+            };
+
+            return DaemonWatchEventResult {
+                updates,
+                rescan: requires_rescan,
+                messages: Vec::new(),
+            };
+        }
+
+        // handle rename as a delete plus create
+        if matches!(event.kind, FileWatchEventKind::Renamed) {
+            // track rename updates and rescan state
+            let mut requires_rescan = false;
+            let mut updates = Vec::new();
+            let mut messages = Vec::new();
+            let new_requires_rescan = self.config_change_requires_rescan(&event.path);
+
+            // remove the previous path while tracking rescan state
+            if let Some(previous) = event.previous_path.as_ref() {
+                requires_rescan |= self.config_change_requires_rescan(previous);
+                if self.is_watchable_path(previous) {
+                    match self.remove_virtual_file(previous) {
+                        Ok(mut previous_updates) => updates.append(&mut previous_updates),
+                        Err(error) => {
+                            messages.push(DaemonMessage::WatchRemoveFailed {
+                                path: previous.clone(),
+                                error: error.to_string(),
+                            });
+                        }
+                    }
+                }
+            } else {
+                requires_rescan = true;
+            }
+
+            // apply the new path when watchable
+            requires_rescan |= new_requires_rescan;
+            if self.is_watchable_path(&event.path) && !new_requires_rescan {
+                let content = match self.session.fs.read_to_string(&event.path) {
+                    Ok(content) => content,
+                    Err(error) => {
+                        messages.push(DaemonMessage::WatchReadFailed {
+                            path: event.path.clone(),
+                            error: error.to_string(),
+                        });
+                        return DaemonWatchEventResult {
+                            updates,
+                            rescan: requires_rescan,
+                            messages,
+                        };
+                    }
+                };
+
+                match self.update_virtual_file(&event.path, content) {
+                    Ok(mut new_updates) => updates.append(&mut new_updates),
+                    Err(error) => {
+                        if self.error_requires_rescan(&error) {
+                            requires_rescan = true;
+                        }
+                        messages.push(DaemonMessage::WatchUpdateFailed {
+                            path: event.path.clone(),
+                            error: error.to_string(),
+                        });
+                    }
+                }
+            }
+
+            return DaemonWatchEventResult {
+                updates,
+                rescan: requires_rescan,
+                messages,
+            };
+        }
+
+        // guard on non watchable paths and config rescans
+        if !self.is_watchable_path(&event.path) {
+            return DaemonWatchEventResult {
+                updates: Vec::new(),
+                rescan: requires_rescan,
+                messages: Vec::new(),
+            };
+        }
+        if requires_rescan {
+            return DaemonWatchEventResult {
+                updates: Vec::new(),
+                rescan: true,
+                messages: Vec::new(),
+            };
+        }
+
+        // read the updated content from disk
+        let content = match self.session.fs.read_to_string(&event.path) {
+            Ok(content) => content,
+            Err(error) => {
+                return DaemonWatchEventResult {
+                    updates: Vec::new(),
+                    rescan: requires_rescan,
+                    messages: vec![DaemonMessage::WatchReadFailed {
+                        path: event.path.clone(),
+                        error: error.to_string(),
+                    }],
+                };
+            }
+        };
+
+        // update via the daemon
+        let updates = match self.update_virtual_file(&event.path, content) {
+            Ok(updates) => updates,
+            Err(error) => {
+                let rescan = requires_rescan || self.error_requires_rescan(&error);
+                return DaemonWatchEventResult {
+                    updates: Vec::new(),
+                    rescan,
+                    messages: vec![DaemonMessage::WatchUpdateFailed {
+                        path: event.path.clone(),
+                        error: error.to_string(),
+                    }],
+                };
+            }
+        };
+
+        DaemonWatchEventResult {
+            updates,
+            rescan: requires_rescan,
+            messages: Vec::new(),
+        }
+    }
+
+    /// Apply a watch batch through the daemon.
+    pub fn apply_watch_batch(&self, batch: &crate::WatchBatch) -> DaemonWatchBatchResult {
+        // track results from the batch
+        let mut result = DaemonWatchBatchResult::default();
+
+        // emit rescan requests for overflow batches without explicit events
+        let has_overflow_event = batch
+            .events
+            .iter()
+            .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
+        if batch.overflowed && !has_overflow_event {
+            result.rescan = true;
+            result.messages.push(DaemonMessage::WatchOverflowRescan);
+        }
+
+        // handle status updates
+        for status in &batch.status {
+            let status_result = self.handle_watch_status(status);
+            if let Some(rescan) = status_result.rescan {
+                result.rescan = result.rescan || rescan;
+            }
+            if let Some(message) = status_result.message {
+                result.messages.push(message);
+            }
+        }
+
+        // apply event updates
+        for event in &batch.events {
+            let event_result = self.apply_watch_event(event);
+            result.rescan = result.rescan || event_result.rescan;
+            result.updates.extend(event_result.updates);
+            result.messages.extend(event_result.messages);
+        }
+
+        result
+    }
+
+    /// Rescan tracked files for the provided roots.
+    pub fn rescan_roots(&self, roots: &[PathBuf]) -> DaemonRescanResult {
+        self.rescan_roots_with_mode(roots, false)
+    }
+
+    /// Rescan tracked files and analyze updated modules.
+    pub fn rescan_roots_with_analysis(&self, roots: &[PathBuf]) -> DaemonRescanResult {
+        self.rescan_roots_with_mode(roots, true)
+    }
+
+    /// Rescan tracked files for the provided roots and analyze updated modules.
+    fn rescan_roots_with_mode(&self, roots: &[PathBuf], analyze: bool) -> DaemonRescanResult {
+        // collect rescan results across roots
+        let mut result = DaemonRescanResult::default();
+        let mut visited = HashSet::new();
+
+        for root in roots {
+            let handle = self.program_handle_for_path(root);
+            let _compile_guard = handle.compile_lock.lock();
+            let key = handle.program.cwd.clone();
+            if !visited.insert(key) {
+                continue;
+            }
+
+            let root_result = self.rescan_program(&handle, analyze);
+            result.updates.extend(root_result.updates);
+            result.messages.extend(root_result.messages);
+        }
+
+        result
+    }
+
+    /// Refresh tracked files for a single program.
+    fn rescan_program(&self, handle: &ProgramHandle, analyze: bool) -> DaemonRescanResult {
+        // unpack the program handle
+        let program = handle.program.as_ref();
+        let compiler = handle.compiler.as_ref();
+
+        // collect module file ids
+        let mut file_ids = HashSet::new();
+        for module in program.modules.iter() {
+            let module = module.read();
+            file_ids.insert(module.file_id);
+        }
+
+        // collect workspace config file ids
+        if let Some(workspace_config) = self.session.workspace_config() {
+            file_ids.insert(workspace_config.file_id);
+        }
+
+        // collect package dsconfig file ids
+        for package in program.packages.iter() {
+            let package = package.read();
+            if let Some(dsconfig) = package.dsconfig.as_ref() {
+                file_ids.insert(dsconfig.file_id);
+            }
+        }
+
+        // collect tsconfig file ids
+        for tsconfig in program.tsconfigs.iter() {
+            let tsconfig = tsconfig.read();
+            file_ids.insert(tsconfig.file_id);
+        }
+
+        // refresh files from disk
+        let mut result = DaemonRescanResult::default();
+        for file_id in file_ids {
+            let update = match self.rescan_file_update(program, file_id) {
+                Ok(Some(update)) => update,
+                Ok(None) => continue,
+                Err(message) => {
+                    result.messages.push(message);
+                    continue;
+                }
+            };
+
+            let invalidation = match program.invalidate_file(file_id, update) {
+                Ok(invalidation) => invalidation,
+                Err(error) => {
+                    result
+                        .messages
+                        .push(DaemonMessage::RescanInvalidationFailed {
+                            file_id,
+                            error: error.to_string(),
+                        });
+                    continue;
+                }
+            };
+
+            let module_id = program.modules.get_id_by_file_id(file_id);
+            result.updates.push(DaemonUpdate {
+                module_id,
+                file_id,
+                invalidation,
+                diagnostics: Vec::new(),
+            });
+        }
+
+        // refresh configs after a rescan to pick up new configuration files
+        let resolver = Resolver::from_program(program, ResolveOptions::default());
+        result
+            .messages
+            .extend(self.refresh_program_configs(&resolver, program));
+
+        // analyze updated modules when requested
+        if analyze {
+            self.analyze_updates(program, compiler, &mut result.updates);
+        }
+
+        result
+    }
+
+    /// Mark a file as removed without touching the filesystem.
+    pub fn remove_virtual_file(&self, path: &Path) -> Result<Vec<DaemonUpdate>, DaemonError> {
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
+
+        // resolve config file ids before registering modules
+        let config_file_id = if self.is_config_filename(path) {
+            program.files.get_id_by_path(path)
+        } else {
+            None
+        };
+
+        // resolve module id for tracked paths
+        let module_id = if config_file_id.is_some() {
+            None
+        } else {
+            program.modules.get_id_by_path(path)
+        };
+
+        // resolve file id for invalidation
+        let file_id = if let Some(file_id) = config_file_id {
+            file_id
+        } else {
+            match module_id {
+                Some(module_id) => program.modules.get(module_id).read().file_id,
+                None => match program.files.get_id_by_path(path) {
+                    Some(file_id) => file_id,
+                    None => {
+                        return Err(DaemonError::FileNotTracked {
+                            path: path.to_path_buf(),
+                        });
+                    }
+                },
+            }
+        };
+        let invalidation = program
+            .invalidate_file(file_id, FileUpdate::Removed)
+            .map_err(|error| DaemonError::Invalidation {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })?;
+
+        // refresh configs when config files change
+        if self.should_refresh_configs(&program, &invalidation, path) {
+            let resolver = Resolver::from_program(&program, ResolveOptions::default());
+            for message in self.refresh_program_configs(&resolver, &program) {
+                tracing::warn!(code = message.code(), message = %message, "daemon.config.refresh_failed");
+            }
+        }
+
+        let mut updates = Vec::new();
+        let update = DaemonUpdate {
+            module_id,
+            file_id,
+            invalidation,
+            diagnostics: Vec::new(),
+        };
+        updates.push(update);
+
+        // analyze the updated module when available
+        self.analyze_updates(&program, &compiler, &mut updates);
+
+        Ok(updates)
+    }
+
+    /// Ensure a module for the given path is analyzed.
+    pub fn analyze_path(&self, path: &Path) -> Result<(), DaemonError> {
+        // locate daemon handle for the path
+        let handle = self.program_handle_for_path(path);
+        let _compile_guard = handle.compile_lock.lock();
+        let program = handle.program.clone();
+        let compiler = handle.compiler.clone();
+
+        // resolve the module id for the path
+        let module_id = compiler
+            .resolve_path_to_module(&path.to_path_buf())
+            .map_err(|error| DaemonError::Resolve {
+                path: path.to_path_buf(),
+                error: Box::new(error),
+            })?;
+
+        // enqueue analysis tasks and compile
+        let profile = program.default_profile_id_for_module(module_id);
+        let module = compiler.module_stamp(module_id);
+        let profile = compiler.profile_stamp(profile);
+        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+        compiler.compile();
+
+        Ok(())
+    }
+
+    /// Analyze a collection of updates and attach diagnostics.
+    fn analyze_updates(
+        &self,
+        program: &Program,
+        compiler: &Compiler,
+        updates: &mut Vec<DaemonUpdate>,
+    ) {
+        // collect modules and file ids that require analysis
+        let mut module_ids = HashSet::new();
+        let mut file_ids = HashSet::new();
+        for update in updates.iter() {
+            if let Some(module_id) = update.module_id {
+                module_ids.insert(module_id);
+            }
+            file_ids.insert(update.file_id);
+        }
+
+        // add invalidated modules as diagnostic updates
+        let mut extra_updates = Vec::new();
+        for update in updates.iter() {
+            for module_id in update.invalidation.modules.iter().copied() {
+                module_ids.insert(module_id);
+                let module = program.modules.get(module_id);
+                let module = module.read();
+                let file_id = module.file_id;
+                if file_ids.insert(file_id) {
+                    extra_updates.push(DaemonUpdate {
+                        module_id: Some(module_id),
+                        file_id,
+                        invalidation: update.invalidation.clone(),
+                        diagnostics: Vec::new(),
+                    });
+                }
+            }
+        }
+        updates.extend(extra_updates);
+
+        // drop diagnostics for updated files before recompiling
+        program
+            .diagnostics
+            .retain(|diagnostic| !file_ids.contains(&diagnostic.file_id));
+
+        // ensure module graphs are ready before expanding dependents
+        self.ensure_module_graphs_ready(program, compiler, &module_ids);
+
+        // expand updates using module graph dependents when available
+        if module_ids.len() < program.modules.len() {
+            let mut queue: VecDeque<ModuleId> = module_ids.iter().copied().collect();
+            while let Some(module_id) = queue.pop_front() {
+                let profile_id = program.default_profile_id_for_module(module_id);
+                let graph_key = ModuleGraphKey::new(profile_id);
+                let Some(graph) = program.index.module_graphs.get(&graph_key) else {
+                    continue;
+                };
+
+                let module = program.modules.get(module_id);
+                let module_version = module.read().version;
+                let Some(graph_version) = graph.module_versions.get(&module_id) else {
+                    continue;
+                };
+                if *graph_version != module_version {
+                    continue;
+                }
+
+                for dependent in graph.dependents_for(module_id) {
+                    if module_ids.insert(dependent) {
+                        queue.push_back(dependent);
+                    }
+                }
+            }
+        }
+
+        let invalidation_template = updates.first().map(|update| update.invalidation.clone());
+        if let Some(invalidation) = invalidation_template {
+            let mut dependency_updates = Vec::new();
+            for module_id in module_ids.iter().copied() {
+                let module = program.modules.get(module_id);
+                let file_id = module.read().file_id;
+                if file_ids.insert(file_id) {
+                    dependency_updates.push(DaemonUpdate {
+                        module_id: Some(module_id),
+                        file_id,
+                        invalidation: invalidation.clone(),
+                        diagnostics: Vec::new(),
+                    });
+                }
+            }
+            updates.extend(dependency_updates);
+        }
+
+        // skip when no modules require analysis
+        if module_ids.is_empty() {
+            return;
+        }
+
+        // enqueue analysis tasks
+        for module_id in &module_ids {
+            let profile = program.default_profile_id_for_module(*module_id);
+            let module = compiler.module_stamp(*module_id);
+            let profile = compiler.profile_stamp(profile);
+            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+        }
+
+        // run the analysis pass
+        compiler.compile();
+
+        // attach diagnostics for each update
+        let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
+        for diagnostic in program.diagnostics.iter() {
+            if file_ids.contains(&diagnostic.file_id) {
+                diagnostics_by_file
+                    .entry(diagnostic.file_id)
+                    .or_default()
+                    .push(diagnostic.clone());
+            }
+        }
+        for update in updates.iter_mut() {
+            update.diagnostics = diagnostics_by_file
+                .remove(&update.file_id)
+                .unwrap_or_default();
+        }
+    }
+
+    /// Ensure module graphs are available for dependency fan-out.
+    fn ensure_module_graphs_ready(
+        &self,
+        program: &Program,
+        compiler: &Compiler,
+        module_ids: &HashSet<ModuleId>,
+    ) {
+        // skip when there are no modules to update
+        if module_ids.is_empty() {
+            return;
+        }
+
+        // group modules by profile
+        let mut modules_by_profile: HashMap<ProfileId, Vec<ModuleId>> = HashMap::new();
+        for module_id in module_ids {
+            let profile_id = program.default_profile_id_for_module(*module_id);
+            modules_by_profile
+                .entry(profile_id)
+                .or_default()
+                .push(*module_id);
+        }
+
+        // collect resolve tasks required for graph updates
+        let mut resolve_tasks = Vec::new();
+        let mut profiles_with_builtins = HashSet::new();
+
+        for (profile_id, modules) in modules_by_profile {
+            let graph_key = ModuleGraphKey::new(profile_id);
+            let graph_entry = program.index.module_graphs.get(&graph_key);
+            let module_count = program.modules.len();
+            let needs_full = match graph_entry.as_ref() {
+                None => true,
+                Some(graph) => graph.module_versions.len() != module_count,
+            };
+
+            if needs_full {
+                // enqueue builtins/libs before resolving modules
+                if profiles_with_builtins.insert(profile_id) {
+                    let profile = compiler.profile_stamp(profile_id);
+                    resolve_tasks.push(ResolveTask::ResolveBuiltins { profile });
+                    resolve_tasks.push(ResolveTask::ResolveLibs { profile });
+                }
+
+                // enqueue resolve tasks for all modules in this profile
+                for module in program.modules.iter() {
+                    let module = module.read();
+                    let module = ModuleStamp::new(module.id, module.version);
+                    let profile = compiler.profile_stamp(profile_id);
+                    let graph = compiler.module_graph_stamp(profile_id);
+                    resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
+                        module,
+                        profile,
+                        graph,
+                    });
+                }
+
+                continue;
+            }
+
+            if let Some(graph) = graph_entry {
+                for module_id in modules {
+                    let module = program.modules.get(module_id);
+                    let module_version = module.read().version;
+                    let graph_version = graph.module_versions.get(&module_id).copied();
+                    if graph_version == Some(module_version) {
+                        continue;
+                    }
+
+                    // enqueue builtins/libs before resolving modules
+                    if profiles_with_builtins.insert(profile_id) {
+                        let profile = compiler.profile_stamp(profile_id);
+                        resolve_tasks.push(ResolveTask::ResolveBuiltins { profile });
+                        resolve_tasks.push(ResolveTask::ResolveLibs { profile });
+                    }
+
+                    let module = ModuleStamp::new(module_id, module_version);
+                    let profile = compiler.profile_stamp(profile_id);
+                    let graph = compiler.module_graph_stamp(profile_id);
+                    resolve_tasks.push(ResolveTask::ResolveModuleCanonical {
+                        module,
+                        profile,
+                        graph,
+                    });
+                }
+            }
+        }
+
+        // skip when no resolve work is required
+        if resolve_tasks.is_empty() {
+            return;
+        }
+
+        // run resolve tasks to populate module graphs
+        for task in resolve_tasks {
+            compiler.enqueue(task);
+        }
+        compiler.compile();
+    }
+
+    /// Refresh package and workspace configuration for a program.
+    fn refresh_program_configs(
+        &self,
+        resolver: &Resolver,
+        program: &Program,
+    ) -> Vec<DaemonMessage> {
+        // collect refresh warnings
+        let mut messages = Vec::new();
+
+        // refresh workspace config
+        let workspace_root = self.session.workspace_root();
+        match resolver.load_dsconfig(&workspace_root, CachePolicy::Reload) {
+            Ok(dsconfig) => {
+                self.session.update_workspace_config(Some(dsconfig));
+            }
+            Err(ResolveError::DsConfigNotFound { .. }) => {
+                self.session.update_workspace_config(None);
+            }
+            Err(error) => {
+                messages.push(DaemonMessage::ConfigReloadWorkspaceFailed {
+                    error: error.to_string(),
+                });
+            }
+        }
+
+        // refresh package configs
+        for package in program.packages.iter() {
+            let package_guard = package.read();
+            let package_id = package_guard.id;
+            let package_path = package_guard.path.clone();
+            drop(package_guard);
+
+            // skip packages without roots
+            let Some(package_path) = package_path else {
+                continue;
+            };
+
+            // resolve the dsconfig for this package
+            let next_dsconfig = match resolver.load_dsconfig(&package_path, CachePolicy::Reload) {
+                Ok(dsconfig) => Some(dsconfig),
+                Err(ResolveError::DsConfigNotFound { .. }) => None,
+                Err(error) => {
+                    messages.push(DaemonMessage::ConfigReloadPackageFailed {
+                        path: package_path.clone(),
+                        error: error.to_string(),
+                    });
+                    continue;
+                }
+            };
+
+            // update package config and targets
+            let package = program.packages.get(package_id);
+            let mut package = package.write();
+            package.dsconfig = next_dsconfig.clone();
+            package.targets.clear();
+            if let Some(dsconfig) = next_dsconfig {
+                for (name, options) in dsconfig.options.targets.iter() {
+                    let target = options.to_target(name);
+                    let target_id = TargetId::new(package_id, name);
+                    package.targets.insert(target_id, target);
+                }
+            }
+        }
+
+        // refresh tsconfig entries
+        let mut tsconfig_paths = Vec::new();
+        for tsconfig in program.tsconfigs.iter() {
+            tsconfig_paths.push(tsconfig.read().path.clone());
+        }
+        for path in tsconfig_paths {
+            if let Err(error) = resolver.reload_tsconfig(&path) {
+                if matches!(error, ResolveError::TsConfigNotFound { .. }) {
+                    continue;
+                }
+                messages.push(DaemonMessage::ConfigReloadTsconfigFailed {
+                    path,
+                    error: error.to_string(),
+                });
+            }
+        }
+
+        // refresh module tsconfig assignments
+        let mut module_updates = Vec::new();
+        for module in program.modules.iter() {
+            let module = module.read();
+            let Some(path) = module.path.as_ref() else {
+                continue;
+            };
+            let next_tsconfig = resolver.find_tsconfig(path);
+            if module.tsconfig_id != next_tsconfig {
+                module_updates.push((module.id, next_tsconfig));
+            }
+        }
+
+        // apply module tsconfig updates
+        for (module_id, tsconfig_id) in module_updates {
+            let module = program.modules.get(module_id);
+            let mut module = module.write();
+            module.tsconfig_id = tsconfig_id;
+        }
+
+        messages
+    }
+
+    /// Resolve the daemon program handle for a path.
+    fn program_handle_for_path(&self, path: &Path) -> Arc<ProgramHandle> {
+        // resolve the program first
+        let program = self.session.find_program_for_path(path);
+        let key = program.cwd.clone();
+
+        // return existing handle when present
+        match self.program_handles.entry(key) {
+            Entry::Occupied(entry) => {
+                // reuse the existing handle
+                Arc::clone(entry.get())
+            }
+            Entry::Vacant(entry) => {
+                // build a new compiler for the program
+                let compiler = Arc::new(Compiler::new(
+                    self.session.clone(),
+                    program.clone(),
+                    self.compiler_options.clone(),
+                ));
+                let handle = Arc::new(ProgramHandle {
+                    program,
+                    compiler,
+                    compile_lock: Mutex::new(()),
+                });
+                entry.insert(handle.clone());
+                handle
+            }
+        }
+    }
+
+    /// Build a file update by reading the latest content from disk.
+    fn rescan_file_update(
+        &self,
+        program: &Program,
+        file_id: FileId,
+    ) -> Result<Option<FileUpdate>, DaemonMessage> {
+        // load the tracked file
+        let Some(file) = program.files.get_maybe(file_id) else {
+            return Ok(None);
+        };
+
+        // resolve the file path
+        let Some(path) = file.path.clone().or_else(|| file.uri.to_path_buf()) else {
+            return Ok(None);
+        };
+
+        // read file contents from disk and decide whether to update
+        if file.ty.is_binary() {
+            let bytes = match program.fs.read(&path) {
+                Ok(bytes) => bytes,
+                Err(error) => {
+                    return self.handle_rescan_read_error(&file, &path, error);
+                }
+            };
+
+            if self.should_update_bytes(&file, &bytes) {
+                Ok(Some(FileUpdate::Bytes { content: bytes }))
+            } else {
+                Ok(None)
+            }
+        } else {
+            let content = match program.fs.read_to_string(&path) {
+                Ok(content) => content,
+                Err(error) => {
+                    return self.handle_rescan_read_error(&file, &path, error);
+                }
+            };
+
+            if self.should_update_text(&file, &content) {
+                Ok(Some(FileUpdate::Text { content }))
+            } else {
+                Ok(None)
+            }
+        }
+    }
+
+    /// Decide whether a text update should be applied.
+    fn should_update_text(&self, file: &destack_source::File, content: &str) -> bool {
+        match &file.content {
+            FileContent::Text { content: current } => current != content,
+            FileContent::Json {
+                content: current, ..
+            } => current != content,
+            FileContent::Missing | FileContent::Unloaded => true,
+            FileContent::Binary { .. } => true,
+        }
+    }
+
+    /// Decide whether a byte update should be applied.
+    fn should_update_bytes(&self, file: &destack_source::File, bytes: &[u8]) -> bool {
+        match &file.content {
+            FileContent::Binary { content } => content.as_slice() != bytes,
+            FileContent::Missing | FileContent::Unloaded => true,
+            FileContent::Text { .. } | FileContent::Json { .. } => true,
+        }
+    }
+
+    /// Handle file read errors during rescan.
+    fn handle_rescan_read_error(
+        &self,
+        file: &destack_source::File,
+        path: &Path,
+        error: io::Error,
+    ) -> Result<Option<FileUpdate>, DaemonMessage> {
+        if error.kind() == io::ErrorKind::NotFound {
+            if matches!(file.content, FileContent::Missing) {
+                return Ok(None);
+            }
+
+            return Ok(Some(FileUpdate::Removed));
+        }
+
+        Err(DaemonMessage::RescanReadFailed {
+            path: path.to_path_buf(),
+            error: error.to_string(),
+        })
+    }
+
+    /// Check if a path should be handled by watch mode.
+    fn is_watchable_path(&self, path: &Path) -> bool {
+        // skip unknown or non file paths
+        let Some(file_type) = FileType::from_path(path) else {
+            return false;
+        };
+
+        // allow code, data, and text files
+        file_type.is_code() || file_type.is_data() || file_type.is_text()
+    }
+
+    /// Check if a path is a config filename.
+    fn is_config_filename(&self, path: &Path) -> bool {
+        // detect dsconfig.json or tsconfig json variants
+        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+
+        // dsconfig.json
+        if file_name == "dsconfig.json" {
+            return true;
+        }
+
+        // tsconfig*.json
+        file_name.starts_with("tsconfig") && file_name.ends_with(".json")
+    }
+
+    /// Check if a config file is already tracked by this program.
+    fn is_tracked_config_path(&self, program: &Program, path: &Path) -> bool {
+        if let Some(workspace_config) = self.session.workspace_config()
+            && workspace_config.path.as_path() == path
+        {
+            return true;
+        }
+
+        // dsconfig.json in packages
+        for package in program.packages.iter() {
+            let package = package.read();
+            let Some(dsconfig) = package.dsconfig.as_ref() else {
+                continue;
+            };
+            if dsconfig.path.as_path() == path {
+                return true;
+            }
+        }
+
+        // tsconfig*.json in packages
+        for tsconfig in program.tsconfigs.iter() {
+            let tsconfig = tsconfig.read();
+            if tsconfig.path.as_path() == path {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return true when a config change requires a full rescan.
+    fn config_change_requires_rescan(&self, path: &Path) -> bool {
+        if !self.is_config_filename(path) {
+            return false;
+        }
+
+        let program = self.session.find_program_for_path(path);
+        !self.is_tracked_config_path(&program, path)
+    }
+
+    /// Check whether a config refresh is required for an invalidation.
+    fn should_refresh_configs(
+        &self,
+        program: &Program,
+        invalidation: &destack_workspace::InvalidationPlan,
+        path: &Path,
+    ) -> bool {
+        // refresh when invalidation kinds include config changes
+        if invalidation.kinds.iter().any(|kind| {
+            matches!(
+                kind,
+                InvalidationKind::DsConfig | InvalidationKind::TsConfig
+            )
+        }) {
+            return true;
+        }
+
+        // refresh when the path is a tracked config
+        self.is_tracked_config_path(program, path)
+    }
+
+    /// Check whether a daemon error should force a rescan.
+    fn error_requires_rescan(&self, error: &DaemonError) -> bool {
+        matches!(
+            error,
+            DaemonError::FileNotTracked { .. } | DaemonError::Resolve { .. }
+        )
+    }
+
+    /// Handle watch status updates and report whether a rescan is required.
+    fn handle_watch_status(&self, status: &FileWatchStatus) -> WatchStatusResult {
+        // report watcher errors
+        if let FileWatchStatus::Error { message } = status {
+            return WatchStatusResult {
+                rescan: Some(false),
+                message: Some(DaemonMessage::WatchStatusError {
+                    message: message.to_string(),
+                }),
+            };
+        }
+
+        // ignore startup rescan because the initial compile already ran
+        if let FileWatchStatus::RescanRequested { reason, .. } = status
+            && matches!(reason, FileWatchRescanReason::Startup)
+        {
+            return WatchStatusResult {
+                rescan: Some(false),
+                message: None,
+            };
+        }
+
+        // report rescan requests that require a full compile
+        if let FileWatchStatus::RescanRequested { reason, .. } = status {
+            return WatchStatusResult {
+                rescan: Some(true),
+                message: Some(DaemonMessage::WatchRescanRequested {
+                    reason: reason.clone(),
+                }),
+            };
+        }
+
+        WatchStatusResult::default()
+    }
+}
+
+/// Result from handling a watch status update.
+#[derive(Debug, Default)]
+struct WatchStatusResult {
+    /// Optional rescan flag.
+    rescan: Option<bool>,
+    /// Optional message payload.
+    message: Option<DaemonMessage>,
 }

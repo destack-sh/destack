@@ -515,7 +515,6 @@ where
     // run the watch loop for incremental updates
     exit_code = run_watch_loop(
         &daemon,
-        &context.session,
         roots,
         &mut reporter,
         watch_loop_options,
