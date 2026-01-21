@@ -322,6 +322,22 @@ impl std::fmt::Debug for Restriction {
     }
 }
 
+/// Cache policy for resolver data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CachePolicy {
+    /// Reuse cached data when available.
+    UseCache,
+    /// Reload data from the filesystem.
+    Reload,
+}
+
+impl CachePolicy {
+    /// Return true when cached data can be reused.
+    pub fn use_cache(self) -> bool {
+        matches!(self, CachePolicy::UseCache)
+    }
+}
+
 /// How to discover the TypeScript configuration file.
 #[derive(Debug, Clone)]
 pub enum TypeScriptOptionsDiscovery {

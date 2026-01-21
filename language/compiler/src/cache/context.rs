@@ -74,7 +74,7 @@ impl Compiler {
             .unwrap_or_default();
 
         // resolve cache root directory
-        let workspace_root = self.session.workspace.root.clone();
+        let workspace_root = self.session.workspace_root();
         let base_dir = package
             .dsconfig
             .as_ref()
@@ -107,8 +107,7 @@ impl Compiler {
         // derive cache options from workspace config
         let cache_options = self
             .session
-            .workspace
-            .config
+            .workspace_config()
             .as_ref()
             .map(|config| config.options.cache.clone())
             .unwrap_or_default();
@@ -472,7 +471,8 @@ impl Compiler {
     /// Build a workspace index header from the current session config.
     fn workspace_index_header(&self) -> Result<WorkspaceIndexHeader, WorkspaceIndexError> {
         let options = self.workspace_cache_options();
-        let config_hash = hash_workspace_config(&self.session.workspace, self.session.fs.as_ref())?;
+        let workspace = self.session.workspace_snapshot();
+        let config_hash = hash_workspace_config(&workspace, self.session.fs.as_ref())?;
         let mut compiler_hasher = CacheHasher::new();
         compiler_hasher.hash_compiler_options(&self.options);
         let compiler_options_hash = compiler_hasher.finish();
@@ -482,7 +482,7 @@ impl Compiler {
         let resolve_options_hash = resolve_hasher.finish();
         Ok(WorkspaceIndexHeader::new(
             env!("CARGO_PKG_VERSION").to_string(),
-            self.session.workspace.root.clone(),
+            self.session.workspace_root(),
             config_hash,
             compiler_options_hash,
             resolve_options_hash,

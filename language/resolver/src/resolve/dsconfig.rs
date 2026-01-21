@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_source::{File, FileType, PathExt, Uri};
 use destack_workspace::{DsConfig, PackageManifest};
 
-use crate::{ResolveError, Resolver};
+use crate::{CachePolicy, ResolveError, Resolver};
 
 /// Context for tracking dsconfig extension chains.
 #[derive(Default)]
@@ -49,19 +49,24 @@ impl Resolver {
     pub fn load_package_dsconfig(
         &self,
         package_config: &PackageManifest,
+        cache_policy: CachePolicy,
     ) -> Result<DsConfig, ResolveError> {
         let dsconfig_path = package_config.directory.join("dsconfig.json");
 
         // load and parse the dsconfig
-        let dsconfig = self.load_dsconfig(&dsconfig_path)?;
+        let dsconfig = self.load_dsconfig(&dsconfig_path, cache_policy)?;
 
         Ok(dsconfig)
     }
 
     /// Load and parse a `dsconfig.json` file recursively, handling extends.
     #[tracing::instrument(name = "resolver.load_dsconfig", level = "trace", skip(self))]
-    pub fn load_dsconfig(&self, path: &Path) -> Result<DsConfig, ResolveError> {
-        self.load_dsconfig_with_context(path, &mut DsConfigResolveContext::default())
+    pub fn load_dsconfig(
+        &self,
+        path: &Path,
+        cache_policy: CachePolicy,
+    ) -> Result<DsConfig, ResolveError> {
+        self.load_dsconfig_with_context(path, &mut DsConfigResolveContext::default(), cache_policy)
     }
 
     /// Load and parse a `dsconfig.json` file recursively, handling extends.
@@ -70,11 +75,12 @@ impl Resolver {
         &self,
         path: &Path,
         ctx: &mut DsConfigResolveContext,
+        cache_policy: CachePolicy,
     ) -> Result<DsConfig, ResolveError> {
         tracing::trace!(?path, "resolver.load_dsconfig");
 
         // parse the `dsconfig.json` file
-        let mut dsconfig = self.read_dsconfig(path)?;
+        let mut dsconfig = self.read_dsconfig(path, cache_policy)?;
 
         // check for circular extends
         if ctx.is_already_extended(&dsconfig.path) {
@@ -102,7 +108,11 @@ impl Resolver {
             let dsconfig_path = dsconfig.path.clone();
             ctx.with_extended_file(dsconfig_path, |ctx| {
                 for extended_dsconfig_path in extended_dsconfig_paths {
-                    let extended = self.load_dsconfig_with_context(&extended_dsconfig_path, ctx)?;
+                    let extended = self.load_dsconfig_with_context(
+                        &extended_dsconfig_path,
+                        ctx,
+                        cache_policy,
+                    )?;
                     dsconfig.extend_from(&extended);
                 }
                 Ok(())
@@ -116,7 +126,11 @@ impl Resolver {
     }
 
     /// Read and parse a dsconfig.json file.
-    fn read_dsconfig(&self, path: &Path) -> Result<DsConfig, ResolveError> {
+    fn read_dsconfig(
+        &self,
+        path: &Path,
+        cache_policy: CachePolicy,
+    ) -> Result<DsConfig, ResolveError> {
         // resolve path to actual dsconfig file
         let meta = self.fs().metadata(path).ok();
         let dsconfig_path = if meta.is_some_and(|m| m.is_file) {
@@ -129,13 +143,27 @@ impl Resolver {
             Cow::Owned(PathBuf::from(os_string))
         };
 
+        // reuse cached file contents when allowed
+        let existing_id = self.files.get_id_by_path(dsconfig_path.as_ref());
+        if cache_policy.use_cache()
+            && let Some(file_id) = existing_id
+            && let Some(file) = self.files.get_maybe(file_id)
+        {
+            let dsconfig = DsConfig::parse(&file).map_err(|_| ResolveError::DsConfigInvalid {
+                path: dsconfig_path.to_path_buf(),
+            })?;
+            return Ok(dsconfig);
+        }
+
         // read `dsconfig.json` file
         let content = self.fs().read_to_string(&dsconfig_path).map_err(|_| {
             ResolveError::DsConfigNotFound {
                 path: path.to_path_buf(),
             }
         })?;
-        let file_id = self.files.next_id();
+
+        // reuse file ids when possible to keep incremental mappings stable
+        let file_id = existing_id.unwrap_or_else(|| self.files.next_id());
         let (name, uri) = Uri::from_path_with_name(&*dsconfig_path);
         let file = File::from_text_as_jsonc(
             file_id,
@@ -148,7 +176,12 @@ impl Resolver {
         .map_err(|_| ResolveError::DsConfigInvalid {
             path: dsconfig_path.to_path_buf(),
         })?;
-        self.files.insert(file);
+
+        if self.files.get_maybe(file_id).is_some() {
+            self.files.replace(file);
+        } else {
+            self.files.insert(file);
+        }
         let file = self.files.get(file_id);
 
         // parse dsconfig from file
@@ -178,35 +211,5 @@ impl Resolver {
             // package specifier - for now just treat as relative
             _ => Ok(directory.normalize_with(specifier)),
         }
-    }
-
-    /// Find the dsconfig.json for a path by looking for the containing package.
-    pub fn find_dsconfig(&self, path: &Path) -> Option<PathBuf> {
-        // walk up directories looking for dsconfig.json
-        let mut current = path.to_path_buf();
-        loop {
-            let dsconfig_path = current.join("dsconfig.json");
-            if self.fs().metadata(&dsconfig_path).is_ok_and(|m| m.is_file) {
-                return Some(dsconfig_path);
-            }
-
-            // also check for package.json (package boundary)
-            let package_json_path = current.join("package.json");
-            if self
-                .fs()
-                .metadata(&package_json_path)
-                .is_ok_and(|m| m.is_file)
-            {
-                // found package boundary, dsconfig.json would be here if it exists
-                return None;
-            }
-
-            if let Some(parent) = current.parent() {
-                current = parent.to_path_buf();
-            } else {
-                break;
-            }
-        }
-        None
     }
 }

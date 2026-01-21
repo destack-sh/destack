@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use destack_source::PathExt;
 
 use super::file::append_extension;
-use crate::{EnforceExtension, ResolveContext, ResolveError, Resolver};
+use crate::{CachePolicy, EnforceExtension, ResolveContext, ResolveError, Resolver};
 
 impl Resolver {
     /// Check if a path already ends with a known extension from our extensions list.
@@ -55,7 +55,7 @@ impl Resolver {
     ) -> Result<Option<PathBuf>, ResolveError> {
         tracing::trace!(?path, "resolver.load.directory");
         // check for package.json in the directory
-        if let Some(package_id) = self.load_package(path, ctx)? {
+        if let Some(package_id) = self.load_package(path, ctx, CachePolicy::UseCache)? {
             let package = self.packages.get(package_id);
             let package = package.read();
             if let Some(ref config) = package.manifest {

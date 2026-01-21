@@ -14,7 +14,7 @@ doctest = false
 [dependencies]
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 stacker = { workspace = true }
 
 [dev-dependencies]

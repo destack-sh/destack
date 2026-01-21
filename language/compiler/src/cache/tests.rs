@@ -1,12 +1,10 @@
 use std::collections::HashSet;
-use std::fs;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_resolver::TypeScriptOptionsDiscovery;
 use destack_source::{
     CacheKind, DiagnosticSeverity, File, FileId, FileType, FileVersion, ModuleId, ModuleStamp,
-    ModuleVersion, PackageId, ProfileStamp, Uri,
+    ModuleVersion, PackageId, ProfileStamp, TemporaryPhysicalFileSystem, Uri,
 };
 use destack_workspace::{
     CacheMode, CachePolicy, CacheScope, CacheValidate, DiskCacheStore, DsConfig, FileUpdate,
@@ -111,7 +109,7 @@ fn test_task_skips_stale_module_version() {
     };
     let outcome = test.compiler.run_task(task.clone());
 
-    // assertion block
+    // check that the task was skipped
     assert!(matches!(outcome, TaskOutcome::Skipped { .. }));
     let status = test
         .compiler
@@ -201,7 +199,7 @@ export const value: number = 2;
     drop(stable_signature);
     drop(b_signature_after_internal);
 
-    // assertion block
+    // check that the signature and dependent state are unchanged
     assert_eq!(
         stable_hash, initial_hash,
         "expected signature hash to remain stable for internal change"
@@ -246,7 +244,7 @@ export const value: string = "value";
         .unwrap_or_else(|| panic!("missing signature for {module_b_id:?}"));
     let b_signature_hash_after_export = b_signature_after_export.value().hash;
 
-    // assertion block
+    // check that the signature and dependent state are changed
     assert_ne!(
         changed_hash, initial_hash,
         "expected signature hash to change when exports change"
@@ -302,7 +300,7 @@ value;
     let dependents_c_before: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
     drop(graph);
 
-    // assertion block
+    // check that the module graph is updated
     assert!(
         deps_before.contains(&module_b_id),
         "expected module b to be a dependency before edits"
@@ -342,7 +340,7 @@ value;
     let dependents_c_after: HashSet<_> = graph.dependents_for(module_c_id).into_iter().collect();
     drop(graph);
 
-    // assertion block
+    // check that the module graph is updated
     assert!(
         deps_after.contains(&module_c_id),
         "expected module c to be a dependency after edits"
@@ -438,7 +436,7 @@ export const value: string = "value";
     let a_hash_after_b = a_signature_after_b.value().hash;
     drop(a_signature_after_b);
 
-    // assertion block
+    // check that the module signature is updated
     assert!(
         !a_has_dir_after_b,
         "expected reexporting module dir invalidated by dependency change"
@@ -470,7 +468,7 @@ export const value: string = "value";
         .dir_maybe(profile)
         .is_some();
 
-    // assertion block
+    // check that the module signature is updated
     assert_ne!(
         a_hash_after_a, a_hash_before,
         "expected signature change after reexport update"
@@ -526,7 +524,7 @@ value;
         .iter()
         .any(|mir| mir.target == target_id);
 
-    // assertion block
+    // check that the mir is seeded before edits
     assert!(b_has_mir_before, "expected mir to be seeded before edits");
 
     // update module a with an export change
@@ -548,7 +546,7 @@ export const value: string = "value";
         .iter()
         .any(|mir| mir.target == target_id);
 
-    // assertion block
+    // check that the mir is cleared after edits
     assert!(
         !b_has_mir_after,
         "expected dependent mir cleared after signature change"
@@ -558,19 +556,11 @@ export const value: string = "value";
 /// Cache entries roundtrip through disk storage.
 #[test]
 fn test_cache_roundtrip_disk() {
-    let cache_root = std::env::temp_dir().join(format!(
-        "destack-cache-test-{}",
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&cache_root)
-        .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
+    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_roundtrip_disk");
 
     let options = CacheOptions {
         mode: CacheMode::Disk,
-        dir: cache_root.clone(),
+        dir: cache_root.root().to_path_buf(),
         policy: CachePolicy::Lru,
         validate: CacheValidate::Strict,
         scope: CacheScope::Workspace,
@@ -595,7 +585,7 @@ fn test_cache_roundtrip_disk() {
         .write_ast_cache(&cache_store, &options, &context, module_id, payload.clone())
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
-    // assertion block
+    // check that the ast cache entry is read from disk
     let entry = registry
         .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
@@ -606,28 +596,18 @@ fn test_cache_roundtrip_disk() {
         .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
 
-    // assertion block
+    // check that the ast cache entry is read from disk
     assert!(entry.is_some(), "expected ast cache entry from disk");
-
-    let _ = std::fs::remove_dir_all(cache_root);
 }
 
 /// Disk cache hits should update access markers for LRU eviction.
 #[test]
 fn test_cache_disk_access_markers() {
-    let cache_root = std::env::temp_dir().join(format!(
-        "destack-cache-access-{}",
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&cache_root)
-        .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
+    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_access");
 
     let options = CacheOptions {
         mode: CacheMode::Disk,
-        dir: cache_root.clone(),
+        dir: cache_root.root().to_path_buf(),
         policy: CachePolicy::Lru,
         validate: CacheValidate::Strict,
         scope: CacheScope::Workspace,
@@ -662,34 +642,24 @@ fn test_cache_disk_access_markers() {
     let entry_path = read_registry.cache_entry_path(&options, &key);
     let access_path = read_registry.cache_access_path(&entry_path);
 
-    // assertion block
+    // check that the access marker is written
     assert!(access_path.exists(), "expected access marker to be written");
-
-    let _ = std::fs::remove_dir_all(cache_root);
 }
 
 /// Workspace index snapshots roundtrip through disk.
 #[test]
 fn test_workspace_index_roundtrip_disk() {
     // set up a physical workspace
-    let root = std::env::temp_dir().join(format!(
-        "destack-workspace-index-disk-{}",
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    fs::create_dir_all(&root).unwrap();
-    fs::write(
-        root.join("package.json"),
-        br#"{ "name": "workspace-index-test" }"#,
-    )
-    .unwrap();
-    let dsconfig_path = root.join("dsconfig.json");
+    let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_disk");
+    let root_path = root.root().to_path_buf();
+    root.write_bytes("package.json", br#"{ "name": "workspace-index-test" }"#)
+        .unwrap();
+    let dsconfig_path = root.path_for("dsconfig.json");
     let dsconfig_content = r#"{ "cache": { "mode": "disk" } }"#;
-    fs::write(&dsconfig_path, dsconfig_content).unwrap();
-    let module_path = root.join("main.ts");
-    fs::write(&module_path, "export const value: number = 1;").unwrap();
+    root.write_text("dsconfig.json", dsconfig_content).unwrap();
+    let module_path = root.path_for("main.ts");
+    root.write_text("main.ts", "export const value: number = 1;")
+        .unwrap();
 
     // parse workspace config
     let dsconfig_file = File::from_text_as_jsonc(
@@ -705,9 +675,9 @@ fn test_workspace_index_roundtrip_disk() {
         .unwrap_or_else(|error| panic!("failed to build dsconfig: {error}"));
 
     // register a module and flush the workspace index
-    let workspace = Workspace::single_package(root.clone()).with_config(dsconfig.clone());
-    let session = Arc::new(Session::workspace(root.clone(), Arc::new(workspace)));
-    let program = session.add_root(root.clone());
+    let workspace = Workspace::single_package(root_path.clone()).with_config(dsconfig.clone());
+    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
+    let program = session.add_root(root_path.clone());
     let compiler = Compiler::new(
         session.clone(),
         program.clone(),
@@ -726,7 +696,8 @@ fn test_workspace_index_roundtrip_disk() {
     // load workspace index from disk
     let cache_root = session.workspace_cache_dir();
     let index_store = WorkspaceIndexStore::new(session.cache_store.as_ref(), &cache_root);
-    let config_hash = hash_workspace_config(&session.workspace, session.fs.as_ref())
+    let workspace = session.workspace_snapshot();
+    let config_hash = hash_workspace_config(&workspace, session.fs.as_ref())
         .unwrap_or_else(|error| panic!("failed to hash config: {error}"));
     let mut compiler_hasher = CacheHasher::new();
     compiler_hasher.hash_compiler_options(&compiler.options);
@@ -738,7 +709,7 @@ fn test_workspace_index_roundtrip_disk() {
 
     let header = WorkspaceIndexHeader::new(
         env!("CARGO_PKG_VERSION").to_string(),
-        root.clone(),
+        root_path.clone(),
         config_hash,
         compiler_options_hash,
         resolve_options_hash,
@@ -749,7 +720,7 @@ fn test_workspace_index_roundtrip_disk() {
         .unwrap_or_else(|error| panic!("failed to read workspace index: {error}"))
         .unwrap_or_else(|| panic!("expected workspace index snapshot"));
 
-    // assertion block
+    // check that the workspace index snapshot is loaded
     assert!(
         snapshot.files.contains_key(&module_path),
         "expected snapshot to include module file"
@@ -760,12 +731,12 @@ fn test_workspace_index_roundtrip_disk() {
     );
 
     // reload workspace index into a new program
-    let workspace = Workspace::single_package(root.clone()).with_config(dsconfig);
-    let session = Arc::new(Session::workspace(root.clone(), Arc::new(workspace)));
-    let program = session.add_root(root.clone());
+    let workspace = Workspace::single_package(root_path.clone()).with_config(dsconfig);
+    let session = Arc::new(Session::workspace(root_path.clone(), Arc::new(workspace)));
+    let program = session.add_root(root_path.clone());
     let _compiler = Compiler::new(session, program.clone(), CompilerOptions::default());
 
-    // assertion block
+    // check that the workspace index is loaded
     assert!(
         program.workspace_file_entry(&module_path).is_some(),
         "expected workspace index to load file entry"
@@ -774,8 +745,6 @@ fn test_workspace_index_roundtrip_disk() {
         program.workspace_module_entry(module_id).is_some(),
         "expected workspace index to load module entry"
     );
-
-    let _ = fs::remove_dir_all(root);
 }
 
 /// Memory cache entries roundtrip within the same registry.
@@ -808,13 +777,13 @@ fn test_cache_roundtrip_memory() {
         .write_ast_cache(&cache_store, &options, &context, module_id, payload)
         .unwrap_or_else(|error| panic!("failed to write cache entry: {error}"));
 
-    // assertion block
+    // check that the ast cache entry is read from disk
     let entry = registry
         .read_ast_cache(&cache_store, &options, &context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
     assert!(entry.is_some(), "expected ast cache entry");
 
-    // assertion block
+    // check that the ast cache entry is not read from disk
     let fresh_registry = CacheRegistry::new();
     let entry = fresh_registry
         .read_ast_cache(&cache_store, &options, &context, module_id)
@@ -828,19 +797,11 @@ fn test_cache_roundtrip_memory() {
 /// Cache entries are invalidated when the context changes.
 #[test]
 fn test_cache_miss_on_context_change() {
-    let cache_root = std::env::temp_dir().join(format!(
-        "destack-cache-test-{}",
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos()
-    ));
-    std::fs::create_dir_all(&cache_root)
-        .unwrap_or_else(|error| panic!("failed to create cache dir: {error}"));
+    let cache_root = TemporaryPhysicalFileSystem::new_with_prefix("cache_miss_context");
 
     let options = CacheOptions {
         mode: CacheMode::Disk,
-        dir: cache_root.clone(),
+        dir: cache_root.root().to_path_buf(),
         policy: CachePolicy::Lru,
         validate: CacheValidate::Strict,
         scope: CacheScope::Workspace,
@@ -876,7 +837,7 @@ fn test_cache_miss_on_context_change() {
         dependency_hash: 0,
     };
 
-    // assertion block
+    // check that the ast cache entry is read from disk
     let entry = registry
         .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
@@ -884,8 +845,6 @@ fn test_cache_miss_on_context_change() {
         entry.is_none(),
         "expected cache miss for mismatched context"
     );
-
-    let _ = std::fs::remove_dir_all(cache_root);
 }
 
 /// Cache entries are invalidated when dependency hashes change.
@@ -929,7 +888,7 @@ fn test_cache_miss_on_dependency_change() {
         dependency_hash: 999,
     };
 
-    // assertion block
+    // check that the ast cache entry is not read from disk
     let entry = registry
         .read_ast_cache(&cache_store, &options, &mismatched_context, module_id)
         .unwrap_or_else(|error| panic!("failed to read cache entry: {error}"));
@@ -975,7 +934,7 @@ fn test_cache_miss_on_file_version_bump() {
         .cache_context_for_module(module_id, None, None, CacheKind::Ast)
         .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
 
-    // assertion block
+    // check that the file version is bumped
     assert!(
         context_after.file_version > context_before.file_version,
         "expected file version to bump after source update"
@@ -985,7 +944,7 @@ fn test_cache_miss_on_file_version_bump() {
         "expected source hash to change after source update"
     );
 
-    // assertion block
+    // check that the ast cache entry is not read from disk
     let entry = registry
         .read_ast_cache(cache_store, &options, &context_after, module_id)
         .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
@@ -1063,13 +1022,13 @@ fn test_cache_miss_on_tsconfig_change() {
         .cache_context_for_module(module_id, None, None, CacheKind::Ast)
         .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
 
-    // assertion block
+    // check that the config hash is changed
     assert_ne!(
         context_after.config_hash, context_before.config_hash,
         "expected config hash to change after tsconfig update"
     );
 
-    // assertion block
+    // check that the ast cache entry is not read from disk
     let entry = registry
         .read_ast_cache(cache_store, &options, &context_after, module_id)
         .unwrap_or_else(|error| panic!("failed to read ast cache entry: {error}"));
@@ -1219,13 +1178,13 @@ value;
         .cache_context_for_module(module_b_id, Some(profile_id), None, CacheKind::DirResolved)
         .unwrap_or_else(|error| panic!("failed to build cache context: {error:?}"));
 
-    // assertion block
+    // check that the dependency hash is changed
     assert_ne!(
         context_after.dependency_hash, context_before.dependency_hash,
         "expected dependency hash to change after export update"
     );
 
-    // assertion block
+    // check that the dir cache entry is not read from disk
     let entry = registry
         .read_dir_resolved_cache(cache_store, &options, &context_after, module_b_id)
         .unwrap_or_else(|error| panic!("failed to read dir cache entry: {error}"));

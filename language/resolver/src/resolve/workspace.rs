@@ -4,7 +4,7 @@ use destack_source::{File, FileType, Uri};
 use destack_workspace::{DsConfig, Workspace, WorkspacesField};
 use serde::Deserialize;
 
-use crate::{ResolveError, Resolver};
+use crate::{CachePolicy, ResolveError, Resolver};
 
 impl Resolver {
     /// Discover a workspace from a given path.
@@ -69,7 +69,7 @@ impl Resolver {
     /// Load the workspace root dsconfig when present.
     fn load_workspace_dsconfig(&self, root: &Path) -> Result<Option<DsConfig>, ResolveError> {
         let dsconfig_path = root.join("dsconfig.json");
-        match self.load_dsconfig(&dsconfig_path) {
+        match self.load_dsconfig(&dsconfig_path, CachePolicy::UseCache) {
             Ok(dsconfig) => Ok(Some(dsconfig)),
             Err(ResolveError::DsConfigNotFound { .. }) => Ok(None),
             Err(error) => Err(error),

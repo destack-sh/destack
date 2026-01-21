@@ -2,7 +2,7 @@ use crate::{Compiler, ResolveError, ResolveResult, TaskDependencyError};
 
 use destack_compiler_macros::DefineTask;
 use destack_source::{ModuleId, ModuleStamp, ProfileStamp};
-use destack_workspace::ProfileId;
+use destack_workspace::{ModuleGraphStamp, ProfileId};
 
 /// Task to statically resolve something in-place.
 #[derive(Debug, Clone, Hash, PartialEq, Eq, DefineTask)]
@@ -17,10 +17,11 @@ pub enum ResolveTask {
     ResolveLibs { profile: ProfileStamp },
 
     /// Resolve a module completely (direct, canonical).
-    #[task(code = 2, trace = "module={module} profile={profile}")]
+    #[task(code = 2, trace = "module={module} profile={profile} graph={graph}")]
     ResolveModule {
         module: ModuleStamp,
         profile: ProfileStamp,
+        graph: ModuleGraphStamp,
     },
 
     /// Resolve expressions and dependency items.
@@ -40,10 +41,11 @@ pub enum ResolveTask {
 
     /// Compute canonical_symbol for all symbols.
     /// Follows target_symbol chains to find the canonical symbol.
-    #[task(code = 5, trace = "module={module} profile={profile}")]
+    #[task(code = 5, trace = "module={module} profile={profile} graph={graph}")]
     ResolveModuleCanonical {
         module: ModuleStamp,
         profile: ProfileStamp,
+        graph: ModuleGraphStamp,
     },
 }
 
@@ -59,12 +61,20 @@ impl Compiler {
                 self.ensure_profile_version_matches::<ResolveError>(profile.id, profile.version)?;
                 self.resolve_libs(profile.id)?;
             }
-            ResolveTask::ResolveModule { module, profile } => {
+            ResolveTask::ResolveModule {
+                module,
+                profile,
+                graph,
+            } => {
                 self.ensure_module_profile_matches::<ResolveError>(
                     module.id,
                     module.version,
                     profile.id,
                     profile.version,
+                )?;
+                self.ensure_module_graph_version_matches::<ResolveError>(
+                    graph.profile_id,
+                    graph.version,
                 )?;
                 self.require_resolve_module_canonical(module.id, profile.id)?;
             }
@@ -91,12 +101,20 @@ impl Compiler {
                     profile.version,
                 )?;
             }
-            ResolveTask::ResolveModuleCanonical { module, profile } => {
+            ResolveTask::ResolveModuleCanonical {
+                module,
+                profile,
+                graph,
+            } => {
                 self.ensure_module_profile_matches::<ResolveError>(
                     module.id,
                     module.version,
                     profile.id,
                     profile.version,
+                )?;
+                self.ensure_module_graph_version_matches::<ResolveError>(
+                    graph.profile_id,
+                    graph.version,
                 )?;
                 self.resolve_module_canonical(
                     module.id,
@@ -180,7 +198,12 @@ impl Compiler {
     ) -> Result<(), TaskDependencyError> {
         let module = self.module_stamp(module);
         let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical { module, profile })
+        let graph = self.module_graph_stamp(profile.id);
+        self.do_require_task_internal_only(ResolveTask::ResolveModuleCanonical {
+            module,
+            profile,
+            graph,
+        })
     }
 
     /// Ensure a module has been resolved.
@@ -191,6 +214,11 @@ impl Compiler {
     ) -> Result<(), TaskDependencyError> {
         let module = self.module_stamp(module);
         let profile = self.profile_stamp(profile);
-        self.do_require_task_internal_only(ResolveTask::ResolveModule { module, profile })
+        let graph = self.module_graph_stamp(profile.id);
+        self.do_require_task_internal_only(ResolveTask::ResolveModule {
+            module,
+            profile,
+            graph,
+        })
     }
 }

@@ -14,7 +14,7 @@ use destack_dir::{
 };
 use destack_mir as mir;
 use destack_source::{FileType, ModuleId, ModuleStamp, PackageId, PackageStamp, ProfileStamp, Uri};
-use destack_workspace::{ProfileId, Program, TargetId};
+use destack_workspace::{ModuleGraphStamp, ProfileId, Program, TargetId};
 
 use destack_workspace::format::{format_global_type, format_symbol_name};
 
@@ -74,6 +74,13 @@ impl DiagnosticFormat for ModuleStamp {
     fn diagnostic_fmt(&self, program: &Program) -> String {
         let module = self.id.diagnostic_fmt(program);
         format!("{module}@{}", self.version)
+    }
+}
+
+impl DiagnosticFormat for ModuleGraphStamp {
+    fn diagnostic_fmt(&self, program: &Program) -> String {
+        let profile = self.profile_id.diagnostic_fmt(program);
+        format!("{profile}@{}", self.version)
     }
 }
 
