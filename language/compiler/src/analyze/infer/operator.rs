@@ -2427,7 +2427,7 @@ impl Compiler {
         };
 
         match receiver_ty {
-            Type::Array { element } => {
+            Type::Array { element, .. } => {
                 let element_ty_id = element.unwrap_or_else(|| {
                     types.insert_type_from_type(
                         Type::TypeLiteral {

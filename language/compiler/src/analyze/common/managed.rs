@@ -158,8 +158,7 @@ impl Compiler {
         // treat explicit ownership wrappers as non managed
         match ty {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Mutable { right, .. }
-            | Type::Unary { right, .. }
+            Type::Unary { right, .. }
             | Type::Value { value: right } => {
                 // follow the wrapped type
                 let inner = types.get_type(*right);
@@ -195,8 +194,7 @@ impl Compiler {
         // treat explicit ownership wrappers as non managed
         match ty {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Mutable { right, .. }
-            | Type::Unary { right, .. }
+            Type::Unary { right, .. }
             | Type::Value { value: right } => {
                 // follow the wrapped type
                 let inner = types.get_type(*right);

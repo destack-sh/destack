@@ -40,7 +40,7 @@ pub(super) enum MappedIndexKind {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Normalize a `keyof` type expression.
-    pub(super) fn normalize_keyof_type(
+    pub(crate) fn normalize_keyof_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1368,7 +1368,6 @@ impl Compiler {
             }
             Type::Value { value }
             | Type::Unary { right: value, .. }
-            | Type::Mutable { right: value, .. }
             | Type::ValueOf { right: value, .. }
             | Type::ReferenceOf { right: value, .. }
             | Type::PointerOf { right: value, .. } => self
@@ -1452,7 +1451,7 @@ impl Compiler {
                     module, profile, name, target, symbols, types, visited,
                 )
             }),
-            Type::Array { element } => element.and_then(|element| {
+            Type::Array { element, .. } => element.and_then(|element| {
                 self.find_type_reference_symbol(
                     module, profile, name, element, symbols, types, visited,
                 )

@@ -12,10 +12,11 @@ use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Asynchrony, BinaryOperator, Declaration, EnumBackingType, Expression, Extension, ExtensionKind,
     FunctionCardinality, GlobalSymbolId, IntType, LocalNodeId, LocalNodeIdAny, LocalTypeId,
-    Mutability, NodeTree, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression,
-    StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeBinaryOperator,
-    TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
-    TypeUnaryOperator, UnaryOperator, VarianceBound, WellKnownSymbol,
+    Mutability, NodeTree, NormalizationMode, PrimitiveType, ScalarLiteral, StaticArgument,
+    StaticExpression, StaticKey, StaticProperty, StringId, SymbolTable, SymbolType, Type,
+    TypeBinaryOperator, TypeElement, TypeField, TypeIndexSignature, TypeLiteral,
+    TypeMappedParameter, TypeTable, TypeUnaryOperator, UnaryOperator, VarianceBound,
+    WellKnownSymbol,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -317,7 +318,6 @@ impl Compiler {
                 Ok(())
             }
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => self.ensure_reference_instance_types_for_type_inner(
@@ -335,7 +335,7 @@ impl Compiler {
                 .ensure_reference_instance_types_for_type_inner(
                     module, profile, node_id, element, types, visited,
                 ),
-            Type::Array { element } => {
+            Type::Array { element, .. } => {
                 if let Some(element) = element {
                     self.ensure_reference_instance_types_for_type_inner(
                         module, profile, node_id, element, types, visited,
@@ -343,7 +343,7 @@ impl Compiler {
                 }
                 Ok(())
             }
-            Type::Tuple { elements } => {
+            Type::Tuple { elements, .. } => {
                 for element in elements {
                     self.ensure_reference_instance_types_for_type_inner(
                         module, profile, node_id, element.ty, types, visited,
@@ -1090,13 +1090,79 @@ impl Compiler {
     /// Infer the result type of a type unary operation.
     pub(super) fn infer_type_unary_operation(
         &self,
-        _operator: &TypeUnaryOperator,
-        _right_ty_id: LocalTypeId,
-        _types: &TypeTable,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        operator: &TypeUnaryOperator,
+        right_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> Type {
-        // NOTE #Incomplete: type level unary operation
-        Type::TypeLiteral {
-            value: TypeLiteral::Unknown,
+        match operator {
+            TypeUnaryOperator::Not => {
+                // invert boolean literals and otherwise return boolean
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let right_ty = types.get_type(right_ty_id).clone();
+                self.try_fold_not(&right_ty).unwrap_or(Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+                })
+            }
+            TypeUnaryOperator::Must => {
+                // strip nullish types for must
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let (non_nullish, _) = self.strip_nullish_from_union(right_ty_id, types);
+                let Some(non_nullish) = non_nullish else {
+                    return Type::TypeLiteral {
+                        value: TypeLiteral::Never,
+                    };
+                };
+                types.get_type(non_nullish).clone()
+            }
+            TypeUnaryOperator::Type => {
+                // normalize to a type descriptor for `type`
+                let right_ty = types.get_type(right_ty_id).clone();
+                if let Type::Value { value } = right_ty {
+                    return Type::Value { value };
+                }
+                Type::Value { value: right_ty_id }
+            }
+            TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
+                // normalize readonly or const modifiers
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let readonly_id = self.materialize_readonly_type(
+                    expression_id.into_any(),
+                    right_ty_id,
+                    types,
+                );
+                types.get_type(readonly_id).clone()
+            }
+            TypeUnaryOperator::Keyof => {
+                // resolve keys for keyof expressions
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                let mut visited = Vec::new();
+                let key_type_id = self.normalize_keyof_type(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    right_ty_id,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut visited,
+                );
+                types.get_type(key_type_id).clone()
+            }
+            TypeUnaryOperator::Typeof => {
+                // typeof expressions evaluate to strings in value contexts
+                Type::TypeLiteral {
+                    value: TypeLiteral::Primitive(PrimitiveType::String),
+                }
+            }
+            TypeUnaryOperator::Newtype => {
+                // newtype is a no-op in expression contexts
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+                types.get_type(right_ty_id).clone()
+            }
         }
     }
 
@@ -1265,12 +1331,272 @@ impl Compiler {
                     value: TypeLiteral::Primitive(PrimitiveType::Boolean),
                 }
             }
-            _ => {
-                // NOTE #Incomplete: other type level binary operations (extends, implements, etc.)
-                Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
+            TypeBinaryOperator::In => {
+                // check if the left type is a member of the right type keys
+                let left_ty_id = self.unwrap_type_value(left_ty_id, types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+
+                // compute the key space for the right type
+                let mut visited = Vec::new();
+                let key_type_id = self.normalize_keyof_type(
+                    module,
+                    profile,
+                    expression_id.into_any(),
+                    right_ty_id,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut visited,
+                );
+
+                // compare the left type against the key space
+                let assignability = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    key_type_id,
+                    left_ty_id,
+                    types,
+                    options,
+                );
+
+                // only emit boolean literals when the relation is static
+                let is_decidable = self.type_operator_is_decidable(
+                    module,
+                    profile,
+                    left_ty_id,
+                    right_ty_id,
+                    symbols,
+                    types,
+                );
+                self.boolean_type_for_assignability(assignability, is_decidable)
+            }
+            TypeBinaryOperator::Extends | TypeBinaryOperator::Implements => {
+                // check assignability for extends/implements
+                let left_ty_id = self.unwrap_type_value(left_ty_id, types);
+                let right_ty_id = self.unwrap_type_value(right_ty_id, types);
+
+                // compare the left type against the right type
+                let assignability = self.is_type_assignable(
+                    module,
+                    profile,
+                    symbols,
+                    right_ty_id,
+                    left_ty_id,
+                    types,
+                    options,
+                );
+
+                // only emit boolean literals when the relation is static
+                let is_decidable = self.type_operator_is_decidable(
+                    module,
+                    profile,
+                    left_ty_id,
+                    right_ty_id,
+                    symbols,
+                    types,
+                );
+                self.boolean_type_for_assignability(assignability, is_decidable)
+            }
+        }
+    }
+
+    /// Decide whether a type relation can be reduced to a boolean literal.
+    fn type_operator_is_decidable(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        left_ty_id: LocalTypeId,
+        right_ty_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        // static parameters make assignability depend on runtime values
+        let mut static_visited = HashSet::new();
+        let left_contains_static = self.type_contains_static_parameters(
+            module,
+            profile,
+            left_ty_id,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        let mut static_visited = HashSet::new();
+        let right_contains_static = self.type_contains_static_parameters(
+            module,
+            profile,
+            right_ty_id,
+            symbols,
+            types,
+            &mut static_visited,
+        );
+        !(left_contains_static || right_contains_static)
+    }
+
+    /// Build a boolean type literal from assignability results.
+    fn boolean_type_for_assignability(
+        &self,
+        assignability: Assignability,
+        is_decidable: bool,
+    ) -> Type {
+        if !is_decidable {
+            return Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Boolean),
+            };
+        }
+
+        let value = matches!(assignability, Assignability::Assignable);
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Boolean(value)),
+        }
+    }
+
+    /// Materialize readonly modifiers for object-like type expressions.
+    fn materialize_readonly_type(
+        &self,
+        source_id: LocalNodeIdAny,
+        ty_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        let ty = types.get_type(ty_id).clone();
+        match ty {
+            Type::Union { elements } => {
+                // map readonly across union elements
+                let mut changed = false;
+                let mut mapped = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mapped_id = self.materialize_readonly_type(source_id, element, types);
+                    if mapped_id != element {
+                        changed = true;
+                    }
+                    mapped.push(mapped_id);
+                }
+                if !changed {
+                    return ty_id;
+                }
+                types.insert_type_from_any(Type::Union { elements: mapped }, source_id)
+            }
+            Type::Intersection { elements } => {
+                // map readonly across intersection elements
+                let mut changed = false;
+                let mut mapped = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let mapped_id = self.materialize_readonly_type(source_id, element, types);
+                    if mapped_id != element {
+                        changed = true;
+                    }
+                    mapped.push(mapped_id);
+                }
+                if !changed {
+                    return ty_id;
+                }
+                types.insert_type_from_any(Type::Intersection { elements: mapped }, source_id)
+            }
+            Type::Value { value } => {
+                // apply readonly to the underlying type value
+                let mapped = self.materialize_readonly_type(source_id, value, types);
+                if mapped == value {
+                    ty_id
+                } else {
+                    types.insert_type_from_any(Type::Value { value: mapped }, source_id)
                 }
             }
+            Type::Reference { .. } => {
+                // avoid expanding nominal references for readonly wrappers
+                ty_id
+            }
+            Type::Object {
+                mut fields,
+                call_signatures,
+                construct_signatures,
+                mut index_signatures,
+            } => {
+                // mark object fields and index signatures as readonly
+                let mut changed = false;
+                for field in fields.iter_mut() {
+                    if !field.is_readonly {
+                        field.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                for signature in index_signatures.iter_mut() {
+                    if !signature.is_readonly {
+                        signature.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                if !changed {
+                    return ty_id;
+                }
+                types.insert_type_from_any(
+                    Type::Object {
+                        fields,
+                        call_signatures,
+                        construct_signatures,
+                        index_signatures,
+                    },
+                    source_id,
+                )
+            }
+            Type::Tuple {
+                mut elements,
+                is_readonly,
+            } => {
+                // mark tuple elements as readonly
+                let mut changed = false;
+                if !is_readonly {
+                    changed = true;
+                }
+                for element in elements.iter_mut() {
+                    if !element.is_readonly {
+                        element.is_readonly = true;
+                        changed = true;
+                    }
+                }
+                if !changed {
+                    return ty_id;
+                }
+                types.insert_type_from_any(
+                    Type::Tuple {
+                        elements,
+                        is_readonly: true,
+                    },
+                    source_id,
+                )
+            }
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
+                if is_readonly {
+                    return ty_id;
+                }
+                types.insert_type_from_any(
+                    Type::ArraySized {
+                        element,
+                        count,
+                        is_readonly: true,
+                    },
+                    source_id,
+                )
+            }
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
+                if is_readonly {
+                    return ty_id;
+                }
+                types.insert_type_from_any(
+                    Type::Array {
+                        element,
+                        is_readonly: true,
+                    },
+                    source_id,
+                )
+            }
+            _ => ty_id,
         }
     }
 
@@ -1408,7 +1734,6 @@ impl Compiler {
 
             // unary wrappers: unwrap before resolving members
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
@@ -1646,6 +1971,7 @@ impl Compiler {
                     .collect();
                 let tuple_ty = Type::Tuple {
                     elements: tuple_elements,
+                    is_readonly: false,
                 };
                 let tuple_ty_id = types.insert_type_from_any(tuple_ty, node_id);
 
@@ -1713,7 +2039,6 @@ impl Compiler {
                 module, profile, *symbol, member_key, types, visited,
             ),
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
@@ -2304,11 +2629,21 @@ impl Compiler {
             }
 
             // array types
-            Type::Array { element: None } => {
-                types.insert_type_from_any(Type::Array { element: None }, node_id)
+            Type::Array {
+                element: None,
+                is_readonly,
+            } => {
+                types.insert_type_from_any(
+                    Type::Array {
+                        element: None,
+                        is_readonly: *is_readonly,
+                    },
+                    node_id,
+                )
             }
             Type::Array {
                 element: Some(element_id),
+                is_readonly,
             } => {
                 let element_ty = remote_types.get_type(*element_id);
                 let local_elem = self.import_type_from_remote_for_node(
@@ -2321,13 +2656,17 @@ impl Compiler {
                 types.insert_type_from_any(
                     Type::Array {
                         element: Some(local_elem),
+                        is_readonly: *is_readonly,
                     },
                     node_id,
                 )
             }
 
             // tuple types
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 let local_elements: Vec<_> = elements
                     .iter()
                     .map(|element| {
@@ -2347,6 +2686,7 @@ impl Compiler {
                 types.insert_type_from_any(
                     Type::Tuple {
                         elements: local_elements,
+                        is_readonly: *is_readonly,
                     },
                     node_id,
                 )
@@ -2563,23 +2903,6 @@ impl Compiler {
                     types,
                 );
                 types.insert_type_from_any(Type::Value { value: local_inner }, node_id)
-            }
-            Type::Mutable { mutability, right } => {
-                let inner_ty = remote_types.get_type(*right);
-                let local_inner = self.import_type_from_remote_for_node(
-                    node_id,
-                    inner_ty,
-                    remote_types,
-                    target_symbol,
-                    types,
-                );
-                types.insert_type_from_any(
-                    Type::Mutable {
-                        mutability: *mutability,
-                        right: local_inner,
-                    },
-                    node_id,
-                )
             }
             Type::ValueOf {
                 mutability,
@@ -3321,20 +3644,6 @@ impl Compiler {
                     )
                 }
             }
-            Type::Mutable { mutability, right } => {
-                let mapped_right = self.substitute_this_type(right, this_ty_id, types, cache);
-                if mapped_right == right {
-                    ty_id
-                } else {
-                    types.insert_type_from_type(
-                        Type::Mutable {
-                            mutability,
-                            right: mapped_right,
-                        },
-                        ty_id,
-                    )
-                }
-            }
             Type::ValueOf {
                 mutability,
                 variance,
@@ -3387,7 +3696,11 @@ impl Compiler {
                     )
                 }
             }
-            Type::ArraySized { element, count } => {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
                 let mapped_element = self.substitute_this_type(element, this_ty_id, types, cache);
                 if mapped_element == element {
                     ty_id
@@ -3396,12 +3709,16 @@ impl Compiler {
                         Type::ArraySized {
                             element: mapped_element,
                             count,
+                            is_readonly,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Array { element } => {
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
                 let mapped_element = element
                     .map(|element| self.substitute_this_type(element, this_ty_id, types, cache));
                 if mapped_element == element {
@@ -3410,12 +3727,16 @@ impl Compiler {
                     types.insert_type_from_type(
                         Type::Array {
                             element: mapped_element,
+                            is_readonly,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 let mut changed = false;
                 let mapped_elements = elements
                     .iter()
@@ -3434,6 +3755,7 @@ impl Compiler {
                     types.insert_type_from_type(
                         Type::Tuple {
                             elements: mapped_elements,
+                            is_readonly,
                         },
                         ty_id,
                     )

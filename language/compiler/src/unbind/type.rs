@@ -417,22 +417,6 @@ impl Compiler {
                 );
                 ast::Expression::TypeUnary { operator, right }
             }
-            dir::Type::Mutable {
-                mutability: _,
-                right,
-            } => {
-                // mutable wrapper is elided in output
-                return self.unbind_type_expression(
-                    module,
-                    *right,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-            }
             dir::Type::ValueOf {
                 mutability,
                 variance,
@@ -529,7 +513,11 @@ impl Compiler {
                     right,
                 }
             }
-            dir::Type::ArraySized { element, count } => {
+            dir::Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
                 // sized array expression
                 let left = self.unbind_type_expression(
                     module,
@@ -550,13 +538,27 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::Expression::Index {
+                let array_expr = ast::Expression::Index {
                     position: ast::PostfixPosition::Direct,
                     left,
                     index: Some(index),
+                };
+                if *is_readonly {
+                    let operator =
+                        self.unbind_type_unary_operator(context, dir::TypeUnaryOperator::Readonly);
+                    let right = ast_tree.insert(array_expr, span);
+                    ast::Expression::TypeUnary {
+                        operator,
+                        right,
+                    }
+                } else {
+                    array_expr
                 }
             }
-            dir::Type::Array { element } => {
+            dir::Type::Array {
+                element,
+                is_readonly,
+            } => {
                 // slice expression
                 let element = *element;
                 let left = element.map(|element| {
@@ -571,7 +573,7 @@ impl Compiler {
                         context,
                     )
                 });
-                match left {
+                let array_expr = match left {
                     Some(left) => ast::Expression::Index {
                         position: ast::PostfixPosition::Direct,
                         left,
@@ -580,6 +582,17 @@ impl Compiler {
                     None => ast::Expression::ArrayExpression {
                         elements: Vec::new(),
                     },
+                };
+                if *is_readonly {
+                    let operator =
+                        self.unbind_type_unary_operator(context, dir::TypeUnaryOperator::Readonly);
+                    let right = ast_tree.insert(array_expr, span);
+                    ast::Expression::TypeUnary {
+                        operator,
+                        right,
+                    }
+                } else {
+                    array_expr
                 }
             }
             dir::Type::Tuple { elements } => {

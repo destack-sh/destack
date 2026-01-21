@@ -99,9 +99,9 @@ const (x, _) = getPoint();
 
 ### Arrays
 
-Arrays are dense on native targets: array literals do not permit holes, and index
-access is bounds checked. `a[i]` returns the element type and out of bounds access
-follows the `boundsChecks` and `checkFailure` policies.
+Arrays are dense and bounds checked by default.
+Readonly arrays use `readonly T[]`, and tuples use explicit `()` syntax.
+Fixed-size arrays use `T[N]` and are distinct from dynamic `T[]`.
 
 ### Patterns
 

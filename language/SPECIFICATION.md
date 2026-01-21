@@ -447,19 +447,25 @@ Newtypes share the underlying runtime representation, so you can still use struc
 
 ### Arrays and Tuples
 
-Arrays work like TypeScript, with Destack adding fixed-length arrays and explicit tuple syntax:
+Destack supports dynamic arrays, fixed-size arrays, and explicit tuple syntax:
 
 ```
-int32[]              // dynamic array (TypeScript style)
-int32[N]             // fixed-length array
-(int32, boolean)     // tuple (explicit tuple)
-(x: int32, y: int32) // named tuple
+int32[]                    // dynamic array
+int32[N]                   // fixed-size array
+readonly int32[]           // readonly array
+(int32, boolean)           // tuple
+(x: int32, y: int32)       // named tuple
+readonly (int32, boolean)  // readonly tuple
 ```
 
-Arrays are dense on native targets, array literals do not permit holes, and index access is
-bounds checked. `a[i]` returns the element type, and out of bounds access triggers the
-configured bounds check failure (`boundsChecks` and `checkFailure`).
-`noUncheckedIndexedAccess` only affects index signatures, not arrays or tuples.
+The rules for arrays and tuples center around correctness and performance:
+- Array literals are dense and do not permit holes.
+- Index access `a[i]` returns the element type and is bounds checked.
+- Bounds check failures follow the `boundsChecks` and `checkFailure` policies.
+- `noUncheckedIndexedAccess` only affects index signatures, not arrays or tuples.
+- Mutable arrays are assignable to readonly arrays.
+- Readonly arrays are not assignable to mutable arrays.
+- The same readonly rule applies to tuples (elementwise).
 
 ### References and Values
 
@@ -688,7 +694,7 @@ file.write("hello");
 Functions can return `&T`.
 Borrowed returns use lifetime inference and `@lifetime` annotations to track which inputs they borrow from.
 In strict mode, returning a borrow that may outlive its origin is an error.
-In lenient mode, the same situation produces a warning.
+(In lenient mode, the same situation produces a warning).
 
 ```
 function get(c: &Container): &Item { &c.item }  // ok
@@ -2069,6 +2075,10 @@ v.magnitude();        // 5.0
 Vector2.zero();       // static call
 ```
 
+Methods can declare an explicit `this` parameter to constrain the receiver type.
+The explicit `this` parameter must be first and does not count toward call arity.
+Explicit `this` parameters can use reference types (like `&mut`) to require mutable receivers.
+
 Methods can also be added to any type via extensions, including primitives and foreign types.
 
 #### Getters and Setters
@@ -2882,6 +2892,7 @@ Type-level operators (not overloadable):
 | Operator | Description | Interface |
 |----------|-------------|-----------|
 | `as` | Type cast | — |
+| `in` | Key membership check | — |
 | `is` | Type guard | — |
 | `instanceof` | Class identity check | — |
 | `satisfies` | Type satisfaction | — |
@@ -2892,6 +2903,8 @@ Type-level operators (not overloadable):
 
 The `is` operator uses `T.is` when runtime checks are required.
 The `instanceof` operator is only defined for class identity checks.
+The `in` operator returns a boolean literal when the key is assignable to `keyof` of the right type.
+The `extends` and `implements` operators return boolean literals when assignability is decidable and `boolean` otherwise.
 Conditional types allow `infer` bindings inside the `extends` pattern.
 The inferred bindings are scoped to the conditional type and available in the true branch.
 

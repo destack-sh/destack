@@ -555,7 +555,15 @@ impl Compiler {
                 let right_ty_id =
                     self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
 
-                let ty = self.infer_type_unary_operation(operator, right_ty_id, types);
+                let ty = self.infer_type_unary_operation(
+                    module,
+                    ctx.profile,
+                    expression_id,
+                    operator,
+                    right_ty_id,
+                    symbols,
+                    types,
+                );
                 types.insert_type_from(ty, expression_id)
             }
             Expression::TypeBinary {
@@ -958,7 +966,7 @@ impl Compiler {
                         symbol,
                         static_arguments,
                     } = types.get_type(expected_ty_id).clone()
-                    && let Some(Type::Array { element }) = self.normalize_well_known_type_reference(
+                    && let Some(Type::Array { element, .. }) = self.normalize_well_known_type_reference(
                         module,
                         symbols,
                         ctx.profile,
@@ -973,6 +981,19 @@ impl Compiler {
                     }
                     if expected_element_types.iter().all(|ty| ty.is_none()) {
                         expected_element_types.fill(element);
+                    }
+                }
+
+                // reject sparse array holes
+                for element_id in elements.iter() {
+                    let element = tree.get(*element_id);
+                    let value_id = element.value();
+                    if matches!(tree.get(value_id), Expression::Stub) {
+                        self.error(AnalyzeError::ArrayLiteralHole {
+                            node: value_id
+                                .into_global_any(module.id)
+                                .into_anchored(Some(ctx.profile)),
+                        });
                     }
                 }
 
@@ -1032,6 +1053,7 @@ impl Compiler {
 
                     Type::Tuple {
                         elements: tuple_elements,
+                        is_readonly: false,
                     }
                 } else {
                     // resolve the array element type
@@ -1048,6 +1070,7 @@ impl Compiler {
 
                     Type::Array {
                         element: element_ty_id,
+                        is_readonly: false,
                     }
                 };
 
@@ -1115,6 +1138,7 @@ impl Compiler {
 
                 let ty = Type::Tuple {
                     elements: element_tys,
+                    is_readonly: false,
                 };
                 types.insert_type_from(ty, expression_id)
             }
@@ -2881,6 +2905,7 @@ impl Compiler {
                     binding_ty_id,
                     |rest_types| Type::Tuple {
                         elements: rest_types.into_iter().map(TypeElement::new).collect(),
+                        is_readonly: false,
                     },
                     tree,
                     symbols,
@@ -2916,6 +2941,7 @@ impl Compiler {
                     Some(ty_id),
                     |rest_types| Type::Tuple {
                         elements: rest_types.into_iter().map(TypeElement::new).collect(),
+                        is_readonly: false,
                     },
                     tree,
                     symbols,
@@ -2931,6 +2957,7 @@ impl Compiler {
                     binding_ty_id,
                     |rest_types| Type::Array {
                         element: rest_types.first().cloned(),
+                        is_readonly: false,
                     },
                     tree,
                     symbols,
@@ -3022,7 +3049,7 @@ impl Compiler {
     ) -> AnalyzeResult<()> {
         let binding_ty_fields: Vec<LocalTypeId> = binding_ty_id
             .and_then(|ty_id| match types.get_type(ty_id) {
-                Type::Tuple { elements } => {
+                Type::Tuple { elements, .. } => {
                     Some(elements.iter().map(|element| element.ty).collect())
                 }
                 _ => None,

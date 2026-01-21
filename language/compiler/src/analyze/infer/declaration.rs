@@ -225,14 +225,7 @@ impl Compiler {
                 // infer member bodies without mutating instance shapes
                 for member_id in members {
                     self.infer_member(
-                        module,
-                        *member_id,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        &mut ctx,
-                        this_ty_id,
+                        module, *member_id, tree, symbols, types, infer, &mut ctx, this_ty_id,
                     )?;
                 }
             }
@@ -565,9 +558,9 @@ impl Compiler {
                     && let Some(static_key) = static_key
                     && let Some(owner_symbol) = ctx.in_nominal_symbol
                 {
-                    let is_optional = modifiers
-                        .as_ref()
-                        .is_some_and(|modifiers| matches!(modifiers.kind, Some(BindingKind::Maybe)));
+                    let is_optional = modifiers.as_ref().is_some_and(|modifiers| {
+                        matches!(modifiers.kind, Some(BindingKind::Maybe))
+                    });
                     let is_readonly = modifiers.as_ref().is_some_and(|modifiers| {
                         matches!(modifiers.mutability, Some(Mutability::Immutable))
                     });
@@ -1274,7 +1267,7 @@ impl Compiler {
 
         match &target_module.content {
             ModuleContent::Data { value, .. } => {
-                // Infer structural type from JSON value
+                // infer structural type from JSON value
                 Ok(json_value_to_type(
                     value,
                     source_node,
@@ -1283,7 +1276,7 @@ impl Compiler {
                 ))
             }
             ModuleContent::Text { .. } => {
-                // Text imports are always string
+                // text imports are always string
                 Ok(types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::String),
@@ -1292,7 +1285,7 @@ impl Compiler {
                 ))
             }
             ModuleContent::Binary { .. } => {
-                // Binary imports are uint8[] (Uint8Array on JS targets)
+                // binary imports are uint8[] (Uint8Array on JS targets)
                 let element_type = types.insert_type_from_any(
                     Type::TypeLiteral {
                         value: TypeLiteral::Primitive(PrimitiveType::Int(IntType::Uint8)),
@@ -1302,19 +1295,13 @@ impl Compiler {
                 Ok(types.insert_type_from_any(
                     Type::Array {
                         element: Some(element_type),
+                        is_readonly: false,
                     },
                     source_node,
                 ))
             }
             ModuleContent::Code(_) | ModuleContent::Unloaded => {
-                // Shouldn't happen - code modules don't reach this path
-                // Return unknown type as fallback
-                Ok(types.insert_type_from_any(
-                    Type::TypeLiteral {
-                        value: TypeLiteral::Unknown,
-                    },
-                    source_node,
-                ))
+                unreachable!("code modules are handled by analyze_module_infer");
             }
         }
     }

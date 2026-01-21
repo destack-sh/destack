@@ -802,11 +802,6 @@ impl<'a> SignatureHasher<'a> {
                 self.hash_type_id_in_tables(module_id, *right, types)
                     .hash(&mut hasher);
             }
-            Type::Mutable { mutability, right } => {
-                self.hash_mutability(mutability).hash(&mut hasher);
-                self.hash_type_id_in_tables(module_id, *right, types)
-                    .hash(&mut hasher);
-            }
             Type::ValueOf {
                 mutability,
                 variance,
@@ -843,13 +838,22 @@ impl<'a> SignatureHasher<'a> {
                 self.hash_type_id_in_tables(module_id, *right, types)
                     .hash(&mut hasher);
             }
-            Type::ArraySized { element, count } => {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
+                is_readonly.hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *element, types)
                     .hash(&mut hasher);
                 self.hash_node(count.into_global_any(module_id))
                     .hash(&mut hasher);
             }
-            Type::Array { element } => {
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
+                is_readonly.hash(&mut hasher);
                 element
                     .map(|ty| self.hash_type_id_in_tables(module_id, ty, types))
                     .hash(&mut hasher);

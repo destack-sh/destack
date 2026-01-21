@@ -16,6 +16,7 @@ The last non-statement expression becomes the value.
 | `switch/` | Switch statements with fallthrough |
 | `ranges/` | Range literals (`0..10`, `0..=10`) |
 | `tuples/` | Tuple literals and types `(a, b)` |
+| `arrays/` | Array literals and hole restrictions |
 | `loops/` | Infinite `loop { }` construct |
 | `blocks/` | Block expressions, labeled blocks, `do { }` |
 | `if/` | If expressions and if let |

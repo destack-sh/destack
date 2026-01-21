@@ -115,7 +115,10 @@ impl Compiler {
                     }
                 }
             }
-            Type::Array { element } => {
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
                 // normalize the optional element type
                 let original_element = element;
                 let normalized_element = original_element.map(|element_id| {
@@ -129,11 +132,16 @@ impl Compiler {
                 } else {
                     let normalized = Type::Array {
                         element: normalized_element,
+                        is_readonly,
                     };
                     types.insert_type_from_any(normalized, source_id)
                 }
             }
-            Type::ArraySized { element, count } => {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
                 // normalize the array element type
                 let original_element = element;
                 let normalized_element = self.normalize_type_inner(
@@ -151,6 +159,7 @@ impl Compiler {
                     let normalized = Type::ArraySized {
                         element: normalized_element,
                         count,
+                        is_readonly,
                     };
                     types.insert_type_from_any(normalized, source_id)
                 }
@@ -501,25 +510,6 @@ impl Compiler {
                         operator,
                         right,
                     };
-                    types.insert_type_from_any(normalized, source_id)
-                }
-            }
-            Type::Mutable { mutability, right } => {
-                // normalize mutable target
-                let original_right = right;
-                let right = self.normalize_type_inner(
-                    module,
-                    profile,
-                    original_right,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                if right == original_right {
-                    type_id
-                } else {
-                    let normalized = Type::Mutable { mutability, right };
                     types.insert_type_from_any(normalized, source_id)
                 }
             }

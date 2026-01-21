@@ -59,6 +59,18 @@ impl Compiler {
         None
     }
 
+    /// Unwrap a type-as-value wrapper to the underlying type id.
+    pub(crate) fn unwrap_type_value(
+        &self,
+        type_id: LocalTypeId,
+        types: &TypeTable,
+    ) -> LocalTypeId {
+        match types.get_type(type_id) {
+            Type::Value { value } => *value,
+            _ => type_id,
+        }
+    }
+
     /// Resolve an enum symbol from a type when possible.
     pub(crate) fn enum_symbol_for_type(
         &self,
@@ -231,7 +243,6 @@ impl Compiler {
                 })
             }),
             Type::Unary { right, .. }
-            | Type::Mutable { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. } => {
@@ -244,7 +255,7 @@ impl Compiler {
             Type::ArraySized { element, .. } => {
                 self.type_contains_unresolved_reference(*element, types, visited)
             }
-            Type::Array { element } => element.is_some_and(|element| {
+            Type::Array { element, .. } => element.is_some_and(|element| {
                 self.type_contains_unresolved_reference(element, types, visited)
             }),
             Type::Tuple { elements } => elements

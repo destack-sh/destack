@@ -1307,7 +1307,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
                     .end();
             }
 
-            Type::Array { element: _ } => {
+            Type::Array { .. } => {
                 self.node("Type::Array", id.id).end();
             }
             Type::Tuple { elements: _ } => {

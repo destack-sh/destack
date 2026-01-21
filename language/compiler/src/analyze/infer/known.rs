@@ -44,8 +44,20 @@ impl Compiler {
     ) -> Option<WellKnownSymbol> {
         // map structural and literal receiver types
         match receiver_ty {
-            Type::Array { .. } | Type::ArraySized { .. } | Type::Tuple { .. } => {
-                Some(WellKnownSymbol::Array)
+            Type::Array { is_readonly, .. } | Type::ArraySized { is_readonly, .. } => {
+                if *is_readonly {
+                    Some(WellKnownSymbol::ReadonlyArray)
+                } else {
+                    Some(WellKnownSymbol::Array)
+                }
+            }
+            Type::Tuple { elements } => {
+                let is_readonly = elements.iter().any(|element| element.is_readonly);
+                if is_readonly {
+                    Some(WellKnownSymbol::ReadonlyArray)
+                } else {
+                    Some(WellKnownSymbol::Array)
+                }
             }
             Type::Object { .. } => Some(WellKnownSymbol::Object),
             Type::Function { .. } => Some(WellKnownSymbol::Function),
@@ -73,11 +85,20 @@ impl Compiler {
 
         // resolve the well known symbol for this receiver
         let well_known_symbol = self.well_known_symbol_for_type(receiver_ty, types)?;
-        let symbol = self.get_well_known_type_symbol(profile, well_known_symbol)?;
+        let symbol = if let Some(symbol) =
+            self.get_well_known_type_symbol(profile, well_known_symbol)
+        {
+            symbol
+        } else if matches!(well_known_symbol, WellKnownSymbol::ReadonlyArray) {
+            // fall back to Array when ReadonlyArray is unavailable
+            self.get_well_known_type_symbol(profile, WellKnownSymbol::Array)?
+        } else {
+            return None;
+        };
 
         // build static arguments for array like receivers
         let static_arguments = match receiver_ty {
-            Type::Array { element } => element.map(|element| {
+            Type::Array { element, .. } => element.map(|element| {
                 vec![StaticArgument::value(StaticExpression::Type {
                     ty: element,
                 })]

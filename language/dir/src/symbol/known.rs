@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 pub enum WellKnownSymbol {
     /// Builtin Array constructor symbol.
     Array,
+    /// Builtin ReadonlyArray constructor symbol.
+    ReadonlyArray,
+    /// Builtin Slice type symbol.
+    Slice,
     /// Builtin Object constructor symbol.
     Object,
     /// Builtin Function constructor symbol.
@@ -43,6 +47,8 @@ impl WellKnownSymbol {
     pub fn export_name(&self) -> &'static str {
         match self {
             WellKnownSymbol::Array => "Array",
+            WellKnownSymbol::ReadonlyArray => "ReadonlyArray",
+            WellKnownSymbol::Slice => "Slice",
             WellKnownSymbol::Object => "Object",
             WellKnownSymbol::Function => "Function",
             WellKnownSymbol::Eval => "eval",
@@ -65,6 +71,8 @@ impl WellKnownSymbol {
     pub fn all() -> impl Iterator<Item = Self> {
         const ALL: &[WellKnownSymbol] = &[
             WellKnownSymbol::Array,
+            WellKnownSymbol::ReadonlyArray,
+            WellKnownSymbol::Slice,
             WellKnownSymbol::Object,
             WellKnownSymbol::Function,
             WellKnownSymbol::Eval,

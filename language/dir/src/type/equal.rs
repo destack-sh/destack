@@ -22,26 +22,54 @@ pub fn are_types_semantically_equal(source: &Type, target: &Type, types: &TypeTa
         ) => s1 == s2 && are_static_arguments_equal(a1, a2, types),
 
         // arrays: same element type
-        (Type::Array { element: e1 }, Type::Array { element: e2 }) => match (e1, e2) {
+        (
+            Type::Array {
+                element: e1,
+                is_readonly: r1,
+            },
+            Type::Array {
+                element: e2,
+                is_readonly: r2,
+            },
+        ) => {
+            if r1 != r2 {
+                return false;
+            }
+            match (e1, e2) {
             (Some(e1), Some(e2)) => are_types_equal(*e1, *e2, types),
             (None, None) => true,
             _ => false,
-        },
+            }
+        }
 
         // sized arrays: same element type and count expression
         (
             Type::ArraySized {
                 element: e1,
                 count: c1,
+                is_readonly: r1,
             },
             Type::ArraySized {
                 element: e2,
                 count: c2,
+                is_readonly: r2,
             },
-        ) => c1 == c2 && are_types_equal(*e1, *e2, types),
+        ) => r1 == r2 && c1 == c2 && are_types_equal(*e1, *e2, types),
 
         // tuples: same elements
-        (Type::Tuple { elements: e1 }, Type::Tuple { elements: e2 }) => {
+        (
+            Type::Tuple {
+                elements: e1,
+                is_readonly: r1,
+            },
+            Type::Tuple {
+                elements: e2,
+                is_readonly: r2,
+            },
+        ) => {
+            if r1 != r2 {
+                return false;
+            }
             e1.len() == e2.len()
                 && e1.iter().zip(e2.iter()).all(|(a, b)| {
                     a.label == b.label

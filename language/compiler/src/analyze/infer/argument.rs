@@ -2033,6 +2033,7 @@ impl Compiler {
                     types.insert_type_from_any(
                         Type::Tuple {
                             elements: element_types,
+                            is_readonly: false,
                         },
                         source_id,
                     )
@@ -2462,21 +2463,6 @@ impl Compiler {
                     )
                 }
             }
-            Type::Mutable { mutability, right } => {
-                let mapped_right =
-                    self.substitute_static_parameters(right, substitutions, types, cache);
-                if mapped_right == right {
-                    ty_id
-                } else {
-                    types.insert_type_from_type(
-                        Type::Mutable {
-                            mutability,
-                            right: mapped_right,
-                        },
-                        ty_id,
-                    )
-                }
-            }
             Type::ValueOf {
                 mutability,
                 variance,
@@ -2532,7 +2518,11 @@ impl Compiler {
                     )
                 }
             }
-            Type::ArraySized { element, count } => {
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
                 // substitute the array element type
                 let mapped_element =
                     self.substitute_static_parameters(element, substitutions, types, cache);
@@ -2555,12 +2545,16 @@ impl Compiler {
                         Type::ArraySized {
                             element: mapped_element,
                             count,
+                            is_readonly,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Array { element } => {
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
                 let mapped_element = element.map(|element| {
                     self.substitute_static_parameters(element, substitutions, types, cache)
                 });
@@ -2570,12 +2564,16 @@ impl Compiler {
                     types.insert_type_from_type(
                         Type::Array {
                             element: mapped_element,
+                            is_readonly,
                         },
                         ty_id,
                     )
                 }
             }
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 let mut changed = false;
                 let mapped_elements = elements
                     .iter()
@@ -2598,6 +2596,7 @@ impl Compiler {
                     types.insert_type_from_type(
                         Type::Tuple {
                             elements: mapped_elements,
+                            is_readonly,
                         },
                         ty_id,
                     )

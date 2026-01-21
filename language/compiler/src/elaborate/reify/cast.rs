@@ -1019,6 +1019,7 @@ impl Compiler {
             Type::ArraySized { element, .. },
             Type::Array {
                 element: target_element,
+                ..
             },
         ) = (&source, &target)
         {

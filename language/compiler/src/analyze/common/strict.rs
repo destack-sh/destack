@@ -85,7 +85,6 @@ impl Compiler {
             Type::TypeLiteral { value } => predicate(value),
             Type::Value { value }
             | Type::Unary { right: value, .. }
-            | Type::Mutable { right: value, .. }
             | Type::ValueOf { right: value, .. }
             | Type::ReferenceOf { right: value, .. }
             | Type::PointerOf { right: value, .. } => self.type_contains_forbidden_literal_inner(
@@ -257,7 +256,7 @@ impl Compiler {
                 visited_types,
                 visited_symbols,
             ),
-            Type::Array { element } => element.is_some_and(|element| {
+            Type::Array { element, .. } => element.is_some_and(|element| {
                 self.type_contains_forbidden_literal_inner(
                     module,
                     element,
