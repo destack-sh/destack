@@ -1352,6 +1352,7 @@ mod tests {
 
     use parking_lot::RwLock;
 
+    use destack_mir::parse::ParseOptions;
     use destack_source::{
         FileId, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, Uri,
     };
@@ -1373,7 +1374,8 @@ mod tests {
         let file_id = FileId::new(module_index);
 
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source).expect("failed to parse MIR");
+            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+                .expect("failed to parse MIR");
         let pool = destack_base::StringPool::new();
         pool.copy_from_immutable(&strings);
 

@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_mir::parse::Parser;
+use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
 
 use crate::diagnostic::Error;
@@ -216,7 +216,8 @@ block0(v0: fn(i32) -> i32, v1: i32):
     return v2
 }"#;
     // parse the MIR
-    let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
+    let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .expect("failed to parse MIR");
 
     // find the @double function id
     let double_id = tree
@@ -247,7 +248,8 @@ block0(v0: fn(i32) -> i32, v1: i32):
     v2 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
-    let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
+    let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .expect("failed to parse MIR");
     let mut isolate = Isolate::with_options(tree, strings, IsolateOptions::test())
         .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
 
@@ -313,7 +315,8 @@ block0(v0: i32, v1: fn(i32, i32) -> i32):
 }"#;
 
     // parse the MIR
-    let (tree, strings) = Parser::parse(FileId::new(0), mir_text).expect("failed to parse MIR");
+    let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
+        .expect("failed to parse MIR");
 
     // find the @countdown function id
     let countdown_id = tree
