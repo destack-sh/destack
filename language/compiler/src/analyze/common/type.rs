@@ -60,11 +60,7 @@ impl Compiler {
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.
-    pub(crate) fn unwrap_type_value(
-        &self,
-        type_id: LocalTypeId,
-        types: &TypeTable,
-    ) -> LocalTypeId {
+    pub(crate) fn unwrap_type_value(&self, type_id: LocalTypeId, types: &TypeTable) -> LocalTypeId {
         match types.get_type(type_id) {
             Type::Value { value } => *value,
             _ => type_id,

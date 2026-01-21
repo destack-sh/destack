@@ -1270,6 +1270,24 @@ impl<'a> InterpreterContext<'a> {
                     field_count: cell.slots.len(),
                 }))
             }
+            ValueTag::LocalPointer => {
+                let lp = ptr.as_local_pointer().unwrap();
+                if offset != 0 || lp.slot_offset != 0 {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 1,
+                    }));
+                }
+                let frame = self
+                    .engine
+                    .call_stack
+                    .get(lp.frame_idx)
+                    .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
+                let local = mir::LocalNodeId::new(lp.local as u32);
+                frame
+                    .get_local_or_error(&self.engine.local_stack, local)
+                    .map_err(|error| self.make_error(error))
+            }
             _ => Err(self.make_error(Error::InvalidPointerType {
                 actual: format!("{ptr:?}"),
             })),
@@ -1367,6 +1385,23 @@ impl<'a> InterpreterContext<'a> {
                 };
 
                 Err(self.make_error(error))
+            }
+            ValueTag::LocalPointer => {
+                let lp = ptr.as_local_pointer().unwrap();
+                if offset != 0 || lp.slot_offset != 0 {
+                    return Err(self.make_error(Error::InvalidFieldAccess {
+                        index: offset as u32,
+                        field_count: 1,
+                    }));
+                }
+                let frame = self
+                    .engine
+                    .call_stack
+                    .get(lp.frame_idx)
+                    .ok_or_else(|| self.make_error(Error::InvalidHeapHandle))?;
+                let local = mir::LocalNodeId::new(lp.local as u32);
+                frame.set_local(&mut self.engine.local_stack, local, value);
+                Ok(())
             }
             _ => Err(self.make_error(Error::InvalidPointerType {
                 actual: format!("{ptr:?}"),

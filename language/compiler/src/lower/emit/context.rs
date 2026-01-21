@@ -16,15 +16,6 @@ impl Terminates {
     }
 }
 
-/// Track a lowered local binding for value expressions.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct LocalBinding {
-    /// The MIR variable holding the binding value.
-    pub(crate) variable: mir::Variable,
-    /// The MIR type of the binding.
-    pub(crate) ty: mir::LocalNodeId<mir::Type>,
-}
-
 /// Track loop context for break/continue resolution.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct LoopContext {

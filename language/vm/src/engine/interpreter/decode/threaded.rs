@@ -352,6 +352,13 @@ pub enum ThreadedInstructionData {
     /// Load local variable.
     LocalGet { dest: mir::Value, local: u32 },
 
+    /// Get local address.
+    LocalAddr {
+        dest: mir::Value,
+        local: u32,
+        reference: ReferenceMeta,
+    },
+
     /// Store local variable.
     LocalSet { local: u32, value: mir::Value },
 
@@ -652,6 +659,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::CallInterface { .. } => "call_interface",
             ThreadedInstructionData::CallIndirect { .. } => "call_indirect",
             ThreadedInstructionData::LocalGet { .. } => "local_get",
+            ThreadedInstructionData::LocalAddr { .. } => "local_addr",
             ThreadedInstructionData::LocalSet { .. } => "local_set",
             ThreadedInstructionData::GlobalAddr { .. } => "global_addr",
             ThreadedInstructionData::GlobalConst { .. } => "global_const",

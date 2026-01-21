@@ -671,6 +671,7 @@ pub fn resolve_pointer_address_space(
         | mir::Instruction::ManagedAlloc { .. }
         | mir::Instruction::ManagedAllocArray { .. } => Some(mir::AddressSpace::Heap),
         mir::Instruction::GlobalAddr { .. } => Some(mir::AddressSpace::Global),
+        mir::Instruction::LocalAddr { .. } => Some(mir::AddressSpace::Stack),
         mir::Instruction::FieldAddr { aggregate, .. } => {
             resolve_pointer_address_space(*aggregate, function, tree, ownership, definitions)
         }
@@ -724,6 +725,8 @@ fn parameter_type(
 pub enum PointerBase {
     /// Stack allocation instruction.
     StackAlloc(mir::LocalNodeId<mir::Instruction>),
+    /// Local slot address.
+    Local(mir::LocalNodeId<mir::Local>),
     /// Managed heap allocation instruction.
     ManagedAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Raw heap allocation instruction.
@@ -749,6 +752,7 @@ impl PointerBase {
         matches!(
             self,
             PointerBase::StackAlloc(_)
+                | PointerBase::Local(_)
                 | PointerBase::ManagedAlloc(_)
                 | PointerBase::RawAlloc(_)
                 | PointerBase::Global(_)
@@ -764,7 +768,10 @@ impl PointerBase {
     pub fn is_local_alloc(&self) -> bool {
         matches!(
             self,
-            PointerBase::StackAlloc(_) | PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_)
+            PointerBase::StackAlloc(_)
+                | PointerBase::Local(_)
+                | PointerBase::ManagedAlloc(_)
+                | PointerBase::RawAlloc(_)
         )
     }
 }
@@ -924,6 +931,9 @@ impl<'a> PointerDecomposer<'a> {
                 global,
                 ..
             } if *destination == ptr => DecomposedPointer::from_base(PointerBase::Global(*global)),
+            mir::Instruction::LocalAddr {
+                destination, local, ..
+            } if *destination == ptr => DecomposedPointer::from_base(PointerBase::Local(*local)),
 
             // field address: decompose base and add field offset
             mir::Instruction::FieldAddr {

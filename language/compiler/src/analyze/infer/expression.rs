@@ -11,13 +11,13 @@ use crate::{
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
-    Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration,
-    Declarator, DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding,
-    FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable, LocalNodeId,
-    LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector, MatchSource,
-    Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property, Resolution,
-    StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeKind, TypeLiteral, TypeTable,
+    Addressability, Argument, BindingKind, Block, CastOperator, CastSource, Constraint,
+    Declaration, Declarator, DependencySource, DynamicKey, Expression, FlowGraphBuilder,
+    ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector,
+    MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property,
+    Resolution, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type,
+    TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 

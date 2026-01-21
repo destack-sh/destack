@@ -178,6 +178,14 @@ impl<'a> ValueEquivalence<'a> {
                 },
             ) => left_global == right_global,
             (
+                mir::Instruction::LocalAddr {
+                    local: left_local, ..
+                },
+                mir::Instruction::LocalAddr {
+                    local: right_local, ..
+                },
+            ) => left_local == right_local,
+            (
                 mir::Instruction::Binary {
                     operator: left_op,
                     left: left_arg,
@@ -516,6 +524,7 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::Assume { .. } => None,

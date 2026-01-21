@@ -158,8 +158,7 @@ impl Compiler {
         // treat explicit ownership wrappers as non managed
         match ty {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Unary { right, .. }
-            | Type::Value { value: right } => {
+            Type::Unary { right, .. } | Type::Value { value: right } => {
                 // follow the wrapped type
                 let inner = types.get_type(*right);
                 self.type_is_implicit_managed_inner(module, profile, inner, types, visited)
@@ -194,8 +193,7 @@ impl Compiler {
         // treat explicit ownership wrappers as non managed
         match ty {
             Type::ValueOf { .. } | Type::ReferenceOf { .. } | Type::PointerOf { .. } => false,
-            Type::Unary { right, .. }
-            | Type::Value { value: right } => {
+            Type::Unary { right, .. } | Type::Value { value: right } => {
                 // follow the wrapped type
                 let inner = types.get_type(*right);
                 self.type_contains_managed_inner(module, profile, inner, types, visited)

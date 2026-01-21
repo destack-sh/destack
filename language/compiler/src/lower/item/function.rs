@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
     Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Member,
@@ -7,9 +7,11 @@ use destack_dir::{
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{
-    FunctionContext, FunctionEnv, FunctionState, LocalBinding, LowerError, LowerResult, Terminates,
+    AddressTakenBindings, FunctionContext, FunctionEnv, FunctionState, LowerError, LowerResult,
+    Terminates,
 };
 
+use crate::lower::item::LocalBinding;
 use crate::lower::module::ModuleLowerer;
 
 /// Visitor that collects expression ids from a subtree.
@@ -48,6 +50,134 @@ impl NodeVisitor for ExpressionTypeCollector {
         expression: &Expression,
     ) {
         self.expression_ids.push(id);
+        destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+    }
+}
+
+/// Visitor that collects address taken bindings.
+struct AddressTakenCollector<'a> {
+    /// Provide access to inferred type information.
+    types: &'a dir::TypeTable,
+    /// Identify the module for expression lookups.
+    module_id: destack_source::ModuleId,
+    /// Symbols that require addressable locals.
+    locals: HashSet<GlobalSymbolId>,
+    /// Whether `this` is address taken.
+    takes_this: bool,
+    /// Options for the node visitor.
+    options: NodeVisitorOptions,
+}
+
+impl<'a> AddressTakenCollector<'a> {
+    /// Create a new address-taken collector.
+    fn new(types: &'a dir::TypeTable, module_id: destack_source::ModuleId) -> Self {
+        Self {
+            types,
+            module_id,
+            locals: HashSet::new(),
+            takes_this: false,
+            options: NodeVisitorOptions::default(),
+        }
+    }
+
+    /// Convert the collector into address taken bindings.
+    fn into_bindings(self) -> AddressTakenBindings {
+        AddressTakenBindings {
+            locals: self.locals,
+            takes_this: self.takes_this,
+        }
+    }
+
+    /// Record a reference target for address taken tracking.
+    fn record_reference_target(
+        &mut self,
+        tree: &dir::NodeTree,
+        expression_id: LocalNodeId<Expression>,
+    ) {
+        // unwrap reference targets that can yield addressable bases
+        let expression = tree.get(expression_id);
+        match expression {
+            Expression::Parenthesized { expression } => {
+                self.record_reference_target(tree, *expression);
+            }
+            Expression::Cast { value, .. } => {
+                self.record_reference_target(tree, *value);
+            }
+            Expression::Member { left, .. } => {
+                if !self.expression_is_reference_like(*left) {
+                    self.record_reference_target(tree, *left);
+                }
+            }
+            Expression::Index { left, .. } => {
+                if !self.expression_is_reference_like(*left) {
+                    self.record_reference_target(tree, *left);
+                }
+            }
+            Expression::LocalReference { target_symbol, .. } => {
+                self.locals.insert(*target_symbol);
+            }
+            Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                self.locals.insert(*target_symbol);
+            }
+            Expression::This => {
+                self.takes_this = true;
+            }
+            _ => {}
+        }
+    }
+
+    /// Check whether an expression lowers to a reference-like value.
+    fn expression_is_reference_like(&self, expression_id: LocalNodeId<Expression>) -> bool {
+        let node_id = expression_id.into_global_any(self.module_id);
+        let Some(type_id) = self.types.get_declared_or_inferred_type_id(node_id) else {
+            return false;
+        };
+        let mut visited = HashSet::new();
+        self.type_is_reference_like(type_id, &mut visited)
+    }
+
+    /// Check whether a type id lowers to a reference-like MIR value.
+    fn type_is_reference_like(
+        &self,
+        type_id: dir::LocalTypeId,
+        visited: &mut HashSet<dir::LocalTypeId>,
+    ) -> bool {
+        if !visited.insert(type_id) {
+            return false;
+        }
+
+        let ty = self.types.get_type(type_id);
+        match ty {
+            dir::Type::Value { value } => self.type_is_reference_like(*value, visited),
+            dir::Type::ReferenceOf { .. } | dir::Type::PointerOf { .. } => true,
+            dir::Type::Reference { symbol, .. } => match symbol.ty() {
+                dir::SymbolType::Class | dir::SymbolType::Interface => true,
+                dir::SymbolType::TypeAlias => self
+                    .types
+                    .get_alias_target_type_id(*symbol)
+                    .is_some_and(|target| self.type_is_reference_like(target, visited)),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
+impl NodeVisitor for AddressTakenCollector<'_> {
+    fn options(&self) -> &NodeVisitorOptions {
+        &self.options
+    }
+
+    fn visit_expression(
+        &mut self,
+        tree: &dir::NodeTree,
+        id: LocalNodeId<Expression>,
+        expression: &Expression,
+    ) {
+        if let Expression::ReferenceOf { right, .. } = expression {
+            self.record_reference_target(tree, *right);
+        }
         destack_base::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 }
@@ -103,6 +233,18 @@ impl ModuleLowerer<'_> {
         }
 
         Ok(())
+    }
+
+    /// Collect address taken bindings within a function body.
+    fn collect_address_taken_bindings(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+    ) -> AddressTakenBindings {
+        // walk the function body to find reference targets
+        let mut collector = AddressTakenCollector::new(self.types, self.module_id);
+        let expression = self.dir_tree.get(expression_id);
+        collector.visit_expression(self.dir_tree, expression_id, expression);
+        collector.into_bindings()
     }
 
     /// Resolve the signature type id for a declaration or member node.
@@ -212,6 +354,11 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
+        // collect address taken locals before borrowing the builder
+        let address_taken = body
+            .map(|body_id| self.collect_address_taken_bindings(body_id))
+            .unwrap_or_else(AddressTakenBindings::empty);
+
         // resolve allocation mode before borrowing the builder
         let allocation_mode = self.allocation_mode_for_symbol(symbol_id);
 
@@ -268,7 +415,7 @@ impl ModuleLowerer<'_> {
             runtime_checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
-        let state = FunctionState::new(builder);
+        let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
         // create entry block
@@ -278,16 +425,18 @@ impl ModuleLowerer<'_> {
         // add parameter locals
         for (index, parameter_id) in signature.dynamic_parameters.iter().enumerate() {
             let parameter = self.dir_tree.get(*parameter_id);
-            let symbol_id = parameter.symbol().into_global(self.module_id);
             let ty = parameter_types[index];
-            let variable = function_ctx.state.builder.create_variable(ty);
             let value = function_ctx.state.builder.function_parameter(index);
-            function_ctx.state.builder.define_variable(variable, value);
-            function_ctx
-                .state
-                .bindings
-                .locals_by_symbol
-                .insert(symbol_id, LocalBinding { variable, ty });
+            let mutability = parameter
+                .modifiers()
+                .and_then(|modifier| modifier.mutability);
+            function_ctx.define_local_binding(
+                parameter_id.into_any(),
+                parameter.symbol(),
+                mutability,
+                value,
+                ty,
+            )?;
         }
 
         // lower body
@@ -474,6 +623,11 @@ impl ModuleLowerer<'_> {
             self.prelower_expression_types(*body_id)?;
         }
 
+        // collect address taken locals before borrowing the builder
+        let address_taken = body
+            .map(|body_id| self.collect_address_taken_bindings(body_id))
+            .unwrap_or_else(AddressTakenBindings::empty);
+
         // build the function and register bindings
         let module_id = self.module_id;
         let builder = {
@@ -542,7 +696,7 @@ impl ModuleLowerer<'_> {
             runtime_checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
-        let state = FunctionState::new(builder);
+        let state = FunctionState::new(builder, address_taken);
         let mut function_ctx = FunctionContext::new(env, state);
 
         // create entry block
@@ -578,18 +732,26 @@ impl ModuleLowerer<'_> {
         if let Some(this_ty) = method_this_type
             && !is_constructor
         {
-            let this_variable = function_ctx.state.builder.create_variable(this_ty);
+            // bind the this value as a local or variable
             let this_value = function_ctx.state.builder.function_parameter(param_index);
-            function_ctx
-                .state
-                .builder
-                .define_variable(this_variable, this_value);
+            let this_binding = if function_ctx.this_needs_addressable_local() {
+                let local = function_ctx
+                    .state
+                    .builder
+                    .create_local(this_ty, mir::Mutability::Immutable);
+                function_ctx.state.builder.local_set(local, this_value);
+                LocalBinding::from_local(local, this_ty)
+            } else {
+                let variable = function_ctx.state.builder.create_variable(this_ty);
+                function_ctx
+                    .state
+                    .builder
+                    .define_variable(variable, this_value);
+                LocalBinding::from_variable(variable, this_ty)
+            };
 
             // set 'this' binding for Expression::This lookup
-            function_ctx.state.bindings.this_binding = Some(LocalBinding {
-                variable: this_variable,
-                ty: this_ty,
-            });
+            function_ctx.state.bindings.this_binding = Some(this_binding);
 
             // advance the parameter index
             param_index += 1;
@@ -599,18 +761,20 @@ impl ModuleLowerer<'_> {
         for parameter_id in &signature.dynamic_parameters {
             // resolve the parameter symbol
             let parameter = self.dir_tree.get(*parameter_id);
-            let symbol_id = parameter.symbol().into_global(self.module_id);
 
             // bind the parameter local
             let ty = parameter_types[param_index];
-            let variable = function_ctx.state.builder.create_variable(ty);
             let value = function_ctx.state.builder.function_parameter(param_index);
-            function_ctx.state.builder.define_variable(variable, value);
-            function_ctx
-                .state
-                .bindings
-                .locals_by_symbol
-                .insert(symbol_id, LocalBinding { variable, ty });
+            let mutability = parameter
+                .modifiers()
+                .and_then(|modifier| modifier.mutability);
+            function_ctx.define_local_binding(
+                parameter_id.into_any(),
+                parameter.symbol(),
+                mutability,
+                value,
+                ty,
+            )?;
 
             // advance the parameter index
             param_index += 1;

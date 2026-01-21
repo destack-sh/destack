@@ -374,6 +374,7 @@ fn instruction_result_type(
             .or_else(|| types.value_type(*else_value)),
         Instruction::LocalGet { local, .. } => types.local_type(*local),
         Instruction::GlobalAddr { result_type, .. } => Some(*result_type),
+        Instruction::LocalAddr { result_type, .. } => Some(*result_type),
         Instruction::GlobalConst { global, .. } => {
             let global = tree.get(*global);
             Some(global.ty)
@@ -556,6 +557,17 @@ fn apply_instruction_effects(
                 state,
                 *destination,
                 BorrowOriginSet::from_origin(BorrowOrigin::Static),
+                tree,
+                types,
+            );
+        }
+
+        // locals are local borrows
+        Instruction::LocalAddr { destination, .. } => {
+            assign_origin_if_borrowed(
+                state,
+                *destination,
+                BorrowOriginSet::from_origin(BorrowOrigin::Local),
                 tree,
                 types,
             );

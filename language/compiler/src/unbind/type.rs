@@ -547,10 +547,7 @@ impl Compiler {
                     let operator =
                         self.unbind_type_unary_operator(context, dir::TypeUnaryOperator::Readonly);
                     let right = ast_tree.insert(array_expr, span);
-                    ast::Expression::TypeUnary {
-                        operator,
-                        right,
-                    }
+                    ast::Expression::TypeUnary { operator, right }
                 } else {
                     array_expr
                 }
@@ -587,10 +584,7 @@ impl Compiler {
                     let operator =
                         self.unbind_type_unary_operator(context, dir::TypeUnaryOperator::Readonly);
                     let right = ast_tree.insert(array_expr, span);
-                    ast::Expression::TypeUnary {
-                        operator,
-                        right,
-                    }
+                    ast::Expression::TypeUnary { operator, right }
                 } else {
                     array_expr
                 }

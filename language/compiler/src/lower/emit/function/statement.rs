@@ -6,8 +6,11 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::{BreakContext, LocalBinding, LoopContext, Terminates};
+use crate::lower::item::lower_mutability;
+
 use super::FunctionContext;
+use crate::lower::emit::{BreakContext, LoopContext, Terminates};
+use crate::lower::item::LocalBinding;
 
 impl FunctionContext<'_> {
     /// Lower a statement expression.
@@ -30,9 +33,11 @@ impl FunctionContext<'_> {
                 }
                 Ok(Terminates::No)
             }
-            Expression::Let { declarators, .. } => {
-                self.lower_let_expression(expression_id, declarators)
-            }
+            Expression::Let {
+                mutability,
+                declarators,
+                ..
+            } => self.lower_let_expression(expression_id, *mutability, declarators),
             Expression::Return { value } => {
                 // handle constructor returns separately
                 if self.state.constructor_state.is_some() {
@@ -133,6 +138,7 @@ impl FunctionContext<'_> {
     fn lower_let_expression(
         &mut self,
         expression_id: LocalNodeId<Expression>,
+        mutability: dir::Mutability,
         declarators: &[LocalNodeId<Declarator>],
     ) -> LowerResult<Terminates> {
         // lower each declarator in order
@@ -154,7 +160,7 @@ impl FunctionContext<'_> {
 
             // lower the binding pattern
             let pattern_id = declarator.pattern;
-            self.bind_pattern_value(pattern_id, value, value_type)?;
+            self.bind_pattern_value(pattern_id, value, value_type, Some(mutability))?;
         }
 
         Ok(Terminates::No)
@@ -766,6 +772,7 @@ impl FunctionContext<'_> {
         pattern_id: LocalNodeId<Pattern>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
+        mutability: Option<dir::Mutability>,
     ) -> LowerResult<()> {
         // read the pattern
         let pattern = self.env.dir_tree.get(pattern_id);
@@ -782,7 +789,13 @@ impl FunctionContext<'_> {
                         message: "unsupported binding pattern".to_string(),
                     });
                 }
-                self.define_local_binding(pattern_id.into_any(), *symbol, value, value_type)
+                self.define_local_binding(
+                    pattern_id.into_any(),
+                    *symbol,
+                    mutability,
+                    value,
+                    value_type,
+                )
             }
             _ => Err(LowerError::UnsupportedConstruct {
                 node: pattern_id
@@ -798,6 +811,7 @@ impl FunctionContext<'_> {
         &mut self,
         node_id: LocalNodeIdAny,
         symbol_id: dir::LocalSymbolId,
+        mutability: Option<dir::Mutability>,
         value: mir::Value,
         value_type: mir::LocalNodeId<mir::Type>,
     ) -> LowerResult<()> {
@@ -817,6 +831,20 @@ impl FunctionContext<'_> {
             });
         }
 
+        // prefer a stack slot for address taken locals
+        if self.symbol_needs_addressable_local(global_symbol_id) {
+            let mutability = mutability
+                .map(lower_mutability)
+                .unwrap_or(mir::Mutability::Immutable);
+            let local = self.state.builder.create_local(value_type, mutability);
+            self.state.builder.local_set(local, value);
+            self.state.bindings.locals_by_symbol.insert(
+                global_symbol_id,
+                LocalBinding::from_local(local, value_type),
+            );
+            return Ok(());
+        }
+
         // allocate the mir variable
         let variable = self.state.builder.create_variable(value_type);
 
@@ -826,10 +854,7 @@ impl FunctionContext<'_> {
         // record the binding for later references
         self.state.bindings.locals_by_symbol.insert(
             global_symbol_id,
-            LocalBinding {
-                variable,
-                ty: value_type,
-            },
+            LocalBinding::from_variable(variable, value_type),
         );
 
         Ok(())

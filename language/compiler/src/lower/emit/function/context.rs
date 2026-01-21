@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_base::StringPool;
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
@@ -10,8 +10,8 @@ use crate::{LowerError, LowerResult};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
-use crate::lower::emit::{BreakContext, LocalBinding, LoopContext, Terminates};
-use crate::lower::item::GlobalBinding;
+use crate::lower::emit::{BreakContext, LoopContext, Terminates};
+use crate::lower::item::{GlobalBinding, LocalBinding, LocalStorage};
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{VirtualMethodKey, VtableGlobal};
 use crate::lower::r#type::TypeLowerer;
@@ -64,6 +64,28 @@ pub(crate) struct FunctionBindings {
     pub(crate) locals_by_symbol: HashMap<GlobalSymbolId, LocalBinding>,
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
+    /// Symbols that require addressable locals.
+    pub(crate) address_taken_locals: HashSet<GlobalSymbolId>,
+    /// Whether `this` is address taken in the function.
+    pub(crate) takes_this_address: bool,
+}
+
+/// Address taken bindings for a function body.
+pub(crate) struct AddressTakenBindings {
+    /// Symbols that require addressable locals.
+    pub(crate) locals: HashSet<GlobalSymbolId>,
+    /// Whether `this` is address taken in the function.
+    pub(crate) takes_this: bool,
+}
+
+impl AddressTakenBindings {
+    /// Create empty address-taken bindings.
+    pub(crate) fn empty() -> Self {
+        Self {
+            locals: HashSet::new(),
+            takes_this: false,
+        }
+    }
 }
 
 /// Mutable control flow state while lowering a single function.
@@ -92,12 +114,17 @@ pub(crate) struct FunctionState<'a> {
 
 impl<'a> FunctionState<'a> {
     /// Create a new function state with an initialized builder.
-    pub(crate) fn new(builder: mir::FunctionBuilder<'a>) -> Self {
+    pub(crate) fn new(
+        builder: mir::FunctionBuilder<'a>,
+        address_taken: AddressTakenBindings,
+    ) -> Self {
         Self {
             builder,
             bindings: FunctionBindings {
                 locals_by_symbol: HashMap::new(),
                 this_binding: None,
+                address_taken_locals: address_taken.locals,
+                takes_this_address: address_taken.takes_this,
             },
             control: FunctionControlFlow {
                 loops_by_symbol: HashMap::new(),
@@ -178,6 +205,36 @@ impl<'a> FunctionContext<'a> {
             node: expression_id
                 .into_global_any(self.env.module_id)
                 .into_anchored(Some(self.env.profile)),
+        }
+    }
+
+    /// Check whether a symbol requires an addressable local.
+    pub(crate) fn symbol_needs_addressable_local(&self, symbol: GlobalSymbolId) -> bool {
+        self.state.bindings.address_taken_locals.contains(&symbol)
+    }
+
+    /// Check whether `this` requires an addressable local.
+    pub(crate) fn this_needs_addressable_local(&self) -> bool {
+        self.state.bindings.takes_this_address
+    }
+
+    /// Load a local binding value.
+    pub(crate) fn binding_value(&mut self, binding: LocalBinding) -> mir::Value {
+        match binding.storage {
+            LocalStorage::Variable(variable) => self.state.builder.use_variable(variable),
+            LocalStorage::Local(local) => self.state.builder.local_get(local),
+        }
+    }
+
+    /// Store a value into a local binding.
+    pub(crate) fn set_binding_value(&mut self, binding: LocalBinding, value: mir::Value) {
+        match binding.storage {
+            LocalStorage::Variable(variable) => {
+                self.state.builder.define_variable(variable, value);
+            }
+            LocalStorage::Local(local) => {
+                self.state.builder.local_set(local, value);
+            }
         }
     }
 
@@ -358,40 +415,36 @@ impl<'a> FunctionContext<'a> {
         target_symbol: dir::GlobalSymbolId,
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // first check locals
-        if let Some(binding) = self.state.bindings.locals_by_symbol.get(&target_symbol) {
-            let value = self.state.builder.use_variable(binding.variable);
+        if let Some(binding) = self
+            .state
+            .bindings
+            .locals_by_symbol
+            .get(&target_symbol)
+            .copied()
+        {
+            let value = self.binding_value(binding);
             return Ok((value, binding.ty));
         }
 
         // use global_const for immutable, global_addr + load for mutable
-        if let Some(global_binding) = self.env.globals_by_symbol.get(&target_symbol) {
-            if global_binding.mutability == mir::Mutability::Mutable {
-                let addr_type = self.state.builder.type_reference(
-                    mir::ReferenceKind::Raw,
-                    global_binding.ty,
-                    global_binding.mutability,
-                    mir::AddressSpace::Global,
-                    false,
-                );
-                let addr = self
-                    .state
-                    .builder
-                    .global_addr(global_binding.global, addr_type);
-                let value = self.state.builder.load(addr, global_binding.ty);
-                Ok((value, global_binding.ty))
-            } else {
-                let value = self.state.builder.global_const(global_binding.global);
-                Ok((value, global_binding.ty))
-            }
-        }
-        // some unresolved symbol reference
-        else {
-            Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "unresolved symbol reference".to_string(),
-            })
+        let global_binding = self.global_binding_for_symbol(expression_id, target_symbol)?;
+        if global_binding.mutability == mir::Mutability::Mutable {
+            let addr_type = self.state.builder.type_reference(
+                mir::ReferenceKind::Raw,
+                global_binding.ty,
+                global_binding.mutability,
+                mir::AddressSpace::Global,
+                false,
+            );
+            let addr = self
+                .state
+                .builder
+                .global_addr(global_binding.global, addr_type);
+            let value = self.state.builder.load(addr, global_binding.ty);
+            Ok((value, global_binding.ty))
+        } else {
+            let value = self.state.builder.global_const(global_binding.global);
+            Ok((value, global_binding.ty))
         }
     }
 
@@ -470,7 +523,7 @@ impl<'a> FunctionContext<'a> {
                 let binding = self.local_binding_for_symbol(left, *target_symbol)?;
 
                 // update the variable binding
-                self.state.builder.define_variable(binding.variable, value);
+                self.set_binding_value(binding, value);
             }
             Expression::Member {
                 left: receiver_id,
@@ -548,7 +601,7 @@ impl<'a> FunctionContext<'a> {
                     })?;
 
                 // update the aggregate value
-                let current = self.state.builder.use_variable(binding.variable);
+                let current = self.binding_value(binding);
                 let reference_pointee = match self.state.builder.tree().get(binding.ty) {
                     mir::Type::Reference { pointee, .. } => Some(*pointee),
                     _ => None,
@@ -566,9 +619,7 @@ impl<'a> FunctionContext<'a> {
                         .state
                         .builder
                         .field_set(current, field_index as u32, value);
-                    self.state
-                        .builder
-                        .define_variable(binding.variable, updated);
+                    self.set_binding_value(binding, updated);
                 };
                 self.mark_constructor_field_initialized(field_index as u32);
             }
@@ -624,7 +675,7 @@ impl<'a> FunctionContext<'a> {
                     message: "this reference outside of method context".to_string(),
                 })?;
 
-        let value = self.state.builder.use_variable(binding.variable);
+        let value = self.binding_value(binding);
         Ok((value, binding.ty))
     }
 }

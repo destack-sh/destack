@@ -719,6 +719,8 @@ Raw pointers are separate from ownership modifiers:
 **Borrow semantics:**
 - `&T` and `&mut T` are safe borrows verified by the borrow check pass.
 - Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.
+- `&expr` takes the address of an addressable place.
+- When `expr` is not addressable, the compiler spills it to a temporary local and borrows that temporary.
 - A borrow ends when the reference value is no longer live.
 - Borrow checking uses liveness and alias analysis to detect conflicts and invalidations.
 - Derived borrows carry provenance so dropping any origin invalidates the derived borrows.

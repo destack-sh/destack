@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::lower::{
-    BuiltinTypeLayouts, FunctionEnv, FunctionState, RuntimeCheckConfig, TypeLowerer,
+    AddressTakenBindings, BuiltinTypeLayouts, FunctionEnv, FunctionState, RuntimeCheckConfig,
+    TypeLowerer,
 };
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
@@ -175,7 +176,7 @@ impl Compiler {
             },
             type_lowerer: &type_lowerer,
         };
-        let state = FunctionState::new(function_builder);
+        let state = FunctionState::new(function_builder, AddressTakenBindings::empty());
         let mut function_ctx = FunctionContext::new(env, state);
 
         // create entry block

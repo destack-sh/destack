@@ -36,9 +36,9 @@ pub fn are_types_semantically_equal(source: &Type, target: &Type, types: &TypeTa
                 return false;
             }
             match (e1, e2) {
-            (Some(e1), Some(e2)) => are_types_equal(*e1, *e2, types),
-            (None, None) => true,
-            _ => false,
+                (Some(e1), Some(e2)) => are_types_equal(*e1, *e2, types),
+                (None, None) => true,
+                _ => false,
             }
         }
 

@@ -79,8 +79,9 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
                 self.is_struct_symbol(*symbol)
             }
             dir::Type::Value { value } => self.is_struct_type(*value),
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. } => self.is_struct_type(*right),
+            dir::Type::ValueOf { right, .. } | dir::Type::ReferenceOf { right, .. } => {
+                self.is_struct_type(*right)
+            }
             _ => false,
         }
     }

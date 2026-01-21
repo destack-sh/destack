@@ -852,6 +852,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Select { .. }
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::GlobalConst { .. }
+            | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldAddr { .. }
             | mir::Instruction::FieldSet { .. }

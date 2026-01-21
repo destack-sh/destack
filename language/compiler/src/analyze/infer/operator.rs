@@ -2427,6 +2427,17 @@ impl Compiler {
         };
 
         match receiver_ty {
+            Type::ReferenceOf { right, .. } => {
+                let inner_ty = types.get_type(*right).clone();
+                self.infer_builtin_index_access(
+                    &inner_ty,
+                    *right,
+                    index_ty_id,
+                    literal_string,
+                    types,
+                    include_undefined,
+                )
+            }
             Type::Array { element, .. } => {
                 let element_ty_id = element.unwrap_or_else(|| {
                     types.insert_type_from_type(

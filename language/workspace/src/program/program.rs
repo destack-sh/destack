@@ -585,7 +585,6 @@ impl Program {
         } else {
             // pick a target based on the module language when no dsconfig exists
             (self.fallback_target_for_module(&module), None)
-            // FUGU #Cleanup: should we default profiles at all?
         };
 
         let key = Self::profile_key_for_target(&target, &compiler_options, profile_config);
@@ -644,8 +643,8 @@ impl Program {
     }
 
     /// Pick a fallback target based on the module language type.
+    /// FUGU #Cleanup: should we have fallback profiles at all? or only explicitly (sometimes?)?
     fn fallback_target_for_module(&self, module: &Module) -> Target {
-        // map destack to native, compatibility modules to js
         if module.language_type.is_destack() {
             Target::native("default")
         } else {

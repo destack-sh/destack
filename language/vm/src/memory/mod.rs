@@ -16,6 +16,6 @@ pub(crate) use string::{
     STRING_FLAG_IS_ASCII, STRING_FLAG_IS_INTERNED, STRING_FLAG_IS_STATIC, StringLayout,
 };
 pub use value::{
-    GlobalPointer, HeapHandle, RawPointer, ReferenceAddressSpace, ReferenceMeta, StackPointer,
-    Value, ValueTag,
+    GlobalPointer, HeapHandle, LocalPointer, RawPointer, ReferenceAddressSpace, ReferenceMeta,
+    StackPointer, Value, ValueTag,
 };

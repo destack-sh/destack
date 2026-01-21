@@ -132,9 +132,7 @@ impl Compiler {
             let constraint_kind_hint = if force_type_parameters {
                 None
             } else {
-                self.static_parameter_kind_hint(
-                    module, profile, symbol_id, node_id, symbols, types,
-                )
+                self.static_parameter_kind_hint(module, profile, symbol_id, node_id, symbols, types)
             };
 
             self.resolve_static_parameter_kind(
@@ -232,9 +230,7 @@ impl Compiler {
             let constraint_kind_hint = if force_type_parameters {
                 None
             } else {
-                self.static_parameter_kind_hint(
-                    module, profile, symbol_id, node_id, symbols, types,
-                )
+                self.static_parameter_kind_hint(module, profile, symbol_id, node_id, symbols, types)
             };
 
             self.resolve_static_parameter_kind(

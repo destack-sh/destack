@@ -437,10 +437,7 @@ impl TypeTable {
     }
 
     /// Get the addressability for a node.
-    pub fn get_addressability_for_node(
-        &self,
-        node_id: GlobalNodeIdAny,
-    ) -> Option<Addressability> {
+    pub fn get_addressability_for_node(&self, node_id: GlobalNodeIdAny) -> Option<Addressability> {
         self.addressability_by_node_id.get(&node_id).copied()
     }
 

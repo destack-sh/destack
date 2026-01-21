@@ -36,7 +36,9 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
         | Instruction::ElementSet { .. } => true,
 
         // immutable global references
-        Instruction::GlobalConst { .. } | Instruction::GlobalAddr { .. } => true,
+        Instruction::GlobalConst { .. }
+        | Instruction::GlobalAddr { .. }
+        | Instruction::LocalAddr { .. } => true,
 
         // reads mutable state, not speculatable
         Instruction::LocalGet { .. } | Instruction::Load { .. } => false,
@@ -115,6 +117,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
         | Instruction::ElementAddr { .. }
         | Instruction::GlobalConst { .. }
         | Instruction::GlobalAddr { .. }
+        | Instruction::LocalAddr { .. }
         | Instruction::Assume { .. } => false,
 
         // memory reads are pure (assuming no volatile)
@@ -520,6 +523,7 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Const { .. }
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
@@ -1174,6 +1178,15 @@ pub fn instruction_map(
             global: *global,
             result_type: *result_type,
         },
+        mir::Instruction::LocalAddr {
+            destination,
+            local,
+            result_type,
+        } => mir::Instruction::LocalAddr {
+            destination: remap(*destination),
+            local: *local,
+            result_type: *result_type,
+        },
         mir::Instruction::GlobalConst {
             destination,
             global,
@@ -1434,6 +1447,15 @@ pub fn instruction_map_with_locals(
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
+            result_type: *result_type,
+        },
+        mir::Instruction::LocalAddr {
+            destination,
+            local,
+            result_type,
+        } => mir::Instruction::LocalAddr {
+            destination: remap(*destination),
+            local: *local,
             result_type: *result_type,
         },
         mir::Instruction::GlobalConst {

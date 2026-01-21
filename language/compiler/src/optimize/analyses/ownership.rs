@@ -990,6 +990,21 @@ fn instruction_collect_types(
                 reference_infos,
             );
         }
+        Instruction::LocalAddr {
+            destination,
+            result_type,
+            ..
+        } => {
+            copy_values.insert(*destination);
+            register_value_type(
+                *destination,
+                *result_type,
+                tree,
+                value_types,
+                pointer_pointee_types,
+                reference_infos,
+            );
+        }
         Instruction::GlobalConst {
             destination,
             global,
@@ -1737,6 +1752,7 @@ fn process_instruction(
         | Instruction::Const { destination, .. }
         | Instruction::LocalGet { destination, .. }
         | Instruction::GlobalAddr { destination, .. }
+        | Instruction::LocalAddr { destination, .. }
         | Instruction::GlobalConst { destination, .. }
         | Instruction::ManagedAlloc { destination, .. }
         | Instruction::RawAlloc { destination, .. }

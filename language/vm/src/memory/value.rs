@@ -24,14 +24,16 @@ pub enum ValueTag {
     RawPointer = 8,
     /// Frame-scoped stack pointer.
     StackPointer = 9,
+    /// Frame-local pointer.
+    LocalPointer = 10,
     /// Global variable pointer.
-    GlobalPointer = 10,
+    GlobalPointer = 11,
     /// Function pointer.
-    FunctionPointer = 11,
+    FunctionPointer = 12,
     /// Heap-allocated aggregate.
-    Aggregate = 12,
+    Aggregate = 13,
     /// Heap-allocated string.
-    String = 13,
+    String = 14,
 }
 
 /// Address space class for reference metadata.
@@ -301,6 +303,22 @@ impl std::fmt::Debug for Value {
                     )
                 }
             }
+            ValueTag::LocalPointer => {
+                let pointer = self.as_local_pointer().unwrap();
+                if pointer.slot_offset == 0 {
+                    write!(
+                        f,
+                        "LocalPointer {{ frame: {}, local: {} }}",
+                        pointer.frame_idx, pointer.local
+                    )
+                } else {
+                    write!(
+                        f,
+                        "LocalPointer {{ frame: {}, local: {}, offset: {} }}",
+                        pointer.frame_idx, pointer.local, pointer.slot_offset
+                    )
+                }
+            }
             ValueTag::GlobalPointer => {
                 let pointer = self.as_global_pointer().unwrap();
                 if pointer.slot_offset == 0 {
@@ -512,6 +530,25 @@ impl Value {
         Self::stack_pointer(ptr).with_reference_meta(meta)
     }
 
+    /// Create a local pointer value.
+    #[inline]
+    pub const fn local_pointer(ptr: LocalPointer) -> Self {
+        let frame = (ptr.frame_idx as u64) & STACK_INDEX_MASK;
+        let local = (ptr.local as u64) & STACK_INDEX_MASK;
+        let offset = (ptr.slot_offset as u64) & POINTER_BASE_MASK;
+        let data = frame | (local << STACK_SLOT_SHIFT) | (offset << POINTER_SLOT_SHIFT);
+        Self {
+            data,
+            meta: Self::make_meta(ValueTag::LocalPointer, 0),
+        }
+    }
+
+    /// Create a local pointer value with metadata.
+    #[inline]
+    pub fn local_pointer_with_meta(ptr: LocalPointer, meta: ReferenceMeta) -> Self {
+        Self::local_pointer(ptr).with_reference_meta(meta)
+    }
+
     /// Create a global pointer value.
     #[inline]
     pub fn global_pointer(id: mir::LocalNodeId<mir::Global>) -> Self {
@@ -581,6 +618,7 @@ impl Value {
             ValueTag::ManagedReference => self.data != 0,
             ValueTag::RawPointer => self.data != 0,
             ValueTag::StackPointer => true,
+            ValueTag::LocalPointer => true,
             ValueTag::GlobalPointer => true,
             ValueTag::FunctionPointer => true,
             ValueTag::Aggregate => self.data != 0,
@@ -677,6 +715,23 @@ impl Value {
             Some(StackPointer {
                 frame_idx,
                 slot,
+                slot_offset,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Get this value as a local pointer.
+    #[inline]
+    pub fn as_local_pointer(&self) -> Option<LocalPointer> {
+        if self.tag() == ValueTag::LocalPointer {
+            let frame_idx = (self.data & STACK_INDEX_MASK) as usize;
+            let local = ((self.data >> STACK_SLOT_SHIFT) & STACK_INDEX_MASK) as usize;
+            let slot_offset = (self.data >> POINTER_SLOT_SHIFT) as usize;
+            Some(LocalPointer {
+                frame_idx,
+                local,
                 slot_offset,
             })
         } else {
@@ -863,6 +918,39 @@ impl StackPointer {
         Self {
             frame_idx,
             slot,
+            slot_offset,
+        }
+    }
+}
+
+/// Pointer to a frame-local slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LocalPointer {
+    /// The frame depth (index into call stack).
+    pub frame_idx: usize,
+    /// The local index within the frame.
+    pub local: usize,
+    /// The slot offset within the local value.
+    pub slot_offset: usize,
+}
+
+impl LocalPointer {
+    /// Create a new local pointer.
+    #[inline]
+    pub fn new(frame_idx: usize, local: usize) -> Self {
+        Self {
+            frame_idx,
+            local,
+            slot_offset: 0,
+        }
+    }
+
+    /// Create a local pointer with an offset into the slot.
+    #[inline]
+    pub fn with_offset(frame_idx: usize, local: usize, slot_offset: usize) -> Self {
+        Self {
+            frame_idx,
+            local,
             slot_offset,
         }
     }
