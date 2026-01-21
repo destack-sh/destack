@@ -197,9 +197,11 @@ fn run_resolver_stress(test: &TestCase) -> TestResult {
         .get(profile)
         .unwrap_or_else(|| panic!("missing profile data for {profile:?}"))
         .version;
+    let graph = compiler.module_graph_stamp(profile);
     compiler.enqueue(ResolveTask::ResolveModule {
         module: ModuleStamp::new(module_id, module_version),
         profile: ProfileStamp::new(profile, profile_version),
+        graph,
     });
     compiler.compile();
 

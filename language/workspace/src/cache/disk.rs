@@ -190,26 +190,19 @@ fn cleanup_temp_path(path: &Path) {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::path::Path;
 
     use super::DiskCacheStore;
     use crate::CacheStore;
+    use destack_source::TemporaryPhysicalFileSystem;
 
+    /// Roundtrip cache payloads through the disk store.
     #[test]
     fn test_disk_cache_store_roundtrip() {
-        let root = std::env::temp_dir().join(format!(
-            "destack-cache-store-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&root).unwrap();
-
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("cache_store");
         let store = DiskCacheStore::new();
-        let path = root.join("nested/cache.bin");
-        let lock_path = root.join("cache.lock");
+        let path = root.path_for(Path::new("nested/cache.bin"));
+        let lock_path = root.path_for(Path::new("cache.lock"));
 
         let _lock = store.lock_exclusive(&lock_path).unwrap();
         store.write_atomic(&path, b"hello").unwrap();
@@ -224,28 +217,16 @@ mod tests {
         store.remove(&path).unwrap();
         assert!(!store.exists(&path).unwrap());
         assert!(store.read(&path).unwrap().is_none());
-
-        let _ = fs::remove_dir_all(root);
     }
 
     /// Touching a missing cache file is a no op.
     #[test]
     fn test_disk_cache_store_touch_missing() {
-        let root = std::env::temp_dir().join(format!(
-            "destack-cache-touch-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&root).unwrap();
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("cache_touch");
 
         let store = DiskCacheStore::new();
-        let path = root.join("missing.bin");
+        let path = root.path_for(Path::new("missing.bin"));
 
         store.touch(&path).unwrap();
-
-        let _ = fs::remove_dir_all(root);
     }
 }

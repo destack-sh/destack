@@ -4,6 +4,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use destack_base::StringPool;
 use destack_source::{FileRegistry, FileSystem, ModuleId, PhysicalFileSystem};
+use parking_lot::RwLock;
 
 use crate::{
     ArtifactRegistry, Builtins, CacheStore, DiskCacheStore, FormatterOptions, LinterOptions,
@@ -15,7 +16,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Session {
     /// The workspace this session is for.
-    pub workspace: Arc<Workspace>,
+    pub workspace: RwLock<Workspace>,
     /// The current working directory.
     pub cwd: PathBuf,
     /// Session options for default tooling behavior.
@@ -57,7 +58,7 @@ impl Session {
         ));
 
         Self {
-            workspace: Arc::new(Workspace::single_package(cwd.clone())),
+            workspace: RwLock::new(Workspace::single_package(cwd.clone())),
             cwd,
             options,
             fs: Arc::new(PhysicalFileSystem::new()),
@@ -89,7 +90,7 @@ impl Session {
         ));
 
         Self {
-            workspace,
+            workspace: RwLock::new((*workspace).clone()),
             cwd,
             options,
             fs: Arc::new(PhysicalFileSystem::new()),
@@ -126,7 +127,7 @@ impl Session {
 
     /// Set the workspace for this session (builder pattern).
     pub fn with_workspace(mut self, workspace: Workspace) -> Self {
-        self.workspace = Arc::new(workspace);
+        self.workspace = RwLock::new(workspace);
         self
     }
 
@@ -150,11 +151,35 @@ impl Session {
 
     /// Resolve the cache root directory for this workspace.
     pub fn workspace_cache_dir(&self) -> PathBuf {
+        // derive the workspace cache root
+        let workspace = self.workspace.read();
         resolve_workspace_cache_root(
-            &self.workspace.root,
-            self.workspace.config.as_deref(),
+            &workspace.root,
+            workspace.config.as_deref(),
             self.options.cache_dir_override.as_deref(),
         )
+    }
+
+    /// Snapshot the current workspace state.
+    pub fn workspace_snapshot(&self) -> Workspace {
+        self.workspace.read().clone()
+    }
+
+    /// Return the current workspace root.
+    pub fn workspace_root(&self) -> PathBuf {
+        self.workspace.read().root.clone()
+    }
+
+    /// Return the current workspace config.
+    pub fn workspace_config(&self) -> Option<Arc<crate::DsConfig>> {
+        self.workspace.read().config.clone()
+    }
+
+    /// Update the workspace configuration.
+    pub fn update_workspace_config(&self, config: Option<crate::DsConfig>) {
+        // update the workspace config in place
+        let mut workspace = self.workspace.write();
+        workspace.config = config.map(Arc::new);
     }
 
     /// Load a lib module set (e.g., "dom", "es2024").
@@ -251,7 +276,6 @@ mod tests {
         let program = session.add_root(root.clone());
         let removed = session.remove_root(&root);
 
-        // assertion block
         assert!(removed.is_some());
         assert!(Arc::ptr_eq(&removed.unwrap(), &program));
         assert!(session.get_program(&root).is_none());
@@ -267,8 +291,6 @@ mod tests {
             .with_cache_store(Arc::new(MemoryCacheStore::new()));
 
         let missing = session.remove_root(PathBuf::from("/missing").as_path());
-
-        // assertion block
         assert!(missing.is_none());
     }
 }

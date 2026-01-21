@@ -109,7 +109,7 @@ mod tests {
             "compilerOptions": { "noImplicitAny": true, "strict": true },
         });
 
-        // assertion block
+        // check that the hashes are equal
         assert_eq!(hash_json_value(&first), hash_json_value(&second));
     }
 
@@ -125,7 +125,7 @@ mod tests {
             "include": ["src"],
         });
 
-        // assertion block
+        // check that the hashes are different
         assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 
@@ -147,7 +147,7 @@ mod tests {
             "linter": { "preset": "strict" },
         });
 
-        // assertion block
+        // check that the hashes are equal
         let trimmed_first = trim_json_object(&first, &DSCONFIG_CACHE_IGNORED_KEYS);
         let trimmed_second = trim_json_object(&second, &DSCONFIG_CACHE_IGNORED_KEYS);
         assert_eq!(
@@ -170,7 +170,7 @@ mod tests {
             "compilerOptions": { "target": "ES2022", "strict": true },
         });
 
-        // assertion block
+        // check that the hashes are equal
         assert_eq!(hash_json_value(&first), hash_json_value(&second));
     }
 
@@ -186,7 +186,7 @@ mod tests {
             "include": ["src"],
         });
 
-        // assertion block
+        // check that the hashes are different
         assert_ne!(hash_json_value(&first), hash_json_value(&second));
     }
 }

@@ -4,7 +4,7 @@ use destack_source::{
     File, FileContent, FileId, FileType, FileVersion, ModuleId, PackageId, ProfileId,
 };
 
-use crate::{ModuleContent, ModuleGraphKey, Program, TsConfigId};
+use crate::{ModuleContent, Program, TsConfigId};
 
 /// Content update payload for an invalidated file.
 #[derive(Debug, Clone)]
@@ -99,6 +99,16 @@ impl Program {
         let mut profiles = HashSet::new();
         let mut graphs_dropped = HashSet::new();
 
+        // detect config file names for fallback invalidation
+        let file = self.files.get(file_id);
+        let is_dsconfig = file.name == "dsconfig.json"
+            || file
+                .path
+                .as_ref()
+                .and_then(|path| path.file_name())
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name == "dsconfig.json");
+
         // map file id to module invalidation
         if let Some(module_id) = self.modules.get_id_by_file_id(file_id) {
             kinds.insert(InvalidationKind::ModuleSource);
@@ -122,6 +132,19 @@ impl Program {
 
             // collect modules for config invalidation
             let config_modules = self.modules_for_packages(&dsconfig_packages);
+            modules.extend(config_modules.iter().copied());
+
+            // invalidate profile data for config modules
+            let config_profiles = self.invalidate_profile_data_for_modules(&config_modules);
+            profiles.extend(config_profiles.iter().copied());
+            graphs_dropped.extend(config_profiles);
+        } else if is_dsconfig {
+            // fall back to invalidating all modules for workspace configs
+            kinds.insert(InvalidationKind::DsConfig);
+            let mut config_modules = Vec::new();
+            for module in self.modules.iter() {
+                config_modules.push(module.read().id);
+            }
             modules.extend(config_modules.iter().copied());
 
             // invalidate profile data for config modules
@@ -350,8 +373,7 @@ impl Program {
 
         // drop module graphs for affected profiles
         for profile_id in &profile_ids {
-            let graph_key = ModuleGraphKey::new(*profile_id);
-            self.index.module_graphs.remove(&graph_key);
+            self.drop_module_graph(*profile_id);
         }
 
         // drop cached signatures for affected profiles
@@ -650,7 +672,7 @@ mod tests {
             },
         );
 
-        // assertion block
+        // check that the file is not invalidated
         assert!(matches!(result, Err(InvalidationError::InvalidText { .. })));
         let stored = program.files.get(file_id);
         assert_eq!(stored.version, initial_version);
@@ -682,7 +704,7 @@ mod tests {
             .invalidate_file(file_id, FileUpdate::Removed)
             .expect("failed to remove file");
 
-        // assertion block
+        // check that the file is marked as missing
         let stored = program.files.get(file_id);
         assert!(stored.is_missing());
         assert_eq!(stored.version, initial_version.next());
@@ -791,7 +813,7 @@ mod tests {
             .invalidate_file(dsconfig_file_id, FileUpdate::Touch)
             .unwrap_or_else(|error| panic!("failed to invalidate dsconfig: {error}"));
 
-        // assertion block
+        // check that the profile data is cleared
         let module_a = program.modules.get(module_a_id);
         let module_b = program.modules.get(module_b_id);
         assert!(module_a.read().dir_maybe(profile_id).is_none());

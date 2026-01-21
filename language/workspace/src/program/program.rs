@@ -13,11 +13,11 @@ use parking_lot::RwLock;
 
 use crate::{
     ArtifactRegistry, Builtins, DsConfigCompilerOptions, DsConfigOptions, EnvSnapshot,
-    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleRegistry, ModuleSource,
-    Package, PackageKind, PackageRegistry, Profile, ProfileConfig, ProfileEnv, ProfileFlags,
-    ProfileId, ProfileKey, ProfileRegistry, ProgramIndex, SourceType, Target, TargetId,
-    TsConfigOptions, TsConfigRegistry, WorkspaceFileEntry, WorkspaceIndexSnapshot,
-    WorkspaceModuleEntry, payload_hash_from_bytes,
+    FormatterOptions, LinterOptions, Loader, Module, ModuleAst, ModuleGraphKey, ModuleGraphStamp,
+    ModuleGraphVersion, ModuleRegistry, ModuleSource, Package, PackageKind, PackageRegistry,
+    Profile, ProfileConfig, ProfileEnv, ProfileFlags, ProfileId, ProfileKey, ProfileRegistry,
+    ProgramIndex, SourceType, Target, TargetId, TsConfigOptions, TsConfigRegistry,
+    WorkspaceFileEntry, WorkspaceIndexSnapshot, WorkspaceModuleEntry, payload_hash_from_bytes,
 };
 
 /// Unique identifier for Programs.
@@ -303,18 +303,59 @@ impl Program {
 
         // reset cached graphs and signatures
         self.index.module_graphs.clear();
+        self.index.module_graph_versions.clear();
         self.index.module_signatures.clear();
         self.index.module_signature_digests.clear();
+
+        // seed module graph versions from the snapshot
+        for (profile_id, version) in &snapshot.module_graph_versions {
+            self.index
+                .module_graph_versions
+                .insert(*profile_id, *version);
+        }
 
         // seed module graphs from the snapshot
         for (key, graph) in &snapshot.module_graphs {
             self.index.module_graphs.insert(*key, graph.clone());
+            self.index
+                .module_graph_versions
+                .entry(key.profile_id)
+                .or_insert(ModuleGraphVersion::INITIAL);
         }
 
         // seed signature digests from the snapshot
         for (key, digest) in &snapshot.module_signature_digests {
             self.index.module_signature_digests.insert(*key, *digest);
         }
+    }
+
+    /// Get the current module graph version for a profile.
+    pub fn module_graph_version(&self, profile_id: ProfileId) -> ModuleGraphVersion {
+        self.index
+            .module_graph_versions
+            .entry(profile_id)
+            .or_insert(ModuleGraphVersion::INITIAL)
+            .value()
+            .to_owned()
+    }
+
+    /// Get the current module graph stamp for a profile.
+    pub fn module_graph_stamp(&self, profile_id: ProfileId) -> ModuleGraphStamp {
+        ModuleGraphStamp::new(profile_id, self.module_graph_version(profile_id))
+    }
+
+    /// Bump the module graph version for a profile.
+    pub fn bump_module_graph_version(&self, profile_id: ProfileId) -> ModuleGraphVersion {
+        let next = self.module_graph_version(profile_id).next();
+        self.index.module_graph_versions.insert(profile_id, next);
+        next
+    }
+
+    /// Drop cached module graphs for a profile and bump the graph version.
+    pub fn drop_module_graph(&self, profile_id: ProfileId) {
+        let graph_key = ModuleGraphKey::new(profile_id);
+        self.index.module_graphs.remove(&graph_key);
+        self.bump_module_graph_version(profile_id);
     }
 
     /// Get the workspace index file entry for a path.
