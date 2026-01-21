@@ -56,6 +56,7 @@ pub fn format_type(
         dir::Type::Unevaluated(_) => "<unevaluated>".to_string(),
         dir::Type::InferVar { id } => format!("<infer {}>", id.0),
         dir::Type::Conditional {
+            distributive: _,
             left,
             right,
             then_type,

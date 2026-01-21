@@ -361,13 +361,25 @@ impl Compiler {
                 }
             }
             Type::Conditional {
+                distributive,
                 left,
                 right,
                 then_type,
                 else_type,
             } => self.normalize_conditional_type(
-                module, profile, type_id, source_id, left, right, then_type, else_type, symbols,
-                types, mode, visited,
+                module,
+                profile,
+                type_id,
+                source_id,
+                distributive,
+                left,
+                right,
+                then_type,
+                else_type,
+                symbols,
+                types,
+                mode,
+                visited,
             ),
             Type::Mapped {
                 parameter,
@@ -393,6 +405,23 @@ impl Compiler {
                     visited,
                     &mut did_change,
                 );
+                // collapse template literals containing never
+                if normalized_spans.iter().any(|span_id| {
+                    matches!(
+                        types.get_type(*span_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Never,
+                        }
+                    )
+                }) {
+                    return types.insert_type_from_any(
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Never,
+                        },
+                        source_id,
+                    );
+                }
+
                 if !did_change {
                     type_id
                 } else {

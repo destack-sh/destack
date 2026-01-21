@@ -914,6 +914,7 @@ impl Compiler {
                 self.collect_type_reference_symbols(*right, types, symbols, visited);
             }
             Type::Conditional {
+                distributive: _,
                 left,
                 right,
                 then_type,
