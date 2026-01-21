@@ -69,7 +69,7 @@ pub struct Diagnostic {
 }
 
 /// Diagnostic options for re-mapping.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DiagnosticOptions {
     /// Which warning codes to error on (as errors).
     pub error_warnings: Vec<String>,
