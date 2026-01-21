@@ -1,6 +1,7 @@
 mod arithmetic;
 mod binding;
 mod bitwise;
+mod check;
 mod class;
 mod comparison;
 mod control;

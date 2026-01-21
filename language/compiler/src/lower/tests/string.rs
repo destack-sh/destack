@@ -2,7 +2,7 @@ use crate::TestProgram;
 
 /// Lower string literals into MIR and preserve UTF8 contents.
 #[test]
-fn test_lower_handles_string_literal() {
+fn test_lower_string_literal() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
-use crate::lower::{BuiltinTypeLayouts, FunctionEnv, FunctionState, TypeLowerer};
+use crate::lower::{
+    BuiltinTypeLayouts, FunctionEnv, FunctionState, RuntimeCheckConfig, TypeLowerer,
+};
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
-use destack_workspace::{Module, ProfileId, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, TargetId};
 use {destack_dir as dir, destack_mir as mir};
 
 #[allow(dead_code)]
@@ -163,6 +165,14 @@ impl Compiler {
             vtable_globals_by_symbol: &vtable_globals_by_symbol,
             dispatch_call_name,
             dispatch_construct_name,
+            runtime_checks: RuntimeCheckConfig {
+                overflow: false,
+                bounds: false,
+                null: false,
+                division: false,
+                shift: false,
+                failure: CheckFailurePolicy::Trap,
+            },
             type_lowerer: &type_lowerer,
         };
         let state = FunctionState::new(function_builder);

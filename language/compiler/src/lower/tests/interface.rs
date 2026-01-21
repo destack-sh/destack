@@ -5,7 +5,7 @@ use crate::TestProgram;
 
 /// Lower interface itab metadata for structs.
 #[test]
-fn test_lower_emits_struct_itab_metadata() {
+fn test_lower_struct_itab_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -49,7 +49,7 @@ struct Circle implements Drawable {
 
 /// Lower interface reference layouts into fat pointer structs.
 #[test]
-fn test_lower_emits_interface_reference_layout() {
+fn test_lower_interface_reference_layout() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
@@ -183,7 +183,7 @@ struct Widget implements Shape, Paint {
 
 /// Lower interface call metadata for interface dispatch.
 #[test]
-fn test_lower_emits_interface_call_metadata() {
+fn test_lower_interface_call_metadata() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",
@@ -223,7 +223,7 @@ function useDrawable(d: Drawable): int32 {
 
 /// Lower interface upcasts into fat pointer values in MIR.
 #[test]
-fn test_lower_handles_interface_upcast() {
+fn test_lower_interface_upcast() {
     let test = TestProgram::memory_sequential_with_prelude_and_libs();
     let module_id = test.add_module(
         "test.ds",

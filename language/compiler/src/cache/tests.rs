@@ -15,11 +15,11 @@ use destack_workspace::{
 };
 use indexmap::IndexMap;
 
+use super::hasher::CacheHasher;
 use crate::{
     AnalyzeTask, CacheContext, CacheKey, CacheOptions, CacheRegistry, Compiler, CompilerOptions,
     ImportTask, TaskOutcome, TaskStatus, TestFileSystem, TestProgram,
 };
-use super::hasher::CacheHasher;
 
 impl TestProgram {
     /// Compile and analyze the provided modules.

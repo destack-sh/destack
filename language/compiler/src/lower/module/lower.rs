@@ -3,12 +3,13 @@ use std::collections::{HashMap, HashSet};
 use destack_base::StringPool;
 use destack_dir::{GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId, TargetId};
+use destack_workspace::{Module, ProfileId, Target, TargetId};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
+use crate::lower::emit::RuntimeCheckConfig;
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{VirtualMethodKey, VtableGlobal};
@@ -36,6 +37,8 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(crate) types: &'a dir::TypeTable,
     /// Identify the target backend for lowering.
     pub(crate) target: &'a TargetId,
+    /// Runtime check configuration for this target.
+    pub(crate) runtime_checks: RuntimeCheckConfig,
 
     /// Build MIR nodes for this module.
     pub(crate) builder: mir::ModuleBuilder,
@@ -120,6 +123,13 @@ impl<'a> ModuleLowerer<'a> {
         let dispatch_construct_name = builder.intern("@new");
         let vtable_field_name = builder.intern("@vtable");
 
+        // resolve the target configuration
+        let target_config = Self::target_config_for_module(compiler, module, target);
+
+        // resolve runtime check policies
+        let debug = compiler.program.profile(profile).key.debug;
+        let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
+
         Self {
             compiler,
             module_id: module.id,
@@ -130,6 +140,7 @@ impl<'a> ModuleLowerer<'a> {
             symbols,
             types,
             target,
+            runtime_checks,
             builder,
             functions_by_symbol: HashMap::new(),
             function_signature_types: HashMap::new(),
@@ -155,6 +166,54 @@ impl<'a> ModuleLowerer<'a> {
             interface_itab_pairs: Vec::new(),
             interface_itab_ids: HashMap::new(),
         }
+    }
+
+    /// Resolve the target configuration for a module.
+    fn target_config_for_module(
+        compiler: &crate::Compiler,
+        module: &Module,
+        target: &TargetId,
+    ) -> Target {
+        // load the package configuration
+        let package = compiler.program.packages.get(module.package_id);
+        let package = package.read();
+
+        // use the configured target when present
+        if let Some(target_config) = package.targets.get(target) {
+            return target_config.clone();
+        }
+
+        // fall back to implicit targets for tests and synthetic builds
+        Target::implicit_for_name(&target.name).unwrap_or_else(|| {
+            panic!("missing target config for module {module:?} with target {target:?}")
+        })
+    }
+
+    /// Resolve allocation mode for a symbol based on decorators and profile flags.
+    pub(crate) fn allocation_mode_for_symbol(&self, symbol: GlobalSymbolId) -> mir::AllocationMode {
+        // load symbol decorators
+        let symbol = self.symbols.get_symbol(symbol.local_id);
+        let decorators = &symbol.decorators;
+
+        // prefer stack only when explicitly requested
+        if decorators.is_stack_only {
+            return mir::AllocationMode::StackOnly;
+        }
+
+        // apply no managed when requested by decorators or profile flags
+        if decorators.is_no_managed
+            || self
+                .compiler
+                .program
+                .profile(self.profile)
+                .key
+                .flags
+                .no_managed
+        {
+            return mir::AllocationMode::NoManaged;
+        }
+
+        mir::AllocationMode::Any
     }
 
     /// Insert a global binding for a symbol.

@@ -7,6 +7,7 @@ use destack_workspace::format::format_unique_symbol_qualified_name;
 use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
+use crate::lower::static_key_to_field_name;
 use crate::{LowerError, LowerResult};
 
 const UNION_TAG_FIELD_NAME: &str = "@tag";
@@ -142,16 +143,25 @@ impl TypeLowerer {
             });
         }
 
+        // use nullable references for unions of a single reference type and null
+        if let Some(nullable) =
+            self.try_lower_nullable_reference_union(types, &collected, module_id, node, builder)?
+        {
+            return Ok(nullable);
+        }
+
         // resolve discriminant metadata and tag ordering
         let (ordered_elements, discriminant) =
             self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
 
         // lower union element types for copyability and layout bounds
+        let mut mir_element_types = Vec::with_capacity(ordered_elements.len());
         let mut copyability = mir::Copyability::Trivial;
         let mut max_payload_size = 0;
         let mut max_payload_alignment = 1;
         for element_id in &ordered_elements {
             let element_type = self.lower_type(types, *element_id, module_id, node, builder)?;
+            mir_element_types.push(element_type);
             let element = builder.tree().get(element_type);
             copyability = copyability.combine(element.copyability());
             let (size, alignment) = self.size_and_align_of_type(element, builder.tree());
@@ -220,6 +230,9 @@ impl TypeLowerer {
                     message: "missing union payload field".to_string(),
                 })?;
 
+        // build union metadata for optimization
+        let discriminant_metadata = self.union_discriminant_metadata(&discriminant, builder);
+
         // cache union layout metadata
         self.union_cache.insert(
             type_id,
@@ -233,6 +246,23 @@ impl TypeLowerer {
                 discriminant,
             },
         );
+
+        // populate union metadata for optimization
+        let union_metadata = mir::UnionLayout {
+            tag_type,
+            payload_type,
+            payload_kind: match payload_kind {
+                UnionPayloadKind::Inline => mir::UnionPayloadKind::Inline,
+                UnionPayloadKind::Boxed => mir::UnionPayloadKind::Boxed,
+            },
+            element_types: mir_element_types,
+            tag_field_index,
+            payload_field_index,
+            discriminant: discriminant_metadata,
+        };
+        let type_table = &mut builder.tree_mut().type_table;
+        let metadata = type_table.type_metadata_by_id.entry(mir_type).or_default();
+        metadata.union_layout = Some(union_metadata);
 
         // return the union type
         Ok(mir_type)
@@ -293,6 +323,109 @@ impl TypeLowerer {
             payload_size.div_ceil(pointer_size)
         };
         builder.type_array(self.ty_usize, slot_count as u64, mir::Copyability::Trivial)
+    }
+
+    /// Lower union types that can be represented as nullable references.
+    fn try_lower_nullable_reference_union(
+        &mut self,
+        types: &dir::TypeTable,
+        elements: &[dir::LocalTypeId],
+        module_id: ModuleId,
+        node: AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        let mut non_null = None;
+        let mut has_null = false;
+
+        for element_id in elements {
+            match types.get_type(*element_id) {
+                dir::Type::TypeLiteral {
+                    value: dir::TypeLiteral::Null,
+                } => {
+                    has_null = true;
+                }
+                _ => {
+                    if non_null.is_some() {
+                        return Ok(None);
+                    }
+                    non_null = Some(*element_id);
+                }
+            }
+        }
+
+        if !has_null {
+            return Ok(None);
+        }
+
+        let Some(non_null) = non_null else {
+            return Ok(None);
+        };
+        if elements.len() != 2 {
+            return Ok(None);
+        }
+
+        let non_null_type = self.lower_type(types, non_null, module_id, node, builder)?;
+        let mir::Type::Reference {
+            kind,
+            address_space,
+            mutability,
+            pointee,
+            is_nullable,
+        } = builder.tree().get(non_null_type)
+        else {
+            return Ok(None);
+        };
+
+        if *is_nullable {
+            return Ok(Some(non_null_type));
+        }
+
+        let nullable = builder.type_reference(*kind, *pointee, *mutability, *address_space, true);
+        Ok(Some(nullable))
+    }
+
+    /// Convert discriminant metadata into MIR metadata.
+    fn union_discriminant_metadata(
+        &self,
+        discriminant: &Option<UnionDiscriminant>,
+        builder: &mut mir::ModuleBuilder,
+    ) -> Option<mir::UnionDiscriminant> {
+        let discriminant = discriminant.as_ref()?;
+        let primary_field = static_key_to_field_name(&discriminant.primary_key, builder);
+        let mut fields = Vec::with_capacity(discriminant.fields.len());
+
+        for field in &discriminant.fields {
+            let field_name = static_key_to_field_name(&field.key, builder);
+            let values = field
+                .values
+                .iter()
+                .map(|literal| self.union_discriminant_value_metadata(&literal.value))
+                .collect();
+            fields.push(mir::UnionDiscriminantField { field_name, values });
+        }
+
+        Some(mir::UnionDiscriminant {
+            primary_field,
+            fields,
+        })
+    }
+
+    /// Convert discriminant literals into MIR metadata values.
+    fn union_discriminant_value_metadata(
+        &self,
+        value: &DiscriminantValue,
+    ) -> mir::UnionDiscriminantValue {
+        match value {
+            DiscriminantValue::Null => mir::UnionDiscriminantValue::Null,
+            DiscriminantValue::Undefined => mir::UnionDiscriminantValue::Undefined,
+            DiscriminantValue::Boolean(value) => mir::UnionDiscriminantValue::Boolean(*value),
+            DiscriminantValue::Number { value } => mir::UnionDiscriminantValue::Number {
+                bits: value.to_bits(),
+            },
+            DiscriminantValue::Bigint(value) => mir::UnionDiscriminantValue::Bigint(*value),
+            DiscriminantValue::String(value) => mir::UnionDiscriminantValue::String(*value),
+            DiscriminantValue::UniqueSymbol => mir::UnionDiscriminantValue::UniqueSymbol,
+        }
     }
 
     /// Collect union elements with deduplication.

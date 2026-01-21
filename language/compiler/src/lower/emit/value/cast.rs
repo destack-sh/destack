@@ -394,6 +394,66 @@ impl FunctionContext<'_> {
         Ok((value, target_mir_type))
     }
 
+    /// Lower a nullable upcast into a union or nullable reference.
+    pub(crate) fn lower_nullable_upcast(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let target_type_id = self.type_for_expression_or_error(expression_id)?;
+        if self.env.type_lowerer.union_layout(target_type_id).is_some() {
+            return self.lower_union_upcast(expression_id, value_id);
+        }
+
+        let (value, _source_type) = self.lower_value_expression(value_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
+        let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "nullable upcast requires a reference target".to_string(),
+            });
+        };
+
+        let value = self
+            .state
+            .builder
+            .cast(mir::CastOperator::Bitcast, value, target_mir_type);
+
+        Ok((value, target_mir_type))
+    }
+
+    /// Lower a nullable downcast into a union or nullable reference.
+    pub(crate) fn lower_nullable_downcast(
+        &mut self,
+        expression_id: LocalNodeId<Expression>,
+        value_id: LocalNodeId<Expression>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        let source_type_id = self.type_for_expression_or_error(value_id)?;
+        if self.env.type_lowerer.union_layout(source_type_id).is_some() {
+            return self.lower_union_downcast(expression_id, value_id);
+        }
+
+        let (value, _source_type) = self.lower_value_expression(value_id)?;
+        let target_mir_type = self.lower_type_for_expression(expression_id)?;
+        let mir::Type::Reference { .. } = self.state.builder.tree().get(target_mir_type) else {
+            return Err(LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "nullable downcast requires a reference target".to_string(),
+            });
+        };
+
+        let value = self
+            .state
+            .builder
+            .cast(mir::CastOperator::Bitcast, value, target_mir_type);
+
+        Ok((value, target_mir_type))
+    }
+
     /// Build an interface reference from a concrete value.
     pub(crate) fn lower_interface_upcast(
         &mut self,

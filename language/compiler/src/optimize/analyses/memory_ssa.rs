@@ -1734,6 +1734,7 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Intrinsic::Unreachable
             | mir::Intrinsic::Breakpoint
             | mir::Intrinsic::Abort
+            | mir::Intrinsic::Panic
             | mir::Intrinsic::ReturnAddress
             | mir::Intrinsic::FrameAddress
             | mir::Intrinsic::Expect
