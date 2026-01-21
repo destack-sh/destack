@@ -253,21 +253,23 @@ function castRenderable(value: int32): Renderable {
         module_id,
         "native",
         r#"
+type @test/test:Renderable = { @object: ref<managed void>, @itab: usize }
+type @test/test:Sprite = { value: i32 }
 extern function @draw({ draw: fn() -> i32 }) -> i32
-function @draw(v0: { value: i32 }) -> i32 {
-block0(v0: { value: i32 }):
+function @draw#1(v0: @test/test:Sprite) -> i32 {
+block0(v0: @test/test:Sprite):
     v1 = field.get v0, 0
     return v1
 }
-function @castRenderable(v0: i32) -> { @object: ref<managed void>, @itab: usize } {
+function @castRenderable(v0: i32) -> @test/test:Renderable {
 block0(v0: i32):
-    v1 = struct { value: i32 } (v0)
-    v2 = managed.alloc { value: i32 } -> ref<managed { value: i32 }>
+    v1 = struct @test/test:Sprite (v0)
+    v2 = managed.alloc @test/test:Sprite -> ref<managed @test/test:Sprite>
     store v2, v1
     v3 = bitcast v2 -> ref<managed void>
     v4 = iconst 0u64
     v5 = bitcast v4 -> usize
-    v6 = struct { @object: ref<managed void>, @itab: usize } (v3, v5)
+    v6 = struct @test/test:Renderable (v3, v5)
     return v6
 }
         "#,

@@ -260,18 +260,6 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Resolve the MIR signature type for a declaration or member node.
-    pub(crate) fn signature_mir_type_for_node(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the signature type id
-        let signature_type_id = self.signature_type_id_for_node(node_id)?;
-
-        // lower the signature type
-        self.lower_type(signature_type_id, node_id.into_anchored(Some(self.profile)))
-    }
-
     /// Lower a function declaration to a MIR function.
     pub(crate) fn lower_function(
         &mut self,
@@ -345,9 +333,10 @@ impl ModuleLowerer<'_> {
         // extract return lifetime from @lifetime decorator
         let return_lifetime = self.extract_lifetime_annotation(descriptor.symbol, signature);
 
-        // resolve the signature type for direct callsites
-        let signature_type =
-            self.signature_mir_type_for_node(declaration_id.into_global_any(self.module_id))?;
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
 
         // prelower body expression types
         if let Some(body_id) = body {
@@ -614,9 +603,10 @@ impl ModuleLowerer<'_> {
             self.resolve_method_return_type(member_id, member_node)?
         };
 
-        // resolve the signature type for direct callsites
-        let signature_type =
-            self.signature_mir_type_for_node(member_id.into_global_any(self.module_id))?;
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
 
         // prelower body expression types
         if let Some(body_id) = body {

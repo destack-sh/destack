@@ -188,7 +188,7 @@ block0(v0: i32):
 function @checkInstance() -> bool {
 block0:
     v0 = iconst 1i32
-    v1 = call @isActive(v0) -> fn() -> bool
+    v1 = call @isActive(v0) -> fn(i32) -> bool
     return v1
 }
         "#,

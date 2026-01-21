@@ -995,7 +995,25 @@ impl TestProgram {
         let mir = module.mir(&target_id);
         let tree = mir.tree.read();
         let strings = mir.strings.clone().into_immutable();
-        format_mir(&tree, &strings, MirFormatOptions::default())
+        format_mir(&tree, &strings, self.mir_format_options())
+    }
+
+    /// Format MIR options for test output.
+    fn mir_format_options(&self) -> MirFormatOptions {
+        // enable type aliases in test output
+        MirFormatOptions::default().with_type_aliases(true)
+    }
+
+    /// Normalize expected MIR text for comparison.
+    fn normalize_mir_expected(&self, expected: &str) -> String {
+        // trim the expected input
+        let expected = expected.trim();
+
+        // parse and reformat to the canonical layout
+        let (tree, strings) =
+            destack_mir::parse::Parser::parse(destack_source::FileId::new(0), expected)
+                .unwrap_or_else(|error| panic!("expected mir parse failed: {error}"));
+        format_mir(&tree, &strings, self.mir_format_options())
     }
 
     /// Run a callback with the MIR tree and strings for a lowered target.
@@ -1087,11 +1105,16 @@ impl TestProgram {
 
     /// Assert that a module's MIR matches the expected text format.
     pub fn assert_mir(&self, module_id: ModuleId, target: &str, expected: &str) {
+        // format the actual mir
         let actual = self.mir_to_string(module_id, target);
-        let actual = actual.trim();
-        let expected = expected.trim();
+        let actual = actual.trim().to_string();
+
+        // normalize the expected mir
+        let expected = self.normalize_mir_expected(expected);
+
+        // compare formatted output
         if actual != expected {
-            print_diff(expected, actual, &DiffOptions::new());
+            print_diff(&expected, &actual, &DiffOptions::new());
             panic!("mir code mismatch");
         }
     }

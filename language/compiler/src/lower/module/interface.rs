@@ -29,9 +29,10 @@ impl ModuleLowerer<'_> {
         // resolve parameter types, including the interface receiver
         let parameter_types = self.method_parameter_types(signature, Some(interface_type))?;
 
-        // resolve the signature type for direct callsites
-        let signature_type =
-            self.signature_mir_type_for_node(member_id.into_global_any(self.module_id))?;
+        // build a MIR signature type aligned with the lowered parameters
+        let signature_type = self
+            .builder
+            .type_function_pointer(parameter_types.clone(), return_type);
 
         // declare the interface method stub
         let function_id = self

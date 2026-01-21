@@ -64,12 +64,13 @@ function sumBox(value: int32): int32 {
         module_id,
         "native",
         r#"
+type @test/test:Box = { value: i32 }
 function @sumBox(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = struct { value: i32 } (v0)
-    v2 = managed.alloc { value: i32 } -> ref<managed { value: i32 }>
+    v1 = struct @test/test:Box (v0)
+    v2 = managed.alloc @test/test:Box -> ref<managed @test/test:Box>
     store v2, v1
-    v3 = load v2 -> { value: i32 }
+    v3 = load v2 -> @test/test:Box
     v4 = field.get v3, 0
     v5 = iconst 1i32
     v6 = trunc v5 -> i32
@@ -423,21 +424,22 @@ function callLogger(base: Logger): int32 {
         module_id,
         "native",
         r#"
+type @Struct0 = { @vtable: ref<raw void> }
 global @test/test:Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 global @test/test:FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
-function @log(v0: ref<managed { @vtable: ref<raw void> }>) -> i32 {
-block0(v0: ref<managed { @vtable: ref<raw void> }>):
+function @log(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
     v1 = iconst 1i32
     return v1
 }
-function @log(v0: ref<managed { @vtable: ref<raw void> }>) -> i32 {
-block0(v0: ref<managed { @vtable: ref<raw void> }>):
+function @log#1(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
     v1 = iconst 2i32
     return v1
 }
-function @callLogger(v0: ref<managed { @vtable: ref<raw void> }>) -> i32 {
-block0(v0: ref<managed { @vtable: ref<raw void> }>):
-    v1 = call.virtual v0, { @vtable: ref<raw void> }, 2, @log(v0) -> fn() -> i32
+function @callLogger(v0: ref<managed @Struct0>) -> i32 {
+block0(v0: ref<managed @Struct0>):
+    v1 = call.virtual v0, @Struct0, 2, @log(v0) -> fn(ref<managed @Struct0>) -> i32
     return v1
 }
         "#,

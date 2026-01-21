@@ -173,18 +173,20 @@ function makeShape(value: Circle): Circle | Square {
         module_id,
         "native",
         r#"
-function @makeShape(v0: { value: i32 }) -> { @tag: u8, @payload: [usize; 1] } {
-block0(v0: { value: i32 }):
+type @test/test:makeShape#return#union = { @tag: u8, @payload: [usize; 1] }
+type @test/test:Circle = { value: i32 }
+function @makeShape(v0: @test/test:Circle) -> @test/test:makeShape#return#union {
+block0(v0: @test/test:Circle):
     v1 = iconst 0u8
     v2 = stack.alloc [usize; 1] -> ref<raw mut [usize; 1]>
     v3 = iconst 0u64
     v4 = bitcast v3 -> usize
     v5 = array [usize; 1] (v4)
     store v2, v5
-    v6 = bitcast v2 -> ref<raw mut { value: i32 }>
+    v6 = bitcast v2 -> ref<raw mut @test/test:Circle>
     store v6, v0
     v7 = load v2 -> [usize; 1]
-    v8 = struct { @tag: u8, @payload: [usize; 1] } (v1, v7)
+    v8 = struct @test/test:makeShape#return#union (v1, v7)
     return v8
 }
         "#,
@@ -228,13 +230,15 @@ function makeFrame(value: Frame): Frame | MegaFrame {
         module_id,
         "native",
         r#"
-function @makeFrame(v0: { first: i64, second: i64, third: i64 }) -> { @tag: u8, @payload: ref<managed void> } {
-block0(v0: { first: i64, second: i64, third: i64 }):
+type @test/test:makeFrame#return#union = { @tag: u8, @payload: ref<managed void> }
+type @test/test:Frame = { first: i64, second: i64, third: i64 }
+function @makeFrame(v0: @test/test:Frame) -> @test/test:makeFrame#return#union {
+block0(v0: @test/test:Frame):
     v1 = iconst 0u8
-    v2 = managed.alloc { first: i64, second: i64, third: i64 } -> ref<managed { first: i64, second: i64, third: i64 }>
+    v2 = managed.alloc @test/test:Frame -> ref<managed @test/test:Frame>
     store v2, v0
     v3 = bitcast v2 -> ref<managed void>
-    v4 = struct { @tag: u8, @payload: ref<managed void> } (v1, v3)
+    v4 = struct @test/test:makeFrame#return#union (v1, v3)
     return v4
 }
         "#,
@@ -273,13 +277,15 @@ function takeCircle(value: Circle | Square): Circle {
         module_id,
         "native",
         r#"
-function @takeCircle(v0: { @tag: u8, @payload: [usize; 1] }) -> { value: i32 } {
-block0(v0: { @tag: u8, @payload: [usize; 1] }):
+type @test/test:takeCircle#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+type @test/test:Circle = { value: i32 }
+function @takeCircle(v0: @test/test:takeCircle#parameter:value#union) -> @test/test:Circle {
+block0(v0: @test/test:takeCircle#parameter:value#union):
     v1 = field.get v0, 1
     v2 = stack.alloc [usize; 1] -> ref<raw mut [usize; 1]>
     store v2, v1
-    v3 = bitcast v2 -> ref<raw mut { value: i32 }>
-    v4 = load v3 -> { value: i32 }
+    v3 = bitcast v2 -> ref<raw mut @test/test:Circle>
+    v4 = load v3 -> @test/test:Circle
     return v4
 }
         "#,
@@ -310,8 +316,9 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
         module_id,
         "native",
         r#"
-function @select(v0: { @tag: u8, @payload: [usize; 1] }) -> i32 {
-block0(v0: { @tag: u8, @payload: [usize; 1] }):
+type @test/test:select#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @select(v0: @test/test:select#parameter:value#union) -> i32 {
+block0(v0: @test/test:select#parameter:value#union):
     v1 = field.get v0, 0
     v2 = iconst 0u8
     v3 = icmp_eq v1, v2
@@ -353,8 +360,9 @@ function isA(value: { kind: 1, value: int32 } | { kind: 0, value: int32 }): bool
         module_id,
         "native",
         r#"
-function @isA(v0: { @tag: u8, @payload: [usize; 1] }) -> bool {
-block0(v0: { @tag: u8, @payload: [usize; 1] }):
+type @test/test:isA#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isA(v0: @test/test:isA#parameter:value#union) -> bool {
+block0(v0: @test/test:isA#parameter:value#union):
     v1 = field.get v0, 0
     v2 = iconst 0u8
     v3 = icmp_eq v1, v2
@@ -387,8 +395,9 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
         module_id,
         "native",
         r#"
-function @isA(v0: { @tag: u8, @payload: ref<managed void> }) -> bool {
-block0(v0: { @tag: u8, @payload: ref<managed void> }):
+type @test/test:isA#parameter:value#union = { @tag: u8, @payload: ref<managed void> }
+function @isA(v0: @test/test:isA#parameter:value#union) -> bool {
+block0(v0: @test/test:isA#parameter:value#union):
     v1 = field.get v0, 0
     v2 = iconst 0u8
     v3 = icmp_eq v1, v2
@@ -422,8 +431,9 @@ function isReady(value: { kind: true, value: int32 } | { kind: false, value: int
         module_id,
         "native",
         r#"
-function @isReady(v0: { @tag: u8, @payload: [usize; 1] }) -> bool {
-block0(v0: { @tag: u8, @payload: [usize; 1] }):
+type @test/test:isReady#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
+function @isReady(v0: @test/test:isReady#parameter:value#union) -> bool {
+block0(v0: @test/test:isReady#parameter:value#union):
     v1 = field.get v0, 0
     v2 = iconst 1u8
     v3 = icmp_eq v1, v2
@@ -457,8 +467,9 @@ function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 
         module_id,
         "native",
         r#"
-function @isLarge(v0: { @tag: u8, @payload: [usize; 2] }) -> bool {
-block0(v0: { @tag: u8, @payload: [usize; 2] }):
+type @test/test:isLarge#parameter:value#union = { @tag: u8, @payload: [usize; 2] }
+function @isLarge(v0: @test/test:isLarge#parameter:value#union) -> bool {
+block0(v0: @test/test:isLarge#parameter:value#union):
     v1 = field.get v0, 0
     v2 = iconst 1u8
     v3 = icmp_eq v1, v2

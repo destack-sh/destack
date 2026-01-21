@@ -297,9 +297,9 @@ fn is_ident_start(c: char) -> bool {
 }
 
 /// Check if character can continue an identifier.
-/// Includes `.` to support dotted instruction names like `local.get`, `field.set`.
+/// Includes `.`, `/`, `#`, and the hyphen character to support module and symbol names.
 fn is_ident_continue(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c == '_' || c == '.'
+    c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '/' | '#' | '-')
 }
 
 /// Check if string is a type name (i8, i16, i32, u8, f32, isize, usize).

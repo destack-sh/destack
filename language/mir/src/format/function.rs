@@ -12,10 +12,11 @@ use crate::{
 impl<'a> FormatMirNode<'a, Function> for Function {
     fn format_node(
         &self,
-        _id: LocalNodeId<Function>,
+        id: LocalNodeId<Function>,
         f: &mut MirFormatter<'a, '_>,
     ) -> FormatResult<()> {
-        let name = f.context().strings.get(self.name);
+        // resolve the function name before formatting
+        let name = f.context().function_name(id).to_string();
 
         // imported function: extern function @name(i32, i32) -> void
         if self.linkage.is_import() {
@@ -27,7 +28,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                     token("function"),
                     space(),
                     token("@"),
-                    text(name)
+                    text(&name)
                 ]
             )?;
 
@@ -63,7 +64,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         }
 
         // function signature: function @name(v0: i32, v1: i32) -> void {
-        write!(f, [token("function"), space(), token("@"), text(name)])?;
+        write!(f, [token("function"), space(), token("@"), text(&name)])?;
 
         // parameters
         write!(f, [token("(")])?;

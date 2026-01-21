@@ -170,8 +170,9 @@ function borrowField(point: &Point): &int32 {
         module_id,
         "native",
         r#"
-function @borrowField(v0: ref<borrowed { x: i32, y: i32 }>) -> ref<borrowed i32> {
-block0(v0: ref<borrowed { x: i32, y: i32 }>):
+type @test/test:Point = { x: i32, y: i32 }
+function @borrowField(v0: ref<borrowed @test/test:Point>) -> ref<borrowed i32> {
+block0(v0: ref<borrowed @test/test:Point>):
     v1 = field.addr v0, 0 -> ref<borrowed i32>
     return v1
 }
@@ -366,12 +367,13 @@ function borrowGreeter(greeter: Greeter): &Greeter {
         module_id,
         "native",
         r#"
+type @test/test:Greeter = { @object: ref<managed void>, @itab: usize }
 extern function @greet({ greet: fn() -> i32 }) -> i32
-function @borrowGreeter(v0: { @object: ref<managed void>, @itab: usize }) -> ref<borrowed { @object: ref<managed void>, @itab: usize }> {
-    local0: { @object: ref<managed void>, @itab: usize } ; owned
-block0(v0: { @object: ref<managed void>, @itab: usize }):
+function @borrowGreeter(v0: @test/test:Greeter) -> ref<borrowed @test/test:Greeter> {
+    local0: @test/test:Greeter ; owned
+block0(v0: @test/test:Greeter):
     local.set local0, v0
-    v1 = local.addr local0 -> ref<borrowed { @object: ref<managed void>, @itab: usize }>
+    v1 = local.addr local0 -> ref<borrowed @test/test:Greeter>
     return v1
 }
         "#,
@@ -403,9 +405,10 @@ class Counter {
         module_id,
         "native",
         r#"
+type @test/test:Counter = { @vtable: ref<raw void>, value: i32 }
 global @test/test:Counter#vtable: [ref?<raw void>; 3] = zeroinit ; const
-function @borrowValue(v0: ref<managed { @vtable: ref<raw void>, value: i32 }>) -> ref<borrowed i32> {
-block0(v0: ref<managed { @vtable: ref<raw void>, value: i32 }>):
+function @borrowValue(v0: ref<managed @test/test:Counter>) -> ref<borrowed i32> {
+block0(v0: ref<managed @test/test:Counter>):
     v1 = field.addr v0, 1 -> ref<borrowed i32>
     return v1
 }
