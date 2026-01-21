@@ -644,6 +644,7 @@ fn system_time_to_nanos(time: Option<SystemTime>) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::SystemTime;
 

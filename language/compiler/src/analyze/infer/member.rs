@@ -181,40 +181,10 @@ impl Compiler {
                     .into_anchored(Some(ctx.profile)),
             });
         }
-        // decide how to filter member lookups for this receiver
-        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
-            module,
-            left_id,
-            &left_ty,
-            ctx.profile,
-            tree,
-            symbols,
-        );
-
         let member_symbol = match &member_resolution {
             MemberResolution::Static { symbol } => Some(*symbol),
             _ => None,
         };
-        if let Some(member_symbol) = member_symbol
-            && matches!(lookup_mode, MemberLookupMode::Value)
-            && types.get_value_type_id(member_symbol).is_none()
-        {
-            let scope = InferScope {
-                owner: member_symbol,
-                function_id: ctx
-                    .in_function
-                    .map(|function_id| function_id.into_global(module.id)),
-            };
-            let placeholder_ty_id = self.infer_var_type_for_symbol(
-                infer,
-                types,
-                member_symbol,
-                expression_id.into_any(),
-                InferOrigin::Expression(expression_id.into_global_any(module.id)),
-                scope,
-            );
-            types.set_value_type(member_symbol, placeholder_ty_id);
-        }
 
         // enforce member visibility for resolved symbols
         match &member_resolution {
@@ -288,6 +258,16 @@ impl Compiler {
                 substitutions.insert(*symbol, *ty_id);
             }
         }
+
+        // decide how to filter member lookups for this receiver
+        let lookup_mode = self.member_lookup_mode_for_receiver_expression(
+            module,
+            left_id,
+            &left_ty,
+            ctx.profile,
+            tree,
+            symbols,
+        );
 
         // infer the member type
         let mut member_type_visited = Vec::new();
