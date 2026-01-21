@@ -10,8 +10,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
+// NOTE #Cleanup: fix clippy lints once fully vendored
 #![allow(dead_code)]
 #![allow(clippy::all)]
+#![allow(warnings)]
 #![no_std]
 
 #[cfg(feature = "fuzzing")]

@@ -1,4 +1,7 @@
 //! A Cranelift-specific x64 assembler.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 //!
 //! All instructions known to this assembler are listed in the [`inst`] module.
 //! The [`Inst`] enumeration contains a variant for each, allowing matching over

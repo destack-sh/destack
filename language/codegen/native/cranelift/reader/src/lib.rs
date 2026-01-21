@@ -2,6 +2,9 @@
 //!
 //! The `cranelift_reader` library supports reading .clif files. This functionality is needed for
 //! testing Cranelift, but is not essential for a JIT compiler.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 
 #![deny(missing_docs)]
 

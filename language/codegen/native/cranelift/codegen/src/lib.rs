@@ -1,4 +1,7 @@
 //! Cranelift code generation library.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 #![deny(missing_docs)]
 // Display feature requirements in the documentation when building on docs.rs
 #![cfg_attr(docsrs, feature(doc_cfg))]

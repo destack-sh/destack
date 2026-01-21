@@ -1,5 +1,8 @@
 //! A minimal helper crate for implementing float-related operations for
 //! WebAssembly in terms of the native platform primitives.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 //!
 //! > **⚠️ Warning ⚠️**: this crate is an internal-only crate for the Wasmtime
 //! > project and is not intended for general use. APIs are not strictly

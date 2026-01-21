@@ -1,5 +1,8 @@
 //! This library contains code that is common to both the `cranelift-codegen` and
 //! `cranelift-codegen-meta` libraries.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 
 #![deny(missing_docs)]
 

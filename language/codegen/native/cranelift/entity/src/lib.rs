@@ -1,4 +1,7 @@
 //! Array-based data structures using densely numbered entity references as mapping keys.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 //!
 //! This crate defines a number of data structures based on arrays. The arrays are not indexed by
 //! `usize` as usual, but by *entity references* which are integers wrapped in new-types. This has

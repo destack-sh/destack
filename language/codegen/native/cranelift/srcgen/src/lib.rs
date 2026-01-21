@@ -2,6 +2,9 @@
 //!
 //! This crate contains generic helper routines and classes for generating
 //! source code.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
