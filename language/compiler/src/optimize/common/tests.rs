@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
+use mir::parse::ParseOptions;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
 
@@ -39,7 +40,8 @@ impl TestProgram {
     /// Create a new test program from MIR source text.
     pub(crate) fn new(source: &str) -> Self {
         let (tree, strings) =
-            mir::parse::Parser::parse(FileId::new(0), source).expect("failed to parse MIR");
+            mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+                .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
         // copy all strings from parser pool to context pool
