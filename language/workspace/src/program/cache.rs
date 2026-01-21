@@ -521,26 +521,17 @@ pub fn write_module_mir_cache(path: &Path, entry: &ModuleMirCacheEntry) -> Resul
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
-    use std::time::{SystemTime, UNIX_EPOCH};
 
     use destack_source::{
         FileId, FileVersion, ModuleId, ModuleVersion, PackageId, ProfileId, ProfileVersion,
+        TemporaryPhysicalFileSystem,
     };
 
     use crate::{ModuleAst, ModuleDir, ModuleMir, TargetId};
 
     use super::*;
 
-    fn temp_cache_path(name: &str) -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let pid = std::process::id();
-        let filename = format!("destack-cache-{name}-{pid}-{nanos}.bin");
-        std::env::temp_dir().join(filename)
-    }
-
+    /// Build a cache header for tests.
     fn test_header(kind: CacheKind) -> CacheHeader {
         let profile_id = if kind.requires_profile() {
             Some(ProfileId::new(1))
@@ -574,13 +565,20 @@ mod tests {
         anchor_id.id
     }
 
+    /// Build a cache file path under a temporary root.
+    fn cache_path(root: &TemporaryPhysicalFileSystem, name: &str) -> PathBuf {
+        let filename = format!("{name}.bin");
+        root.path_for(&filename)
+    }
+
     #[test]
     fn test_module_ast_cache_roundtrip() {
         // roundtrip module ast cache entries through disk
         let module_ast = ModuleAst::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL);
         let entry =
             ModuleAstCacheEntry::new(test_header(CacheKind::Ast), module_ast.to_data()).unwrap();
-        let path = temp_cache_path("ast");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("module_ast_cache");
+        let path = cache_path(&root, "ast");
 
         write_module_ast_cache(&path, &entry).expect("write module ast cache");
         let loaded = read_module_ast_cache(&path).expect("read module ast cache");
@@ -590,8 +588,6 @@ mod tests {
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert_eq!(loaded.payload.roots.len(), 0);
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -605,7 +601,8 @@ mod tests {
         );
         let entry = ModuleDirCacheEntry::new(test_header(CacheKind::DirBase), module_dir.to_data())
             .unwrap();
-        let path = temp_cache_path("dir-base");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_base_cache");
+        let path = cache_path(&root, "dir-base");
 
         write_module_dir_base_cache(&path, &entry).expect("write module dir base cache");
         let loaded = read_module_dir_base_cache(&path).expect("read module dir base cache");
@@ -615,8 +612,6 @@ mod tests {
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert!(loaded.payload.profile_id.is_none());
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -632,7 +627,8 @@ mod tests {
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirResolved), module_dir.to_data())
                 .unwrap();
-        let path = temp_cache_path("dir-resolved");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_resolved_cache");
+        let path = cache_path(&root, "dir-resolved");
 
         write_module_dir_resolved_cache(&path, &entry).expect("write module dir resolved cache");
         let loaded = read_module_dir_resolved_cache(&path).expect("read module dir resolved cache");
@@ -642,8 +638,6 @@ mod tests {
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -659,7 +653,8 @@ mod tests {
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirAnalyzed), module_dir.to_data())
                 .unwrap();
-        let path = temp_cache_path("dir-analyzed");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_analyzed_cache");
+        let path = cache_path(&root, "dir-analyzed");
 
         write_module_dir_analyzed_cache(&path, &entry).expect("write analyzed dir cache");
         let loaded = read_module_dir_analyzed_cache(&path).expect("read analyzed dir cache");
@@ -669,8 +664,6 @@ mod tests {
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -686,7 +679,8 @@ mod tests {
         let entry =
             ModuleDirCacheEntry::new(test_header(CacheKind::DirExecuted), module_dir.to_data())
                 .unwrap();
-        let path = temp_cache_path("dir-executed");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("dir_executed_cache");
+        let path = cache_path(&root, "dir-executed");
 
         write_module_dir_executed_cache(&path, &entry).expect("write executed dir cache");
         let loaded = read_module_dir_executed_cache(&path).expect("read executed dir cache");
@@ -696,8 +690,6 @@ mod tests {
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
         assert_eq!(loaded.payload.profile_id, Some(ProfileId::new(1)));
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]
@@ -707,7 +699,8 @@ mod tests {
         let module_mir = ModuleMir::new(ModuleId::EPHEMERAL, ModuleVersion::INITIAL, target);
         let entry =
             ModuleMirCacheEntry::new(test_header(CacheKind::Mir), module_mir.to_data()).unwrap();
-        let path = temp_cache_path("mir");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("mir_cache");
+        let path = cache_path(&root, "mir");
 
         write_module_mir_cache(&path, &entry).expect("write module mir cache");
         let loaded = read_module_mir_cache(&path).expect("read module mir cache");
@@ -716,8 +709,6 @@ mod tests {
         assert_eq!(loaded.header.cache_kind, CacheKind::Mir);
         assert_eq!(loaded.payload.id, ModuleId::EPHEMERAL);
         assert_eq!(loaded.payload.version, ModuleVersion::INITIAL);
-
-        let _ = std::fs::remove_file(path);
     }
 
     #[test]

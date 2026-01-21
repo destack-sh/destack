@@ -15,8 +15,8 @@ use destack_source::{
 
 use crate::{
     CacheScope, CacheStoreError, CacheValidate, DsConfig, ModuleGraph, ModuleGraphKey,
-    ModuleSignatureDigest, ModuleSignatureKey, Program, Workspace, hash_bytes, hash_json_value,
-    resolve_cache_dir, resolve_cache_root_for_scope,
+    ModuleGraphVersion, ModuleSignatureDigest, ModuleSignatureKey, ProfileId, Program, Workspace,
+    hash_bytes, hash_json_value, resolve_cache_dir, resolve_cache_root_for_scope,
 };
 
 /// Header for workspace index snapshots.
@@ -193,6 +193,8 @@ pub struct WorkspaceIndexSnapshot {
     pub modules: IndexMap<ModuleId, WorkspaceModuleEntry>,
     /// Module graphs keyed by profile.
     pub module_graphs: IndexMap<ModuleGraphKey, ModuleGraph>,
+    /// Module graph versions keyed by profile.
+    pub module_graph_versions: IndexMap<ProfileId, ModuleGraphVersion>,
     /// Module signature digests keyed by module and profile.
     pub module_signature_digests: IndexMap<ModuleSignatureKey, ModuleSignatureDigest>,
 }
@@ -257,6 +259,19 @@ impl WorkspaceIndexSnapshot {
             module_graphs.insert(key, graph);
         }
 
+        // snapshot module graph versions
+        let mut module_graph_versions = IndexMap::new();
+        let mut graph_version_entries: Vec<_> = program
+            .index
+            .module_graph_versions
+            .iter()
+            .map(|entry| (*entry.key(), *entry.value()))
+            .collect();
+        graph_version_entries.sort_by_key(|(key, _)| *key);
+        for (key, version) in graph_version_entries {
+            module_graph_versions.insert(key, version);
+        }
+
         // snapshot signature digests
         let mut module_signature_digests = IndexMap::new();
         let mut digest_entries: Vec<_> = program
@@ -275,6 +290,7 @@ impl WorkspaceIndexSnapshot {
             files,
             modules,
             module_graphs,
+            module_graph_versions,
             module_signature_digests,
         })
     }
@@ -628,15 +644,13 @@ fn system_time_to_nanos(time: Option<SystemTime>) -> Option<u64> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-    use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::SystemTime;
 
     use destack_base::StringPool;
     use destack_source::{
         FileMetadata, FileRegistry, FileVersion, MemoryFileSystem, ModuleId, ModuleVersion,
-        PhysicalFileSystem, strip_json,
+        PhysicalFileSystem, TemporaryPhysicalFileSystem, strip_json,
     };
     use filetime::FileTime;
     use indexmap::IndexMap;
@@ -655,17 +669,15 @@ mod tests {
     #[test]
     fn test_workspace_index_roundtrip() {
         // setup a temp workspace directory
-        let root =
-            std::env::temp_dir().join(format!("destack-workspace-index-{}", std::process::id()));
-        fs::create_dir_all(&root).unwrap();
-        let cache_root = root.join(".destack");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index");
+        let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
         let index_store = WorkspaceIndexStore::new(&store, &cache_root);
 
         // build a minimal snapshot
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
-            root.clone(),
+            root.root().to_path_buf(),
             Some(42),
             1,
             2,
@@ -673,7 +685,7 @@ mod tests {
         );
         let mut files = IndexMap::new();
         files.insert(
-            root.join("a.ds"),
+            root.path_for("a.ds"),
             WorkspaceFileEntry {
                 version: FileVersion::new(1),
                 exists: true,
@@ -692,6 +704,7 @@ mod tests {
             files,
             modules,
             module_graphs: IndexMap::new(),
+            module_graph_versions: IndexMap::new(),
             module_signature_digests: IndexMap::new(),
         };
 
@@ -702,36 +715,25 @@ mod tests {
             .unwrap()
             .expect("expected snapshot");
 
-        // assertion block
+        // check that the snapshot is loaded
         assert_eq!(loaded.header.compiler_version, "0.0.0");
         assert_eq!(loaded.files.len(), 1);
         assert_eq!(loaded.modules.len(), 1);
-
-        // cleanup
-        let _ = fs::remove_dir_all(root);
     }
 
     /// Reject snapshots when the header does not match.
     #[test]
     fn test_workspace_index_header_mismatch() {
         // set up a temp workspace directory
-        let root = std::env::temp_dir().join(format!(
-            "destack-workspace-index-mismatch-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&root).unwrap();
-        let cache_root = root.join(".destack");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_mismatch");
+        let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
         let index_store = WorkspaceIndexStore::new(&store, &cache_root);
 
         // write a minimal snapshot
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
-            root.clone(),
+            root.root().to_path_buf(),
             Some(1),
             3,
             4,
@@ -742,6 +744,7 @@ mod tests {
             files: IndexMap::new(),
             modules: IndexMap::new(),
             module_graphs: IndexMap::new(),
+            module_graph_versions: IndexMap::new(),
             module_signature_digests: IndexMap::new(),
         };
         index_store.save(&snapshot).unwrap();
@@ -749,7 +752,7 @@ mod tests {
         // read with mismatched header
         let mismatch = WorkspaceIndexHeader::new(
             "0.0.1".to_string(),
-            root.clone(),
+            root.root().to_path_buf(),
             Some(1),
             3,
             4,
@@ -757,11 +760,8 @@ mod tests {
         );
         let loaded = index_store.load(&mismatch).unwrap();
 
-        // assertion block
+        // check that the snapshot is not loaded
         assert!(loaded.is_none());
-
-        // cleanup
-        let _ = fs::remove_dir_all(root);
     }
 
     /// Ignore comments when hashing workspace config.
@@ -792,7 +792,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to hash config: {error}"))
             .unwrap_or_else(|| panic!("expected config hash"));
 
-        // assertion block
+        // check that the hashes are equal
         assert_eq!(
             hash_with_comments, hash_without_comments,
             "expected comment changes to be ignored"
@@ -829,7 +829,7 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to hash config: {error}"))
             .unwrap_or_else(|| panic!("expected config hash"));
 
-        // assertion block
+        // check that the hash is not zero
         assert_ne!(hash, 0);
     }
 
@@ -852,7 +852,7 @@ mod tests {
         let error =
             hash_workspace_config(&workspace, &fs).expect_err("expected missing extends error");
 
-        // assertion block
+        // check that the error is a missing extends error
         assert!(
             matches!(error, WorkspaceConfigError::Missing { .. }),
             "expected missing error"
@@ -870,7 +870,7 @@ mod tests {
 
         let error = hash_workspace_config(&workspace, &fs).expect_err("expected parse error");
 
-        // assertion block
+        // check that the error is a parse error
         assert!(
             matches!(error, WorkspaceConfigError::Parse { .. }),
             "expected parse error"
@@ -883,7 +883,7 @@ mod tests {
         let file_metadata = FileMetadata::new(true, false, false, 10, Some(SystemTime::now()));
         let entry = WorkspaceFileEntry::from_metadata(FileVersion::new(1), &file_metadata, None);
 
-        // assertion block
+        // check that the version is incremented
         assert_eq!(entry.version_for_missing(), FileVersion::new(2));
 
         let same = FileMetadata::new(true, false, false, 10, file_metadata.modified_at);
@@ -896,15 +896,8 @@ mod tests {
     #[test]
     fn test_workspace_index_roundtrip_disk() {
         // setup a temp workspace directory
-        let root = std::env::temp_dir().join(format!(
-            "destack-workspace-index-disk-{}",
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&root).unwrap();
-        let cache_root = root.join(".destack");
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_disk");
+        let cache_root = root.path_for(".destack");
         let store = DiskCacheStore::new();
         let index_store = WorkspaceIndexStore::new(&store, &cache_root);
 
@@ -912,7 +905,7 @@ mod tests {
         let program = Program::new(
             crate::FormatterOptions::default(),
             crate::LinterOptions::default(),
-            root.clone(),
+            root.root().to_path_buf(),
             Arc::new(PhysicalFileSystem),
             Arc::new(files),
             Arc::new(crate::ModuleRegistry::new()),
@@ -925,7 +918,7 @@ mod tests {
 
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
-            root.clone(),
+            root.root().to_path_buf(),
             Some(3),
             5,
             6,
@@ -942,41 +935,31 @@ mod tests {
             .unwrap_or_else(|error| panic!("failed to read snapshot: {error}"))
             .unwrap_or_else(|| panic!("expected snapshot"));
 
-        // assertion block
+        // check that the compiler version is loaded
         assert_eq!(loaded.header.compiler_version, "0.0.0");
-
-        let _ = fs::remove_dir_all(root);
     }
 
     /// Detect content changes even when metadata matches.
     #[test]
     fn test_workspace_index_detects_content_changes() {
         // set up a temp workspace and file
-        let root = std::env::temp_dir().join(format!(
-            "destack-workspace-index-content-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        fs::create_dir_all(&root).unwrap();
-        let file_path = root.join("main.ds");
-        fs::write(&file_path, "abc").unwrap();
+        let root = TemporaryPhysicalFileSystem::new_with_prefix("workspace_index_content");
+        let file_path = root.write_text("main.ds", "abc").unwrap();
 
-        let metadata = fs::metadata(&file_path).unwrap();
-        let modified = metadata.modified().unwrap();
-        let file_metadata = FileMetadata::new(true, false, false, metadata.len(), Some(modified));
+        let metadata = PhysicalFileSystem::metadata(&file_path).unwrap();
+        let modified = metadata
+            .modified_at
+            .unwrap_or_else(|| panic!("missing modified time"));
         let entry = WorkspaceFileEntry::from_metadata(
             FileVersion::new(1),
-            &file_metadata,
+            &metadata,
             Some(payload_hash_from_bytes(b"abc")),
         );
 
         // build a snapshot with strict content hashes
         let header = WorkspaceIndexHeader::new(
             "0.0.0".to_string(),
-            root.clone(),
+            root.root().to_path_buf(),
             None,
             7,
             8,
@@ -989,12 +972,13 @@ mod tests {
             files,
             modules: IndexMap::new(),
             module_graphs: IndexMap::new(),
+            module_graph_versions: IndexMap::new(),
             module_signature_digests: IndexMap::new(),
         };
 
         // write and reload
         let store = DiskCacheStore::new();
-        let index_store = WorkspaceIndexStore::new(&store, &root.join(".destack"));
+        let index_store = WorkspaceIndexStore::new(&store, &root.path_for(".destack"));
         index_store
             .save(&snapshot)
             .unwrap_or_else(|error| panic!("failed to write snapshot: {error}"));
@@ -1007,7 +991,7 @@ mod tests {
         let program = Program::new(
             crate::FormatterOptions::default(),
             crate::LinterOptions::default(),
-            root.clone(),
+            root.root().to_path_buf(),
             Arc::new(PhysicalFileSystem),
             Arc::new(FileRegistry::new()),
             Arc::new(crate::ModuleRegistry::new()),
@@ -1026,16 +1010,14 @@ mod tests {
         );
 
         // mutate file contents but keep metadata same
-        fs::write(&file_path, "xyz").unwrap();
+        root.write_text("main.ds", "xyz").unwrap();
         filetime::set_file_mtime(&file_path, FileTime::from_system_time(modified))
             .unwrap_or_else(|error| panic!("failed to reset mtime: {error}"));
-        // assertion block
+
         assert_eq!(
             program.workspace_file_version_for_path(&file_path),
             FileVersion::new(2)
         );
-
-        let _ = fs::remove_dir_all(root);
     }
 
     /// Validate workspace index entries against filesystem metadata.
@@ -1044,7 +1026,7 @@ mod tests {
         let file_metadata = FileMetadata::new(true, false, false, 12, Some(SystemTime::now()));
         let entry = WorkspaceFileEntry::from_metadata(FileVersion::new(1), &file_metadata, None);
 
-        // assertion block
+        // check that the entry matches the metadata
         assert!(entry.matches_metadata(&file_metadata));
     }
 }
