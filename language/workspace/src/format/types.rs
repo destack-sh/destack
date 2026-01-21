@@ -161,13 +161,6 @@ pub fn format_type(
         dir::Type::Unary { operator, right } => {
             format_type_unary(*operator, *right, types, modules, strings)
         }
-        dir::Type::Mutable { mutability, right } => {
-            let right_str = format_local_type(*right, types, modules, strings);
-            match mutability {
-                dir::Mutability::Immutable => right_str,
-                dir::Mutability::Mutable => format!("mut {right_str}"),
-            }
-        }
         dir::Type::ValueOf {
             mutability,
             variance,
@@ -223,26 +216,35 @@ pub fn format_type(
             operator,
             right,
         } => format_type_binary(*left, *operator, *right, types, modules, strings),
-        dir::Type::ArraySized { element, count: _ } => {
+        dir::Type::ArraySized {
+            element,
+            count: _,
+            is_readonly,
+        } => {
             let elem_str = format_local_type(*element, types, modules, strings);
             let needs_parens = matches!(types.get_type(*element), dir::Type::Union { .. });
+            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
             if needs_parens {
-                format!("({elem_str})[]")
+                format!("{readonly_prefix}({elem_str})[]")
             } else {
-                format!("{elem_str}[]")
+                format!("{readonly_prefix}{elem_str}[]")
             }
         }
-        dir::Type::Array { element } => {
+        dir::Type::Array {
+            element,
+            is_readonly,
+        } => {
+            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
             if let Some(elem) = element {
                 let elem_str = format_local_type(*elem, types, modules, strings);
                 let needs_parens = matches!(types.get_type(*elem), dir::Type::Union { .. });
                 if needs_parens {
-                    format!("({elem_str})[]")
+                    format!("{readonly_prefix}({elem_str})[]")
                 } else {
-                    format!("{elem_str}[]")
+                    format!("{readonly_prefix}{elem_str}[]")
                 }
             } else {
-                "[]".to_string()
+                format!("{readonly_prefix}[]")
             }
         }
         dir::Type::Tuple { elements } => {

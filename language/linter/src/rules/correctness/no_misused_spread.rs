@@ -101,8 +101,7 @@ impl<'a, 'b> MisusedSpreadVisitor<'a, 'b> {
             dir::Type::Reference { .. } => true,
             // follow wrappers
             dir::Type::Value { value } => self.is_object_spreadable(*value),
-            dir::Type::Mutable { right, .. }
-            | dir::Type::ValueOf { right, .. }
+            dir::Type::ValueOf { right, .. }
             | dir::Type::ReferenceOf { right, .. } => self.is_object_spreadable(*right),
             // unions are spreadable if all elements are
             dir::Type::Union { elements } => elements.iter().all(|e| self.is_object_spreadable(*e)),

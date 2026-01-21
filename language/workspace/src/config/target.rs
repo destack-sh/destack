@@ -1778,6 +1778,7 @@ impl Target {
         }
 
         if self.output.is_js() || self.output.is_ts() {
+            libs.push("js".to_string());
             libs.push(self.es_target.default_lib_name().to_string());
         }
 
