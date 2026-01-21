@@ -917,7 +917,9 @@ impl<'a> Verifier<'a> {
 
         // validate local references
         match instruction {
-            Instruction::LocalGet { local, .. } | Instruction::LocalSet { local, .. } => {
+            Instruction::LocalGet { local, .. }
+            | Instruction::LocalAddr { local, .. }
+            | Instruction::LocalSet { local, .. } => {
                 // reject locals not owned by the function
                 if !locals.contains(local) {
                     return Err(VerifyError::LocalReferenceNotInFunction {
@@ -951,6 +953,11 @@ impl<'a> Verifier<'a> {
             Instruction::LocalGet { local, .. } | Instruction::LocalSet { local, .. } => {
                 // ensure local ids resolve
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
+            }
+            Instruction::LocalAddr { local, result_type, .. } => {
+                // ensure local ids resolve
+                self.ensure_node_type(NodeType::Local, local.id, anchor)?;
+                self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
             }
             Instruction::GlobalAddr { global, .. } | Instruction::GlobalConst { global, .. } => {
                 // ensure global ids resolve

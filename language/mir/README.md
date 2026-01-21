@@ -134,7 +134,7 @@ Each instruction defines at most one `Value`.
 | Arithmetic | `binary`, `unary` |
 | Type conversion | `cast` (trunc, extend, bitcast, float↔int, etc.) |
 | Selection | `select` (conditional value without branching) |
-| Local variables | `local.get`, `local.set` |
+| Local variables | `local.get`, `local.set`, `local.addr` |
 | Globals | `global.addr`, `global.const` |
 | Memory | `load`, `store`, `drop` |
 | Aggregates | `aggregate`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
@@ -145,11 +145,12 @@ Each instruction defines at most one `Value`.
 `field.get/set` and `element.get/set` operate on aggregate values.
 To access through pointers, use `field.addr` or `element.addr` and then `load`/`store`.
 `Local`s are stack slots for mutable bindings.
+`local.addr` produces a reference to a local slot.
 SSA values are immutable.
 To mutate, allocate a `Local` and use `local.get`/`local.set` (or just use a new value).
 
 `field.addr` and `element.addr` produce a reference to a field or element.
-Pointer producing instructions (`global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
+Pointer producing instructions (`local.addr`, `global.addr`, `managed.alloc`, `raw.alloc`, `stack.alloc`, `field.addr`, `element.addr`) carry their result type inline with `->`.
 `global.addr` returns `ref<raw addrspace(global) T>` and `stack.alloc` returns `ref<raw addrspace(stack) T>`.
 `load` carries the loaded type inline with `->`.
 Call instructions carry their signature type inline with `->`.

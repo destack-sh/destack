@@ -138,6 +138,30 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
+            Instruction::LocalAddr {
+                destination,
+                local,
+                result_type,
+            } => {
+                let local_index = f.context().local_index(*local);
+                write!(
+                    f,
+                    [
+                        destination,
+                        space(),
+                        token("="),
+                        space(),
+                        token("local.addr"),
+                        space(),
+                        text(&format!("local{local_index}")),
+                        space(),
+                        token("->"),
+                        space(),
+                        result_type
+                    ]
+                )
+            }
+
             Instruction::LocalSet { local, value } => {
                 let local_index = f.context().local_index(*local);
                 write!(

@@ -360,6 +360,18 @@ impl<'a> Dumper<'a> {
                 self.write(&self.format_local_id(*local));
             }
 
+            Instruction::LocalAddr {
+                destination,
+                local,
+                result_type,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = local.addr ");
+                self.write(&self.format_local_id(*local));
+                self.write(" -> ");
+                self.write_colored(&self.format_type_id(*result_type), Color::Magenta);
+            }
+
             Instruction::LocalSet { local, value } => {
                 self.write("local.set ");
                 self.write(&self.format_local_id(*local));
