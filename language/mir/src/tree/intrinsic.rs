@@ -250,6 +250,9 @@ pub enum Intrinsic {
     /// Abort execution immediately.
     /// `() -> !`
     Abort,
+    /// Panic with a message.
+    /// `(string) -> !`
+    Panic,
     /// Get the return address of the current function.
     /// `() -> ptr`
     ReturnAddress,
@@ -399,6 +402,7 @@ impl Intrinsic {
             Intrinsic::Unreachable => "unreachable",
             Intrinsic::Breakpoint => "breakpoint",
             Intrinsic::Abort => "abort",
+            Intrinsic::Panic => "panic",
             Intrinsic::ReturnAddress => "return_address",
             Intrinsic::FrameAddress => "frame_address",
             Intrinsic::Expect => "expect",
@@ -610,6 +614,7 @@ impl FromStr for Intrinsic {
             "unreachable" => Ok(Intrinsic::Unreachable),
             "breakpoint" => Ok(Intrinsic::Breakpoint),
             "abort" => Ok(Intrinsic::Abort),
+            "panic" => Ok(Intrinsic::Panic),
             "return_address" => Ok(Intrinsic::ReturnAddress),
             "frame_address" => Ok(Intrinsic::FrameAddress),
             "expect" => Ok(Intrinsic::Expect),
@@ -873,6 +878,7 @@ impl Intrinsic {
             Intrinsic::Unreachable => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Breakpoint => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Abort => IntrinsicSignature::Control { args: 0 },
+            Intrinsic::Panic => IntrinsicSignature::Control { args: 1 },
             Intrinsic::ReturnAddress => IntrinsicSignature::Control { args: 0 },
             Intrinsic::FrameAddress => IntrinsicSignature::Control { args: 0 },
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },

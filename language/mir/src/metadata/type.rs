@@ -118,6 +118,71 @@ pub enum DispatchSlot {
     },
 }
 
+/// Payload storage strategy for a union layout.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UnionPayloadKind {
+    /// Store the payload inline inside the union struct.
+    Inline,
+    /// Store the payload as a managed box.
+    Boxed,
+}
+
+/// Canonical discriminant values for tagged unions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UnionDiscriminantValue {
+    /// Null literal value.
+    Null,
+    /// Undefined literal value.
+    Undefined,
+    /// Boolean literal value.
+    Boolean(bool),
+    /// Number literal value stored as f64 bits.
+    Number { bits: u64 },
+    /// Bigint literal value.
+    Bigint(i64),
+    /// String literal value.
+    String(StringId),
+    /// Unique symbol literal value.
+    UniqueSymbol,
+}
+
+/// Discriminant values for a field in tag order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnionDiscriminantField {
+    /// The field name shared by all union variants.
+    pub field_name: StringId,
+    /// Literal values ordered by tag value.
+    pub values: Vec<UnionDiscriminantValue>,
+}
+
+/// Discriminant metadata for a tagged union.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnionDiscriminant {
+    /// The primary discriminant field used for tag ordering.
+    pub primary_field: StringId,
+    /// Discriminant fields indexed by field name.
+    pub fields: Vec<UnionDiscriminantField>,
+}
+
+/// Layout metadata for a lowered union type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct UnionLayout {
+    /// The tag field type.
+    pub tag_type: LocalNodeId<Type>,
+    /// The payload field type.
+    pub payload_type: LocalNodeId<Type>,
+    /// The payload storage strategy.
+    pub payload_kind: UnionPayloadKind,
+    /// The union element type ids in tag order.
+    pub element_types: Vec<LocalNodeId<Type>>,
+    /// The tag field index in layout order.
+    pub tag_field_index: u32,
+    /// The payload field index in layout order.
+    pub payload_field_index: u32,
+    /// Discriminant field metadata when present.
+    pub discriminant: Option<UnionDiscriminant>,
+}
+
 /// Metadata for a dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DispatchTable {
@@ -186,6 +251,8 @@ pub struct TypeMetadata {
     pub type_descriptor: Option<LocalNodeId<Global>>,
     /// Field map for property layout lookup.
     pub field_map: HashMap<StringId, LocalNodeId<Field>>,
+    /// Union layout metadata for tagged unions.
+    pub union_layout: Option<UnionLayout>,
 }
 
 /// Table of type metadata entries.
