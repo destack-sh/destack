@@ -284,6 +284,15 @@ define_language_symbols! {
         DecoratorInfo => (Struct, "reflect/decorator", "DecoratorInfo"),
     }
 
+    /// Intrinsic interfaces for compiler-known metadata.
+    intrinsic {
+        /// The `import.meta` interface.
+        ImportMeta => (Interface, "intrinsic/import-meta", "ImportMeta"),
+
+        /// The `import.meta.env` interface.
+        ImportMetaEnv => (Interface, "intrinsic/import-meta", "ImportMetaEnv"),
+    }
+
     /// Well-known decorator markers (in intrinsic/).
     decorator_markers {
         /// `@extern` marker

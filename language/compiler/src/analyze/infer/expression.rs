@@ -9,6 +9,7 @@ use crate::{
     AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind, Compiler,
     FlowContext, InferContext,
 };
+use destack_builtin::LanguageSymbol;
 use destack_dir::{
     Argument, BindingKind, Block, CastOperator, CastSource, Constraint, Declaration, Declarator,
     DependencySource, DynamicKey, Expression, FlowGraphBuilder, ForEachBinding, FunctionKind,
@@ -854,14 +855,25 @@ impl Compiler {
 
             // import meta: statically known type
             Expression::ImportMeta => {
+                // report import.meta usage in scripts
                 if module.source_type.is_script() {
                     self.error(AnalyzeError::InvalidImportMeta {
                         node: expression_id.into_global_any(module.id).into_anchored(Some(ctx.profile)),
                     });
                 }
-                // #Incomplete: type for import.meta
-                let ty = Type::TypeLiteral {
-                    value: TypeLiteral::Unknown,
+                // resolve the import.meta interface
+                let Some(import_meta_symbol) =
+                    self.get_language_symbol(LanguageSymbol::ImportMeta)
+                else {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Unknown,
+                    };
+                    return Ok(types.insert_type_from(ty, expression_id));
+                };
+
+                let ty = Type::Reference {
+                    symbol: import_meta_symbol,
+                    static_arguments: None,
                 };
                 types.insert_type_from(ty, expression_id)
             }

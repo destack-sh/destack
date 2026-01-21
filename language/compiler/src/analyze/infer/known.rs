@@ -51,13 +51,8 @@ impl Compiler {
                     Some(WellKnownSymbol::Array)
                 }
             }
-            Type::Tuple {
-                elements,
-                is_readonly,
-            } => {
-                let is_readonly =
-                    *is_readonly || elements.iter().any(|element| element.is_readonly);
-                if is_readonly {
+            Type::Tuple { is_readonly, .. } => {
+                if *is_readonly {
                     Some(WellKnownSymbol::ReadonlyArray)
                 } else {
                     Some(WellKnownSymbol::Array)
