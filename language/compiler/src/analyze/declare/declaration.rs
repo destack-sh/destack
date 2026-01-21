@@ -1263,7 +1263,7 @@ impl Compiler {
     ) -> LocalTypeId {
         // derive positional parameters from tuple aliases
         let mut dynamic_parameters = Vec::new();
-        if let Type::Tuple { elements } = types.get_type(declared_ty_id) {
+        if let Type::Tuple { elements, .. } = types.get_type(declared_ty_id) {
             for element in elements {
                 dynamic_parameters.push(element.ty);
             }

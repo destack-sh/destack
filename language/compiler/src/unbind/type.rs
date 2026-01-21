@@ -595,7 +595,10 @@ impl Compiler {
                     array_expr
                 }
             }
-            dir::Type::Tuple { elements } => {
+            dir::Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 // tuple expression
                 let elements = elements
                     .iter()
@@ -633,7 +636,15 @@ impl Compiler {
                         ast_tree.insert(argument, span)
                     })
                     .collect();
-                ast::Expression::TupleExpression { elements }
+                let tuple_expr = ast::Expression::TupleExpression { elements };
+                if *is_readonly {
+                    let operator =
+                        self.unbind_type_unary_operator(context, dir::TypeUnaryOperator::Readonly);
+                    let right = ast_tree.insert(tuple_expr, span);
+                    ast::Expression::TypeUnary { operator, right }
+                } else {
+                    tuple_expr
+                }
             }
             dir::Type::Object {
                 fields,

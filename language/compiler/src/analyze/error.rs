@@ -118,7 +118,7 @@ pub enum AnalyzeError {
     },
 
     /// Array literals cannot contain holes.
-    #[error(code = "EA111", message = "array literal holes are not allowed")]
+    #[error(code = "EA113", message = "array literal holes are not allowed")]
     ArrayLiteralHole { node: AnchoredGlobalNodeId },
 
     // -------------------------------------------------------------------------

@@ -465,7 +465,7 @@ The rules for arrays and tuples center around correctness and performance:
 - `noUncheckedIndexedAccess` only affects index signatures, not arrays or tuples.
 - Mutable arrays are assignable to readonly arrays.
 - Readonly arrays are not assignable to mutable arrays.
-- The same readonly rule applies to tuples (elementwise).
+- Readonly tuples are also not assignable to mutable tuples.
 
 ### References and Values
 

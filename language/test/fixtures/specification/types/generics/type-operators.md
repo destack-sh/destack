@@ -120,6 +120,45 @@ let bad: Pair = frozen;
 
 - contains: not assignable
 
+## readonly tuple elements do not imply readonly tuples
+
+> Tuple element modifiers do not make the tuple readonly.
+
+```ds
+type ElemReadonly = (readonly int32, int32);
+
+declare let values: ElemReadonly;
+let arrayOk: int32[] = values;
+arrayOk satisfies int32[];
+```
+
+## readonly tuple elements reject mutable element assignment
+
+> Readonly tuple elements are not assignable to mutable tuple elements.
+
+```ds
+type ElemReadonly = (readonly int32, int32);
+type Mutable = (int32, int32);
+
+declare let values: ElemReadonly;
+let bad: Mutable = values;
+```
+
+- contains: not assignable
+
+## readonly tuples reject mutable array assignment
+
+> Readonly tuples are not assignable to mutable arrays.
+
+```ds
+type ReadonlyPair = readonly (int32, int32);
+
+declare let frozen: ReadonlyPair;
+let bad: int32[] = frozen;
+```
+
+- contains: not assignable
+
 ## extends returns true for assignable types
 
 > `extends` returns `true` when the left type is assignable to the right type.

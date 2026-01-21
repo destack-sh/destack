@@ -1337,6 +1337,7 @@ impl Compiler {
                         Type::ArraySized {
                             element: left_id,
                             count: index,
+                            is_readonly: false,
                         }
                     } else if self
                         .resolve_array_size_parameter_type(
@@ -1354,6 +1355,7 @@ impl Compiler {
                         Type::ArraySized {
                             element: left_id,
                             count: index,
+                            is_readonly: false,
                         }
                     } else {
                         let index_id = self.try_evaluate_expression_to_type(
@@ -1630,6 +1632,7 @@ impl Compiler {
 
                 Type::Tuple {
                     elements: element_types,
+                    is_readonly: false,
                 }
             }
 
@@ -1657,6 +1660,7 @@ impl Compiler {
 
                 Type::Tuple {
                     elements: element_types,
+                    is_readonly: false,
                 }
             }
             // sequence expression (comma operator)

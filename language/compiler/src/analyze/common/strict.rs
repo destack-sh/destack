@@ -266,7 +266,7 @@ impl Compiler {
                     visited_symbols,
                 )
             }),
-            Type::Tuple { elements } => elements.iter().any(|element| {
+            Type::Tuple { elements, .. } => elements.iter().any(|element| {
                 self.type_element_contains_forbidden_literal(
                     module,
                     element,

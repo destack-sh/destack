@@ -164,7 +164,10 @@ impl Compiler {
                     types.insert_type_from_any(normalized, source_id)
                 }
             }
-            Type::Tuple { elements } => {
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 // normalize tuple element types
                 let mut normalized_elements = Vec::with_capacity(elements.len());
                 let mut did_change = false;
@@ -186,6 +189,7 @@ impl Compiler {
                 } else {
                     let normalized = Type::Tuple {
                         elements: normalized_elements,
+                        is_readonly,
                     };
                     types.insert_type_from_any(normalized, source_id)
                 }

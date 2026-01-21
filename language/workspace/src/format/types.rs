@@ -247,12 +247,16 @@ pub fn format_type(
                 format!("{readonly_prefix}[]")
             }
         }
-        dir::Type::Tuple { elements } => {
+        dir::Type::Tuple {
+            elements,
+            is_readonly,
+        } => {
             let elements: Vec<_> = elements
                 .iter()
                 .map(|element| format_type_tuple_element(element, types, modules, strings))
                 .collect();
-            format!("({})", elements.join(", "))
+            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
+            format!("{readonly_prefix}({})", elements.join(", "))
         }
         dir::Type::Object {
             fields,

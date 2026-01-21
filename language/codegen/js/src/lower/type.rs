@@ -223,7 +223,10 @@ impl ModuleLowerer<'_> {
                 }
                 array_id
             }
-            dir::Type::Tuple { elements } => {
+            dir::Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
                 let elements = elements
                     .iter()
                     .map(|element| {
@@ -240,9 +243,19 @@ impl ModuleLowerer<'_> {
                         self.lower_type(element.ty)
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                let ty = Type::Tuple { elements };
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
+                let mut tuple_id = self
+                    .tree
+                    .insert_from_source_any(Type::Tuple { elements }, self.module.id, source_id);
+                if *is_readonly {
+                    let readonly = Type::Unary {
+                        operator: TypeUnaryOperator::Readonly,
+                        right: tuple_id,
+                    };
+                    tuple_id = self
+                        .tree
+                        .insert_from_source_any(readonly, self.module.id, source_id);
+                }
+                tuple_id
             }
             dir::Type::Union { elements } => {
                 let elements = elements
