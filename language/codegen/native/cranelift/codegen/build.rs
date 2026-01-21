@@ -1,3 +1,7 @@
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
+
 // Build script.
 //
 // This program is run by Cargo when building cranelift-codegen. It is used to generate Rust code from

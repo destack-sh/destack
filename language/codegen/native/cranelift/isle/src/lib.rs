@@ -1,4 +1,7 @@
 #![doc = include_str!("../README.md")]
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 #![deny(missing_docs)]
 
 macro_rules! declare_id {

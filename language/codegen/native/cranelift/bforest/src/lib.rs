@@ -1,4 +1,7 @@
 //! A forest of B+-trees.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 //!
 //! This crate provides a data structures representing a set of small ordered sets or maps.
 //! It is implemented as a forest of B+-trees all allocating nodes out of the same pool.

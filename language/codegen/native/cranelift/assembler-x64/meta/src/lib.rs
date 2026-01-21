@@ -1,5 +1,8 @@
 //! This crate generates Cranelift-specific assembly code for x64 instructions; see the `README.md`
 //! for more information.
+// NOTE #Cleanup: fix clippy lints once fully vendored
+#![allow(clippy::all)]
+#![allow(warnings)]
 
 pub mod dsl;
 mod generate;
