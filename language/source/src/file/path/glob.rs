@@ -125,12 +125,12 @@ fn split_base_directory(pattern: &str) -> (PathBuf, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::{self, File};
-    use std::io::Write;
     use std::path::Path;
 
-    #[test]
+    use crate::{FileSystem, TemporaryPhysicalFileSystem};
+
     /// Exercise simple wildcard cases.
+    #[test]
     fn test_matches_basic_patterns() {
         assert!(matches(b"*.rs", 0, b"main.rs", 0));
         assert!(matches(b"src/*.rs", 0, b"src/lib.rs", 0));
@@ -141,20 +141,20 @@ mod tests {
         assert!(!matches(b"**/*.ds", 0, b"src/foo/bar/declarationd.d.ds", 0));
     }
 
+    /// Exercise glob traversal including recursive and root level matches.
     #[test]
-    /// Exercise glob traversal including recursive and root-level matches.
     fn test_glob_finds_paths() {
         // create a temporary directory structure
-        let base = tempdir();
-        let src = base.join("src");
-        let _ = fs::create_dir_all(src.join("sub"));
-        write_file(&base.join("root.rs"), "");
-        write_file(&src.join("lib.rs"), "");
-        write_file(&src.join("main.rs"), "");
-        write_file(&src.join("sub").join("mod.rs"), "");
+        let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_glob");
+        fs.create_dir_all(Path::new("src/sub"))
+            .expect("create glob directories");
+        fs.write_text_or_error("root.rs", "");
+        fs.write_text_or_error("src/lib.rs", "");
+        fs.write_text_or_error("src/main.rs", "");
+        fs.write_text_or_error("src/sub/mod.rs", "");
 
         // search for all .rs files recursively
-        let pattern = format!("{}/**/*.rs", base.to_string_lossy());
+        let pattern = format!("{}/**/*.rs", fs.root().to_string_lossy());
         let mut paths = glob(&pattern);
         paths.sort();
 
@@ -165,27 +165,11 @@ mod tests {
         assert!(paths.iter().any(|p| p.ends_with("mod.rs")));
     }
 
+    /// Validate root level double star matching without a directory separator.
     #[test]
-    /// Validate root-level double star matching without a directory separator.
     fn test_matches_double_star_root_level() {
         assert!(matches(b"**/*.rs", 0, b"file.rs", 0));
         assert!(matches(b"**/*.rs", 0, b"dir/file.rs", 0));
         assert!(!matches(b"**/*.rs", 0, b"file.py", 0));
-    }
-
-    fn write_file(path: &Path, content: &str) {
-        let _ = fs::create_dir_all(path.parent().unwrap());
-        let mut f = File::create(path).unwrap();
-        let _ = f.write_all(content.as_bytes());
-    }
-
-    fn tempdir() -> PathBuf {
-        let mut p = std::env::temp_dir();
-        p.push(format!(
-            "destack_file_{}",
-            std::time::SystemTime::now().elapsed().unwrap().as_nanos()
-        ));
-        let _ = fs::create_dir_all(&p);
-        p
     }
 }
