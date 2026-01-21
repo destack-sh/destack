@@ -307,7 +307,7 @@ mod tests {
         // send event
         watcher.emit(sample_event("/workspace/file.ds"));
 
-        // assertion block
+        // check that the event is received
         let received = subscription
             .receiver
             .recv_timeout(Duration::from_millis(50))
@@ -326,14 +326,14 @@ mod tests {
         // send event outside the filter
         watcher.emit(sample_event("/workspace/file.ts"));
 
-        // assertion block
+        // check that the event is not received
         let result = subscription
             .receiver
             .recv_timeout(Duration::from_millis(50));
         assert!(result.is_err(), "expected no watch event");
     }
 
-    /// Stops delivering events after stop is requested.
+    /// Check that the watcher stops delivering events after stop is requested.
     #[test]
     fn test_memory_watcher_stop() {
         let watcher = MemoryFileWatcher::new();
@@ -346,14 +346,14 @@ mod tests {
         // emit after stop
         watcher.emit(sample_event("/workspace/file.ds"));
 
-        // assertion block
+        // check that the event is not received
         let result = subscription
             .receiver
             .recv_timeout(Duration::from_millis(50));
         assert!(result.is_err(), "expected no watch event");
     }
 
-    /// Updates roots and applies new root filters.
+    /// Check that the watcher updates roots and applies new root filters.
     #[test]
     fn test_memory_watcher_update_roots() {
         let watcher = MemoryFileWatcher::new();
@@ -368,7 +368,7 @@ mod tests {
         // emit outside root and assert no event
         watcher.emit(sample_event("/workspace/other/file.ds"));
 
-        // assertion block
+        // check that the event is not received
         let result = subscription
             .receiver
             .recv_timeout(Duration::from_millis(50));
@@ -383,7 +383,7 @@ mod tests {
         // emit within updated roots
         watcher.emit(sample_event("/workspace/other/file.ds"));
 
-        // assertion block
+        // check that the event is received
         let received = subscription
             .receiver
             .recv_timeout(Duration::from_millis(50))

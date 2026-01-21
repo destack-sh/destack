@@ -88,6 +88,28 @@ pub enum FileType {
     Unknown,
 }
 
+/// File types that should be watched for source changes.
+/// NOTE #Architecture: do we need WATCHABLE_FILE_TYPES?
+pub const WATCHABLE_FILE_TYPES: &[FileType] = &[
+    FileType::Destack,
+    FileType::DestackDeclaration,
+    FileType::DestackText,
+    FileType::JavaScript,
+    FileType::JavaScriptXml,
+    FileType::TypeScript,
+    FileType::TypeScriptXml,
+    FileType::TypeScriptDeclaration,
+    FileType::Text,
+    FileType::Toml,
+    FileType::Yaml,
+    FileType::Json,
+    FileType::Env,
+    FileType::Markdown,
+    FileType::Html,
+    FileType::Css,
+    FileType::Svg,
+];
+
 impl FileType {
     /// Get a source format from a file extension.
     pub fn from_extension(s: &str) -> Option<Self> {
@@ -176,6 +198,12 @@ impl FileType {
             if file_name.ends_with(".d.ts") {
                 return Some(FileType::TypeScriptDeclaration);
             }
+            if file_name.ends_with(".d.mts") {
+                return Some(FileType::TypeScriptDeclaration);
+            }
+            if file_name.ends_with(".d.cts") {
+                return Some(FileType::TypeScriptDeclaration);
+            }
         }
 
         // fall back to the simple extension
@@ -248,58 +276,10 @@ impl FileType {
 
     /// Get the glob pattern for a source format.
     ///
-    /// For coarse categories returns None since they map to multiple extensions.
+    /// For multi-extension types, this returns the first canonical pattern.
+    /// Prefer [`FileType::globs`] when enumerating all variants.
     pub fn glob(&self) -> Option<&str> {
-        let pattern = match self {
-            // destack
-            FileType::Destack => "**/*.ds",
-            FileType::DestackDeclaration => "**/*.d.ds",
-            FileType::DestackText => "**/*.dst",
-            FileType::DestackBinary => "**/*.dsb",
-
-            // javascript/typescript
-            FileType::JavaScript => "**/*.js",
-            FileType::JavaScriptXml => "**/*.jsx",
-            FileType::TypeScript => "**/*.ts",
-            FileType::TypeScriptXml => "**/*.tsx",
-            FileType::TypeScriptDeclaration => "**/*.d.ts",
-
-            // data formats
-            FileType::Text => "**/*.txt",
-            FileType::Toml => "**/*.toml",
-            FileType::Yaml => "**/*.yaml",
-            FileType::Json => "**/*.json",
-            FileType::Env => "**/*.env",
-
-            // markup/styling
-            FileType::Html => "**/*.html",
-            FileType::Markdown => "**/*.md",
-            FileType::Css => "**/*.css",
-            FileType::Svg => "**/*.svg",
-
-            // binary/system
-            FileType::Wasm => "**/*.wasm",
-            FileType::Node => "**/*.node",
-            FileType::SourceMap => "**/*.map",
-            FileType::Object => "**/*.o",
-
-            // compiler artifacts
-            FileType::DestackAst => "**/*.ast",
-            FileType::DestackDir => "**/*.dir",
-            FileType::DestackMir => "**/*.mir",
-
-            // coarse categories have no single glob pattern
-            FileType::Image
-            | FileType::Font
-            | FileType::Audio
-            | FileType::Video
-            | FileType::Model
-            | FileType::Neural
-            | FileType::Document
-            | FileType::Binary
-            | FileType::Unknown => return None,
-        };
-        Some(pattern)
+        self.globs().first().copied()
     }
 
     /// Whether this file type is a code file (can be parsed as code).
@@ -308,6 +288,7 @@ impl FileType {
             self,
             FileType::Destack
                 | FileType::DestackDeclaration
+                | FileType::DestackText
                 | FileType::JavaScript
                 | FileType::JavaScriptXml
                 | FileType::TypeScript
@@ -352,5 +333,47 @@ impl FileType {
                 | FileType::Document
                 | FileType::Binary
         )
+    }
+
+    /// Get glob patterns for a file type.
+    ///
+    /// Some file types expand into multiple glob patterns (for example, `.mjs` and `.cjs`).
+    pub fn globs(&self) -> &'static [&'static str] {
+        match self {
+            FileType::Destack => &["**/*.ds"],
+            FileType::DestackDeclaration => &["**/*.d.ds"],
+            FileType::DestackText => &["**/*.dst"],
+            FileType::DestackBinary => &["**/*.dsb"],
+            FileType::JavaScript => &["**/*.js", "**/*.mjs", "**/*.cjs"],
+            FileType::JavaScriptXml => &["**/*.jsx"],
+            FileType::TypeScript => &["**/*.ts", "**/*.mts", "**/*.cts"],
+            FileType::TypeScriptXml => &["**/*.tsx"],
+            FileType::TypeScriptDeclaration => &["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
+            FileType::Text => &["**/*.txt"],
+            FileType::Toml => &["**/*.toml"],
+            FileType::Yaml => &["**/*.yaml", "**/*.yml"],
+            FileType::Json => &["**/*.json"],
+            FileType::Env => &["**/*.env"],
+            FileType::Html => &["**/*.html", "**/*.htm"],
+            FileType::Markdown => &["**/*.md"],
+            FileType::Css => &["**/*.css"],
+            FileType::Svg => &["**/*.svg"],
+            FileType::Wasm => &["**/*.wasm"],
+            FileType::Node => &["**/*.node"],
+            FileType::SourceMap => &["**/*.map"],
+            FileType::Object => &["**/*.o"],
+            FileType::DestackAst => &["**/*.ast"],
+            FileType::DestackDir => &["**/*.dir"],
+            FileType::DestackMir => &["**/*.mir"],
+            FileType::Image
+            | FileType::Font
+            | FileType::Audio
+            | FileType::Video
+            | FileType::Model
+            | FileType::Neural
+            | FileType::Document
+            | FileType::Binary
+            | FileType::Unknown => &[],
+        }
     }
 }

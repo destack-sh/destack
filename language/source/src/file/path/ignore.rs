@@ -175,7 +175,7 @@ fn clean_path(path: &Path) -> PathBuf {
     output
 }
 
-/// Create a unix-style path string (forward slashes).
+/// Create a unix style path string with forward slashes.
 fn unix_path(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
@@ -188,30 +188,33 @@ fn strip_prefix<'a>(path: &'a Path, base: &Path) -> Option<&'a Path> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::path::Path;
 
+    use crate::{FileSystem, TemporaryPhysicalFileSystem};
+
+    /// Parse ignore files and match ignored paths.
     #[test]
     fn test_parse_and_match_ignore() {
-        let temp_directory = tempdir();
-        let subdirectory = temp_directory.join("project");
-        let _ = fs::create_dir_all(&subdirectory);
-        let ignore_file = subdirectory.join(".gitignore");
-        let content = b"target/\n*.log\n!keep.log\n# comment\n";
-        let mut file = fs::File::create(&ignore_file).unwrap();
-        file.write_all(content).unwrap();
+        let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_ignore");
+        fs.create_dir_all(Path::new("project"))
+            .expect("create ignore directory");
+        fs.write_bytes(
+            "project/.gitignore",
+            b"target/\n*.log\n!keep.log\n# comment\n",
+        )
+        .expect("write ignore file");
 
         let mut ignore_set = IgnoreSet::new();
-        ignore_set.load_dir(&subdirectory);
+        ignore_set.load_dir(&fs.path_for("project"));
 
-        let target_file = subdirectory.join("target");
-        assert!(ignore_set.is_ignored(&temp_directory, &target_file, true));
+        let target_file = fs.path_for("project/target");
+        assert!(ignore_set.is_ignored(fs.root(), &target_file, true));
 
-        let log_file = subdirectory.join("foo.log");
-        assert!(ignore_set.is_ignored(&temp_directory, &log_file, false));
+        let log_file = fs.path_for("project/foo.log");
+        assert!(ignore_set.is_ignored(fs.root(), &log_file, false));
 
-        let keep_file = subdirectory.join("keep.log");
-        assert!(!ignore_set.is_ignored(&temp_directory, &keep_file, false));
+        let keep_file = fs.path_for("project/keep.log");
+        assert!(!ignore_set.is_ignored(fs.root(), &keep_file, false));
     }
 
     /// Ensure ancestor discovery stops when the filesystem root is reached.
@@ -220,15 +223,5 @@ mod tests {
         let root = Path::new("workspace/root");
         let ancestors = get_ancestors_between(root, Path::new("/"));
         assert_eq!(ancestors, vec![PathBuf::from("/")]);
-    }
-
-    fn tempdir() -> PathBuf {
-        let mut path = std::env::temp_dir();
-        path.push(format!(
-            "destack_file_ignore_{}",
-            std::time::SystemTime::now().elapsed().unwrap().as_nanos()
-        ));
-        let _ = fs::create_dir_all(&path);
-        path
     }
 }

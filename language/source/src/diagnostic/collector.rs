@@ -157,6 +157,17 @@ impl DiagnosticCollector {
         collection.diagnostics.drain(..).collect()
     }
 
+    /// Retain diagnostics that match the predicate.
+    pub fn retain<F>(&self, mut predicate: F)
+    where
+        F: FnMut(&Diagnostic) -> bool,
+    {
+        let mut collection = self.collection.lock();
+        collection
+            .diagnostics
+            .retain(|diagnostic| predicate(diagnostic));
+    }
+
     /// Check if diagnostics of the given DiagnosticSeverity are present.
     pub fn has_diagnostics_of_severity(&self, severity: DiagnosticSeverity) -> bool {
         self.collection.lock().has_diagnostics_of_severity(severity)
