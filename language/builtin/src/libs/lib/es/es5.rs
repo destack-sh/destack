@@ -2,6 +2,7 @@ use super::super::super::source::{BuiltinLib, BuiltinLibSource};
 
 pub(crate) const ES5_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
+    "ReadonlyArray",
     "Boolean",
     "Date",
     "Error",

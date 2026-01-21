@@ -34,6 +34,6 @@ pub const LIB_JS: BuiltinLib = BuiltinLib::ambient_lib(
         LIB_JS_COLLECTIONS_INDEX_DS,
         LIB_JS_COLLECTIONS_SLICE_DS,
     ],
-    &[],
+    &["es5"],
 )
 .with_declared_symbols(JS_DECLARED_SYMBOLS);

@@ -2,6 +2,7 @@ use crate::{BuiltinLib, BuiltinLibSource};
 
 pub(crate) const ES2020_DECLARED_SYMBOLS: &[&str] = &[
     "Array",
+    "ReadonlyArray",
     "Boolean",
     "Date",
     "Error",

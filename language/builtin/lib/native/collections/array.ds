@@ -8,6 +8,9 @@ struct Array<T> {
     data: *T,
 }
 
+/// Readonly view of a dynamic array.
+type ReadonlyArray<T> = readonly T[];
+
 extension<T> for Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
     /// Get the length of the array.
     get length(): number {
