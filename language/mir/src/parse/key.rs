@@ -1,0 +1,138 @@
+use destack_base::StringId;
+
+use crate::{AddressSpace, Copyability, Field, LocalNodeId, Mutability, ReferenceKind, Type};
+
+/// Interning key for struct fields.
+/// Captures the structural identity of a field for deduplication during parsing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct FieldKey {
+    /// Optional field name.
+    name: Option<StringId>,
+    /// Field type.
+    ty: LocalNodeId<Type>,
+    /// Byte offset within the struct.
+    offset: u32,
+}
+
+impl FieldKey {
+    /// Create a key from a field definition.
+    pub(super) fn from_field(field: &Field) -> Self {
+        Self {
+            name: field.name,
+            ty: field.ty,
+            offset: field.offset,
+        }
+    }
+}
+
+/// Interning key for MIR types.
+/// Captures the structural identity of a type for deduplication during parsing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) enum TypeKey {
+    /// Unit type.
+    Void,
+    /// Boolean type.
+    Boolean,
+    /// Fixed-width integer.
+    Int { width: u16, signed: bool },
+    /// Pointer-sized signed integer.
+    Isize,
+    /// Pointer-sized unsigned integer.
+    Usize,
+    /// Floating point.
+    Float { width: u16 },
+    /// Runtime type tag.
+    TypeTag,
+    /// Reference/pointer type.
+    Reference {
+        kind: ReferenceKind,
+        address_space: AddressSpace,
+        mutability: Mutability,
+        pointee: LocalNodeId<Type>,
+        is_nullable: bool,
+    },
+    /// Fixed-length array.
+    Array {
+        element: LocalNodeId<Type>,
+        length: u64,
+        copyability: Copyability,
+    },
+    /// Tuple of heterogeneous elements.
+    Tuple {
+        elements: Vec<LocalNodeId<Type>>,
+        copyability: Copyability,
+    },
+    /// Struct with named or positional fields.
+    Struct {
+        fields: Vec<LocalNodeId<Field>>,
+        copyability: Copyability,
+    },
+    /// Function pointer signature.
+    FunctionPointer {
+        parameters: Vec<LocalNodeId<Type>>,
+        result: LocalNodeId<Type>,
+    },
+}
+
+impl TypeKey {
+    /// Create a key from a type definition.
+    pub(super) fn from_type(ty: &Type) -> Self {
+        match ty {
+            Type::Void => TypeKey::Void,
+            Type::Boolean => TypeKey::Boolean,
+            Type::Int { width, is_signed } => TypeKey::Int {
+                width: *width,
+                signed: *is_signed,
+            },
+            Type::Isize => TypeKey::Isize,
+            Type::Usize => TypeKey::Usize,
+            Type::Float { width } => TypeKey::Float { width: *width },
+            Type::Type => TypeKey::TypeTag,
+
+            Type::Reference {
+                kind,
+                address_space,
+                mutability,
+                pointee,
+                is_nullable,
+            } => TypeKey::Reference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                pointee: *pointee,
+                is_nullable: *is_nullable,
+            },
+
+            Type::Array {
+                element,
+                length,
+                copyability,
+            } => TypeKey::Array {
+                element: *element,
+                length: *length,
+                copyability: *copyability,
+            },
+
+            Type::Tuple {
+                elements,
+                copyability,
+            } => TypeKey::Tuple {
+                elements: elements.clone(),
+                copyability: *copyability,
+            },
+
+            Type::Struct {
+                fields,
+                copyability,
+            } => TypeKey::Struct {
+                fields: fields.clone(),
+                copyability: *copyability,
+            },
+
+            Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {
+                parameters: parameters.clone(),
+                result: *result,
+            },
+        }
+    }
+}

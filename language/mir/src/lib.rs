@@ -4,6 +4,7 @@
 mod build;
 mod dump;
 mod format;
+pub(crate) mod layout;
 mod metadata;
 pub mod parse;
 mod tree;
