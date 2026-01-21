@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use super::super::common::{StaticParameterReferencePosition, StaticParameterReferences};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    Argument, Constraint, Declaration, Expression, GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId,
-    InferOrigin, InferScope, InferTable, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    StaticArgument, StaticExpression, StaticParameter, StaticParameterKind, StaticProperty,
-    StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeLiteral,
-    TypeMappedParameter, TypeTable,
+    AnchoredGlobalNodeId, Argument, Constraint, Declaration, Expression, GlobalNodeId,
+    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticParameter,
+    StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
+    TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -441,6 +441,47 @@ impl Compiler {
             },
             _ => argument,
         }
+    }
+
+    /// Replace value defaults that reference earlier value parameters.
+    fn substitute_value_parameter_reference(
+        &self,
+        argument: StaticArgument,
+        resolved_arguments: &HashMap<GlobalSymbolId, StaticArgument>,
+        types: &TypeTable,
+        error_node: AnchoredGlobalNodeId,
+    ) -> AnalyzeResult<StaticArgument> {
+        let mut current = argument;
+        let mut visited = HashSet::new();
+
+        loop {
+            let StaticArgument::Evaluated { name, value } = current else {
+                break;
+            };
+            let StaticExpression::Type { ty } = value else {
+                current = StaticArgument::Evaluated { name, value };
+                break;
+            };
+            let Type::Reference { symbol, .. } = types.get_type(ty) else {
+                current = StaticArgument::Evaluated { name, value };
+                break;
+            };
+            if !visited.insert(*symbol) {
+                return Err(AnalyzeError::CircularStaticArgument { node: error_node });
+            }
+            let Some(StaticArgument::Evaluated { value, .. }) = resolved_arguments.get(symbol)
+            else {
+                current = StaticArgument::Evaluated { name, value };
+                break;
+            };
+
+            current = StaticArgument::Evaluated {
+                name,
+                value: value.clone(),
+            };
+        }
+
+        Ok(self.normalize_value_static_argument(current, types))
     }
 
     /// Resolve a default static argument for a parameter.
@@ -978,6 +1019,18 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<bool> {
+        // prefer value defaults when referencing static value parameters
+        if self.is_static_value_parameter_reference(
+            module,
+            profile,
+            default_expression,
+            tree,
+            symbols,
+            types,
+        ) {
+            return Ok(false);
+        }
+
         // treat value expressions as value defaults
         if let Some(value) = self.evaluate_static_expression_value(
             module,
@@ -1091,7 +1144,6 @@ impl Compiler {
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
-        parameter_symbols: &[GlobalSymbolId],
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -1174,13 +1226,6 @@ impl Compiler {
                     &mut references,
                 )?;
             }
-        }
-
-        // fall back to type parameters when no reference data exists
-        if references.type_symbols.is_empty() && references.value_symbols.is_empty() {
-            references
-                .type_symbols
-                .extend(parameter_symbols.iter().copied());
         }
 
         Ok(references)
@@ -1583,6 +1628,7 @@ impl Compiler {
 
         // resolve arguments with defaults and fallbacks
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
+        let mut resolved_argument_map = HashMap::new();
         for (index, static_parameter) in static_parameters.iter().enumerate() {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
             let error_node = if let Some(argument) = &assigned_argument {
@@ -1637,6 +1683,16 @@ impl Compiler {
                         value: fallback_value,
                     }
                 });
+
+            // substitute earlier value parameters in defaults
+            if static_parameter.kind == StaticParameterKind::Value {
+                resolved_argument = self.substitute_value_parameter_reference(
+                    resolved_argument,
+                    &resolved_argument_map,
+                    types,
+                    error_node.into_anchored(Some(profile)),
+                )?;
+            }
 
             // inherit value constraints when passing a static parameter through
             if static_parameter.kind == StaticParameterKind::Value {
@@ -1750,6 +1806,7 @@ impl Compiler {
                 };
             }
 
+            resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
             resolved_arguments.push(resolved_argument);
         }
 
@@ -1784,25 +1841,31 @@ impl Compiler {
             .map(|symbol_id| {
                 let kind = types
                     .get_static_parameter_kind(*symbol_id)
-                    .unwrap_or(StaticParameterKind::Type);
+                    .unwrap_or_else(|| {
+                        let kind = self
+                            .static_parameter_kind_hint(
+                                module, profile, *symbol_id, source_id, symbols, types,
+                            )
+                            .unwrap_or(StaticParameterKind::Type);
+                        types.set_static_parameter_kind(*symbol_id, kind);
+                        kind
+                    });
                 self.collect_static_parameter(
                     module, *symbol_id, kind, source_id, profile, tree, symbols, types,
                 )
             })
             .collect();
 
-        // build substitutions for type parameters only
+        // build substitutions for type and value parameters
         let mut substitutions = HashMap::new();
         for (static_parameter, argument) in static_parameters.iter().zip(resolved_arguments.iter())
         {
-            if static_parameter.kind == StaticParameterKind::Type {
-                let ty_id = self.convert_static_argument_type(
-                    argument,
-                    types.get_type_source(static_parameter.declared_type_id),
-                    types,
-                );
-                substitutions.insert(static_parameter.symbol, ty_id);
-            }
+            let ty_id = self.convert_static_argument_type(
+                argument,
+                types.get_type_source(static_parameter.declared_type_id),
+                types,
+            );
+            substitutions.insert(static_parameter.symbol, ty_id);
         }
 
         let (symbol_key, symbol_space) = if symbol.module_id == module.id {
@@ -2470,8 +2533,21 @@ impl Compiler {
                 }
             }
             Type::ArraySized { element, count } => {
+                // substitute the array element type
                 let mapped_element =
                     self.substitute_static_parameters(element, substitutions, types, cache);
+
+                // update array size inferred types when the count is a substituted parameter
+                let count_global = count.into_global_any(types.module_id);
+                if let Some(count_type_id) = types.get_inferred_type_id(count_global)
+                    && let Type::Reference { symbol, .. } = types.get_type(count_type_id)
+                    && let Some(substitution) = substitutions.get(symbol)
+                    && *substitution != count_type_id
+                {
+                    types.set_inferred_type(count_global, *substitution);
+                }
+
+                // reuse the existing type if substitutions were no-ops
                 if mapped_element == element {
                     ty_id
                 } else {

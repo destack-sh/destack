@@ -38,6 +38,39 @@ impl ObjectLiteralField {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
+    /// Resolve a type expression or fall back to inference when unevaluated.
+    fn resolve_type_expression(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        infer: &mut InferTable,
+        ctx: &mut InferContext,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // evaluate the type expression when possible
+        let mut ty_id = self.try_evaluate_expression_to_type(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            true,
+            true,
+        )?;
+
+        // fall back to inference for unevaluated types
+        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+            ty_id =
+                self.infer_expression(module, expression_id, tree, symbols, types, infer, ctx)?;
+        }
+
+        Ok(ty_id)
+    }
+
     /// Resolve a direct binding declarator for a symbol.
     fn direct_binding_declarator_for_symbol(
         &self,
@@ -545,22 +578,8 @@ impl Compiler {
                         )?,
                     _ => self.infer_expression(module, *left, tree, symbols, types, infer, ctx)?,
                 };
-                let mut right_ty_id =
-                    self.try_evaluate_expression_to_type(
-                        module,
-                        ctx.profile,
-                        *right,
-                        tree,
-                        symbols,
-                        types,
-                        true,
-                        true,
-                    )?;
-
-                if matches!(types.get_type(right_ty_id), Type::Unevaluated { .. }) {
-                    right_ty_id =
-                        self.infer_expression(module, *right, tree, symbols, types, infer, ctx)?;
-                }
+                let right_ty_id =
+                    self.resolve_type_expression(module, ctx.profile, *right, tree, symbols, types, infer, ctx)?;
 
                 let ty = self.infer_type_binary_operation(
                     module,
@@ -608,31 +627,18 @@ impl Compiler {
                     });
                 }
 
+                // infer the source and resolve the target type
                 self.infer_expression(module, *value, tree, symbols, types, infer, ctx)?;
-                let mut target_ty_id = self.try_evaluate_expression_to_type(
+                self.resolve_type_expression(
                     module,
                     ctx.profile,
                     *target_type,
                     tree,
                     symbols,
                     types,
-                    true,
-                    true,
-                )?;
-
-                if matches!(types.get_type(target_ty_id), Type::Unevaluated { .. }) {
-                    target_ty_id = self.infer_expression(
-                        module,
-                        *target_type,
-                        tree,
-                        symbols,
-                        types,
-                        infer,
-                        ctx,
-                    )?;
-                }
-
-                target_ty_id
+                    infer,
+                    ctx,
+                )?
             }
 
             Expression::OwnershipCast {
@@ -3470,6 +3476,13 @@ impl Compiler {
                 scope,
             )
         };
+
+        // evaluate local unevaluated types before use
+        if canonical_symbol.module_id == module.id
+            && matches!(types.get_type(base_ty_id), Type::Unevaluated(_))
+        {
+            self.evaluate_type(module, ctx.profile, base_ty_id, tree, symbols, types)?;
+        }
 
         // ensure instance types for referenced symbols
         self.ensure_reference_instance_types_for_type(

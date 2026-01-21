@@ -2438,6 +2438,7 @@ impl Compiler {
                 });
                 Some(element_ty_id)
             }
+            Type::ArraySized { element, .. } => Some(*element),
             Type::Tuple { elements } => {
                 if elements.is_empty() {
                     return None;

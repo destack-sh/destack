@@ -67,6 +67,7 @@ struct MemberVisibilityContext {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer a member access expression.
+    /// NOTE #Cleanup: infer_member_expression has grown too convoluted (esp. the method/function paths)
     pub(super) fn infer_member_expression(
         &self,
         module: &Module,
@@ -280,6 +281,23 @@ impl Compiler {
             types,
             &mut member_type_visited,
         )?;
+        // prefer declared or inferred symbol types for resolved members
+        let member_ty_id = if let Some(member_symbol) = member_symbol {
+            match (types.get_value_type_id(member_symbol), member_ty_id) {
+                (Some(value_ty_id), Some(member_ty_id)) => {
+                    if self.is_infer_var_type(value_ty_id, types) {
+                        Some(member_ty_id)
+                    } else {
+                        Some(value_ty_id)
+                    }
+                }
+                (Some(value_ty_id), None) => Some(value_ty_id),
+                (None, Some(member_ty_id)) => Some(member_ty_id),
+                (None, None) => None,
+            }
+        } else {
+            member_ty_id
+        };
         let has_member = member_ty_id.is_some();
         let resolved_member_ty_id = if let Some(enum_field_value_ty_id) = enum_field_value_ty_id {
             enum_field_value_ty_id
