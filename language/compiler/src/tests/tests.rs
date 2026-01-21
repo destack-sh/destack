@@ -457,7 +457,7 @@ impl TestProgram {
         self.enqueue(ResolveTask::ResolveModule {
             module: self.module_stamp(module),
             profile: self.profile_stamp(profile),
-            graph: self.module_graph_stamp(profile),
+            graph: self.compiler.module_graph_stamp(profile),
         });
     }
 

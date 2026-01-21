@@ -75,22 +75,18 @@ fn test_run_watch_handles_update() {
             });
         },
         |reason, updated, rescan| {
-            // assertion block: verify update flags
             assert!(updated);
             assert!(!rescan);
             observed_reason.replace(Some(reason));
         },
         |_, _, _, _, _, _, _reason, _, _, _| {
-            // record compile invocations
             compile_calls.set(compile_calls.get().saturating_add(1));
-
-            // return success for each compile
             0
         },
         true,
     );
 
-    // assertion block: verify watch completes successfully
+    // check that the watch completes successfully
     assert_exit(exit_code, 0);
     assert_eq!(compile_calls.get(), 2);
     assert_eq!(

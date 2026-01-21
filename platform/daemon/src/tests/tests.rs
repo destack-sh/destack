@@ -7,7 +7,9 @@ use destack_source::{
 };
 use destack_workspace::{MemoryCacheStore, Program, Session};
 
-use crate::{Daemon, DaemonUpdate, WatchBatch, WatchCoordinator, WatchPolicy};
+use crate::{
+    Daemon, DaemonUpdate, DaemonWatchBatchResult, WatchBatch, WatchCoordinator, WatchPolicy,
+};
 
 /// Test harness for daemon flows.
 #[derive(Debug)]
@@ -99,12 +101,30 @@ impl TestDaemon {
         path
     }
 
-    /// Update a file and return the daemon update.
-    pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
+    /// Update a file and return all daemon updates.
+    pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
         let path = self.resolve_path(path);
         self.daemon
             .update_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
+    }
+
+    /// Update a file and return the update for the target file.
+    pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
+        let path = self.resolve_path(path);
+        let updates = self
+            .daemon
+            .update_file(&path, content.to_string())
+            .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()));
+        let file_id = self
+            .session
+            .files
+            .get_id_by_path(&path)
+            .unwrap_or_else(|| panic!("missing file id for {}", path.display()));
+        updates
+            .into_iter()
+            .find(|update| update.file_id == file_id)
+            .unwrap_or_else(|| panic!("missing update for {}", path.display()))
     }
 
     /// Build a watch coordinator for the test roots.
@@ -139,21 +159,9 @@ impl TestDaemon {
         }
     }
 
-    /// Apply a watch batch to the daemon and return updates.
-    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> Vec<DaemonUpdate> {
-        let mut updates = Vec::new();
-        for event in &batch.events {
-            let content = match self.session.fs.read_to_string(&event.path) {
-                Ok(content) => content,
-                Err(_) => continue,
-            };
-            let update = match self.daemon.update_file(&event.path, content) {
-                Ok(update) => update,
-                Err(_) => continue,
-            };
-            updates.push(update);
-        }
-        updates
+    /// Apply a watch batch to the daemon and return the batch result.
+    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> DaemonWatchBatchResult {
+        self.daemon.apply_watch_batch(batch)
     }
 
     /// Resolve a path relative to the primary root when needed.
@@ -196,8 +204,8 @@ impl TestWatchHarness {
         TestWatchBatch::new(batch)
     }
 
-    /// Apply a watch batch and return daemon updates.
-    pub fn apply_batch(&self, batch: &TestWatchBatch) -> Vec<DaemonUpdate> {
+    /// Apply a watch batch and return the batch result.
+    pub fn apply_batch(&self, batch: &TestWatchBatch) -> DaemonWatchBatchResult {
         self.test.apply_watch_batch(batch.batch())
     }
 

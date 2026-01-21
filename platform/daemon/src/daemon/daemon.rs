@@ -2,23 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use dashmap::mapref::entry::Entry;
-use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions};
-use destack_workspace::{FileUpdate, Program, Session};
-use parking_lot::Mutex;
+use destack_compiler::CompilerOptions;
+use destack_source::{Diagnostic, FileId, ModuleId};
+use destack_workspace::{InvalidationPlan, Session};
 
-use crate::{DaemonError, DaemonUpdate};
-
-/// Per-program daemon handle.
-#[derive(Debug)]
-struct ProgramHandle {
-    /// The program for this root.
-    program: Arc<Program>,
-    /// The compiler for this program.
-    compiler: Arc<Compiler>,
-    /// Serialize compilation per program.
-    compile_lock: Mutex<()>,
-}
+use super::DaemonMessage;
+use super::program::ProgramHandle;
 
 /// Persistent daemon state for incremental compilation.
 #[derive(Debug, Clone)]
@@ -28,7 +17,7 @@ pub struct Daemon {
     /// Default compiler options for daemon work.
     pub compiler_options: CompilerOptions,
     /// Per program daemon handle.
-    program_handles: Arc<DashMap<PathBuf, Arc<ProgramHandle>>>,
+    pub(super) program_handles: Arc<DashMap<PathBuf, Arc<ProgramHandle>>>,
 }
 
 impl Daemon {
@@ -50,20 +39,6 @@ impl Daemon {
         }
     }
 
-    /// Apply a text update and re-analyze the owning module.
-    pub fn update_file(&self, path: &Path, content: String) -> Result<DaemonUpdate, DaemonError> {
-        // update the filesystem content
-        self.session
-            .fs
-            .write_string(path, &content)
-            .map_err(|error| DaemonError::FileWrite {
-                path: path.to_path_buf(),
-                error,
-            })?;
-
-        self.update_virtual_file(path, content)
-    }
-
     /// Return the number of tracked program handles.
     #[cfg(test)]
     pub(crate) fn program_handle_count(&self) -> usize {
@@ -74,190 +49,69 @@ impl Daemon {
     pub fn remove_program_handle(&self, root: &Path) -> bool {
         self.program_handles.remove(root).is_some()
     }
+}
 
-    /// Apply a text update without writing to the filesystem.
-    pub fn update_virtual_file(
-        &self,
-        path: &Path,
-        content: String,
-    ) -> Result<DaemonUpdate, DaemonError> {
-        // locate daemon handle for the path
-        let handle = self.program_handle_for_path(path);
-        let _compile_guard = handle.compile_lock.lock();
-        let program = handle.program.clone();
-        let compiler = handle.compiler.clone();
+/// Summary of a daemon update.
+#[derive(Debug, Clone)]
+pub struct DaemonUpdate {
+    /// The module id that was updated.
+    pub module_id: Option<ModuleId>,
+    /// The file id for the updated module.
+    pub file_id: FileId,
+    /// The invalidation summary for the update.
+    pub invalidation: InvalidationPlan,
+    /// Diagnostics for the updated file.
+    pub diagnostics: Vec<Diagnostic>,
+}
 
-        // resolve path to module or fall back to tracked files
-        let module_id = match compiler.resolve_path_to_module(&path.to_path_buf()) {
-            Ok(module_id) => Some(module_id),
-            Err(error) => {
-                if program.files.get_id_by_path(path).is_some() {
-                    None
-                } else {
-                    return Err(DaemonError::Resolve {
-                        path: path.to_path_buf(),
-                        error: Box::new(error),
-                    });
-                }
-            }
-        };
+/// Summary of a watch event applied through the daemon.
+#[derive(Debug, Clone, Default)]
+pub struct DaemonWatchEventResult {
+    /// Updates produced by this event.
+    pub updates: Vec<DaemonUpdate>,
+    /// Whether a rescan is required.
+    pub rescan: bool,
+    /// Warnings or errors to surface to the caller.
+    pub messages: Vec<DaemonMessage>,
+}
 
-        // resolve file id for invalidation
-        let file_id = match module_id {
-            Some(module_id) => program.modules.get(module_id).read().file_id,
-            None => match program.files.get_id_by_path(path) {
-                Some(file_id) => file_id,
-                None => {
-                    return Err(DaemonError::FileNotTracked {
-                        path: path.to_path_buf(),
-                    });
-                }
-            },
-        };
-        let invalidation = program
-            .invalidate_file(file_id, FileUpdate::Text { content })
-            .map_err(|error| DaemonError::Invalidation {
-                path: path.to_path_buf(),
-                error: Box::new(error),
-            })?;
-
-        // reset diagnostics for a clean publish pass
-        let _ = program.diagnostics.drain();
-
-        // analyze the module when available
-        if let Some(module_id) = module_id {
-            let profile = program.default_profile_id_for_module(module_id);
-            let module = compiler.module_stamp(module_id);
-            let profile = compiler.profile_stamp(profile);
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
-            compiler.compile();
-        }
-
-        // collect diagnostics for the updated file
-        let diagnostics = program
-            .diagnostics
-            .iter()
-            .into_iter()
-            .filter(|diagnostic| diagnostic.file_id == file_id)
-            .collect();
-
-        Ok(DaemonUpdate {
-            module_id,
-            file_id,
-            invalidation,
-            diagnostics,
-        })
+impl DaemonWatchEventResult {
+    /// Return true when the event produced updates.
+    pub fn updated(&self) -> bool {
+        !self.updates.is_empty()
     }
+}
 
-    /// Mark a file as removed without touching the filesystem.
-    pub fn remove_virtual_file(&self, path: &Path) -> Result<DaemonUpdate, DaemonError> {
-        // locate daemon handle for the path
-        let handle = self.program_handle_for_path(path);
-        let _compile_guard = handle.compile_lock.lock();
-        let program = handle.program.clone();
-        let compiler = handle.compiler.clone();
+/// Summary of a watch batch applied through the daemon.
+#[derive(Debug, Clone, Default)]
+pub struct DaemonWatchBatchResult {
+    /// Updates produced by this batch.
+    pub updates: Vec<DaemonUpdate>,
+    /// Whether a rescan is required.
+    pub rescan: bool,
+    /// Warnings or errors to surface to the caller.
+    pub messages: Vec<DaemonMessage>,
+}
 
-        // resolve module id for tracked paths
-        let module_id = program.modules.get_id_by_path(path);
-
-        // resolve file id for invalidation
-        let file_id = match module_id {
-            Some(module_id) => program.modules.get(module_id).read().file_id,
-            None => match program.files.get_id_by_path(path) {
-                Some(file_id) => file_id,
-                None => {
-                    return Err(DaemonError::FileNotTracked {
-                        path: path.to_path_buf(),
-                    });
-                }
-            },
-        };
-        let invalidation = program
-            .invalidate_file(file_id, FileUpdate::Removed)
-            .map_err(|error| DaemonError::Invalidation {
-                path: path.to_path_buf(),
-                error: Box::new(error),
-            })?;
-
-        // reset diagnostics for a clean publish pass
-        let _ = program.diagnostics.drain();
-
-        // analyze the module when available
-        if let Some(module_id) = module_id {
-            let profile = program.default_profile_id_for_module(module_id);
-            let module = compiler.module_stamp(module_id);
-            let profile = compiler.profile_stamp(profile);
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
-            compiler.compile();
-        }
-
-        // collect diagnostics for the updated file
-        let diagnostics = program
-            .diagnostics
-            .iter()
-            .into_iter()
-            .filter(|diagnostic| diagnostic.file_id == file_id)
-            .collect();
-
-        Ok(DaemonUpdate {
-            module_id,
-            file_id,
-            invalidation,
-            diagnostics,
-        })
+impl DaemonWatchBatchResult {
+    /// Return true when the batch produced updates.
+    pub fn updated(&self) -> bool {
+        !self.updates.is_empty()
     }
+}
 
-    /// Ensure a module for the given path is analyzed.
-    pub fn analyze_path(&self, path: &Path) -> Result<(), DaemonError> {
-        // locate daemon handle for the path
-        let handle = self.program_handle_for_path(path);
-        let _compile_guard = handle.compile_lock.lock();
-        let program = handle.program.clone();
-        let compiler = handle.compiler.clone();
+/// Summary of a rescan applied through the daemon.
+#[derive(Debug, Clone, Default)]
+pub struct DaemonRescanResult {
+    /// Updates produced by the rescan.
+    pub updates: Vec<DaemonUpdate>,
+    /// Warnings or errors to surface to the caller.
+    pub messages: Vec<DaemonMessage>,
+}
 
-        let module_id = compiler
-            .resolve_path_to_module(&path.to_path_buf())
-            .map_err(|error| DaemonError::Resolve {
-                path: path.to_path_buf(),
-                error: Box::new(error),
-            })?;
-
-        let profile = program.default_profile_id_for_module(module_id);
-        let module = compiler.module_stamp(module_id);
-        let profile = compiler.profile_stamp(profile);
-        compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
-        compiler.compile();
-
-        Ok(())
-    }
-
-    /// Resolve the daemon program handle for a path.
-    fn program_handle_for_path(&self, path: &Path) -> Arc<ProgramHandle> {
-        // resolve the program first
-        let program = self.session.find_program_for_path(path);
-        let key = program.cwd.clone();
-
-        // return existing handle when present
-        match self.program_handles.entry(key) {
-            Entry::Occupied(entry) => {
-                // reuse the existing handle
-                entry.get().clone()
-            }
-            Entry::Vacant(entry) => {
-                // build a new compiler for the program
-                let compiler = Arc::new(Compiler::new(
-                    self.session.clone(),
-                    program.clone(),
-                    self.compiler_options.clone(),
-                ));
-                let handle = Arc::new(ProgramHandle {
-                    program,
-                    compiler,
-                    compile_lock: Mutex::new(()),
-                });
-                entry.insert(handle.clone());
-                handle
-            }
-        }
+impl DaemonRescanResult {
+    /// Return true when the rescan produced updates.
+    pub fn updated(&self) -> bool {
+        !self.updates.is_empty()
     }
 }

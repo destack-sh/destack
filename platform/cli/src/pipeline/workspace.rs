@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_resolver::{ResolveOptions, Resolver};
+use destack_resolver::{CachePolicy, ResolveOptions, Resolver};
 use destack_workspace::{DsConfig, Program, Session, Workspace};
 
 use crate::common::ProgramArgs;
@@ -40,7 +40,7 @@ pub fn workspace_context(
         .map(|entry| entry.value().clone())
         .ok_or_else(|| "session did not create a program".to_string())?;
     let resolver = Resolver::from_session(&session, ResolveOptions::default());
-    let workspace = session.workspace.clone();
+    let workspace = Arc::new(session.workspace_snapshot());
 
     Ok(WorkspaceContext {
         session,
@@ -52,14 +52,33 @@ pub fn workspace_context(
 
 /// Locate a dsconfig.json path for a directory.
 pub fn find_dsconfig(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
-    // delegate to the resolver lookup
-    resolver.find_dsconfig(cwd)
+    // walk up directories looking for dsconfig.json
+    let mut current = cwd.to_path_buf();
+    loop {
+        let candidate = current.join("dsconfig.json");
+        if resolver
+            .fs
+            .metadata(&candidate)
+            .is_ok_and(|metadata| metadata.is_file)
+        {
+            return Some(candidate);
+        }
+
+        let Some(parent) = current.parent() else {
+            break;
+        };
+        current = parent.to_path_buf();
+    }
+
+    None
 }
 
 /// Load and parse a dsconfig.json file.
 pub fn load_dsconfig(resolver: &Resolver, path: &Path) -> Result<DsConfig, String> {
     // map resolver errors into strings
-    resolver.load_dsconfig(path).map_err(|e| e.to_string())
+    resolver
+        .load_dsconfig(path, CachePolicy::UseCache)
+        .map_err(|e| e.to_string())
 }
 
 /// Resolve a dsconfig.json path based on program args.

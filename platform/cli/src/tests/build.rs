@@ -71,7 +71,6 @@ fn test_build_watch_handles_update() {
             });
         },
         |reason, updated, rescan| {
-            // assertion block: verify update flags
             assert!(updated);
             assert!(!rescan);
             observed_reason.replace(Some(reason));
@@ -79,7 +78,7 @@ fn test_build_watch_handles_update() {
         true,
     );
 
-    // assertion block: verify watch completes successfully
+    // check that the watch completes successfully
     assert_success(exit_code);
     assert_eq!(
         observed_reason.into_inner(),
