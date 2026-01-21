@@ -1,7 +1,9 @@
-/// A borrowed view into contiguous memory.
+/// A borrowed view into a JS array.
 struct Slice<T> {
-    /// Pointer to the first element.
-    data: *T,
+    /// Backing array storage.
+    data: Array<T>,
+    /// Start offset within the backing array.
+    start: uint32,
     /// Number of elements in the slice.
     length: uint32,
 }
@@ -23,13 +25,7 @@ extension<T> for Slice<T> implements Index<number, T>, Iterable<T> {
             undefined!
         }
         // #Incomplete
-        this.unsafeGet(i as uint32)
-    }
-
-    /// Get element at index (unchecked).
-    unsafeGet(i: uint32): T {
-        // #Incomplete
-        undefined!
+        this.data[(this.start + i as uint32) as number]
     }
 
     /// Get a sub-slice.

@@ -1,0 +1,2 @@
+// core collections (ambient)
+export { Slice } from "./collections/index.ds";

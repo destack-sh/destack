@@ -101,6 +101,7 @@ Different targets get different implementations.
 | `lib/deno/` | `Deno`, `Deno.fs`, Deno APIs | `runtime: deno` |
 | `lib/bun/` | `Bun`, `Bun.spawn`, Bun APIs | `runtime: bun` |
 | `lib/worker/` | `WorkerGlobalScope`, Web Worker APIs | `runtime: worker` |
+| `lib/js/` | Destack JS target additions (`Slice`) | JS targets |
 
 Runtime-specific libs can also be versioned (e.g., `node.v22`, `deno.v2.6`, `bun.v1.3`).
 Targets with `runtimeVersion` select the matching versioned lib.
