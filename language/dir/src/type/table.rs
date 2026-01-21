@@ -6,10 +6,10 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instance,
-    Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId, LocalNodeId, LocalNodeIdAny,
-    LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument, StaticParameterKind,
-    SymbolTable, Type,
+    Addressability, Arena, EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny,
+    GlobalSymbolId, Instance, Lineage, LocalExtensionId, LocalInstanceId, LocalLineageId,
+    LocalNodeId, LocalNodeIdAny, LocalResolutionId, LocalTypeId, Node, Resolution, StaticArgument,
+    StaticParameterKind, SymbolTable, Type,
 };
 
 /// Select a normalization cache.
@@ -67,6 +67,8 @@ pub struct TypeTable {
     pub(crate) inferred_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
     /// The signature type by node id (separate from declared types).
     pub(crate) signature_type_by_node_id: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    /// The addressability by node id.
+    pub(crate) addressability_by_node_id: IndexMap<GlobalNodeIdAny, Addressability>,
 
     // symbol types
     /// The instance type by symbol id (for type declarations: the shape of instances).
@@ -143,6 +145,7 @@ impl TypeTable {
             declared_type_by_node_id: IndexMap::new(),
             inferred_type_by_node_id: IndexMap::new(),
             signature_type_by_node_id: IndexMap::new(),
+            addressability_by_node_id: IndexMap::new(),
             // symbol types
             instance_type_by_symbol_id: IndexMap::new(),
             value_type_by_symbol_id: IndexMap::new(),
@@ -423,8 +426,26 @@ impl TypeTable {
             .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
+    /// Set the addressability for a node.
+    pub fn set_addressability_for_node(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        addressability: Addressability,
+    ) {
+        self.addressability_by_node_id
+            .insert(node_id, addressability);
+    }
+
+    /// Get the addressability for a node.
+    pub fn get_addressability_for_node(
+        &self,
+        node_id: GlobalNodeIdAny,
+    ) -> Option<Addressability> {
+        self.addressability_by_node_id.get(&node_id).copied()
+    }
+
     /// Copy node-local analysis data from a source node to a target node.
-    /// Copies declared types, inferred types, signature types, instances, and resolutions.
+    /// Copies declared types, inferred types, signature types, addressability, instances, and resolutions.
     pub fn copy_node_analysis(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
         // declared type
         if let Some(declared_type) = self.declared_type_by_node_id.get(&source).copied() {
@@ -440,6 +461,12 @@ impl TypeTable {
         if let Some(signature_type) = self.signature_type_by_node_id.get(&source).copied() {
             self.signature_type_by_node_id
                 .insert(target, signature_type);
+        }
+
+        // addressability
+        if let Some(addressability) = self.addressability_by_node_id.get(&source).copied() {
+            self.addressability_by_node_id
+                .insert(target, addressability);
         }
 
         // instance
