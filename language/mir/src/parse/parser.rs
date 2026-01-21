@@ -1,5 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_base::{ImmutableStringPool, StringPool};
+use destack_source::{FileId, Span};
+
+use crate::layout::compute_type_layout;
 use crate::verify::{Verifier, VerifierOptions};
 use crate::{
     AddressSpace, AllocationMode, BinaryOperator, Block, CastOperator, CheckConstraint,
@@ -8,131 +12,27 @@ use crate::{
     MemoryOrdering, Mutability, NodeTree, Ownership, PointerAttributes, ReferenceKind, SwitchCase,
     Terminator, Type, TypeAlias, TypedValue, UnaryOperator, Value,
 };
-use destack_base::{ImmutableStringPool, StringId, StringPool};
-use destack_source::{FileId, Span};
 
 use super::error::{ParseError, ParseResult};
+use super::key::{FieldKey, TypeKey};
 use super::lexer::Lexer;
 use super::token::{Token, TokenType};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct FieldKey {
-    name: Option<StringId>,
-    ty: LocalNodeId<Type>,
-    offset: u32,
-}
-
-impl FieldKey {
-    fn from_field(field: &Field) -> Self {
-        Self {
-            name: field.name,
-            ty: field.ty,
-            offset: field.offset,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum TypeKey {
-    Void,
-    Boolean,
-    Int {
-        width: u16,
-        signed: bool,
-    },
-    Isize,
-    Usize,
-    Float {
-        width: u16,
-    },
-    TypeTag,
-    Reference {
-        kind: ReferenceKind,
-        address_space: AddressSpace,
-        mutability: Mutability,
-        pointee: LocalNodeId<Type>,
-        is_nullable: bool,
-    },
-    Array {
-        element: LocalNodeId<Type>,
-        length: u64,
-        copyability: Copyability,
-    },
-    Tuple {
-        elements: Vec<LocalNodeId<Type>>,
-        copyability: Copyability,
-    },
-    Struct {
-        fields: Vec<LocalNodeId<Field>>,
-        copyability: Copyability,
-    },
-    FunctionPointer {
-        parameters: Vec<LocalNodeId<Type>>,
-        result: LocalNodeId<Type>,
-    },
-}
-
-impl TypeKey {
-    fn from_type(ty: &Type) -> Self {
-        match ty {
-            Type::Void => TypeKey::Void,
-            Type::Boolean => TypeKey::Boolean,
-            Type::Int {
-                width,
-                is_signed: signed,
-            } => TypeKey::Int {
-                width: *width,
-                signed: *signed,
-            },
-            Type::Isize => TypeKey::Isize,
-            Type::Usize => TypeKey::Usize,
-            Type::Float { width } => TypeKey::Float { width: *width },
-            Type::Type => TypeKey::TypeTag,
-            Type::Reference {
-                kind,
-                address_space,
-                mutability,
-                pointee,
-                is_nullable,
-            } => TypeKey::Reference {
-                kind: *kind,
-                address_space: *address_space,
-                mutability: *mutability,
-                pointee: *pointee,
-                is_nullable: *is_nullable,
-            },
-            Type::Array {
-                element,
-                length,
-                copyability,
-            } => TypeKey::Array {
-                element: *element,
-                length: *length,
-                copyability: *copyability,
-            },
-            Type::Tuple {
-                elements,
-                copyability,
-            } => TypeKey::Tuple {
-                elements: elements.clone(),
-                copyability: *copyability,
-            },
-            Type::Struct {
-                fields,
-                copyability,
-            } => TypeKey::Struct {
-                fields: fields.clone(),
-                copyability: *copyability,
-            },
-            Type::FunctionPointer { parameters, result } => TypeKey::FunctionPointer {
-                parameters: parameters.clone(),
-                result: *result,
-            },
-        }
-    }
-}
-
 /// Parser for MIR text format.
+/// Options for the MIR parser.
+#[derive(Debug, Clone)]
+pub struct ParseOptions {
+    /// Pointer size in bytes (4 for 32-bit, 8 for 64-bit).
+    /// Used for computing struct field offsets.
+    pub pointer_bytes: u8,
+}
+
+impl Default for ParseOptions {
+    fn default() -> Self {
+        Self { pointer_bytes: 8 }
+    }
+}
+
 #[derive(Debug)]
 pub struct Parser<'a> {
     /// The tokens to parse.
@@ -145,6 +45,8 @@ pub struct Parser<'a> {
     strings: StringPool,
     /// The source file id for spans.
     file_id: FileId,
+    /// Parser options.
+    options: ParseOptions,
     /// Map from block names to their ids (for forward references).
     block_map: HashMap<String, LocalNodeId<Block>>,
     /// Map from function names to their ids (for forward references).
@@ -163,7 +65,7 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     /// Create a new parser for a specific file.
-    pub fn new(file_id: FileId, source: &'a str) -> Self {
+    pub fn new(file_id: FileId, source: &'a str, options: ParseOptions) -> Self {
         let tokens = Lexer::lex(source);
         Self {
             tokens,
@@ -171,6 +73,7 @@ impl<'a> Parser<'a> {
             tree: NodeTree::new(),
             strings: StringPool::new(),
             file_id,
+            options,
             block_map: HashMap::new(),
             function_map: HashMap::new(),
             global_map: HashMap::new(),
@@ -182,9 +85,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse MIR text into a NodeTree and string pool.
-    pub fn parse(file_id: FileId, source: &str) -> ParseResult<(NodeTree, ImmutableStringPool)> {
-        let mut parser = Parser::new(file_id, source);
+    pub fn parse(
+        file_id: FileId,
+        source: &str,
+        options: ParseOptions,
+    ) -> ParseResult<(NodeTree, ImmutableStringPool)> {
+        let mut parser = Parser::new(file_id, source, options);
         parser.parse_module()?;
+
         Ok((parser.tree, parser.strings.into_immutable()))
     }
 
@@ -2223,9 +2131,15 @@ impl<'a> Parser<'a> {
                         name = Some(self.strings.intern(&name_text));
                     }
                     let ty = self.parse_type()?;
+
+                    // compute field offset based on type layout
+                    let field_layout =
+                        compute_type_layout(&self.tree, ty, self.options.pointer_bytes);
+                    offset = field_layout.align_offset(offset);
+
                     let field = Field { name, ty, offset };
                     fields.push(self.intern_field(field));
-                    offset += 1; // simplified offset, real offset would need size info
+                    offset += field_layout.size;
                     if !self.eat_token_maybe(TokenType::Comma) {
                         break;
                     }

@@ -1,7 +1,7 @@
 use destack_base::StringPool;
 use destack_source::FileId;
 
-use crate::parse::Parser;
+use crate::parse::{ParseOptions, Parser};
 use crate::{
     ArgumentSlice, Block, CallArgumentMetadata, CallEffects, Function, Instruction, Local,
     Mutability, Ownership, Type, Value,
@@ -62,7 +62,8 @@ block1(v0: i32):
     return v0
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(error.message, "duplicate value definition v0");
 }
 
@@ -76,7 +77,8 @@ block1(v0: i32):
     return
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(
         error.message,
         "block argument count mismatch for block1 expected 1 got 0"
@@ -95,7 +97,8 @@ block0:
     return v2
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(
         error.message,
         "call argument count mismatch expected 1 got 2"
@@ -112,7 +115,8 @@ block0:
     return
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(
         error.message,
         "call return value not allowed for void function"
@@ -134,7 +138,8 @@ block0:
     return
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(
         error.message,
         "invalid node reference id0 expected Local got Type"
@@ -150,7 +155,8 @@ block0(v0: i32):
     tailcall @noop()
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(error.message, "tail call return type mismatch");
 }
 
@@ -162,7 +168,8 @@ block0:
     return v0
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(error.message, "use of undefined value v0");
 }
 
@@ -174,7 +181,8 @@ block0:
     return
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(error.message, "return value required for non void function");
 }
 
@@ -192,7 +200,8 @@ block2:
     return v2
 }"#;
 
-    let error = Parser::parse(FileId::new(0), source).expect_err("expected parse failure");
+    let error = Parser::parse(FileId::new(0), source, ParseOptions::default())
+        .expect_err("expected parse failure");
     assert_eq!(error.message, "duplicate switch case value 0");
 }
 
