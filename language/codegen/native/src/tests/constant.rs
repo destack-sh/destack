@@ -67,7 +67,7 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter -> ref<raw addrspace(global) i32>
+    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
     v1 = load v0 -> i32
     v2 = iconst 1i32
     v3 = iadd v1, v2
@@ -94,7 +94,7 @@ global @data: i64 = zeroinit ; mut
 
 function @get_data() -> i64 {
 block0:
-    v0 = global.addr @data -> ref<raw addrspace(global) i64>
+    v0 = global.addr @data -> ref<raw addrspace(global) mut i64>
     v1 = load v0 -> i64
     return v1
 }"#;

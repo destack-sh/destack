@@ -11,7 +11,7 @@ use super::compile_mir_to_normalized_clif;
 fn test_load_from_pointer() {
     let mir = r#"
 function @read_ptr(v0: ref<raw i32>) -> i32 {
-block0:
+block0(v0: ref<raw i32>):
     v1 = load v0 -> i32
     return v1
 }"#;
@@ -33,7 +33,7 @@ block0(v0: i64):
 fn test_load_double_indirection() {
     let mir = r#"
 function @read_ptr_ptr(v0: ref<raw ref<raw i32>>) -> i32 {
-block0:
+block0(v0: ref<raw ref<raw i32>>):
     v1 = load v0 -> ref<raw i32>
     v2 = load v1 -> i32
     return v2
@@ -57,7 +57,7 @@ block0(v0: i64):
 fn test_load_i64() {
     let mir = r#"
 function @read_ptr64(v0: ref<raw i64>) -> i64 {
-block0:
+block0(v0: ref<raw i64>):
     v1 = load v0 -> i64
     return v1
 }"#;
@@ -79,7 +79,7 @@ block0(v0: i64):
 fn test_load_bool() {
     let mir = r#"
 function @read_bool(v0: ref<raw bool>) -> bool {
-block0:
+block0(v0: ref<raw bool>):
     v1 = load v0 -> bool
     return v1
 }"#;
@@ -103,7 +103,7 @@ fn test_local_get() {
 function @local_test(v0: i32) -> i32 {
     local0: i32
 
-block0:
+block0(v0: i32):
     v1 = local.get local0
     v2 = iadd v0, v1
     return v2
@@ -132,7 +132,7 @@ function @multi_local_test(v0: i32) -> i64 {
     local0: i32
     local1: i64
 
-block0:
+block0(v0: i32):
     v1 = local.get local0
     v2 = uextend v1 -> i64
     v3 = local.get local1
@@ -163,7 +163,7 @@ block0(v0: i32):
 fn test_load_float() {
     let mir = r#"
 function @read_float(v0: ref<raw f32>) -> f32 {
-block0:
+block0(v0: ref<raw f32>):
     v1 = load v0 -> f32
     return v1
 }"#;

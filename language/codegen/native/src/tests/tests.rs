@@ -4,13 +4,15 @@ use destack_base::StringId;
 use destack_mir as mir;
 use destack_source::{FileId, ModuleId, ModuleVersion, PackageId};
 use destack_workspace::{ModuleMir, TargetId};
+use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
     let (tree, strings) =
-        mir::parse::Parser::parse(FileId::new(0), source).expect("failed to parse MIR");
+        mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            .expect("failed to parse MIR");
 
     // create a ModuleMir and populate it
     let module = ModuleMir::new(

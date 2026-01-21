@@ -47,7 +47,7 @@ block0:
 fn test_direct_call_with_args() {
     let mir = r#"
 function @add(v0: i32, v1: i32) -> i32 {
-block0:
+block0(v0: i32, v1: i32):
     v2 = iadd v0, v1
     return v2
 }
@@ -122,13 +122,13 @@ block0:
 fn test_multiple_calls_same_function() {
     let mir = r#"
 function @double(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     v1 = iadd v0, v0
     return v1
 }
 
 function @caller(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     v1 = call @double(v0)
     v2 = call @double(v1)
     return v2
@@ -160,7 +160,7 @@ block0(v0: i32):
 fn test_recursive_call() {
     let mir = r#"
 function @factorial(v0: i32) -> i32 {
-block0:
+block0(v0: i32):
     v1 = iconst 1i32
     v2 = icmp_sle v0, v1
     branch v2, block1, block2
