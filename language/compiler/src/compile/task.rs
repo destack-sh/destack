@@ -590,6 +590,8 @@ pub enum TaskSkipReason {
     StaleModuleVersion,
     /// Task was stale due to a profile version change.
     StaleProfileVersion,
+    /// Task was stale due to a module graph version change.
+    StaleModuleGraphVersion,
     /// Task was stale due to a package version change.
     StalePackageVersion,
     /// Task was stale due to a program stamp change.

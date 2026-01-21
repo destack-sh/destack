@@ -179,9 +179,11 @@ impl TestProgram {
             .unwrap_or_else(|| panic!("missing profile data for {:?}", self.profile_id))
             .version;
         let profile_stamp = ProfileStamp::new(self.profile_id, profile_version);
+        let graph_stamp = self.compiler.module_graph_stamp(self.profile_id);
         self.compiler.enqueue(ResolveTask::ResolveModuleCanonical {
             module: module_stamp,
             profile: profile_stamp,
+            graph: graph_stamp,
         });
     }
 

@@ -19,6 +19,7 @@ struct TaskVariant {
 enum StampKind {
     Module,
     Profile,
+    ModuleGraph,
     Package,
     Program,
 }
@@ -34,6 +35,7 @@ fn stamp_kind(ty: &Type) -> Option<StampKind> {
     match ident.as_str() {
         "ModuleStamp" => Some(StampKind::Module),
         "ProfileStamp" => Some(StampKind::Profile),
+        "ModuleGraphStamp" => Some(StampKind::ModuleGraph),
         "PackageStamp" => Some(StampKind::Package),
         "ProgramStamp" => Some(StampKind::Program),
         "Option" => {
@@ -359,6 +361,7 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
             let name = &v.name;
             let mut module_fields = Vec::new();
             let mut profile_fields = Vec::new();
+            let mut graph_fields = Vec::new();
             let mut package_fields = Vec::new();
             let mut program_fields = Vec::new();
 
@@ -366,6 +369,7 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
                 match stamp_kind(field_ty) {
                     Some(StampKind::Module) => module_fields.push(field_name.clone()),
                     Some(StampKind::Profile) => profile_fields.push(field_name.clone()),
+                    Some(StampKind::ModuleGraph) => graph_fields.push(field_name.clone()),
                     Some(StampKind::Package) => package_fields.push(field_name.clone()),
                     Some(StampKind::Program) => program_fields.push(field_name.clone()),
                     None => {}
@@ -375,6 +379,7 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
             let mut used_fields = Vec::new();
             used_fields.extend(module_fields.iter().cloned());
             used_fields.extend(profile_fields.iter().cloned());
+            used_fields.extend(graph_fields.iter().cloned());
             used_fields.extend(package_fields.iter().cloned());
             used_fields.extend(program_fields.iter().cloned());
 
@@ -398,6 +403,13 @@ fn define_task_inner(input: DeriveInput) -> Result<TokenStream2> {
                 checks.push(quote! {
                     if !compiler.profile_version_matches(#field.id, #field.version) {
                         return Some(crate::TaskSkipReason::StaleProfileVersion);
+                    }
+                });
+            }
+            for field in &graph_fields {
+                checks.push(quote! {
+                    if !compiler.module_graph_version_matches(#field.profile_id, #field.version) {
+                        return Some(crate::TaskSkipReason::StaleModuleGraphVersion);
                     }
                 });
             }

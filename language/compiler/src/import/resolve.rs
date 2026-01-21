@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_base::StringId;
 use destack_builtin::builtin_lib;
-use destack_resolver::Resolver;
+use destack_resolver::{CachePolicy, Resolver};
 use destack_source::{File, FileType, LanguageType, ModuleId, PackageId, PackageVersion, Uri};
 use destack_workspace::{Loader, Module, ModuleSource, Package, PackageKind, SourceType};
 
@@ -357,9 +357,38 @@ impl Compiler {
         }
 
         // load dsconfig.json for synthetic packages when present
-        let dsconfig = resolver
-            .find_dsconfig(directory)
-            .and_then(|path| resolver.load_dsconfig(&path).ok());
+        let dsconfig = {
+            // walk up directories for dsconfig until a package boundary
+            let mut current = directory.to_path_buf();
+            let mut dsconfig_path = None;
+            loop {
+                let candidate = current.join("dsconfig.json");
+                if resolver
+                    .fs()
+                    .metadata(&candidate)
+                    .is_ok_and(|meta| meta.is_file)
+                {
+                    dsconfig_path = Some(candidate);
+                    break;
+                }
+
+                let package_json_path = current.join("package.json");
+                if resolver
+                    .fs()
+                    .metadata(&package_json_path)
+                    .is_ok_and(|meta| meta.is_file)
+                {
+                    break;
+                }
+
+                let Some(parent) = current.parent() else {
+                    break;
+                };
+                current = parent.to_path_buf();
+            }
+
+            dsconfig_path.and_then(|path| resolver.load_dsconfig(&path, CachePolicy::UseCache).ok())
+        };
 
         // create and insert synthetic package
         let package_name = self.synthetic_package_name(directory);
