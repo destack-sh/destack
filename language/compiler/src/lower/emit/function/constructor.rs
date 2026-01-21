@@ -6,7 +6,8 @@ use destack_mir as mir;
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::emit::{FunctionContext, LocalBinding};
+use crate::lower::emit::FunctionContext;
+use crate::lower::item::LocalBinding;
 use crate::lower::r#type::StructLayout;
 
 /// Track constructor state during function lowering.
@@ -53,15 +54,20 @@ impl FunctionContext<'_> {
             }
         };
 
-        // bind this as a local variable
-        let this_variable = self.state.builder.create_variable(instance_type);
-        self.state
-            .builder
-            .define_variable(this_variable, this_value);
-        self.state.bindings.this_binding = Some(LocalBinding {
-            variable: this_variable,
-            ty: instance_type,
-        });
+        // bind this as a local or variable
+        let this_binding = if self.this_needs_addressable_local() {
+            let local = self
+                .state
+                .builder
+                .create_local(instance_type, mir::Mutability::Immutable);
+            self.state.builder.local_set(local, this_value);
+            LocalBinding::from_local(local, instance_type)
+        } else {
+            let variable = self.state.builder.create_variable(instance_type);
+            self.state.builder.define_variable(variable, this_value);
+            LocalBinding::from_variable(variable, instance_type)
+        };
+        self.state.bindings.this_binding = Some(this_binding);
 
         // track constructor initialization state
         self.state.constructor_state = Some(ConstructorState {
@@ -175,7 +181,7 @@ impl FunctionContext<'_> {
                     node,
                     message: "constructor missing this binding".to_string(),
                 })?;
-        let value = self.state.builder.use_variable(binding.variable);
+        let value = self.binding_value(binding);
         self.state.builder.return_(Some(value));
         Ok(())
     }

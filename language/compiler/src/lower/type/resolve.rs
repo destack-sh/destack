@@ -3,8 +3,9 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::super::{FunctionContext, LocalBinding};
+use super::super::FunctionContext;
 use super::ScalarType;
+use crate::lower::item::{GlobalBinding, LocalBinding};
 
 impl FunctionContext<'_> {
     /// Resolve the MIR type for a typed expression.
@@ -292,6 +293,26 @@ impl FunctionContext<'_> {
                     .into_global_any(self.env.module_id)
                     .into_anchored(Some(self.env.profile)),
                 message: "missing local reference target symbol".to_string(),
+            })?;
+
+        Ok(*binding)
+    }
+
+    /// Resolve a global binding for a symbol reference.
+    pub(crate) fn global_binding_for_symbol(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        target_symbol: GlobalSymbolId,
+    ) -> LowerResult<GlobalBinding> {
+        let binding = self
+            .env
+            .globals_by_symbol
+            .get(&target_symbol)
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                node: expression_id
+                    .into_global_any(self.env.module_id)
+                    .into_anchored(Some(self.env.profile)),
+                message: "unresolved symbol reference".to_string(),
             })?;
 
         Ok(*binding)

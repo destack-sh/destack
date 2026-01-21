@@ -6,7 +6,7 @@ use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::Error;
-use crate::memory::{ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
+use crate::memory::{LocalPointer, ReferenceAddressSpace, ReferenceMeta, Value, ValueTag};
 
 use super::super::decode::{
     ArgumentRange, ConstValue, ControlFlow, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
@@ -147,6 +147,7 @@ fn check_reference_address_space(
 
     let actual_space = match pointer.tag() {
         ValueTag::StackPointer => ReferenceAddressSpace::Stack,
+        ValueTag::LocalPointer => ReferenceAddressSpace::Stack,
         ValueTag::GlobalPointer => ReferenceAddressSpace::Global,
         ValueTag::ManagedReference | ValueTag::RawPointer => ReferenceAddressSpace::Heap,
         _ => {
@@ -1987,6 +1988,39 @@ pub(crate) fn handle_local_set(
     next!(state, block, pc)
 }
 
+/// Handle local address.
+#[inline(always)]
+pub(crate) fn handle_local_addr(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::LocalAddr {
+        dest,
+        local,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // build local pointer
+    let pointer = LocalPointer::new(state.frame_index, *local as usize);
+    let value = Value::local_pointer_with_meta(pointer, *reference);
+
+    // validate reference kind
+    if let Err(error) = check_reference_kind(state, *reference, value) {
+        return ControlFlow::Error(error);
+    }
+
+    // store result
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle global address.
 pub(crate) fn handle_global_addr(
     state: &mut ThreadedState<'_, '_>,
@@ -2256,6 +2290,34 @@ pub(crate) fn handle_load_stack(
     next!(state, block, pc)
 }
 
+/// Handle local pointer load.
+#[inline(always)]
+pub(crate) fn handle_load_local(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Load { dest, pointer } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // load pointer value
+    let ptr = state.get(*pointer);
+
+    // load from local pointer
+    let value = match instruction::load_from_local_pointer(state, ptr) {
+        Ok(v) => v,
+        Err(e) => return ControlFlow::Error(e),
+    };
+
+    // store loaded value
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
 /// Handle global pointer load.
 #[inline(always)]
 pub(crate) fn handle_load_global(
@@ -2382,6 +2444,41 @@ pub(crate) fn handle_store_stack(
 
     // write through stack pointer
     if let Err(e) = instruction::store_to_stack_pointer(state, ptr, val) {
+        return ControlFlow::Error(e);
+    }
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle local pointer store.
+#[inline(always)]
+pub(crate) fn handle_store_local(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::Store {
+        pointer,
+        value,
+        reference,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // validate reference metadata
+    if let Err(error) = check_reference_mutability(state, *reference) {
+        return ControlFlow::Error(error);
+    }
+
+    // load pointer and value
+    let ptr = state.get(*pointer);
+    let val = state.get(*value);
+
+    // store to local pointer
+    if let Err(e) = instruction::store_to_local_pointer(state, ptr, val) {
         return ControlFlow::Error(e);
     }
 

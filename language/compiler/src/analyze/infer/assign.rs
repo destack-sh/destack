@@ -504,10 +504,8 @@ impl Compiler {
                     return Assignability::NotAssignable;
                 }
                 for (target_elem, source_elem) in target_elems.iter().zip(source_elems.iter()) {
-                    let target_elem_readonly =
-                        target_readonly || target_elem.is_readonly;
-                    let source_elem_readonly =
-                        source_readonly || source_elem.is_readonly;
+                    let target_elem_readonly = target_readonly || target_elem.is_readonly;
+                    let source_elem_readonly = source_readonly || source_elem.is_readonly;
                     if !self.tuple_element_readonly_assignable(
                         target_elem_readonly,
                         source_elem_readonly,
@@ -1215,7 +1213,11 @@ impl Compiler {
     }
 
     /// Check readonly assignability for tuple elements.
-    fn tuple_element_readonly_assignable(&self, target_readonly: bool, source_readonly: bool) -> bool {
+    fn tuple_element_readonly_assignable(
+        &self,
+        target_readonly: bool,
+        source_readonly: bool,
+    ) -> bool {
         if source_readonly && !target_readonly {
             return false;
         }

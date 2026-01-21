@@ -1129,11 +1129,8 @@ impl Compiler {
             TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
                 // normalize readonly or const modifiers
                 let right_ty_id = self.unwrap_type_value(right_ty_id, types);
-                let readonly_id = self.materialize_readonly_type(
-                    expression_id.into_any(),
-                    right_ty_id,
-                    types,
-                );
+                let readonly_id =
+                    self.materialize_readonly_type(expression_id.into_any(), right_ty_id, types);
                 types.get_type(readonly_id).clone()
             }
             TypeUnaryOperator::Keyof => {
@@ -2632,15 +2629,13 @@ impl Compiler {
             Type::Array {
                 element: None,
                 is_readonly,
-            } => {
-                types.insert_type_from_any(
-                    Type::Array {
-                        element: None,
-                        is_readonly: *is_readonly,
-                    },
-                    node_id,
-                )
-            }
+            } => types.insert_type_from_any(
+                Type::Array {
+                    element: None,
+                    is_readonly: *is_readonly,
+                },
+                node_id,
+            ),
             Type::Array {
                 element: Some(element_id),
                 is_readonly,

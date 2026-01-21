@@ -1315,6 +1315,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::NodeTree) -> u64
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
+        | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::GlobalConst { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
         mir::Instruction::Load { .. } | mir::Instruction::Store { .. } => INLINE_COST_MEMORY,

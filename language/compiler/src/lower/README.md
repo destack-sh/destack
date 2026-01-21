@@ -1652,6 +1652,9 @@ function @process(v0: ref<borrowed @Point>) -> void { ... }
 function @mutate(v0: ref<borrowed mut @Point>) -> void { ... }
 ```
 
+Lower treats locals, `this`, globals, and member or index access as addressable places for `&expr`.
+Non addressable expressions are materialized into a temporary local before `local.addr` is emitted.
+If the borrow target is a member or index on a reference-like base, Lower uses the base value directly and avoids a spill.
 Borrowing subfields lowers to explicit address projections (`field.addr`, `element.addr`).
 Borrowed references are verified by the borrow check pass in Optimize.
 Borrows are created by `field.addr`, `element.addr`, and by calls that return borrowed references with lifetimes.

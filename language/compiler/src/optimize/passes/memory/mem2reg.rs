@@ -165,16 +165,26 @@ type RenameWorklistEntry = (
 
 /// Find locals that can be promoted to SSA values.
 ///
-/// Currently all locals are promotable since the MIR only supports LocalGet/LocalSet
-/// (no address-taking). If LocalAddr is added in the future, this function should
-/// filter out locals whose address is taken.
+/// Locals whose address is taken are not promotable.
 fn find_promotable_locals(
     function: &mir::Function,
     tree: &mir::NodeTree,
 ) -> HashMap<mir::LocalNodeId<mir::Local>, PromotableLocal> {
+    // collect locals with address taken
+    let mut address_taken = HashSet::new();
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &instruction_id in &block.instructions {
+            if let Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
+                address_taken.insert(*local);
+            }
+        }
+    }
+
     function
         .locals
         .iter()
+        .filter(|local_id| !address_taken.contains(local_id))
         .map(|&local_id| {
             let local = tree.get(local_id);
             (local_id, PromotableLocal { ty: local.ty })

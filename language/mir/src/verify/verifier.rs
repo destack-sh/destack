@@ -954,7 +954,9 @@ impl<'a> Verifier<'a> {
                 // ensure local ids resolve
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
             }
-            Instruction::LocalAddr { local, result_type, .. } => {
+            Instruction::LocalAddr {
+                local, result_type, ..
+            } => {
                 // ensure local ids resolve
                 self.ensure_node_type(NodeType::Local, local.id, anchor)?;
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;

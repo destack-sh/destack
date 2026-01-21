@@ -84,16 +84,15 @@ impl Compiler {
 
         // resolve the well known symbol for this receiver
         let well_known_symbol = self.well_known_symbol_for_type(receiver_ty, types)?;
-        let symbol = if let Some(symbol) =
-            self.get_well_known_type_symbol(profile, well_known_symbol)
-        {
-            symbol
-        } else if matches!(well_known_symbol, WellKnownSymbol::ReadonlyArray) {
-            // fall back to Array when ReadonlyArray is unavailable
-            self.get_well_known_type_symbol(profile, WellKnownSymbol::Array)?
-        } else {
-            return None;
-        };
+        let symbol =
+            if let Some(symbol) = self.get_well_known_type_symbol(profile, well_known_symbol) {
+                symbol
+            } else if matches!(well_known_symbol, WellKnownSymbol::ReadonlyArray) {
+                // fall back to Array when ReadonlyArray is unavailable
+                self.get_well_known_type_symbol(profile, WellKnownSymbol::Array)?
+            } else {
+                return None;
+            };
 
         // build static arguments for array like receivers
         let static_arguments = match receiver_ty {

@@ -418,6 +418,13 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => Some((*destination, *result_type)),
 
+            // local_addr: result type is explicit
+            mir::Instruction::LocalAddr {
+                destination,
+                result_type,
+                ..
+            } => Some((*destination, *result_type)),
+
             // global_const: result type = global's type
             mir::Instruction::GlobalConst {
                 destination,
@@ -803,6 +810,15 @@ impl<'a> FunctionLowerer<'a> {
                 let slot = local_map[local];
                 let store_value = value_map[value];
                 builder.ins().stack_store(store_value, slot, 0);
+            }
+
+            // local_addr: stack_addr (address of stack slot)
+            mir::Instruction::LocalAddr {
+                destination, local, ..
+            } => {
+                let slot = local_map[local];
+                let result = builder.ins().stack_addr(self.pointer_type(), slot, 0);
+                value_map.insert(*destination, result);
             }
 
             // global_addr: symbol_value (get address of mutable global)

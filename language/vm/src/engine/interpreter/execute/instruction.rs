@@ -1,7 +1,8 @@
 use crate::diagnostic::Error;
 use crate::memory::{
-    GlobalPointer, HeapHandle, RawPointer, SlotStorage, StackPointer, Value, ValueTag,
+    GlobalPointer, HeapHandle, LocalPointer, RawPointer, SlotStorage, StackPointer, Value, ValueTag,
 };
+use destack_mir as mir;
 
 use super::super::decode::{ThreadedState, UNKNOWN_ARRAY_LENGTH, UNKNOWN_FIELD_COUNT};
 use crate::telemetry::stat_inc;
@@ -30,6 +31,10 @@ pub(super) fn load_from_pointer(
         ValueTag::StackPointer => {
             let sp = ptr.as_stack_pointer().unwrap();
             load_stack_slot(state, sp, sp.slot_offset)
+        }
+        ValueTag::LocalPointer => {
+            let lp = ptr.as_local_pointer().unwrap();
+            load_local_slot(state, lp, lp.slot_offset)
         }
         ValueTag::GlobalPointer => {
             let global = ptr.as_global_pointer().unwrap();
@@ -66,6 +71,10 @@ pub(super) fn store_to_pointer(
         ValueTag::StackPointer => {
             let sp = ptr.as_stack_pointer().unwrap();
             store_stack_slot(state, sp, sp.slot_offset, val)
+        }
+        ValueTag::LocalPointer => {
+            let lp = ptr.as_local_pointer().unwrap();
+            store_local_slot(state, lp, lp.slot_offset, val)
         }
         ValueTag::GlobalPointer => {
             let global = ptr.as_global_pointer().unwrap();
@@ -133,6 +142,24 @@ pub(super) fn load_from_stack_pointer(
     // resolve pointer
     let sp = ptr.as_stack_pointer().unwrap();
     load_stack_slot(state, sp, sp.slot_offset)
+}
+
+/// Load a value from a local pointer.
+#[inline(always)]
+pub(super) fn load_from_local_pointer(
+    state: &mut ThreadedState<'_, '_>,
+    ptr: Value,
+) -> Result<Value, Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::LocalPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let lp = ptr.as_local_pointer().unwrap();
+    load_local_slot(state, lp, lp.slot_offset)
 }
 
 /// Load a value from a global pointer.
@@ -208,6 +235,25 @@ pub(super) fn store_to_stack_pointer(
     // resolve pointer
     let sp = ptr.as_stack_pointer().unwrap();
     store_stack_slot(state, sp, sp.slot_offset, val)
+}
+
+/// Store a value through a local pointer.
+#[inline(always)]
+pub(super) fn store_to_local_pointer(
+    state: &mut ThreadedState<'_, '_>,
+    ptr: Value,
+    val: Value,
+) -> Result<(), Error> {
+    // validate pointer tag
+    if ptr.tag() != ValueTag::LocalPointer {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ptr:?}"),
+        });
+    }
+
+    // resolve pointer
+    let lp = ptr.as_local_pointer().unwrap();
+    store_local_slot(state, lp, lp.slot_offset, val)
 }
 
 /// Store a value through a global pointer.
@@ -325,6 +371,10 @@ pub(super) fn field_addr(
                 slot_index,
             )))
         }
+        ValueTag::LocalPointer => {
+            let pointer = aggregate.as_local_pointer().unwrap();
+            field_addr_local(state, pointer, index, field_count)
+        }
         ValueTag::GlobalPointer => {
             let global = aggregate.as_global_pointer().unwrap();
             let slot_index = resolve_global_field_slot(state, global, index, field_count)?;
@@ -395,6 +445,21 @@ pub(super) fn field_addr_stack(
     )))
 }
 
+/// Get the address of a field from a local pointer.
+#[inline(always)]
+pub(super) fn field_addr_local(
+    state: &mut ThreadedState<'_, '_>,
+    pointer: LocalPointer,
+    index: u32,
+    field_count: u32,
+) -> Result<Value, Error> {
+    // load the local value
+    let value = load_local_slot(state, pointer, pointer.slot_offset)?;
+
+    // resolve the field address from the value
+    field_addr(state, value, index, field_count)
+}
+
 /// Get the address of a field from a global pointer.
 #[inline(always)]
 pub(super) fn field_addr_global(
@@ -446,6 +511,10 @@ pub(super) fn element_addr(
                 sp.slot,
                 slot_index,
             )))
+        }
+        ValueTag::LocalPointer => {
+            let pointer = array.as_local_pointer().unwrap();
+            element_addr_local(state, pointer, index, array_length)
         }
         ValueTag::GlobalPointer => {
             let global = array.as_global_pointer().unwrap();
@@ -515,6 +584,21 @@ pub(super) fn element_addr_stack(
         pointer.slot,
         slot_index as usize,
     )))
+}
+
+/// Get the address of an element from a local pointer.
+#[inline(always)]
+pub(super) fn element_addr_local(
+    state: &mut ThreadedState<'_, '_>,
+    pointer: LocalPointer,
+    index: u64,
+    array_length: u64,
+) -> Result<Value, Error> {
+    // load the local value
+    let value = load_local_slot(state, pointer, pointer.slot_offset)?;
+
+    // resolve the element address from the value
+    element_addr(state, value, index, array_length)
 }
 
 /// Get the address of an element from a global pointer.
@@ -2953,6 +3037,31 @@ fn load_stack_slot(
     })
 }
 
+/// Load a local slot from a frame.
+#[inline(always)]
+fn load_local_slot(
+    state: &mut ThreadedState<'_, '_>,
+    pointer: LocalPointer,
+    slot_offset: usize,
+) -> Result<Value, Error> {
+    // reject non zero offsets
+    if slot_offset != 0 {
+        return Err(Error::InvalidFieldAccess {
+            index: slot_offset as u32,
+            field_count: 1,
+        });
+    }
+
+    // resolve the target frame
+    let frame = state.frame_by_index(pointer.frame_idx)?;
+
+    // resolve the local id
+    let local = mir::LocalNodeId::new(pointer.local as u32);
+
+    // read the local slot
+    frame.get_local_or_error(&state.interpreter.engine.local_stack, local)
+}
+
 /// Store a slot into a stack allocation.
 #[inline(always)]
 fn store_stack_slot(
@@ -2995,4 +3104,46 @@ fn store_stack_slot(
         index: slot_index as u32,
         field_count: cell.slots.len(),
     })
+}
+
+/// Store a local slot into a frame.
+#[inline(always)]
+fn store_local_slot(
+    state: &mut ThreadedState<'_, '_>,
+    pointer: LocalPointer,
+    slot_offset: usize,
+    value: Value,
+) -> Result<(), Error> {
+    // reject non zero offsets
+    if slot_offset != 0 {
+        return Err(Error::InvalidFieldAccess {
+            index: slot_offset as u32,
+            field_count: 1,
+        });
+    }
+
+    // resolve the target frame
+    let (local_base, local_count) = {
+        let frame = state.frame_by_index(pointer.frame_idx)?;
+        (frame.local_base, frame.local_count)
+    };
+
+    // resolve the local id
+    let local = mir::LocalNodeId::new(pointer.local as u32);
+    let local_index = local.id as usize;
+
+    // validate local bounds
+    if local_index >= local_count {
+        return Err(Error::UndefinedLocal { local });
+    }
+
+    // write the local slot
+    let slot = local_base + local_index;
+    let locals = &mut state.interpreter.engine.local_stack;
+    let Some(target) = locals.get_mut(slot) else {
+        return Err(Error::UndefinedLocal { local });
+    };
+    *target = value;
+
+    Ok(())
 }

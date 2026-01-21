@@ -108,9 +108,10 @@ impl ModuleAst {
 
         // insert a synthetic literal anchored at the file start
         let span = Span::empty(file_id);
-        let anchor_id = self
-            .tree
-            .insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)), span);
+        let anchor_id = self.tree.insert(
+            ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
+            span,
+        );
         self.parents.append_root();
         self.anchor_expression = Some(anchor_id);
 

@@ -58,14 +58,7 @@ impl Compiler {
             .copied()
             .map(dir::LocalNodeId::into_any)
             .unwrap_or(dir.anchor_node);
-        self.unbind_module_from_parts(
-            module,
-            &tree,
-            &symbols,
-            &dir.roots,
-            fallback_node,
-            profile,
-        )
+        self.unbind_module_from_parts(module, &tree, &symbols, &dir.roots, fallback_node, profile)
     }
 
     /// Unbind module parts into an AST tree.

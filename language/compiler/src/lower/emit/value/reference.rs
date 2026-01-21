@@ -4,7 +4,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{LowerError, LowerResult};
 
 use crate::lower::emit::FunctionContext;
-use crate::lower::item::lower_mutability;
+use crate::lower::item::{LocalStorage, lower_mutability};
 
 impl FunctionContext<'_> {
     /// Lower a borrow expression to a reference value.
@@ -16,19 +16,82 @@ impl FunctionContext<'_> {
     ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the reference result type
         let pointee_type = self.lower_type_for_expression(right)?;
-        let mutability = mutability
+        let mir_mutability = mutability
             .map(lower_mutability)
             .unwrap_or(mir::Mutability::Immutable);
         let result_type = self.state.builder.type_reference(
             mir::ReferenceKind::Borrowed,
             pointee_type,
-            mutability,
+            mir_mutability,
             mir::AddressSpace::Generic,
             false,
         );
 
-        // FUGU #Incomplete: support local addr so direct reference borrows can lower
+        // lower the reference target to an address when possible
         match self.env.dir_tree.get(right) {
+            Expression::Parenthesized { expression } => {
+                self.lower_reference_of_expression(expression_id, mutability, *expression)
+            }
+            Expression::LocalReference { target_symbol, .. } => {
+                let binding = self.local_binding_for_symbol(right, *target_symbol)?;
+                match binding.storage {
+                    LocalStorage::Local(local) => {
+                        let value = self.state.builder.local_addr(local, result_type);
+                        Ok((value, result_type))
+                    }
+                    LocalStorage::Variable(_) => Err(LowerError::Internal {
+                        module: self.env.module_id,
+                        message: "local borrow requires addressable storage".to_string(),
+                    }),
+                }
+            }
+            Expression::This => {
+                let binding = self.state.bindings.this_binding.ok_or_else(|| {
+                    LowerError::UnsupportedConstruct {
+                        node: expression_id
+                            .into_global_any(self.env.module_id)
+                            .into_anchored(Some(self.env.profile)),
+                        message: "this reference outside of method context".to_string(),
+                    }
+                })?;
+                match binding.storage {
+                    LocalStorage::Local(local) => {
+                        let value = self.state.builder.local_addr(local, result_type);
+                        Ok((value, result_type))
+                    }
+                    LocalStorage::Variable(_) => Err(LowerError::Internal {
+                        module: self.env.module_id,
+                        message: "this borrow requires addressable storage".to_string(),
+                    }),
+                }
+            }
+            Expression::ModuleReference { target_symbol, .. }
+            | Expression::GlobalReference { target_symbol, .. } => {
+                if let Some(binding) = self
+                    .state
+                    .bindings
+                    .locals_by_symbol
+                    .get(target_symbol)
+                    .copied()
+                {
+                    match binding.storage {
+                        LocalStorage::Local(local) => {
+                            let value = self.state.builder.local_addr(local, result_type);
+                            return Ok((value, result_type));
+                        }
+                        LocalStorage::Variable(_) => {
+                            return Err(LowerError::Internal {
+                                module: self.env.module_id,
+                                message: "local borrow requires addressable storage".to_string(),
+                            });
+                        }
+                    }
+                }
+
+                let global = self.global_binding_for_symbol(expression_id, *target_symbol)?;
+                let value = self.state.builder.global_addr(global.global, result_type);
+                Ok((value, result_type))
+            }
             Expression::Member {
                 left,
                 name,
@@ -106,12 +169,14 @@ impl FunctionContext<'_> {
                     .element_addr(array_value, index_value, result_type);
                 Ok((value, result_type))
             }
-            _ => Err(LowerError::UnsupportedConstruct {
-                node: expression_id
-                    .into_global_any(self.env.module_id)
-                    .into_anchored(Some(self.env.profile)),
-                message: "unsupported borrow target".to_string(),
-            }),
+            _ => {
+                // lower rvalue borrows by spilling into a temporary
+                let (value, value_type) = self.lower_value_expression(right)?;
+                let local = self.state.builder.create_local(value_type, mir_mutability);
+                self.state.builder.local_set(local, value);
+                let value = self.state.builder.local_addr(local, result_type);
+                Ok((value, result_type))
+            }
         }
     }
 

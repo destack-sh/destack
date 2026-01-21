@@ -243,17 +243,19 @@ impl ModuleLowerer<'_> {
                         self.lower_type(element.ty)
                     })
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                let mut tuple_id = self
-                    .tree
-                    .insert_from_source_any(Type::Tuple { elements }, self.module.id, source_id);
+                let mut tuple_id = self.tree.insert_from_source_any(
+                    Type::Tuple { elements },
+                    self.module.id,
+                    source_id,
+                );
                 if *is_readonly {
                     let readonly = Type::Unary {
                         operator: TypeUnaryOperator::Readonly,
                         right: tuple_id,
                     };
-                    tuple_id = self
-                        .tree
-                        .insert_from_source_any(readonly, self.module.id, source_id);
+                    tuple_id =
+                        self.tree
+                            .insert_from_source_any(readonly, self.module.id, source_id);
                 }
                 tuple_id
             }

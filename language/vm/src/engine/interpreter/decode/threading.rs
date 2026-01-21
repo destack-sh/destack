@@ -28,6 +28,8 @@ enum PointerStorage {
     Raw,
     /// Stack pointer.
     Stack,
+    /// Local pointer.
+    Local,
     /// Global pointer.
     Global,
     /// Unknown pointer storage.
@@ -399,6 +401,10 @@ fn select_load_handler(value_kinds: &ValueKinds, pointer: mir::Value) -> Threade
             ..
         }) => dispatch::handle_load_stack,
         Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_load_local,
+        Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
         }) => dispatch::handle_load_global,
@@ -421,6 +427,10 @@ fn select_store_handler(value_kinds: &ValueKinds, pointer: mir::Value) -> Thread
             storage: PointerStorage::Stack,
             ..
         }) => dispatch::handle_store_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_store_local,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
@@ -457,6 +467,10 @@ fn select_field_addr_handler(value_kinds: &ValueKinds, aggregate: mir::Value) ->
             ..
         }) => dispatch::handle_field_addr_stack,
         Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_field_addr,
+        Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
         }) => dispatch::handle_field_addr_global,
@@ -483,6 +497,10 @@ fn select_element_addr_handler(value_kinds: &ValueKinds, array: mir::Value) -> T
             ..
         }) => dispatch::handle_element_addr_stack,
         Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_element_addr,
+        Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
         }) => dispatch::handle_element_addr_global,
@@ -506,6 +524,10 @@ fn select_field_load_handler(value_kinds: &ValueKinds, aggregate: mir::Value) ->
             storage: PointerStorage::Stack,
             ..
         }) => dispatch::handle_field_load_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_field_load,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
@@ -545,6 +567,10 @@ fn select_field_store_handler(
             ..
         }) => dispatch::handle_field_store_stack,
         Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_field_store,
+        Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
         }) => dispatch::handle_field_store_global,
@@ -571,6 +597,10 @@ fn select_element_load_handler(value_kinds: &ValueKinds, array: mir::Value) -> T
             ..
         }) => dispatch::handle_element_load_stack,
         Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_element_load,
+        Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
         }) => dispatch::handle_element_load_global,
@@ -596,6 +626,10 @@ fn select_element_store_handler(value_kinds: &ValueKinds, array: mir::Value) -> 
             storage: PointerStorage::Stack,
             ..
         }) => dispatch::handle_element_store_stack,
+        Some(ValueKind::Pointer {
+            storage: PointerStorage::Local,
+            ..
+        }) => dispatch::handle_element_store,
         Some(ValueKind::Pointer {
             storage: PointerStorage::Global,
             ..
@@ -1576,6 +1610,23 @@ fn thread_instruction(
             }
         }
 
+        mir::Instruction::LocalAddr {
+            destination, local, ..
+        } => {
+            let local_index = match local_index_by_id.get(local) {
+                Some(index) => *index,
+                None => panic!("missing local index for {local:?}"),
+            };
+            ThreadedInstruction {
+                handler: dispatch::handle_local_addr,
+                data: ThreadedInstructionData::LocalAddr {
+                    dest: *destination,
+                    local: local_index,
+                    reference: reference_meta_for_value(value_kinds, *destination),
+                },
+            }
+        }
+
         mir::Instruction::LocalSet { local, value } => {
             let local_index = match local_index_by_id.get(local) {
                 Some(index) => *index,
@@ -2068,6 +2119,14 @@ fn infer_instruction_kind(
         mir::Instruction::LocalGet { local, .. } => {
             let local = tree.get(*local);
             Some(kind_from_type(tree, local.ty))
+        }
+        mir::Instruction::LocalAddr { result_type, .. } => {
+            let mut kind = kind_from_type(tree, *result_type);
+            let ValueKind::Pointer { storage, .. } = &mut kind else {
+                return None;
+            };
+            *storage = PointerStorage::Local;
+            Some(kind)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
             Some(kind_from_type(tree, *result_type))

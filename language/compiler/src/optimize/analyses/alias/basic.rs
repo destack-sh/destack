@@ -136,6 +136,7 @@ impl BasicAA {
         match (base_a, base_b) {
             // different allocation instructions
             (PointerBase::StackAlloc(a), PointerBase::StackAlloc(b)) => a != b,
+            (PointerBase::Local(a), PointerBase::Local(b)) => a != b,
             (PointerBase::ManagedAlloc(a), PointerBase::ManagedAlloc(b)) => a != b,
             (PointerBase::RawAlloc(a), PointerBase::RawAlloc(b)) => a != b,
 
@@ -148,7 +149,13 @@ impl BasicAA {
             | (PointerBase::StackAlloc(_), PointerBase::RawAlloc(_))
             | (PointerBase::RawAlloc(_), PointerBase::StackAlloc(_))
             | (PointerBase::ManagedAlloc(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::ManagedAlloc(_)) => true,
+            | (PointerBase::RawAlloc(_), PointerBase::ManagedAlloc(_))
+            | (PointerBase::Local(_), PointerBase::StackAlloc(_))
+            | (PointerBase::StackAlloc(_), PointerBase::Local(_))
+            | (PointerBase::Local(_), PointerBase::ManagedAlloc(_))
+            | (PointerBase::ManagedAlloc(_), PointerBase::Local(_))
+            | (PointerBase::Local(_), PointerBase::RawAlloc(_))
+            | (PointerBase::RawAlloc(_), PointerBase::Local(_)) => true,
 
             // globals vs local allocations
             (PointerBase::Global(_), PointerBase::StackAlloc(_))
@@ -156,7 +163,9 @@ impl BasicAA {
             | (PointerBase::Global(_), PointerBase::ManagedAlloc(_))
             | (PointerBase::ManagedAlloc(_), PointerBase::Global(_))
             | (PointerBase::Global(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::Global(_)) => true,
+            | (PointerBase::RawAlloc(_), PointerBase::Global(_))
+            | (PointerBase::Global(_), PointerBase::Local(_))
+            | (PointerBase::Local(_), PointerBase::Global(_)) => true,
 
             _ => false,
         }
@@ -825,7 +834,9 @@ impl BasicAA {
 
         // map known bases to memory location sets
         match decomposed.base {
-            PointerBase::StackAlloc(_) => Some(mir::MemoryLocationSet::STACK),
+            PointerBase::StackAlloc(_) | PointerBase::Local(_) => {
+                Some(mir::MemoryLocationSet::STACK)
+            }
             PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
                 Some(mir::MemoryLocationSet::HEAP)
             }
@@ -854,7 +865,7 @@ impl BasicAA {
 
         // map known bases to address spaces
         match decomposed.base {
-            PointerBase::StackAlloc(_) => Some(mir::AddressSpace::Stack),
+            PointerBase::StackAlloc(_) | PointerBase::Local(_) => Some(mir::AddressSpace::Stack),
             PointerBase::ManagedAlloc(_) | PointerBase::RawAlloc(_) => {
                 Some(mir::AddressSpace::Heap)
             }
