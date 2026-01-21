@@ -102,8 +102,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             }
             // follow type wrappers
             dir::Type::Value { value } => self.has_useful_to_string(*value),
-            dir::Type::Mutable { right, .. }
-            | dir::Type::ValueOf { right, .. }
+            dir::Type::ValueOf { right, .. }
             | dir::Type::ReferenceOf { right, .. }
             | dir::Type::PointerOf { right, .. } => self.has_useful_to_string(*right),
             // unions are safe if all elements have useful toString

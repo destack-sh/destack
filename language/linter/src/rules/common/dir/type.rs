@@ -99,8 +99,7 @@ fn is_strict_boolean_type_inner(
                 | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
         ),
         dir::Type::Value { value } => is_strict_boolean_type_inner(types, *value, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => {
             is_strict_boolean_type_inner(types, *right, visited)
@@ -146,8 +145,7 @@ fn is_array_type_inner(
     match ty {
         dir::Type::Array { .. } | dir::Type::ArraySized { .. } | dir::Type::Tuple { .. } => true,
         dir::Type::Value { value } => is_array_type_inner(types, *value, array_symbol, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => {
             is_array_type_inner(types, *right, array_symbol, visited)
@@ -208,8 +206,7 @@ fn is_string_type_inner(
         ),
         dir::Type::TemplateLiteral { .. } => true,
         dir::Type::Value { value } => is_string_type_inner(types, *value, string_symbol, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => {
             is_string_type_inner(types, *right, string_symbol, visited)
@@ -276,8 +273,7 @@ fn is_float_type_inner(
                 | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
         ),
         dir::Type::Value { value } => is_float_type_inner(types, *value, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => is_float_type_inner(types, *right, visited),
         dir::Type::Union { elements } => elements
@@ -323,8 +319,7 @@ fn is_function_type_inner(
             call_signatures, ..
         } => !call_signatures.is_empty(),
         dir::Type::Value { value } => is_function_type_inner(types, *value, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => is_function_type_inner(types, *right, visited),
         dir::Type::Union { elements } => elements
@@ -372,8 +367,7 @@ fn is_async_function_type_inner(
             .iter()
             .any(|signature| is_async_function_type_inner(types, *signature, visited)),
         dir::Type::Value { value } => is_async_function_type_inner(types, *value, visited),
-        dir::Type::Mutable { right, .. }
-        | dir::Type::ValueOf { right, .. }
+        dir::Type::ValueOf { right, .. }
         | dir::Type::ReferenceOf { right, .. }
         | dir::Type::PointerOf { right, .. } => {
             is_async_function_type_inner(types, *right, visited)
