@@ -270,6 +270,13 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
                     list_item_text.push_str(&text);
                 }
             }
+            Event::Html(html) | Event::InlineHtml(html) => {
+                if in_heading {
+                    heading_text.push_str(&html);
+                } else if in_list_item {
+                    list_item_text.push_str(&html);
+                }
+            }
             Event::Code(code) => {
                 if in_heading {
                     heading_text.push_str(&code);
