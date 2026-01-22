@@ -77,6 +77,8 @@ pub struct TypeMappedModifiers {
 pub struct TypeMappedParameter {
     /// The parameter name (like `K`).
     pub name: StringId,
+    /// The parameter symbol.
+    pub symbol: GlobalSymbolId,
     /// The constraint type (like `keyof T`).
     pub constraint: LocalTypeId,
     /// The optional key remap (like `as Foo<K>`).
@@ -132,8 +134,7 @@ pub enum Type {
 
     /// Type conditional expression.
     Conditional {
-        /// Whether the conditional distributes over unions.
-        distributive: bool,
+        distributive_symbol: Option<GlobalSymbolId>,
         left: LocalTypeId,
         right: LocalTypeId,
         then_type: LocalTypeId,
