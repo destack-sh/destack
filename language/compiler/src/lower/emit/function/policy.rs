@@ -40,6 +40,7 @@ impl RuntimeCheckConfig {
         }
     }
 
+
     /// Return true when a policy is enabled for the current debug mode.
     fn policy_enabled<T>(policy: T, debug: bool) -> bool
     where

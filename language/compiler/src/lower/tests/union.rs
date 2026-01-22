@@ -390,12 +390,16 @@ function isA(value: { kind: "b", value: int32 } | { kind: "a", value: int32 }): 
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
+    let string_alias = test.string_type_alias_definition();
+    let string_a_name = test.string_literal_global_name("a");
+    let string_b_name = test.string_literal_global_name("b");
+
     // assert the lowered mir
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let expected = r#"
 type @test/test:isA#parameter:value#union = { @tag: u8, @payload: ref<managed void> }
+${string_alias}
+global @${string_a}: ref<managed @String> = "a" ; const
+global @${string_b}: ref<managed @String> = "b" ; const
 function @isA(v0: @test/test:isA#parameter:value#union) -> bool {
 block0(v0: @test/test:isA#parameter:value#union):
     v1 = field.get v0, 0
@@ -403,8 +407,11 @@ block0(v0: @test/test:isA#parameter:value#union):
     v3 = icmp_eq v1, v2
     return v3
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${string_a}", &string_a_name);
+    let expected = expected.replace("${string_b}", &string_b_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Lower boolean discriminant comparisons to tag checks.

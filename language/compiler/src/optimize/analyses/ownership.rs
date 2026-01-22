@@ -434,7 +434,6 @@ impl TypeLookup {
             ConstantType::Int { width, signed } => self.int(u16::from(width), signed),
             ConstantType::Float { width } => self.float(u16::from(width)),
             ConstantType::Char => self.int(32, false),
-            ConstantType::String => None,
         };
 
         if direct.is_some() {
@@ -1746,7 +1745,6 @@ fn constant_type_key(constant_type: ConstantType) -> Option<TypeKey> {
             width: 32,
             signed: false,
         }),
-        ConstantType::String => None,
     }
 }
 
@@ -1765,7 +1763,6 @@ fn constant_type_for_value(constant: &mir::Constant) -> Option<ConstantType> {
             signed: false,
         }),
         mir::Constant::Float { width, .. } => Some(ConstantType::Float { width: *width }),
-        mir::Constant::String { .. } => Some(ConstantType::String),
         mir::Constant::Char { .. } => Some(ConstantType::Char),
     }
 }

@@ -11,7 +11,6 @@ use crate::{
 use super::Variable;
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
-///
 /// Implements the algorithm from
 ///  - "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al., 2013)
 ///    <https://c9x.me/compile/bib/braun13cc.pdf>
@@ -30,7 +29,6 @@ use super::Variable;
 ///
 /// The algorithm works by tracking variable definitions per-block and lazily constructing
 /// block parameters (φ-functions) when a variable is used. Key features:
-///
 /// - **Local Value Numbering**: If a variable is defined in the current block, return that value.
 /// - **Global Value Numbering**: Otherwise, recursively look up the value from predecessors.
 /// - **Block Parameters**: Created at join points where different predecessors have different values.
@@ -877,18 +875,6 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Const {
             destination,
             value: Constant::Float { bits, width },
-        });
-        destination
-    }
-
-    /// Insert a string constant.
-    pub fn sconst(&mut self, value: impl Into<String>) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::Const {
-            destination,
-            value: Constant::String {
-                value: value.into(),
-            },
         });
         destination
     }

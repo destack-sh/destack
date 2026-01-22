@@ -215,7 +215,6 @@ impl<'a> Dumper<'a> {
                     format!("{}f64", f64::from_bits(*bits))
                 }
             }
-            Constant::String { value } => format!("{value:?}"),
             Constant::Char { value } => format!("{value:?}"),
         }
     }
@@ -1298,8 +1297,29 @@ impl<'a> Dumper<'a> {
         match init {
             GlobalInitializer::Zero => self.write("zeroinit"),
             GlobalInitializer::Scalar(constant) => self.write(&self.format_constant(constant)),
-            GlobalInitializer::Bytes(bytes) => {
+            GlobalInitializer::String(value) => {
                 self.write("\"");
+                for ch in value.chars() {
+                    if ch == '"' {
+                        self.write("\\\"");
+                    } else if ch == '\\' {
+                        self.write("\\\\");
+                    } else if ch == '\n' {
+                        self.write("\\n");
+                    } else if ch == '\r' {
+                        self.write("\\r");
+                    } else if ch == '\t' {
+                        self.write("\\t");
+                    } else if ch.is_ascii_graphic() || ch == ' ' {
+                        self.write(&ch.to_string());
+                    } else {
+                        self.write(&format!("\\u{{{:x}}}", ch as u32));
+                    }
+                }
+                self.write("\"");
+            }
+            GlobalInitializer::Bytes(bytes) => {
+                self.write("b\"");
                 for byte in bytes {
                     self.write(&format!("\\x{byte:02x}"));
                 }

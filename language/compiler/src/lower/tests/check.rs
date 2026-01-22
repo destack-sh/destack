@@ -26,10 +26,12 @@ function sum(a: int32, b: int32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let integer_overflow_name = test.string_literal_global_name("integer overflow");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
+
 function @sum(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = intrinsic.add.overflow(v0, v1)
@@ -38,14 +40,16 @@ block0(v0: i32, v1: i32):
     v5 = bnot v4
     check v5, overflow.signed.iadd v0, v1, block2, block1
 block1:
-    v6 = iconst "integer overflow"
+    v6 = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
     return v3
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${integer_overflow}", &integer_overflow_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit overflow checks with abort failure policy.
@@ -109,10 +113,12 @@ function sum(a: uint32, b: uint32): uint32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let integer_overflow_name = test.string_literal_global_name("integer overflow");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${integer_overflow}: ref<managed @String> = "integer overflow" ; const
+
 function @sum(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = intrinsic.add.overflow(v0, v1)
@@ -121,14 +127,16 @@ block0(v0: u32, v1: u32):
     v5 = bnot v4
     check v5, overflow.unsigned.iadd v0, v1, block2, block1
 block1:
-    v6 = iconst "integer overflow"
+    v6 = global.const @${integer_overflow}
     intrinsic.panic(v6)
     unreachable
 block2:
     return v3
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${integer_overflow}", &integer_overflow_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Skip overflow checks when disabled.
@@ -184,17 +192,21 @@ function quotient(a: int32, b: int32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let division_by_zero_name = test.string_literal_global_name("division by zero");
+    let division_overflow_name = test.string_literal_global_name("division overflow");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${division_by_zero}: ref<managed @String> = "division by zero" ; const
+global @${division_overflow}: ref<managed @String> = "division overflow" ; const
+
 function @quotient(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 0i32
     v3 = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4 = iconst "division by zero"
+    v4 = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
@@ -206,15 +218,19 @@ block2:
     v10 = bnot v9
     check v10, overflow.signed.sdiv v0, v1, block4, block3
 block3:
-    v11 = iconst "division overflow"
+    v11 = global.const @${division_overflow}
     intrinsic.panic(v11)
     unreachable
 block4:
     v12 = sdiv v0, v1
     return v12
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected
+        .replace("${division_by_zero}", &division_by_zero_name)
+        .replace("${division_overflow}", &division_overflow_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit division checks with trap failure policy.
@@ -286,25 +302,33 @@ function quotient(a: uint32, b: uint32): uint32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let division_by_zero_name = test.string_literal_global_name("division by zero");
+    let division_overflow_name = test.string_literal_global_name("division overflow");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${division_by_zero}: ref<managed @String> = "division by zero" ; const
+global @${division_overflow}: ref<managed @String> = "division overflow" ; const
+
 function @quotient(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = iconst 0u32
     v3 = icmp_ne v1, v2
     check v3, div_zero v1, block2, block1
 block1:
-    v4 = iconst "division by zero"
+    v4 = global.const @${division_by_zero}
     intrinsic.panic(v4)
     unreachable
 block2:
     v5 = udiv v0, v1
     return v5
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected
+        .replace("${division_by_zero}", &division_by_zero_name)
+        .replace("${division_overflow}", &division_overflow_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit shift range checks for integer shifts when configured.
@@ -327,10 +351,12 @@ function shift(value: int32, amount: int32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let shift_out_of_range_name = test.string_literal_global_name("shift out of range");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; const
+
 function @shift(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
     v2 = iconst 32i32
@@ -340,15 +366,17 @@ block0(v0: i32, v1: i32):
     v6 = band v4, v5
     check v6, shift.signed v1, 32, block2, block1
 block1:
-    v7 = iconst "shift out of range"
+    v7 = global.const @${shift_out_of_range}
     intrinsic.panic(v7)
     unreachable
 block2:
     v8 = ishl v0, v1
     return v8
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${shift_out_of_range}", &shift_out_of_range_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit shift range checks with abort failure policy.
@@ -414,25 +442,29 @@ function shift(value: uint32, amount: uint32): uint32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let shift_out_of_range_name = test.string_literal_global_name("shift out of range");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${shift_out_of_range}: ref<managed @String> = "shift out of range" ; const
+
 function @shift(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
     v2 = iconst 32u32
     v3 = icmp_ult v1, v2
     check v3, shift.unsigned v1, 32, block2, block1
 block1:
-    v4 = iconst "shift out of range"
+    v4 = global.const @${shift_out_of_range}
     intrinsic.panic(v4)
     unreachable
 block2:
     v5 = ishl v0, v1
     return v5
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${shift_out_of_range}", &shift_out_of_range_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit bounds checks for array access when configured.
@@ -455,10 +487,12 @@ function element(values: int32[4], index: int32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let bounds_check_name = test.string_literal_global_name("bounds check failed");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+
 function @element(v0: [i32; 4], v1: i32) -> i32 {
 block0(v0: [i32; 4], v1: i32):
     v2 = iconst 4i32
@@ -468,15 +502,17 @@ block0(v0: [i32; 4], v1: i32):
     v6 = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7 = iconst "bounds check failed"
+    v7 = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
     v8 = element.get v0, v1
     return v8
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${bounds_check_failed}", &bounds_check_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Emit bounds checks with trap failure policy.
@@ -541,25 +577,29 @@ function element(values: int32[4], index: uint32): int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let bounds_check_name = test.string_literal_global_name("bounds check failed");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+
 function @element(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
     v2 = iconst 4u32
     v3 = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block2, block1
 block1:
-    v4 = iconst "bounds check failed"
+    v4 = global.const @${bounds_check_failed}
     intrinsic.panic(v4)
     unreachable
 block2:
     v5 = element.get v0, v1
     return v5
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${bounds_check_failed}", &bounds_check_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Apply no managed allocation mode when requested by decorators.

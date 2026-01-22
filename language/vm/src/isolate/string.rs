@@ -37,31 +37,21 @@ impl StringInterner {
             return Value::string(handle);
         }
 
-        // compute UTF-8 byte length
+        // compute and validate metadata
         let length_bytes = value.len();
-
-        // compute UTF-16 code unit length
         let length_utf16 = value.encode_utf16().count();
-
-        // validate length bounds for string metadata
         if length_bytes > u32::MAX as usize || length_utf16 > u32::MAX as usize {
             panic!("string literal exceeds u32 length limits");
         }
-
-        // materialize length fields
         let length_bytes = length_bytes as u32;
         let length_utf16 = length_utf16 as u32;
-
-        // compute string flags for literal storage
         let mut flags = STRING_FLAG_IS_INTERNED | STRING_FLAG_IS_STATIC;
         if value.is_ascii() {
             flags |= STRING_FLAG_IS_ASCII;
         }
 
-        // allocate raw UTF-8 payload
+        // allocate
         let data = Self::allocate_string_bytes(raw_heap, value.as_bytes());
-
-        // allocate the managed string header
         let handle = Self::allocate_string_cell(
             managed_heap,
             length_utf16,
@@ -72,7 +62,7 @@ impl StringInterner {
             data,
         );
 
-        // record interned handle and payload buffer
+        // record
         self.literals.insert(value.to_string(), handle);
         if !data.is_null() {
             self.buffers.insert(handle, data);
@@ -88,7 +78,7 @@ impl StringInterner {
         raw_heap: &RawHeap,
         value: Value,
     ) -> Result<String, Error> {
-        // ensure the value is a string handle
+        // ensure the value is a string
         let handle = match value.tag() {
             ValueTag::String => value.as_heap_handle().unwrap(),
             _ => {
@@ -99,7 +89,7 @@ impl StringInterner {
             }
         };
 
-        // load string from the managed handle
+        // load
         self.string_value_for_handle(managed_heap, raw_heap, handle)
     }
 

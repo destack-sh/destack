@@ -1130,11 +1130,6 @@ fn try_fuse_const_binary(
         return None;
     }
 
-    // skip string constants that require runtime allocation
-    if matches!(value, mir::Constant::String { .. }) {
-        return None;
-    }
-
     // load next instruction and check if it's a binary using our constant
     let next_inst = tree.get(next_inst_id);
     let mir::Instruction::Binary {
@@ -1262,11 +1257,6 @@ fn try_fuse_compare_branch(
     {
         let prev_inst = tree.get(*prev_inst_id);
         if let mir::Instruction::Const { destination, value } = prev_inst {
-            // skip string constants for fused compares
-            if matches!(value, mir::Constant::String { .. }) {
-                return None;
-            }
-
             let uses = value_uses.get(destination.0 as usize).copied().unwrap_or(0);
             if uses == 1 {
                 if *destination == *right {
@@ -1430,7 +1420,7 @@ fn thread_instruction(
             handler: dispatch::handle_const,
             data: ThreadedInstructionData::Const {
                 dest: *destination,
-                value: const_value_from_constant(value),
+                value: ConstValue::Value(Value::from(value)),
             },
         },
 
@@ -2304,17 +2294,7 @@ fn kind_from_constant(constant: &mir::Constant) -> ValueKind {
             signed: false,
         },
         mir::Constant::Float { width, .. } => ValueKind::Float { width: *width },
-        mir::Constant::String { .. } => ValueKind::Unknown,
         mir::Constant::Char { .. } => ValueKind::Char,
-    }
-}
-
-/// Convert a MIR constant into threaded constant data.
-fn const_value_from_constant(constant: &mir::Constant) -> ConstValue {
-    // select constant representation
-    match constant {
-        mir::Constant::String { value } => ConstValue::String(value.clone()),
-        _ => ConstValue::Value(Value::from(constant)),
     }
 }
 

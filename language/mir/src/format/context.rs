@@ -68,6 +68,7 @@ impl MirFormatOptions {
         self.type_alias_min_uses = value;
         self
     }
+
 }
 
 impl FormatOptions for MirFormatOptions {

@@ -223,9 +223,10 @@ block0:
 #[test]
 fn test_roundtrip_string_constant() {
     roundtrip(
-        r#"function @stringTest() -> void {
+        r#"global @literal:string:hello_world: ref<managed void> = "hello world" ; const
+function @stringTest() -> void {
 block0:
-    v0 = iconst "hello world"
+    v0 = global.const @literal:string:hello_world
     return
 }"#,
     );
@@ -234,9 +235,10 @@ block0:
 #[test]
 fn test_roundtrip_string_with_escapes() {
     roundtrip(
-        r#"function @escapeTest() -> void {
+        r#"global @literal:string:hello_world_nl: ref<managed void> = "hello\nworld" ; const
+function @escapeTest() -> void {
 block0:
-    v0 = iconst "hello\nworld"
+    v0 = global.const @literal:string:hello_world_nl
     return
 }"#,
     );

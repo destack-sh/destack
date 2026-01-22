@@ -3,13 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use super::FunctionContext;
-
-// check failure messages
-const DIVISION_CHECK_MESSAGE: &str = "division by zero";
-const DIVISION_OVERFLOW_MESSAGE: &str = "division overflow";
-const OVERFLOW_CHECK_MESSAGE: &str = "integer overflow";
-const SHIFT_CHECK_MESSAGE: &str = "shift out of range";
+use super::{FunctionContext, RUNTIME_CHECK_MESSAGES};
 
 impl FunctionContext<'_> {
     /// Lower a binary expression.
@@ -155,7 +149,7 @@ impl FunctionContext<'_> {
             right: right_value,
             is_signed,
         };
-        self.emit_check(condition, constraint, OVERFLOW_CHECK_MESSAGE);
+        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.integer_overflow)?;
 
         Ok(result)
     }
@@ -192,7 +186,7 @@ impl FunctionContext<'_> {
         let constraint = mir::CheckConstraint::DivZero {
             divisor: right_value,
         };
-        self.emit_check(condition, constraint, DIVISION_CHECK_MESSAGE);
+        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.division_by_zero)?;
 
         // emit signed min / -1 overflow checks
         if is_signed {
@@ -232,7 +226,7 @@ impl FunctionContext<'_> {
                 right: right_value,
                 is_signed,
             };
-            self.emit_check(condition, constraint, DIVISION_OVERFLOW_MESSAGE);
+            self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.division_overflow)?;
         }
 
         Ok(())
@@ -307,7 +301,7 @@ impl FunctionContext<'_> {
             bit_width,
             is_signed: shift_signed,
         };
-        self.emit_check(condition, constraint, SHIFT_CHECK_MESSAGE);
+        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.shift_out_of_range)?;
 
         Ok(())
     }

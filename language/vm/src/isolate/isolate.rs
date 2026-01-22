@@ -50,7 +50,6 @@ impl Isolate {
         {
             let mut context = interpreter.context(&mut state);
             context.initialize_globals()?;
-            context.pre_intern_threaded_strings();
         }
 
         Ok(Self {

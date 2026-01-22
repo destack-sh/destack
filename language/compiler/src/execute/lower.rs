@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::lower::{
     AddressTakenBindings, BuiltinTypeLayouts, FunctionEnv, FunctionState, RuntimeCheckConfig,
-    TypeLowerer,
+    TypeLowerer, collect_expression_string_literals, string_literal_global_name_for_content,
 };
 use crate::{Compiler, ExecuteError, ExecuteResult, FunctionContext, LowerError, ModuleLowerer};
 
@@ -116,6 +116,40 @@ impl Compiler {
             .string_type_for_builtin(anchor)
             .map_err(|error| self.execute_error_from_lower(module.id, error))?;
 
+        // collect string literals for comptime globals
+        let mut string_literal_globals = HashMap::new();
+        let literals = collect_expression_string_literals(&dir_tree, expression_id);
+        if !literals.is_empty() {
+            let Some(string_type) = type_lowerer.string_type() else {
+                return Err(ExecuteError::FailedLower {
+                    module: module.id,
+                    error: Box::new(LowerError::Internal {
+                        module: module.id,
+                        message: "missing builtin String layout (load lib/native)".to_string(),
+                    }),
+                    message: "missing builtin String layout".to_string(),
+                });
+            };
+
+            let mut ordered: Vec<_> = literals.into_iter().collect();
+            ordered.sort_by(|left, right| {
+                let left_value = self.program.strings.get(*left);
+                let right_value = self.program.strings.get(*right);
+                left_value.as_ref().cmp(right_value.as_ref())
+            });
+
+            for literal_id in ordered {
+                let literal = self.program.strings.get(literal_id);
+                let name = string_literal_global_name_for_content(literal.as_ref());
+                let global = builder.global_constant(
+                    &name,
+                    string_type,
+                    mir::GlobalInitializer::string(literal.as_ref()),
+                );
+                string_literal_globals.insert(literal_id, global);
+            }
+        }
+
         // resolve the return type for the comptime expression
         let return_type_id =
             dir_type_id_for_expression(&dir_tree, &symbols, &types, module.id, expression_id)
@@ -164,9 +198,10 @@ impl Compiler {
             interface_itab_ids: &interface_itab_ids,
             virtual_method_slots_by_key: &virtual_method_slots_by_key,
             vtable_globals_by_symbol: &vtable_globals_by_symbol,
+            string_literal_globals: &string_literal_globals,
             dispatch_call_name,
             dispatch_construct_name,
-            runtime_checks: RuntimeCheckConfig {
+            checks: RuntimeCheckConfig {
                 overflow: false,
                 bounds: false,
                 null: false,

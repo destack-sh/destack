@@ -7,12 +7,12 @@ use destack_mir as mir;
 use crate::diagnostic::{DiagnosticAnchor, Error, FrameInfo, RuntimeError, RuntimeResult};
 use crate::execute::Continuation;
 use crate::isolate::{ExternalFnPtr, GlobalStorage, IsolateState};
-use crate::memory::{GcStats, HeapHandle, RawCellStorage, RawPointer, ReferenceMeta, Value};
+use crate::memory::{
+    GcStats, HeapHandle, RawCellStorage, RawPointer, ReferenceMeta, Value, string_layout_matches,
+};
 use crate::telemetry::Statistics;
 
-use super::super::decode::{
-    ConstValue, INVALID_FUNCTION_INDEX, ThreadedFunction, ThreadedInstructionData, thread_function,
-};
+use super::super::decode::{INVALID_FUNCTION_INDEX, ThreadedFunction, thread_function};
 use super::Frame;
 #[cfg(feature = "stats")]
 use crate::telemetry::InstructionProfile;
@@ -257,6 +257,12 @@ impl<'a> InterpreterContext<'a> {
         match init {
             mir::GlobalInitializer::Zero => self.zero_value(ty),
             mir::GlobalInitializer::Scalar(constant) => Ok(self.constant_to_value(constant)),
+            mir::GlobalInitializer::String(value) => {
+                // validate the declared string layout
+                self.validate_string_initializer_type(ty)?;
+
+                Ok(self.isolate.intern_string_literal(value))
+            }
             mir::GlobalInitializer::Bytes(bytes) => {
                 // convert bytes to u8 values
                 let values: Vec<Value> = bytes.iter().map(|&b| Value::uint(b as u64, 8)).collect();
@@ -281,14 +287,40 @@ impl<'a> InterpreterContext<'a> {
         }
     }
 
-    /// Convert a MIR constant to a runtime value.
-    fn constant_to_value(&mut self, constant: &mir::Constant) -> Value {
-        // route string constants through the literal interner
-        if let mir::Constant::String { value } = constant {
-            return self.intern_string_literal(value);
+    /// Validate that a string initializer matches the expected layout.
+    fn validate_string_initializer_type(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> RuntimeResult<()> {
+        // resolve the reference type
+        let mir::Type::Reference { kind, pointee, .. } = self.isolate.tree.get(ty) else {
+            return Err(self.make_error(Error::TypeMismatch {
+                expected: "ref<managed String>".to_string(),
+                actual: format!("{:?}", self.isolate.tree.get(ty)),
+            }));
+        };
+
+        // ensure the string is a managed reference
+        if *kind != mir::ReferenceKind::Managed {
+            return Err(self.make_error(Error::TypeMismatch {
+                expected: "ref<managed String>".to_string(),
+                actual: format!("{:?}", self.isolate.tree.get(ty)),
+            }));
         }
 
-        // fall back to non-string conversion
+        // validate the struct layout matches the runtime definition
+        if !string_layout_matches(&self.isolate.tree, *pointee) {
+            return Err(self.make_error(Error::TypeMismatch {
+                expected: "ref<managed String>".to_string(),
+                actual: format!("{:?}", self.isolate.tree.get(ty)),
+            }));
+        }
+
+        Ok(())
+    }
+
+    /// Convert a MIR constant to a runtime value.
+    fn constant_to_value(&mut self, constant: &mir::Constant) -> Value {
         Value::from(constant)
     }
 
@@ -379,35 +411,6 @@ impl<'a> InterpreterContext<'a> {
             _ => Err(self.make_error(Error::UnsupportedZeroValue {
                 ty: format!("{ty_node:?}"),
             })),
-        }
-    }
-
-    /// Intern a string literal and return its managed value.
-    pub(crate) fn intern_string_literal(&mut self, value: &str) -> Value {
-        self.isolate.intern_string_literal(value)
-    }
-
-    /// Pre-intern string literals referenced by threaded const instructions.
-    pub(crate) fn pre_intern_threaded_strings(&mut self) {
-        // collect string literals without holding a mutable borrow
-        let mut literals = Vec::new();
-        for function in &self.engine.threaded_functions.functions {
-            for block in &function.blocks {
-                for instruction in &block.instructions {
-                    let ThreadedInstructionData::Const { value, .. } = &instruction.data else {
-                        continue;
-                    };
-                    let ConstValue::String(literal) = value else {
-                        continue;
-                    };
-                    literals.push(literal.clone());
-                }
-            }
-        }
-
-        // intern collected literals
-        for literal in literals {
-            self.intern_string_literal(&literal);
         }
     }
 

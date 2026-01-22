@@ -236,10 +236,12 @@ function borrowElementChecked(values: int32[4]): &int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let bounds_check_name = test.string_literal_global_name("bounds check failed");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+
 function @borrowElementChecked(v0: [i32; 4]) -> ref<borrowed i32> {
     local0: [i32; 4] ; owned
 block0(v0: [i32; 4]):
@@ -253,15 +255,17 @@ block0(v0: [i32; 4]):
     v7 = band v5, v6
     check v7, bounds.signed v2, v3, v1, block2, block1
 block1:
-    v8 = iconst "bounds check failed"
+    v8 = global.const @${bounds_check_failed}
     intrinsic.panic(v8)
     unreachable
 block2:
     v9 = element.addr v1, v2 -> ref<borrowed i32>
     return v9
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${bounds_check_failed}", &bounds_check_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Verify borrowing a reference array element skips local spilling.
@@ -317,10 +321,12 @@ function borrowElementRefChecked(values: &int32[4]): &int32 {
     test.lower_module(module_id, "native");
     test.compile_check_clean();
 
-    test.assert_mir(
-        module_id,
-        "native",
-        r#"
+    let bounds_check_name = test.string_literal_global_name("bounds check failed");
+    let string_alias = test.string_type_alias_definition();
+    let expected = r#"
+${string_alias}
+global @${bounds_check_failed}: ref<managed @String> = "bounds check failed" ; const
+
 function @borrowElementRefChecked(v0: ref<borrowed [i32; 4]>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed [i32; 4]>):
     v1 = iconst 2i32
@@ -331,15 +337,17 @@ block0(v0: ref<borrowed [i32; 4]>):
     v6 = band v4, v5
     check v6, bounds.signed v1, v2, v0, block2, block1
 block1:
-    v7 = iconst "bounds check failed"
+    v7 = global.const @${bounds_check_failed}
     intrinsic.panic(v7)
     unreachable
 block2:
     v8 = element.addr v0, v1 -> ref<borrowed i32>
     return v8
 }
-        "#,
-    );
+        "#;
+    let expected = expected.replace("${string_alias}", string_alias);
+    let expected = expected.replace("${bounds_check_failed}", &bounds_check_name);
+    test.assert_mir(module_id, "native", &expected);
 }
 
 /// Verify borrowing an interface value produces a local addr on the fat pointer.

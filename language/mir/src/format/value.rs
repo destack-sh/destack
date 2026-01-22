@@ -41,9 +41,6 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
                 };
                 write!(f, [text(&value_str)])
             }
-            Constant::String { value } => {
-                write!(f, [text(&format!("{value:?}"))])
-            }
             Constant::Char { value } => {
                 write!(f, [text(&format!("{value:?}"))])
             }

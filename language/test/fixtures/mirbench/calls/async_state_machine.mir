@@ -8,7 +8,7 @@ block0(v0: i64):
     v1 = iconst 0i32
     v2 = iconst 0i64
     v3 = struct @AsyncState (v1, v0, v2, v2)
-    v4 = call @async_poll(v3)
+    v4 = call @async_poll(v3) -> fn(@AsyncState) -> i64
     return v4
 }
 

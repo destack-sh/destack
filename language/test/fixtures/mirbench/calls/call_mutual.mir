@@ -11,7 +11,7 @@ block0(v0: i64):
 block1:
     v3 = iconst 1i64
     v4 = isub v0, v3
-    v5 = call @is_even(v4)
+    v5 = call @is_even(v4) -> fn(i64) -> bool
     return v5
 
 // return constant value
@@ -32,7 +32,7 @@ block0(v0: i64):
 block1:
     v3 = iconst 1i64
     v4 = isub v0, v3
-    v5 = call @is_odd(v4)
+    v5 = call @is_odd(v4) -> fn(i64) -> bool
     return v5
 
 // return constant value
@@ -55,7 +55,7 @@ block1(v2: i64, v3: i64):
 
 // branch on helper result
 block2:
-    v5 = call @is_even(v2)
+    v5 = call @is_even(v2) -> fn(i64) -> bool
     branch v5, block3, block6
 
 // update state, merge branch

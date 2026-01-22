@@ -469,13 +469,13 @@ The header layout is identical across targets, and only the payload encoding cha
 UTF-8 payloads use `uint8` data and UTF-16 payloads use `uint16` data.
 
 ```ds
-struct string {
-    lengthUtf16: uint32,      // UTF-16 code unit count (for TS compatibility)
-    lengthBytes: uint32,      // byte length of UTF-8 data
-    hash: uint64,             // cached hash (valid when HasHash is set)
-    capacity: uint32,         // allocated capacity in bytes
-    flags: uint32,            // runtime metadata flags
-    data: *uint8,             // UTF-8 bytes
+struct String {
+    lengthUtf16: uint32;      // utf-16 code unit count for ts compatibility
+    lengthBytes: uint32;      // byte length of utf-8 data
+    hash: uint64;             // cached hash valid when HasHash is set
+    capacity: uint32;         // allocated capacity in bytes
+    flags: uint32;            // runtime metadata flags
+    data: *uint8;             // utf-8 bytes
 }
 ```
 

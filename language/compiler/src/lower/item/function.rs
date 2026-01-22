@@ -395,13 +395,14 @@ impl ModuleLowerer<'_> {
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
+            string_literal_globals: &self.string_literal_globals,
             interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
             virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
-            runtime_checks: self.runtime_checks,
+            checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
         let state = FunctionState::new(builder, address_taken);
@@ -677,13 +678,14 @@ impl ModuleLowerer<'_> {
             functions_by_symbol: &self.functions_by_symbol,
             function_signature_types: &self.function_signature_types,
             globals_by_symbol: &self.globals_by_symbol,
+            string_literal_globals: &self.string_literal_globals,
             interface_slots_by_symbol: &self.interface_slots_by_symbol,
             interface_itab_ids: &self.interface_itab_ids,
             virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
             dispatch_construct_name: self.dispatch_construct_name,
-            runtime_checks: self.runtime_checks,
+            checks: self.runtime_checks,
             type_lowerer: &self.type_lowerer,
         };
         let state = FunctionState::new(builder, address_taken);

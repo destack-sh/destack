@@ -261,9 +261,8 @@ impl ModuleLowerer<'_> {
                 if string_type != Some(mir_type) {
                     return Ok(None);
                 }
-                let literal = self.compiler.program.strings.get(value).to_string();
-                let constant = mir::Constant::String { value: literal };
-                Some(mir::GlobalInitializer::scalar(constant))
+                let literal = self.compiler.program.strings.get(value);
+                Some(mir::GlobalInitializer::string(literal.as_ref()))
             }
             _ => None,
         };

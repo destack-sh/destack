@@ -2,6 +2,7 @@ use destack_base::ImmutableStringPool;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
+use crate::lower::string_literal_global_name_for_content;
 use crate::TestProgram;
 
 /// Interface call information extracted from MIR.
@@ -23,6 +24,16 @@ pub(crate) struct VirtualCall {
 }
 
 impl TestProgram {
+    /// Build the synthetic global name for a string literal.
+    pub(crate) fn string_literal_global_name(&self, value: &str) -> String {
+        string_literal_global_name_for_content(value)
+    }
+
+    /// Return the canonical string type alias definition.
+    pub(crate) fn string_type_alias_definition(&self) -> &'static str {
+        "type @String = { lengthUtf16: u32, lengthBytes: u32, hash: u64, capacity: u32, flags: u32, data: ref<raw u8> }"
+    }
+
     /// Collect class dispatch tables from a MIR tree.
     pub(crate) fn class_dispatch_tables<'a>(
         &self,

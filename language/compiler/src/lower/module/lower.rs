@@ -1,15 +1,15 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use destack_base::StringPool;
 use destack_dir::{GlobalSymbolId, LocalNodeId};
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId, Target, TargetId};
+use destack_workspace::{CheckFailurePolicy, Module, ProfileId, Target, TargetId};
 use indexmap::IndexSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::emit::RuntimeCheckConfig;
+use crate::lower::emit::{RuntimeCheckConfig, RUNTIME_CHECK_MESSAGES};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{VirtualMethodKey, VtableGlobal};
@@ -49,6 +49,9 @@ pub(crate) struct ModuleLowerer<'a> {
         HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
     /// Map DIR symbols to MIR global bindings.
     pub(crate) globals_by_symbol: HashMap<GlobalSymbolId, GlobalBinding>,
+    /// Map string literal contents to MIR globals.
+    pub(crate) string_literal_globals:
+        HashMap<destack_base::StringId, mir::LocalNodeId<mir::Global>>,
     /// Lower and cache DIR types into MIR types.
     pub(crate) type_lowerer: TypeLowerer,
     /// Synthetic name for call signatures in dispatch tables.
@@ -145,6 +148,7 @@ impl<'a> ModuleLowerer<'a> {
             functions_by_symbol: HashMap::new(),
             function_signature_types: HashMap::new(),
             globals_by_symbol: HashMap::new(),
+            string_literal_globals: HashMap::new(),
             type_lowerer,
             dispatch_call_name,
             dispatch_construct_name,
@@ -455,6 +459,10 @@ impl<'a> ModuleLowerer<'a> {
         // initialize builtin layouts
         self.initialize_string_type()?;
 
+        // predeclare string literal globals
+        self.predeclare_string_literal_globals()?;
+        self.ensure_string_type_alias()?;
+
         // build dispatch registry
         self.lower_dispatch_registry()?;
 
@@ -474,6 +482,147 @@ impl<'a> ModuleLowerer<'a> {
 
         // finalize metadata for all cached types
         self.finalize_type_metadata()?;
+
+        Ok(())
+    }
+
+    /// Predeclare globals for string literals used in this module.
+    fn predeclare_string_literal_globals(&mut self) -> LowerResult<()> {
+        // collect literal values and a representative anchor
+        let mut literals = BTreeSet::new();
+        let mut anchor = None;
+
+        // collect string literals from expressions
+        for (expression_id, expression) in self.dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            let dir::Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::String(string_id),
+            } = expression
+            else {
+                continue;
+            };
+
+            literals.insert(*string_id);
+            if anchor.is_none() {
+                anchor = Some(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                );
+            }
+        }
+
+        // collect string literal types
+        for type_id in self.types.iter_type_ids() {
+            let dir::Type::TypeLiteral {
+                value: dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(string_id)),
+            } = self.types.get_type(type_id)
+            else {
+                continue;
+            };
+
+            literals.insert(*string_id);
+            if anchor.is_none() {
+                let source = self.types.get_type_source(type_id);
+                anchor = Some(source.into_anchored(self.module_id, Some(self.profile)));
+            }
+        }
+
+        // add runtime check messages when panic uses literals
+        if matches!(self.runtime_checks.failure, CheckFailurePolicy::Panic) {
+            if self.runtime_checks.bounds {
+                let literal_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.bounds_check);
+                literals.insert(literal_id);
+            }
+
+            if self.runtime_checks.null {
+                let literal_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.null_check);
+                literals.insert(literal_id);
+            }
+
+            if self.runtime_checks.division {
+                let zero_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.division_by_zero);
+                literals.insert(zero_id);
+                let overflow_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.division_overflow);
+                literals.insert(overflow_id);
+            }
+
+            if self.runtime_checks.overflow {
+                let literal_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.integer_overflow);
+                literals.insert(literal_id);
+            }
+
+            if self.runtime_checks.shift {
+                let literal_id = self
+                    .compiler
+                    .program
+                    .strings
+                    .intern(RUNTIME_CHECK_MESSAGES.shift_out_of_range);
+                literals.insert(literal_id);
+            }
+        }
+
+        // skip when no string literals are present
+        if literals.is_empty() {
+            return Ok(());
+        }
+
+        // require the builtin string layout
+        let Some(string_type) = self.type_lowerer.string_type() else {
+            if let Some(anchor) = anchor {
+                return Err(LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message: "missing builtin String layout (load lib/native)".to_string(),
+                });
+            }
+            return Err(LowerError::Internal {
+                module: self.module_id,
+                message: "missing builtin String layout (load lib/native)".to_string(),
+            });
+        };
+
+        // create globals in deterministic order
+        let mut ordered: Vec<_> = literals.into_iter().collect();
+        ordered.sort_by(|left, right| {
+            let left_value = self.compiler.program.strings.get(*left);
+            let right_value = self.compiler.program.strings.get(*right);
+            left_value.as_ref().cmp(right_value.as_ref())
+        });
+        for literal_id in ordered {
+            let literal = self.compiler.program.strings.get(literal_id);
+            let name = self.string_literal_global_name(literal_id);
+            let global = self.builder.global_constant(
+                &name,
+                string_type,
+                mir::GlobalInitializer::string(literal.as_ref()),
+            );
+            Self::insert_unique_entry(
+                self.module_id,
+                &mut self.string_literal_globals,
+                literal_id,
+                global,
+                "string literal global",
+            )?;
+        }
 
         Ok(())
     }
@@ -581,6 +730,50 @@ impl<'a> ModuleLowerer<'a> {
             &mut self.type_lowerer,
         );
         builtin_layouts.string_type_for_builtin(anchor)?;
+
+        Ok(())
+    }
+
+    /// Ensure the canonical string type alias exists in the MIR tree.
+    fn ensure_string_type_alias(&mut self) -> LowerResult<()> {
+        // skip when no string literal globals exist
+        if self.string_literal_globals.is_empty() {
+            return Ok(());
+        }
+
+        // resolve the canonical string type id
+        let Some(string_type) = self.type_lowerer.string_type() else {
+            return Ok(());
+        };
+
+        // ensure the string type refers to a struct layout
+        let string_layout = match self.builder.tree().get(string_type) {
+            mir::Type::Reference { pointee, .. } => *pointee,
+            _ => {
+                return Err(LowerError::Internal {
+                    module: self.module_id,
+                    message: "string type is not a reference".to_string(),
+                })
+            }
+        };
+
+        // build the alias name for the string layout
+        let alias_id = self.builder.intern("String");
+
+        // skip when the alias already exists
+        let alias_exists = self
+            .builder
+            .tree()
+            .iter_nodes::<mir::TypeAlias>()
+            .any(|(_, alias)| alias.name == alias_id);
+        if alias_exists {
+            return Ok(());
+        }
+
+        // register the alias in the tree
+        self.builder
+            .tree_mut()
+            .insert(mir::TypeAlias { name: alias_id, ty: string_layout });
 
         Ok(())
     }

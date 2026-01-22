@@ -1863,13 +1863,6 @@ impl<'a> FunctionLowerer<'a> {
                 )),
             },
 
-            // string constants should be lowered as globals with GlobalInitializer::Bytes
-            mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
-                "inline string constants not supported; use global with Bytes initializer"
-                    .to_string(),
-                node_id,
-            )),
-
             // char constant: unicode codepoint as i32
             mir::Constant::Char { value } => {
                 Ok(builder.ins().iconst(cir::types::I32, *value as i64))

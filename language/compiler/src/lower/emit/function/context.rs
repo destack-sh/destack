@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_base::StringPool;
+use destack_base::{StringId, StringPool};
 use destack_dir::{AnchoredGlobalNodeId, Expression, GlobalSymbolId, IfCondition, LocalNodeId};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, Program};
@@ -32,13 +32,22 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) types: &'a dir::TypeTable,
     /// Provide access to the program string pool for name resolution.
     pub(crate) strings: &'a StringPool,
+    /// Runtime check configuration for this target.
+    pub(crate) checks: RuntimeCheckConfig,
+    /// Lower and cache DIR types into MIR types.
+    pub(crate) type_lowerer: &'a TypeLowerer,
+
     /// Resolve direct calls for known function symbols.
     pub(crate) functions_by_symbol: &'a HashMap<GlobalSymbolId, mir::LocalNodeId<mir::Function>>,
     /// Resolve MIR signature types for known functions.
     pub(crate) function_signature_types:
         &'a HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
+    
     /// Resolve globals by symbol for module-level variable references.
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
+    /// Resolve string literal globals by literal content.
+    pub(crate) string_literal_globals: &'a HashMap<StringId, mir::LocalNodeId<mir::Global>>,
+    
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_slots_by_symbol: &'a HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
     /// Resolve interface itab ids for interface upcasts.
@@ -52,10 +61,7 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
-    /// Runtime check configuration for this target.
-    pub(crate) runtime_checks: RuntimeCheckConfig,
-    /// Lower and cache DIR types into MIR types.
-    pub(crate) type_lowerer: &'a TypeLowerer,
+    
 }
 
 /// Mutable bindings state while lowering a single function.
@@ -148,6 +154,7 @@ pub(crate) struct FunctionContext<'a> {
     pub(crate) state: FunctionState<'a>,
 }
 
+#[allow(dead_code)]
 impl<'a> FunctionContext<'a> {
     /// Create a new function context with the given builder.
     pub(crate) fn new(env: FunctionEnv<'a>, state: FunctionState<'a>) -> Self {
@@ -181,7 +188,6 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create an UnsupportedConstruct error for the given expression.
-    #[allow(dead_code)]
     pub(crate) fn error(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -196,7 +202,6 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create a MissingType error for the given expression.
-    #[allow(dead_code)]
     pub(crate) fn missing_type_error(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -206,6 +211,51 @@ impl<'a> FunctionContext<'a> {
                 .into_global_any(self.env.module_id)
                 .into_anchored(Some(self.env.profile)),
         }
+    }
+
+    /// Load a string literal value for an internal message.
+    pub(crate) fn string_literal_value(
+        &mut self,
+        literal: &str,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // intern the message so the global lookup is consistent
+        let literal_id = self.env.program.strings.intern(literal);
+        self.string_literal_value_for_id(literal_id, None)
+    }
+
+    /// Load a string literal value by literal id.
+    pub(crate) fn string_literal_value_for_id(
+        &mut self,
+        literal_id: StringId,
+        anchor: Option<AnchoredGlobalNodeId>,
+    ) -> LowerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        // resolve the literal global
+        let global = self
+            .env
+            .string_literal_globals
+            .get(&literal_id)
+            .copied()
+            .ok_or_else(|| LowerError::Internal {
+                module: self.env.module_id,
+                message: format!("missing string literal global for {literal_id:?}"),
+            })?;
+
+        // materialize the global constant value
+        let value = self.state.builder.global_const(global);
+
+        // resolve the string type for the literal
+        let ty = self.env.type_lowerer.string_type().ok_or_else(|| {
+            let message = "missing builtin String layout (load lib/native)".to_string();
+            match anchor {
+                Some(anchor) => LowerError::UnsupportedConstruct { node: anchor, message },
+                None => LowerError::Internal {
+                    module: self.env.module_id,
+                    message,
+                },
+            }
+        })?;
+
+        Ok((value, ty))
     }
 
     /// Check whether a symbol requires an addressable local.
