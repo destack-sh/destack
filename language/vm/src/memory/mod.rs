@@ -7,9 +7,9 @@ mod slot;
 pub mod string;
 mod value;
 
-pub use string::*;
 pub use gc::*;
 pub use managed::*;
 pub use raw::*;
 pub use slot::*;
+pub use string::*;
 pub use value::*;

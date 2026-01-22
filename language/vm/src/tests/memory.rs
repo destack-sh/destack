@@ -1,6 +1,5 @@
 use crate::diagnostic::Error;
-use crate::memory::{RawPointer, Value};
-use crate::memory::STRING_TYPE_ALIAS;
+use crate::memory::{RawPointer, STRING_TYPE_ALIAS, Value};
 use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
 
 /// Managed allocation creates a heap cell and returns a reference.

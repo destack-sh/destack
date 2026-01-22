@@ -1010,9 +1010,12 @@ impl TestProgram {
         let expected = expected.trim();
 
         // parse and reformat to the canonical layout
-        let (tree, strings) =
-            destack_mir::parse::Parser::parse(destack_source::FileId::new(0), expected)
-                .unwrap_or_else(|error| panic!("expected mir parse failed: {error}"));
+        let (tree, strings) = destack_mir::parse::Parser::parse(
+            destack_source::FileId::new(0),
+            expected,
+            destack_mir::parse::ParseOptions::default(),
+        )
+        .unwrap_or_else(|error| panic!("expected mir parse failed: {error}"));
         format_mir(&tree, &strings, self.mir_format_options())
     }
 

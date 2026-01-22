@@ -9,7 +9,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{LowerError, LowerResult};
 
-use crate::lower::emit::{RuntimeCheckConfig, RUNTIME_CHECK_MESSAGES};
+use crate::lower::emit::{RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig};
 use crate::lower::item::GlobalBinding;
 use crate::lower::table::interface::InterfaceSlot;
 use crate::lower::table::{VirtualMethodKey, VtableGlobal};
@@ -753,7 +753,7 @@ impl<'a> ModuleLowerer<'a> {
                 return Err(LowerError::Internal {
                     module: self.module_id,
                     message: "string type is not a reference".to_string(),
-                })
+                });
             }
         };
 
@@ -771,9 +771,10 @@ impl<'a> ModuleLowerer<'a> {
         }
 
         // register the alias in the tree
-        self.builder
-            .tree_mut()
-            .insert(mir::TypeAlias { name: alias_id, ty: string_layout });
+        self.builder.tree_mut().insert(mir::TypeAlias {
+            name: alias_id,
+            ty: string_layout,
+        });
 
         Ok(())
     }

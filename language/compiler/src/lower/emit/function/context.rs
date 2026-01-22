@@ -42,12 +42,12 @@ pub(crate) struct FunctionEnv<'a> {
     /// Resolve MIR signature types for known functions.
     pub(crate) function_signature_types:
         &'a HashMap<mir::LocalNodeId<mir::Function>, mir::LocalNodeId<mir::Type>>,
-    
+
     /// Resolve globals by symbol for module-level variable references.
     pub(crate) globals_by_symbol: &'a HashMap<GlobalSymbolId, GlobalBinding>,
     /// Resolve string literal globals by literal content.
     pub(crate) string_literal_globals: &'a HashMap<StringId, mir::LocalNodeId<mir::Global>>,
-    
+
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_slots_by_symbol: &'a HashMap<GlobalSymbolId, Vec<InterfaceSlot>>,
     /// Resolve interface itab ids for interface upcasts.
@@ -61,7 +61,6 @@ pub(crate) struct FunctionEnv<'a> {
     pub(crate) dispatch_call_name: destack_base::StringId,
     /// Synthetic name for construct signatures in dispatch tables.
     pub(crate) dispatch_construct_name: destack_base::StringId,
-    
 }
 
 /// Mutable bindings state while lowering a single function.
@@ -247,7 +246,10 @@ impl<'a> FunctionContext<'a> {
         let ty = self.env.type_lowerer.string_type().ok_or_else(|| {
             let message = "missing builtin String layout (load lib/native)".to_string();
             match anchor {
-                Some(anchor) => LowerError::UnsupportedConstruct { node: anchor, message },
+                Some(anchor) => LowerError::UnsupportedConstruct {
+                    node: anchor,
+                    message,
+                },
                 None => LowerError::Internal {
                     module: self.env.module_id,
                     message,

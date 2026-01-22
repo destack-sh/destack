@@ -999,7 +999,6 @@ fn simplify_element_set(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ValueRange;
     use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
     use destack_workspace::FloatMathPolicy;

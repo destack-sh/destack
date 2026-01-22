@@ -246,7 +246,9 @@ impl<'a> BuiltinTypeLayouts<'a> {
             return Ok(None);
         }
 
-        let layout = self.type_lowerer.compute_struct_layout(field_inputs, policy);
+        let layout = self
+            .type_lowerer
+            .compute_struct_layout(field_inputs, policy);
         let ty_struct = self.type_lowerer.create_struct_type(&layout, self.builder);
         self.type_lowerer.set_layout(ty_struct, layout);
 
