@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use destack_base::{ImmutableStringPool, StringPool};
 use destack_mir as mir;
-use mir::parse::ParseOptions;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, print_diff};
 use destack_workspace::TargetId;
+use mir::parse::ParseOptions;
 
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
