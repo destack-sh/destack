@@ -1,13 +1,12 @@
-use clap::Args;
-
 use crate::common::{
     CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
-    ensure_no_watch_or_dev, list_payload, print_list_with, print_report, report_error,
+    ensure_no_watch_or_dev, list_payload, parse_required_command_payload, print_list_with,
+    print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::workspace::{
-    load_dsconfig_for_program, load_workspace_dsconfigs, workspace_context,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use clap::Args;
+use destack_daemon::protocol::{CommandPayload, CommandTargetsOptions, CommandTargetsPayload};
 
 /// Arguments for the targets command.
 #[derive(Args, Debug, Clone)]
@@ -31,59 +30,47 @@ pub fn run(args: &TargetsArgs) -> i32 {
         return code;
     }
 
-    // set up workspace context
-    let context = match workspace_context(&args.program, None) {
-        Ok(context) => context,
-        Err(message) => return report_error("targets", &args.report, &message),
+    // build daemon command options
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Targets(CommandTargetsOptions { all: args.all });
+
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("targets", &args.report, &error.to_string()),
     };
 
-    // resolve dsconfig selection
-    let dsconfigs = if args.all {
-        match load_workspace_dsconfigs(&context.resolver, &context.workspace) {
-            Ok(dsconfigs) => dsconfigs,
-            Err(message) => return report_error("targets", &args.report, &message),
-        }
-    } else {
-        match load_dsconfig_for_program(&args.program, &context.resolver, &context.session.cwd) {
-            Ok(dsconfig) => vec![dsconfig],
-            Err(message) => return report_error("targets", &args.report, &message),
-        }
+    // decode daemon payload
+    let (payload, _) = match parse_required_command_payload::<CommandTargetsPayload>(
+        "targets",
+        &args.report,
+        result.response.data.as_ref(),
+        "targets",
+    ) {
+        Ok(payload) => payload,
+        Err(code) => return code,
     };
+    let entries = payload.targets;
 
-    if dsconfigs.is_empty() {
-        return report_error("targets", &args.report, "no targets found");
-    }
-
-    // collect target details
-    let mut entries = Vec::new();
-    for dsconfig in &dsconfigs {
-        let default_target = dsconfig.options.default_target.clone();
-        for (name, target) in &dsconfig.options.targets {
-            entries.push(TargetEntry {
-                name: name.clone(),
-                output: format!("{:?}", target.output),
-                runtime: format!("{:?}", target.runtime),
-                platform: format!("{:?}", target.platform),
-                out_dir: target.out_dir.display().to_string(),
-                out_file: target.out_file.as_ref().map(|p| p.display().to_string()),
-                default_target: default_target.clone(),
-                package_dir: dsconfig.directory.display().to_string(),
-            });
-        }
-    }
+    // emit daemon output for text mode
+    emit_daemon_text_output(
+        &args.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
     // emit structured output when requested
     if args.report.is_json() {
-        let mut report = CommandReport::success("targets", 0);
+        let mut report = CommandReport::success("targets", result.response.exit_code);
         report.data = Some(list_payload(entries));
         print_report(&report, args.report.format());
-        return 0;
+        return result.response.exit_code;
     }
 
     // emit minimal text output
     if entries.is_empty() {
         console::info("targets: none");
-        return 0;
+        return result.response.exit_code;
     }
 
     let list_entries = entries.into_iter().map(|entry| {
@@ -108,26 +95,5 @@ pub fn run(args: &TargetsArgs) -> i32 {
     let printer = ListPrinter::info();
     print_list_with(&list_entries, ListSpacing::Compact, &printer);
 
-    0
-}
-
-/// Target listing entry.
-#[derive(Debug, serde::Serialize)]
-struct TargetEntry {
-    /// The target name.
-    name: String,
-    /// The output format.
-    output: String,
-    /// The runtime environment.
-    runtime: String,
-    /// The target platform.
-    platform: String,
-    /// The output directory.
-    out_dir: String,
-    /// The output file path, when applicable.
-    out_file: Option<String>,
-    /// The default target name for the package.
-    default_target: Option<String>,
-    /// The owning package directory.
-    package_dir: String,
+    result.response.exit_code
 }

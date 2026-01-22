@@ -1,22 +1,27 @@
-use clap::{Args, ValueEnum};
-use destack_compiler::CompilerEventHandler;
-use destack_daemon::Daemon;
-use destack_source::DiagnosticOptions;
-
-use crate::common::fix::{FixOptions, run_with_fixes};
 use crate::common::format::{DiagnosticFormat, FormatOptions, format_diagnostics_with_writer};
 use crate::common::{
-    CommandReport, CommandStats, CompilerMode, DiagnosticArgs, InputArgs, InputSource, ProgramArgs,
-    ProgressMode, ProgressReporter, ReportArgs, StatsSummary, WatchCompileReason, WatchReporter,
-    collect_diagnostics_json, is_tty, print_report, print_stats_summary, report_error,
+    CommandReport, DiagnosticArgs, InputArgs, InputSource, ProgramArgs, ProgressMode,
+    ProgressReporter, ReportArgs, StatsSummary, WatchCompileReason, collect_diagnostics_json,
+    is_tty, print_command_stats_summary, print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::compile::{CompileRequest, prepare_compile};
+use crate::error::CliResult;
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
+    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command,
+};
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
-    build_watch_loop_options, emit_watch_compile_report, run_watch_loop, watch_error, watch_roots,
+    WatchCompileContext, WatchContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
+    build_watch_context, build_watch_loop_options, emit_watch_compile_report, run_watch_loop,
+    watch_error,
 };
+use clap::{Args, ValueEnum};
+use destack_compiler::CompilerEventHandler;
+use destack_daemon::protocol::{
+    CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
+};
+use destack_source::DiagnosticOptions;
 
 /// State for check watch mode.
 struct CheckWatchState {
@@ -176,13 +181,6 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
     };
     let event_handler = progress_reporter.as_ref().map(|p| p.handler());
 
-    // pick the compiler mode based on fix and lint flags
-    let mode = if args.no_lint || args.fix || args.diff {
-        CompilerMode::Check
-    } else {
-        CompilerMode::Lint
-    };
-
     // build format options
     let format_options = FormatOptions {
         format: args.format.into(),
@@ -197,7 +195,6 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
         let exit_code = run_watch(
             args,
             command_name,
-            mode,
             event_handler,
             &format_options,
             progress_reporter.as_ref(),
@@ -206,101 +203,82 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
         return exit_code;
     }
 
-    let setup = match prepare_compile(CompileRequest {
-        command: command_name,
-        input: &args.input,
-        program: &args.program,
-        diagnostics: &args.diagnostics,
-        report: &args.report,
-        mode,
-        target_name: None,
-        allow_dsconfig_fallback: true,
+    let exit_code = run_check_via_daemon(
+        args,
+        command_name,
+        &format_options,
+        progress_reporter.as_ref(),
         event_handler,
-    }) {
-        Ok(setup) => setup,
-        Err(code) => {
-            finish_progress();
-            return code;
+    );
+    finish_progress();
+    exit_code
+}
+
+/// Run a single check command through the daemon.
+fn run_check_via_daemon(
+    args: &CheckArgs,
+    command_name: &str,
+    format_options: &FormatOptions,
+    progress_reporter: Option<&ProgressReporter>,
+    event_handler: Option<CompilerEventHandler>,
+) -> i32 {
+    // build diagnostic options for the daemon command
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
+
+    // build command inputs when explicitly provided
+    let inputs = if args.input.has_input() {
+        let sources = match args.input.to_sources() {
+            Ok(sources) => sources,
+            Err(error) => {
+                return report_error(command_name, &args.report, &error.to_string());
+            }
+        };
+        match command_inputs_from_sources(&sources, args.input.file_type()) {
+            Ok(inputs) => inputs,
+            Err(error) => {
+                return report_error(command_name, &args.report, &error.to_string());
+            }
         }
+    } else {
+        Vec::new()
     };
 
-    if let Some(progress_reporter) = &progress_reporter {
-        progress_reporter.set_stats_source(
-            setup.context.compiler.stats.clone(),
-            Some(setup.context.program.clone()),
+    // build command payload for daemon execution
+    let lint_options = CommandLintOptions {
+        fix: args.fix,
+        unsafe_fixes: args.unsafe_fixes,
+        diff: args.diff,
+    };
+    let lint_enabled = !args.no_lint && !args.fix && !args.diff;
+    let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .allow_dsconfig_fallback(!args.input.has_input())
+        .build();
+    let payload = CommandPayload::Check(CommandCheckOptions {
+        lint: lint_enabled,
+        lint_options,
+    });
+
+    // execute the daemon command
+    let result = match run_daemon_command(
+        &args.program,
+        Some(diagnostic_options),
+        common,
+        payload,
+        event_handler,
+    ) {
+        Ok(result) => result,
+        Err(error) => return report_error(command_name, &args.report, &error.to_string()),
+    };
+
+    // emit daemon output and messages for text modes
+    if !args.report.is_json() {
+        emit_daemon_text_output(
+            &args.report,
+            &result.response.messages,
+            &result.response.output,
         );
     }
-
-    // compile type checks and optional linting
-    setup.context.run_compile();
-
-    let line_writer = progress_reporter
-        .as_ref()
-        .map(|reporter| reporter.line_writer());
-
-    // handle fix mode separately
-    if args.fix || args.diff {
-        // configure diagnostics and fixes
-        let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
-        let fix_options = FixOptions {
-            apply: args.fix,
-            include_unsafe: args.unsafe_fixes,
-            diff: args.diff,
-        };
-        let fix_result = run_with_fixes(
-            setup.context.program.clone(),
-            &setup.modules,
-            &diagnostic_options,
-            &fix_options,
-            &format_options,
-            line_writer.as_ref(),
-        );
-
-        // collect type errors from the compiler
-        let compile_result = setup.context.into_result();
-        let diagnostics = compile_result
-            .program
-            .diagnostics
-            .collect()
-            .map(&compile_result.diagnostic_options);
-
-        // emit diagnostics for the compile pass
-        let module_count = setup.modules.len();
-        let output_result = format_diagnostics_with_writer(
-            &compile_result.program.files,
-            &diagnostics,
-            &format_options,
-            module_count,
-            line_writer.as_ref(),
-        );
-
-        // return failure when issues remain
-        if fix_result.unfixable_count > 0 || output_result.error_count > 0 {
-            finish_progress();
-            return 1;
-        }
-        // return failure when warning threshold is exceeded
-        if output_result.max_warnings_exceeded {
-            console::warn(&format!(
-                "warning count ({}) exceeds --max-warnings ({})",
-                output_result.warning_count,
-                args.max_warnings.unwrap_or(0)
-            ));
-            finish_progress();
-            return 1;
-        }
-        finish_progress();
-        return output_result.exit_code();
-    }
-
-    // gather stats and diagnostics
-    let stats = setup.context.stats();
-    let compile_result = setup.context.into_result();
-    let diagnostics = compile_result
-        .program
-        .diagnostics
-        .collect()
-        .map(&compile_result.diagnostic_options);
 
     // emit json report when requested
     if args.report.is_json() {
@@ -312,63 +290,66 @@ pub fn run_with_command(args: &CheckArgs, command_name: &str) -> i32 {
             suppress_diagnostics: false,
         };
         let (output, format_result) =
-            collect_diagnostics_json(&compile_result.program.files, &diagnostics, &json_options);
+            collect_diagnostics_json(&result.files, &result.diagnostics, &json_options);
         let mut report = if format_result.exit_code() == 0 {
             CommandReport::success(command_name, 0)
         } else {
             CommandReport::failure(command_name, format_result.exit_code())
         };
+        if let Some(stats) = result.response.stats.as_ref() {
+            report.stats = Some(command_stats_from_protocol(stats));
+        }
         report.diagnostics = Some(output);
-        report.stats = Some(CommandStats::from_snapshot(&stats));
         print_report(&report, args.report.format());
-        finish_progress();
         return format_result.exit_code();
     }
 
     // emit formatted diagnostics
-    let module_count = setup.modules.len();
-    let result = format_diagnostics_with_writer(
-        &compile_result.program.files,
-        &diagnostics,
-        &format_options,
+    let line_writer = progress_reporter
+        .as_ref()
+        .map(|reporter| reporter.line_writer());
+    let module_count = result.response.module_count;
+    let output_result = format_diagnostics_with_writer(
+        &result.files,
+        &result.diagnostics,
+        format_options,
         module_count,
         line_writer.as_ref(),
     );
 
     // print stats summary in text mode
-    if matches!(args.format, Format::Text) {
-        let profile_count = compile_result.program.profiles.len();
+    if matches!(args.format, Format::Text)
+        && let Some(stats) = result.response.stats.as_ref()
+    {
         let summary = StatsSummary {
             verb: "Checked",
             modules: module_count,
-            profiles: profile_count,
-            targets: 0, // check doesn't build targets
-            errors: result.error_count,
-            warnings: result.warning_count,
+            profiles: result.response.profile_count,
+            targets: 0,
+            errors: output_result.error_count,
+            warnings: output_result.warning_count,
         };
-        print_stats_summary(&summary, &compile_result.stats, line_writer.as_ref());
+        let stats = command_stats_from_protocol(stats);
+        print_command_stats_summary(&summary, &stats, line_writer.as_ref());
     }
 
     // enforce max warning threshold when configured
-    if result.max_warnings_exceeded {
+    if output_result.max_warnings_exceeded {
         console::warn(&format!(
             "warning count ({}) exceeds --max-warnings ({})",
-            result.warning_count,
+            output_result.warning_count,
             args.max_warnings.unwrap_or(0)
         ));
-        finish_progress();
         return 1;
     }
 
-    finish_progress();
-    result.exit_code()
+    output_result.exit_code()
 }
 
 /// Run check in watch mode with incremental updates.
 fn run_watch(
     args: &CheckArgs,
     command_name: &str,
-    mode: CompilerMode,
     event_handler: Option<CompilerEventHandler>,
     format_options: &FormatOptions,
     progress_reporter: Option<&ProgressReporter>,
@@ -377,7 +358,6 @@ fn run_watch(
     run_watch_with_options(
         args,
         command_name,
-        mode,
         event_handler,
         format_options,
         progress_reporter,
@@ -393,7 +373,6 @@ fn run_watch(
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     args: &CheckArgs,
     command_name: &str,
-    mode: CompilerMode,
     event_handler: Option<CompilerEventHandler>,
     format_options: &FormatOptions,
     progress_reporter: Option<&ProgressReporter>,
@@ -435,82 +414,116 @@ where
         }
     };
 
-    // create the compiler context
-    let context = crate::common::CompilerContext::new(
-        &args.program,
-        &args.diagnostics,
-        mode,
-        event_handler.clone(),
-    );
+    // build diagnostic options for the daemon command
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // prepare watch mode output
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
         ..format_options.clone()
     };
-    let mut reporter = if args.report.is_json() {
-        Some(WatchReporter::new(command_name))
-    } else {
-        None
-    };
-    let roots = watch_roots(&args.program, &context.session);
-
-    // enqueue sources for compilation
-    let modules = match context.enqueue(&sources) {
-        Ok(modules) => modules,
-        Err(code) => return code,
-    };
-
-    // attach progress stats source when available
-    if let Some(progress_reporter) = progress_reporter {
-        progress_reporter.set_stats_source(
-            context.compiler.stats.clone(),
-            Some(context.program.clone()),
-        );
-    }
-
-    if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_start(&roots);
-    }
-
-    // compile the initial state
-    context.run_compile();
-
-    // print diagnostics for the initial state
+    let session = args.program.setup();
+    let WatchContext {
+        roots,
+        root,
+        mut reporter,
+    } = build_watch_context(command_name, &args.program, &args.report, &session);
     let line_writer = progress_reporter.map(|reporter| reporter.line_writer());
-    let stats_snapshot = reporter.as_ref().map(|_| {
-        context
-            .compiler
-            .stats
-            .snapshot_with_program(context.program.modules.len(), Some(&context.program))
-    });
-    let mut exit_code = emit_watch_compile_report(
-        &mut reporter,
-        WatchCompileContext {
-            program: &context.program,
-            diagnostic_options: &context.diagnostic_options,
-            format_options,
-            json_format_options: &json_format_options,
-            module_count: modules.len(),
-            line_writer: line_writer.as_ref(),
-        },
-        stats_snapshot,
-        WatchCompileReason::Startup,
-        false,
-        false,
-        None,
-    );
 
-    // configure the daemon for incremental updates
-    let daemon_options = build_daemon_options(
-        &args.program,
-        context.diagnostic_options.clone(),
-        event_handler,
-    );
-    let daemon = Daemon::with_options(context.session.clone(), daemon_options);
+    // configure the daemon client for incremental updates
+    let daemon_options =
+        build_daemon_options(&args.program, diagnostic_options.clone(), event_handler);
+    let daemon = match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone()) {
+        Ok(daemon) => daemon,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                reporter.emit_stop();
+                return 1;
+            }
+            return report_error("check", &args.report, &message);
+        }
+    };
 
     // set up shared watch state
     let mut watch_state = CheckWatchState { sources };
+
+    // prepare lint options for watch runs
+    let lint_options = CommandLintOptions {
+        fix: args.fix,
+        unsafe_fixes: args.unsafe_fixes,
+        diff: args.diff,
+    };
+    let lint_enabled = !args.no_lint && !args.fix && !args.diff;
+
+    // helper to build command options
+    let build_options =
+        |sources: &[InputSource]| -> CliResult<(CommonCommandOptions, CommandPayload)> {
+            let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+            let common =
+                CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+                    .inputs(inputs)
+                    .allow_dsconfig_fallback(!args.input.has_input())
+                    .build();
+            let payload = CommandPayload::Check(CommandCheckOptions {
+                lint: lint_enabled,
+                lint_options: lint_options.clone(),
+            });
+            Ok((common, payload))
+        };
+
+    // compile the initial state
+    let mut exit_code = match build_options(&watch_state.sources) {
+        Ok((common, payload)) => match daemon.run_command(&root, common, payload) {
+            Ok(result) => {
+                emit_daemon_text_output(
+                    &args.report,
+                    &result.response.messages,
+                    &result.response.output,
+                );
+                let stats = result
+                    .response
+                    .stats
+                    .as_ref()
+                    .map(command_stats_from_protocol);
+                emit_watch_compile_report(
+                    &mut reporter,
+                    WatchCompileContext {
+                        files: &result.files,
+                        diagnostics: &result.diagnostics,
+                        format_options,
+                        json_format_options: &json_format_options,
+                        module_count: result.response.module_count,
+                        line_writer: line_writer.as_ref(),
+                    },
+                    stats,
+                    WatchCompileReason::Startup,
+                    false,
+                    false,
+                    None,
+                )
+            }
+            Err(message) => {
+                let message = watch_error(&message.to_string());
+                if let Some(reporter) = reporter.as_mut() {
+                    reporter.emit_warning(&message);
+                    1
+                } else {
+                    report_error(command_name, &args.report, &message)
+                }
+            }
+        },
+        Err(message) => {
+            let message = watch_error(&message.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                1
+            } else {
+                report_error(command_name, &args.report, &message)
+            }
+        }
+    };
 
     // run the watch loop for incremental updates
     exit_code = run_watch_loop(
@@ -525,41 +538,68 @@ where
             state.sources = match resolve_sources(&args.input, Some(&args.program), None) {
                 Ok(sources) => sources,
                 Err(ResolveSourcesError::NoInput) => {
-                    return Err(watch_error("no input files after rescan"));
+                    return Err(watch_error("no input files after rescan").into());
                 }
                 Err(ResolveSourcesError::Message(message)) => {
-                    return Err(watch_error(&message));
+                    return Err(watch_error(&message).into());
                 }
             };
 
             Ok(())
         },
         |state, reporter, reason, batch_id, updated, requires_rescan| {
-            // clear diagnostics before each compile
-            let _ = context.program.diagnostics.drain();
-            let _ = context.enqueue(&state.sources);
+            // build options for the updated sources
+            let (common, payload) = match build_options(&state.sources) {
+                Ok(options) => options,
+                Err(message) => {
+                    let message = watch_error(&message.to_string());
+                    if let Some(reporter) = reporter.as_mut() {
+                        reporter.emit_warning(&message);
+                        return WatchLoopAction::continue_with(Some(1));
+                    }
+                    let next_exit = report_error(command_name, &args.report, &message);
+                    return WatchLoopAction::continue_with(Some(next_exit));
+                }
+            };
 
-            // compile the updated state
-            context.run_compile();
+            // run the daemon check command
+            let result = match daemon.run_command(&root, common, payload) {
+                Ok(result) => result,
+                Err(message) => {
+                    let message = watch_error(&message.to_string());
+                    if let Some(reporter) = reporter.as_mut() {
+                        reporter.emit_warning(&message);
+                        return WatchLoopAction::continue_with(Some(1));
+                    }
+                    let next_exit = report_error(command_name, &args.report, &message);
+                    return WatchLoopAction::continue_with(Some(next_exit));
+                }
+            };
+
+            // emit daemon output for text mode
+            emit_daemon_text_output(
+                &args.report,
+                &result.response.messages,
+                &result.response.output,
+            );
 
             // report diagnostics for the updated state
-            let stats_snapshot = reporter.as_ref().map(|_| {
-                context
-                    .compiler
-                    .stats
-                    .snapshot_with_program(context.program.modules.len(), Some(&context.program))
-            });
+            let stats = result
+                .response
+                .stats
+                .as_ref()
+                .map(command_stats_from_protocol);
             let next_exit_code = emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
-                    program: &context.program,
-                    diagnostic_options: &context.diagnostic_options,
+                    files: &result.files,
+                    diagnostics: &result.diagnostics,
                     format_options,
                     json_format_options: &json_format_options,
-                    module_count: context.program.modules.len(),
+                    module_count: result.response.module_count,
                     line_writer: line_writer.as_ref(),
                 },
-                stats_snapshot,
+                stats,
                 reason,
                 updated,
                 requires_rescan,
@@ -581,6 +621,8 @@ where
     if let Some(reporter) = reporter.as_mut() {
         reporter.emit_stop();
     }
+
+    daemon.shutdown();
 
     exit_code
 }

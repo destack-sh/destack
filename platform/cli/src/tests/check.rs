@@ -4,7 +4,7 @@ use destack_source::{FileWatchEvent, FileWatchEventKind, MemoryFileWatcher};
 use serde_json::json;
 
 use crate::command::check::{CheckArgs, Format, Progress, run, run_watch_with_options};
-use crate::common::{CompilerMode, DiagnosticArgs, FormatOptions, ReportArgs, WatchCompileReason};
+use crate::common::{DiagnosticArgs, FormatOptions, ReportArgs, WatchCompileReason};
 
 use super::tests::{
     TestProgram, assert_success, input_args_from_path, watch_loop_options_for_test,
@@ -88,7 +88,6 @@ fn test_check_watch_handles_update() {
     let exit_code = run_watch_with_options(
         &args,
         "check",
-        CompilerMode::Check,
         None,
         &format_options,
         None,
@@ -163,7 +162,6 @@ fn test_check_watch_handles_config_rescan() {
     let exit_code = run_watch_with_options(
         &args,
         "check",
-        CompilerMode::Check,
         None,
         &format_options,
         None,

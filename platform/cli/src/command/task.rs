@@ -1,15 +1,14 @@
-use std::path::PathBuf;
-
-use clap::{Args, Subcommand};
-use serde_json::json;
-
 use crate::common::{
     CommandError, CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
-    ensure_no_watch_or_dev, list_payload, print_list_with, print_report, report_error,
+    ensure_no_watch_or_dev, list_payload, parse_required_command_payload, print_list_with,
+    print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::script::{load_tasks, shell_command};
-use crate::pipeline::workspace::{resolve_dsconfig_path, workspace_context};
+use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use clap::{Args, Subcommand};
+use destack_daemon::protocol::{
+    CommandPayload, CommandTaskAction, CommandTaskOptions, CommandTaskPayload,
+};
 
 /// Supported task subcommands.
 #[derive(Subcommand, Debug, Clone)]
@@ -45,180 +44,109 @@ pub struct TaskArgs {
     pub command: Option<TaskCommand>,
 }
 
-/// Task entry returned by list output.
-#[derive(serde::Serialize)]
-struct TaskListEntry {
-    /// Task name.
-    name: String,
-    /// Task description.
-    description: Option<String>,
-}
-
 /// Run workspace tasks.
 pub fn run(args: &TaskArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("task", &args.program, &args.report) {
         return code;
     }
 
-    // load dsconfig and tasks
-    let context = match workspace_context(&args.program, None) {
-        Ok(context) => context,
-        Err(message) => {
-            return report_error("task", &args.report, &message);
-        }
-    };
-    let cwd = context.session.cwd.clone();
-    let dsconfig_path = match resolve_dsconfig_path(&args.program, &context.resolver, &cwd) {
-        Ok(path) => path,
-        Err(message) => {
-            return report_error("task", &args.report, &message);
-        }
-    };
-
-    let tasks = match load_tasks(&context.resolver, &dsconfig_path) {
-        Ok(tasks) => tasks,
-        Err(message) => {
-            return report_error("task", &args.report, &message);
-        }
-    };
-
-    // select command behavior
-    match args.command.clone().unwrap_or(TaskCommand::List) {
-        TaskCommand::List => {
-            // emit structured output when requested
-            if args.report.is_json() {
-                let entries = tasks
-                    .iter()
-                    .map(|task| TaskListEntry {
-                        name: task.name.clone(),
-                        description: task.description.clone(),
-                    })
-                    .collect();
-                let mut report = CommandReport::success("task", 0);
-                report.data = Some(list_payload(entries));
-                print_report(&report, args.report.format());
-            } else if tasks.is_empty() {
-                console::info("task: no tasks defined");
-            } else {
-                let list_entries = tasks
-                    .iter()
-                    .map(|task| {
-                        let entry = ListEntry::new(task.name.clone());
-                        if let Some(description) = task.description.as_ref() {
-                            entry.line(description.clone())
-                        } else {
-                            entry
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                let printer = ListPrinter::info();
-                print_list_with(&list_entries, ListSpacing::Compact, &printer);
-            }
-            0
-        }
+    // build daemon command options
+    let action = match args.command.clone().unwrap_or(TaskCommand::List) {
+        TaskCommand::List => CommandTaskAction::List,
         TaskCommand::Run {
             name,
-            args: task_args,
+            args,
             dry_run,
-        } => {
-            // resolve task by name
-            let task = match tasks.iter().find(|task| task.name == name) {
-                Some(task) => task,
-                None => {
-                    return report_error("task", &args.report, &format!("task '{name}' not found"));
-                }
-            };
+        } => CommandTaskAction::Run {
+            name,
+            args,
+            dry_run,
+        },
+    };
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Task(CommandTaskOptions { action });
 
-            // build final command line
-            let mut command = task.command.clone();
-            if !task_args.is_empty() {
-                command.push(' ');
-                command.push_str(&task_args.join(" "));
-            }
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("task", &args.report, &error.to_string()),
+    };
 
-            // return command when dry run is enabled
-            if dry_run {
-                if args.report.is_json() {
-                    let mut report = CommandReport::success("task", 0);
-                    report.data = Some(json!({
-                        "task": task.name,
-                        "command": command,
-                        "dry_run": true,
-                    }));
-                    print_report(&report, args.report.format());
-                } else {
-                    console::info(&command);
-                }
-                return 0;
-            }
+    // decode daemon payload
+    let (payload, _) = match parse_required_command_payload::<CommandTaskPayload>(
+        "task",
+        &args.report,
+        result.response.data.as_ref(),
+        "task",
+    ) {
+        Ok(payload) => payload,
+        Err(code) => return code,
+    };
 
-            // spawn task via shell
-            let dsconfig_dir = dsconfig_path
-                .parent()
-                .map(PathBuf::from)
-                .unwrap_or_else(|| dsconfig_path.clone());
-            let mut shell = shell_command(&command);
-            shell.current_dir(task.cwd.as_ref().unwrap_or(&dsconfig_dir));
-            let status = shell.status();
+    // emit daemon messages and output for text mode
+    emit_daemon_text_output(
+        &args.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
-            match status {
-                Ok(status) => {
-                    let exit_code = status.code().unwrap_or(1);
-                    if args.report.is_json() {
-                        let mut report = if exit_code == 0 {
-                            CommandReport::success("task", exit_code)
-                        } else {
-                            let message = format!("task exited with code {exit_code}");
-                            let mut report = CommandReport::failure("task", exit_code);
-                            report.summary = Some(message.clone());
-                            report.error = Some(CommandError::new("task_exit", "task", message));
-                            report
-                        };
-                        report.data = Some(json!({
-                            "task": task.name,
-                            "command": command,
-                            "cwd": task
-                                .cwd
-                                .as_ref()
-                                .unwrap_or(&dsconfig_dir)
-                                .display()
-                                .to_string(),
-                            "exit_code": exit_code,
-                            "dry_run": false,
-                        }));
-                        print_report(&report, args.report.format());
-                    } else if exit_code != 0 {
-                        console::warn(&format!("process exited with code {exit_code}"));
-                    }
-                    exit_code
-                }
-                Err(error) => {
-                    if args.report.is_json() {
-                        let message = format!("task failed: {error}");
-                        let mut report = CommandReport::failure("task", 1);
-                        report.summary = Some(message.clone());
-                        report.error = Some(CommandError::new("task_failed", "task", message));
-                        report.data = Some(json!({
-                            "task": task.name,
-                            "command": command,
-                            "cwd": task
-                                .cwd
-                                .as_ref()
-                                .unwrap_or(&dsconfig_dir)
-                                .display()
-                                .to_string(),
-                            "exit_code": 1,
-                            "dry_run": false,
-                        }));
-                        print_report(&report, args.report.format());
-                    } else {
-                        console::error(&format!("task failed: {error}"));
-                    }
-                    1
-                }
-            }
+    // handle list output
+    if let Some(tasks) = payload.tasks {
+        if args.report.is_json() {
+            let mut report = CommandReport::success("task", result.response.exit_code);
+            report.data = Some(list_payload(tasks));
+            print_report(&report, args.report.format());
+            return result.response.exit_code;
         }
-    }
-}
 
-// task loading helpers live in pipeline::script
+        if tasks.is_empty() {
+            console::info("task: no tasks defined");
+        } else {
+            let list_entries = tasks
+                .iter()
+                .map(|task| {
+                    let entry = ListEntry::new(task.name.clone());
+                    if let Some(description) = task.description.as_ref() {
+                        entry.line(description.clone())
+                    } else {
+                        entry
+                    }
+                })
+                .collect::<Vec<_>>();
+            let printer = ListPrinter::info();
+            print_list_with(&list_entries, ListSpacing::Compact, &printer);
+        }
+        return result.response.exit_code;
+    }
+
+    // handle run output
+    let exit_code = payload.exit_code.unwrap_or(result.response.exit_code);
+    if args.report.is_json() {
+        let mut report = if exit_code == 0 {
+            CommandReport::success("task", exit_code)
+        } else {
+            let message = format!("task exited with code {exit_code}");
+            let mut report = CommandReport::failure("task", exit_code);
+            report.summary = Some(message.clone());
+            report.error = Some(CommandError::new("task_exit", "task", message));
+            report
+        };
+        let task_name = payload.task.unwrap_or_default();
+        let command = payload.command.unwrap_or_default();
+        report.data = Some(serde_json::json!({
+            "task": task_name,
+            "command": command,
+            "cwd": payload.cwd,
+            "exit_code": exit_code,
+            "dry_run": payload.dry_run.unwrap_or(false),
+        }));
+        print_report(&report, args.report.format());
+        return exit_code;
+    }
+
+    if exit_code != 0 {
+        console::warn(&format!("process exited with code {exit_code}"));
+    }
+
+    exit_code
+}

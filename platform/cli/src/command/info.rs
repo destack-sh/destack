@@ -1,14 +1,11 @@
-use clap::Args;
-use serde_json::json;
-
 use crate::common::{
-    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report, report_error,
+    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_required_command_payload,
+    print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::workspace::{
-    find_dsconfig, load_dsconfig, load_workspace_dsconfigs, resolve_dsconfig_path,
-    workspace_context,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use clap::Args;
+use destack_daemon::protocol::{CommandInfoOptions, CommandInfoPayload, CommandPayload};
 
 /// Arguments for the info command.
 #[derive(Args, Debug, Clone)]
@@ -32,124 +29,92 @@ pub fn run(args: &InfoArgs) -> i32 {
         return code;
     }
 
-    // set up workspace context
-    let context = match workspace_context(&args.program, None) {
-        Ok(context) => context,
-        Err(message) => return report_error("info", &args.report, &message),
-    };
-    let cwd = context.session.cwd.clone();
+    // build daemon command options
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Info(CommandInfoOptions { all: args.all });
 
-    // load config for cwd
-    let dsconfig_path = if args.program.config.is_some() {
-        match resolve_dsconfig_path(&args.program, &context.resolver, &cwd) {
-            Ok(path) => Some(path),
-            Err(message) => return report_error("info", &args.report, &message),
-        }
-    } else {
-        find_dsconfig(&context.resolver, &cwd)
-    };
-    let dsconfig = dsconfig_path
-        .as_ref()
-        .and_then(|path| load_dsconfig(&context.resolver, path).ok());
-
-    // load workspace configs when requested
-    let workspace_configs = if args.all {
-        load_workspace_dsconfigs(&context.resolver, &context.workspace).ok()
-    } else {
-        None
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("info", &args.report, &error.to_string()),
     };
 
-    let workspace = &context.workspace;
-    let package_paths: Vec<String> = workspace
-        .package_paths
-        .iter()
-        .map(|path| path.display().to_string())
-        .collect();
+    // decode daemon payload for structured output
+    let (payload, payload_value) = match parse_required_command_payload::<CommandInfoPayload>(
+        "info",
+        &args.report,
+        result.response.data.as_ref(),
+        "info",
+    ) {
+        Ok(payload) => payload,
+        Err(code) => return code,
+    };
 
-    // derive target summaries
-    let targets = dsconfig.as_ref().map(|config| {
-        config
-            .options
-            .targets
-            .iter()
-            .map(|(name, target)| {
-                json!({
-                    "name": name,
-                    "output": format!("{:?}", target.output),
-                    "runtime": format!("{:?}", target.runtime),
-                    "platform": format!("{:?}", target.platform),
-                    "out_dir": target.out_dir.display().to_string(),
-                    "out_file": target.out_file.as_ref().map(|path| path.display().to_string()),
-                })
-            })
-            .collect::<Vec<_>>()
-    });
-
-    // derive workspace target summaries
-    let workspace_targets = workspace_configs.as_ref().map(|configs| {
-        configs
-            .iter()
-            .flat_map(|config| {
-                config.options.targets.iter().map(|(name, target)| {
-                    json!({
-                        "name": name,
-                        "output": format!("{:?}", target.output),
-                        "runtime": format!("{:?}", target.runtime),
-                        "platform": format!("{:?}", target.platform),
-                        "out_dir": target.out_dir.display().to_string(),
-                        "out_file": target.out_file.as_ref().map(|path| path.display().to_string()),
-                        "package_dir": config.directory.display().to_string(),
-                    })
-                })
-            })
-            .collect::<Vec<_>>()
-    });
+    // emit daemon output for text mode
+    emit_daemon_text_output(
+        &args.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
     // emit structured output when requested
     if args.report.is_json() {
-        let mut report = CommandReport::success("info", 0);
-        report.data = Some(json!({
-            "workspace": {
-                "root": workspace.root.display().to_string(),
-                "kind": format!("{:?}", workspace.kind),
-                "packages": package_paths,
-            },
-            "dsconfig": dsconfig_path.as_ref().map(|path| path.display().to_string()),
-            "targets": targets,
-            "workspace_targets": workspace_targets,
-        }));
+        let mut report = CommandReport::success("info", result.response.exit_code);
+        report.data = Some(payload_value);
         print_report(&report, args.report.format());
-        return 0;
+        return result.response.exit_code;
     }
 
     // emit minimal text output
-    console::info(&format!("workspace: {}", workspace.root.display()));
-    console::info(&format!("kind: {:?}", workspace.kind));
-    for path in &package_paths {
+    console::info(&format!("workspace: {}", payload.workspace.root));
+    console::info(&format!("kind: {}", payload.workspace.kind));
+    for path in &payload.workspace.packages {
         console::info(&format!("package: {path}"));
     }
-    if let Some(path) = dsconfig_path {
-        console::info(&format!("dsconfig: {}", path.display()));
+    if let Some(path) = payload.dsconfig.as_ref() {
+        console::info(&format!("dsconfig: {path}"));
     } else {
         console::warn("dsconfig: not found");
     }
-    if let Some(targets) = targets {
+    if let Some(targets) = payload.targets.as_ref() {
         if targets.is_empty() {
             console::warn("targets: none");
         } else {
+            // emit target details for the active package
             for target in targets {
-                if let Some(name) = target.get("name").and_then(|v| v.as_str()) {
-                    console::info(&format!("target: {name}"));
+                console::info(&format!("target: {}", target.name));
+                console::info(&format!("  output: {}", target.output));
+                console::info(&format!("  runtime: {}", target.runtime));
+                console::info(&format!("  platform: {}", target.platform));
+                console::info(&format!("  out_dir: {}", target.out_dir));
+                if let Some(out_file) = target.out_file.as_ref() {
+                    console::info(&format!("  out_file: {out_file}"));
+                }
+                if let Some(package_dir) = target.package_dir.as_ref() {
+                    console::info(&format!("  package_dir: {package_dir}"));
                 }
             }
         }
     }
 
-    if let Some(workspace_targets) = workspace_targets
+    if let Some(workspace_targets) = payload.workspace_targets.as_ref()
         && !workspace_targets.is_empty()
     {
-        console::info(&format!("workspace targets: {}", workspace_targets.len()));
+        // emit target details for the workspace packages
+        for target in workspace_targets {
+            console::info(&format!("workspace target: {}", target.name));
+            console::info(&format!("  output: {}", target.output));
+            console::info(&format!("  runtime: {}", target.runtime));
+            console::info(&format!("  platform: {}", target.platform));
+            console::info(&format!("  out_dir: {}", target.out_dir));
+            if let Some(out_file) = target.out_file.as_ref() {
+                console::info(&format!("  out_file: {out_file}"));
+            }
+            if let Some(package_dir) = target.package_dir.as_ref() {
+                console::info(&format!("  package_dir: {package_dir}"));
+            }
+        }
     }
 
-    0
+    result.response.exit_code
 }

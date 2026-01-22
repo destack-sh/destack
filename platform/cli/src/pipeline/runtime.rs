@@ -7,6 +7,7 @@ use destack_workspace::{
 };
 
 use crate::common::InputSource;
+use crate::error::{CliError, CliResult};
 
 /// Create isolate options from target configuration.
 pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
@@ -61,18 +62,21 @@ pub fn create_isolate(
     module_id: ModuleId,
     target_id: &TargetId,
     options: IsolateOptions,
-) -> Result<Isolate, String> {
+) -> CliResult<Isolate> {
     // resolve lowered mir for the target
     let module = program.modules.get(module_id);
     let module = module.read();
-    let mir = module
-        .mir_maybe(target_id)
-        .ok_or_else(|| format!("missing MIR for target {target_id:?} (run requires lowering)"))?;
+    let mir = module.mir_maybe(target_id).ok_or_else(|| {
+        CliError::message(format!(
+            "missing MIR for target {target_id:?} (run requires lowering)"
+        ))
+    })?;
     let tree = mir.tree.read().clone();
     let strings = mir.strings.clone().into_immutable();
 
     // construct the isolate from mir state
-    Isolate::with_options(tree, strings, options).map_err(|error| format!("{error}"))
+    Isolate::with_options(tree, strings, options)
+        .map_err(|error| CliError::message(error.to_string()))
 }
 
 /// Build process arguments for the entry source.

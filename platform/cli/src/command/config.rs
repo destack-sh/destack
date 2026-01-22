@@ -1,13 +1,13 @@
-use std::path::{Path, PathBuf};
-
-use clap::Args;
-use serde_json::Value;
+use std::path::PathBuf;
 
 use crate::common::{
-    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report, report_error,
+    CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, parse_required_command_payload,
+    print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::workspace::{find_dsconfig, load_dsconfig, workspace_context};
+use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use clap::Args;
+use destack_daemon::protocol::{CommandConfigOptions, CommandConfigPayload, CommandPayload};
 
 /// Arguments for the config command.
 #[derive(Args, Debug, Clone)]
@@ -35,107 +35,61 @@ pub fn run(args: &ConfigArgs) -> i32 {
         return code;
     }
 
-    // set up workspace context
-    let context = match workspace_context(&args.program, args.path.clone()) {
-        Ok(context) => context,
-        Err(message) => return report_error("config", &args.report, &message),
-    };
-    let cwd = context.session.cwd.clone();
+    // build daemon command options
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Config(CommandConfigOptions {
+        path: args.path.clone(),
+        full: args.full,
+    });
 
-    // resolve dsconfig path
-    let config_path = args.path.as_ref().or(args.program.config.as_ref());
-    let dsconfig_path = match resolve_config_path(&context.resolver, config_path, &cwd) {
-        Ok(path) => path,
-        Err(message) => return report_error("config", &args.report, &message),
-    };
-
-    // load dsconfig for summary fields
-    let dsconfig = match load_dsconfig(&context.resolver, &dsconfig_path) {
-        Ok(dsconfig) => dsconfig,
-        Err(message) => return report_error("config", &args.report, &message),
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("config", &args.report, &error.to_string()),
     };
 
-    // parse raw config json
-    let config_json = match read_config_json(&context.resolver, &dsconfig_path) {
-        Ok(value) => value,
-        Err(message) => return report_error("config", &args.report, &message),
+    // decode daemon payload for structured output
+    let (payload, payload_value) = match parse_required_command_payload::<CommandConfigPayload>(
+        "config",
+        &args.report,
+        result.response.data.as_ref(),
+        "config",
+    ) {
+        Ok(payload) => payload,
+        Err(code) => return code,
     };
 
-    // collect target metadata
-    let target_names: Vec<String> = dsconfig.options.targets.keys().cloned().collect();
-    let default_target = dsconfig.options.default_target.clone();
+    // emit daemon output for text mode
+    emit_daemon_text_output(
+        &args.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
-    // print structured output when requested
+    // emit structured output when requested
     if args.report.is_json() {
-        let mut report = CommandReport::success("config", 0);
-        report.data = Some(serde_json::json!({
-            "path": dsconfig_path.display().to_string(),
-            "default_target": default_target,
-            "targets": target_names,
-            "config": config_json,
-        }));
+        let mut report = CommandReport::success("config", result.response.exit_code);
+        report.data = Some(payload_value);
         print_report(&report, args.report.format());
-        return 0;
+        return result.response.exit_code;
     }
 
     // emit minimal text output
-    console::info(&format!("config: {}", dsconfig_path.display()));
-    if let Some(default_target) = default_target {
+    console::info(&format!("config: {}", payload.path));
+    if let Some(default_target) = payload.default_target.as_ref() {
         console::info(&format!("default target: {default_target}"));
     }
-    if target_names.is_empty() {
+    if payload.targets.is_empty() {
         console::info("targets: none");
     } else {
-        console::info(&format!("targets: {}", target_names.join(", ")));
+        console::info(&format!("targets: {}", payload.targets.join(", ")));
     }
 
-    if args.full {
-        // pretty print the full config
-        if let Ok(pretty) = serde_json::to_string_pretty(&config_json) {
-            println!("{pretty}");
-        }
+    if args.full
+        && let Ok(pretty) = serde_json::to_string_pretty(&payload.config)
+    {
+        println!("{pretty}");
     }
 
-    0
-}
-
-/// Resolve the config path from command arguments.
-fn resolve_config_path(
-    resolver: &destack_resolver::Resolver,
-    path: Option<&PathBuf>,
-    cwd: &Path,
-) -> Result<PathBuf, String> {
-    // honor explicit paths when provided
-    if let Some(path) = path {
-        let resolved_path = if path.is_absolute() {
-            path.clone()
-        } else {
-            cwd.join(path)
-        };
-
-        if let Ok(metadata) = resolver.fs.metadata(&resolved_path) {
-            if metadata.is_file {
-                return Ok(resolved_path);
-            }
-            if metadata.is_directory {
-                return find_dsconfig(resolver, &resolved_path)
-                    .ok_or_else(|| "dsconfig.json not found".to_string());
-            }
-        }
-        return Err(format!("path not found: {}", resolved_path.display()));
-    }
-
-    // fall back to cwd lookup
-    find_dsconfig(resolver, cwd).ok_or_else(|| "dsconfig.json not found".to_string())
-}
-
-/// Read and parse a dsconfig.json file into JSON.
-fn read_config_json(resolver: &destack_resolver::Resolver, path: &Path) -> Result<Value, String> {
-    // read the config file contents
-    let content = resolver
-        .fs
-        .read_to_string(path)
-        .map_err(|e| format!("failed to read {}: {e}", path.display()))?;
-    // parse into json value
-    serde_json::from_str(&content).map_err(|e| format!("invalid dsconfig: {e}"))
+    result.response.exit_code
 }

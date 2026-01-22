@@ -1,10 +1,16 @@
 use clap::Args;
+use destack_daemon::protocol::{CommandPayload, CommandReplOptions};
+use destack_source::DiagnosticOptions;
 
 use crate::common::{
-    CommandError, CommandReport, DiagnosticArgs, ProgramArgs, ReportArgs, TargetArgs,
-    ensure_no_watch_or_dev, print_report,
+    DiagnosticArgs, ProgramArgs, ReportArgs, TargetArgs, ensure_no_watch_or_dev, report_error,
 };
-use crate::console;
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, finish_daemon_message_command, run_daemon_command_with_session,
+    target_overrides_from_args,
+};
+use crate::pipeline::target::target_name_from_args;
+use crate::pipeline::workspace::default_target_for_session;
 
 /// Arguments for the repl command.
 #[derive(Args, Debug, Clone)]
@@ -32,17 +38,35 @@ pub fn run(args: &ReplArgs) -> i32 {
         return code;
     }
 
-    // emit json placeholder when requested
-    if args.report.is_json() {
-        let message = "repl is not implemented yet";
-        let mut report = CommandReport::failure("repl", 1);
-        report.summary = Some(message.to_string());
-        report.error = Some(CommandError::new("not_implemented", "feature", message));
-        print_report(&report, args.report.format());
-        return 1;
-    }
+    // build daemon command options
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
+    let session = args.program.setup();
+    let target_name = match default_target_for_session(&args.program, &session) {
+        Ok(default_target) => {
+            let fallback = default_target.as_deref().unwrap_or("native");
+            target_name_from_args(&args.target, fallback)
+        }
+        Err(error) => return report_error("repl", &args.report, &error.to_string()),
+    };
+    let common = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+        .target(target_name)
+        .target_overrides(target_overrides_from_args(&args.target))
+        .build();
+    let payload = CommandPayload::Repl(CommandReplOptions::default());
 
-    // fall back to a minimal text error
-    console::error("repl: not implemented yet");
-    1
+    // execute the daemon command
+    let result = match run_daemon_command_with_session(
+        session,
+        &args.program,
+        diagnostic_options,
+        common,
+        payload,
+        None,
+    ) {
+        Ok(result) => result,
+        Err(error) => return report_error("repl", &args.report, &error.to_string()),
+    };
+
+    // emit command output based on the report format
+    finish_daemon_message_command("repl", &args.report, &result)
 }

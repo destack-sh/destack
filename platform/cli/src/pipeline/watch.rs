@@ -2,20 +2,90 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::{CompilerEventHandler, CompilerOptions, StatsSnapshot};
-use destack_daemon::{Daemon, DaemonMessage, DaemonMessageKind, WatchCoordinator, WatchPolicy};
-use destack_source::{
-    DiagnosticOptions, FileType, FileWatchFilter, FileWatchOptions, FileWatcher,
-    PhysicalFileWatcher,
+use destack_compiler::{CompilerEventHandler, CompilerOptions};
+use destack_daemon::{
+    Daemon, DaemonMessage, DaemonMessageKind, WatchBatch, WatchCoordinator, WatchPolicy,
 };
-use destack_workspace::{Program, Session};
+use destack_source::{
+    DiagnosticCollection, DiagnosticOptions, FileRegistry, FileType, FileWatchFilter,
+    FileWatchOptions, FileWatcher, PhysicalFileWatcher,
+};
+use destack_workspace::Session;
 
 use crate::common::format::{FormatOptions, LineWriter, format_diagnostics_with_writer};
 use crate::common::program::ProgramArgs;
 use crate::common::{
-    CommandStats, WatchCompileJson, WatchCompileReason, WatchReporter, collect_diagnostics_json,
+    CommandStats, ReportArgs, WatchCompileJson, WatchCompileReason, WatchReporter,
+    collect_diagnostics_json,
 };
 use crate::console;
+use crate::error::CliResult;
+
+/// Summary of watch updates produced by a daemon.
+#[derive(Debug, Clone, Default)]
+pub struct WatchBatchSummary {
+    /// Whether updates were produced.
+    pub updated: bool,
+    /// Whether a rescan is required.
+    pub rescan: bool,
+    /// Messages produced by the daemon.
+    pub messages: Vec<WatchMessage>,
+}
+
+/// Severity tagged message for watch output.
+#[derive(Debug, Clone)]
+pub struct WatchMessage {
+    /// Message severity.
+    pub kind: DaemonMessageKind,
+    /// Message content.
+    pub message: String,
+}
+
+/// Daemon interface for watch updates.
+pub trait WatchDaemon {
+    /// Apply a watch batch and return a summary.
+    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary>;
+    /// Rescan the workspace roots and return a summary.
+    fn rescan_roots(&self, roots: &[PathBuf]) -> CliResult<WatchBatchSummary>;
+}
+
+impl WatchMessage {
+    /// Build a watch message from a daemon message.
+    pub fn from_daemon(message: &DaemonMessage) -> Self {
+        Self {
+            kind: message.kind(),
+            message: message.render(),
+        }
+    }
+}
+
+impl WatchDaemon for Daemon {
+    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary> {
+        let result = Daemon::apply_watch_batch(self, batch);
+        Ok(WatchBatchSummary {
+            updated: result.updated(),
+            rescan: result.rescan,
+            messages: result
+                .messages
+                .iter()
+                .map(WatchMessage::from_daemon)
+                .collect(),
+        })
+    }
+
+    fn rescan_roots(&self, roots: &[PathBuf]) -> CliResult<WatchBatchSummary> {
+        let result = self.rescan_roots(roots);
+        Ok(WatchBatchSummary {
+            updated: result.updated(),
+            rescan: false,
+            messages: result
+                .messages
+                .iter()
+                .map(WatchMessage::from_daemon)
+                .collect(),
+        })
+    }
+}
 
 /// Options for the shared watch loop.
 #[derive(Clone)]
@@ -95,6 +165,50 @@ pub fn watch_roots(program: &ProgramArgs, session: &Session) -> Vec<PathBuf> {
     vec![session.cwd.clone()]
 }
 
+/// Watch context shared by CLI watch commands.
+#[derive(Debug)]
+pub struct WatchContext {
+    /// Workspace roots to watch.
+    pub roots: Vec<PathBuf>,
+    /// Primary root used for daemon commands.
+    pub root: PathBuf,
+    /// Optional reporter for JSON output.
+    pub reporter: Option<WatchReporter>,
+}
+
+/// Prepare watch roots and reporter for a CLI command.
+pub fn build_watch_context(
+    command_name: &str,
+    program: &ProgramArgs,
+    report: &ReportArgs,
+    session: &Session,
+) -> WatchContext {
+    // resolve workspace roots
+    let roots = watch_roots(program, session);
+
+    // select the primary root
+    let root = roots
+        .first()
+        .cloned()
+        .unwrap_or_else(|| session.cwd.clone());
+
+    // initialize the reporter when json output is requested
+    let mut reporter = if report.is_json() {
+        Some(WatchReporter::new(command_name))
+    } else {
+        None
+    };
+    if let Some(reporter) = reporter.as_mut() {
+        reporter.emit_start(&roots);
+    }
+
+    WatchContext {
+        roots,
+        root,
+        reporter,
+    }
+}
+
 /// Build watch options for CLI watch mode.
 pub fn build_watch_options() -> FileWatchOptions {
     // filter to relevant file types
@@ -135,10 +249,10 @@ pub fn watch_error(message: &str) -> String {
 
 /// Context for emitting watch compile diagnostics.
 pub struct WatchCompileContext<'a> {
-    /// The program used to format diagnostics.
-    pub program: &'a Program,
-    /// The diagnostic options for formatting.
-    pub diagnostic_options: &'a DiagnosticOptions,
+    /// Files associated with the diagnostics.
+    pub files: &'a FileRegistry,
+    /// Diagnostics to render.
+    pub diagnostics: &'a DiagnosticCollection,
     /// The human readable formatting options.
     pub format_options: &'a FormatOptions,
     /// The json formatting options.
@@ -163,7 +277,7 @@ impl fmt::Debug for WatchCompileContext<'_> {
 pub fn emit_watch_compile_report(
     reporter: &mut Option<WatchReporter>,
     context: WatchCompileContext<'_>,
-    stats_snapshot: Option<StatsSnapshot>,
+    stats: Option<CommandStats>,
     reason: WatchCompileReason,
     updated: bool,
     rescan: bool,
@@ -171,14 +285,9 @@ pub fn emit_watch_compile_report(
 ) -> i32 {
     // emit json diagnostics for watch reporters
     if let Some(reporter) = reporter.as_mut() {
-        let diagnostics = context
-            .program
-            .diagnostics
-            .collect()
-            .map(context.diagnostic_options);
         let (output, format_result) = collect_diagnostics_json(
-            &context.program.files,
-            &diagnostics,
+            context.files,
+            context.diagnostics,
             context.json_format_options,
         );
         let diagnostics_payload = if context.json_format_options.suppress_diagnostics {
@@ -186,7 +295,6 @@ pub fn emit_watch_compile_report(
         } else {
             Some(output)
         };
-        let stats = stats_snapshot.as_ref().map(CommandStats::from_snapshot);
         reporter.emit_compile(WatchCompileJson {
             reason,
             updated,
@@ -201,8 +309,8 @@ pub fn emit_watch_compile_report(
 
     // emit text diagnostics when json output is not requested
     print_watch_diagnostics(
-        context.program,
-        context.diagnostic_options,
+        context.files,
+        context.diagnostics,
         context.format_options,
         context.module_count,
         context.line_writer,
@@ -213,7 +321,7 @@ pub fn emit_watch_compile_report(
 /// Run the shared watch loop and dispatch updates to the provided hooks.
 #[allow(clippy::too_many_arguments)]
 pub fn run_watch_loop<State, StartFn, RescanFn, CompileFn>(
-    daemon: &Daemon,
+    daemon: &dyn WatchDaemon,
     roots: Vec<PathBuf>,
     reporter: &mut Option<WatchReporter>,
     loop_options: WatchLoopOptions,
@@ -225,7 +333,7 @@ pub fn run_watch_loop<State, StartFn, RescanFn, CompileFn>(
 ) -> i32
 where
     StartFn: FnOnce(&mut State),
-    RescanFn: FnMut(&mut State) -> Result<(), String>,
+    RescanFn: FnMut(&mut State) -> CliResult<()>,
     CompileFn: FnMut(
         &mut State,
         &mut Option<WatchReporter>,
@@ -267,24 +375,36 @@ where
         }
 
         // apply daemon watch updates
-        let result = daemon.apply_watch_batch(&batch);
+        let result = match daemon.apply_watch_batch(&batch) {
+            Ok(result) => result,
+            Err(error) => {
+                emit_watch_warning(reporter, &watch_error(&error.to_string()));
+                continue;
+            }
+        };
         let requires_rescan = result.rescan;
         for message in &result.messages {
             emit_watch_message(reporter, message);
         }
 
-        let mut updated = result.updated();
+        let mut updated = result.updated;
 
         // refresh sources when a rescan is requested
         if requires_rescan {
-            let rescan_result = daemon.rescan_roots(&watch_roots);
-            updated = updated || rescan_result.updated();
+            let rescan_result = match daemon.rescan_roots(&watch_roots) {
+                Ok(result) => result,
+                Err(error) => {
+                    emit_watch_warning(reporter, &watch_error(&error.to_string()));
+                    continue;
+                }
+            };
+            updated = updated || rescan_result.updated;
             for message in &rescan_result.messages {
                 emit_watch_message(reporter, message);
             }
 
-            if let Err(message) = on_rescan(state) {
-                emit_watch_warning(reporter, &message);
+            if let Err(error) = on_rescan(state) {
+                emit_watch_warning(reporter, &error.to_string());
                 continue;
             }
         }
@@ -313,19 +433,16 @@ where
 
 /// Print diagnostics for watch mode without consuming program state.
 pub fn print_watch_diagnostics(
-    program: &Program,
-    diagnostic_options: &DiagnosticOptions,
+    files: &FileRegistry,
+    diagnostics: &DiagnosticCollection,
     format_options: &FormatOptions,
     module_count: usize,
     line_writer: Option<&LineWriter>,
 ) -> crate::common::format::FormatResult {
-    // collect diagnostics from the program
-    let diagnostics = program.diagnostics.collect().map(diagnostic_options);
-
     // emit diagnostics using the shared formatter
     format_diagnostics_with_writer(
-        &program.files,
-        &diagnostics,
+        files,
+        diagnostics,
         format_options,
         module_count,
         line_writer,
@@ -333,18 +450,18 @@ pub fn print_watch_diagnostics(
 }
 
 /// Emit a watch message through the reporter or console.
-fn emit_watch_message(reporter: &mut Option<WatchReporter>, message: &DaemonMessage) {
+fn emit_watch_message(reporter: &mut Option<WatchReporter>, message: &WatchMessage) {
     // report to json watchers when available
     if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_warning(&message.render());
+        reporter.emit_warning(&message.message);
         return;
     }
 
-    let rendered = message.render();
-    match message.kind() {
-        DaemonMessageKind::Info => console::info(&rendered),
-        DaemonMessageKind::Warning => console::warn(&rendered),
-        DaemonMessageKind::Error => console::error(&rendered),
+    let rendered = message.message.as_str();
+    match message.kind {
+        DaemonMessageKind::Info => console::info(rendered),
+        DaemonMessageKind::Warning => console::warn(rendered),
+        DaemonMessageKind::Error => console::error(rendered),
     }
 }
 

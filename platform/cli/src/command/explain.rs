@@ -1,5 +1,6 @@
 use clap::{Args, ValueEnum};
 use serde::Serialize;
+use serde_json::Value;
 use std::collections::BTreeMap;
 
 use destack_compiler::{
@@ -188,6 +189,22 @@ struct CategoryListing<T> {
     entries: Vec<T>,
 }
 
+/// JSON payload for explain list output.
+#[derive(Serialize)]
+struct ExplainListPayload {
+    /// Compiler diagnostics grouped by category.
+    compiler: Value,
+    /// Lint diagnostics grouped by category.
+    lint: Value,
+}
+
+/// JSON payload for a single diagnostic entry.
+#[derive(Serialize)]
+struct ExplainDiagnosticPayload {
+    /// The diagnostic payload content.
+    diagnostic: ExplainPayload,
+}
+
 /// Explain payload for JSON output.
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -364,11 +381,25 @@ fn list_diagnostics(args: &ExplainArgs) -> i32 {
 
     // emit json output for tooling
     if args.report.is_json() {
+        let payload = ExplainListPayload {
+            compiler: grouped_list_payload(
+                category_compiler_entries(compiler_entries),
+                compiler_total,
+            ),
+            lint: grouped_list_payload(category_lint_entries(lint_entries), lint_total),
+        };
+        let data = match serde_json::to_value(payload) {
+            Ok(data) => data,
+            Err(error) => {
+                return report_error(
+                    "explain",
+                    &args.report,
+                    &format!("failed to serialize payload: {error}"),
+                );
+            }
+        };
         let mut report = CommandReport::success("explain", 0);
-        report.data = Some(serde_json::json!({
-            "compiler": grouped_list_payload(category_compiler_entries(compiler_entries), compiler_total),
-            "lint": grouped_list_payload(category_lint_entries(lint_entries), lint_total),
-        }));
+        report.data = Some(data);
         print_report(&report, args.report.format());
         return 0;
     }
@@ -620,9 +651,21 @@ fn find_compiler_entry(needle: &str) -> Option<CompilerExplainEntry> {
 fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
     // emit json output for tooling
     if args.report.is_json() {
-        let payload = ExplainPayload::Lint { entry };
+        let payload = ExplainDiagnosticPayload {
+            diagnostic: ExplainPayload::Lint { entry },
+        };
+        let data = match serde_json::to_value(payload) {
+            Ok(data) => data,
+            Err(error) => {
+                return report_error(
+                    "explain",
+                    &args.report,
+                    &format!("failed to serialize payload: {error}"),
+                );
+            }
+        };
         let mut report = CommandReport::success("explain", 0);
-        report.data = Some(serde_json::json!({ "diagnostic": payload }));
+        report.data = Some(data);
         print_report(&report, args.report.format());
         return 0;
     }
@@ -646,9 +689,21 @@ fn output_lint_entry(args: &ExplainArgs, entry: LintExplainEntry) -> i32 {
 fn output_compiler_entry(args: &ExplainArgs, entry: CompilerExplainEntry) -> i32 {
     // emit json output for tooling
     if args.report.is_json() {
-        let payload = ExplainPayload::Compiler { entry };
+        let payload = ExplainDiagnosticPayload {
+            diagnostic: ExplainPayload::Compiler { entry },
+        };
+        let data = match serde_json::to_value(payload) {
+            Ok(data) => data,
+            Err(error) => {
+                return report_error(
+                    "explain",
+                    &args.report,
+                    &format!("failed to serialize payload: {error}"),
+                );
+            }
+        };
         let mut report = CommandReport::success("explain", 0);
-        report.data = Some(serde_json::json!({ "diagnostic": payload }));
+        report.data = Some(data);
         print_report(&report, args.report.format());
         return 0;
     }

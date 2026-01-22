@@ -1,10 +1,12 @@
 use clap::Args;
 
-use destack_daemon::{DaemonService, DaemonServiceOptions, ProtocolServerOptions};
+use destack_daemon::protocol::ProtocolServerOptions;
+use destack_daemon::{DaemonService, DaemonServiceOptions};
 use destack_source::DiagnosticOptions;
 
 use crate::common::diagnostic::DiagnosticArgs;
 use crate::common::program::ProgramArgs;
+use crate::console;
 use crate::pipeline::watch::build_daemon_options;
 
 /// Arguments for the daemon command.
@@ -34,7 +36,7 @@ pub fn run(args: &DaemonArgs) -> i32 {
     );
 
     if let Err(error) = service.serve_stdio() {
-        eprintln!("daemon error: {error}");
+        console::error(&format!("daemon error: {error}"));
         return 1;
     }
 

@@ -7,6 +7,8 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
+use crate::error::{CliError, CliResult};
+
 /// Success checkmark symbol.
 pub const SYMBOL_SUCCESS: &str = "✓";
 /// Failure cross symbol.
@@ -278,18 +280,18 @@ pub fn write_line(text: &str) {
 }
 
 /// Gather free-form input from stdin after printing a prompt.
-pub fn prompt_input(prompt: &str) -> Result<String, String> {
+pub fn prompt_input(prompt: &str) -> CliResult<String> {
     write(prompt);
     let mut buffer = String::new();
     io::stdin()
         .read_line(&mut buffer)
-        .map_err(|error| format!("failed to read input: {error}"))?;
+        .map_err(|error| CliError::message(format!("failed to read input: {error}")))?;
     let trimmed = buffer.trim_end_matches(['\n', '\r']).to_string();
     Ok(trimmed)
 }
 
 /// Ask the user for confirmation, returning the default on empty input.
-pub fn prompt_yes_no(question: &str, default: bool) -> Result<bool, String> {
+pub fn prompt_yes_no(question: &str, default: bool) -> CliResult<bool> {
     loop {
         let suffix = if default { " [Y/n] " } else { " [y/N] " };
         let response = prompt_input(&format!("{question}{suffix}"))?;
@@ -395,7 +397,7 @@ pub fn visible_width(text: &str) -> usize {
 }
 
 /// Page content through `less -R -S -F -X` for colored output and better UX.
-pub fn page_with_less(content: &str) -> Result<(), String> {
+pub fn page_with_less(content: &str) -> CliResult<()> {
     let mut child = Command::new("less")
         .arg("-R")
         .arg("-S")
@@ -403,25 +405,27 @@ pub fn page_with_less(content: &str) -> Result<(), String> {
         .arg("-X")
         .stdin(Stdio::piped())
         .spawn()
-        .map_err(|error| format!("failed to spawn less: {error}"))?;
+        .map_err(|error| CliError::message(format!("failed to spawn less: {error}")))?;
 
     if let Some(stdin) = child.stdin.as_mut() {
-        stdin
-            .write_all(content.as_bytes())
-            .map_err(|error| format!("failed to write to less stdin: {error}"))?;
+        stdin.write_all(content.as_bytes()).map_err(|error| {
+            CliError::message(format!("failed to write to less stdin: {error}"))
+        })?;
     }
 
     let status = child
         .wait()
-        .map_err(|error| format!("failed to wait for less: {error}"))?;
+        .map_err(|error| CliError::message(format!("failed to wait for less: {error}")))?;
     if !status.success() {
-        return Err(format!("less exited with status {status}"));
+        return Err(CliError::message(format!(
+            "less exited with status {status}"
+        )));
     }
     Ok(())
 }
 
 /// Page content when possible and fall back to printing directly.
-pub fn page_or_print(content: &str) -> Result<(), String> {
+pub fn page_or_print(content: &str) -> CliResult<()> {
     match page_with_less(content) {
         Ok(()) => Ok(()),
         Err(error) => {
