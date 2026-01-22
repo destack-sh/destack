@@ -389,6 +389,7 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn finalize_pending_test(
     tests: &mut Vec<MdTestCase>,
     current_section: Option<&String>,
