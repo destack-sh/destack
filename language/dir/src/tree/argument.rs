@@ -61,19 +61,25 @@ impl Parameter {
 pub enum Argument {
     /// Named argument (like `foo: 42` in tree literals).
     Named {
+        modifiers: Option<BindingModifier>,
         name: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Labeled tuple element (like `start: number` in `[start: number, end: number]`).
     /// (Labels are purely for documentation/tooling and don't affect type checking directly.)
     Labeled {
+        modifiers: Option<BindingModifier>,
         label: StringId,
         value: LocalNodeId<Expression>,
     },
     /// Positional argument (like `42` in `foo(42)`).
-    Positional { value: LocalNodeId<Expression> },
+    Positional {
+        modifiers: Option<BindingModifier>,
+        value: LocalNodeId<Expression>,
+    },
     /// Spread argument (like `...args` or `[...args: any[]]`).
     Spread {
+        modifiers: Option<BindingModifier>,
         label: Option<StringId>,
         value: LocalNodeId<Expression>,
     },

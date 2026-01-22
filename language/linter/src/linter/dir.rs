@@ -375,7 +375,7 @@ impl<'a> LintModuleDirContext<'a> {
         // extract the string argument (lint ID or code)
         let arguments = arguments.as_ref()?;
         let first_argument = self.tree.get(*arguments.first()?);
-        let dir::Argument::Positional { value } = first_argument else {
+        let dir::Argument::Positional { value, .. } = first_argument else {
             return None;
         };
 
