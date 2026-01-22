@@ -10,7 +10,7 @@ use destack_workspace::{
     MemoryCacheStore, Platform, ProfileEnv, ProfileId, Program, Runtime, Session, Target,
 };
 
-use crate::harness::{TestResult, discover_test_files};
+use crate::harness::{TestResult, discover_test_files, load_expected_failures};
 
 use super::parser::MdTestCase;
 
@@ -184,6 +184,12 @@ pub fn select_profile_for_mdtest(
     } else {
         (base_profile_id, load_libs)
     }
+}
+
+/// Load expected failures for mdtest suites.
+pub fn load_mdtest_expected_failures(base_dir: &Path) -> std::collections::HashSet<String> {
+    let path = base_dir.join("known-failures.txt");
+    load_expected_failures(&path)
 }
 
 /// Lookup the first matching option value from a set of keys.

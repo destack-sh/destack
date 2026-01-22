@@ -8,6 +8,8 @@ use super::{
     RunContext, Suite, TestCase, TestOptions, TestResult, TestSummary, filter_tests,
     print_failures, print_result, print_summary, print_test_list,
 };
+use super::print::color;
+use std::collections::HashSet;
 
 /// Shared runner implementation for all `destack_test` suites.
 #[derive(Debug)]
@@ -21,10 +23,18 @@ impl Runner {
         };
 
         let cases = suite.discover(options);
-        let (exit_code, results) =
-            Self::run_cases_and_collect(cases, &context, |case, ctx| suite.run(case, ctx));
+        let expected_failures = suite.expected_failures(options);
+        let (exit_code, results, expected_summary) = Self::run_cases_and_collect(
+            cases,
+            expected_failures,
+            &context,
+            |case, ctx| suite.run(case, ctx),
+        );
 
         suite.report(&results, &context);
+        if let Some(summary) = expected_summary {
+            Self::print_expected_failure_summary(&summary);
+        }
 
         exit_code
     }
@@ -33,15 +43,17 @@ impl Runner {
     where
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
-        let (exit_code, _results) = Self::run_cases_and_collect(cases, context, run);
+        let (exit_code, _results, _summary) =
+            Self::run_cases_and_collect(cases, None, context, run);
         exit_code
     }
 
     fn run_cases_and_collect<F>(
         cases: Vec<TestCase>,
+        expected_failures: Option<&HashSet<String>>,
         context: &RunContext<'_>,
         run: F,
-    ) -> (ExitCode, Vec<(TestCase, TestResult)>)
+    ) -> (ExitCode, Vec<(TestCase, TestResult)>, Option<ExpectedFailureSummary>)
     where
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
@@ -49,12 +61,12 @@ impl Runner {
 
         if filtered.is_empty() {
             println!("no tests to run");
-            return (ExitCode::SUCCESS, Vec::new());
+            return (ExitCode::SUCCESS, Vec::new(), None);
         }
 
         if context.options.list {
             print_test_list(&filtered);
-            return (ExitCode::SUCCESS, Vec::new());
+            return (ExitCode::SUCCESS, Vec::new(), None);
         }
 
         println!();
@@ -149,7 +161,9 @@ impl Runner {
         let total_duration = start.elapsed();
 
         let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
+        let mut expected_summary = ExpectedFailureSummary::new(expected_failures);
         for (case, result, duration) in results {
+            let result = expected_summary.update(&case, result);
             summary.record(&result);
             print_result(&case, &result, duration, context.options.verbose);
             final_results.push((case, result));
@@ -164,6 +178,108 @@ impl Runner {
             ExitCode::FAILURE
         };
 
-        (exit_code, final_results)
+        let expected_summary = expected_failures.map(|_| expected_summary);
+        (exit_code, final_results, expected_summary)
+    }
+
+    fn print_expected_failure_summary(summary: &ExpectedFailureSummary) {
+        let regressions = summary.regressions.len();
+        let fixed = summary.fixed.len();
+        let known_failed = summary.known_failed.len();
+
+        if regressions == 0 && fixed == 0 && known_failed == 0 {
+            return;
+        }
+
+        if fixed > 0 {
+            println!(
+                "{} {} tests fixed",
+                color::green("FIXED:"),
+                fixed
+            );
+            for name in summary.fixed.iter().take(20) {
+                println!("  {name}");
+            }
+            if fixed > 20 {
+                println!("  ...and {} more", fixed - 20);
+            }
+        }
+
+        if regressions > 0 {
+            println!(
+                "{} {} regressions detected",
+                color::red("REGRESSIONS:"),
+                regressions
+            );
+            for name in summary.regressions.iter().take(20) {
+                println!("  {name}");
+            }
+            if regressions > 20 {
+                println!("  ...and {} more", regressions - 20);
+            }
+        }
+
+        if known_failed > 0 {
+            println!(
+                "{} {} known failures",
+                color::yellow("KNOWN FAILURES:"),
+                known_failed
+            );
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct ExpectedFailureSummary {
+    /// Set of known failures.
+    expected: Option<HashSet<String>>,
+    /// Tests that failed but were expected to pass.
+    regressions: Vec<String>,
+    /// Tests that passed but were expected to fail.
+    fixed: Vec<String>,
+    /// Tests that failed and are in the expected list.
+    known_failed: Vec<String>,
+}
+
+impl ExpectedFailureSummary {
+    fn new(expected: Option<&HashSet<String>>) -> Self {
+        let expected = expected.map(|set| set.iter().cloned().collect());
+        Self {
+            expected,
+            regressions: Vec::new(),
+            fixed: Vec::new(),
+            known_failed: Vec::new(),
+        }
+    }
+
+    fn update(&mut self, case: &TestCase, result: TestResult) -> TestResult {
+        let Some(expected) = self.expected.as_ref() else {
+            return result;
+        };
+
+        if result.is_suite() || result.is_skipped() {
+            return result;
+        }
+
+        let full_name = case.full_name();
+        let name = &case.name;
+        let is_expected = expected.contains(&full_name) || expected.contains(name);
+
+        if result.is_failed() {
+            if is_expected {
+                self.known_failed.push(full_name);
+                return TestResult::Skipped {
+                    reason: "known failure".to_string(),
+                };
+            }
+            self.regressions.push(full_name);
+            return result;
+        }
+
+        if result.is_passed() && is_expected {
+            self.fixed.push(full_name);
+        }
+
+        result
     }
 }

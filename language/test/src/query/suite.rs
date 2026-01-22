@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir};
+use crate::harness::{
+    RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, save_expected_failures,
+};
 use crate::mdtest::{
-    MdTestCase, MdTestFile, MdTestLibs, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file,
-    parse_mdtest_libs, run_with_timeout, slug,
+    MdTestCase, MdTestFile, MdTestLibs, TEST_TIMEOUT_SECONDS, discover_md_files,
+    load_mdtest_expected_failures, parse_mdtest_file, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
 use destack_source::MemoryFileSystem;
@@ -146,6 +148,10 @@ pub struct QuerySuite {
     tests: HashMap<String, QueryTestCase>,
     /// List of discovered test cases.
     cases: Vec<TestCase>,
+    /// Known failing tests for baseline tracking.
+    expected_failures: HashSet<String>,
+    /// Location of the known failures file.
+    expected_failures_path: PathBuf,
 }
 
 impl QuerySuite {
@@ -159,6 +165,8 @@ impl QuerySuite {
             suite.add_file(&query_dir, &md_path);
         }
 
+        suite.expected_failures = load_mdtest_expected_failures(&query_dir);
+        suite.expected_failures_path = query_dir.join("known-failures.txt");
         suite
     }
 
@@ -201,6 +209,41 @@ impl Suite for QuerySuite {
 
     fn discover(&self, _options: &TestOptions) -> Vec<TestCase> {
         self.cases.clone()
+    }
+
+    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+        if self.expected_failures.is_empty() {
+            None
+        } else {
+            Some(&self.expected_failures)
+        }
+    }
+
+    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+        if !context.options.update_known_failures {
+            return;
+        }
+
+        let mut failures = HashSet::new();
+        for (case, result) in results {
+            if result.is_failed() {
+                failures.insert(case.full_name());
+            }
+        }
+
+        if let Err(error) = save_expected_failures(&self.expected_failures_path, &failures) {
+            eprintln!(
+                "failed to update {}: {error}",
+                self.expected_failures_path.display()
+            );
+            return;
+        }
+
+        println!(
+            "  {} updated with {} failures",
+            self.expected_failures_path.display(),
+            failures.len()
+        );
     }
 
     fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {

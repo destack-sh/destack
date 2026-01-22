@@ -23,6 +23,10 @@ pub struct TestOptions {
     /// List tests without running them.
     #[arg(long)]
     pub list: bool,
+
+    /// Update known-failures lists for mdtest suites.
+    #[arg(long)]
+    pub update_known_failures: bool,
 }
 
 impl Default for TestOptions {
@@ -33,6 +37,7 @@ impl Default for TestOptions {
             jobs: num_cpus(),
             verbose: false,
             list: false,
+            update_known_failures: false,
         }
     }
 }
