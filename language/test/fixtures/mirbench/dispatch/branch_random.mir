@@ -3,40 +3,40 @@ function @branch_random(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 0i64
-    v3 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
     jump block1(v2, v3)
 
 // loop condition, check limit
 block1(v4: i64, v5: i64):
-    v6 = icmp_sge v4, v0
+    v6: bool = icmp_sge v4, v0
     branch v6, block4(v5), block2
 
 // branch on condition
 block2:
-    v7 = iconst 1103515245i64
-    v8 = imul v4, v7
-    v9 = iadd v8, v1
-    v10 = iconst 255i64
-    v11 = band v9, v10
-    v12 = iconst 128i64
-    v13 = icmp_slt v11, v12
+    v7: i64 = iconst 1103515245i64
+    v8: i64 = imul v4, v7
+    v9: i64 = iadd v8, v1
+    v10: i64 = iconst 255i64
+    v11: i64 = band v9, v10
+    v12: i64 = iconst 128i64
+    v13: bool = icmp_slt v11, v12
     branch v13, block3, block5
 
 // update state, merge branch
 block3:
-    v14 = iadd v5, v4
+    v14: i64 = iadd v5, v4
     jump block6(v14, v4)
 
 // update state, merge branch
 block5:
-    v15 = bxor v5, v9
+    v15: i64 = bxor v5, v9
     jump block6(v15, v4)
 
 // merge branches, advance loop
 block6(v16: i64, v17: i64):
-    v18 = iconst 1i64
-    v19 = iadd v17, v18
+    v18: i64 = iconst 1i64
+    v19: i64 = iadd v17, v18
     jump block1(v19, v16)
 
 // return result

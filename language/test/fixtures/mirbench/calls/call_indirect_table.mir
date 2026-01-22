@@ -3,9 +3,9 @@ function @method_add(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iadd v0, v1
-    v3 = iconst 1i64
-    v4 = iadd v2, v3
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 1i64
+    v4: i64 = iadd v2, v3
     return v4
 }
 
@@ -13,9 +13,9 @@ function @method_mul(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 3i64
-    v3 = imul v0, v2
-    v4 = iadd v3, v1
+    v2: i64 = iconst 3i64
+    v3: i64 = imul v0, v2
+    v4: i64 = iadd v3, v1
     return v4
 }
 
@@ -23,9 +23,9 @@ function @method_mix(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = bxor v0, v1
-    v3 = iconst 7i64
-    v4 = iadd v2, v3
+    v2: i64 = bxor v0, v1
+    v3: i64 = iconst 7i64
+    v4: i64 = iadd v2, v3
     return v4
 }
 
@@ -43,39 +43,39 @@ block0(
     v3: fn(i64, i64) -> i64,
     v4: fn(i64, i64) -> i64
 ):
-    v5 = iconst 3i64
-    v6 = managed.alloc_array fn(i64, i64) -> i64, v5 -> ref<managed fn(i64, i64) -> i64>
-    v7 = iconst 0i64
-    v8 = element.addr v6, v7 -> ref<borrowed fn(i64, i64) -> i64>
+    v5: i64 = iconst 3i64
+    v6: i64> = managed.alloc_array fn(i64, i64) -> i64, v5 -> ref<managed fn(i64, i64) -> i64>
+    v7: i64 = iconst 0i64
+    v8: i64> = element.addr v6, v7 -> ref<borrowed fn(i64, i64) -> i64>
     store v8, v2
-    v9 = iconst 1i64
-    v10 = element.addr v6, v9 -> ref<borrowed fn(i64, i64) -> i64>
+    v9: i64 = iconst 1i64
+    v10: i64> = element.addr v6, v9 -> ref<borrowed fn(i64, i64) -> i64>
     store v10, v3
-    v11 = iconst 2i64
-    v12 = element.addr v6, v11 -> ref<borrowed fn(i64, i64) -> i64>
+    v11: i64 = iconst 2i64
+    v12: i64> = element.addr v6, v11 -> ref<borrowed fn(i64, i64) -> i64>
     store v12, v4
-    v13 = iconst 0i64
-    v14 = iconst 0i64
+    v13: i64 = iconst 0i64
+    v14: i64 = iconst 0i64
     jump block1(v13, v14, v6)
 
 // loop condition, check limit
 block1(v15: i64, v16: i64, v17: ref<managed fn(i64, i64) -> i64>):
-    v18 = icmp_sge v15, v0
+    v18: bool = icmp_sge v15, v0
     branch v18, block3(v16), block2
 
 // loop body, update aggregates
 block2:
-    v19 = iconst 1103515245i64
-    v20 = imul v15, v19
-    v21 = iconst 12345i64
-    v22 = iadd v20, v21
-    v23 = iconst 3i64
-    v24 = srem v22, v23
-    v25 = element.addr v17, v24 -> ref<borrowed fn(i64, i64) -> i64>
-    v26 = load v25 -> fn(i64, i64) -> i64
-    v27 = call.indirect v26(v1, v16) -> fn(i64, i64) -> i64
-    v28 = iconst 1i64
-    v29 = iadd v15, v28
+    v19: i64 = iconst 1103515245i64
+    v20: i64 = imul v15, v19
+    v21: i64 = iconst 12345i64
+    v22: i64 = iadd v20, v21
+    v23: i64 = iconst 3i64
+    v24: i64 = srem v22, v23
+    v25: i64> = element.addr v17, v24 -> ref<borrowed fn(i64, i64) -> i64>
+    v26: i64 = load v25 -> fn(i64, i64) -> i64
+    v27: i64 = call.indirect v26(v1, v16) -> fn(i64, i64) -> i64
+    v28: i64 = iconst 1i64
+    v29: i64 = iadd v15, v28
     jump block1(v29, v27, v17)
 
 // return result

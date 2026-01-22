@@ -3,8 +3,8 @@ function @fib(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 2i64
-    v2 = icmp_slt v0, v1
+    v1: i64 = iconst 2i64
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 
 // return result
@@ -13,12 +13,12 @@ block1:
 
 // return helper result
 block2:
-    v3 = iconst 1i64
-    v4 = isub v0, v3
-    v5 = call @fib(v4)
-    v6 = iconst 2i64
-    v7 = isub v0, v6
-    v8 = call @fib(v7)
-    v9 = iadd v5, v8
+    v3: i64 = iconst 1i64
+    v4: i64 = isub v0, v3
+    v5: i64 = call @fib(v4)
+    v6: i64 = iconst 2i64
+    v7: i64 = isub v0, v6
+    v8: i64 = call @fib(v7)
+    v9: i64 = iadd v5, v8
     return v9
 }

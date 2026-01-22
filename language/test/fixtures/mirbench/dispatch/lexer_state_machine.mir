@@ -3,49 +3,49 @@ function @lexer_state_machine(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 0i64
-    v3 = iconst 0i64
-    v4 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
+    v4: i64 = iconst 0i64
     jump block1(v2, v3, v4)
 
 // loop condition, check limit
 block1(v5: i64, v6: i64, v7: i64):
-    v8 = icmp_sge v5, v0
+    v8: bool = icmp_sge v5, v0
     branch v8, block20(v7), block2
 
 // base case check
 block2:
-    v9 = iconst 13i64
-    v10 = imul v5, v9
-    v11 = iadd v10, v1
-    v12 = iconst 127i64
-    v13 = band v11, v12
-    v14 = iconst 3i64
-    v15 = band v13, v14
-    v16 = iconst 0i64
-    v17 = icmp_eq v15, v16
+    v9: i64 = iconst 13i64
+    v10: i64 = imul v5, v9
+    v11: i64 = iadd v10, v1
+    v12: i64 = iconst 127i64
+    v13: i64 = band v11, v12
+    v14: i64 = iconst 3i64
+    v15: i64 = band v13, v14
+    v16: i64 = iconst 0i64
+    v17: bool = icmp_eq v15, v16
     branch v17, block3, block4
 
 // update state, merge branch
 block3:
-    v18 = iconst 26i64
-    v19 = srem v13, v18
-    v20 = iconst 65i64
-    v21 = iadd v19, v20
+    v18: i64 = iconst 26i64
+    v19: i64 = srem v13, v18
+    v20: i64 = iconst 65i64
+    v21: i64 = iadd v19, v20
     jump block5(v21, v5, v6, v7)
 
 // base case check
 block4:
-    v22 = iconst 1i64
-    v23 = icmp_eq v15, v22
+    v22: i64 = iconst 1i64
+    v23: bool = icmp_eq v15, v22
     branch v23, block6, block5(v13, v5, v6, v7)
 
 // loop body, update accumulators
 block6:
-    v24 = iconst 10i64
-    v25 = srem v13, v24
-    v26 = iconst 48i64
-    v27 = iadd v25, v26
+    v24: i64 = iconst 10i64
+    v25: i64 = srem v13, v24
+    v26: i64 = iconst 48i64
+    v27: i64 = iadd v25, v26
     jump block5(v27, v5, v6, v7)
 
 // loop dispatch, select next state
@@ -54,133 +54,133 @@ block5(v28: i64, v29: i64, v30: i64, v31: i64):
 
 // branch on condition
 block7:
-    v32 = iconst 65i64
-    v33 = icmp_sge v28, v32
+    v32: i64 = iconst 65i64
+    v33: bool = icmp_sge v28, v32
     branch v33, block8, block9
 
 // branch on condition
 block8:
-    v34 = iconst 90i64
-    v35 = icmp_sle v28, v34
+    v34: i64 = iconst 90i64
+    v35: bool = icmp_sle v28, v34
     branch v35, block11, block9
 
 // update state, merge branch
 block11:
-    v36 = iconst 1i64
-    v37 = iadd v31, v36
+    v36: i64 = iconst 1i64
+    v37: i64 = iadd v31, v36
     jump block19(v36, v37, v29)
 
 // branch on condition
 block9:
-    v38 = iconst 48i64
-    v39 = icmp_sge v28, v38
+    v38: i64 = iconst 48i64
+    v39: bool = icmp_sge v28, v38
     branch v39, block12, block14
 
 // branch on condition
 block12:
-    v40 = iconst 57i64
-    v41 = icmp_sle v28, v40
+    v40: i64 = iconst 57i64
+    v41: bool = icmp_sle v28, v40
     branch v41, block16, block14
 
 // update state, merge branch
 block16:
-    v42 = iconst 1i64
-    v43 = iadd v31, v42
-    v44 = iconst 2i64
+    v42: i64 = iconst 1i64
+    v43: i64 = iadd v31, v42
+    v44: i64 = iconst 2i64
     jump block19(v44, v43, v29)
 
 // base case check
 block14:
-    v45 = iconst 34i64
-    v46 = icmp_eq v28, v45
+    v45: i64 = iconst 34i64
+    v46: bool = icmp_eq v28, v45
     branch v46, block17, block18
 
 // merge branch, continue
 block17:
-    v47 = iconst 3i64
+    v47: i64 = iconst 3i64
     jump block19(v47, v31, v29)
 
 // merge branch, continue
 block18:
-    v48 = iconst 0i64
+    v48: i64 = iconst 0i64
     jump block19(v48, v31, v29)
 
 // branch on condition
 block10:
-    v49 = iconst 65i64
-    v50 = icmp_sge v28, v49
+    v49: i64 = iconst 65i64
+    v50: bool = icmp_sge v28, v49
     branch v50, block21, block22
 
 // branch on condition
 block21:
-    v51 = iconst 90i64
-    v52 = icmp_sle v28, v51
+    v51: i64 = iconst 90i64
+    v52: bool = icmp_sle v28, v51
     branch v52, block23, block22
 
 // branch on condition
 block22:
-    v53 = iconst 48i64
-    v54 = icmp_sge v28, v53
+    v53: i64 = iconst 48i64
+    v54: bool = icmp_sge v28, v53
     branch v54, block24, block25
 
 // branch on condition
 block24:
-    v55 = iconst 57i64
-    v56 = icmp_sle v28, v55
+    v55: i64 = iconst 57i64
+    v56: bool = icmp_sle v28, v55
     branch v56, block23, block25
 
 // merge branches, advance loop
 block23:
-    v57 = iconst 1i64
+    v57: i64 = iconst 1i64
     jump block19(v57, v31, v29)
 
 // merge branches, advance loop
 block25:
-    v58 = iconst 0i64
+    v58: i64 = iconst 0i64
     jump block19(v58, v31, v29)
 
 // branch on condition
 block13:
-    v59 = iconst 48i64
-    v60 = icmp_sge v28, v59
+    v59: i64 = iconst 48i64
+    v60: bool = icmp_sge v28, v59
     branch v60, block26, block27
 
 // branch on condition
 block26:
-    v61 = iconst 57i64
-    v62 = icmp_sle v28, v61
+    v61: i64 = iconst 57i64
+    v62: bool = icmp_sle v28, v61
     branch v62, block28, block27
 
 // loop body, advance state
 block28:
-    v63 = iconst 2i64
+    v63: i64 = iconst 2i64
     jump block19(v63, v31, v29)
 
 // merge branches, advance loop
 block27:
-    v64 = iconst 0i64
+    v64: i64 = iconst 0i64
     jump block19(v64, v31, v29)
 
 // base case check
 block15:
-    v65 = iconst 34i64
-    v66 = icmp_eq v28, v65
+    v65: i64 = iconst 34i64
+    v66: bool = icmp_eq v28, v65
     branch v66, block29, block30
 
 // loop body, advance state
 block29:
-    v67 = iconst 0i64
+    v67: i64 = iconst 0i64
     jump block19(v67, v31, v29)
 
 // loop body, advance state
 block30:
-    v68 = iconst 3i64
+    v68: i64 = iconst 3i64
     jump block19(v68, v31, v29)
 
 // merge branches, advance loop
 block19(v69: i64, v70: i64, v71: i64):
-    v72 = iconst 1i64
-    v73 = iadd v71, v72
+    v72: i64 = iconst 1i64
+    v73: i64 = iadd v71, v72
     jump block1(v73, v69, v70)
 
 // return result

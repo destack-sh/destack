@@ -3,25 +3,25 @@ function @even_tail(v0: i64, v1: i64, v2: i64, v3: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64, v2: i64, v3: i64):
-    v4 = iconst 0i64
-    v5 = icmp_eq v0, v4
+    v4: i64 = iconst 0i64
+    v5: bool = icmp_eq v0, v4
     branch v5, block2, block1
 
 // block
 block1:
-    v6 = iconst 1i64
-    v7 = isub v0, v6
-    v8 = iconst 2i64
-    v9 = iadd v1, v8
-    v10 = iconst 1i64
-    v11 = iadd v2, v10
-    v12 = bxor v3, v0
+    v6: i64 = iconst 1i64
+    v7: i64 = isub v0, v6
+    v8: i64 = iconst 2i64
+    v9: i64 = iadd v1, v8
+    v10: i64 = iconst 1i64
+    v11: i64 = iadd v2, v10
+    v12: i64 = bxor v3, v0
     tailcall @odd_tail(v7, v9, v11, v12)
 
 // return result
 block2:
-    v13 = iadd v1, v2
-    v14 = iadd v13, v3
+    v13: i64 = iadd v1, v2
+    v14: i64 = iadd v13, v3
     return v14
 }
 
@@ -29,25 +29,25 @@ function @odd_tail(v0: i64, v1: i64, v2: i64, v3: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64, v2: i64, v3: i64):
-    v4 = iconst 0i64
-    v5 = icmp_eq v0, v4
+    v4: i64 = iconst 0i64
+    v5: bool = icmp_eq v0, v4
     branch v5, block2, block1
 
 // block
 block1:
-    v6 = iconst 1i64
-    v7 = isub v0, v6
-    v8 = iconst 1i64
-    v9 = iadd v1, v8
-    v10 = iadd v3, v1
-    v11 = iconst 2i64
-    v12 = iadd v2, v11
+    v6: i64 = iconst 1i64
+    v7: i64 = isub v0, v6
+    v8: i64 = iconst 1i64
+    v9: i64 = iadd v1, v8
+    v10: i64 = iadd v3, v1
+    v11: i64 = iconst 2i64
+    v12: i64 = iadd v2, v11
     tailcall @even_tail(v7, v9, v12, v10)
 
 // return result
 block2:
-    v13 = iadd v1, v2
-    v14 = iadd v13, v3
+    v13: i64 = iadd v1, v2
+    v14: i64 = iadd v13, v3
     return v14
 }
 
@@ -55,8 +55,8 @@ function @call_mutual_tail(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
-    v2 = iconst 0i64
-    v3 = iconst 0i64
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 0i64
     tailcall @even_tail(v0, v1, v2, v3)
 }

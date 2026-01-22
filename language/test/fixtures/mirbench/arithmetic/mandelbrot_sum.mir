@@ -15,11 +15,11 @@ block0(
     v4: f64,
     v5: f64
 ):
-    v6 = iconst 64i64
-    v7 = imul v6, v6
-    v8 = sdiv v0, v7
-    v9 = iconst 1i64
-    v10 = icmp_slt v8, v9
+    v6: i64 = iconst 64i64
+    v7: i64 = imul v6, v6
+    v8: i64 = sdiv v0, v7
+    v9: i64 = iconst 1i64
+    v10: bool = icmp_slt v8, v9
     branch v10, block1, block2
 
 // merge branch, continue
@@ -32,46 +32,46 @@ block2:
 
 // merge branch, continue
 block3(v11: i64):
-    v12 = iconst 0i64
-    v13 = iconst 0i64
+    v12: i64 = iconst 0i64
+    v13: i64 = iconst 0i64
     jump block4(v12, v13, v11)
 
 // loop condition, check limit
 block4(v14: i64, v15: i64, v16: i64):
-    v17 = icmp_sge v14, v16
+    v17: bool = icmp_sge v14, v16
     branch v17, block24(v15), block5
 
 // merge branch, continue
 block5:
-    v18 = iconst 0i64
+    v18: i64 = iconst 0i64
     jump block6(v18, v14, v15, v16)
 
 // loop condition, check limit
 block6(v19: i64, v20: i64, v21: i64, v22: i64):
-    v23 = icmp_sge v19, v6
+    v23: bool = icmp_sge v19, v6
     branch v23, block23(v20, v21, v22), block7
 
 // merge branch, continue
 block7:
-    v24 = iconst 0i64
+    v24: i64 = iconst 0i64
     jump block8(v24, v19, v20, v21, v22)
 
 // loop condition, check limit
 block8(v25: i64, v26: i64, v27: i64, v28: i64, v29: i64):
-    v30 = icmp_sge v25, v6
+    v30: bool = icmp_sge v25, v6
     branch v30, block22(v26, v27, v28, v29), block9
 
 // branch on condition
 block9:
-    v31 = scvt_to_float v25 -> f64
-    v32 = scvt_to_float v26 -> f64
-    v33 = fmul v31, v3
-    v34 = fadd v1, v33
-    v35 = fmul v32, v3
-    v36 = fadd v2, v35
-    v37 = fsub v1, v1
-    v38 = fsub v2, v2
-    v39 = iconst 0i64
+    v31: f64 = scvt_to_float v25 -> f64
+    v32: f64 = scvt_to_float v26 -> f64
+    v33: f64 = fmul v31, v3
+    v34: f64 = fadd v1, v33
+    v35: f64 = fmul v32, v3
+    v36: f64 = fadd v2, v35
+    v37: f64 = fsub v1, v1
+    v38: f64 = fsub v2, v2
+    v39: i64 = iconst 0i64
     jump block10(v39, v37, v38, v34, v36, v25, v26, v27, v28, v29)
 block10(
     v40: i64,
@@ -85,46 +85,46 @@ block10(
     v48: i64,
     v49: i64
 ):
-    v50 = iconst 32i64
-    v51 = icmp_sge v40, v50
+    v50: i64 = iconst 32i64
+    v51: bool = icmp_sge v40, v50
     branch v51, block20(v40, v45, v46, v47, v48, v49), block11
 
 // branch on condition
 block11:
-    v52 = fmul v41, v41
-    v53 = fmul v42, v42
-    v54 = fadd v52, v53
-    v55 = fcmp_gt v54, v4
+    v52: f64 = fmul v41, v41
+    v53: f64 = fmul v42, v42
+    v54: f64 = fadd v52, v53
+    v55: bool = fcmp_gt v54, v4
     branch v55, block20(v40, v45, v46, v47, v48, v49), block12
 
 // loop body, update accumulators
 block12:
-    v56 = fmul v41, v42
-    v57 = fmul v56, v5
-    v58 = fadd v57, v44
-    v59 = fsub v52, v53
-    v60 = fadd v59, v43
-    v61 = iconst 1i64
-    v62 = iadd v40, v61
+    v56: f64 = fmul v41, v42
+    v57: f64 = fmul v56, v5
+    v58: f64 = fadd v57, v44
+    v59: f64 = fsub v52, v53
+    v60: f64 = fadd v59, v43
+    v61: i64 = iconst 1i64
+    v62: i64 = iadd v40, v61
     jump block10(v62, v60, v58, v43, v44, v45, v46, v47, v48, v49)
 
 // merge branches, advance loop
 block20(v63: i64, v64: i64, v65: i64, v66: i64, v67: i64, v68: i64):
-    v69 = iadd v67, v63
-    v70 = iconst 1i64
-    v71 = iadd v64, v70
+    v69: i64 = iadd v67, v63
+    v70: i64 = iconst 1i64
+    v71: i64 = iadd v64, v70
     jump block8(v71, v65, v66, v69, v68)
 
 // loop body, update accumulators
 block22(v72: i64, v73: i64, v74: i64, v75: i64):
-    v76 = iconst 1i64
-    v77 = iadd v72, v76
+    v76: i64 = iconst 1i64
+    v77: i64 = iadd v72, v76
     jump block6(v77, v73, v74, v75)
 
 // loop body, update accumulators
 block23(v78: i64, v79: i64, v80: i64):
-    v81 = iconst 1i64
-    v82 = iadd v78, v81
+    v81: i64 = iconst 1i64
+    v82: i64 = iadd v78, v81
     jump block4(v82, v79, v80)
 
 // return result

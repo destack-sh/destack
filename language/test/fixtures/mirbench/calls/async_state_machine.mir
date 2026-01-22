@@ -5,10 +5,10 @@ function @async_entry(v0: i64) -> i64 {
 
 // entry, allocate and initialize state machine
 block0(v0: i64):
-    v1 = iconst 0i32
-    v2 = iconst 0i64
-    v3 = struct @AsyncState (v1, v0, v2, v2)
-    v4 = call @async_poll(v3) -> fn(@AsyncState) -> i64
+    v1: i32 = iconst 0i32
+    v2: i64 = iconst 0i64
+    v3: @AsyncState = struct @AsyncState (v1, v0, v2, v2)
+    v4: i64 = call @async_poll(v3) -> fn(@AsyncState) -> i64
     return v4
 }
 
@@ -16,41 +16,41 @@ function @async_poll(v0: @AsyncState) -> i64 {
 
 // dispatch based on stored state
 block0(v0: @AsyncState):
-    v1 = field.get v0, 0
+    v1: i32 = field.get v0, 0
     switch v1, block4(v0), 0 => block1(v0)
 
 // state 0, check limit and yield next awaitable
 block1(v2: @AsyncState):
-    v3 = field.get v2, 2
-    v4 = field.get v2, 1
-    v5 = icmp_sge v3, v4
+    v3: i64 = field.get v2, 2
+    v4: i64 = field.get v2, 1
+    v5: bool = icmp_sge v3, v4
     branch v5, block4(v2), block2(v2, v3)
 
 // issue awaitable and suspend
 block2(v6: @AsyncState, v7: i64):
-    v8 = iconst 1i32
-    v9 = field.set v6, 0, v8
-    v10 = iconst 7i64
-    v11 = imul v7, v10
-    v12 = iconst 3i64
-    v13 = iadd v11, v12
+    v8: i32 = iconst 1i32
+    v9: @AsyncState = field.set v6, 0, v8
+    v10: i64 = iconst 7i64
+    v11: i64 = imul v7, v10
+    v12: i64 = iconst 3i64
+    v13: i64 = iadd v11, v12
     yield v13, block3(v9)
 
 // resume, update state and continue
 block3(v14: @AsyncState, v15: i64):
-    v16 = field.get v14, 3
-    v17 = iadd v16, v15
-    v18 = field.set v14, 3, v17
-    v19 = field.get v14, 2
-    v20 = iconst 1i64
-    v21 = iadd v19, v20
-    v22 = field.set v18, 2, v21
-    v23 = iconst 0i32
-    v24 = field.set v22, 0, v23
+    v16: i64 = field.get v14, 3
+    v17: i64 = iadd v16, v15
+    v18: @AsyncState = field.set v14, 3, v17
+    v19: i64 = field.get v14, 2
+    v20: i64 = iconst 1i64
+    v21: i64 = iadd v19, v20
+    v22: @AsyncState = field.set v18, 2, v21
+    v23: i32 = iconst 0i32
+    v24: @AsyncState = field.set v22, 0, v23
     jump block0(v24)
 
 // return accumulated result
 block4(v25: @AsyncState):
-    v26 = field.get v25, 3
+    v26: i64 = field.get v25, 3
     return v26
 }

@@ -3,8 +3,8 @@ function @arena_copy(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 1i64
-    v3 = icmp_slt v1, v2
+    v2: i64 = iconst 1i64
+    v3: bool = icmp_slt v1, v2
     branch v3, block1, block2
 
 // merge branch, continue
@@ -17,49 +17,49 @@ block2:
 
 // update state, merge branch
 block3(v4: i64):
-    v5 = imul v0, v4
-    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v7 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v8 = iconst 0i64
+    v5: i64 = imul v0, v4
+    v6: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v7: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v8: i64 = iconst 0i64
     jump block4(v8, v5, v6, v7)
 
 // loop condition, check limit
 block4(v9: i64, v10: i64, v11: ref<managed i64>, v12: ref<managed i64>):
-    v13 = icmp_sge v9, v10
+    v13: bool = icmp_sge v9, v10
     branch v13, block6(v10, v11, v12), block5
 
 // loop body, update aggregates
 block5:
-    v14 = element.addr v11, v9 -> ref<borrowed i64>
-    v15 = iconst 3i64
-    v16 = imul v9, v15
-    v17 = iconst 7i64
-    v18 = iadd v16, v17
+    v14: ref<borrowed i64> = element.addr v11, v9 -> ref<borrowed i64>
+    v15: i64 = iconst 3i64
+    v16: i64 = imul v9, v15
+    v17: i64 = iconst 7i64
+    v18: i64 = iadd v16, v17
     store v14, v18
-    v19 = iconst 1i64
-    v20 = iadd v9, v19
+    v19: i64 = iconst 1i64
+    v20: i64 = iadd v9, v19
     jump block4(v20, v10, v11, v12)
 
 // merge branch, continue
 block6(v21: i64, v22: ref<managed i64>, v23: ref<managed i64>):
-    v24 = iconst 0i64
-    v25 = iconst 0i64
+    v24: i64 = iconst 0i64
+    v25: i64 = iconst 0i64
     jump block7(v24, v25, v21, v22, v23)
 
 // loop condition, check limit
 block7(v26: i64, v27: i64, v28: i64, v29: ref<managed i64>, v30: ref<managed i64>):
-    v31 = icmp_sge v26, v28
+    v31: bool = icmp_sge v26, v28
     branch v31, block9(v27), block8
 
 // loop body, update aggregates
 block8:
-    v32 = element.addr v29, v26 -> ref<borrowed i64>
-    v33 = load v32 -> i64
-    v34 = element.addr v30, v26 -> ref<borrowed i64>
+    v32: ref<borrowed i64> = element.addr v29, v26 -> ref<borrowed i64>
+    v33: i64 = load v32 -> i64
+    v34: ref<borrowed i64> = element.addr v30, v26 -> ref<borrowed i64>
     store v34, v33
-    v35 = iadd v27, v33
-    v36 = iconst 1i64
-    v37 = iadd v26, v36
+    v35: i64 = iadd v27, v33
+    v36: i64 = iconst 1i64
+    v37: i64 = iadd v26, v36
     jump block7(v37, v35, v28, v29, v30)
 
 // return result

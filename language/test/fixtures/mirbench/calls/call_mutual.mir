@@ -3,20 +3,20 @@ function @is_odd(v0: i64) -> bool {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
-    v2 = icmp_eq v0, v1
+    v1: i64 = iconst 0i64
+    v2: bool = icmp_eq v0, v1
     branch v2, block2, block1
 
 // return helper result
 block1:
-    v3 = iconst 1i64
-    v4 = isub v0, v3
-    v5 = call @is_even(v4) -> fn(i64) -> bool
+    v3: i64 = iconst 1i64
+    v4: i64 = isub v0, v3
+    v5: bool = call @is_even(v4) -> fn(i64) -> bool
     return v5
 
 // return constant value
 block2:
-    v6 = iconst false
+    v6: bool = iconst false
     return v6
 }
 
@@ -24,20 +24,20 @@ function @is_even(v0: i64) -> bool {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
-    v2 = icmp_eq v0, v1
+    v1: i64 = iconst 0i64
+    v2: bool = icmp_eq v0, v1
     branch v2, block2, block1
 
 // return helper result
 block1:
-    v3 = iconst 1i64
-    v4 = isub v0, v3
-    v5 = call @is_odd(v4) -> fn(i64) -> bool
+    v3: i64 = iconst 1i64
+    v4: i64 = isub v0, v3
+    v5: bool = call @is_odd(v4) -> fn(i64) -> bool
     return v5
 
 // return constant value
 block2:
-    v6 = iconst true
+    v6: bool = iconst true
     return v6
 }
 
@@ -45,23 +45,23 @@ function @call_mutual(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
+    v1: i64 = iconst 0i64
     jump block1(v1, v1)
 
 // loop condition, check limit
 block1(v2: i64, v3: i64):
-    v4 = icmp_sge v2, v0
+    v4: bool = icmp_sge v2, v0
     branch v4, block4(v3), block2
 
 // branch on helper result
 block2:
-    v5 = call @is_even(v2) -> fn(i64) -> bool
+    v5: bool = call @is_even(v2) -> fn(i64) -> bool
     branch v5, block3, block6
 
 // update state, merge branch
 block3:
-    v6 = iconst 1i64
-    v7 = iadd v3, v6
+    v6: i64 = iconst 1i64
+    v7: i64 = iadd v3, v6
     jump block5(v7)
 
 // loop body, advance state
@@ -70,8 +70,8 @@ block6:
 
 // merge branches, advance loop
 block5(v8: i64):
-    v9 = iconst 1i64
-    v10 = iadd v2, v9
+    v9: i64 = iconst 1i64
+    v10: i64 = iadd v2, v9
     jump block1(v10, v8)
 
 // return result

@@ -3,9 +3,9 @@ function @stage1(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iadd v0, v1
-    v3 = iconst 3i64
-    v4 = imul v2, v3
+    v2: i64 = iadd v0, v1
+    v3: i64 = iconst 3i64
+    v4: i64 = imul v2, v3
     return v4
 }
 
@@ -13,9 +13,9 @@ function @stage2(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = bxor v0, v1
-    v3 = iconst 5i64
-    v4 = iadd v2, v3
+    v2: i64 = bxor v0, v1
+    v3: i64 = iconst 5i64
+    v4: i64 = iadd v2, v3
     return v4
 }
 
@@ -23,11 +23,11 @@ function @stage3(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = isub v0, v1
-    v3 = iconst 2i64
-    v4 = imul v2, v3
-    v5 = iconst 11i64
-    v6 = iadd v4, v5
+    v2: i64 = isub v0, v1
+    v3: i64 = iconst 2i64
+    v4: i64 = imul v2, v3
+    v5: i64 = iconst 11i64
+    v6: i64 = iadd v4, v5
     return v6
 }
 
@@ -35,12 +35,12 @@ function @stage4(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = bor v0, v1
-    v3 = iconst 13i64
-    v4 = iadd v2, v3
-    v5 = iconst 1i64
-    v6 = sshr v0, v5
-    v7 = bxor v4, v6
+    v2: i64 = bor v0, v1
+    v3: i64 = iconst 13i64
+    v4: i64 = iadd v2, v3
+    v5: i64 = iconst 1i64
+    v6: i64 = sshr v0, v5
+    v7: i64 = bxor v4, v6
     return v7
 }
 
@@ -48,11 +48,11 @@ function @stage5(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = band v0, v1
-    v3 = iconst 17i64
-    v4 = iadd v2, v3
-    v5 = iconst 1i64
-    v6 = ishl v4, v5
+    v2: i64 = band v0, v1
+    v3: i64 = iconst 17i64
+    v4: i64 = iadd v2, v3
+    v5: i64 = iconst 1i64
+    v6: i64 = ishl v4, v5
     return v6
 }
 
@@ -60,9 +60,9 @@ function @stage6(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 19i64
-    v3 = iadd v0, v2
-    v4 = bxor v3, v1
+    v2: i64 = iconst 19i64
+    v3: i64 = iadd v0, v2
+    v4: i64 = bxor v3, v1
     return v4
 }
 
@@ -70,11 +70,11 @@ function @stage7(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 1i64
-    v3 = ishl v0, v2
-    v4 = bxor v3, v1
-    v5 = iconst 23i64
-    v6 = iadd v4, v5
+    v2: i64 = iconst 1i64
+    v3: i64 = ishl v0, v2
+    v4: i64 = bxor v3, v1
+    v5: i64 = iconst 23i64
+    v6: i64 = iadd v4, v5
     return v6
 }
 
@@ -82,11 +82,11 @@ function @stage8(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 7i64
-    v3 = imul v0, v2
-    v4 = isub v3, v1
-    v5 = iconst 5i64
-    v6 = bxor v4, v5
+    v2: i64 = iconst 7i64
+    v3: i64 = imul v0, v2
+    v4: i64 = isub v3, v1
+    v5: i64 = iconst 5i64
+    v6: i64 = bxor v4, v5
     return v6
 }
 
@@ -94,26 +94,26 @@ function @call_pipeline_chain(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 0i64
+    v2: i64 = iconst 0i64
     jump block1(v2, v1)
 
 // loop condition, check limit
 block1(v3: i64, v4: i64):
-    v5 = icmp_sge v3, v0
+    v5: bool = icmp_sge v3, v0
     branch v5, block3(v4), block2
 
 // loop body, call helper
 block2:
-    v6 = call @stage1(v4, v3)
-    v7 = call @stage2(v6, v3)
-    v8 = call @stage3(v7, v3)
-    v9 = call @stage4(v8, v3)
-    v10 = call @stage5(v9, v3)
-    v11 = call @stage6(v10, v3)
-    v12 = call @stage7(v11, v3)
-    v13 = call @stage8(v12, v3)
-    v14 = iconst 1i64
-    v15 = iadd v3, v14
+    v6: i64 = call @stage1(v4, v3)
+    v7: i64 = call @stage2(v6, v3)
+    v8: i64 = call @stage3(v7, v3)
+    v9: i64 = call @stage4(v8, v3)
+    v10: i64 = call @stage5(v9, v3)
+    v11: i64 = call @stage6(v10, v3)
+    v12: i64 = call @stage7(v11, v3)
+    v13: i64 = call @stage8(v12, v3)
+    v14: i64 = iconst 1i64
+    v15: i64 = iadd v3, v14
     jump block1(v15, v13)
 
 // return result

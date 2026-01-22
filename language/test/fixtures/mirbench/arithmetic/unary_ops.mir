@@ -2,27 +2,27 @@ function @unary_ops(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
-    v2 = iconst 12345i64
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 12345i64
     jump block1(v1, v2)
 
 // loop condition, check limit
 block1(v3: i64, v4: i64):
-    v5 = icmp_sge v3, v0
+    v5: bool = icmp_sge v3, v0
     branch v5, block3(v4), block2
 
 // loop body, update accumulators
 block2:
-    v6 = ineg v4
-    v7 = bnot v6
-    v8 = ineg v7
-    v9 = bnot v8
-    v10 = ineg v9
-    v11 = bnot v10
-    v12 = ineg v11
-    v13 = bnot v12
-    v14 = iconst 1i64
-    v15 = iadd v3, v14
+    v6: i64 = ineg v4
+    v7: i64 = bnot v6
+    v8: i64 = ineg v7
+    v9: i64 = bnot v8
+    v10: i64 = ineg v9
+    v11: i64 = bnot v10
+    v12: i64 = ineg v11
+    v13: i64 = bnot v12
+    v14: i64 = iconst 1i64
+    v15: i64 = iadd v3, v14
     jump block1(v15, v13)
 
 // return result
