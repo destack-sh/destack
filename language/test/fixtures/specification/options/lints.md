@@ -19,7 +19,7 @@ function unused_local(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnusedLocals": true } }
 ```
 
@@ -40,7 +40,7 @@ function unused_local(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnusedLocals": false } }
 ```
 
@@ -60,7 +60,7 @@ function unused_param(value: int32): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnusedParameters": true } }
 ```
 
@@ -80,7 +80,7 @@ function unused_param(value: int32): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnusedParameters": false } }
 ```
 
@@ -103,7 +103,7 @@ function unused_label(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowUnusedLabels": false } }
 ```
 
@@ -126,7 +126,7 @@ function unused_label(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowUnusedLabels": true } }
 ```
 
@@ -147,7 +147,7 @@ function unreachable(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowUnreachableCode": false } }
 ```
 
@@ -168,7 +168,7 @@ function unreachable(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowUnreachableCode": true } }
 ```
 
@@ -193,7 +193,7 @@ function fallthrough(value: int32) {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noFallthroughCasesInSwitch": true } }
 ```
 
@@ -218,7 +218,7 @@ function fallthrough(value: int32) {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noFallthroughCasesInSwitch": false } }
 ```
 
@@ -240,7 +240,7 @@ function redeclared(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRedeclaredLocals": true } }
 ```
 
@@ -262,7 +262,7 @@ function redeclared(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRedeclaredLocals": false } }
 ```
 
@@ -282,6 +282,6 @@ function shadowed(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRedeclaredLocals": false } }
 ```

@@ -12,7 +12,7 @@ Tests for `strictPropertyInitialization` on classes.
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictPropertyInitialization": true } }
 ```
 
@@ -32,7 +32,7 @@ class Counter {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictPropertyInitialization": true } }
 ```
 
@@ -54,7 +54,7 @@ class Counter {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictPropertyInitialization": true } }
 ```
 
@@ -72,7 +72,7 @@ class Counter {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictPropertyInitialization": true } }
 ```
 

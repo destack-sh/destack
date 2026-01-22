@@ -20,7 +20,7 @@ export const value = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noDynamicImport": true } }
 ```
 
@@ -42,7 +42,7 @@ export const value = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noDynamicImport": false } }
 ```
 
@@ -60,7 +60,7 @@ eval("1");
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
@@ -78,7 +78,7 @@ eval("1");
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
 ```
 
@@ -94,7 +94,7 @@ let value = Function(["return 1"]);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicEvaluation": true } }
 ```
 
@@ -112,7 +112,7 @@ let value = Function(["return 1"]);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicEvaluation": false } }
 ```
 
@@ -132,7 +132,7 @@ let proxy = new Proxy(target, handler);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noProxy": true } }
 ```
 
@@ -152,7 +152,7 @@ let proxy = new Proxy(target, handler);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noProxy": false } }
 ```
 
@@ -172,7 +172,7 @@ Object.defineProperty(target, "x", descriptor);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicShapes": true } }
 ```
 
@@ -192,7 +192,7 @@ Object.defineProperty(target, "x", descriptor);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noDynamicShapes": false } }
 ```
 
@@ -209,7 +209,7 @@ delete target.value;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noDynamicShapes": true } }
 ```
 
@@ -228,7 +228,7 @@ delete target.value;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noDynamicShapes": false } }
 ```
 
@@ -250,7 +250,7 @@ let value = new Box();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noManaged": true } }
 ```
 
@@ -272,7 +272,7 @@ let value2: ^Box = ^new Box();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noManaged": true } }
 ```
 
@@ -292,7 +292,7 @@ async function run(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRuntime": true } }
 ```
 
@@ -311,7 +311,7 @@ const value = await promise;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noRuntime": true } }
 ```
 
@@ -332,7 +332,7 @@ function* generator(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRuntime": true } }
 ```
 
@@ -352,7 +352,7 @@ async function run(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRuntime": false } }
 ```
 
@@ -369,7 +369,7 @@ const value = await promise;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noRuntime": false } }
 ```
 
@@ -388,7 +388,7 @@ function* generator(): int32 {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noRuntime": false } }
 ```
 
@@ -408,7 +408,7 @@ let out = target[key];
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noComputedPropertyAccess": true } }
 ```
 
@@ -428,7 +428,7 @@ let out = target[key];
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noComputedPropertyAccess": false } }
 ```
 
@@ -448,7 +448,7 @@ let same = left == right;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noReferentialEquality": true } }
 ```
 
@@ -468,7 +468,7 @@ let same = left === right;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noReferentialEquality": true } }
 ```
 
@@ -488,7 +488,7 @@ let same = left !== right;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noReferentialEquality": true } }
 ```
 
@@ -514,7 +514,7 @@ let same = left == right;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noReferentialEquality": false } }
 ```
 
@@ -537,7 +537,7 @@ same satisfies boolean;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noReferentialEquality": false } }
 ```
 
@@ -573,7 +573,7 @@ pet.speak();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitDynamicDispatch": true } }
 ```
 
@@ -608,7 +608,7 @@ pet.speak();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitDynamicDispatch": false } }
 ```
 
@@ -628,7 +628,7 @@ let value = globalThis;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noGlobalThis": true } }
 ```
 
@@ -648,6 +648,6 @@ let value = globalThis;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noGlobalThis": false } }
 ```

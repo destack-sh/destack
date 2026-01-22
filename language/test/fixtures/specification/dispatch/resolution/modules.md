@@ -1,6 +1,8 @@
 # Resolution Across Modules
 
-## union method call sees inherent extensions across modules
+## tests
+
+### union method call sees inherent extensions across modules
 
 > Inherent extensions are visible wherever the type is imported.
 
@@ -26,7 +28,7 @@ const sound = getPet().speak();
 sound satisfies string;
 ```
 
-## union method call requires named extension imports
+### union method call requires named extension imports
 
 > Named extensions on foreign types must be imported to participate in resolution.
 
@@ -57,7 +59,7 @@ getPet().speak();
 
 - contains: does not exist
 
-## union method call resolves with named extension imports
+### union method call resolves with named extension imports
 
 > Named extensions are visible when explicitly imported.
 

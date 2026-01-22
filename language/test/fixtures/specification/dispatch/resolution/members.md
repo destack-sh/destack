@@ -1,6 +1,8 @@
 # Member Resolution
 
-## union member access yields shared type
+## tests
+
+### union member access yields shared type
 
 > Member access on unions yields a single type when all variants agree.
 
@@ -19,7 +21,7 @@ const name = getPerson().name;
 name satisfies string;
 ```
 
-## union member access resolves through aliases
+### union member access resolves through aliases
 
 > Member access on unions works through type aliases.
 
@@ -40,7 +42,7 @@ const id = getPerson().id;
 id satisfies int32 | string;
 ```
 
-## union member access fails through aliases
+### union member access fails through aliases
 
 > Member access on unions fails if any aliased variant is missing the member.
 
@@ -62,7 +64,7 @@ getPerson().name;
 
 - contains: does not exist
 
-## union member access fails through nullable aliases
+### union member access fails through nullable aliases
 
 > Member access on unions fails when an aliased variant lacks the member.
 

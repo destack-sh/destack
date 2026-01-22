@@ -161,7 +161,7 @@ declare let value: Alias;
 value satisfies true;
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -221,7 +221,7 @@ declare let value: Result;
 value satisfies true;
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 

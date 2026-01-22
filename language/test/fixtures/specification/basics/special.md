@@ -17,7 +17,7 @@ x satisfies null;
 
 > Null is not assignable to non-nullable types when strict null checks are enabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictNullChecks": true } }
 ```
 
@@ -42,7 +42,7 @@ x satisfies undefined;
 
 > Null becomes assignable to other types when strict null checks are disabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictNullChecks": false } }
 ```
 

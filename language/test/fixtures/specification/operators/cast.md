@@ -38,7 +38,7 @@ y satisfies 42;
 
 > Casting from any to any type is valid.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -52,7 +52,7 @@ y satisfies number;
 
 > Casting any type to any is valid.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 

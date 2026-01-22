@@ -12,7 +12,7 @@ Tests for override modifiers and `noImplicitOverride`.
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitOverride": true } }
 ```
 
@@ -36,7 +36,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitOverride": true } }
 ```
 
@@ -58,7 +58,7 @@ class Derived extends Base {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitOverride": false } }
 ```
 

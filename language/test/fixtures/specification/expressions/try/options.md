@@ -6,7 +6,7 @@
 
 > Throw expressions are rejected when exceptions are disabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noExceptions": true } }
 ```
 

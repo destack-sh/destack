@@ -1,6 +1,8 @@
 # Interfaces
 
-## object literal satisfies interface
+## tests
+
+### object literal satisfies interface
 
 > Object literals are assignable to compatible interfaces.
 
@@ -13,7 +15,7 @@ const person = { name: "Ada" }
 person satisfies Person;
 ```
 
-## missing required field is not assignable
+### missing required field is not assignable
 
 > Object literals missing required fields are not assignable.
 
@@ -27,9 +29,9 @@ const person = { name: "Ada" }
 person satisfies Person;
 ```
 
-- contains: not assignable
+- contains: expected person, found { name: "ada" }
 
-## excess property reports error
+### excess property reports error
 
 > Extra fields are rejected for object literals assigned to interfaces.
 
@@ -43,7 +45,7 @@ const person: Person = { name: "Ada", age: 42 };
 
 - contains: excess property
 
-## extra fields allowed for non-literals
+### extra fields allowed for non-literals
 
 > Non-literal values are structurally assignable even with extra fields.
 
@@ -56,7 +58,7 @@ const raw = { name: "Ada", age: 42 }
 raw satisfies Person;
 ```
 
-## optional fields allow omission
+### optional fields allow omission
 
 > Optional fields can be omitted in object literals.
 
@@ -69,7 +71,7 @@ const person = {}
 person satisfies Person;
 ```
 
-## exactOptionalPropertyTypes forbids undefined assignment
+### exactOptionalPropertyTypes forbids undefined assignment
 
 ```ds
 interface Target {
@@ -81,9 +83,9 @@ const value: Target = { value: undefined }
 
 - contains: not assignable
 
-## exactOptionalPropertyTypes false allows undefined assignment
+### exactOptionalPropertyTypes false allows undefined assignment
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "exactOptionalPropertyTypes": false } }
 ```
 
@@ -99,7 +101,7 @@ interface Target {
 const value: Target = { value: undefined }
 ```
 
-## optional fields are not assignable to required
+### optional fields are not assignable to required
 
 > Optional fields are not assignable to required fields.
 
@@ -116,9 +118,9 @@ const source: Source = {}
 source satisfies Target;
 ```
 
-- contains: not assignable
+- contains: expected target, found source
 
-## required fields are assignable to optional
+### required fields are assignable to optional
 
 > Required fields are assignable to optional fields.
 
@@ -135,7 +137,7 @@ const source: Source = { name: "Ada" }
 source satisfies Target;
 ```
 
-## assignment rejects optional to required
+### assignment rejects optional to required
 
 > Assignments reject optional fields when required is expected.
 
@@ -156,9 +158,24 @@ const target: Target = source
 
 ## assignment allows required to optional
 
+### assignment allows required to optional
+
 > Assignments allow required fields when optional is expected.
 
-## interface declarations merge in declaration files
+```ds
+interface Target {
+    name?: string
+}
+
+interface Source {
+    name: string
+}
+
+const source: Source = { name: "Ada" };
+const target: Target = source;
+```
+
+### interface declarations merge in declaration files
 
 > Declarations in .d.ds merge into a single interface.
 
@@ -181,7 +198,7 @@ widget.label satisfies string;
 widget.value satisfies number;
 ```
 
-## duplicate interface names are errors in .ds
+### duplicate interface names are errors in .ds
 
 > Duplicate interface declarations are rejected outside declaration files.
 
@@ -197,20 +214,7 @@ interface Duplicate {
 
 - contains: duplicate identifier
 
-```ds
-interface Target {
-    name?: string
-}
-
-interface Source {
-    name: string
-}
-
-const source: Source = { name: "Ada" };
-const target: Target = source;
-```
-
-## interface assignability is structural
+### interface assignability is structural
 
 > Compatible interfaces are assignable based on shape.
 

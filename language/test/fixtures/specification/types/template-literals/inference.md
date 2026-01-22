@@ -1,6 +1,8 @@
 # Template Literal Inference
 
-## template literal infer extracts span from string literal
+## inference
+
+### template literal infer extracts span from string literal
 
 > Conditional infer can extract spans from template literals.
 
@@ -10,7 +12,7 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 let ok: Segment<"/api"> = "api";
 ```
 
-## template literal infer rejects mismatched inferred type
+### template literal infer rejects mismatched inferred type
 
 > Inferred spans must satisfy their resulting type.
 
@@ -20,9 +22,9 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 let bad: Segment<"/api"> = 1;
 ```
 
-- contains: type int32 is not assignable to type string
+- contains: type 1 is not assignable to type segment<<type>>
 
-## template literal infer extracts span from template literal type
+### template literal infer extracts span from template literal type
 
 > Conditional infer can extract spans from template literal types.
 
@@ -33,7 +35,7 @@ type Result = Strip<`prefix-${string}`>;
 let ok: Result = "value";
 ```
 
-## template literal infer falls back for string
+### template literal infer falls back for string
 
 > Non literal `string` does not match template literal patterns.
 
@@ -41,25 +43,52 @@ let ok: Result = "value";
 type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 
 let ok: Strip<string> = "no";
+```
+
+### template literal infer rejects non else branch for string
+
+> Non literal `string` rejects the true branch.
+
+```ds
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
 let bad: Strip<string> = "value";
 ```
 
-- contains: type string is not assignable to type `no`
+- contains: type "value" is not assignable to type strip<<type>>
 
-## template literal infer falls back for any
+### template literal infer from any yields union
 
-> `any` does not match template literal patterns.
+> `any` produces the union of both branches.
 
 ```ds
 type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 
 let ok: Strip<any> = "no";
-let bad: Strip<any> = "value";
+let ok2: Strip<any> = "value";
 ```
 
-- contains: type string is not assignable to type `no`
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
 
-## template literal infer falls back for unknown
+### template literal infer rejects non string from any
+
+> `any` results still require string values.
+
+```ds
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
+let bad: Strip<any> = 1;
+```
+
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
+- contains: type 1 is not assignable to type strip<<type>>
+
+### template literal infer falls back for unknown
 
 > `unknown` does not match template literal patterns.
 
@@ -67,12 +96,21 @@ let bad: Strip<any> = "value";
 type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
 
 let ok: Strip<unknown> = "no";
+```
+
+### template literal infer rejects non else branch for unknown
+
+> `unknown` rejects the true branch.
+
+```ds
+type Strip<T> = T extends `prefix-${infer A}` ? A : "no";
+
 let bad: Strip<unknown> = "value";
 ```
 
-- contains: type string is not assignable to type `no`
+- contains: type "value" is not assignable to type strip<<type>>
 
-## template literal infer distributes over union templates
+### template literal infer distributes over union templates
 
 > Conditional infer distributes over union template literals.
 
@@ -84,7 +122,32 @@ let ok: Result = "a";
 let ok2: Result = "b";
 ```
 
-## template literal infer merges repeated spans
+### template literal infer extracts union span members
+
+> Inference preserves union spans inside template literals.
+
+```ds
+type Extract<T> = T extends `id-${infer A}` ? A : never;
+type Result = Extract<`id-${"a" | "b"}`>;
+
+let ok: Result = "a";
+let ok2: Result = "b";
+```
+
+### template literal infer rejects non member from union span
+
+> Union spans reject values outside the inferred union.
+
+```ds
+type Extract<T> = T extends `id-${infer A}` ? A : never;
+type Result = Extract<`id-${"a" | "b"}`>;
+
+let bad: Result = "c";
+```
+
+- contains: type "c" is not assignable to type result
+
+### template literal infer merges repeated spans
 
 > Repeated `infer` bindings merge inferred candidates.
 
@@ -92,14 +155,31 @@ let ok2: Result = "b";
 type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 
 let ok: Repeat<"foo-foo"> = "foo";
-let ok2: Repeat<"foo-bar"> = "foo";
-let ok3: Repeat<"foo-bar"> = "bar";
-let bad: Repeat<"foo-bar"> = "baz";
 ```
 
-- contains: type string is not assignable to type `foo` | `bar`
+### template literal infer falls back for mismatched repeated spans
 
-## template literal infer rejects non matching union member
+> Repeated spans fall back to the else branch when they differ.
+
+```ds
+type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
+
+let ok: Repeat<"foo-bar"> = "no";
+```
+
+### template literal infer rejects mismatched repeated spans
+
+> Repeated spans must match the same substring.
+
+```ds
+type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
+
+let bad: Repeat<"foo-bar"> = "foo";
+```
+
+- contains: type "foo" is not assignable to type repeat<<type>>
+
+### template literal infer rejects non matching union member
 
 > Unmatched union branches do not contribute to the inferred type.
 
@@ -110,9 +190,9 @@ type Result = Extract<`foo-a` | `bar-b`>;
 let bad: Result = "b";
 ```
 
-- contains: type string is not assignable to type `a`
+- contains: type "b" is not assignable to type result
 
-## template literal infer rejects non string result
+### template literal infer rejects non string result
 
 > Conditional infer rejects values outside the inferred span.
 
@@ -123,9 +203,9 @@ type Result = Strip<`prefix-${string}`>;
 let bad: Result = 1;
 ```
 
-- contains: type int32 is not assignable to type string
+- contains: type 1 is not assignable to type result
 
-## template literal infers from call arguments
+### template literal infers from call arguments
 
 > Generic inference can flow through template literal parameters.
 
@@ -136,7 +216,7 @@ let value = take("hello");
 value satisfies "hello";
 ```
 
-## template literal infers constrained number literal
+### template literal infers constrained number literal
 
 > Numeric spans infer literal numbers when canonical.
 
@@ -147,7 +227,53 @@ let ok = parse("42");
 ok satisfies 42;
 ```
 
-## template literal rejects non numeric string for number span
+### template literal infers constrained bigint literal
+
+> Bigint spans infer literal bigints when canonical.
+
+```ds
+declare function parse<T extends bigint>(value: `${T}`): T;
+
+let ok = parse("42");
+ok satisfies 42n;
+```
+
+### template literal rejects invalid bigint string for bigint span
+
+> Bigint spans reject non literal strings.
+
+```ds
+declare function parse<T extends bigint>(value: `${T}`): T;
+
+let bad = parse("+1");
+```
+
+- contains: type "+1" is not assignable to type `${bigint}`
+
+### template literal infers constrained int literal
+
+> Fixed width int spans infer literal ints when canonical.
+
+```ds
+declare function parse<T extends int32>(value: `${T}`): T;
+
+let ok = parse("42");
+ok satisfies 42;
+```
+
+### template literal rejects out of range int span
+
+> Fixed width int spans reject out of range strings.
+
+```ds
+declare function parse<T extends int8>(value: `${T}`): T;
+
+let bad = parse("128");
+```
+
+- contains: type "128" is not assignable to type `${int8}`
+
+### template literal rejects non numeric string for number span
 
 > Numeric spans reject strings that do not parse as numbers.
 
@@ -157,9 +283,9 @@ declare function parse<T extends number>(value: `${T}`): T;
 let bad = parse("no");
 ```
 
-- contains: type string is not assignable to type `${number}`
+- contains: type "no" is not assignable to type `${number}`
 
-## template literal infers non canonical number span as number
+### template literal infers non canonical number span as number
 
 > Non canonical numeric strings infer to the number primitive.
 
@@ -170,7 +296,7 @@ let nonCanonical = parse("1e3");
 let ok: number = nonCanonical;
 ```
 
-## template literal infers non canonical number span rejects literal assignment
+### template literal infers non canonical number span rejects literal assignment
 
 > Non canonical numeric strings are not inferred as literals.
 
@@ -181,9 +307,9 @@ let nonCanonical = parse("1e3");
 let bad: 1000 = nonCanonical;
 ```
 
-- contains: type number is not assignable to type 1000
+- contains: not assignable to type 1000
 
-## template literal infer splits on first literal
+### template literal infer splits on first literal
 
 > Inference splits on the earliest matching literal.
 
@@ -193,7 +319,7 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 let ok: Pair<"foo-bar-baz"> = ("foo", "bar-baz");
 ```
 
-## template literal infer rejects later split
+### template literal infer rejects later split
 
 > Later literal splits do not satisfy the inferred tuple.
 
@@ -203,9 +329,9 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 let bad: Pair<"foo-bar-baz"> = ("foo-bar", "baz");
 ```
 
-- contains: type (`foo-bar`, `baz`) is not assignable to type (`foo`, `bar-baz`)
+- contains: type ("foo-bar", "baz") is not assignable to type pair<<type>>
 
-## template literal infer requires non empty spans
+### template literal infer requires non empty spans
 
 > Adjacent spans capture at least one character when possible.
 
@@ -215,7 +341,7 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 let ok: Split<"a"> = ("a", "");
 ```
 
-## template literal infer rejects empty first span
+### template literal infer rejects empty first span
 
 > Adjacent spans reject empty leading matches.
 
@@ -225,9 +351,9 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 let bad: Split<"a"> = ("", "a");
 ```
 
-- contains: type (``, `a`) is not assignable to type (`a`, ``)
+- contains: type ("", "a") is not assignable to type split<<type>>
 
-## template literal infers from template literal arguments
+### template literal infers from template literal arguments
 
 > Template literal arguments can infer span types.
 
@@ -239,7 +365,7 @@ let result = take(value);
 result satisfies "a" | "b";
 ```
 
-## template literal infers from template literal arguments rejects narrowed result
+### template literal infers from template literal arguments rejects narrowed result
 
 > Inferred spans preserve union members.
 
@@ -251,9 +377,9 @@ let result = take(value);
 let bad: "a" = result;
 ```
 
-- contains: type `a` | `b` is not assignable to type `a`
+- contains: not assignable to type "a"
 
-## template literal infers from template literal parameters
+### template literal infers from template literal parameters
 
 > Template literal arguments flow into generic spans.
 
@@ -265,7 +391,7 @@ let result = takeAny(value);
 result satisfies `prefix-${"a"}`;
 ```
 
-## template literal infers from template literal parameters rejects narrowed result
+### template literal infers from template literal parameters rejects narrowed result
 
 > Inference preserves the full template literal shape.
 
@@ -277,9 +403,9 @@ let result = takeAny(value);
 let bad: "a" = result;
 ```
 
-- contains: type `prefix-${`a`}` is not assignable to type `a`
+- contains: not assignable to type "a"
 
-## template literal infers constrained bigint literal
+### template literal infers constrained bigint literal
 
 > Bigint spans infer literal bigints when canonical.
 
@@ -290,7 +416,7 @@ let ok = parseBig("-1");
 ok satisfies -1n;
 ```
 
-## template literal infers non canonical bigint as bigint
+### template literal infers non canonical bigint as bigint
 
 > Non canonical bigint strings infer to the bigint primitive.
 
@@ -301,7 +427,7 @@ let nonCanonical = parseBig("0x1");
 let ok: bigint = nonCanonical;
 ```
 
-## template literal infers non canonical bigint rejects literal assignment
+### template literal infers non canonical bigint rejects literal assignment
 
 > Non canonical bigint strings are not inferred as literals.
 
@@ -312,9 +438,9 @@ let nonCanonical = parseBig("0x1");
 let bad: 1n = nonCanonical;
 ```
 
-- contains: type bigint is not assignable to type 1n
+- contains: not assignable to type 1n
 
-## template literal rejects invalid bigint string
+### template literal rejects invalid bigint string
 
 > Invalid bigint strings reject inference.
 
@@ -322,6 +448,29 @@ let bad: 1n = nonCanonical;
 declare function parseBig<T extends bigint>(value: `${T}`): T;
 
 let bad = parseBig("01");
+let bad2 = parseBig("+1");
 ```
 
-- contains: type string is not assignable to type `${bigint}`
+### template literal rejects invalid bigint string leading zeros
+
+> Leading zeros are rejected for bigint inference.
+
+```ds
+declare function parseBig<T extends bigint>(value: `${T}`): T;
+
+let bad = parseBig("01");
+```
+
+- contains: type "01" is not assignable to type `${bigint}`
+
+### template literal rejects invalid bigint string plus sign
+
+> Plus signs are rejected for bigint inference.
+
+```ds
+declare function parseBig<T extends bigint>(value: `${T}`): T;
+
+let bad = parseBig("+1");
+```
+
+- contains: type "+1" is not assignable to type `${bigint}`

@@ -16,7 +16,7 @@ const value: string = "ok";
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": false } }
 ```
 
@@ -34,7 +34,7 @@ const value: string = "ok";
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true } }
 ```
 
@@ -52,7 +52,7 @@ const value = "ok";
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowJs": false } }
 ```
 
@@ -70,7 +70,7 @@ const value = "ok";
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowJs": true } }
 ```
 
@@ -88,7 +88,7 @@ const value: string = 123;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": false } }
 ```
 
@@ -104,7 +104,7 @@ const value: string = 123;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -125,7 +125,7 @@ value();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowJs": true, "checkJs": false } }
 ```
 
@@ -142,7 +142,7 @@ value();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowJs": true, "checkJs": true } }
 ```
 
@@ -162,7 +162,7 @@ declare const value;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "skipLibCheck": true } }
 ```
 
@@ -178,7 +178,7 @@ declare const value;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "skipLibCheck": false } }
 ```
 
@@ -200,7 +200,7 @@ function dup(value: number, value: number) {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true, "alwaysStrict": false } }
 ```
 

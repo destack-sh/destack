@@ -1,6 +1,8 @@
 # Template Literal Numeric Spans
 
-## template literal type accepts bigint strings
+## numeric spans
+
+### template literal type accepts bigint strings
 
 > Bigint spans accept bigint literal strings.
 
@@ -14,7 +16,7 @@ let ok4: Big = "-0x1";
 let ok5: Big = "-0";
 ```
 
-## template literal type rejects invalid bigint strings
+### template literal type rejects invalid bigint strings
 
 > Bigint spans reject invalid literal strings.
 
@@ -28,9 +30,13 @@ let bad4: Big = " 1";
 let bad5: Big = "+0x1";
 ```
 
-- contains: type string is not assignable to type `${bigint}`
+- contains: type "+1" is not assignable to type big
+- contains: type "01" is not assignable to type big
+- contains: type "1.5" is not assignable to type big
+- contains: type " 1" is not assignable to type big
+- contains: type "+0x1" is not assignable to type big
 
-## template literal type accepts int span strings
+### template literal type accepts int span strings
 
 > Fixed width ints accept valid literal strings.
 
@@ -41,7 +47,7 @@ let ok: Small = "127";
 let ok2: Small = "0x7f";
 ```
 
-## template literal type rejects int span out of range
+### template literal type rejects int span out of range
 
 > Fixed width ints reject out of range strings.
 
@@ -52,9 +58,10 @@ let bad: Small = "128";
 let bad2: Small = "-0x1";
 ```
 
-- contains: type string is not assignable to type `${int8}`
+- contains: type "128" is not assignable to type small
+- contains: type "-0x1" is not assignable to type small
 
-## template literal type accepts number string forms
+### template literal type accepts number string forms
 
 > `${number}` matches TypeScript numeric string forms.
 
@@ -71,14 +78,12 @@ let ok7: Numeric = "0b10";
 let ok8: Numeric = "0o7";
 let ok9: Numeric = "1.";
 let ok10: Numeric = ".1";
-let ok11: Numeric = " 1";
-let ok12: Numeric = "1 ";
-let ok13: Numeric = "-0";
-let ok14: Numeric = "1e+3";
-let ok15: Numeric = " 0x1";
+let ok11: Numeric = "-0";
+let ok12: Numeric = "1e+3";
+let ok13: Numeric = "1e999";
 ```
 
-## template literal type rejects invalid number strings
+### template literal type rejects invalid number strings
 
 > `${number}` rejects invalid numeric strings.
 
@@ -91,7 +96,17 @@ let bad3: Numeric = "-0o7";
 let bad4: Numeric = "+0x1";
 let bad5: Numeric = "NaN";
 let bad6: Numeric = "Infinity";
-let bad7: Numeric = "1e999";
+let bad8: Numeric = " 1";
+let bad9: Numeric = "1 ";
+let bad10: Numeric = " 0x1";
 ```
 
-- contains: type string is not assignable to type `${number}`
+- contains: type "-0x1" is not assignable to type numeric
+- contains: type "-0b10" is not assignable to type numeric
+- contains: type "-0o7" is not assignable to type numeric
+- contains: type "+0x1" is not assignable to type numeric
+- contains: type "nan" is not assignable to type numeric
+- contains: type "infinity" is not assignable to type numeric
+- contains: type " 1" is not assignable to type numeric
+- contains: type "1 " is not assignable to type numeric
+- contains: type " 0x1" is not assignable to type numeric
