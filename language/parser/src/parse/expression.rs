@@ -664,16 +664,17 @@ impl Parser {
             // parenthesis
             // (may be tuple, lambda or just a parenthesized expression)
             else if token_type == TokenType::OpenParenthesis {
+                let open_pos = self.pos();
                 let closing_pos = self.find_matching_close(
                     None,
                     TokenType::OpenParenthesis,
                     TokenType::CloseParenthesis,
                 )?;
-                let closing_pos = self.skip_newlines(closing_pos)?;
+                let closing_pos_for_follow = self.skip_newlines(closing_pos)?;
                 // function if the paranthesis are followed by an arrow (or colon)
                 if self
                     .tokens
-                    .get(closing_pos as usize + 1)
+                    .get(closing_pos_for_follow as usize + 1)
                     .map(|token| token.token.ty)
                     .map(|ty| {
                         ty == TokenType::Arrow
@@ -692,6 +693,13 @@ impl Parser {
                 }
                 // tuple or parenthesized expression
                 else {
+                    let has_top_level_comma = self.language.is_destack()
+                        && self.has_token_before_matching_close(
+                            open_pos,
+                            closing_pos,
+                            TokenType::Comma,
+                            self.options.in_type,
+                        )?;
                     self.bump(); // eat open paranthesis
                     self.eat_newlines_maybe()?;
                     // empty tuple/sequence if we immediately see a closing parenthesis
@@ -714,10 +722,11 @@ impl Parser {
                             )
                         }
                     }
-                    // tuple if we see a named element
-                    else if self.language.is_destack()
+                    // tuple if we see a named element or a comma at the top level
+                    else if (self.language.is_destack()
                         && self.peek_token(TokenType::Identifier).is_ok()
-                        && self.peek_next_token(TokenType::Colon).is_ok()
+                        && self.peek_next_token(TokenType::Colon).is_ok())
+                        || has_top_level_comma
                     {
                         let tuple_elements = self
                             .eat_sequence_literal_body(None, TokenType::CloseParenthesis)

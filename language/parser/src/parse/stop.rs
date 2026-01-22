@@ -328,6 +328,66 @@ impl Parser {
         ))
     }
 
+    /// Check whether a parenthesized expression has a top level token.
+    pub fn has_token_before_matching_close(
+        &self,
+        open_pos: u32,
+        close_pos: u32,
+        target_token: TokenType,
+        track_angle: bool,
+    ) -> ParseResult<bool> {
+        // depth tracking
+        let mut paren_depth = 0u32;
+        let mut brace_depth = 0u32;
+        let mut bracket_depth = 0u32;
+        let mut angle_depth = 0u32;
+        let mut pos = open_pos as usize;
+        let close_pos = close_pos as usize;
+
+        // scan the parenthesis contents
+        while pos <= close_pos {
+            let ty = self
+                .tokens
+                .get(pos)
+                .map(|token| token.token.ty)
+                .unwrap_or(TokenType::End);
+
+            match ty {
+                TokenType::OpenParenthesis => paren_depth += 1,
+                TokenType::CloseParenthesis => {
+                    paren_depth = paren_depth.saturating_sub(1);
+                    if paren_depth == 0 {
+                        return Ok(false);
+                    }
+                }
+                TokenType::OpenBrace => brace_depth += 1,
+                TokenType::CloseBrace => brace_depth = brace_depth.saturating_sub(1),
+                TokenType::OpenBracket => bracket_depth += 1,
+                TokenType::CloseBracket => bracket_depth = bracket_depth.saturating_sub(1),
+                TokenType::LessThan if track_angle => angle_depth += 1,
+                TokenType::GreaterThan if track_angle => {
+                    angle_depth = angle_depth.saturating_sub(1);
+                }
+                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft if track_angle => {
+                    angle_depth += 2;
+                }
+                _ if ty == target_token
+                    && paren_depth == 1
+                    && brace_depth == 0
+                    && bracket_depth == 0
+                    && angle_depth == 0 =>
+                {
+                    return Ok(true);
+                }
+                _ => {}
+            }
+
+            pos += 1;
+        }
+
+        Ok(false)
+    }
+
     /// Skip any newlines at and after a position.
     #[inline]
     pub fn skip_newlines(&mut self, pos: u32) -> ParseResult<u32> {

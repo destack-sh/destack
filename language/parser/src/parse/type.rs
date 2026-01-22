@@ -2011,6 +2011,38 @@ mod tests {
         });
     }
 
+    /// Parenthesized tuple expressions inside static arguments should stay grouped.
+    #[test]
+    fn test_parse_parenthesized_tuple_static_argument() {
+        let mut test = TestParser::new_with_options(
+            "type Alias = Wrap<(number, string)>;",
+            LanguageType::Destack,
+        );
+        let mut parser = test.prepare();
+        let expr_id = parser.eat_expression().unwrap();
+
+        assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+            assert_node!(parser.tree, *decl_id, Declaration::Type { value, .. } => {
+                assert_node!(parser.tree, *value, Expression::Path { static_arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*value), "Wrap");
+                    let args = static_arguments.as_ref().unwrap();
+                    assert_eq!(args.len(), 1);
+                    assert_node!(parser.tree, args[0], Argument::Positional { value, .. } => {
+                        assert_node!(parser.tree, *value, Expression::TupleExpression { elements } => {
+                            assert_eq!(elements.len(), 2);
+                            assert_node!(parser.tree, elements[0], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::Number));
+                            });
+                            assert_node!(parser.tree, elements[1], Argument::Positional { value, .. } => {
+                                assert_node!(parser.tree, *value, Expression::TypeLiteral(TypeLiteral::String));
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Nested generic arguments inside tuple static arguments should stay grouped.
     #[test]
     fn test_parse_tuple_static_argument_with_nested_generics() {

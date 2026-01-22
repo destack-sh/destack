@@ -202,14 +202,16 @@ impl Parser {
                 let type_start = self.mark();
                 self.bump(); // eat colon or keyword
                 self.eat_newlines_maybe()?;
+                let mut type_options = self
+                    .options
+                    .not_in_position()
+                    .not_in_left_precedence()
+                    .in_type();
+                if self.options.in_type_conditional_right {
+                    type_options = type_options.in_type_conditional_right();
+                }
                 let ty = self
-                    .with_options(
-                        self.options
-                            .not_in_position()
-                            .not_in_left_precedence()
-                            .in_type(),
-                        |parser| parser.eat_expression(),
-                    )
+                    .with_options(type_options, |parser| parser.eat_expression())
                     .for_node_type(NodeType::Parameter)?;
                 (Some(ty), Some(self.get_span_from(type_start)))
             } else {
