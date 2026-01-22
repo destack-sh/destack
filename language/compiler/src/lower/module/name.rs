@@ -1,7 +1,9 @@
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 
 use destack_base::{StringId, StringPool};
 use destack_workspace::{Module, Package};
+use rustc_hash::FxHasher;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
@@ -39,6 +41,10 @@ const LITERAL_METADATA_PREFIX: &str = "literal:";
 const REGEX_METADATA_PREFIX: &str = "regex:";
 /// Prefix for string literal metadata names.
 const STRING_METADATA_PREFIX: &str = "string:";
+/// Prefix for string literal global names.
+const STRING_LITERAL_GLOBAL_PREFIX: &str = "literal:string:";
+/// Maximum length of string literal slugs.
+const STRING_LITERAL_SLUG_MAX: usize = 32;
 
 /// Convert a static key into a canonical string.
 fn static_key_string(key: &dir::StaticKey, strings: &StringPool) -> String {
@@ -651,6 +657,12 @@ impl ModuleLowerer<'_> {
         }
     }
 
+    /// Build a synthetic global name for a string literal.
+    pub(crate) fn string_literal_global_name(&self, literal_id: StringId) -> String {
+        let literal = self.compiler.program.strings.get(literal_id);
+        string_literal_global_name_for_content(literal.as_ref())
+    }
+
     /// Escape metadata fragments to avoid separator collisions.
     fn escape_metadata_fragment(&self, value: &str) -> String {
         let mut escaped = String::new();
@@ -1169,6 +1181,58 @@ impl ModuleLowerer<'_> {
             format!("{prefix}/{stripped}")
         }
     }
+}
+
+/// Build a slug suitable for string literal global names.
+fn string_literal_slug(value: &str) -> String {
+    let mut slug = String::new();
+    let mut last_was_underscore = false;
+
+    for ch in value.chars() {
+        let mapped = if ch.is_ascii_alphanumeric() {
+            ch.to_ascii_lowercase()
+        } else {
+            '_'
+        };
+
+        if mapped == '_' {
+            if !last_was_underscore {
+                slug.push('_');
+                last_was_underscore = true;
+            }
+        } else {
+            slug.push(mapped);
+            last_was_underscore = false;
+        }
+
+        if slug.len() >= STRING_LITERAL_SLUG_MAX {
+            break;
+        }
+    }
+
+    let slug = slug.trim_matches('_').to_string();
+    if slug.is_empty() {
+        return "string".to_string();
+    }
+
+    if slug
+        .chars()
+        .next()
+        .is_some_and(|ch| ch.is_ascii_alphabetic() || ch == '_')
+    {
+        slug
+    } else {
+        format!("s_{slug}")
+    }
+}
+
+/// Build a synthetic global name for a string literal value.
+pub(crate) fn string_literal_global_name_for_content(value: &str) -> String {
+    let mut hasher = FxHasher::default();
+    value.hash(&mut hasher);
+    let hash = hasher.finish() as u32;
+    let slug = string_literal_slug(value);
+    format!("{STRING_LITERAL_GLOBAL_PREFIX}{slug}:h{hash:08x}")
 }
 
 /// Convert a static key to a field name.

@@ -140,8 +140,6 @@ enum ConstantKey {
     Float { bits: u64, width: u8 },
     /// Character constant.
     Char(char),
-    /// String constant.
-    String(String),
 }
 
 /// Run argument specialization over the module.
@@ -380,7 +378,6 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
             width: *width,
         },
         mir::Constant::Char { value } => ConstantKey::Char(*value),
-        mir::Constant::String { value } => ConstantKey::String(value.clone()),
     }
 }
 

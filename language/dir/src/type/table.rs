@@ -209,6 +209,11 @@ impl TypeTable {
         self.types.get(type_id.0)
     }
 
+    /// Iterate over all type ids.
+    pub fn iter_type_ids(&self) -> impl Iterator<Item = LocalTypeId> + '_ {
+        (0..self.types.len()).map(|id| LocalTypeId::new(id as u32))
+    }
+
     /// Get a mutable type by its id.
     pub fn get_type_mut(&mut self, type_id: LocalTypeId) -> &mut Type {
         self.types.get_mut(type_id.0)

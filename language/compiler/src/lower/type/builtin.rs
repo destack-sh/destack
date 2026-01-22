@@ -54,8 +54,10 @@ impl<'a> BuiltinTypeLayouts<'a> {
             return Ok(None);
         };
 
-        // install the struct layout for String
-        let Some(ty_struct) = self.struct_layout_for_symbol(string_symbol, anchor)? else {
+        // install the struct layout for String in source order
+        let Some(ty_struct) =
+            self.struct_layout_for_symbol(string_symbol, anchor, LayoutPolicy::Source)?
+        else {
             return Ok(None);
         };
 
@@ -217,6 +219,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         anchor: dir::AnchoredGlobalNodeId,
+        policy: LayoutPolicy,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
         // require analysis for the module
         self.require_analyzed_module(symbol.module_id)?;
@@ -243,9 +246,7 @@ impl<'a> BuiltinTypeLayouts<'a> {
             return Ok(None);
         }
 
-        let layout = self
-            .type_lowerer
-            .compute_struct_layout(field_inputs, LayoutPolicy::default());
+        let layout = self.type_lowerer.compute_struct_layout(field_inputs, policy);
         let ty_struct = self.type_lowerer.create_struct_type(&layout, self.builder);
         self.type_lowerer.set_layout(ty_struct, layout);
 

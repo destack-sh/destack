@@ -36,8 +36,8 @@ impl FunctionContext<'_> {
                 self.enum_int_constant(value, backing, node)?
             }
             (EnumBackingType::String, EnumFieldValue::String(value)) => {
-                let literal = self.env.strings.get(value);
-                self.state.builder.sconst(literal.to_string())
+                let (value, _) = self.string_literal_value_for_id(value, Some(node))?;
+                value
             }
             _ => {
                 return Err(LowerError::UnsupportedConstruct {

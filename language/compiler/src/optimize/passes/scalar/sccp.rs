@@ -1717,7 +1717,7 @@ block0:
     /// Byte initializers on u8 arrays fold element access with constant indices.
     #[test]
     fn test_global_bytes_element_get() {
-        let input = r#"global @data: [u8; 4] = "test" ; const
+        let input = r#"global @data: [u8; 4] = b"test" ; const
 function @test() -> u8 {
 block0:
     v0 = global.const @data
@@ -1725,7 +1725,7 @@ block0:
     v2 = element.get v0, v1
     return v2
 }"#;
-        let expected = r#"global @data: [u8; 4] = "test" ; const
+        let expected = r#"global @data: [u8; 4] = b"test" ; const
 function @test() -> u8 {
 block0:
     v0 = global.const @data

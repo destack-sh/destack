@@ -252,8 +252,6 @@ pub struct ThreadedInstruction {
 pub enum ConstValue {
     /// Pre-decoded constant value.
     Value(Value),
-    /// String literal payload.
-    String(String),
 }
 
 /// Decoded instruction data.

@@ -533,7 +533,23 @@ impl<'a> Parser<'a> {
                 self.bump();
                 Ok(GlobalInitializer::Zero)
             }
-            // string literal -> bytes (UTF-8)
+            // byte string literal -> bytes (UTF-8)
+            TokenType::Identifier
+                if token.text == "b"
+                    && self
+                        .peek_nth_token(1)
+                        .is_some_and(|token| token.ty == TokenType::StringLiteral) =>
+            {
+                self.eat_token(TokenType::Identifier)?;
+                let token = self.eat_token(TokenType::StringLiteral)?;
+                let token_text = token.text.to_string();
+                let token_start = token.start;
+                let value = parse_string_literal(&token_text).ok_or_else(|| {
+                    ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
+                })?;
+                Ok(GlobalInitializer::Bytes(value.into_bytes()))
+            }
+            // string literal -> string (UTF-8)
             TokenType::StringLiteral => {
                 let token_text = token.text.to_string();
                 let token_start = token.start;
@@ -541,7 +557,7 @@ impl<'a> Parser<'a> {
                 let value = parse_string_literal(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
                 })?;
-                Ok(GlobalInitializer::Bytes(value.into_bytes()))
+                Ok(GlobalInitializer::String(value))
             }
             // scalar constant
             TokenType::BoolLiteral
@@ -927,6 +943,14 @@ impl<'a> Parser<'a> {
         let instruction = match opcode_text {
             // constant
             "iconst" => {
+                if let Some(token) = self.peek()
+                    && token.ty == TokenType::StringLiteral
+                {
+                    return Err(ParseError::invalid(
+                        "string constants must use globals",
+                        token.start,
+                    ));
+                }
                 let value = self.parse_constant()?;
                 Instruction::Const { destination, value }
             }
@@ -2417,13 +2441,6 @@ impl<'a> Parser<'a> {
                 parse_float_constant(&token_text).ok_or_else(|| {
                     ParseError::invalid(&format!("float constant '{token_text}'"), token_start)
                 })
-            }
-            TokenType::StringLiteral => {
-                self.bump();
-                let value = parse_string_literal(&token_text).ok_or_else(|| {
-                    ParseError::invalid(&format!("string literal '{token_text}'"), token_start)
-                })?;
-                Ok(Constant::String { value })
             }
             TokenType::CharLiteral => {
                 self.bump();

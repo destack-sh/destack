@@ -170,6 +170,11 @@ impl<'a> ModuleLowerer<'a> {
 
             mir::GlobalInitializer::Scalar(constant) => self.lower_scalar_constant(constant, ty),
 
+            mir::GlobalInitializer::String(_) => Err(CodegenCraneliftError::unsupported_type(
+                "string globals must be lowered by the runtime".to_string(),
+                ty.into_any(),
+            )),
+
             mir::GlobalInitializer::Bytes(bytes) => Ok(bytes.clone()),
 
             mir::GlobalInitializer::Aggregate(elements) => {
@@ -266,11 +271,6 @@ impl<'a> ModuleLowerer<'a> {
                 Ok((*value as u32).to_le_bytes().to_vec())
             }
 
-            // string -> error (should use GlobalInitializer::Bytes instead)
-            mir::Constant::String { .. } => Err(CodegenCraneliftError::unsupported_type(
-                "string constants in scalar position; use GlobalInitializer::Bytes".to_string(),
-                ty.into_any(),
-            )),
         }
     }
 

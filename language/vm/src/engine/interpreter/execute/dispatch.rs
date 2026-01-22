@@ -219,10 +219,8 @@ pub(crate) fn handle_const(
     };
 
     // resolve constant value
-    let value = match value {
-        ConstValue::Value(value) => *value,
-        ConstValue::String(value) => state.interpreter.intern_string_literal(value),
-    };
+    let ConstValue::Value(value) = value;
+    let value = *value;
 
     // write value
     state.set(*dest, value);

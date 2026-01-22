@@ -19,8 +19,6 @@ pub enum ConstantType {
     Float { width: u8 },
     /// Character constant type.
     Char,
-    /// String constant type.
-    String,
 }
 
 /// Lookup interface for constant maps.
@@ -51,7 +49,6 @@ pub fn constant_type_of(constant: &Constant) -> ConstantType {
             signed: false,
         },
         Constant::Float { width, .. } => ConstantType::Float { width: *width },
-        Constant::String { .. } => ConstantType::String,
         Constant::Char { .. } => ConstantType::Char,
     }
 }
@@ -82,15 +79,6 @@ pub fn constant_matches_type(
                 is_signed: signed,
             },
         ) => *width == 32 && !*signed,
-        (
-            ConstantType::String,
-            Type::Reference {
-                kind: mir::ReferenceKind::Managed,
-                mutability: mir::Mutability::Immutable,
-                pointee,
-                ..
-            },
-        ) => string_layout_matches(*pointee, tree),
         _ => false,
     }
 }
@@ -224,95 +212,6 @@ pub fn apply_constant_parameters(
     }
 
     true
-}
-
-/// Check whether a type matches the builtin string layout.
-fn string_layout_matches(pointee: LocalNodeId<Type>, tree: &NodeTree) -> bool {
-    // match the builtin String layout from lower/README
-    let Type::Struct { fields, .. } = tree.get(pointee) else {
-        return false;
-    };
-
-    // verify the field count first
-    if fields.len() != 6 {
-        return false;
-    }
-
-    // read field types
-    let field_types: Vec<_> = fields.iter().map(|field| tree.get(*field).ty).collect();
-
-    // check the fixed header layout
-    if !matches!(
-        tree.get(field_types[0]),
-        Type::Int {
-            width: 32,
-            is_signed: false,
-        }
-    ) {
-        return false;
-    }
-    if !matches!(
-        tree.get(field_types[1]),
-        Type::Int {
-            width: 32,
-            is_signed: false,
-        }
-    ) {
-        return false;
-    }
-    if !matches!(
-        tree.get(field_types[2]),
-        Type::Int {
-            width: 64,
-            is_signed: false,
-        }
-    ) {
-        return false;
-    }
-    if !matches!(
-        tree.get(field_types[3]),
-        Type::Int {
-            width: 32,
-            is_signed: false,
-        }
-    ) {
-        return false;
-    }
-    if !matches!(
-        tree.get(field_types[4]),
-        Type::Int {
-            width: 32,
-            is_signed: false,
-        }
-    ) {
-        return false;
-    }
-
-    // verify the data pointer field
-    data_pointer_matches(field_types[5], tree)
-}
-
-/// Check whether a type is a raw pointer to u8 or u16.
-fn data_pointer_matches(pointer_type: LocalNodeId<Type>, tree: &NodeTree) -> bool {
-    let Type::Reference {
-        kind: mir::ReferenceKind::Raw,
-        pointee,
-        ..
-    } = tree.get(pointer_type)
-    else {
-        return false;
-    };
-
-    matches!(
-        tree.get(*pointee),
-        Type::Int {
-            width: 8,
-            is_signed: false,
-        } | Type::Int {
-            width: 16,
-            is_signed: false,
-        }
-    )
 }
 
 /// Check if a constant is zero.
@@ -761,6 +660,7 @@ fn constant_tree_from_initializer(
             constant_tree_from_zero(ty, tree, max_aggregate_elements, pointer_width_bits)
         }
         mir::GlobalInitializer::Scalar(constant) => constant_tree_from_scalar(constant, ty, tree),
+        mir::GlobalInitializer::String(_) => ConstantTree::Unknown,
         mir::GlobalInitializer::Bytes(bytes) => {
             constant_tree_from_bytes(bytes, ty, tree, max_aggregate_elements)
         }

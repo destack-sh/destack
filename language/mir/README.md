@@ -588,6 +588,7 @@ struct Global {
 ```
 
 Immutable globals are constants (string literals, lookup tables).
+String initializers require a managed reference to the builtin String layout.
 Mutable globals are module-level state (use sparingly).
 
 ## Coroutines

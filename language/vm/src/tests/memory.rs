@@ -1,5 +1,6 @@
 use crate::diagnostic::Error;
 use crate::memory::{RawPointer, Value};
+use crate::memory::STRING_TYPE_ALIAS;
 use crate::tests::{create_aggregate, run_mir, run_mir_expect, run_mir_ok, run_mir_with_ok};
 
 /// Managed allocation creates a heap cell and returns a reference.
@@ -313,31 +314,40 @@ block0:
 /// String header fields expose UTF-16 and UTF-8 lengths.
 #[test]
 fn test_string_header_lengths() {
-    let mir = r#"
+    let mir = [
+        STRING_TYPE_ALIAS,
+        r#"global @literal:string:unicode_he: ref<managed @String> = "h\u{00E9}" ; const
+
 function @len_utf16() -> u32 {
 block0:
-    v0 = iconst "h\u{00E9}"
+    v0 = global.const @literal:string:unicode_he
     v1 = field.get v0, 0
     return v1
 }
 
 function @len_bytes() -> u32 {
 block0:
-    v0 = iconst "h\u{00E9}"
+    v0 = global.const @literal:string:unicode_he
     v1 = field.get v0, 1
     return v1
-}"#;
-    run_mir_expect(mir, "len_utf16", &[], Value::uint32(2));
-    run_mir_expect(mir, "len_bytes", &[], Value::uint32(3));
+}"#,
+    ]
+    .concat();
+    run_mir_expect(&mir, "len_utf16", &[], Value::uint32(2));
+    run_mir_expect(&mir, "len_bytes", &[], Value::uint32(3));
 }
 
 /// String data pointers expose raw bytes for mem intrinsics.
 #[test]
 fn test_string_payload_bytes() {
-    let mir = r#"
+    let mir = [
+        STRING_TYPE_ALIAS,
+        r#"global @literal:string:Hi: ref<managed @String> = "Hi" ; const
+global @literal:string:abc: ref<managed @String> = "abc" ; const
+
 function @first_byte() -> u8 {
 block0:
-    v0 = iconst "Hi"
+    v0 = global.const @literal:string:Hi
     v1 = field.get v0, 5
     v2 = load v1 -> u8
     return v2
@@ -345,14 +355,16 @@ block0:
 
 function @memcmp_self() -> i32 {
 block0:
-    v0 = iconst "abc"
+    v0 = global.const @literal:string:abc
     v1 = field.get v0, 5
     v2 = iconst 3u64
     v3 = intrinsic.memcmp(v1, v1, v2)
     return v3
-}"#;
-    run_mir_expect(mir, "first_byte", &[], Value::uint(72, 8));
-    run_mir_expect(mir, "memcmp_self", &[], Value::int32(0));
+}"#,
+    ]
+    .concat();
+    run_mir_expect(&mir, "first_byte", &[], Value::uint(72, 8));
+    run_mir_expect(&mir, "memcmp_self", &[], Value::int32(0));
 }
 
 /// Stack allocation creates frame-local storage.

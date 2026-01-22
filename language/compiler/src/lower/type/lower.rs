@@ -70,7 +70,6 @@ impl TypeLowerer {
         packages: Arc<PackageRegistry>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
-
         let layout_policy = TypeLayoutPolicy::for_target(pointer_bytes);
 
         Self {

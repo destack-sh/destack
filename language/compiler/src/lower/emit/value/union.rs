@@ -599,14 +599,7 @@ impl FunctionContext<'_> {
                 }
             }
             DiscriminantValue::String(value) => {
-                let literal_value = self.env.strings.get(*value);
-                let value = self.state.builder.sconst(literal_value.to_string());
-                let ty = self.env.type_lowerer.string_type().ok_or_else(|| {
-                    LowerError::UnsupportedConstruct {
-                        node,
-                        message: "missing builtin String layout (load lib/native)".to_string(),
-                    }
-                })?;
+                let (value, ty) = self.string_literal_value_for_id(*value, Some(node))?;
                 Ok((value, ty))
             }
             DiscriminantValue::Null

@@ -82,28 +82,8 @@ fn format_data_init<'a>(
     match init {
         GlobalInitializer::Zero => write!(f, [token("zeroinit")]),
         GlobalInitializer::Scalar(constant) => format_constant(constant, f),
-        GlobalInitializer::Bytes(bytes) => {
-            // format as quoted string, escaping non-printable bytes
-            write!(f, [token("\"")])?;
-            for &byte in bytes {
-                if byte == b'"' {
-                    write!(f, [text("\\\"")])?;
-                } else if byte == b'\\' {
-                    write!(f, [text("\\\\")])?;
-                } else if byte == b'\n' {
-                    write!(f, [text("\\n")])?;
-                } else if byte == b'\r' {
-                    write!(f, [text("\\r")])?;
-                } else if byte == b'\t' {
-                    write!(f, [text("\\t")])?;
-                } else if byte.is_ascii_graphic() || byte == b' ' {
-                    write!(f, [text(&String::from(byte as char))])?;
-                } else {
-                    write!(f, [text(&format!("\\x{byte:02x}"))])?;
-                }
-            }
-            write!(f, [token("\"")])
-        }
+        GlobalInitializer::String(value) => format_string_literal(value, f),
+        GlobalInitializer::Bytes(bytes) => format_byte_literal(bytes, f),
         GlobalInitializer::Aggregate(elements) => {
             write!(f, [token("{")])?;
             for (i, elem) in elements.iter().enumerate() {
@@ -115,6 +95,52 @@ fn format_data_init<'a>(
             write!(f, [token("}")])
         }
     }
+}
+
+/// Format a string literal with escaping.
+fn format_string_literal<'a>(value: &str, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    write!(f, [token("\"")])?;
+    for ch in value.chars() {
+        if ch == '"' {
+            write!(f, [text("\\\"")])?;
+        } else if ch == '\\' {
+            write!(f, [text("\\\\")])?;
+        } else if ch == '\n' {
+            write!(f, [text("\\n")])?;
+        } else if ch == '\r' {
+            write!(f, [text("\\r")])?;
+        } else if ch == '\t' {
+            write!(f, [text("\\t")])?;
+        } else if ch.is_ascii_graphic() || ch == ' ' {
+            write!(f, [text(&ch.to_string())])?;
+        } else {
+            write!(f, [text(&format!("\\u{{{:x}}}", ch as u32))])?;
+        }
+    }
+    write!(f, [token("\"")])
+}
+
+/// Format a byte literal with escaping.
+fn format_byte_literal<'a>(bytes: &[u8], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    write!(f, [token("b"), token("\"")])?;
+    for &byte in bytes {
+        if byte == b'"' {
+            write!(f, [text("\\\"")])?;
+        } else if byte == b'\\' {
+            write!(f, [text("\\\\")])?;
+        } else if byte == b'\n' {
+            write!(f, [text("\\n")])?;
+        } else if byte == b'\r' {
+            write!(f, [text("\\r")])?;
+        } else if byte == b'\t' {
+            write!(f, [text("\\t")])?;
+        } else if byte.is_ascii_graphic() || byte == b' ' {
+            write!(f, [text(&String::from(byte as char))])?;
+        } else {
+            write!(f, [text(&format!("\\x{byte:02x}"))])?;
+        }
+    }
+    write!(f, [token("\"")])
 }
 
 /// Format a constant value.
@@ -140,9 +166,6 @@ fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> For
                 f64::from_bits(*bits)
             };
             write!(f, [text(&format!("{value}f{width}"))])
-        }
-        Constant::String { value } => {
-            write!(f, [text(&format!("{value:?}"))])
         }
         Constant::Char { value } => {
             write!(f, [text(&format!("{value:?}"))])

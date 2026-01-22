@@ -4,36 +4,32 @@ use destack_workspace::CheckFailurePolicy;
 
 use crate::{LowerError, LowerResult, ScalarType};
 
-use super::FunctionContext;
-
-// check failure messages
-const BOUNDS_CHECK_MESSAGE: &str = "bounds check failed";
-const NULL_CHECK_MESSAGE: &str = "null check failed";
+use super::{FunctionContext, RUNTIME_CHECK_MESSAGES};
 
 impl FunctionContext<'_> {
     /// Return true when overflow checks are enabled.
     pub(crate) fn overflow_checks_enabled(&self) -> bool {
-        self.env.runtime_checks.overflow
+        self.env.checks.overflow
     }
 
     /// Return true when bounds checks are enabled.
     pub(crate) fn bounds_checks_enabled(&self) -> bool {
-        self.env.runtime_checks.bounds
+        self.env.checks.bounds
     }
 
     /// Return true when null checks are enabled.
     pub(crate) fn null_checks_enabled(&self) -> bool {
-        self.env.runtime_checks.null
+        self.env.checks.null
     }
 
     /// Return true when division checks are enabled.
     pub(crate) fn division_checks_enabled(&self) -> bool {
-        self.env.runtime_checks.division
+        self.env.checks.division
     }
 
     /// Return true when shift checks are enabled.
     pub(crate) fn shift_checks_enabled(&self) -> bool {
-        self.env.runtime_checks.shift
+        self.env.checks.shift
     }
 
     /// Emit a check terminator with a configured failure block.
@@ -42,9 +38,9 @@ impl FunctionContext<'_> {
         condition: mir::Value,
         constraint: mir::CheckConstraint,
         message: &'static str,
-    ) {
+    ) -> LowerResult<()> {
         // create the failure block before sealing the check
-        let failure_block = self.check_failure_block(message);
+        let failure_block = self.check_failure_block(message)?;
 
         // create the success block for fallthrough
         let success_block = self.state.builder.create_block();
@@ -56,6 +52,8 @@ impl FunctionContext<'_> {
 
         // continue lowering in the success block
         self.state.builder.switch_to_block(success_block);
+
+        Ok(())
     }
 
     /// Resolve integer scalar info for an expression when available.
@@ -169,7 +167,7 @@ impl FunctionContext<'_> {
             collection: array_value,
             is_signed,
         };
-        self.emit_check(condition, constraint, BOUNDS_CHECK_MESSAGE);
+        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.bounds_check)?;
 
         Ok(())
     }
@@ -217,13 +215,16 @@ impl FunctionContext<'_> {
 
         // emit the null check
         let constraint = mir::CheckConstraint::Null { value };
-        self.emit_check(condition, constraint, NULL_CHECK_MESSAGE);
+        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.null_check)?;
 
         Ok(())
     }
 
     /// Create a failure block that respects the target check policy.
-    fn check_failure_block(&mut self, message: &'static str) -> mir::LocalNodeId<mir::Block> {
+    fn check_failure_block(
+        &mut self,
+        message: &'static str,
+    ) -> LowerResult<mir::LocalNodeId<mir::Block>> {
         // preserve the current insertion point
         let current_block = self.state.builder.current_block();
 
@@ -232,7 +233,7 @@ impl FunctionContext<'_> {
         self.state.builder.switch_to_block(failure_block);
 
         // emit the configured failure behavior
-        match self.env.runtime_checks.failure {
+        match self.env.checks.failure {
             CheckFailurePolicy::Trap => {}
             CheckFailurePolicy::Abort => {
                 self.state
@@ -240,7 +241,7 @@ impl FunctionContext<'_> {
                     .intrinsic_void(mir::Intrinsic::Abort, Vec::new());
             }
             CheckFailurePolicy::Panic => {
-                let message_value = self.state.builder.sconst(message);
+                let (message_value, _) = self.string_literal_value(message)?;
                 self.state
                     .builder
                     .intrinsic_void(mir::Intrinsic::Panic, vec![message_value]);
@@ -255,6 +256,6 @@ impl FunctionContext<'_> {
         // restore the previous insertion point
         self.state.builder.switch_to_block(current_block);
 
-        failure_block
+        Ok(failure_block)
     }
 }

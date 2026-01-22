@@ -70,11 +70,6 @@ pub enum Constant {
         /// The bit width (32 or 64).
         width: u8,
     },
-    /// String constant (UTF-8 encoded).
-    String {
-        /// The string value.
-        value: String,
-    },
     /// Character constant (Unicode codepoint).
     Char {
         /// The character value.
@@ -170,12 +165,6 @@ impl Constant {
     }
 
     /// Create a new string constant.
-    pub fn string(value: impl Into<String>) -> Self {
-        Self::String {
-            value: value.into(),
-        }
-    }
-
     /// Create a new character constant.
     pub fn char(value: char) -> Self {
         Self::Char { value }

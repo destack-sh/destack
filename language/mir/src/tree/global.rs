@@ -124,7 +124,10 @@ pub enum GlobalInitializer {
     Zero,
     /// Scalar constant (bool, int, float).
     Scalar(Constant),
-    /// Raw bytes (strings, blobs).
+    /// String literal data for the runtime string layout.
+    /// The global type must be a managed reference to the String layout.
+    String(String),
+    /// Raw bytes (blobs).
     Bytes(Vec<u8>),
     /// Aggregate (array/struct fields).
     Aggregate(Vec<GlobalInitializer>),
@@ -146,9 +149,9 @@ impl GlobalInitializer {
         Self::Bytes(data)
     }
 
-    /// Create from a string (UTF-8 bytes).
+    /// Create from a string literal.
     pub fn string(s: &str) -> Self {
-        Self::Bytes(s.as_bytes().to_vec())
+        Self::String(s.to_string())
     }
 
     /// Create an aggregate initializer.
