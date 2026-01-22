@@ -6,13 +6,17 @@ use mir::{BinaryOperator, Constant, UnaryOperator};
 
 use destack_workspace::FloatMathPolicy;
 
+use crate::ConstantMap;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
-    constant_is_zero, constant_zero_like, instruction_substitute_uses, resolve_substitution_chains,
-    terminator_substitute_uses,
+    constant_is_zero, constant_zero_like, evaluate_integer_range_comparison,
+    instruction_substitute_uses, resolve_substitution_chains, terminator_substitute_uses,
 };
+
+/// Maximum recursion depth for chained field.set/element.set simplification.
+const MAX_AGGREGATE_CHAIN_DEPTH: usize = 64;
 
 declare_pass! {
     /// Algebraic simplification of instructions.
@@ -23,8 +27,11 @@ declare_pass! {
     /// - `x - x = 0`, `x ^ x = 0`, `x & x = x`
     /// - `x == x = true`, `x != x = false`
     /// - `!!x = x`
-    /// - `field.get(tuple/struct(...), i)` = operand i
+    /// - `field.get(struct/tuple/array(...), i)` = operand i
+    /// - `field.get(field.set(..., i, v), i)` = v
+    /// - `field.get(field.set(..., i, v), j)` = field.get(original, j) when i != j
     /// - `element.get(array(...), const_i)` = operand i
+    /// - `element.get(element.set(..., i, v), i)` = v (when i is constant)
     ///
     /// ```mir
     /// function @before(v0: i32) -> i32 {
@@ -93,6 +100,42 @@ impl FunctionPass for InstructionCombine {
     }
 }
 
+/// Tracks a field.set instruction for simplification.
+struct FieldSetEntry {
+    /// The original aggregate being modified.
+    aggregate: mir::Value,
+    /// The field index being updated.
+    index: u32,
+    /// The new value inserted at the field.
+    value: mir::Value,
+}
+
+/// Tracks an element.set instruction for simplification.
+struct ElementSetEntry {
+    /// The original array being modified.
+    array: mir::Value,
+    /// The index value (may be constant or dynamic).
+    index: mir::Value,
+    /// The new value inserted at the index.
+    value: mir::Value,
+}
+
+/// Tracks a field.get instruction for identity detection.
+struct FieldGetEntry {
+    /// The aggregate being extracted from.
+    aggregate: mir::Value,
+    /// The field index being extracted.
+    index: u32,
+}
+
+/// Tracks an element.get instruction for identity detection.
+struct ElementGetEntry {
+    /// The array being extracted from.
+    array: mir::Value,
+    /// The index value (may be constant or dynamic).
+    index: mir::Value,
+}
+
 /// Core instruction combine logic.
 fn run_instruction_combine(
     function: &mut mir::Function,
@@ -102,11 +145,12 @@ fn run_instruction_combine(
     float_math: FloatMathPolicy,
     type_context: TypeContext,
 ) -> bool {
-    // build map of value to instruction for unary simplifications
     let mut value_to_instruction: HashMap<mir::Value, mir::Instruction> = HashMap::new();
-
-    // track aggregate construction operands: dest -> operand list
     let mut aggregate_operands: HashMap<mir::Value, Vec<mir::Value>> = HashMap::new();
+    let mut field_sets: HashMap<mir::Value, FieldSetEntry> = HashMap::new();
+    let mut element_sets: HashMap<mir::Value, ElementSetEntry> = HashMap::new();
+    let mut field_gets: HashMap<mir::Value, FieldGetEntry> = HashMap::new();
+    let mut element_gets: HashMap<mir::Value, ElementGetEntry> = HashMap::new();
 
     // scan all blocks for aggregate definitions and value maps
     for &block_id in &function.blocks {
@@ -114,10 +158,7 @@ fn run_instruction_combine(
         let block = tree.get(block_id);
 
         for &instruction_id in &block.instructions {
-            // load the instruction for inspection
             let instruction = tree.get(instruction_id);
-
-            // track aggregate constructions
             match instruction {
                 mir::Instruction::Struct {
                     destination,
@@ -139,6 +180,62 @@ fn run_instruction_combine(
                 } => {
                     let args = tree.get_arguments(*elements);
                     aggregate_operands.insert(*destination, args.to_vec());
+                }
+                mir::Instruction::FieldSet {
+                    destination,
+                    aggregate,
+                    index,
+                    value,
+                } => {
+                    field_sets.insert(
+                        *destination,
+                        FieldSetEntry {
+                            aggregate: *aggregate,
+                            index: *index,
+                            value: *value,
+                        },
+                    );
+                }
+                mir::Instruction::ElementSet {
+                    destination,
+                    array,
+                    index,
+                    value,
+                } => {
+                    element_sets.insert(
+                        *destination,
+                        ElementSetEntry {
+                            array: *array,
+                            index: *index,
+                            value: *value,
+                        },
+                    );
+                }
+                mir::Instruction::FieldGet {
+                    destination,
+                    aggregate,
+                    index,
+                } => {
+                    field_gets.insert(
+                        *destination,
+                        FieldGetEntry {
+                            aggregate: *aggregate,
+                            index: *index,
+                        },
+                    );
+                }
+                mir::Instruction::ElementGet {
+                    destination,
+                    array,
+                    index,
+                } => {
+                    element_gets.insert(
+                        *destination,
+                        ElementGetEntry {
+                            array: *array,
+                            index: *index,
+                        },
+                    );
                 }
                 _ => {}
             }
@@ -199,38 +296,35 @@ fn run_instruction_combine(
 
                     mir::Instruction::FieldGet {
                         aggregate, index, ..
-                    } => {
-                        // resolve field from known aggregate operands
-                        if let Some(operands) = aggregate_operands.get(aggregate) {
-                            operands
-                                .get(*index as usize)
-                                .map(|&op| Simplification::Substitute(op))
-                        } else {
-                            None
-                        }
-                    }
+                    } => simplify_field_get(*aggregate, *index, &aggregate_operands, &field_sets),
 
-                    mir::Instruction::ElementGet { array, index, .. } => {
-                        // resolve array element from known operands
-                        if let Some(operands) = aggregate_operands.get(array) {
-                            let index_constant = constant_lookup.get(*index);
-                            let index_value = match index_constant {
-                                Some(Constant::Int { value, .. }) => Some(value as usize),
-                                Some(Constant::UInt { value, .. }) => Some(value as usize),
-                                _ => None,
-                            };
+                    mir::Instruction::ElementGet { array, index, .. } => simplify_element_get(
+                        *array,
+                        *index,
+                        &aggregate_operands,
+                        &element_sets,
+                        &constant_lookup,
+                    ),
 
-                            if let Some(index_value) = index_value {
-                                operands
-                                    .get(index_value)
-                                    .map(|&op| Simplification::Substitute(op))
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    }
+                    mir::Instruction::FieldSet {
+                        aggregate,
+                        index,
+                        value,
+                        ..
+                    } => simplify_field_set(*aggregate, *index, *value, &field_gets),
+
+                    mir::Instruction::ElementSet {
+                        array,
+                        index,
+                        value,
+                        ..
+                    } => simplify_element_set(
+                        *array,
+                        *index,
+                        *value,
+                        &element_gets,
+                        &constant_lookup,
+                    ),
 
                     _ => None,
                 }
@@ -341,7 +435,10 @@ fn simplify_binary_operator(
     let right_const_ref = right_const.as_ref();
 
     // fold comparisons using range evidence
-    if let Some(result) = comparison_from_ranges(operator, left, right, ranges) {
+    if let Some(left_range) = ranges.get(left)
+        && let Some(right_range) = ranges.get(right)
+        && let Some(result) = evaluate_integer_range_comparison(operator, left_range, right_range)
+    {
         return Some(Simplification::Constant(Constant::Boolean {
             value: result,
         }));
@@ -521,21 +618,21 @@ fn simplify_same_binary_operand(
     operand: mir::Value,
     constant: Option<&Constant>,
 ) -> Option<Simplification> {
-    // get type info from constant if available for proper zero type
+    // get type entry from constant if available for proper zero type
     let operand_const = constant;
 
     // simplify based on the operator
     match operator {
         // x - x = 0
         BinaryOperator::Subtract => {
-            // need type info to create proper zero constant
+            // need type entry to create proper zero constant
             let c = operand_const?;
             Some(Simplification::Constant(constant_zero_like(c)))
         }
 
         // x ^ x = 0
         BinaryOperator::Xor => {
-            // need type info to create proper zero constant
+            // need type entry to create proper zero constant
             let c = operand_const?;
             Some(Simplification::Constant(constant_zero_like(c)))
         }
@@ -602,7 +699,7 @@ impl<'a> ConstantLookup<'a> {
 fn update_constant_map(
     instruction: &mir::Instruction,
     tree: &mir::NodeTree,
-    block_constants: &mut crate::optimize::analyses::ConstantMap,
+    block_constants: &mut ConstantMap,
     ranges: &RangeMap,
     type_context: TypeContext,
 ) {
@@ -711,91 +808,6 @@ fn update_constant_map(
     }
 }
 
-/// Fold comparisons using range analysis when possible.
-fn comparison_from_ranges(
-    operator: mir::BinaryOperator,
-    left: mir::Value,
-    right: mir::Value,
-    ranges: &RangeMap,
-) -> Option<bool> {
-    // read operand ranges
-    let left_range = ranges.get(left)?;
-    let right_range = ranges.get(right)?;
-
-    // fold comparisons when both operands are integer ranges
-    match (left_range, right_range) {
-        (
-            crate::optimize::analyses::ValueRange::Integer {
-                min: left_min,
-                max: left_max,
-                ..
-            },
-            crate::optimize::analyses::ValueRange::Integer {
-                min: right_min,
-                max: right_max,
-                ..
-            },
-        ) => match operator {
-            BinaryOperator::SignedLessThan | BinaryOperator::UnsignedLessThan => {
-                if left_max < right_min {
-                    Some(true)
-                } else if left_min >= right_max {
-                    Some(false)
-                } else {
-                    None
-                }
-            }
-            BinaryOperator::SignedLessEqual | BinaryOperator::UnsignedLessEqual => {
-                if left_max <= right_min {
-                    Some(true)
-                } else if left_min > right_max {
-                    Some(false)
-                } else {
-                    None
-                }
-            }
-            BinaryOperator::SignedGreaterThan | BinaryOperator::UnsignedGreaterThan => {
-                if left_min > right_max {
-                    Some(true)
-                } else if left_max <= right_min {
-                    Some(false)
-                } else {
-                    None
-                }
-            }
-            BinaryOperator::SignedGreaterEqual | BinaryOperator::UnsignedGreaterEqual => {
-                if left_min >= right_max {
-                    Some(true)
-                } else if left_max < right_min {
-                    Some(false)
-                } else {
-                    None
-                }
-            }
-            BinaryOperator::Equal => {
-                if left_min == left_max && left_min == right_min && right_min == right_max {
-                    Some(true)
-                } else if left_max < right_min || right_max < left_min {
-                    Some(false)
-                } else {
-                    None
-                }
-            }
-            BinaryOperator::NotEqual => {
-                if left_min == left_max && left_min == right_min && right_min == right_max {
-                    Some(false)
-                } else if left_max < right_min || right_max < left_min {
-                    Some(true)
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 /// Check if float identity simplifications are allowed.
 fn allow_float_identities(policy: FloatMathPolicy) -> bool {
     matches!(policy, FloatMathPolicy::Fast)
@@ -823,9 +835,171 @@ fn simplify_unary_operator(
     None
 }
 
+/// Simplify a field.get instruction.
+///
+/// Handles extraction from aggregate constructions (struct/tuple/array) and
+/// from field.set operations where the index matches or differs.
+/// Uses iterative traversal with depth limit to avoid stack overflow.
+fn simplify_field_get(
+    aggregate: mir::Value,
+    index: u32,
+    aggregate_operands: &HashMap<mir::Value, Vec<mir::Value>>,
+    field_sets: &HashMap<mir::Value, FieldSetEntry>,
+) -> Option<Simplification> {
+    let mut current = aggregate;
+
+    // iterate through chained field.set operations
+    for _ in 0..MAX_AGGREGATE_CHAIN_DEPTH {
+        // check aggregate constructions first
+        if let Some(operands) = aggregate_operands.get(&current) {
+            return operands
+                .get(index as usize)
+                .map(|&op| Simplification::Substitute(op));
+        }
+
+        // check field.set: field.get(field.set(agg, i, val), j)
+        if let Some(entry) = field_sets.get(&current) {
+            // same index: return the inserted value
+            if entry.index == index {
+                return Some(Simplification::Substitute(entry.value));
+            }
+
+            // different index: continue through original aggregate
+            current = entry.aggregate;
+            continue;
+        }
+
+        // no more simplifications possible
+        break;
+    }
+
+    None
+}
+
+/// Convert a constant to a non-negative index, rejecting negative values.
+fn constant_to_index(constant: &Constant) -> Option<usize> {
+    match constant {
+        Constant::Int { value, .. } => {
+            // reject negative indices
+            if *value < 0 {
+                return None;
+            }
+            usize::try_from(*value).ok()
+        }
+        Constant::UInt { value, .. } => usize::try_from(*value).ok(),
+        _ => None,
+    }
+}
+
+/// Simplify an element.get instruction.
+///
+/// Handles extraction from array constructions and from element.set operations
+/// when indices are known non-negative constants.
+/// Uses iterative traversal with depth limit to avoid stack overflow.
+fn simplify_element_get(
+    array: mir::Value,
+    index: mir::Value,
+    aggregate_operands: &HashMap<mir::Value, Vec<mir::Value>>,
+    element_sets: &HashMap<mir::Value, ElementSetEntry>,
+    constants: &ConstantLookup<'_>,
+) -> Option<Simplification> {
+    // resolve the index to a non-negative constant value
+    let index_value = constants.get(index).as_ref().and_then(constant_to_index);
+
+    let mut current = array;
+
+    // iterate through chained element.set operations
+    for _ in 0..MAX_AGGREGATE_CHAIN_DEPTH {
+        // check array constructions
+        if let Some(operands) = aggregate_operands.get(&current)
+            && let Some(idx) = index_value
+        {
+            return operands.get(idx).map(|&op| Simplification::Substitute(op));
+        }
+
+        // check element.set: element.get(element.set(arr, i, val), j)
+        if let Some(entry) = element_sets.get(&current) {
+            // need both indices to be non-negative constants for comparison
+            let set_index_value = constants
+                .get(entry.index)
+                .as_ref()
+                .and_then(constant_to_index);
+
+            if let (Some(get_idx), Some(set_idx)) = (index_value, set_index_value) {
+                // same index: return the inserted value
+                if get_idx == set_idx {
+                    return Some(Simplification::Substitute(entry.value));
+                }
+
+                // different index: continue through original array
+                current = entry.array;
+                continue;
+            }
+        }
+
+        // no more simplifications possible
+        break;
+    }
+
+    None
+}
+
+/// Simplify a field.set instruction.
+///
+/// Detects identity pattern: `field.set(agg, i, field.get(agg, i))` → `agg`
+/// Setting a field to its own current value is a no-op.
+fn simplify_field_set(
+    aggregate: mir::Value,
+    index: u32,
+    value: mir::Value,
+    field_gets: &HashMap<mir::Value, FieldGetEntry>,
+) -> Option<Simplification> {
+    // check if value comes from a field.get on the same aggregate with same index
+    if let Some(get_entry) = field_gets.get(&value)
+        && get_entry.aggregate == aggregate
+        && get_entry.index == index
+    {
+        return Some(Simplification::Substitute(aggregate));
+    }
+    None
+}
+
+/// Simplify an element.set instruction.
+///
+/// Detects identity pattern: `element.set(arr, i, element.get(arr, i))` → `arr`
+/// Setting an element to its own current value is a no-op.
+/// Requires constant indices for comparison.
+fn simplify_element_set(
+    array: mir::Value,
+    index: mir::Value,
+    value: mir::Value,
+    element_gets: &HashMap<mir::Value, ElementGetEntry>,
+    constants: &ConstantLookup<'_>,
+) -> Option<Simplification> {
+    // check if value comes from an element.get on the same array
+    if let Some(get_entry) = element_gets.get(&value)
+        && get_entry.array == array
+    {
+        // need both indices to be constants for comparison
+        let set_idx = constants.get(index).as_ref().and_then(constant_to_index);
+        let get_idx = constants
+            .get(get_entry.index)
+            .as_ref()
+            .and_then(constant_to_index);
+
+        if let (Some(s), Some(g)) = (set_idx, get_idx)
+            && s == g
+        {
+            return Some(Simplification::Substitute(array));
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ValueRange;
     use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
     use destack_workspace::FloatMathPolicy;
@@ -973,10 +1147,10 @@ block0(v0: i32):
         test.assert_output(expected);
     }
 
-    /// x - x simplifies to 0 (when type info is available).
+    /// x - x simplifies to 0 (when type entry is available).
     #[test]
     fn test_simplify_sub_self() {
-        // use a constant so we have type info
+        // use a constant so we have type entry
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
@@ -995,10 +1169,10 @@ block0:
         test.assert_output(expected);
     }
 
-    /// x ^ x simplifies to 0 (when type info is available).
+    /// x ^ x simplifies to 0 (when type entry is available).
     #[test]
     fn test_simplify_xor_self() {
-        // use a constant so we have type info
+        // use a constant so we have type entry
         let input = r#"function @test() -> i32 {
 block0:
     v0 = iconst 42i32
@@ -1017,9 +1191,9 @@ block0:
         test.assert_output(expected);
     }
 
-    /// x - x without type info is not simplified (conservative).
+    /// x - x without type entry is not simplified (conservative).
     #[test]
-    fn test_preserve_sub_self_without_type_info() {
+    fn test_preserve_sub_self_without_type_entry() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     v1 = isub v0, v0
@@ -1142,41 +1316,6 @@ block0(v0: i32):
         let mut test = TestProgram::new(input);
         test.run_pass(&InstructionCombine);
         test.assert_output(expected);
-    }
-
-    /// Range evidence folds comparisons.
-    #[test]
-    fn test_fold_comparison_from_range() {
-        let left = mir::Value::new(1);
-        let right = mir::Value::new(2);
-        let mut ranges = RangeMap::new();
-        ranges.insert(
-            left,
-            crate::optimize::analyses::ValueRange::Integer {
-                min: 0,
-                max: 4,
-                width: 32,
-                is_signed: true,
-            },
-        );
-        ranges.insert(
-            right,
-            crate::optimize::analyses::ValueRange::Integer {
-                min: 10,
-                max: 12,
-                width: 32,
-                is_signed: true,
-            },
-        );
-
-        assert_eq!(
-            comparison_from_ranges(BinaryOperator::SignedLessThan, left, right, &ranges),
-            Some(true)
-        );
-        assert_eq!(
-            comparison_from_ranges(BinaryOperator::SignedGreaterEqual, left, right, &ranges),
-            Some(false)
-        );
     }
 
     /// x << 0 simplifies to x.
@@ -1688,6 +1827,404 @@ block0(v0: (i32, i32)):
     return v1
 }"#;
         // v0 is a parameter, not from tuple/struct instruction
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// field.get(field.set(..., i, v), i) returns the inserted value.
+    #[test]
+    fn test_simplify_field_get_field_set_same_index() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32) -> i32 {
+block0(v0: @Point, v1: i32):
+    v2 = field.set v0, 0, v1
+    v3 = field.get v2, 0
+    return v3
+}"#;
+        // field.get of the just-set field returns the inserted value
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32) -> i32 {
+block0(v0: @Point, v1: i32):
+    v2 = field.set v0, 0, v1
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// field.get(field.set(..., i, v), j) passes through to original when i != j.
+    #[test]
+    fn test_simplify_field_get_field_set_different_index() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = struct @Point (v0, v1)
+    v4 = field.set v3, 0, v2
+    v5 = field.get v4, 1
+    return v5
+}"#;
+        // field.get of different field passes through to original
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = struct @Point (v0, v1)
+    v4 = field.set v3, 0, v2
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// Chained field.set operations are simplified correctly.
+    #[test]
+    fn test_simplify_field_get_chained_field_set() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
+block0(v0: @Point, v1: i32, v2: i32):
+    v3 = field.set v0, 0, v1
+    v4 = field.set v3, 1, v2
+    v5 = field.get v4, 0
+    v6 = field.get v4, 1
+    v7 = iadd v5, v6
+    return v7
+}"#;
+        // v5 -> v1 (from first set), v6 -> v2 (from second set)
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
+block0(v0: @Point, v1: i32, v2: i32):
+    v3 = field.set v0, 0, v1
+    v4 = field.set v3, 1, v2
+    v7 = iadd v1, v2
+    return v7
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// element.get(element.set(..., i, v), i) returns the inserted value.
+    #[test]
+    fn test_simplify_element_get_element_set_same_index() {
+        let input = r#"function @test(v0: [i32; 3], v1: i32) -> i32 {
+block0(v0: [i32; 3], v1: i32):
+    v2 = iconst 1i64
+    v3 = element.set v0, v2, v1
+    v4 = element.get v3, v2
+    return v4
+}"#;
+        // element.get of the just-set element returns the inserted value
+        let expected = r#"function @test(v0: [i32; 3], v1: i32) -> i32 {
+block0(v0: [i32; 3], v1: i32):
+    v2 = iconst 1i64
+    v3 = element.set v0, v2, v1
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// element.get(element.set(..., i, v), j) with different constant indices.
+    #[test]
+    fn test_simplify_element_get_element_set_different_index() {
+        let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = array [i32; 2] (v0, v1)
+    v4 = iconst 0i64
+    v5 = element.set v3, v4, v2
+    v6 = iconst 1i64
+    v7 = element.get v5, v6
+    return v7
+}"#;
+        // element.get of different index passes through to original
+        let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
+block0(v0: i32, v1: i32, v2: i32):
+    v3 = array [i32; 2] (v0, v1)
+    v4 = iconst 0i64
+    v5 = element.set v3, v4, v2
+    v6 = iconst 1i64
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// element.get/set with non-constant indices is not simplified.
+    #[test]
+    fn test_preserve_element_get_element_set_dynamic_index() {
+        let input = r#"function @test(v0: [i32; 3], v1: i32, v2: i64, v3: i64) -> i32 {
+block0(v0: [i32; 3], v1: i32, v2: i64, v3: i64):
+    v4 = element.set v0, v2, v1
+    v5 = element.get v4, v3
+    return v5
+}"#;
+        // dynamic indices cannot be compared
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Negative array index is not simplified (would be out-of-bounds).
+    #[test]
+    fn test_preserve_element_get_negative_index() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = array [i32; 2] (v0, v1)
+    v3 = iconst -1i64
+    v4 = element.get v2, v3
+    return v4
+}"#;
+        // negative index must not be optimized
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Same field overwritten twice: get should return second value.
+    #[test]
+    fn test_simplify_field_set_overwrite_same_index() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
+block0(v0: @Point, v1: i32, v2: i32):
+    v3 = field.set v0, 0, v1
+    v4 = field.set v3, 0, v2
+    v5 = field.get v4, 0
+    return v5
+}"#;
+        // second set overwrites first, get returns v2
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
+block0(v0: @Point, v1: i32, v2: i32):
+    v3 = field.set v0, 0, v1
+    v4 = field.set v3, 0, v2
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// Tuple with field.set also works.
+    #[test]
+    fn test_simplify_field_get_field_set_tuple() {
+        let input = r#"function @test(v0: (i32, i64), v1: i32) -> i32 {
+block0(v0: (i32, i64), v1: i32):
+    v2 = field.set v0, 0, v1
+    v3 = field.get v2, 0
+    return v3
+}"#;
+        let expected = r#"function @test(v0: (i32, i64), v1: i32) -> i32 {
+block0(v0: (i32, i64), v1: i32):
+    v2 = field.set v0, 0, v1
+    return v1
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// Chained element.set with same index: second value wins.
+    #[test]
+    fn test_simplify_element_set_overwrite_same_index() {
+        let input = r#"function @test(v0: [i32; 2], v1: i32, v2: i32) -> i32 {
+block0(v0: [i32; 2], v1: i32, v2: i32):
+    v3 = iconst 0i64
+    v4 = element.set v0, v3, v1
+    v5 = element.set v4, v3, v2
+    v6 = element.get v5, v3
+    return v6
+}"#;
+        // second set at index 0 overwrites first, get returns v2
+        let expected = r#"function @test(v0: [i32; 2], v1: i32, v2: i32) -> i32 {
+block0(v0: [i32; 2], v1: i32, v2: i32):
+    v3 = iconst 0i64
+    v4 = element.set v0, v3, v1
+    v5 = element.set v4, v3, v2
+    return v2
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// element.get(element.set) with negative set index is not simplified.
+    #[test]
+    fn test_preserve_element_set_negative_index() {
+        let input = r#"function @test(v0: [i32; 2], v1: i32) -> i32 {
+block0(v0: [i32; 2], v1: i32):
+    v2 = iconst -1i64
+    v3 = element.set v0, v2, v1
+    v4 = iconst 0i64
+    v5 = element.get v3, v4
+    return v5
+}"#;
+        // set index is negative, cannot safely compare
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Out-of-bounds field.get index is not simplified.
+    #[test]
+    fn test_preserve_field_get_out_of_bounds() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = struct @Point (v0, v1)
+    v3 = field.get v2, 5
+    return v3
+}"#;
+        // index 5 is out of bounds for 2-field struct
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Out-of-bounds element.get index is not simplified.
+    #[test]
+    fn test_preserve_element_get_out_of_bounds() {
+        let input = r#"function @test(v0: i32, v1: i32) -> i32 {
+block0(v0: i32, v1: i32):
+    v2 = array [i32; 2] (v0, v1)
+    v3 = iconst 10i64
+    v4 = element.get v2, v3
+    return v4
+}"#;
+        // index 10 is out of bounds for 2-element array
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Identity field.set: field.set(agg, i, field.get(agg, i)) → agg
+    #[test]
+    fn test_identity_field_set() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point) -> @Point {
+block0(v0: @Point):
+    v1 = field.get v0, 0
+    v2 = field.set v0, 0, v1
+    return v2
+}"#;
+        let expected = r#"type @Point = { i32, i32 }
+function @test(v0: @Point) -> @Point {
+block0(v0: @Point):
+    v1 = field.get v0, 0
+    return v0
+}"#;
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// Identity element.set: element.set(arr, i, element.get(arr, i)) → arr
+    #[test]
+    fn test_identity_element_set() {
+        let input = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
+block0(v0: [i32; 3]):
+    v1 = iconst 1i64
+    v2 = element.get v0, v1
+    v3 = element.set v0, v1, v2
+    return v3
+}"#;
+        let expected = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
+block0(v0: [i32; 3]):
+    v1 = iconst 1i64
+    v2 = element.get v0, v1
+    return v0
+}"#;
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_output(expected);
+    }
+
+    /// Non-identity field.set: different index, should not simplify.
+    #[test]
+    fn test_non_identity_field_set_different_index() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point) -> @Point {
+block0(v0: @Point):
+    v1 = field.get v0, 0
+    v2 = field.set v0, 1, v1
+    return v2
+}"#;
+        // get from index 0, set at index 1 - not identity
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Non-identity field.set: different aggregate, should not simplify.
+    #[test]
+    fn test_non_identity_field_set_different_aggregate() {
+        let input = r#"type @Point = { i32, i32 }
+function @test(v0: @Point, v1: @Point) -> @Point {
+block0(v0: @Point, v1: @Point):
+    v2 = field.get v0, 0
+    v3 = field.set v1, 0, v2
+    return v3
+}"#;
+        // get from v0, set on v1 - not identity
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Non-identity element.set: different index, should not simplify.
+    #[test]
+    fn test_non_identity_element_set_different_index() {
+        let input = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
+block0(v0: [i32; 3]):
+    v1 = iconst 0i64
+    v2 = iconst 1i64
+    v3 = element.get v0, v1
+    v4 = element.set v0, v2, v3
+    return v4
+}"#;
+        // get from index 0, set at index 1 - not identity
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Non-identity element.set: different array, should not simplify.
+    #[test]
+    fn test_non_identity_element_set_different_array() {
+        let input = r#"function @test(v0: [i32; 3], v1: [i32; 3]) -> [i32; 3] {
+block0(v0: [i32; 3], v1: [i32; 3]):
+    v2 = iconst 0i64
+    v3 = element.get v0, v2
+    v4 = element.set v1, v2, v3
+    return v4
+}"#;
+        // get from v0, set on v1 - not identity
+        let mut test = TestProgram::new(input);
+        test.run_pass(&InstructionCombine);
+        test.assert_unchanged(input);
+    }
+
+    /// Non-identity element.set: dynamic indices, cannot prove equal.
+    #[test]
+    fn test_non_identity_element_set_dynamic_index() {
+        let input = r#"function @test(v0: [i32; 3], v1: i64, v2: i64) -> [i32; 3] {
+block0(v0: [i32; 3], v1: i64, v2: i64):
+    v3 = element.get v0, v1
+    v4 = element.set v0, v2, v3
+    return v4
+}"#;
+        // dynamic indices v1 and v2 - cannot prove equal
         let mut test = TestProgram::new(input);
         test.run_pass(&InstructionCombine);
         test.assert_unchanged(input);
