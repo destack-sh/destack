@@ -414,6 +414,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
 /// Normalize an error message for fuzzy comparison.
 fn normalize_error(s: &str) -> String {
     let s = s.trim().to_lowercase();
+    let s = s.replace('`', "");
     s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
