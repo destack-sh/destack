@@ -21,6 +21,19 @@ pub enum NormalizationMode {
     Flow,
 }
 
+/// Cache entry for alias normalization with static arguments.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AliasNormalizationEntry {
+    /// The alias symbol being normalized.
+    pub symbol: GlobalSymbolId,
+    /// The normalization mode for this entry.
+    pub mode: NormalizationMode,
+    /// The static arguments applied to the alias.
+    pub arguments: Vec<StaticArgument>,
+    /// The normalized type id.
+    pub normalized_type: LocalTypeId,
+}
+
 /// TypeTable stores all type-related analysis results for a module. NOT THREAD-SAFE.
 /// NOTE #Cleanup #Architecture: revisit TypeTable.*_in_progress markers
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +48,8 @@ pub struct TypeTable {
     pub(crate) types: Arena<Type>,
     /// The source ids of all types. Index is the type id.
     pub(crate) source_id_by_type_id: Vec<LocalNodeIdAny>,
+    /// Whether a type originates from an imported module.
+    pub(crate) imported_type_by_id: Vec<bool>,
     /// Cached normalization results for assignability.
     pub(crate) normalized_assignability_type_by_id: Vec<Option<LocalTypeId>>,
     /// Cache epoch for assignability normalization results.
@@ -43,6 +58,8 @@ pub struct TypeTable {
     pub(crate) normalized_flow_type_by_id: Vec<Option<LocalTypeId>>,
     /// Cache epoch for flow normalization results.
     pub(crate) normalized_flow_epoch_by_id: Vec<u64>,
+    /// Cached alias normalization results.
+    pub(crate) normalized_alias_by_symbol: Vec<AliasNormalizationEntry>,
     /// Epoch for invalidating normalization caches.
     pub(crate) normalization_epoch: u64,
     /// Alias normalization currently in progress.
@@ -59,6 +76,10 @@ pub struct TypeTable {
     pub(crate) static_parameter_kind_by_symbol_id: IndexMap<GlobalSymbolId, StaticParameterKind>,
     /// Static parameter kind inference in progress.
     pub(crate) static_parameter_kind_in_progress: HashSet<GlobalSymbolId>,
+    /// Expression type evaluation in progress.
+    pub(crate) expression_type_in_progress: HashSet<GlobalNodeIdAny>,
+    /// Static argument resolution in progress.
+    pub(crate) static_argument_resolution_in_progress: Vec<(GlobalSymbolId, Vec<StaticArgument>)>,
 
     // node types
     /// The declared type by node id.
@@ -127,10 +148,12 @@ impl TypeTable {
             next_type_id: 0,
             types: Arena::new(),
             source_id_by_type_id: Vec::new(),
+            imported_type_by_id: Vec::new(),
             normalized_assignability_type_by_id: Vec::new(),
             normalized_assignability_epoch_by_id: Vec::new(),
             normalized_flow_type_by_id: Vec::new(),
             normalized_flow_epoch_by_id: Vec::new(),
+            normalized_alias_by_symbol: Vec::new(),
             normalization_epoch: 0,
             normalization_alias_in_progress: HashSet::new(),
             assignability_in_progress: HashSet::new(),
@@ -140,6 +163,8 @@ impl TypeTable {
             static_parameter_constraint_in_progress: HashSet::new(),
             static_parameter_kind_by_symbol_id: IndexMap::new(),
             static_parameter_kind_in_progress: HashSet::new(),
+            static_argument_resolution_in_progress: Vec::new(),
+            expression_type_in_progress: HashSet::new(),
 
             // node types
             declared_type_by_node_id: IndexMap::new(),
@@ -178,6 +203,7 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id.into_any());
+        self.imported_type_by_id.push(false);
         self.normalized_assignability_type_by_id.push(None);
         self.normalized_flow_type_by_id.push(None);
         type_id
@@ -189,6 +215,27 @@ impl TypeTable {
         self.next_type_id += 1;
         self.types.allocate(ty);
         self.source_id_by_type_id.push(node_id);
+        self.imported_type_by_id.push(false);
+        self.normalized_assignability_type_by_id.push(None);
+        self.normalized_assignability_epoch_by_id
+            .push(self.normalization_epoch);
+        self.normalized_flow_type_by_id.push(None);
+        self.normalized_flow_epoch_by_id
+            .push(self.normalization_epoch);
+        type_id
+    }
+
+    /// Insert a type that originates from an imported module.
+    pub fn insert_imported_type_from_any(
+        &mut self,
+        ty: Type,
+        node_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        let type_id = LocalTypeId::new(self.next_type_id);
+        self.next_type_id += 1;
+        self.types.allocate(ty);
+        self.source_id_by_type_id.push(node_id);
+        self.imported_type_by_id.push(true);
         self.normalized_assignability_type_by_id.push(None);
         self.normalized_assignability_epoch_by_id
             .push(self.normalization_epoch);
@@ -222,6 +269,11 @@ impl TypeTable {
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
         self.source_id_by_type_id[type_id.0 as usize]
+    }
+
+    /// Return true when a type originated from an imported module.
+    pub fn is_imported_type(&self, type_id: LocalTypeId) -> bool {
+        self.imported_type_by_id[type_id.0 as usize]
     }
 
     /// Get a cached normalized type for the chosen mode.
@@ -298,6 +350,7 @@ impl TypeTable {
     pub fn invalidate_normalization_cache(&mut self) {
         // bump the cache epoch to invalidate existing entries
         self.normalization_epoch = self.normalization_epoch.wrapping_add(1);
+        self.normalized_alias_by_symbol.clear();
     }
 
     /// Mark an alias normalization as in progress.
@@ -313,6 +366,49 @@ impl TypeTable {
     /// Check whether an alias normalization is in progress.
     pub fn is_normalization_alias_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
         self.normalization_alias_in_progress.contains(&symbol_id)
+    }
+
+    /// Get a cached normalized alias reference.
+    pub fn normalized_alias_reference(
+        &self,
+        symbol_id: GlobalSymbolId,
+        mode: NormalizationMode,
+        arguments: &[StaticArgument],
+    ) -> Option<LocalTypeId> {
+        self.normalized_alias_by_symbol
+            .iter()
+            .find(|entry| {
+                entry.symbol == symbol_id && entry.mode == mode && entry.arguments == arguments
+            })
+            .map(|entry| entry.normalized_type)
+    }
+
+    /// Cache a normalized alias reference.
+    pub fn set_normalized_alias_reference(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        mode: NormalizationMode,
+        arguments: Vec<StaticArgument>,
+        normalized_type: LocalTypeId,
+    ) {
+        if self
+            .normalized_alias_by_symbol
+            .iter()
+            .any(|entry| {
+                entry.symbol == symbol_id
+                    && entry.mode == mode
+                    && entry.arguments == arguments
+            })
+        {
+            return;
+        }
+
+        self.normalized_alias_by_symbol.push(AliasNormalizationEntry {
+            symbol: symbol_id,
+            mode,
+            arguments,
+            normalized_type,
+        });
     }
 
     /// Mark assignability for a target and source pair.
@@ -591,6 +687,63 @@ impl TypeTable {
     pub fn is_static_parameter_kind_in_progress(&self, symbol_id: GlobalSymbolId) -> bool {
         // check whether inference is in progress
         self.static_parameter_kind_in_progress.contains(&symbol_id)
+    }
+
+    /// Mark static argument resolution as in progress.
+    pub fn mark_static_argument_resolution_in_progress(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        arguments: Vec<StaticArgument>,
+    ) {
+        // record static argument resolution as in progress
+        self.static_argument_resolution_in_progress
+            .push((symbol_id, arguments));
+    }
+
+    /// Clear the in progress marker for static argument resolution.
+    pub fn clear_static_argument_resolution_in_progress(
+        &mut self,
+        symbol_id: GlobalSymbolId,
+        arguments: &[StaticArgument],
+    ) {
+        // clear the in progress marker
+        if let Some(index) = self
+            .static_argument_resolution_in_progress
+            .iter()
+            .position(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
+        {
+            self.static_argument_resolution_in_progress.swap_remove(index);
+        }
+    }
+
+    /// Check whether static argument resolution is in progress.
+    pub fn is_static_argument_resolution_in_progress(
+        &self,
+        symbol_id: GlobalSymbolId,
+        arguments: &[StaticArgument],
+    ) -> bool {
+        // check whether resolution is in progress
+        self.static_argument_resolution_in_progress
+            .iter()
+            .any(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
+    }
+
+    /// Mark expression type evaluation as in progress.
+    pub fn mark_expression_type_in_progress(&mut self, node_id: GlobalNodeIdAny) {
+        // record evaluation as in progress
+        self.expression_type_in_progress.insert(node_id);
+    }
+
+    /// Clear the in progress marker for expression type evaluation.
+    pub fn clear_expression_type_in_progress(&mut self, node_id: GlobalNodeIdAny) {
+        // clear the in progress marker
+        self.expression_type_in_progress.remove(&node_id);
+    }
+
+    /// Check whether expression type evaluation is in progress.
+    pub fn is_expression_type_in_progress(&self, node_id: GlobalNodeIdAny) -> bool {
+        // check whether evaluation is in progress
+        self.expression_type_in_progress.contains(&node_id)
     }
 
     /// Set the value type for a symbol (what type this symbol has when used as a value).
