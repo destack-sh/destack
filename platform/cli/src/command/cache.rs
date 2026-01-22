@@ -1,17 +1,12 @@
-use std::path::PathBuf;
-
-use clap::Args;
-use serde::Serialize;
-
 use crate::common::{
     CommandReport, ListEntry, ListPrinter, ListSpacing, ProgramArgs, ReportArgs,
-    ensure_no_watch_or_dev, list_payload, print_list_with, print_report, report_error,
+    ensure_no_watch_or_dev, list_payload, parse_required_command_payload, print_list_with,
+    print_report, report_error,
 };
 use crate::console;
-use crate::pipeline::cache::{CacheSource, resolve_cache_location};
-use crate::pipeline::workspace::{
-    load_dsconfig_for_program, load_workspace_dsconfigs, workspace_context,
-};
+use crate::pipeline::daemon::{CommandOptionsBuilder, emit_daemon_text_output, run_daemon_command};
+use clap::Args;
+use destack_daemon::protocol::{CommandCacheOptions, CommandCachePayload, CommandPayload};
 
 /// Arguments for the cache command.
 #[derive(Args, Debug, Clone)]
@@ -29,90 +24,54 @@ pub struct CacheArgs {
     pub report: ReportArgs,
 }
 
-/// Cache entry returned by the cache command.
-#[derive(Serialize)]
-struct CacheEntry {
-    /// Cache directory path.
-    dir: PathBuf,
-    /// Source of the cache location.
-    source: &'static str,
-    /// Package directory when available.
-    package_dir: Option<PathBuf>,
-}
-
 /// Show cache directory locations.
 pub fn run(args: &CacheArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("cache", &args.program, &args.report) {
         return code;
     }
 
-    // resolve workspace context
-    let context = match workspace_context(&args.program, None) {
-        Ok(context) => context,
-        Err(message) => {
-            return report_error("cache", &args.report, &message);
-        }
-    };
-    let cwd = context.session.cwd.clone();
+    // build daemon command options
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Cache(CommandCacheOptions {
+        all_packages: args.all_packages,
+    });
 
-    // load dsconfigs based on scope
-    let dsconfigs = if args.all_packages {
-        match load_workspace_dsconfigs(&context.resolver, &context.workspace) {
-            Ok(dsconfigs) => dsconfigs,
-            Err(message) => {
-                return report_error(
-                    "cache",
-                    &args.report,
-                    &format!("failed to load workspace configs: {message}"),
-                );
-            }
-        }
-    } else {
-        match load_dsconfig_for_program(&args.program, &context.resolver, &cwd) {
-            Ok(dsconfig) => vec![dsconfig],
-            Err(message) => {
-                return report_error("cache", &args.report, &message);
-            }
-        }
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("cache", &args.report, &error.to_string()),
     };
 
-    // collect cache locations
-    let mut entries = Vec::new();
-    if dsconfigs.is_empty() {
-        let location = resolve_cache_location(&args.program, None, &context.workspace.root, &cwd);
-        entries.push(CacheEntry {
-            dir: location.dir,
-            source: cache_source_label(location.source),
-            package_dir: None,
-        });
-    } else {
-        for dsconfig in dsconfigs {
-            let location = resolve_cache_location(
-                &args.program,
-                Some(&dsconfig),
-                &context.workspace.root,
-                &cwd,
-            );
-            entries.push(CacheEntry {
-                dir: location.dir,
-                source: cache_source_label(location.source),
-                package_dir: Some(dsconfig.directory),
-            });
-        }
-    }
+    // decode daemon payload
+    let (payload, _) = match parse_required_command_payload::<CommandCachePayload>(
+        "cache",
+        &args.report,
+        result.response.data.as_ref(),
+        "cache",
+    ) {
+        Ok(payload) => payload,
+        Err(code) => return code,
+    };
+
+    // emit daemon output for text mode
+    emit_daemon_text_output(
+        &args.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
     if args.report.is_json() {
-        let mut report = CommandReport::success("cache", 0);
-        report.data = Some(list_payload(entries));
+        let mut report = CommandReport::success("cache", result.response.exit_code);
+        report.data = Some(list_payload(payload.caches));
         print_report(&report, args.report.format());
-        return 0;
+        return result.response.exit_code;
     }
 
-    let list_entries = entries.into_iter().map(|entry| {
-        let location = entry.dir.display();
+    let list_entries = payload.caches.into_iter().map(|entry| {
+        let location = entry.dir;
         let source = entry.source;
         let title = if let Some(package_dir) = entry.package_dir {
-            format!("{location} ({source}, package: {})", package_dir.display())
+            format!("{location} ({source}, package: {package_dir})")
         } else {
             format!("{location} ({source})")
         };
@@ -121,19 +80,10 @@ pub fn run(args: &CacheArgs) -> i32 {
     let list_entries: Vec<ListEntry> = list_entries.collect();
     if list_entries.is_empty() {
         console::info("cache: no entries");
-        return 0;
+        return result.response.exit_code;
     }
     let printer = ListPrinter::info();
     print_list_with(&list_entries, ListSpacing::Compact, &printer);
 
-    0
-}
-
-/// Render a label for the cache source.
-fn cache_source_label(source: CacheSource) -> &'static str {
-    match source {
-        CacheSource::Override => "override",
-        CacheSource::DsConfig => "dsconfig",
-        CacheSource::Default => "default",
-    }
+    result.response.exit_code
 }

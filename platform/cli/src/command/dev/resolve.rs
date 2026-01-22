@@ -44,20 +44,27 @@ pub fn run(args: &ResolveArgs) -> i32 {
     let session = args.program.setup();
 
     // get the program from the session
-    let program = session
-        .programs
-        .iter()
-        .next()
-        .map(|entry| entry.value().clone())
-        .expect("session should have a program after setup");
+    let program = match session.programs.iter().next() {
+        Some(entry) => entry.value().clone(),
+        None => {
+            console::error("error: session did not create a program");
+            return 1;
+        }
+    };
 
     // determine directory to resolve from
-    let directory = args
+    let directory = match args
         .directory
         .clone()
         .unwrap_or_else(|| program.cwd.clone())
         .canonicalize()
-        .expect("failed to canonicalize directory");
+    {
+        Ok(path) => path,
+        Err(error) => {
+            console::error(&format!("error: failed to canonicalize directory: {error}"));
+            return 1;
+        }
+    };
 
     // set up resolve options
     let mut options = ResolveOptions::default();

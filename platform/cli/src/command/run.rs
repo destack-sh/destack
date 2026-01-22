@@ -1,29 +1,31 @@
-use clap::Args;
-use destack_compiler::OptimizeTask;
-use destack_daemon::Daemon;
-use destack_runtime::platform::{BindingRegistry, HostIo};
-use destack_vm::Value;
-use destack_workspace::OptimizeLevel;
-use serde_json::json;
+use std::path::Path;
 
 use crate::common::{
-    CommandError, CommandReport, CommandStats, CompilerContext, DiagnosticArgs, DiagnosticFormat,
-    FormatOptions, InputArgs, InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileJson,
-    WatchCompileReason, WatchReporter, collect_diagnostics_json, ensure_no_watch_or_dev,
-    format_diagnostics, print_report, report_error, report_no_input,
+    CommandError, CommandReport, DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs,
+    InputSource, ProgramArgs, ReportArgs, TargetArgs, WatchCompileReason, WatchReporter,
+    collect_diagnostics_json, ensure_no_watch_or_dev, format_diagnostics, parse_command_payload,
+    print_report, report_error, report_no_input,
 };
 use crate::console;
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
+    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command_with_session,
+    target_overrides_from_args,
+};
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
-use crate::pipeline::runtime::{
-    binding_policy_for_target, create_isolate, exit_status_from_value, format_value_for_eval,
-    isolate_options_for_target, process_args_for_source,
-};
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
-use crate::pipeline::target::{ResolvedTarget, resolve_target_for_module, target_name_from_args};
+use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::watch::{
-    WatchLoopAction, WatchLoopOptions, build_daemon_options, build_watch_loop_options,
-    print_watch_diagnostics, run_watch_loop, watch_error, watch_roots,
+    WatchCompileContext, WatchContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
+    build_watch_context, build_watch_loop_options, emit_watch_compile_report, run_watch_loop,
+    watch_error,
 };
+use crate::pipeline::workspace::default_target_for_session;
+use clap::Args;
+use destack_daemon::protocol::{
+    CommandPayload, CommandRunMode, CommandRunOptions, CommandRunPayload,
+};
+use destack_source::{DiagnosticOptions, FileSystem};
 
 /// Arguments for the run command.
 #[derive(Args, Debug, Clone)]
@@ -93,10 +95,8 @@ pub(crate) struct RunRequest {
 struct RunWatchState {
     /// The resolved input sources.
     sources: Vec<InputSource>,
-    /// The resolved entry module.
-    entry_module: destack_source::ModuleId,
-    /// The resolved target for the entry module.
-    resolved: ResolvedTarget,
+    /// Resolved target name for the run.
+    target_name: String,
 }
 
 /// Compile and run a source file or script.
@@ -128,21 +128,24 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
         return code;
     }
 
-    // resolve the target name
-    let target_name = target_name_from_args(&request.target, "native");
+    run_via_daemon(&request)
+}
 
-    // set up the compiler context
-    let context =
-        CompilerContext::for_run(&request.program, &request.diagnostics, target_name.clone());
+/// Run a single execution request through the daemon.
+fn run_via_daemon(request: &RunRequest) -> i32 {
+    let command_name = request.command_name;
+
+    // prepare session context for script detection
+    let session = request.program.setup();
 
     // check for script execution before compilation
     if matches!(request.mode, RunMode::Program)
-        && let Some(exit_code) = try_run_script(&request, &context)
+        && let Some(exit_code) = try_run_script(request, session.fs.as_ref(), &session.cwd)
     {
         return exit_code;
     }
 
-    // load sources and enforce a single entry module
+    // resolve input sources for the run
     let sources = match resolve_sources(&request.input, None, None) {
         Ok(sources) => sources,
         Err(ResolveSourcesError::NoInput) => {
@@ -160,52 +163,48 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
         );
     }
 
-    // resolve the entry module and source display name
-    let entry_source = sources[0].clone();
-    let entry_module = match context.resolve_source(&entry_source) {
-        Ok(module_id) => module_id,
-        Err(message) => {
-            return report_error(command_name, &request.report, &message);
+    // build command inputs and options for the daemon
+    let inputs = match command_inputs_from_sources(&sources, request.input.file_type()) {
+        Ok(inputs) => inputs,
+        Err(error) => return report_error(command_name, &request.report, &error.to_string()),
+    };
+    let run_mode = match request.mode {
+        RunMode::Program => CommandRunMode::Program,
+        RunMode::Eval { print } => CommandRunMode::Eval { print },
+    };
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+    let target_name = match default_target_for_session(&request.program, &session) {
+        Ok(default_target) => {
+            let fallback = default_target.as_deref().unwrap_or("native");
+            target_name_from_args(&request.target, fallback)
+        }
+        Err(error) => {
+            return report_error(command_name, &request.report, &error.to_string());
         }
     };
+    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .target(target_name)
+        .target_overrides(target_overrides_from_args(&request.target))
+        .build();
+    let payload = CommandPayload::Run(CommandRunOptions {
+        entry: Some(request.entry.clone()),
+        args: request.args.clone(),
+        run_mode,
+    });
 
-    // ensure the target exists for lowering
-    let resolved = match resolve_target_for_module(
-        &context.program,
-        entry_module,
-        &target_name,
-        &request.target,
+    // execute the daemon command
+    let result = match run_daemon_command_with_session(
+        session.clone(),
+        &request.program,
+        diagnostic_options.clone(),
+        common,
+        payload,
+        None,
     ) {
-        Ok(resolved) => resolved,
-        Err(message) => {
-            return report_error(command_name, &request.report, &message);
-        }
+        Ok(result) => result,
+        Err(error) => return report_error(command_name, &request.report, &error.to_string()),
     };
-
-    // enqueue lowering and optional optimization
-    context.enqueue_module(entry_module);
-    if should_optimize(&resolved.target) {
-        let profile = context
-            .program
-            .profile_id_for_target(entry_module, &resolved.id)
-            .unwrap_or_else(|| context.program.default_profile_id_for_module(entry_module));
-        let module = context.compiler.module_stamp(entry_module);
-        let profile = context.compiler.profile_stamp(profile);
-        context.compiler.enqueue(OptimizeTask::OptimizeModule {
-            module,
-            profile,
-            target: resolved.id.clone(),
-        });
-    }
-
-    // run the compiler and surface diagnostics
-    context.run_compile();
-    let result = context.into_result();
-    let diagnostics = result
-        .program
-        .diagnostics
-        .collect()
-        .map(&result.diagnostic_options);
 
     // emit diagnostics in the requested format
     if request.report.is_json() {
@@ -214,87 +213,71 @@ pub(crate) fn run_with_request(request: RunRequest) -> i32 {
             ..FormatOptions::default()
         };
         let (output, format_result) =
-            collect_diagnostics_json(&result.program.files, &diagnostics, &format_options);
+            collect_diagnostics_json(&result.files, &result.diagnostics, &format_options);
 
         if format_result.exit_code() != 0 {
             let mut report = CommandReport::failure(command_name, format_result.exit_code());
+            if let Some(stats) = result.response.stats.as_ref() {
+                report.stats = Some(command_stats_from_protocol(stats));
+            }
             report.diagnostics = Some(output);
-            report.stats = Some(CommandStats::from_snapshot(&result.stats));
             print_report(&report, request.report.format());
             return format_result.exit_code();
         }
     } else {
         let format_options = FormatOptions::default();
         let _ = format_diagnostics(
-            &result.program.files,
-            &diagnostics,
+            &result.files,
+            &result.diagnostics,
             &format_options,
-            result.program.modules.len(),
+            result.response.module_count,
         );
-        if diagnostics.get_status_code() != 0 {
-            return diagnostics.get_status_code();
+        if result.diagnostics.get_status_code() != 0 {
+            return result.diagnostics.get_status_code();
         }
     }
 
-    // build the VM isolate for the lowered MIR
-    let mut isolate = match create_isolate(
-        &result.program,
-        entry_module,
-        &resolved.id,
-        isolate_options_for_target(&resolved.target),
-    ) {
-        Ok(isolate) => isolate,
-        Err(message) => {
-            return report_error(command_name, &request.report, &message);
-        }
-    };
+    // emit daemon messages and output for non-json runs
+    emit_daemon_text_output(
+        &request.report,
+        &result.response.messages,
+        &result.response.output,
+    );
 
-    // install default platform bindings
-    let process_args = process_args_for_source(&entry_source, &request.args);
-    let host = destack_runtime::platform::HostContext::new(process_args);
-    let mut bindings = BindingRegistry::new();
-    bindings.set_policy(binding_policy_for_target(&resolved.target));
-    bindings.install_defaults(&mut isolate, &host);
-
-    // execute the entry function
-    match isolate.run_function_by_name(&request.entry, &[]) {
-        Ok(output) => {
-            let exit_code = exit_status_from_value(output.value);
-            if matches!(request.mode, RunMode::Program)
-                && !request.report.is_json()
-                && !is_exit_code_value(&output.value)
-            {
-                console::warn("non-integer return value, defaulting to exit code 0");
-            }
-            if let RunMode::Eval { print: true } = request.mode
-                && !request.report.is_json()
-            {
-                console::print(&format_value_for_eval(&output.value));
-            }
-            if request.report.is_json() {
-                let mut report = CommandReport::success(command_name, exit_code);
-                report.stats = Some(CommandStats::from_snapshot(&result.stats));
-                report.data = Some(value_payload(&output.value));
-                print_report(&report, request.report.format());
-            } else if exit_code != 0 {
-                console::warn(&format!("process exited with code {exit_code}"));
-            }
-            exit_code
+    let exit_code = result.response.exit_code;
+    if request.report.is_json() {
+        // decode payload for structured output
+        let payload = match parse_command_payload::<CommandRunPayload>(
+            command_name,
+            &request.report,
+            result.response.data.as_ref(),
+            "run",
+            false,
+        ) {
+            Ok(payload) => payload,
+            Err(code) => return code,
+        };
+        let mut report = if exit_code == 0 {
+            CommandReport::success(command_name, exit_code)
+        } else {
+            CommandReport::failure(command_name, exit_code)
+        };
+        if let Some(stats) = result.response.stats.as_ref() {
+            report.stats = Some(command_stats_from_protocol(stats));
         }
-        Err(error) => {
-            if request.report.is_json() {
-                let message = format!("runtime error: {error}");
-                let mut report = CommandReport::failure(command_name, 1);
+        if let Some((payload, value)) = payload {
+            report.data = Some(value);
+            if let CommandRunPayload::RuntimeError { message } = payload {
                 report.summary = Some(message.clone());
-                report.error = Some(CommandError::new("runtime_error", "runtime", message));
-                report.stats = Some(CommandStats::from_snapshot(&result.stats));
-                print_report(&report, request.report.format());
-            } else {
-                console::error(&format!("runtime error: {error}"));
+                report.error = Some(CommandError::new("runtime_error", "run", &message));
             }
-            1
         }
+        print_report(&report, request.report.format());
+    } else if exit_code != 0 {
+        console::warn(&format!("process exited with code {exit_code}"));
     }
+
+    exit_code
 }
 
 /// Compile and run a source file in watch mode.
@@ -321,12 +304,42 @@ where
     StartFn: FnOnce(),
     ObserveFn: FnMut(WatchCompileReason, bool, bool),
 {
+    let format_options = FormatOptions::default();
+    let json_format_options = FormatOptions {
+        format: DiagnosticFormat::Json,
+        ..FormatOptions::default()
+    };
+
     run_watch_with_driver(
         request,
         watch_loop_options,
         on_start,
         on_compile,
-        compile_and_run,
+        |request,
+         daemon,
+         root,
+         entry_source,
+         target_name,
+         reporter,
+         reason,
+         batch_id,
+         updated,
+         rescan| {
+            compile_and_run_daemon(
+                request,
+                daemon,
+                root,
+                entry_source,
+                target_name,
+                reporter,
+                &format_options,
+                &json_format_options,
+                reason,
+                batch_id,
+                updated,
+                rescan,
+            )
+        },
         is_one_shot,
     )
 }
@@ -345,10 +358,10 @@ where
     ObserveFn: FnMut(WatchCompileReason, bool, bool),
     CompileFn: FnMut(
         &RunRequest,
-        &CompilerContext,
+        &ProtocolDaemonClient,
+        &Path,
         &InputSource,
-        destack_source::ModuleId,
-        &ResolvedTarget,
+        &str,
         &mut Option<WatchReporter>,
         WatchCompileReason,
         Option<u64>,
@@ -376,12 +389,8 @@ where
         );
     }
 
-    // resolve the target name
-    let target_name = target_name_from_args(&request.target, "native");
-
-    // set up the compiler context
-    let context =
-        CompilerContext::for_run(&request.program, &request.diagnostics, target_name.clone());
+    // prepare session context for watch mode
+    let session = request.program.setup();
 
     // disallow scripts in watch mode
     if matches!(request.mode, RunMode::Program)
@@ -394,9 +403,9 @@ where
         let candidate_path = if candidate.is_absolute() {
             candidate.clone()
         } else {
-            context.program.cwd.join(candidate)
+            session.cwd.join(candidate)
         };
-        if context.program.fs.metadata(&candidate_path).is_err() {
+        if session.fs.metadata(&candidate_path).is_err() {
             return report_error(
                 command_name,
                 &request.report,
@@ -423,56 +432,62 @@ where
         );
     }
 
-    // resolve the entry module and target
+    // resolve the entry source
     let entry_source = sources[0].clone();
-    let entry_module = match context.resolve_source(&entry_source) {
-        Ok(module_id) => module_id,
-        Err(message) => {
-            return report_error(command_name, &request.report, &message);
-        }
-    };
-    let resolved = match resolve_target_for_module(
-        &context.program,
-        entry_module,
-        &target_name,
-        &request.target,
-    ) {
-        Ok(resolved) => resolved,
-        Err(message) => {
-            return report_error(command_name, &request.report, &message);
-        }
-    };
 
     // prepare watch mode output
-    let mut reporter = if request.report.is_json() {
-        Some(WatchReporter::new(command_name))
-    } else {
-        None
-    };
-    let roots = watch_roots(&request.program, &context.session);
-    if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_start(&roots);
-    }
+    let WatchContext {
+        roots,
+        root,
+        mut reporter,
+    } = build_watch_context(command_name, &request.program, &request.report, &session);
 
-    // configure the daemon for incremental updates
-    let daemon_options =
-        build_daemon_options(&request.program, context.diagnostic_options.clone(), None);
-    let daemon = Daemon::with_options(context.session.clone(), daemon_options);
+    // configure the daemon client for incremental updates
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+    let daemon_options = build_daemon_options(&request.program, diagnostic_options.clone(), None);
+    let daemon = match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone()) {
+        Ok(daemon) => daemon,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                reporter.emit_stop();
+                return 1;
+            }
+            return report_error(command_name, &request.report, &message);
+        }
+    };
+
+    // resolve the target name for watch executions
+    let target_name = match default_target_for_session(&request.program, &session) {
+        Ok(default_target) => {
+            let fallback = default_target.as_deref().unwrap_or("native");
+            target_name_from_args(&request.target, fallback)
+        }
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                reporter.emit_stop();
+                return 1;
+            }
+            return report_error(command_name, &request.report, &message);
+        }
+    };
 
     // set up shared watch state
     let mut watch_state = RunWatchState {
         sources,
-        entry_module,
-        resolved,
+        target_name,
     };
 
     // run the initial compile and execute
     let mut exit_code = compile(
         request,
-        &context,
+        &daemon,
+        &root,
         &entry_source,
-        watch_state.entry_module,
-        &watch_state.resolved,
+        &watch_state.target_name,
         &mut reporter,
         WatchCompileReason::Startup,
         None,
@@ -493,36 +508,24 @@ where
             state.sources = match resolve_sources(&request.input, None, None) {
                 Ok(sources) => sources,
                 Err(ResolveSourcesError::NoInput) => {
-                    return Err(watch_error("no input files after rescan"));
+                    return Err(watch_error("no input files after rescan").into());
                 }
                 Err(ResolveSourcesError::Message(message)) => {
-                    return Err(watch_error(&message));
+                    return Err(watch_error(&message).into());
                 }
             };
             if state.sources.len() != 1 {
-                return Err(watch_error("expected a single entry module"));
+                return Err(watch_error("expected a single entry module").into());
             }
 
-            // resolve the updated entry module
-            let entry_source = state.sources[0].clone();
-            let next_entry_module = match context.resolve_source(&entry_source) {
-                Ok(module_id) => module_id,
-                Err(message) => {
-                    return Err(watch_error(&message));
+            // refresh target defaults after rescan
+            state.target_name = match default_target_for_session(&request.program, &session) {
+                Ok(default_target) => {
+                    let fallback = default_target.as_deref().unwrap_or("native");
+                    target_name_from_args(&request.target, fallback)
                 }
-            };
-            state.entry_module = next_entry_module;
-
-            // resolve the updated target
-            state.resolved = match resolve_target_for_module(
-                &context.program,
-                state.entry_module,
-                &target_name,
-                &request.target,
-            ) {
-                Ok(resolved) => resolved,
-                Err(message) => {
-                    return Err(watch_error(&message));
+                Err(error) => {
+                    return Err(watch_error(&error.to_string()).into());
                 }
             };
 
@@ -532,10 +535,10 @@ where
             // recompile and rerun when updates occur
             let next_exit_code = compile(
                 request,
-                &context,
+                &daemon,
+                &root,
                 &state.sources[0],
-                state.entry_module,
-                &state.resolved,
+                &state.target_name,
                 reporter,
                 reason,
                 Some(batch_id),
@@ -559,151 +562,120 @@ where
         reporter.emit_stop();
     }
 
+    daemon.shutdown();
+
     exit_code
 }
 
-/// Compile the entry module and run the program.
+/// Compile the entry module and run the program through the daemon.
 #[allow(clippy::too_many_arguments)]
-fn compile_and_run(
+fn compile_and_run_daemon(
     request: &RunRequest,
-    context: &CompilerContext,
+    daemon: &ProtocolDaemonClient,
+    root: &Path,
     entry_source: &InputSource,
-    entry_module: destack_source::ModuleId,
-    resolved: &ResolvedTarget,
+    target_name: &str,
     watch_reporter: &mut Option<WatchReporter>,
+    format_options: &FormatOptions,
+    json_format_options: &FormatOptions,
     compile_reason: WatchCompileReason,
     batch_id: Option<u64>,
     updated: bool,
     rescan: bool,
 ) -> i32 {
-    // clear diagnostics before each compile
-    let _ = context.program.diagnostics.drain();
-
-    // enqueue lowering and optional optimization
-    context.enqueue_module(entry_module);
-    if should_optimize(&resolved.target) {
-        let profile = context
-            .program
-            .profile_id_for_target(entry_module, &resolved.id)
-            .unwrap_or_else(|| context.program.default_profile_id_for_module(entry_module));
-        let module = context.compiler.module_stamp(entry_module);
-        let profile = context.compiler.profile_stamp(profile);
-        context.compiler.enqueue(OptimizeTask::OptimizeModule {
-            module,
-            profile,
-            target: resolved.id.clone(),
-        });
-    }
-
-    // run the compiler and surface diagnostics
-    context.run_compile();
-    let exit_code = if let Some(reporter) = watch_reporter.as_mut() {
-        let diagnostics = context
-            .program
-            .diagnostics
-            .collect()
-            .map(&context.diagnostic_options);
-        let format_options = FormatOptions {
-            format: DiagnosticFormat::Json,
-            ..FormatOptions::default()
-        };
-        let (output, format_result) =
-            collect_diagnostics_json(&context.program.files, &diagnostics, &format_options);
-        let stats_snapshot = context
-            .compiler
-            .stats
-            .snapshot_with_program(context.program.modules.len(), Some(&context.program));
-        reporter.emit_compile(WatchCompileJson {
-            reason: compile_reason,
-            updated,
-            rescan,
-            batch_id,
-            diagnostics: Some(output),
-            exit_code: format_result.exit_code(),
-            stats: Some(CommandStats::from_snapshot(&stats_snapshot)),
-        });
-        format_result.exit_code()
-    } else {
-        let format_options = FormatOptions::default();
-        let result = print_watch_diagnostics(
-            &context.program,
-            &context.diagnostic_options,
-            &format_options,
-            context.program.modules.len(),
-            None,
-        );
-        result.exit_code()
-    };
-    if exit_code != 0 {
-        return exit_code;
-    }
-
-    // build the VM isolate for the lowered MIR
-    let mut isolate = match create_isolate(
-        &context.program,
-        entry_module,
-        &resolved.id,
-        isolate_options_for_target(&resolved.target),
+    // build the daemon command options
+    let inputs = match command_inputs_from_sources(
+        std::slice::from_ref(entry_source),
+        request.input.file_type(),
     ) {
-        Ok(isolate) => isolate,
-        Err(message) => {
+        Ok(inputs) => inputs,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
             if let Some(reporter) = watch_reporter.as_mut() {
-                reporter.emit_warning(&format!("watch: {message}"));
+                reporter.emit_warning(&message);
+                return 1;
+            }
+            return report_error(request.command_name, &request.report, &message);
+        }
+    };
+    let run_mode = match request.mode {
+        RunMode::Program => CommandRunMode::Program,
+        RunMode::Eval { print } => CommandRunMode::Eval { print },
+    };
+    let diagnostic_options: DiagnosticOptions = request.diagnostics.clone().into();
+    let common = CommandOptionsBuilder::new(&request.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .target(target_name.to_string())
+        .target_overrides(target_overrides_from_args(&request.target))
+        .build();
+    let payload = CommandPayload::Run(CommandRunOptions {
+        entry: Some(request.entry.clone()),
+        args: request.args.clone(),
+        run_mode,
+    });
+
+    // execute the daemon command
+    let result = match daemon.run_command(root, common, payload) {
+        Ok(result) => result,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = watch_reporter.as_mut() {
+                reporter.emit_warning(&message);
                 return 1;
             }
             return report_error(request.command_name, &request.report, &message);
         }
     };
 
-    // install platform bindings
-    let process_args = process_args_for_source(entry_source, &request.args);
-    let host = if watch_reporter.is_some() {
-        destack_runtime::platform::HostContext::new(process_args).with_io(HostIo::stderr_only())
-    } else {
-        destack_runtime::platform::HostContext::new(process_args)
-    };
-    let mut bindings = BindingRegistry::new();
-    bindings.set_policy(binding_policy_for_target(&resolved.target));
-    bindings.install_defaults(&mut isolate, &host);
+    // emit watch diagnostics
+    let stats = result
+        .response
+        .stats
+        .as_ref()
+        .map(command_stats_from_protocol);
+    let diagnostic_exit = emit_watch_compile_report(
+        watch_reporter,
+        WatchCompileContext {
+            files: &result.files,
+            diagnostics: &result.diagnostics,
+            format_options,
+            json_format_options,
+            module_count: result.response.module_count,
+            line_writer: None,
+        },
+        stats,
+        compile_reason,
+        updated,
+        rescan,
+        batch_id,
+    );
+    if diagnostic_exit != 0 {
+        return diagnostic_exit;
+    }
 
-    // execute the entry function
-    match isolate.run_function_by_name(&request.entry, &[]) {
-        Ok(output) => {
-            let exit_code = exit_status_from_value(output.value);
-            if matches!(request.mode, RunMode::Program) && !is_exit_code_value(&output.value) {
-                if let Some(reporter) = watch_reporter.as_mut() {
-                    reporter
-                        .emit_warning("watch: non-integer return value, defaulting to exit code 0");
-                } else {
-                    console::warn("non-integer return value, defaulting to exit code 0");
-                }
-            }
-            if let RunMode::Eval { print: true } = request.mode {
-                console::print(&format_value_for_eval(&output.value));
-            }
-            if exit_code != 0 {
-                if let Some(reporter) = watch_reporter.as_mut() {
-                    reporter.emit_warning(&format!("watch: process exited with code {exit_code}"));
-                } else {
-                    console::warn(&format!("process exited with code {exit_code}"));
-                }
-            }
-            exit_code
-        }
-        Err(error) => {
-            if let Some(reporter) = watch_reporter.as_mut() {
-                reporter.emit_warning(&format!("watch: runtime error: {error}"));
-                1
-            } else {
-                console::error(&format!("runtime error: {error}"));
-                1
-            }
+    // emit daemon output for text mode
+    if watch_reporter.is_none() {
+        emit_daemon_text_output(
+            &request.report,
+            &result.response.messages,
+            &result.response.output,
+        );
+    }
+
+    let exit_code = result.response.exit_code;
+    if exit_code != 0 {
+        if let Some(reporter) = watch_reporter.as_mut() {
+            reporter.emit_warning(&format!("watch: process exited with code {exit_code}"));
+        } else {
+            console::warn(&format!("process exited with code {exit_code}"));
         }
     }
+
+    exit_code
 }
 
 /// Attempt to run a dsconfig or package.json script when input is not a file.
-fn try_run_script(request: &RunRequest, context: &CompilerContext) -> Option<i32> {
+fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Option<i32> {
     let command_name = request.command_name;
 
     // skip script resolution when explicit input is provided
@@ -720,11 +692,11 @@ fn try_run_script(request: &RunRequest, context: &CompilerContext) -> Option<i32
     let candidate_path = if candidate.is_absolute() {
         candidate.clone()
     } else {
-        context.program.cwd.join(candidate)
+        cwd.join(candidate)
     };
 
     // only treat the argument as a script if the file does not exist
-    if context.program.fs.metadata(&candidate_path).is_ok() {
+    if fs.metadata(&candidate_path).is_ok() {
         return None;
     }
 
@@ -736,8 +708,12 @@ fn try_run_script(request: &RunRequest, context: &CompilerContext) -> Option<i32
             let message = format!("no such file or script: {script_name}");
             return Some(report_error(command_name, &request.report, &message));
         }
-        Err(message) => {
-            return Some(report_error(command_name, &request.report, &message));
+        Err(error) => {
+            return Some(report_error(
+                command_name,
+                &request.report,
+                &error.to_string(),
+            ));
         }
     };
 
@@ -779,62 +755,4 @@ fn try_run_script(request: &RunRequest, context: &CompilerContext) -> Option<i32
     }
 
     Some(exit_code)
-}
-
-/// Return whether a VM value maps directly to a process exit code.
-fn is_exit_code_value(value: &Value) -> bool {
-    // check for values that map to an exit code
-    value.is_void() || value.as_bool().is_some() || value.as_int().is_some()
-}
-
-/// Decide whether optimization should run for a target.
-fn should_optimize(target: &destack_workspace::Target) -> bool {
-    // check explicit optimize flags
-    if target.optimize {
-        return true;
-    }
-
-    // check nonzero optimize level
-    !matches!(target.optimize_level, OptimizeLevel::O0)
-}
-
-/// Build a JSON payload describing a VM value.
-fn value_payload(value: &Value) -> serde_json::Value {
-    // encode void values
-    if value.is_void() {
-        return json!({ "kind": "void" });
-    }
-
-    // encode boolean values
-    if let Some(result) = value.as_bool() {
-        return json!({ "kind": "bool", "value": result });
-    }
-
-    // encode signed integers
-    if let Some(result) = value.as_int_with_width() {
-        return json!({ "kind": "int", "value": result.0, "width": result.1 });
-    }
-
-    // encode unsigned integers
-    if let Some(result) = value.as_uint_with_width() {
-        return json!({ "kind": "uint", "value": result.0, "width": result.1 });
-    }
-
-    // encode float64 values
-    if let Some(result) = value.as_float64() {
-        return json!({ "kind": "float64", "value": result });
-    }
-
-    // encode float32 values
-    if let Some(result) = value.as_float32() {
-        return json!({ "kind": "float32", "value": result });
-    }
-
-    // encode char values
-    if let Some(result) = value.as_char() {
-        return json!({ "kind": "char", "value": result });
-    }
-
-    // fallback to debug output
-    json!({ "kind": "value", "debug": format!("{value:?}") })
 }

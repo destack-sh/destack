@@ -1,9 +1,10 @@
 use clap::Args;
+use destack_daemon::protocol::{CommandBenchOptions, CommandPayload};
 
-use crate::common::{
-    CommandError, CommandReport, ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_report,
+use crate::common::{ProgramArgs, ReportArgs, ensure_no_watch_or_dev, report_error};
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, finish_daemon_message_command, run_daemon_command,
 };
-use crate::console;
 
 /// Arguments for the bench command.
 #[derive(Args, Debug, Clone)]
@@ -23,17 +24,16 @@ pub fn run(args: &BenchArgs) -> i32 {
         return code;
     }
 
-    // emit json placeholder when requested
-    if args.report.is_json() {
-        let message = "benchmark runner is not implemented yet";
-        let mut report = CommandReport::failure("bench", 1);
-        report.summary = Some(message.to_string());
-        report.error = Some(CommandError::new("not_implemented", "feature", message));
-        print_report(&report, args.report.format());
-        return 1;
-    }
+    // build daemon command options
+    let common = CommandOptionsBuilder::new(&args.program, None).build();
+    let payload = CommandPayload::Bench(CommandBenchOptions::default());
 
-    // fall back to a minimal text error
-    console::error("bench: not implemented yet");
-    1
+    // execute the daemon command
+    let result = match run_daemon_command(&args.program, None, common, payload, None) {
+        Ok(result) => result,
+        Err(error) => return report_error("bench", &args.report, &error.to_string()),
+    };
+
+    // emit command output based on the report format
+    finish_daemon_message_command("bench", &args.report, &result)
 }

@@ -5,6 +5,7 @@ use destack_workspace::PackageJson;
 use serde_json::Value;
 
 use crate::common::ProgramArgs;
+use crate::error::{CliError, CliResult};
 use crate::pipeline::workspace::{
     find_dsconfig, load_dsconfig, resolve_dsconfig_path, workspace_context,
 };
@@ -48,7 +49,7 @@ pub struct TaskSpec {
 pub fn resolve_script_command(
     program_args: &ProgramArgs,
     script_name: &str,
-) -> Result<Option<ScriptCommand>, String> {
+) -> CliResult<Option<ScriptCommand>> {
     let context = workspace_context(program_args, None)?;
     let cwd = context.session.cwd.clone();
     resolve_script_command_with_resolver(program_args, script_name, &context.resolver, &cwd)
@@ -58,16 +59,18 @@ pub fn resolve_script_command(
 pub fn load_tasks(
     resolver: &destack_resolver::Resolver,
     dsconfig_path: &Path,
-) -> Result<Vec<TaskSpec>, String> {
+) -> CliResult<Vec<TaskSpec>> {
     // read the dsconfig file
-    let content = resolver
-        .fs
-        .read_to_string(dsconfig_path)
-        .map_err(|e| format!("failed to read {}: {e}", dsconfig_path.display()))?;
+    let content = resolver.fs.read_to_string(dsconfig_path).map_err(|error| {
+        CliError::message(format!(
+            "failed to read {}: {error}",
+            dsconfig_path.display()
+        ))
+    })?;
 
     // parse the config json
-    let value: Value =
-        serde_json::from_str(&content).map_err(|e| format!("invalid dsconfig: {e}"))?;
+    let value: Value = serde_json::from_str(&content)
+        .map_err(|error| CliError::message(format!("invalid dsconfig: {error}")))?;
 
     // extract the task map
     let Some(tasks_value) = value.get("tasks") else {
@@ -75,7 +78,7 @@ pub fn load_tasks(
     };
     let tasks_object = tasks_value
         .as_object()
-        .ok_or_else(|| "tasks must be an object".to_string())?;
+        .ok_or_else(|| CliError::message("tasks must be an object"))?;
 
     // resolve the dsconfig directory
     let dsconfig_dir = dsconfig_path
@@ -98,7 +101,9 @@ pub fn load_tasks(
 
         // parse object form of the task
         let Some(command) = value.get("command").and_then(|v| v.as_str()) else {
-            return Err(format!("task '{name}' is missing a command"));
+            return Err(CliError::message(format!(
+                "task '{name}' is missing a command"
+            )));
         };
         let description = value
             .get("description")
@@ -146,7 +151,7 @@ fn resolve_dsconfig_task(
     name: &str,
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
-) -> Result<Option<TaskSpec>, String> {
+) -> CliResult<Option<TaskSpec>> {
     let dsconfig_path = if program_args.config.is_some() {
         Some(resolve_dsconfig_path(program_args, resolver, cwd)?)
     } else {
@@ -167,7 +172,7 @@ pub(crate) fn resolve_script_command_with_resolver(
     script_name: &str,
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
-) -> Result<Option<ScriptCommand>, String> {
+) -> CliResult<Option<ScriptCommand>> {
     if let Some(task) = resolve_dsconfig_task(program_args, script_name, resolver, cwd)? {
         let cwd = task
             .cwd
@@ -192,17 +197,19 @@ fn resolve_package_script(
     name: &str,
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
-) -> Result<Option<ScriptCommand>, String> {
+) -> CliResult<Option<ScriptCommand>> {
     let Some(package_path) = find_package_json(resolver, cwd)? else {
         return Ok(None);
     };
 
-    let content = resolver
-        .fs
-        .read_to_string(&package_path)
-        .map_err(|e| format!("failed to read {}: {e}", package_path.display()))?;
-    let package: PackageJson =
-        serde_json::from_str(&content).map_err(|e| format!("invalid package.json: {e}"))?;
+    let content = resolver.fs.read_to_string(&package_path).map_err(|error| {
+        CliError::message(format!(
+            "failed to read {}: {error}",
+            package_path.display()
+        ))
+    })?;
+    let package: PackageJson = serde_json::from_str(&content)
+        .map_err(|error| CliError::message(format!("invalid package.json: {error}")))?;
     let Some(scripts) = package.scripts else {
         return Ok(None);
     };
@@ -227,7 +234,7 @@ fn resolve_package_script(
 fn find_package_json(
     resolver: &destack_resolver::Resolver,
     cwd: &Path,
-) -> Result<Option<PathBuf>, String> {
+) -> CliResult<Option<PathBuf>> {
     let mut current = cwd;
     loop {
         let candidate = current.join("package.json");

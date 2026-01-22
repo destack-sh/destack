@@ -2,6 +2,7 @@ use destack_source::ModuleId;
 use destack_workspace::{Program, Target, TargetId};
 
 use crate::common::TargetArgs;
+use crate::error::{CliError, CliResult};
 
 /// Resolved target configuration for a module.
 #[derive(Debug)]
@@ -26,7 +27,7 @@ pub fn resolve_target_for_module(
     module_id: ModuleId,
     target_name: &str,
     target_args: &TargetArgs,
-) -> Result<ResolvedTarget, String> {
+) -> CliResult<ResolvedTarget> {
     // locate the entry module package
     let module = program.modules.get(module_id);
     let package_id = module.read().package_id;
@@ -39,7 +40,7 @@ pub fn resolve_target_for_module(
 
     // reject overrides for named targets
     if existing_target.is_some() && target_args.has_adhoc_options() {
-        return Err(String::from(
+        return Err(CliError::message(
             "ad-hoc target options are not supported for named targets",
         ));
     }
@@ -47,17 +48,15 @@ pub fn resolve_target_for_module(
     // insert implicit target when missing
     if existing_target.is_none() {
         let mut target = Target::implicit_for_name(target_name)
-            .ok_or_else(|| format!("unknown target '{target_name}'"))?;
+            .ok_or_else(|| CliError::message(format!("unknown target '{target_name}'")))?;
         target_args.apply_to_target(&mut target);
         package.targets.insert(target_id.clone(), target);
     }
 
     // fetch the resolved target after updates
-    let target = package
-        .targets
-        .get(&target_id)
-        .cloned()
-        .ok_or_else(|| format!("target '{target_id}' not found in package config"))?;
+    let target = package.targets.get(&target_id).cloned().ok_or_else(|| {
+        CliError::message(format!("target '{target_id}' not found in package config"))
+    })?;
 
     // return the resolved target info
     Ok(ResolvedTarget {

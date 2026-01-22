@@ -5,6 +5,7 @@ pub mod command;
 pub mod common;
 pub mod console;
 pub mod entry;
+pub mod error;
 pub mod pipeline;
 #[cfg(test)]
 pub mod tests;

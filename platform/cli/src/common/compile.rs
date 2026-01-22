@@ -11,6 +11,7 @@ use destack_workspace::{Program, Session, TargetId};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
+use crate::error::{CliError, CliResult};
 
 /// Print helpful message when no input is provided.
 pub fn print_no_input_help(command: &str) {
@@ -193,12 +194,12 @@ impl CompilerContext {
     }
 
     /// Resolve an InputSource to a ModuleId, registering it with the compiler.
-    pub fn resolve_source(&self, source: &InputSource) -> Result<ModuleId, String> {
+    pub fn resolve_source(&self, source: &InputSource) -> CliResult<ModuleId> {
         match source {
             InputSource::File(path) => self
                 .compiler
                 .resolve_path_to_module(&path.to_path_buf())
-                .map_err(|e| format!("{e:?}")),
+                .map_err(|e| CliError::message(format!("{e:?}"))),
             InputSource::Inline { code, name } => {
                 let uri = Uri::from_string(name);
                 let extension = name.rsplit('.').next().unwrap_or("ds");
@@ -211,7 +212,7 @@ impl CompilerContext {
                 let mut content = String::new();
                 std::io::stdin()
                     .read_to_string(&mut content)
-                    .map_err(|e| format!("failed to read stdin: {e}"))?;
+                    .map_err(|e| CliError::message(format!("failed to read stdin: {e}")))?;
                 let uri = Uri::from_string(name);
                 let extension = name.rsplit('.').next().unwrap_or("ds");
                 let file_type = FileType::from_extension_or_unknown(extension);
@@ -221,7 +222,7 @@ impl CompilerContext {
     }
 
     /// Resolve a source and enqueue it for compilation.
-    pub fn enqueue_source(&self, source: &InputSource) -> Result<ModuleId, String> {
+    pub fn enqueue_source(&self, source: &InputSource) -> CliResult<ModuleId> {
         let module_id = self.resolve_source(source)?;
         self.enqueue_module(module_id);
         Ok(module_id)

@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
+use destack_source::{FileSystem, PhysicalFileSystem};
 use serde_json::json;
 
-use destack_source::{FileSystem, PhysicalFileSystem};
-
 use crate::common::{
-    CommandError, CommandReport, FileSystemOverride, ReportArgs, print_report, report_error,
+    CommandError, CommandReport, FileSystemOverride, ReportArgs, print_json_payload_report,
+    print_report, report_error,
 };
 use crate::console;
 
@@ -49,6 +49,17 @@ pub struct InitArgs {
     /// Report output options.
     #[command(flatten)]
     pub report: ReportArgs,
+}
+
+/// JSON payload for init output.
+#[derive(serde::Serialize)]
+struct InitPayload {
+    /// Resolved project name.
+    name: String,
+    /// Target directory for the project.
+    directory: String,
+    /// Created filesystem entries.
+    created: Vec<String>,
 }
 
 /// Initialize a new Destack project.
@@ -174,13 +185,14 @@ pub fn run(args: &InitArgs) -> i32 {
 
     // emit json report or text output
     if args.report.is_json() {
-        let mut report = CommandReport::success("init", 0);
-        report.data = Some(json!({
-            "name": name,
-            "directory": dir.display().to_string(),
-            "created": created,
-        }));
-        print_report(&report, args.report.format());
+        let payload = InitPayload {
+            name,
+            directory: dir.display().to_string(),
+            created,
+        };
+        if let Err(code) = print_json_payload_report("init", &args.report, 0, &payload) {
+            return code;
+        }
     } else {
         console::success(&format!("initialized Destack project: {name}"));
     }

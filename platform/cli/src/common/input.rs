@@ -6,6 +6,8 @@ use clap::Args;
 use destack_source::{File, FileType, Uri};
 use destack_workspace::Program;
 
+use crate::error::{CliError, CliResult};
+
 /// Input source for compilation commands.
 #[derive(Debug, Clone)]
 pub enum InputSource {
@@ -89,7 +91,7 @@ impl InputArgs {
     }
 
     /// Convert arguments to input sources.
-    pub fn to_sources(&self) -> Result<Vec<InputSource>, String> {
+    pub fn to_sources(&self) -> CliResult<Vec<InputSource>> {
         let mut sources = Vec::new();
         let default_extension = self.source_type.as_deref().unwrap_or("ds");
 
@@ -120,7 +122,7 @@ impl InputArgs {
         }
 
         if sources.is_empty() {
-            return Err("no input provided".to_string());
+            return Err(CliError::message("no input provided"));
         }
 
         Ok(sources)
@@ -134,7 +136,7 @@ impl InputArgs {
 }
 
 /// Load input sources into the program's file registry.
-pub fn load_sources(program: &Program, sources: &[InputSource]) -> Result<Vec<Arc<File>>, String> {
+pub fn load_sources(program: &Program, sources: &[InputSource]) -> CliResult<Vec<Arc<File>>> {
     let mut files = Vec::new();
 
     for source in sources {
@@ -146,7 +148,7 @@ pub fn load_sources(program: &Program, sources: &[InputSource]) -> Result<Vec<Ar
 }
 
 /// Load a single input source into the program's file registry.
-pub fn load_source(program: &Program, source: &InputSource) -> Result<Arc<File>, String> {
+pub fn load_source(program: &Program, source: &InputSource) -> CliResult<Arc<File>> {
     match source {
         InputSource::File(path) => load_file(program, path),
         InputSource::Inline { code, name } => load_string(program, code, name),
@@ -155,7 +157,7 @@ pub fn load_source(program: &Program, source: &InputSource) -> Result<Arc<File>,
 }
 
 /// Load a file from disk.
-fn load_file(program: &Program, path: &PathBuf) -> Result<Arc<File>, String> {
+fn load_file(program: &Program, path: &PathBuf) -> CliResult<Arc<File>> {
     let path_str = path.display().to_string();
 
     // determine file type from extension
@@ -166,7 +168,7 @@ fn load_file(program: &Program, path: &PathBuf) -> Result<Arc<File>, String> {
     let content = program
         .fs
         .read_to_string(path)
-        .map_err(|e| format!("\"{path_str}\": {e}"))?;
+        .map_err(|e| CliError::message(format!("\"{path_str}\": {e}")))?;
 
     // create file
     let file_id = program.files.next_id();
@@ -182,7 +184,7 @@ fn load_file(program: &Program, path: &PathBuf) -> Result<Arc<File>, String> {
 }
 
 /// Load inline code as a virtual file.
-fn load_string(program: &Program, code: &str, name: &str) -> Result<Arc<File>, String> {
+fn load_string(program: &Program, code: &str, name: &str) -> CliResult<Arc<File>> {
     let ext = name.rsplit('.').next().unwrap_or("ds");
     let file_type = FileType::from_extension_or_unknown(ext);
 
@@ -209,16 +211,20 @@ fn load_string(program: &Program, code: &str, name: &str) -> Result<Arc<File>, S
 /// Examples:
 /// - `foo:export const x = 1` → ("foo.ds", "export const x = 1")
 /// - `bar.ts:const x: number = 1` → ("bar.ts", "const x: number = 1")
-fn parse_module_arg(arg: &str, default_extension: &str) -> Result<(String, String), String> {
-    let colon_pos = arg
-        .find(':')
-        .ok_or_else(|| format!("invalid --module format: expected 'name:code', got '{arg}'"))?;
+fn parse_module_arg(arg: &str, default_extension: &str) -> CliResult<(String, String)> {
+    let colon_pos = arg.find(':').ok_or_else(|| {
+        CliError::message(format!(
+            "invalid --module format: expected 'name:code', got '{arg}'"
+        ))
+    })?;
 
     let name_part = &arg[..colon_pos];
     let code = arg[colon_pos + 1..].to_string();
 
     if name_part.is_empty() {
-        return Err("invalid --module format: name cannot be empty".to_string());
+        return Err(CliError::message(
+            "invalid --module format: name cannot be empty",
+        ));
     }
 
     // Validate name is identifier-like
@@ -226,9 +232,9 @@ fn parse_module_arg(arg: &str, default_extension: &str) -> Result<(String, Strin
         .chars()
         .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.');
     if !valid_name {
-        return Err(format!(
+        return Err(CliError::message(format!(
             "invalid --module name: '{name_part}' contains invalid characters"
-        ));
+        )));
     }
 
     // Auto-append extension if not present
@@ -242,11 +248,11 @@ fn parse_module_arg(arg: &str, default_extension: &str) -> Result<(String, Strin
 }
 
 /// Load from stdin as a virtual file.
-fn load_stdin(program: &Program, name: &str) -> Result<Arc<File>, String> {
+fn load_stdin(program: &Program, name: &str) -> CliResult<Arc<File>> {
     let mut content = String::new();
     std::io::stdin()
         .read_to_string(&mut content)
-        .map_err(|e| format!("failed to read stdin: {e}"))?;
+        .map_err(|e| CliError::message(format!("failed to read stdin: {e}")))?;
 
     load_string(program, &content, name)
 }

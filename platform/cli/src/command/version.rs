@@ -1,6 +1,6 @@
 use clap::Args;
 
-use crate::common::{CommandReport, ReportArgs, print_report};
+use crate::common::{ReportArgs, print_json_payload_report};
 use crate::console;
 
 /// CLI version from Cargo metadata.
@@ -14,16 +14,26 @@ pub struct VersionArgs {
     pub report: ReportArgs,
 }
 
+/// JSON payload for version output.
+#[derive(serde::Serialize)]
+struct VersionPayload {
+    /// Destack version identifier.
+    destack: String,
+    /// CLI version identifier.
+    cli: String,
+}
+
 /// Show version information.
 pub fn run(args: &VersionArgs) -> i32 {
     // emit structured output when requested
     if args.report.is_json() {
-        let mut report = CommandReport::success("version", 0);
-        report.data = Some(serde_json::json!({
-            "destack": CLI_VERSION,
-            "cli": CLI_VERSION,
-        }));
-        print_report(&report, args.report.format());
+        let payload = VersionPayload {
+            destack: CLI_VERSION.to_string(),
+            cli: CLI_VERSION.to_string(),
+        };
+        if let Err(code) = print_json_payload_report("version", &args.report, 0, &payload) {
+            return code;
+        }
         return 0;
     }
 

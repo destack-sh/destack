@@ -79,7 +79,7 @@ fn test_run_watch_handles_update() {
             assert!(!rescan);
             observed_reason.replace(Some(reason));
         },
-        |_, _, _, _, _, _, _reason, _, _, _| {
+        |_, _, _, _, _, _reason, _, _, _, _| {
             compile_calls.set(compile_calls.get().saturating_add(1));
             0
         },

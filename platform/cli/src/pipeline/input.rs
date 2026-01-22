@@ -5,6 +5,7 @@ use destack_source::glob;
 use destack_workspace::TargetDiscovery;
 
 use crate::common::{InputArgs, InputSource, ProgramArgs};
+use crate::error::CliResult;
 use crate::pipeline::workspace::{load_dsconfig_for_program, workspace_context};
 
 /// Errors returned while resolving input sources.
@@ -24,7 +25,9 @@ pub fn resolve_sources(
 ) -> Result<Vec<InputSource>, ResolveSourcesError> {
     // prefer explicit input args when provided
     if input.has_input() {
-        return input.to_sources().map_err(ResolveSourcesError::Message);
+        return input
+            .to_sources()
+            .map_err(|error| ResolveSourcesError::Message(error.to_string()));
     }
 
     // fall back to dsconfig discovery when available
@@ -33,7 +36,7 @@ pub fn resolve_sources(
     };
 
     let sources = collect_sources_from_dsconfig(program_args, target_name)
-        .map_err(ResolveSourcesError::Message)?;
+        .map_err(|error| ResolveSourcesError::Message(error.to_string()))?;
 
     if sources.is_empty() {
         return Err(ResolveSourcesError::NoInput);
@@ -46,7 +49,7 @@ pub fn resolve_sources(
 pub fn collect_sources_from_dsconfig(
     program_args: &ProgramArgs,
     target_name: Option<&str>,
-) -> Result<Vec<InputSource>, String> {
+) -> CliResult<Vec<InputSource>> {
     // resolve workspace context and dsconfig
     let context = workspace_context(program_args, None)?;
     let dsconfig =

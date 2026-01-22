@@ -3,7 +3,8 @@ use std::io::Write;
 use clap::Args;
 use clap_complete::{Shell, generate};
 
-use crate::common::{CommandReport, ReportArgs, print_report};
+use crate::common::{ReportArgs, print_json_payload_report};
+use crate::console;
 
 use crate::cli::{HelpMode, build_command};
 
@@ -19,6 +20,15 @@ pub struct CompletionsArgs {
     pub report: ReportArgs,
 }
 
+/// JSON payload for completion scripts.
+#[derive(serde::Serialize)]
+struct CompletionsPayload {
+    /// Shell name for the completion script.
+    shell: String,
+    /// Completion script content.
+    script: String,
+}
+
 /// Generate shell completion scripts.
 pub fn run(args: &CompletionsArgs) -> i32 {
     // generate the completion script into a buffer
@@ -29,18 +39,19 @@ pub fn run(args: &CompletionsArgs) -> i32 {
     // emit structured output when requested
     if args.report.is_json() {
         let script = String::from_utf8_lossy(&buffer).to_string();
-        let mut report = CommandReport::success("completions", 0);
-        report.data = Some(serde_json::json!({
-            "shell": args.shell.to_string(),
-            "script": script,
-        }));
-        print_report(&report, args.report.format());
+        let payload = CompletionsPayload {
+            shell: args.shell.to_string(),
+            script,
+        };
+        if let Err(code) = print_json_payload_report("completions", &args.report, 0, &payload) {
+            return code;
+        }
         return 0;
     }
 
     // write the script to stdout
     if let Err(error) = std::io::stdout().write_all(&buffer) {
-        eprintln!("error: failed to write completions: {error}");
+        console::error(&format!("failed to write completions: {error}"));
         return 1;
     }
     0

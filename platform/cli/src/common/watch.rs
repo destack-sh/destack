@@ -304,9 +304,17 @@ fn now_ms() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    use destack_source::{
+        Diagnostic, DiagnosticCollection, DiagnosticSeverity, File, FileRegistry, FileType,
+        LabeledSpan, Span, Uri,
+    };
     use serde_json::Value;
 
-    use super::{WATCH_REPORT_SCHEMA, WatchReport, WatchReportEvent};
+    use crate::common::format::{FormatOptions, collect_diagnostics_json};
+
+    use super::{
+        WATCH_REPORT_SCHEMA, WatchCompileJson, WatchCompileReason, WatchReport, WatchReportEvent,
+    };
 
     #[test]
     fn test_watch_report_serializes_warning() {
@@ -331,5 +339,84 @@ mod tests {
 
         let message = object.get("message").expect("message should exist");
         assert_eq!(message, &Value::String("boom".to_string()));
+    }
+
+    #[test]
+    fn test_watch_report_serializes_compile_with_diagnostics() {
+        let files = FileRegistry::new();
+        let file_id = files.next_id();
+        let uri = Uri::from_string("memory://test.ds");
+        let file = File::from_text(
+            file_id,
+            "test.ds".to_string(),
+            uri,
+            None,
+            FileType::Destack,
+            "export const value = ;".to_string(),
+        );
+        files.insert(file);
+
+        let span = Span::at(file_id, 0, 1);
+        let diagnostic = Diagnostic {
+            code: "E000".to_string(),
+            original_code: None,
+            severity: DiagnosticSeverity::Error,
+            original_severity: None,
+            message: "syntax error".to_string(),
+            file_id,
+            primary_span: LabeledSpan::new(span, "here"),
+            primary_highlight_spans: None,
+            secondary_spans: None,
+            suggestions: None,
+        };
+        let diagnostics = DiagnosticCollection::from_diagnostics(vec![diagnostic]);
+        let format_options = FormatOptions::default();
+        let (output, format_result) =
+            collect_diagnostics_json(&files, &diagnostics, &format_options);
+
+        let report = WatchReport {
+            schema: WATCH_REPORT_SCHEMA,
+            command: "check".to_string(),
+            sequence: 1,
+            timestamp_ms: 42,
+            event: WatchReportEvent::Compile {
+                compile: WatchCompileJson {
+                    reason: WatchCompileReason::Update,
+                    updated: true,
+                    rescan: false,
+                    batch_id: Some(7),
+                    diagnostics: Some(output),
+                    exit_code: format_result.exit_code(),
+                    stats: None,
+                },
+            },
+        };
+
+        let value = serde_json::to_value(report).expect("report should serialize");
+        let object = value.as_object().expect("report should be a json object");
+
+        let event = object.get("event").expect("event should exist");
+        assert_eq!(event, &Value::String("compile".to_string()));
+
+        let compile = object.get("compile").expect("compile should exist");
+        let compile = compile
+            .as_object()
+            .expect("compile should be a json object");
+        let exit_code = compile.get("exit_code").expect("exit_code should exist");
+        assert_eq!(exit_code.as_i64(), Some(1));
+
+        let diagnostics = compile
+            .get("diagnostics")
+            .expect("diagnostics should exist");
+        let diagnostics = diagnostics
+            .get("diagnostics")
+            .expect("diagnostics list should exist");
+        assert_eq!(
+            diagnostics
+                .as_array()
+                .expect("diagnostics should be an array")
+                .len(),
+            1
+        );
     }
 }

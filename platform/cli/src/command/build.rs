@@ -1,28 +1,32 @@
-use clap::Args;
-use destack_daemon::Daemon;
+use destack_daemon::protocol::{CommandBuildOptions, CommandPayload, CommonCommandOptions};
+use destack_source::DiagnosticOptions;
 
 use crate::common::{
-    CommandReport, CommandStats, CompilerMode, DiagnosticArgs, DiagnosticFormat, FormatOptions,
-    InputArgs, InputSource, ProgramArgs, ReportArgs, StatsSummary, TargetArgs, WatchCompileReason,
-    WatchReporter, collect_diagnostics_json, format_diagnostics, print_report, print_stats_summary,
+    CommandReport, DiagnosticArgs, DiagnosticFormat, FormatOptions, InputArgs, InputSource,
+    ProgramArgs, ReportArgs, StatsSummary, TargetArgs, WatchCompileReason,
+    collect_diagnostics_json, format_diagnostics, print_command_stats_summary, print_report,
     report_error,
 };
-use crate::console;
-use crate::pipeline::compile::{CompileRequest, prepare_compile};
+use crate::error::CliResult;
+use crate::pipeline::daemon::{
+    CommandOptionsBuilder, ProtocolDaemonClient, command_inputs_from_sources,
+    command_stats_from_protocol, emit_daemon_text_output, run_daemon_command,
+    target_overrides_from_args,
+};
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
-use crate::pipeline::target::{resolve_target_for_module, target_name_from_args};
+use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
-    build_watch_loop_options, emit_watch_compile_report, run_watch_loop, watch_error, watch_roots,
+    WatchCompileContext, WatchContext, WatchLoopAction, WatchLoopOptions, build_daemon_options,
+    build_watch_context, build_watch_loop_options, emit_watch_compile_report, run_watch_loop,
+    watch_error,
 };
 use crate::pipeline::workspace::{load_dsconfig_for_program, workspace_context};
+use clap::Args;
 
 /// State for build watch mode.
 struct BuildWatchState {
     /// The resolved input sources.
     sources: Vec<InputSource>,
-    /// The active module list.
-    modules: Vec<destack_source::ModuleId>,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -60,13 +64,13 @@ pub fn run(args: &BuildArgs) -> i32 {
     } else {
         let context = match workspace_context(&args.program, None) {
             Ok(context) => context,
-            Err(message) => return report_error("build", &args.report, &message),
+            Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
         let dsconfig =
             match load_dsconfig_for_program(&args.program, &context.resolver, &context.session.cwd)
             {
                 Ok(dsconfig) => dsconfig,
-                Err(message) => return report_error("build", &args.report, &message),
+                Err(error) => return report_error("build", &args.report, &error.to_string()),
             };
         dsconfig
             .options
@@ -79,49 +83,62 @@ pub fn run(args: &BuildArgs) -> i32 {
         return run_watch(args, &target_name);
     }
 
-    let setup = match prepare_compile(CompileRequest {
-        command: "build",
-        input: &args.input,
-        program: &args.program,
-        diagnostics: &args.diagnostics,
-        report: &args.report,
-        mode: CompilerMode::Build {
-            target: target_name.clone(),
-        },
-        target_name: Some(&target_name),
-        allow_dsconfig_fallback: true,
-        event_handler: None,
-    }) {
-        Ok(setup) => setup,
-        Err(code) => return code,
+    run_build_via_daemon(args, &target_name)
+}
+
+/// Run a single build command through the daemon.
+fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
+    // build diagnostic options for the daemon command
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
+
+    // build command inputs when explicitly provided
+    let inputs = if args.input.has_input() {
+        let sources = match args.input.to_sources() {
+            Ok(sources) => sources,
+            Err(error) => {
+                return report_error("build", &args.report, &error.to_string());
+            }
+        };
+        match command_inputs_from_sources(&sources, args.input.file_type()) {
+            Ok(inputs) => inputs,
+            Err(error) => {
+                return report_error("build", &args.report, &error.to_string());
+            }
+        }
+    } else {
+        Vec::new()
     };
 
-    if args.dry_run {
-        return report_dry_run(args, &target_name, &setup.sources);
+    // build command options for daemon execution
+    let options = CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+        .inputs(inputs)
+        .allow_dsconfig_fallback(!args.input.has_input())
+        .target(target_name.to_string())
+        .target_overrides(target_overrides_from_args(&args.target))
+        .dry_run(args.dry_run)
+        .build();
+    let payload = CommandPayload::Build(CommandBuildOptions::default());
+
+    // execute the daemon command
+    let result = match run_daemon_command(
+        &args.program,
+        Some(diagnostic_options),
+        options,
+        payload,
+        None,
+    ) {
+        Ok(result) => result,
+        Err(error) => return report_error("build", &args.report, &error.to_string()),
+    };
+
+    // emit daemon output and messages for text modes
+    if !args.report.is_json() {
+        emit_daemon_text_output(
+            &args.report,
+            &result.response.messages,
+            &result.response.output,
+        );
     }
-
-    // enqueue sources for compilation
-    let modules = setup.modules;
-
-    // ensure targets exist for each module
-    for module_id in &modules {
-        if let Err(message) = resolve_target_for_module(
-            &setup.context.program,
-            *module_id,
-            &target_name,
-            &args.target,
-        ) {
-            return report_error("build", &args.report, &message);
-        }
-    }
-
-    // compile and collect diagnostics
-    let result = setup.context.compile();
-    let diagnostics = result
-        .program
-        .diagnostics
-        .collect()
-        .map(&result.diagnostic_options);
 
     // report diagnostics in requested format
     if args.report.is_json() {
@@ -130,38 +147,56 @@ pub fn run(args: &BuildArgs) -> i32 {
             ..FormatOptions::default()
         };
         let (output, format_result) =
-            collect_diagnostics_json(&result.program.files, &diagnostics, &format_options);
+            collect_diagnostics_json(&result.files, &result.diagnostics, &format_options);
         let mut report = if format_result.exit_code() == 0 {
             CommandReport::success("build", 0)
         } else {
             CommandReport::failure("build", format_result.exit_code())
         };
+        if let Some(stats) = result.response.stats.as_ref() {
+            report.stats = Some(command_stats_from_protocol(stats));
+        }
+        if let Some(payload) = result.response.data.as_ref() {
+            match payload.to_json_value() {
+                Ok(value) => report.data = Some(value),
+                Err(error) => {
+                    return report_error(
+                        "build",
+                        &args.report,
+                        &format!("invalid build payload: {error}"),
+                    );
+                }
+            }
+        }
         report.diagnostics = Some(output);
-        report.stats = Some(CommandStats::from_snapshot(&result.stats));
         print_report(&report, args.report.format());
         return format_result.exit_code();
     }
 
-    let format_options = FormatOptions::default();
+    let format_options = FormatOptions {
+        format: DiagnosticFormat::Text,
+        ..FormatOptions::default()
+    };
     let format_result = format_diagnostics(
-        &result.program.files,
-        &diagnostics,
+        &result.files,
+        &result.diagnostics,
         &format_options,
-        result.program.modules.len(),
+        result.response.module_count,
     );
 
     // print stats summary in text mode
-    let module_count = modules.len();
-    let profile_count = result.program.profiles.len();
-    let summary = StatsSummary {
-        verb: "Built",
-        modules: module_count,
-        profiles: profile_count,
-        targets: usize::from(!modules.is_empty()),
-        errors: format_result.error_count,
-        warnings: format_result.warning_count,
-    };
-    print_stats_summary(&summary, &result.stats, None);
+    if let Some(stats) = result.response.stats.as_ref() {
+        let summary = StatsSummary {
+            verb: "Built",
+            modules: result.response.module_count,
+            profiles: result.response.profile_count,
+            targets: result.response.target_count,
+            errors: format_result.error_count,
+            warnings: format_result.warning_count,
+        };
+        let stats = command_stats_from_protocol(stats);
+        print_command_stats_summary(&summary, &stats, None);
+    }
 
     format_result.exit_code()
 }
@@ -215,82 +250,111 @@ where
         }
     };
 
-    // create the compiler context
-    let context = crate::common::CompilerContext::new(
-        &args.program,
-        &args.diagnostics,
-        CompilerMode::Build {
-            target: target_name.to_string(),
-        },
-        None,
-    );
-
-    // enqueue sources for compilation
-    let modules = match context.enqueue(&sources) {
-        Ok(modules) => modules,
-        Err(code) => return code,
-    };
+    // build diagnostic options for the daemon command
+    let diagnostic_options: DiagnosticOptions = args.diagnostics.clone().into();
 
     // prepare watch mode output
     let json_format_options = FormatOptions {
         format: DiagnosticFormat::Json,
         ..FormatOptions::default()
     };
-    let mut reporter = if args.report.is_json() {
-        Some(WatchReporter::new("build"))
-    } else {
-        None
-    };
-    let roots = watch_roots(&args.program, &context.session);
-    if let Some(reporter) = reporter.as_mut() {
-        reporter.emit_start(&roots);
-    }
+    let session = args.program.setup();
+    let WatchContext {
+        roots,
+        root,
+        mut reporter,
+    } = build_watch_context("build", &args.program, &args.report, &session);
 
-    // ensure targets exist for each module
-    if let Err(message) = validate_targets(&context.program, &modules, target_name, &args.target) {
-        if let Some(reporter) = reporter.as_mut() {
-            reporter.emit_warning(&watch_error(&message));
-            reporter.emit_stop();
-            return 1;
+    // configure the daemon client for incremental updates
+    let daemon_options = build_daemon_options(&args.program, diagnostic_options.clone(), None);
+    let daemon = match ProtocolDaemonClient::new(session.clone(), daemon_options, roots.clone()) {
+        Ok(daemon) => daemon,
+        Err(error) => {
+            let message = watch_error(&error.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                reporter.emit_stop();
+                return 1;
+            }
+            return report_error("build", &args.report, &message);
         }
-        return report_error("build", &args.report, &message);
-    }
-
-    // compile the initial state
-    context.run_compile();
-
-    // print diagnostics for the initial state
-    let format_options = FormatOptions::default();
-    let stats_snapshot = reporter.as_ref().map(|_| {
-        context
-            .compiler
-            .stats
-            .snapshot_with_program(context.program.modules.len(), Some(&context.program))
-    });
-    let mut exit_code = emit_watch_compile_report(
-        &mut reporter,
-        WatchCompileContext {
-            program: &context.program,
-            diagnostic_options: &context.diagnostic_options,
-            format_options: &format_options,
-            json_format_options: &json_format_options,
-            module_count: modules.len(),
-            line_writer: None,
-        },
-        stats_snapshot,
-        WatchCompileReason::Startup,
-        false,
-        false,
-        None,
-    );
-
-    // configure the daemon for incremental updates
-    let daemon_options =
-        build_daemon_options(&args.program, context.diagnostic_options.clone(), None);
-    let daemon = Daemon::with_options(context.session.clone(), daemon_options);
+    };
 
     // set up shared watch state
-    let mut watch_state = BuildWatchState { sources, modules };
+    let mut watch_state = BuildWatchState { sources };
+
+    // prepare command options for the watch run
+    let target_overrides = target_overrides_from_args(&args.target);
+    let build_options = |sources: &[InputSource]| -> CliResult<CommonCommandOptions> {
+        let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
+        Ok(
+            CommandOptionsBuilder::new(&args.program, Some(diagnostic_options.clone()))
+                .inputs(inputs)
+                .allow_dsconfig_fallback(!args.input.has_input())
+                .target(target_name.to_string())
+                .target_overrides(target_overrides.clone())
+                .build(),
+        )
+    };
+
+    // compile the initial state
+    let format_options = FormatOptions::default();
+    let mut exit_code = match build_options(&watch_state.sources) {
+        Ok(options) => match daemon.run_command(
+            &root,
+            options,
+            CommandPayload::Build(CommandBuildOptions::default()),
+        ) {
+            Ok(result) => {
+                if !args.report.is_json() {
+                    emit_daemon_text_output(
+                        &args.report,
+                        &result.response.messages,
+                        &result.response.output,
+                    );
+                }
+                let stats = result
+                    .response
+                    .stats
+                    .as_ref()
+                    .map(command_stats_from_protocol);
+                emit_watch_compile_report(
+                    &mut reporter,
+                    WatchCompileContext {
+                        files: &result.files,
+                        diagnostics: &result.diagnostics,
+                        format_options: &format_options,
+                        json_format_options: &json_format_options,
+                        module_count: result.response.module_count,
+                        line_writer: None,
+                    },
+                    stats,
+                    WatchCompileReason::Startup,
+                    false,
+                    false,
+                    None,
+                )
+            }
+            Err(message) => {
+                let message = watch_error(&message.to_string());
+                if let Some(reporter) = reporter.as_mut() {
+                    reporter.emit_warning(&message);
+                    1
+                } else {
+                    report_error("build", &args.report, &message)
+                }
+            }
+        },
+        Err(message) => {
+            let message = watch_error(&message.to_string());
+            if let Some(reporter) = reporter.as_mut() {
+                reporter.emit_warning(&message);
+                1
+            } else {
+                report_error("build", &args.report, &message)
+            }
+        }
+    };
 
     // run the watch loop for incremental updates
     exit_code = run_watch_loop(
@@ -306,58 +370,74 @@ where
                 match resolve_sources(&args.input, Some(&args.program), Some(target_name)) {
                     Ok(sources) => sources,
                     Err(ResolveSourcesError::NoInput) => {
-                        return Err(watch_error("no input files after rescan"));
+                        return Err(watch_error("no input files after rescan").into());
                     }
                     Err(ResolveSourcesError::Message(message)) => {
-                        return Err(watch_error(&message));
+                        return Err(watch_error(&message).into());
                     }
                 };
 
             Ok(())
         },
         |state, reporter, reason, batch_id, updated, requires_rescan| {
-            // clear diagnostics before each compile
-            let _ = context.program.diagnostics.drain();
-            let Ok(next_modules) = context.enqueue(&state.sources) else {
-                return WatchLoopAction::continue_with(None);
+            // build options for the updated sources
+            let options = match build_options(&state.sources) {
+                Ok(options) => options,
+                Err(message) => {
+                    let message = watch_error(&message.to_string());
+                    if let Some(reporter) = reporter.as_mut() {
+                        reporter.emit_warning(&message);
+                        return WatchLoopAction::continue_with(Some(1));
+                    }
+                    let next_exit = report_error("build", &args.report, &message);
+                    return WatchLoopAction::continue_with(Some(next_exit));
+                }
             };
-            state.modules = next_modules;
 
-            // ensure targets exist for each module
-            if let Err(message) =
-                validate_targets(&context.program, &state.modules, target_name, &args.target)
-            {
-                let next_exit_code = if let Some(reporter) = reporter.as_mut() {
-                    reporter.emit_warning(&watch_error(&message));
-                    1
-                } else {
-                    report_error("build", &args.report, &message)
-                };
+            // run the daemon build command
+            let result = match daemon.run_command(
+                &root,
+                options,
+                CommandPayload::Build(CommandBuildOptions::default()),
+            ) {
+                Ok(result) => result,
+                Err(message) => {
+                    let message = watch_error(&message.to_string());
+                    if let Some(reporter) = reporter.as_mut() {
+                        reporter.emit_warning(&message);
+                        return WatchLoopAction::continue_with(Some(1));
+                    }
+                    let next_exit = report_error("build", &args.report, &message);
+                    return WatchLoopAction::continue_with(Some(next_exit));
+                }
+            };
 
-                return WatchLoopAction::continue_with(Some(next_exit_code));
+            // emit daemon output for text mode
+            if !args.report.is_json() {
+                emit_daemon_text_output(
+                    &args.report,
+                    &result.response.messages,
+                    &result.response.output,
+                );
             }
 
-            // compile the updated state
-            context.run_compile();
-
             // report diagnostics for the updated state
-            let stats_snapshot = reporter.as_ref().map(|_| {
-                context
-                    .compiler
-                    .stats
-                    .snapshot_with_program(context.program.modules.len(), Some(&context.program))
-            });
+            let stats = result
+                .response
+                .stats
+                .as_ref()
+                .map(command_stats_from_protocol);
             let next_exit_code = emit_watch_compile_report(
                 reporter,
                 WatchCompileContext {
-                    program: &context.program,
-                    diagnostic_options: &context.diagnostic_options,
+                    files: &result.files,
+                    diagnostics: &result.diagnostics,
                     format_options: &format_options,
                     json_format_options: &json_format_options,
-                    module_count: state.modules.len(),
+                    module_count: result.response.module_count,
                     line_writer: None,
                 },
-                stats_snapshot,
+                stats,
                 reason,
                 updated,
                 requires_rescan,
@@ -380,51 +460,7 @@ where
         reporter.emit_stop();
     }
 
+    daemon.shutdown();
+
     exit_code
-}
-
-/// Ensure targets exist for each module in watch mode.
-fn validate_targets(
-    program: &destack_workspace::Program,
-    modules: &[destack_source::ModuleId],
-    target_name: &str,
-    target_args: &TargetArgs,
-) -> Result<(), String> {
-    // check targets for each module
-    for module_id in modules {
-        resolve_target_for_module(program, *module_id, target_name, target_args)?;
-    }
-
-    Ok(())
-}
-
-/// Report build dry-run output.
-fn report_dry_run(args: &BuildArgs, target_name: &str, sources: &[InputSource]) -> i32 {
-    let source_names: Vec<String> = sources
-        .iter()
-        .map(|source| match source {
-            InputSource::File(path) => path.display().to_string(),
-            InputSource::Inline { name, .. } => name.clone(),
-            InputSource::Stdin { name } => name.clone(),
-        })
-        .collect();
-
-    if args.report.is_json() {
-        let mut report = CommandReport::success("build", 0);
-        report.data = Some(serde_json::json!({
-            "dry_run": true,
-            "target": target_name,
-            "sources": source_names,
-        }));
-        print_report(&report, args.report.format());
-        return 0;
-    }
-
-    console::info("build dry-run:");
-    console::info(&format!("target: {target_name}"));
-    for source in source_names {
-        console::info(&format!("source: {source}"));
-    }
-
-    0
 }

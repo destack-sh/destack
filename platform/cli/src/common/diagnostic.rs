@@ -8,6 +8,8 @@ use destack_workspace::Program;
 
 use clap::Args;
 
+use crate::error::{CliError, CliResult};
+
 #[derive(Args, Debug, Clone, Default)]
 pub struct DiagnosticArgs {
     /// Error on the given warning codes (like WR001).
@@ -43,19 +45,19 @@ pub fn print_diagnostics(program: &Program, diagnostics: &DiagnosticCollection) 
 }
 
 /// Validate that a warning code is known.
-fn validate_warning_code(code: &str) -> Result<String, String> {
+fn validate_warning_code(code: &str) -> CliResult<String> {
     if DiagnosticRegistry::is_valid_warning_code(code) {
         Ok(code.to_string())
     } else {
-        Err(format!("unknown warning code: {code}"))
+        Err(CliError::message(format!("unknown warning code: {code}")))
     }
 }
 
 /// Validate that an error code is known.
-fn validate_error_code(code: &str) -> Result<String, String> {
+fn validate_error_code(code: &str) -> CliResult<String> {
     if DiagnosticRegistry::is_valid_error_code(code) {
         Ok(code.to_string())
     } else {
-        Err(format!("unknown error code: {code}"))
+        Err(CliError::message(format!("unknown error code: {code}")))
     }
 }

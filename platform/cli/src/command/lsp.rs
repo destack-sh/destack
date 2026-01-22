@@ -1,5 +1,7 @@
 use clap::Args;
 
+use crate::console;
+
 /// Arguments for the lsp command.
 #[derive(Args, Debug)]
 pub struct LspArgs {}
@@ -10,13 +12,13 @@ pub fn run(_args: &LspArgs) -> i32 {
     let runtime = match tokio::runtime::Runtime::new() {
         Ok(runtime) => runtime,
         Err(error) => {
-            eprintln!("lsp error: {error}");
+            console::error(&format!("lsp error: {error}"));
             return 1;
         }
     };
     runtime.block_on(async {
         if let Err(e) = destack_lsp::run_stdio_server().await {
-            eprintln!("lsp error: {e}");
+            console::error(&format!("lsp error: {e}"));
             return 1;
         }
         0
