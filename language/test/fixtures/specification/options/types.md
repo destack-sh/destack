@@ -16,7 +16,7 @@ let value: any = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": true } }
 ```
 
@@ -34,7 +34,7 @@ let value: any = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -54,7 +54,7 @@ try {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": true, "useUnknownInCatchVariables": false } }
 ```
 
@@ -74,7 +74,7 @@ let value: unknown = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnknown": true } }
 ```
 
@@ -96,7 +96,7 @@ try {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnknown": true, "useUnknownInCatchVariables": true } }
 ```
 
@@ -114,7 +114,7 @@ let value: unknown = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnknown": false } }
 ```
 
@@ -132,7 +132,7 @@ let value: number = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
@@ -150,7 +150,7 @@ let value = Number(1);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": true } }
 ```
 
@@ -168,7 +168,7 @@ let value: number = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noImprecisePrimitives": false } }
 ```
 
@@ -186,7 +186,7 @@ let value: float64 = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitConversions": true } }
 ```
 
@@ -204,7 +204,7 @@ let value: float64 = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitConversions": false } }
 ```
 
@@ -223,7 +223,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": true } }
 ```
 
@@ -242,7 +242,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noUnsafeTypeAssertions": true } }
 ```
 
@@ -259,7 +259,7 @@ let cast = value as int32;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "noUnsafeTypeAssertions": false } }
 ```
 
@@ -281,7 +281,7 @@ let value: Box = new Box();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -299,7 +299,7 @@ let values: int32[] = [1, 2, 3];
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -317,7 +317,7 @@ let value: { x: int32 } = { x: 1 };
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -335,7 +335,7 @@ let fn: () => int32 = () => 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -353,7 +353,7 @@ let value: string = "hello";
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -375,7 +375,7 @@ let value = new Box();
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -393,7 +393,7 @@ let values = [1, 2, 3];
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -415,7 +415,7 @@ let value: ^Box = ^(new Box());
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```
 
@@ -431,6 +431,6 @@ let value: character = 'a';
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitManaged": true } }
 ```

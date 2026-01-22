@@ -40,6 +40,16 @@ const x = [1, "two", true];
 x satisfies (number | string | boolean)[];
 ```
 
+### array holes are rejected
+
+> Array literals are dense and do not allow holes.
+
+```ds
+const x = [1, , 3];
+```
+
+- contains: array literal holes
+
 ## Contextual Arrays
 
 ### contextual array literal
@@ -96,7 +106,7 @@ let value: number = values[0];
 
 > Arrays expose filter with typed results.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -110,7 +120,7 @@ filtered satisfies number[];
 
 > Arrays expose findIndex.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 

@@ -1,6 +1,8 @@
 # Template Literal Matching
 
-## template literal type accepts matching string literal
+## matching
+
+### template literal type accepts matching string literal
 
 > Template literal types match string literals by pattern.
 
@@ -10,7 +12,7 @@ type Id = `user-${number}`;
 let ok: Id = "user-42";
 ```
 
-## template literal type accepts literal template
+### template literal type accepts literal template
 
 > Template literals without spans behave like string literals.
 
@@ -20,7 +22,7 @@ type Exact = `user`;
 let ok: Exact = "user";
 ```
 
-## template literal type rejects non matching string literal
+### template literal type rejects non matching string literal
 
 > Template literal types reject non matching string literals.
 
@@ -30,9 +32,9 @@ type Id = `user-${number}`;
 let bad: Id = "user-abc";
 ```
 
-- contains: type string is not assignable to type `user-${number}`
+- contains: type "user-abc" is not assignable to type id
 
-## template literal type accepts string
+### template literal type accepts string
 
 > `${string}` is equivalent to string.
 
@@ -43,7 +45,7 @@ declare let value: string;
 let ok: AnyString = value;
 ```
 
-## template literal type accepts multiple string spans
+### template literal type accepts multiple string spans
 
 > Templates with only string spans accept any string.
 
@@ -54,17 +56,19 @@ declare let value: string;
 let ok: AnyString = value;
 ```
 
-## template literal type accepts unknown spans
+### template literal type rejects unknown spans
 
-> Unknown spans accept any string.
+> Unknown spans are not stringifiable.
 
 ```ds
 type UnknownString = `${unknown}`;
 
-let ok: UnknownString = "value";
+let bad: UnknownString = "value";
 ```
 
-## template literal type accepts any spans
+- contains: not assignable
+
+### template literal type accepts any spans
 
 > Any spans accept any string.
 
@@ -74,7 +78,23 @@ type AnyString = `${any}`;
 let ok: AnyString = "value";
 ```
 
-## template literal type rejects never spans
+```json:dsconfig.json
+{ "compilerOptions": { "noAny": false } }
+```
+
+### template literal type rejects symbol spans
+
+> Non stringifiable spans are rejected.
+
+```ds
+type Bad = `${symbol}`;
+
+let value: Bad = "value";
+```
+
+- contains: not assignable
+
+### template literal type rejects never spans
 
 > Never spans reject all strings.
 
@@ -84,9 +104,9 @@ type NeverString = `${never}`;
 let bad: NeverString = "value";
 ```
 
-- contains: type string is not assignable to type `${never}`
+- contains: type "value" is not assignable to type neverstring
 
-## template literal type collapses never spans
+### template literal type collapses never spans
 
 > Template literals with never spans normalize to never.
 
@@ -95,12 +115,22 @@ type IsNever<T> = (T, int32) extends (never, int32) ? true : false;
 type Result = IsNever<`${never}`>;
 
 let ok: Result = true;
+```
+
+### template literal type collapses never spans rejects false
+
+> Normalized `never` rejects false.
+
+```ds
+type IsNever<T> = (T, int32) extends (never, int32) ? true : false;
+type Result = IsNever<`${never}`>;
+
 let bad: Result = false;
 ```
 
-- contains: type false is not assignable to type true
+- contains: type false is not assignable to type result
 
-## template literal type accepts null literal strings
+### template literal type accepts null literal strings
 
 > Null spans accept the `null` literal string.
 
@@ -110,7 +140,7 @@ type NullString = `${null}`;
 let ok: NullString = "null";
 ```
 
-## template literal type rejects non null strings
+### template literal type rejects non null strings
 
 > Null spans reject other strings.
 
@@ -120,9 +150,9 @@ type NullString = `${null}`;
 let bad: NullString = "nil";
 ```
 
-- contains: type string is not assignable to type `${null}`
+- contains: type "nil" is not assignable to type nullstring
 
-## template literal type accepts undefined literal strings
+### template literal type accepts undefined literal strings
 
 > Undefined spans accept the `undefined` literal string.
 
@@ -132,7 +162,7 @@ type UndefinedString = `${undefined}`;
 let ok: UndefinedString = "undefined";
 ```
 
-## template literal type rejects non undefined strings
+### template literal type rejects non undefined strings
 
 > Undefined spans reject other strings.
 
@@ -142,9 +172,9 @@ type UndefinedString = `${undefined}`;
 let bad: UndefinedString = "defined";
 ```
 
-- contains: type string is not assignable to type `${undefined}`
+- contains: type "defined" is not assignable to type undefinedstring
 
-## template literal type accepts boolean literal strings
+### template literal type accepts boolean literal strings
 
 > Boolean spans accept "true" and "false".
 
@@ -155,7 +185,7 @@ let ok: Flag = "true";
 let ok2: Flag = "false";
 ```
 
-## template literal type rejects non boolean strings
+### template literal type rejects non boolean strings
 
 > Boolean spans reject other strings.
 
@@ -165,9 +195,9 @@ type Flag = `${boolean}`;
 let bad: Flag = "yes";
 ```
 
-- contains: type string is not assignable to type `${boolean}`
+- contains: type "yes" is not assignable to type flag
 
-## template literal type accepts union member strings
+### template literal type accepts union member strings
 
 > Union spans accept any matching member.
 
@@ -177,7 +207,7 @@ type Direction = `${"up" | "down"}`;
 let ok: Direction = "up";
 ```
 
-## template literal type accepts stringifiable unions
+### template literal type accepts stringifiable unions
 
 > Unions of stringifiable types accept all strings.
 
@@ -188,7 +218,7 @@ let ok: AnyString = "value";
 let ok2: AnyString = "123";
 ```
 
-## template literal type rejects non union member strings
+### template literal type rejects non union member strings
 
 > Union spans reject values outside the union.
 
@@ -198,9 +228,9 @@ type Direction = `${"up" | "down"}`;
 let bad: Direction = "left";
 ```
 
-- contains: type string is not assignable to type `${"up" | "down"}`
+- contains: type "left" is not assignable to type direction
 
-## template literal type accepts nested templates
+### template literal type accepts nested templates
 
 > Nested templates match by composing their spans.
 
@@ -210,7 +240,7 @@ type Nested = `prefix-${`id-${number}`}`;
 let ok: Nested = "prefix-id-1";
 ```
 
-## template literal type rejects nested template mismatches
+### template literal type rejects nested template mismatches
 
 > Nested templates reject invalid spans.
 
@@ -220,9 +250,9 @@ type Nested = `prefix-${`id-${number}`}`;
 let bad: Nested = "prefix-id-a";
 ```
 
-- contains: type string is not assignable to type `prefix-${`id-${number}`}`
+- contains: type "prefix-id-a" is not assignable to type nested
 
-## template literal type accepts union templates
+### template literal type accepts union templates
 
 > Union template literals accept any matching branch.
 
@@ -232,7 +262,7 @@ type Combo = `foo-${string}` | `bar-${string}`;
 let ok: Combo = "foo-x";
 ```
 
-## template literal type rejects non matching union templates
+### template literal type rejects non matching union templates
 
 > Union template literals reject strings outside every branch.
 
@@ -242,4 +272,4 @@ type Combo = `foo-${string}` | `bar-${string}`;
 let bad: Combo = "baz-x";
 ```
 
-- contains: type string is not assignable to type `foo-${string}` | `bar-${string}`
+- contains: type "baz-x" is not assignable to type combo

@@ -59,7 +59,7 @@ value satisfies string;
 
 > Any members collapse the union to any.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 

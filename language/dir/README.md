@@ -140,7 +140,7 @@ If we don't know the symbol at compile time, it's dynamic dispatch.
   - `Type::Binary`: `as`, `is`, `instanceof`, `satisfies`, `extends`, `implements`
   - `infer` and `asserts` move to `Type::Infer`/`Type::Predicate`
 - Supporting structs/enums:
-- `TypeMappedParameter { name, constraint, key_remap }`
+- `TypeMappedParameter { name, symbol, constraint, key_remap }`
 - `TypeMappedModifiers { readonly, optional }` with `TypeModifier` states
 - `TypePredicateSubject::Symbol(GlobalSymbolId) | This`
 - Extend DIR expression nodes to carry the new AST type forms in base DIR so Resolve/Analyze can later lower them into `Type` entries

@@ -1,15 +1,7 @@
 # Type Generics
 
-Tests for type operators and infer behavior in generic positions.
+Tests for generic behavior in type positions.
 
-## Coverage
-
-Coverage areas include:
-
-- Type operators like `keyof`, indexed access, mapped types, and conditional types.
-- Conditional `infer` bindings inside type operators.
-
-Relevant files:
 - `conditional-infer.md`
-- `type-operators.md`
+- `mapped-types.md`
 - `utility-types.md`

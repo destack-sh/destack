@@ -6,7 +6,7 @@
 
 > Catch variables default to unknown when enabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "useUnknownInCatchVariables": true } }
 ```
 
@@ -149,7 +149,7 @@ function read(): int {
 
 > Catch variables default to any when disabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false, "useUnknownInCatchVariables": false } }
 ```
 

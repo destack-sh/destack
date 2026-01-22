@@ -42,7 +42,7 @@ function greet(name: string): string {
 
 > Not all code paths return a value when implicit returns are disabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitReturns": true } }
 ```
 
@@ -61,7 +61,7 @@ function example(value: number): number {
 
 > Implicit return expressions satisfy the return requirement.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitReturns": true } }
 ```
 
@@ -78,7 +78,7 @@ function example(value: number): number {
 
 > Missing return paths are allowed when noImplicitReturns is false.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitReturns": false } }
 ```
 
@@ -96,7 +96,7 @@ function example(value: number): number | void {
 
 > Parameters without annotations or defaults are implicit any when strict checking is enabled.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -111,7 +111,7 @@ function handle(value) {
 
 > Defaults provide an inferred parameter type.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -125,7 +125,7 @@ function handle(value = 1) {
 
 > Bindings without annotations or initializers are implicit any.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitAny": true } }
 ```
 
@@ -141,7 +141,7 @@ let pending;
 
 > `this` inside functions requires an explicit `this` parameter in strict mode.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -157,7 +157,7 @@ function counter() {
 
 > Explicit `this` parameters provide a concrete type.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noImplicitThis": true } }
 ```
 
@@ -193,7 +193,7 @@ add satisfies (a: number, b: number) => number;
 
 > Function values expose Function prototype members.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -305,7 +305,7 @@ let wide: FnWide = narrow
 
 ### strictFunctionTypes false allows bivariant parameters
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strictFunctionTypes": false } }
 ```
 

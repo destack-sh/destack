@@ -8,7 +8,7 @@ Tests for the `any` type.
 
 > Any type accepts number values.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -21,7 +21,7 @@ value satisfies any;
 
 > Any type accepts string values.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -34,7 +34,7 @@ value satisfies any;
 
 > Any type accepts object values.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -49,7 +49,7 @@ value satisfies any;
 
 > Any is assignable to number (unsafe but allowed).
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -63,7 +63,7 @@ numberValue satisfies number;
 
 > Any is assignable to string (unsafe but allowed).
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -79,7 +79,7 @@ stringValue satisfies string;
 
 > Accessing a member on `any` produces `any`.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 
@@ -93,7 +93,7 @@ result satisfies any;
 
 > Indexing into `any` produces `any`.
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "noAny": false } }
 ```
 

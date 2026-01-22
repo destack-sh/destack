@@ -1,8 +1,10 @@
 # import.meta
 
+## tests
+
 Tests for module metadata available via `import.meta`.
 
-## output is a known union
+### output is a known union
 
 > `import.meta.output` returns the output format for the profile.
 
@@ -11,7 +13,7 @@ const output = import.meta.output;
 output satisfies "js" | "ts" | "wasm" | "native";
 ```
 
-## runtime is a known union
+### runtime is a known union
 
 > `import.meta.runtime` returns the runtime for the profile.
 
@@ -30,7 +32,7 @@ runtime satisfies
     | "native-embedded";
 ```
 
-## platform is a known union
+### platform is a known union
 
 > `import.meta.platform` returns the target platform for the profile.
 
@@ -48,7 +50,7 @@ platform satisfies
     | "universal";
 ```
 
-## debug and test are booleans
+### debug and test are booleans
 
 > `import.meta.debug` and `import.meta.test` are booleans.
 
@@ -57,7 +59,7 @@ const debug: boolean = import.meta.debug;
 const test: boolean = import.meta.test;
 ```
 
-## module paths are typed
+### module paths are typed
 
 > URL is always present and paths are optional.
 
@@ -70,7 +72,7 @@ const dir: string | undefined = import.meta.dir;
 const dirname: string | undefined = import.meta.dirname;
 ```
 
-## env exposes strings and helper fields
+### env exposes strings and helper fields
 
 > `import.meta.env` exposes string values and helpers.
 
@@ -83,7 +85,7 @@ const test: boolean = import.meta.env.TEST;
 const value: string | undefined = import.meta.env.CUSTOM_KEY;
 ```
 
-## import.meta is invalid in scripts
+### import.meta is invalid in scripts
 
 > `import.meta` is only available in modules.
 
@@ -91,4 +93,3 @@ const value: string | undefined = import.meta.env.CUSTOM_KEY;
 import.meta;
 ```
 
-- contains: import.meta is only available in modules

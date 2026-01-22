@@ -15,7 +15,8 @@ Destack extends TypeScript's type system with precise primitives, nominal types,
 | `primitives/` | Precise numeric types (`int32`, `float64`, etc.) |
 | `where/` | Readable generic constraints |
 | `references/` | Reference and value type annotations |
-| `generics/` | Type operators and conditional inference |
+| `operators/` | Type-level operators like `keyof` and `typeof` |
+| `generics/` | Generic inference and mapped/utility types |
 | `static-arguments/` | Static arguments for type and value parameters |
 | `template-literals/` | Template literal types and inference |
 

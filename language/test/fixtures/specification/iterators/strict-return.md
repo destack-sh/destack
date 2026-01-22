@@ -12,7 +12,7 @@ Tests for `strictBuiltinIteratorReturn`.
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 {
   "compilerOptions": {
     "strictBuiltinIteratorReturn": true,
@@ -37,7 +37,7 @@ const value: ReturnValue = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 {
   "compilerOptions": {
     "noAny": false,

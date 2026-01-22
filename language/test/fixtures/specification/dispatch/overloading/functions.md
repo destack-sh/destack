@@ -77,7 +77,7 @@ export function parse(value: string): number {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```
 
@@ -110,6 +110,6 @@ export function parse(value: string): number;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "allowTs": true, "checkTs": true } }
 ```

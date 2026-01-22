@@ -272,6 +272,8 @@ Unlike TypeScript's single `number` type, Destack's precise integers behave like
 they have defined overflow semantics (wrapping, saturating, or trapping), proper bitwise operations.
 (Of course, when transpiled to )
 
+Assignments from `number` to a precise numeric type (`int32`, `float64`, and so on) require an explicit conversion.
+
 #### Characters and Strings
 
 In addition `string`, Destack supports a single `character`:
@@ -280,6 +282,39 @@ In addition `string`, Destack supports a single `character`:
 
 Character and string are distinct types.
 No implicit widening between them is performed.
+
+#### Template Literal Types
+
+Template literal types use the same backtick syntax in type positions.
+Spans inside `${...}` are type expressions that must be stringifiable.
+
+Stringifiable span types include:
+- `string`, `number`, `bigint`, `boolean`, `null`, `undefined`, `any`
+- Template literal types and unions of stringifiable types
+
+Assignability rules:
+- A string literal is assignable to a template literal type when it matches the literal parts and each span constraint.
+- A template literal type is assignable to `string`.
+- Spans of `never` accept no strings, so template literals containing `never` are uninhabited.
+
+Literal span matching:
+- `${null}` only matches `"null"`.
+- `${undefined}` only matches `"undefined"`.
+- `symbol` is not stringifiable and cannot appear in template literal spans.
+
+Conditional inference:
+- Template literal types participate in conditional `infer` by splitting the string left to right on literal parts.
+- Template literal `infer` only matches when the checked type is a string literal or template literal type.
+- `string` and `unknown` do not match template literal patterns and fall back to the else branch.
+- `any` yields the union of both branches, matching TypeScript's conditional behavior.
+
+Numeric span matching:
+- `number` spans match TypeScript numeric strings: decimal forms with optional sign, fractional part, and exponent, plus hex/binary/octal literals without a sign.
+- `NaN` and `Infinity` are not matched by `${number}`.
+- Whitespace is not allowed in numeric string forms.
+- `bigint` spans match bigint literal strings with optional leading `-` and optional hex/binary/octal prefix; whitespace and `+` are not allowed.
+- TS++ numeric primitives (`int32`, `uint64`, `float32`, and so on) use the same matching rules with the appropriate range checks and integer enforcement.
+- When `infer` binds numeric spans, only canonical numeric strings infer literal types; non-canonical numeric strings infer the primitive type instead.
 
 ### Type Aliases and Newtypes
 
@@ -468,6 +503,7 @@ The rules for arrays and tuples center around correctness and performance:
 - Mutable arrays are assignable to readonly arrays.
 - Readonly arrays are not assignable to mutable arrays.
 - Readonly tuples are also not assignable to mutable tuples.
+- Tuples are fixed-length value types and are assignable to arrays when their element types are compatible.
 
 ### References and Values
 
@@ -818,6 +854,15 @@ Value parameters accept static expressions and are constrained by value types.
 Value parameters should include a value constraint or a value default so their kind is unambiguous.
 Static arguments are resolved during Analyze, so they must be static expressions and cannot require full comptime execution.
 Static arguments may reference other static parameters.
+Static value arguments are explicit; they are not inferred from call sites or usage.
+Enum members may be used as static value arguments only when the parameter type is that enum (or a union including it); enum members do not implicitly coerce to their backing types.
+Static value arguments may use any static expression form (including tuple, array, and object expressions) as long as the resulting static value satisfies the declared value type.
+Static value arguments may be inferred from literal argument expressions in the current module when no explicit static argument is provided.
+Inference only uses fully static literal expressions (scalar literals, enum members, tuples, arrays, and objects).
+Non-static expressions, computed values, and cross-module inference do not participate in static value inference.
+Literal array arguments may infer the length when matching fixed-size array types like `T[N]`.
+Tuple literal arguments use Destack's tuple syntax `(a, b)` for inference.
+Static value arguments may reference `const` bindings with static initializers, including imported constants, as long as the resulting value is a static expression.
 
 Static parameterisation for types works like in TypeScript.
 In Destack, static parameters also work for "compile-time" values and look more like dynamic parameters (though TypeScript syntax with `T extends U` is still supported).
@@ -2007,16 +2052,21 @@ format("json")    // calls first overload (not second!)
 ```
 
 The compiler warns when an overload is shadowed by an "earlier" declaration that always matches first.
-For union argument types, each union member is matched against the overloads:
+For union argument types, the argument must be assignable to a single overload:
 
 ```
 function handle(x: string): string;
 function handle(x: number): number;
 
 const y: string | number = getValue();
-// both overloads may be called at runtime
-// returns: `string | number`
-handle(y);  
+handle(y);  // error: union argument not assignable to any overload
+```
+
+```
+function handle(x: string | number): string | number;
+
+const y: string | number = getValue();
+handle(y);  // ok
 ```
 
 ##### Dynamic Resolution on Unions
@@ -2892,6 +2942,7 @@ Out of bounds accesses trigger the configured bounds check failure.
 `noUncheckedIndexedAccess` only affects index signatures and other dynamic indexers.
 String index signatures accept numeric index expressions because numeric keys coerce to strings.
 Number index signatures accept numeric indices and numeric string literals that are canonical JS numeric names.
+Symbol index signatures accept symbol keys and `keyof` yields `symbol`.
 
 ### Type Operators
 
@@ -2912,9 +2963,53 @@ Type-level operators (not overloadable):
 The `is` operator uses `T.is` when runtime checks are required.
 The `instanceof` operator is only defined for class identity checks.
 The `in` operator returns a boolean literal when the key is assignable to `keyof` of the right type.
+
+For unions, `keyof (A | B)` is the intersection of keys present on every union member.
+For intersections, `keyof (A & B)` is the union of keys from all intersected types.
+The `in` operator follows the same `keyof` rules for unions and intersections.
 The `extends` and `implements` operators return boolean literals when assignability is decidable and `boolean` otherwise.
+
 Conditional types allow `infer` bindings inside the `extends` pattern.
 The inferred bindings are scoped to the conditional type and available in the true branch.
+
+Repeated `infer` bindings union candidates in covariant positions and intersect candidates in contravariant positions (such as function parameters).
+
+Conditional types distribute over unions only when the left side is a naked type parameter.
+Distributive conditionals treat `never` as an empty union and evaluate to `never`.
+
+When the checked type is `any`, the result is the union of the true and false branches.
+Wrapping the type parameter (for example, in a tuple) disables distributive behavior.
+
+When `never` is matched against an `infer` pattern, inference yields `never` for structural and template literal patterns.
+
+### Mapped Types
+
+Mapped types construct new object types by iterating over keys.
+They follow TypeScript semantics and are primarily used by utility types like `Partial` and `Readonly`.
+
+```
+type Flags<T> = { [K in keyof T]: boolean };
+type Optional<T> = { [K in keyof T]?: T[K] };
+type Required<T> = { [K in keyof T]-?: T[K] };
+type Frozen<T> = { readonly [K in keyof T]: T[K] };
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+```
+
+Key remapping is supported with `as`:
+
+```
+type Renamed<T> = { [K in keyof T as "value"]: T[K] };
+```
+
+### Utility Types
+
+Destack provides the standard TypeScript utility types via the builtin libs.
+They are defined using mapped and conditional types and follow TypeScript semantics:
+
+- `Partial<T>`, `Required<T>`, `Readonly<T>`
+- `Pick<T, K>`, `Omit<T, K>`
+- `Exclude<T, U>`, `Extract<T, U>`
+- `NonNullable<T>`
 
 ### Other Operators
 

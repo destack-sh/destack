@@ -18,7 +18,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -38,7 +38,7 @@ function handle(value) {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -54,7 +54,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -72,7 +72,7 @@ let value: int32 = null;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -90,7 +90,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -110,7 +110,7 @@ function counter() {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": false } }
 ```
 
@@ -131,7 +131,7 @@ let wide: FnWide = narrow;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -153,7 +153,7 @@ add.call({ base: "no" }, 1);
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -173,7 +173,7 @@ const value: ReturnValue = 1;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 {
   "compilerOptions": { "strict": true, "lib": ["es5", "es2015.iterable"] }
 }
@@ -195,7 +195,7 @@ class Counter {
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 
@@ -219,7 +219,7 @@ value satisfies int;
 { "name": "spec" }
 ```
 
-```ds:dsconfig.json
+```json:dsconfig.json
 { "compilerOptions": { "strict": true } }
 ```
 

@@ -1,8 +1,10 @@
 # Call Resolution
 
-## union method call selects per-variant overloads
+## tests
 
-> Overload selection happens per union variant.
+### union method call selects compatible overloads
+
+> Overload selection uses signatures compatible with the argument.
 
 ```ds
 struct Cat {
@@ -31,7 +33,7 @@ const sound = getPet().speak("loud");
 sound satisfies string | int32;
 ```
 
-## union method call honors overload declaration order
+### union method call honors overload declaration order
 
 > Overloads resolve in declaration order for each union variant.
 
@@ -58,7 +60,7 @@ const sound = getPet().speak("loud");
 sound satisfies string;
 ```
 
-## union method call resolves inherent and extension members
+### union method call resolves inherent and extension members
 
 > Dynamic resolution accounts for inherent and extension members together.
 
@@ -85,9 +87,9 @@ const sound = getPet().speak();
 sound satisfies string;
 ```
 
-## union method call rejects union argument without matching overload
+### union method call rejects union arguments without compatible overload
 
-> Calls require a matching overload for every union variant.
+> Union arguments must match a single compatible overload.
 
 ```ds
 struct Cat {
@@ -119,9 +121,9 @@ getPet().speak(volume);
 
 - contains: no matching overload
 
-## union method call accepts union arguments with full coverage
+### union method call rejects union arguments with only per-overload coverage
 
-> Union arguments are valid when every variant has matching overloads.
+> Union arguments must be accepted by a single overload.
 
 ```ds
 struct Cat {
@@ -148,11 +150,37 @@ declare function getPet(): Cat | Dog;
 
 const volume: string | int32 = "loud";
 
+getPet().speak(volume);
+```
+
+- contains: no matching overload
+
+### union method call accepts union argument with union overload
+
+> Union arguments are allowed when an overload accepts the union.
+
+```ds
+struct Cat {
+    speak(volume: string | int32): string {
+        volume
+    }
+}
+
+struct Dog {
+    speak(volume: string | int32): int32 {
+        1
+    }
+}
+
+declare function getPet(): Cat | Dog;
+
+const volume: string | int32 = "loud";
+
 const sound = getPet().speak(volume);
 sound satisfies string | int32;
 ```
 
-## union method call returns union for extension overloads
+### union method call returns union for extension overloads
 
 > Extension overloads participate in dynamic call resolution.
 
