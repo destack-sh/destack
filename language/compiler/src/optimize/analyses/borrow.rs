@@ -91,6 +91,12 @@ pub struct BorrowMap {
     reference_origins: HashMap<Value, Value>,
     /// For each reference value, where it was created.
     reference_locations: HashMap<Value, mir::LocalNodeId<Instruction>>,
+    /// For each local slot, its borrow state.
+    local_states: HashMap<mir::LocalNodeId<mir::Local>, BorrowState>,
+    /// For each reference value, which local slot it borrows from.
+    local_reference_origins: HashMap<Value, mir::LocalNodeId<mir::Local>>,
+    /// For each local reference value, where it was created.
+    local_reference_locations: HashMap<Value, mir::LocalNodeId<Instruction>>,
 }
 
 impl BorrowMap {
@@ -117,6 +123,11 @@ impl BorrowMap {
         self.reference_origins.get(&reference).copied()
     }
 
+    /// Get the local origin for a reference value.
+    pub fn local_reference_origin(&self, reference: Value) -> Option<mir::LocalNodeId<mir::Local>> {
+        self.local_reference_origins.get(&reference).copied()
+    }
+
     /// Record a new borrow.
     pub fn add_borrow(
         &mut self,
@@ -129,22 +140,37 @@ impl BorrowMap {
         self.reference_locations.insert(reference, at);
     }
 
+    /// Record a new local borrow.
+    pub fn add_local_borrow(
+        &mut self,
+        reference: Value,
+        local: mir::LocalNodeId<mir::Local>,
+        at: mir::LocalNodeId<Instruction>,
+    ) {
+        self.local_states
+            .insert(local, BorrowState::Borrowed { at });
+        self.local_reference_origins.insert(reference, local);
+        self.local_reference_locations.insert(reference, at);
+    }
+
     /// Transfer borrow relationship from one reference to another.
     ///
     /// Used when a reference is passed through a block parameter, the block
     /// parameter inherits the borrow relationship of the argument.
     pub fn transfer_borrow(&mut self, from_ref: Value, to_ref: Value) {
-        let origin = match self.reference_origins.get(&from_ref) {
-            Some(&o) => o,
-            None => return,
-        };
-        let at = match self.reference_locations.get(&from_ref) {
-            Some(&a) => a,
-            None => return,
-        };
+        if let Some(&origin) = self.reference_origins.get(&from_ref)
+            && let Some(&at) = self.reference_locations.get(&from_ref)
+        {
+            self.reference_origins.insert(to_ref, origin);
+            self.reference_locations.insert(to_ref, at);
+        }
 
-        self.reference_origins.insert(to_ref, origin);
-        self.reference_locations.insert(to_ref, at);
+        if let Some(&local) = self.local_reference_origins.get(&from_ref)
+            && let Some(&at) = self.local_reference_locations.get(&from_ref)
+        {
+            self.local_reference_origins.insert(to_ref, local);
+            self.local_reference_locations.insert(to_ref, at);
+        }
     }
 
     /// Remove a borrow when its reference dies.
@@ -157,11 +183,25 @@ impl BorrowMap {
             }
         }
         self.reference_locations.remove(&reference);
+
+        if let Some(local) = self.local_reference_origins.remove(&reference) {
+            let has_other_borrows = self
+                .local_reference_origins
+                .values()
+                .any(|&orig| orig == local);
+            if !has_other_borrows {
+                self.local_states.remove(&local);
+            }
+        }
+        self.local_reference_locations.remove(&reference);
     }
 
     /// Get all references that are currently active.
     pub fn active_references(&self) -> impl Iterator<Item = Value> + '_ {
-        self.reference_origins.keys().copied()
+        self.reference_origins
+            .keys()
+            .copied()
+            .chain(self.local_reference_origins.keys().copied())
     }
 
     /// Get all values that are currently borrowed.
@@ -181,11 +221,31 @@ impl BorrowMap {
                     .map(|&loc| (reference, origin, loc))
             })
     }
+
+    /// Get all active local borrows as (reference, local, location) tuples.
+    pub fn active_local_borrows(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            Value,
+            mir::LocalNodeId<mir::Local>,
+            mir::LocalNodeId<Instruction>,
+        ),
+    > + '_ {
+        self.local_reference_origins
+            .iter()
+            .filter_map(|(&reference, &local)| {
+                self.local_reference_locations
+                    .get(&reference)
+                    .map(|&loc| (reference, local, loc))
+            })
+    }
 }
 
 impl Lattice for BorrowMap {
     fn meet(&self, other: &Self) -> Self {
         let mut result_states = self.states.clone();
+        let mut result_local_states = self.local_states.clone();
 
         // merge borrow states
         for (&value, state_b) in &other.states {
@@ -202,6 +262,17 @@ impl Lattice for BorrowMap {
                 });
         }
 
+        for (&local, state_b) in &other.local_states {
+            result_local_states
+                .entry(local)
+                .and_modify(|state_a| {
+                    *state_a = state_a.clone().meet(state_b.clone());
+                })
+                .or_insert_with(|| BorrowState::MaybeBorrowed {
+                    first_at: state_b.borrow_location().unwrap(),
+                });
+        }
+
         // merge reference tracking
         let mut result_origins = self.reference_origins.clone();
         for (&reference, &origin) in &other.reference_origins {
@@ -213,10 +284,23 @@ impl Lattice for BorrowMap {
             result_locations.entry(reference).or_insert(loc);
         }
 
+        let mut result_local_origins = self.local_reference_origins.clone();
+        for (&reference, &local) in &other.local_reference_origins {
+            result_local_origins.entry(reference).or_insert(local);
+        }
+
+        let mut result_local_locations = self.local_reference_locations.clone();
+        for (&reference, &loc) in &other.local_reference_locations {
+            result_local_locations.entry(reference).or_insert(loc);
+        }
+
         BorrowMap {
             states: result_states,
             reference_origins: result_origins,
             reference_locations: result_locations,
+            local_states: result_local_states,
+            local_reference_origins: result_local_origins,
+            local_reference_locations: result_local_locations,
         }
     }
 }
@@ -279,9 +363,13 @@ impl BorrowAnalysis {
                 }
 
                 // expire borrows whose references are not live-in to this block
+                let is_live_in = |value| {
+                    liveness.is_live_in(block_id, value)
+                        || block.parameters.iter().any(|param| param.value == value)
+                };
                 let dead_refs: Vec<Value> = state
                     .active_references()
-                    .filter(|&reference| !liveness.is_live_in(block_id, reference))
+                    .filter(|&reference| !is_live_in(reference))
                     .collect();
                 for reference in dead_refs {
                     state.expire_borrow(reference);
@@ -306,8 +394,43 @@ impl BorrowAnalysis {
             },
         );
 
+        let mut entry_with_transfers = HashMap::new();
+        for &block_id in &function.blocks {
+            let Some(entry_state) = result.block_entry.get(&block_id) else {
+                continue;
+            };
+
+            let block = tree.get(block_id);
+            let mut state = entry_state.clone();
+
+            // transfer borrow relationships from predecessor jump args to block params
+            for &pred_id in cfg.predecessors(block_id) {
+                let pred_block = tree.get(pred_id);
+                let arguments =
+                    terminator_arguments_for_successor(&pred_block.terminator, block_id);
+                for (param, arg) in block.parameters.iter().zip(arguments) {
+                    state.transfer_borrow(*arg, param.value);
+                }
+            }
+
+            // expire borrows whose references are not live-in to this block
+            let is_live_in = |value| {
+                liveness.is_live_in(block_id, value)
+                    || block.parameters.iter().any(|param| param.value == value)
+            };
+            let dead_refs: Vec<Value> = state
+                .active_references()
+                .filter(|&reference| !is_live_in(reference))
+                .collect();
+            for reference in dead_refs {
+                state.expire_borrow(reference);
+            }
+
+            entry_with_transfers.insert(block_id, state);
+        }
+
         Self {
-            block_entry: result.block_entry,
+            block_entry: entry_with_transfers,
             block_exit: result.block_exit,
         }
     }
@@ -334,6 +457,12 @@ fn apply_instruction_effects(
             destination, array, ..
         } => {
             state.add_borrow(*destination, *array, inst_id);
+        }
+        // local.addr creates a borrow of the local slot
+        Instruction::LocalAddr {
+            destination, local, ..
+        } => {
+            state.add_local_borrow(*destination, *local, inst_id);
         }
 
         _ => {}

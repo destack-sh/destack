@@ -112,6 +112,43 @@ impl<'a> MoveCheckContext<'a> {
         }
     }
 
+    /// Check if using a local is valid at the current state.
+    fn check_local_use(
+        &self,
+        state: &OwnershipMap,
+        local: mir::LocalNodeId<mir::Local>,
+        at_instruction: Option<mir::LocalNodeId<Instruction>>,
+        at_block: mir::LocalNodeId<mir::Block>,
+        context: &impl DiagnosticEmitter,
+    ) {
+        // read local state when tracked
+        if let Some(ownership) = state.local_state(local)
+            && ownership.is_moved()
+        {
+            // build the use anchor
+            let use_anchor = if let Some(instruction_id) = at_instruction {
+                self.anchor_instruction(instruction_id)
+            } else {
+                self.anchor_block(at_block)
+            };
+
+            // build the move anchor
+            let move_anchor = self.anchor(ownership.move_location().unwrap());
+
+            if ownership.is_maybe_moved() {
+                context.emit_error(OptimizeError::MaybeUseAfterMove {
+                    node: use_anchor,
+                    moved_at: move_anchor,
+                });
+            } else {
+                context.emit_error(OptimizeError::UseAfterMove {
+                    node: use_anchor,
+                    moved_at: move_anchor,
+                });
+            }
+        }
+    }
+
     /// Run the move check on a function.
     fn check(&self, function: &mir::Function, context: &impl DiagnosticEmitter) {
         if function.entry.is_none() {
@@ -171,6 +208,11 @@ impl<'a> MoveCheckContext<'a> {
                 self.check_use(state, arg, Some(instruction_id), block_id, context);
             }
         }
+
+        // check local reads against local ownership state
+        if let Instruction::LocalGet { local, .. } | Instruction::LocalAddr { local, .. } = inst {
+            self.check_local_use(state, *local, Some(instruction_id), block_id, context);
+        }
     }
 
     /// Apply the effects of an instruction on ownership state.
@@ -200,8 +242,16 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, *v, None, block_id, context);
                 }
             }
-            mir::Terminator::Branch { condition, .. } => {
+            mir::Terminator::Branch {
+                condition,
+                then_arguments,
+                else_arguments,
+                ..
+            } => {
                 self.check_use(state, *condition, None, block_id, context);
+                for &arg in then_arguments.iter().chain(else_arguments.iter()) {
+                    self.check_use(state, arg, None, block_id, context);
+                }
             }
             mir::Terminator::Check {
                 condition,
@@ -217,8 +267,21 @@ impl<'a> MoveCheckContext<'a> {
                     self.check_use(state, arg, None, block_id, context);
                 }
             }
-            mir::Terminator::Switch { value, .. } => {
+            mir::Terminator::Switch {
+                value,
+                default_arguments,
+                cases,
+                ..
+            } => {
                 self.check_use(state, *value, None, block_id, context);
+                for &arg in default_arguments {
+                    self.check_use(state, arg, None, block_id, context);
+                }
+                for case in cases {
+                    for &arg in &case.arguments {
+                        self.check_use(state, arg, None, block_id, context);
+                    }
+                }
             }
             mir::Terminator::Jump { arguments, .. } => {
                 for &arg in arguments {
@@ -700,6 +763,78 @@ block0:
     v0 = managed.alloc i32 -> ref<managed i32>
     local.set local0, v0
     raw.drop v0
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+    }
+
+    /// Use after move through a cast is detected.
+    #[test]
+    fn test_detect_move_through_cast_from_local() {
+        let input = r#"extern function @consume(ref<managed i32>) -> void
+
+function @test() -> void {
+local0: ref<managed i32>
+block0:
+    v0 = managed.alloc i32 -> ref<managed i32>
+    local.set local0, v0
+    v1 = local.get local0
+    v2 = bitcast v1 -> ref<managed i32>
+    call @consume(v2) -> fn(ref<managed i32>) -> void
+    v3 = local.get local0
+    raw.drop v3
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+    }
+
+    /// Use after move through a block parameter is detected.
+    #[test]
+    fn test_detect_move_through_block_param() {
+        let input = r#"extern function @consume(ref<managed i32>) -> void
+
+function @test() -> void {
+local0: ref<managed i32>
+block0:
+    v0 = managed.alloc i32 -> ref<managed i32>
+    local.set local0, v0
+    v1 = local.get local0
+    jump block1(v1)
+block1(v2: ref<managed i32>):
+    call @consume(v2) -> fn(ref<managed i32>) -> void
+    v3 = local.get local0
+    raw.drop v3
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&MoveCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::UseAfterMove { .. }));
+    }
+
+    /// Use after move through a select is detected.
+    #[test]
+    fn test_detect_move_through_select() {
+        let input = r#"extern function @consume(ref<managed i32>) -> void
+
+function @test() -> void {
+local0: ref<managed i32>
+block0:
+    v0 = managed.alloc i32 -> ref<managed i32>
+    local.set local0, v0
+    v1 = local.get local0
+    v2 = local.get local0
+    v3 = iconst true
+    v4 = select v3, v1, v2
+    call @consume(v4) -> fn(ref<managed i32>) -> void
+    v5 = local.get local0
+    raw.drop v5
     return
 }"#;
 

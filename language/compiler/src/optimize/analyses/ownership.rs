@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use destack_mir as mir;
 use mir::{AddressSpace, Instruction, Mutability, ReferenceKind, Type, Value};
 
-use super::{ControlFlowGraph, Lattice, forward_dataflow};
+use super::{ControlFlowGraph, DataflowResult, Lattice};
 use crate::optimize::common::{ConstantType, TypeKey, constant_matches_type, types_are_equal};
 use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
 
@@ -59,24 +59,35 @@ impl OwnershipState {
     }
 }
 
-/// Ownership state for all values at a test point.
+/// Ownership state for all values and locals at a test point.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct OwnershipMap(pub HashMap<Value, OwnershipState>);
+pub struct OwnershipMap {
+    /// Ownership state for values.
+    values: HashMap<Value, OwnershipState>,
+    /// Ownership state for locals.
+    locals: HashMap<mir::LocalNodeId<mir::Local>, OwnershipState>,
+    /// Origins for values.
+    origins: HashMap<Value, mir::LocalNodeId<mir::Local>>,
+}
 
 impl OwnershipMap {
     /// Create an empty ownership map.
     pub fn new() -> Self {
-        Self(HashMap::new())
+        Self {
+            values: HashMap::new(),
+            locals: HashMap::new(),
+            origins: HashMap::new(),
+        }
     }
 
     /// Get the ownership state for a value.
     pub fn get(&self, value: Value) -> Option<&OwnershipState> {
-        self.0.get(&value)
+        self.values.get(&value)
     }
 
     /// Check if a value is owned (usable).
     pub fn is_owned(&self, value: Value) -> bool {
-        self.0
+        self.values
             .get(&value)
             .map(|s| matches!(s, OwnershipState::Owned))
             .unwrap_or(true) // unknown values are assumed owned
@@ -84,21 +95,32 @@ impl OwnershipMap {
 
     /// Check if a value is moved.
     pub fn is_moved(&self, value: Value) -> bool {
-        self.0.get(&value).map(|s| s.is_moved()).unwrap_or(false)
+        self.values
+            .get(&value)
+            .map(|s| s.is_moved())
+            .unwrap_or(false)
     }
 
     /// Mark a value as owned.
     pub fn mark_owned(&mut self, value: Value) {
-        self.0.insert(value, OwnershipState::Owned);
+        self.values.insert(value, OwnershipState::Owned);
     }
 
     /// Mark a value as moved.
     pub fn mark_moved(&mut self, value: Value, at: MoveLocation) {
-        self.0.insert(value, OwnershipState::Moved { at });
+        self.values.insert(value, OwnershipState::Moved { at });
     }
 
-    /// Mark a value as moved if it's not a copy type.
-    pub fn mark_moved_if_not_copy(
+    /// Mark a value as moved and propagate to the source local when tracked.
+    pub fn mark_moved_with_source(&mut self, value: Value, at: MoveLocation) {
+        self.mark_moved(value, at.clone());
+        if let Some(local) = self.origin_for_value(value) {
+            self.mark_local_moved(local, at);
+        }
+    }
+
+    /// Mark a value as moved when it is not copy and propagate to locals.
+    pub fn mark_moved_if_not_copy_with_source(
         &mut self,
         value: Value,
         at: MoveLocation,
@@ -107,16 +129,62 @@ impl OwnershipMap {
         copy_values: &HashSet<Value>,
     ) {
         if !value_is_copy(value, tree, value_types, copy_values) {
-            self.mark_moved(value, at);
+            self.mark_moved_with_source(value, at);
         }
+    }
+
+    /// Get the origin local for a value, if known.
+    pub fn origin_for_value(&self, value: Value) -> Option<mir::LocalNodeId<mir::Local>> {
+        self.origins.get(&value).copied()
+    }
+
+    /// Set the origin local for a value.
+    pub fn set_origin(&mut self, value: Value, origin: Option<mir::LocalNodeId<mir::Local>>) {
+        if let Some(local) = origin {
+            self.origins.insert(value, local);
+        } else {
+            self.origins.remove(&value);
+        }
+    }
+
+    /// Get the ownership state for a local.
+    pub fn local_state(&self, local: mir::LocalNodeId<mir::Local>) -> Option<&OwnershipState> {
+        self.locals.get(&local)
+    }
+
+    /// Check if a local is owned (usable).
+    pub fn local_is_owned(&self, local: mir::LocalNodeId<mir::Local>) -> bool {
+        self.locals
+            .get(&local)
+            .map(|s| matches!(s, OwnershipState::Owned))
+            .unwrap_or(true) // unknown locals are assumed owned
+    }
+
+    /// Check if a local is moved.
+    pub fn local_is_moved(&self, local: mir::LocalNodeId<mir::Local>) -> bool {
+        self.locals
+            .get(&local)
+            .map(|s| s.is_moved())
+            .unwrap_or(false)
+    }
+
+    /// Mark a local as owned.
+    pub fn mark_local_owned(&mut self, local: mir::LocalNodeId<mir::Local>) {
+        self.locals.insert(local, OwnershipState::Owned);
+    }
+
+    /// Mark a local as moved.
+    pub fn mark_local_moved(&mut self, local: mir::LocalNodeId<mir::Local>, at: MoveLocation) {
+        self.locals.insert(local, OwnershipState::Moved { at });
     }
 }
 
 impl Lattice for OwnershipMap {
     fn meet(&self, other: &Self) -> Self {
-        let mut result = self.0.clone();
-        for (value, state_b) in &other.0 {
-            result
+        // merge value ownership
+        let mut result_values = self.values.clone();
+        for (value, state_b) in &other.values {
+            result_values
                 .entry(*value)
                 .and_modify(|state_a| {
                     *state_a = match (&*state_a, state_b) {
@@ -140,7 +208,50 @@ impl Lattice for OwnershipMap {
                 })
                 .or_insert_with(|| state_b.clone());
         }
-        OwnershipMap(result)
+
+        // merge local ownership
+        let mut result_locals = self.locals.clone();
+        for (local, state_b) in &other.locals {
+            result_locals
+                .entry(*local)
+                .and_modify(|state_a| {
+                    *state_a = match (&*state_a, state_b) {
+                        (OwnershipState::Owned, OwnershipState::Owned) => OwnershipState::Owned,
+                        (OwnershipState::Moved { at }, OwnershipState::Moved { .. }) => {
+                            OwnershipState::Moved { at: at.clone() }
+                        }
+                        (OwnershipState::MaybeMoved { first_move }, _)
+                        | (_, OwnershipState::MaybeMoved { first_move }) => {
+                            OwnershipState::MaybeMoved {
+                                first_move: first_move.clone(),
+                            }
+                        }
+                        (OwnershipState::Owned, OwnershipState::Moved { at })
+                        | (OwnershipState::Moved { at }, OwnershipState::Owned) => {
+                            OwnershipState::MaybeMoved {
+                                first_move: at.clone(),
+                            }
+                        }
+                    };
+                })
+                .or_insert_with(|| state_b.clone());
+        }
+
+        // merge value origins (only keep when both agree)
+        let mut result_origins = HashMap::new();
+        for (value, local) in &self.origins {
+            if let Some(other_local) = other.origins.get(value)
+                && other_local == local
+            {
+                result_origins.insert(*value, *local);
+            }
+        }
+
+        OwnershipMap {
+            values: result_values,
+            locals: result_locals,
+            origins: result_origins,
+        }
     }
 }
 
@@ -351,6 +462,7 @@ pub struct OwnershipAnalysis {
     /// Structural type keys for values when available.
     value_type_keys: HashMap<Value, TypeKey>,
     /// Values known to be copy types (constants, etc.).
+    /// FUGU: remove copy_values, all Values should be fully typed
     copy_values: HashSet<Value>,
     /// Values allocated on the stack (from StackAlloc).
     /// Used to determine whether to emit StackDrop vs RawDrop.
@@ -453,6 +565,26 @@ impl OwnershipAnalysis {
         }
     }
 
+    /// Set the origin for a destination value when it is move-only.
+    fn set_origin_for_destination(
+        &self,
+        state: &mut OwnershipMap,
+        destination: Value,
+        origin: Option<mir::LocalNodeId<mir::Local>>,
+        tree: &mir::NodeTree,
+    ) {
+        if !self.value_types.contains_key(&destination) {
+            state.set_origin(destination, None);
+            return;
+        }
+
+        if !self.value_is_copy(destination, tree) {
+            state.set_origin(destination, origin);
+        } else {
+            state.set_origin(destination, None);
+        }
+    }
+
     /// Check if a value was allocated on the stack.
     ///
     /// Stack-allocated values use StackDrop (no-op, frame handles cleanup)
@@ -482,25 +614,32 @@ impl OwnershipAnalysis {
         match inst {
             // raw.drop/stack.drop/raw.free always consume
             Instruction::RawDrop { value } => {
-                state.mark_moved(*value, at);
+                state.mark_moved_with_source(*value, at);
             }
             Instruction::StackDrop { value } => {
-                state.mark_moved(*value, at);
+                state.mark_moved_with_source(*value, at);
             }
             Instruction::RawFree { pointer } => {
-                state.mark_moved(*pointer, at);
+                state.mark_moved_with_source(*pointer, at);
             }
 
             // store/local.set move the value (if non-copy)
             Instruction::Store { value, .. } => {
                 if !self.value_is_copy(*value, tree) {
-                    state.mark_moved(*value, at);
+                    state.mark_moved_with_source(*value, at);
                 }
             }
-            Instruction::LocalSet { value, .. } => {
+            Instruction::LocalSet { value, local } => {
                 if !self.value_is_copy(*value, tree) {
-                    state.mark_moved(*value, at);
+                    state.mark_moved_with_source(*value, at);
                 }
+                state.mark_local_owned(*local);
+            }
+
+            // local.get reads the local into an owned value
+            Instruction::LocalGet { destination, local } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, Some(*local), tree);
             }
 
             // call moves arguments (if non-copy)
@@ -511,46 +650,76 @@ impl OwnershipAnalysis {
                 let args = tree.get_arguments(*arguments);
                 for &arg in args {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
                 if let Some(dest) = inst.destination() {
                     state.mark_owned(dest);
+                    self.set_origin_for_destination(state, dest, None, tree);
                 }
             }
 
             // field.set/element.set move the value (if non-copy)
-            Instruction::FieldSet { value, .. } | Instruction::ElementSet { value, .. } => {
+            Instruction::FieldSet {
+                destination,
+                aggregate,
+                value,
+                ..
+            } => {
                 if !self.value_is_copy(*value, tree) {
-                    state.mark_moved(*value, at);
+                    state.mark_moved_with_source(*value, at);
                 }
-                if let Some(dest) = inst.destination() {
-                    state.mark_owned(dest);
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*aggregate);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::ElementSet {
+                destination,
+                array,
+                value,
+                ..
+            } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
                 }
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*array);
+                self.set_origin_for_destination(state, *destination, origin, tree);
             }
 
             // aggregate construction moves fields (if non-copy)
-            Instruction::Struct { fields, .. } => {
+            Instruction::Struct {
+                destination,
+                fields,
+                ..
+            } => {
                 let field_values = tree.get_arguments(*fields);
                 for &field in field_values {
                     if !self.value_is_copy(field, tree) {
-                        state.mark_moved(field, at.clone());
+                        state.mark_moved_with_source(field, at.clone());
                     }
                 }
-                if let Some(dest) = inst.destination() {
-                    state.mark_owned(dest);
-                }
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
             }
-            Instruction::Tuple { elements, .. } | Instruction::Array { elements, .. } => {
+            Instruction::Tuple {
+                destination,
+                elements,
+                ..
+            }
+            | Instruction::Array {
+                destination,
+                elements,
+                ..
+            } => {
                 let elem_values = tree.get_arguments(*elements);
                 for &elem in elem_values {
                     if !self.value_is_copy(elem, tree) {
-                        state.mark_moved(elem, at.clone());
+                        state.mark_moved_with_source(elem, at.clone());
                     }
                 }
-                if let Some(dest) = inst.destination() {
-                    state.mark_owned(dest);
-                }
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
             }
 
             // intrinsics: some consume their arguments
@@ -564,20 +733,95 @@ impl OwnershipAnalysis {
                     if let Some(&arg) = args.get(idx as usize)
                         && !self.value_is_copy(arg, tree)
                     {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
                 if let Some(dest) = inst.destination() {
                     state.mark_owned(dest);
+                    self.set_origin_for_destination(state, dest, None, tree);
                 }
             }
 
             // instructions that produce owned values
-            _ => {
-                if let Some(dest) = inst.destination() {
-                    state.mark_owned(dest);
-                }
+            Instruction::Binary { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
             }
+            Instruction::Unary {
+                destination,
+                argument,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*argument);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::Cast {
+                destination,
+                argument,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*argument);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::Select {
+                destination,
+                then_value,
+                else_value,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = match (
+                    state.origin_for_value(*then_value),
+                    state.origin_for_value(*else_value),
+                ) {
+                    (Some(left), Some(right)) if left == right => Some(left),
+                    _ => None,
+                };
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::Load { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::FieldGet {
+                destination,
+                aggregate,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*aggregate);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::FieldAddr { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::ElementGet {
+                destination, array, ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*array);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::ElementAddr { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::Const { destination, .. }
+            | Instruction::GlobalAddr { destination, .. }
+            | Instruction::LocalAddr { destination, .. }
+            | Instruction::GlobalConst { destination, .. }
+            | Instruction::ManagedAlloc { destination, .. }
+            | Instruction::RawAlloc { destination, .. }
+            | Instruction::StackAlloc { destination, .. }
+            | Instruction::ManagedAllocArray { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+
+            Instruction::Assume { .. } => {}
         }
     }
 
@@ -598,13 +842,13 @@ impl OwnershipAnalysis {
                 if let Some(v) = value
                     && !self.value_is_copy(*v, tree)
                 {
-                    state.mark_moved(*v, at);
+                    state.mark_moved_with_source(*v, at);
                 }
             }
             mir::Terminator::Jump { arguments, .. } => {
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
@@ -614,11 +858,11 @@ impl OwnershipAnalysis {
                 ..
             } => {
                 if !self.value_is_copy(*value, tree) {
-                    state.mark_moved(*value, at.clone());
+                    state.mark_moved_with_source(*value, at.clone());
                 }
                 for &arg in resume_arguments {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
@@ -629,7 +873,7 @@ impl OwnershipAnalysis {
             mir::Terminator::TailCall { arguments, .. } => {
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
@@ -644,11 +888,11 @@ impl OwnershipAnalysis {
                 ..
             } => {
                 if !self.value_is_copy(*receiver, tree) {
-                    state.mark_moved(*receiver, at.clone());
+                    state.mark_moved_with_source(*receiver, at.clone());
                 }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
@@ -656,11 +900,11 @@ impl OwnershipAnalysis {
                 callee, arguments, ..
             } => {
                 if !self.value_is_copy(*callee, tree) {
-                    state.mark_moved(*callee, at.clone());
+                    state.mark_moved_with_source(*callee, at.clone());
                 }
                 for &arg in arguments {
                     if !self.value_is_copy(arg, tree) {
-                        state.mark_moved(arg, at.clone());
+                        state.mark_moved_with_source(arg, at.clone());
                     }
                 }
             }
@@ -687,6 +931,9 @@ impl OwnershipAnalysis {
                 constant_types: HashMap::new(),
             };
         }
+
+        // unwrap entry block now that we know it exists
+        let entry = function.entry.unwrap();
 
         // collect type information, copy values, and stack allocations
         let mut value_types = HashMap::new();
@@ -763,21 +1010,100 @@ impl OwnershipAnalysis {
         let value_types_clone = value_types.clone();
         let copy_values_clone = copy_values.clone();
 
-        // run forward dataflow
-        let result = forward_dataflow(
-            function,
-            tree,
-            cfg,
-            entry_state,
-            |block_id, mut state, tree| {
-                let block = tree.get(block_id);
+        // run forward dataflow with block parameter origin tracking
+        let mut result = DataflowResult::new();
+        let mut worklist: VecDeque<mir::LocalNodeId<mir::Block>> = VecDeque::new();
+        let mut in_worklist: HashSet<mir::LocalNodeId<mir::Block>> = HashSet::new();
 
-                // block parameters are fresh definitions (owned)
-                for param in &block.parameters {
-                    state.mark_owned(param.value);
+        // initialize entry block
+        result.block_entry.insert(entry, entry_state.clone());
+        worklist.push_back(entry);
+        in_worklist.insert(entry);
+
+        while let Some(block_id) = worklist.pop_front() {
+            in_worklist.remove(&block_id);
+
+            // compute entry state by merging predecessor exits
+            let mut new_entry = if block_id == entry {
+                result
+                    .block_entry
+                    .get(&entry)
+                    .cloned()
+                    .unwrap_or_else(|| entry_state.clone())
+            } else {
+                let predecessors = cfg.predecessors(block_id);
+                if predecessors.is_empty() {
+                    continue;
                 }
 
-                // process each instruction
+                let mut merged = match result.block_exit.get(&predecessors[0]) {
+                    Some(state) => state.clone(),
+                    None => continue,
+                };
+
+                for &pred in &predecessors[1..] {
+                    if let Some(pred_exit) = result.block_exit.get(&pred) {
+                        merged = merged.meet(pred_exit);
+                    }
+                }
+
+                merged
+            };
+
+            // refresh block parameters and origins
+            let block = tree.get(block_id);
+            for (index, param) in block.parameters.iter().enumerate() {
+                new_entry.mark_owned(param.value);
+
+                // determine origin from all predecessor edges
+                let mut origin: Option<mir::LocalNodeId<mir::Local>> = None;
+                let mut initialized = false;
+
+                for &pred in cfg.predecessors(block_id) {
+                    let pred_exit = match result.block_exit.get(&pred) {
+                        Some(state) => state,
+                        None => continue,
+                    };
+
+                    for args in predecessor_arguments(pred, block_id, tree) {
+                        let Some(arg_value) = args.get(index) else {
+                            origin = None;
+                            initialized = true;
+                            continue;
+                        };
+
+                        let arg_origin = pred_exit.origin_for_value(*arg_value);
+                        if !initialized {
+                            origin = arg_origin;
+                            initialized = true;
+                        } else if origin != arg_origin {
+                            origin = None;
+                        }
+                    }
+                }
+
+                set_origin_if_move_only(
+                    &mut new_entry,
+                    param.value,
+                    origin,
+                    tree,
+                    &value_types_clone,
+                    &copy_values_clone,
+                );
+            }
+
+            // check if entry state changed
+            let entry_changed = result
+                .block_entry
+                .get(&block_id)
+                .map(|old| old != &new_entry)
+                .unwrap_or(true);
+
+            if entry_changed || block_id == entry {
+                result.block_entry.insert(block_id, new_entry.clone());
+
+                // apply transfer function
+                let mut state = new_entry;
                 for &inst_id in &block.instructions {
                     let inst = tree.get(inst_id);
                     process_instruction(
@@ -790,7 +1116,6 @@ impl OwnershipAnalysis {
                     );
                 }
 
-                // process terminator
                 process_terminator(
                     &mut state,
                     block_id,
@@ -800,9 +1125,24 @@ impl OwnershipAnalysis {
                     &copy_values_clone,
                 );
 
-                state
-            },
-        );
+                let exit_changed = result
+                    .block_exit
+                    .get(&block_id)
+                    .map(|old| old != &state)
+                    .unwrap_or(true);
+
+                if exit_changed {
+                    result.block_exit.insert(block_id, state);
+
+                    for succ in block.terminator.successors() {
+                        if !in_worklist.contains(&succ) {
+                            worklist.push_back(succ);
+                            in_worklist.insert(succ);
+                        }
+                    }
+                }
+            }
+        }
 
         Self {
             block_entry: result.block_entry,
@@ -1606,6 +1946,27 @@ fn value_is_copy(
     }
 }
 
+/// Set the origin for a destination value when it is move-only.
+fn set_origin_if_move_only(
+    state: &mut OwnershipMap,
+    destination: Value,
+    origin: Option<mir::LocalNodeId<mir::Local>>,
+    tree: &mir::NodeTree,
+    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
+    copy_values: &HashSet<Value>,
+) {
+    if !value_types.contains_key(&destination) {
+        state.set_origin(destination, None);
+        return;
+    }
+
+    if !value_is_copy(destination, tree, value_types, copy_values) {
+        state.set_origin(destination, origin);
+    } else {
+        state.set_origin(destination, None);
+    }
+}
+
 /// Process an instruction, updating ownership state.
 fn process_instruction(
     state: &mut OwnershipMap,
@@ -1620,23 +1981,43 @@ fn process_instruction(
     match inst {
         // raw.drop/stack.drop/raw.free always consume
         Instruction::RawDrop { value } => {
-            state.mark_moved(*value, at);
+            state.mark_moved_with_source(*value, at);
         }
         Instruction::StackDrop { value } => {
-            state.mark_moved(*value, at);
+            state.mark_moved_with_source(*value, at);
         }
         Instruction::RawFree { pointer } => {
-            state.mark_moved(*pointer, at);
+            state.mark_moved_with_source(*pointer, at);
         }
 
         // store moves the value (if non-copy)
         Instruction::Store { value, .. } => {
-            state.mark_moved_if_not_copy(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
         }
 
         // local.set moves the value (if non-copy)
         Instruction::LocalSet { value, .. } => {
-            state.mark_moved_if_not_copy(*value, at, tree, value_types, copy_values);
+            // move the assigned value when required
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
+
+            // local receives a fresh owned value
+            if let Instruction::LocalSet { local, .. } = inst {
+                state.mark_local_owned(*local);
+            }
+        }
+
+        // local.get reads the local into an owned value
+        Instruction::LocalGet { destination, local } => {
+            // the read produces a new owned value
+            state.mark_owned(*destination);
+            set_origin_if_move_only(
+                state,
+                *destination,
+                Some(*local),
+                tree,
+                value_types,
+                copy_values,
+            );
         }
 
         // call moves arguments (if non-copy)
@@ -1662,25 +2043,42 @@ fn process_instruction(
         } => {
             let args = tree.get_arguments(*arguments);
             for &arg in args {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
             if let Some(dest) = destination {
                 state.mark_owned(*dest);
+                set_origin_if_move_only(state, *dest, None, tree, value_types, copy_values);
             }
         }
 
         // field.set/element.set move the new value (if non-copy)
         Instruction::FieldSet {
-            destination, value, ..
+            destination,
+            aggregate,
+            value,
+            ..
         } => {
-            state.mark_moved_if_not_copy(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
             state.mark_owned(*destination);
+            let origin = state.origin_for_value(*aggregate);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
         }
         Instruction::ElementSet {
-            destination, value, ..
+            destination,
+            array,
+            value,
+            ..
         } => {
-            state.mark_moved_if_not_copy(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
             state.mark_owned(*destination);
+            let origin = state.origin_for_value(*array);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
         }
 
         // aggregate construction moves all fields (if non-copy)
@@ -1691,9 +2089,16 @@ fn process_instruction(
         } => {
             let field_values = tree.get_arguments(*fields);
             for &field in field_values {
-                state.mark_moved_if_not_copy(field, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    field,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
             state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
         }
         Instruction::Tuple {
             destination,
@@ -1702,9 +2107,16 @@ fn process_instruction(
         } => {
             let elem_values = tree.get_arguments(*elements);
             for &elem in elem_values {
-                state.mark_moved_if_not_copy(elem, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    elem,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
             state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
         }
         Instruction::Array {
             destination,
@@ -1713,9 +2125,16 @@ fn process_instruction(
         } => {
             let elem_values = tree.get_arguments(*elements);
             for &elem in elem_values {
-                state.mark_moved_if_not_copy(elem, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    elem,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
             state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
         }
 
         // intrinsics: some consume arguments
@@ -1728,29 +2147,92 @@ fn process_instruction(
             let args = tree.get_arguments(*arguments);
             for &idx in intrinsic.consumed_arguments() {
                 if let Some(&arg) = args.get(idx as usize) {
-                    state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                    state.mark_moved_if_not_copy_with_source(
+                        arg,
+                        at.clone(),
+                        tree,
+                        value_types,
+                        copy_values,
+                    );
                 }
             }
             if let Some(dest) = destination {
                 state.mark_owned(*dest);
+                set_origin_if_move_only(state, *dest, None, tree, value_types, copy_values);
             }
         }
 
         // assume has no ownership effects
         Instruction::Assume { .. } => {}
 
-        // instructions that produce new values (all mark destination as owned)
-        Instruction::Binary { destination, .. }
-        | Instruction::Unary { destination, .. }
-        | Instruction::Cast { destination, .. }
-        | Instruction::Select { destination, .. }
-        | Instruction::Load { destination, .. }
-        | Instruction::FieldGet { destination, .. }
-        | Instruction::FieldAddr { destination, .. }
-        | Instruction::ElementGet { destination, .. }
-        | Instruction::ElementAddr { destination, .. }
-        | Instruction::Const { destination, .. }
-        | Instruction::LocalGet { destination, .. }
+        // instructions that produce new values
+        Instruction::Binary { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+        }
+        Instruction::Unary {
+            destination,
+            argument,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*argument);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+        }
+        Instruction::Cast {
+            destination,
+            argument,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*argument);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+        }
+        Instruction::Select {
+            destination,
+            then_value,
+            else_value,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = match (
+                state.origin_for_value(*then_value),
+                state.origin_for_value(*else_value),
+            ) {
+                (Some(left), Some(right)) if left == right => Some(left),
+                _ => None,
+            };
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+        }
+        Instruction::Load { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+        }
+        Instruction::FieldGet {
+            destination,
+            aggregate,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*aggregate);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+        }
+        Instruction::FieldAddr { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+        }
+        Instruction::ElementGet {
+            destination, array, ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*array);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+        }
+        Instruction::ElementAddr { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+        }
+        Instruction::Const { destination, .. }
         | Instruction::GlobalAddr { destination, .. }
         | Instruction::LocalAddr { destination, .. }
         | Instruction::GlobalConst { destination, .. }
@@ -1759,6 +2241,7 @@ fn process_instruction(
         | Instruction::StackAlloc { destination, .. }
         | Instruction::ManagedAllocArray { destination, .. } => {
             state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
         }
     }
 }
@@ -1777,12 +2260,18 @@ fn process_terminator(
     match terminator {
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
-                state.mark_moved_if_not_copy(*v, at, tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(*v, at, tree, value_types, copy_values);
             }
         }
         mir::Terminator::Jump { arguments, .. } => {
             for &arg in arguments {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
         }
         mir::Terminator::Yield {
@@ -1790,9 +2279,21 @@ fn process_terminator(
             resume_arguments,
             ..
         } => {
-            state.mark_moved_if_not_copy(*value, at.clone(), tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(
+                *value,
+                at.clone(),
+                tree,
+                value_types,
+                copy_values,
+            );
             for &arg in resume_arguments {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
         }
         mir::Terminator::Branch { .. }
@@ -1801,7 +2302,13 @@ fn process_terminator(
         | mir::Terminator::Unreachable => {}
         mir::Terminator::TailCall { arguments, .. } => {
             for &arg in arguments {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
         }
         mir::Terminator::TailCallVirtual {
@@ -1814,20 +2321,121 @@ fn process_terminator(
             arguments,
             ..
         } => {
-            state.mark_moved_if_not_copy(*receiver, at.clone(), tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(
+                *receiver,
+                at.clone(),
+                tree,
+                value_types,
+                copy_values,
+            );
             for &arg in arguments {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
         }
         mir::Terminator::TailCallIndirect {
             callee, arguments, ..
         } => {
-            state.mark_moved_if_not_copy(*callee, at.clone(), tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(
+                *callee,
+                at.clone(),
+                tree,
+                value_types,
+                copy_values,
+            );
             for &arg in arguments {
-                state.mark_moved_if_not_copy(arg, at.clone(), tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(
+                    arg,
+                    at.clone(),
+                    tree,
+                    value_types,
+                    copy_values,
+                );
             }
         }
     }
+}
+
+/// Collect argument lists that flow from a predecessor to a target block.
+fn predecessor_arguments(
+    predecessor: mir::LocalNodeId<mir::Block>,
+    target: mir::LocalNodeId<mir::Block>,
+    tree: &mir::NodeTree,
+) -> Vec<&[Value]> {
+    let terminator = &tree.get(predecessor).terminator;
+    let mut arguments = Vec::new();
+
+    match terminator {
+        mir::Terminator::Jump {
+            target: dest,
+            arguments: args,
+        } => {
+            if *dest == target {
+                arguments.push(args.as_slice());
+            }
+        }
+        mir::Terminator::Branch {
+            then_target,
+            then_arguments,
+            else_target,
+            else_arguments,
+            ..
+        } => {
+            if *then_target == target {
+                arguments.push(then_arguments.as_slice());
+            }
+            if *else_target == target {
+                arguments.push(else_arguments.as_slice());
+            }
+        }
+        mir::Terminator::Check {
+            success, failure, ..
+        } => {
+            if success.target == target {
+                arguments.push(success.arguments.as_slice());
+            }
+            if failure.target == target {
+                arguments.push(failure.arguments.as_slice());
+            }
+        }
+        mir::Terminator::Switch {
+            default,
+            default_arguments,
+            cases,
+            ..
+        } => {
+            if *default == target {
+                arguments.push(default_arguments.as_slice());
+            }
+            for case in cases {
+                if case.target == target {
+                    arguments.push(case.arguments.as_slice());
+                }
+            }
+        }
+        mir::Terminator::Yield {
+            resume,
+            resume_arguments,
+            ..
+        } => {
+            if *resume == target {
+                arguments.push(resume_arguments.as_slice());
+            }
+        }
+        mir::Terminator::Return { .. }
+        | mir::Terminator::TailCall { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallInterface { .. }
+        | mir::Terminator::TailCallIndirect { .. }
+        | mir::Terminator::Unreachable => {}
+    }
+
+    arguments
 }
 
 #[cfg(test)]
