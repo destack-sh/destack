@@ -70,7 +70,7 @@ pub enum OutputMode {
 }
 
 /// Extra artifacts to emit for debugging or inspection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EmitArtifact {
     /// Lowered MIR for the module.
     Mir,
@@ -107,7 +107,7 @@ impl EmitArtifact {
 }
 
 /// Optimization level for builds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum OptimizeLevel {
     /// No optimization (O0).
     #[default]
@@ -123,7 +123,7 @@ pub enum OptimizeLevel {
 }
 
 /// Link time optimization mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum LtoMode {
     /// Use defaults based on optimization level.
     /// Auto enables Thin LTO at O4 and disables LTO at lower levels.
@@ -229,7 +229,7 @@ impl RelocationModel {
 }
 
 /// Link mode for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum LinkMode {
     /// Prefer static linking.
     Static,
@@ -258,7 +258,7 @@ impl LinkMode {
 }
 
 /// Debug info emission policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum DebugInfoLevel {
     /// No debug info.
     #[default]
@@ -581,7 +581,7 @@ impl SandboxPolicy {
 }
 
 /// Symbol stripping policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum StripLevel {
     /// Keep all symbols.
     #[default]
