@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use destack_base::StringId;
-use {destack_dir as dir, destack_dir::NodeVisitor};
+use destack_dir as dir;
+use destack_dir::NodeVisitor;
 
 /// Collect string literal ids from a DIR expression tree.
 pub(crate) fn collect_expression_string_literals(

@@ -60,7 +60,8 @@ impl FunctionContext<'_> {
                 let anchor = expression_id
                     .into_global_any(self.env.module_id)
                     .into_anchored(Some(self.env.profile));
-                let (value, fallback_ty) = self.string_literal_value_for_id(*value, Some(anchor))?;
+                let (value, fallback_ty) =
+                    self.string_literal_value_for_id(*value, Some(anchor))?;
                 let ty = match self.lower_type_for_expression(expression_id) {
                     Ok(ty) => ty,
                     Err(_) => fallback_ty,

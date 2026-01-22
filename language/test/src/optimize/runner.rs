@@ -9,12 +9,12 @@ use destack_compiler::{
     RepeatedPipeline, default_pipeline,
 };
 use destack_mir as mir;
-use mir::parse::ParseOptions;
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_vm::diagnostic::RuntimeResult;
 use destack_vm::memory::Value;
 use destack_vm::{ExecutionOutcome, ExecutionOutput, Isolate, IsolateOptions};
 use destack_workspace::TargetId;
+use mir::parse::ParseOptions;
 
 use crate::harness::{RunContext, Suite, TestCase, TestOptions, TestResult};
 
@@ -536,8 +536,9 @@ fn optimize_source(
     allow_list: &BenchAllowList,
 ) -> Result<(mir::NodeTree, ImmutableStringPool), String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (mut tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
+            .map_err(|error| format!("failed to parse mir: {error}"))?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -576,8 +577,9 @@ fn baseline_output_for_program(
     max_instruction_limit: Option<u64>,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
-    let (tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
-        .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
+            .map_err(|error| format!("failed to parse mir: {error}"))?;
 
     // run the baseline program with quick profile args
     run_program_with_tree_result(program, tree, strings, max_instruction_limit)
@@ -590,8 +592,9 @@ fn baseline_output_for_program_default_args(
     max_instruction_limit: Option<u64>,
 ) -> Result<ExecutionOutput, String> {
     // parse the source program
-    let (tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
-        .map_err(|error| format!("failed to parse mir: {error}"))?;
+    let (tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default())
+            .map_err(|error| format!("failed to parse mir: {error}"))?;
 
     // run the baseline program with default args
     run_program_with_tree_result_default_args(program, tree, strings, max_instruction_limit)
@@ -690,7 +693,8 @@ fn run_matrix_case(
     apply: impl FnOnce(&mut mir::NodeTree, &StringPool, &PipelineContext<'_>),
 ) -> Option<String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
+    let (mut tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();
@@ -917,7 +921,8 @@ fn diagnose_mismatch(
     max_instruction_limit: Option<u64>,
 ) -> Option<String> {
     // parse the source program
-    let (mut tree, strings) = mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
+    let (mut tree, strings) =
+        mir::parse::Parser::parse(FileId::new(0), program.source, ParseOptions::default()).ok()?;
 
     // build the pipeline context
     let strings_pool = StringPool::new();

@@ -270,7 +270,6 @@ impl<'a> ModuleLowerer<'a> {
                 // char is stored as u32 (unicode codepoint)
                 Ok((*value as u32).to_le_bytes().to_vec())
             }
-
         }
     }
 

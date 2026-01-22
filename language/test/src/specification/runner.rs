@@ -176,8 +176,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     }
 
     // run analysis
-    let (profile, load_libs) =
-        select_profile_for_mdtest(&program, module_id, test, prefer_native);
+    let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, prefer_native);
     compiler.options.load_libs = load_libs;
     let module_version = program.modules.get(module_id).read().version;
     let profile_version = program

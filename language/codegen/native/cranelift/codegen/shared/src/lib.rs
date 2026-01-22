@@ -3,7 +3,6 @@
 // NOTE #Cleanup: fix clippy lints once fully vendored
 #![allow(clippy::all)]
 #![allow(warnings)]
-
 #![deny(missing_docs)]
 
 pub mod constant_hash;

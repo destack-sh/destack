@@ -149,7 +149,11 @@ impl FunctionContext<'_> {
             right: right_value,
             is_signed,
         };
-        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.integer_overflow)?;
+        self.emit_check(
+            condition,
+            constraint,
+            RUNTIME_CHECK_MESSAGES.integer_overflow,
+        )?;
 
         Ok(result)
     }
@@ -186,7 +190,11 @@ impl FunctionContext<'_> {
         let constraint = mir::CheckConstraint::DivZero {
             divisor: right_value,
         };
-        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.division_by_zero)?;
+        self.emit_check(
+            condition,
+            constraint,
+            RUNTIME_CHECK_MESSAGES.division_by_zero,
+        )?;
 
         // emit signed min / -1 overflow checks
         if is_signed {
@@ -226,7 +234,11 @@ impl FunctionContext<'_> {
                 right: right_value,
                 is_signed,
             };
-            self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.division_overflow)?;
+            self.emit_check(
+                condition,
+                constraint,
+                RUNTIME_CHECK_MESSAGES.division_overflow,
+            )?;
         }
 
         Ok(())
@@ -301,7 +313,11 @@ impl FunctionContext<'_> {
             bit_width,
             is_signed: shift_signed,
         };
-        self.emit_check(condition, constraint, RUNTIME_CHECK_MESSAGES.shift_out_of_range)?;
+        self.emit_check(
+            condition,
+            constraint,
+            RUNTIME_CHECK_MESSAGES.shift_out_of_range,
+        )?;
 
         Ok(())
     }
