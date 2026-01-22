@@ -377,13 +377,16 @@ impl Default for ProtocolCodec {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{PackageId, ProfileId, TargetId};
+    use destack_source::{
+        Diagnostic, DiagnosticSeverity, FileId, FileType, LabeledSpan, Span, Uri,
+    };
 
     use super::{DEFAULT_MAX_FRAME_SIZE_BYTES, FrameCodec, ProtocolCodec, ProtocolMessage};
     use crate::protocol::{
-        CommandKind, CommandOptions, CommandRequest, DaemonRequest, FileUpdate, FileUpdateKind,
-        FileUpdateRequest, ProtocolRequest, RequestId, RequestOptions, WorkspaceHandleId,
-        loopback_transport_pair,
+        CommandBuildOptions, CommandInput, CommandPayload, CommandRequest, CommandResponse,
+        CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileSnapshot,
+        FileUpdate, FileUpdateKind, FileUpdateRequest, ProtocolRequest, ProtocolResponse,
+        RequestId, RequestOptions, WorkspaceHandleId, loopback_transport_pair,
     };
 
     #[test]
@@ -406,22 +409,20 @@ mod tests {
         let request = ProtocolRequest {
             id: RequestId::new(7),
             options: RequestOptions::default(),
-            payload: DaemonRequest::Command(CommandRequest {
+            payload: DaemonRequest::Command(Box::new(CommandRequest {
                 handle: WorkspaceHandleId::new(2),
-                command: CommandKind::Build,
-                options: CommandOptions {
-                    inputs: vec!["/workspace/app.ds".into()],
-                    targets: vec![TargetId::new(PackageId::new(1), "app")],
-                    profile: Some(ProfileId::new(1)),
-                    args: vec!["--verbose".to_string()],
-                    env: Vec::new(),
-                    overrides: Vec::new(),
-                    watch: false,
-                    dry_run: false,
+                common: CommonCommandOptions {
+                    inputs: vec![CommandInput::File {
+                        path: "/workspace/app.ds".into(),
+                    }],
+                    allow_dsconfig_fallback: false,
+                    target: Some("app".to_string()),
+                    ..CommonCommandOptions::default()
                 },
-            }),
+                payload: CommandPayload::Build(CommandBuildOptions::default()),
+            })),
         };
-        let message = ProtocolMessage::Request(request);
+        let message = ProtocolMessage::Request(Box::new(request));
         let codec = ProtocolCodec::default();
 
         // encode to bytes and decode back
@@ -464,7 +465,7 @@ mod tests {
                 },
             }),
         };
-        let message = ProtocolMessage::Request(request);
+        let message = ProtocolMessage::Request(Box::new(request));
         let codec = ProtocolCodec::default();
 
         // send through a loopback transport
@@ -495,7 +496,7 @@ mod tests {
             options: RequestOptions::default(),
             payload: DaemonRequest::Ping,
         };
-        let message = ProtocolMessage::Request(request);
+        let message = ProtocolMessage::Request(Box::new(request));
         let codec = ProtocolCodec::new(1);
 
         // assert payload limit is enforced
@@ -517,5 +518,88 @@ mod tests {
         // assert payload limit is enforced on decode
         let result = codec.decode_message(&payload);
         assert!(result.is_err());
+    }
+
+    /// Encode and decode command responses without loss.
+    #[test]
+    fn test_protocol_command_response_roundtrip() {
+        // build a minimal diagnostic payload
+        let file_id = FileId::new(1);
+        let diagnostic = Diagnostic {
+            code: "E001".to_string(),
+            original_code: None,
+            severity: DiagnosticSeverity::Error,
+            original_severity: None,
+            message: "example error".to_string(),
+            file_id,
+            primary_span: LabeledSpan::new(Span::new(file_id, 0, 1), "primary"),
+            primary_highlight_spans: None,
+            secondary_spans: None,
+            suggestions: None,
+        };
+        let diagnostics = vec![DiagnosticBatch {
+            file_id,
+            diagnostics: vec![diagnostic],
+        }];
+
+        // build a snapshot for diagnostics rendering
+        let snapshot = FileSnapshot {
+            id: file_id,
+            name: "main.ds".to_string(),
+            uri: Uri::from_string("file:///main.ds"),
+            path: Some("/workspace/main.ds".into()),
+            file_type: FileType::Destack,
+            content: Some("export const answer = 42;\n".to_string()),
+        };
+
+        // build base response data
+        let base = CommandResponse {
+            handle: WorkspaceHandleId::new(1),
+            success: true,
+            exit_code: 0,
+            diagnostics: Vec::new(),
+            files: Vec::new(),
+            messages: Vec::new(),
+            output: Vec::new(),
+            artifacts: Vec::new(),
+            module_count: 1,
+            profile_count: 1,
+            target_count: 0,
+            stats: None,
+            data: None,
+        };
+
+        // roundtrip a response with no diagnostics or files
+        assert_command_roundtrip("empty", base.clone());
+
+        // roundtrip a response with diagnostics only
+        let mut with_diagnostics = base.clone();
+        with_diagnostics.diagnostics = diagnostics;
+        assert_command_roundtrip("diagnostics", with_diagnostics);
+
+        // roundtrip a response with file snapshots only
+        let mut with_files = base.clone();
+        with_files.files = vec![snapshot];
+        assert_command_roundtrip("files", with_files);
+    }
+
+    /// Roundtrip a command response through the protocol codec.
+    fn assert_command_roundtrip(label: &str, response: CommandResponse) {
+        // build a protocol response message
+        let response = ProtocolResponse {
+            id: RequestId::new(1),
+            payload: DaemonResponse::CommandResult(response),
+        };
+        let message = ProtocolMessage::Response(Box::new(response));
+        let codec = ProtocolCodec::default();
+
+        // assert the response survives a roundtrip
+        let bytes = codec
+            .encode_message(&message)
+            .unwrap_or_else(|error| panic!("{label} encode failed: {error}"));
+        let decoded = codec
+            .decode_message(&bytes)
+            .unwrap_or_else(|error| panic!("{label} decode failed: {error}"));
+        assert_eq!(decoded, message);
     }
 }

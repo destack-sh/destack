@@ -1,13 +1,16 @@
 use std::path::PathBuf;
 
 use crate::protocol::{
-    CacheStatsPayload, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, FileUpdate,
-    FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest, PROTOCOL_VERSION, ProtocolClientError,
-    ProtocolClientOptions, ProtocolErrorCode, ProtocolRange, ProtocolVersion, RescanReason,
+    CacheStatsPayload, DaemonNotification, DaemonQuery, DaemonQueryResponse, DaemonRequest,
+    DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
+    PROTOCOL_VERSION, PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId,
+    ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
+    ProtocolNotification, ProtocolRange, ProtocolServerOptions, ProtocolVersion, RescanReason,
     RescanWorkspaceRequest, WatchBatch, WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus,
-    WorkspaceHandleId, WorkspaceOpenOptions,
+    WorkspaceHandleId, WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
 };
-use crate::tests::TestProtocolHarness;
+use crate::tests::{TestDaemon, TestProtocolHarness};
+use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
 
 /// Performs a handshake and ping roundtrip.
 #[test]
@@ -83,6 +86,101 @@ fn test_protocol_handshake_rejects_version() {
         }
         other => panic!("unexpected error: {other:?}"),
     }
+
+    harness.shutdown();
+}
+
+/// Defers large payloads and reassembles them on the client.
+#[test]
+fn test_protocol_deferred_payload_roundtrip() {
+    // configure small payload limits to force deferral
+    let limits = ProtocolLimits::new(4096, 4096, 8, 16);
+    let mut server_options = ProtocolServerOptions::default();
+    server_options.limits = limits;
+    let harness = TestDaemon::new().protocol_with_options(server_options);
+
+    // perform handshake with matching limits
+    let mut client_options = ProtocolClientOptions::default();
+    client_options.limits = limits;
+    let _ = harness.handshake_with(client_options);
+
+    // sanity check that payload chunk sizes fit the protocol limit
+    let chunk_size = payload_chunk_bytes(limits);
+    let chunk_message = ProtocolMessage::Notification(Box::new(ProtocolNotification {
+        payload: DaemonNotification::PayloadChunk(PayloadChunkNotification {
+            id: PayloadId::new(1),
+            format: PayloadFormat::Postcard,
+            index: 0,
+            total: 1,
+            bytes: vec![0u8; chunk_size],
+            done: true,
+        }),
+    }));
+    let encoded = postcard::to_allocvec(&chunk_message).expect("chunk encode");
+    assert!(
+        encoded.len() <= limits.max_payload_bytes as usize,
+        "chunk message too large: {size} bytes",
+        size = encoded.len()
+    );
+
+    // open the workspace before seeding modules
+    let handle = harness.open_workspace();
+
+    // seed the workspace with many modules
+    for index in 0..128 {
+        let path = harness.test.root.join(format!(
+            "src/very_long_file_name_{index}_to_expand_workspace_index.ds"
+        ));
+        let contents = format!("export const value = {index}");
+        let _ = harness
+            .test
+            .daemon
+            .update_file(&path, contents)
+            .expect("update file");
+    }
+
+    // build and apply a workspace index snapshot
+    let program = harness
+        .test
+        .session
+        .get_program(&harness.test.root)
+        .expect("program");
+    let header = WorkspaceIndexHeader::new(
+        "test".to_string(),
+        harness.test.root.clone(),
+        None,
+        0,
+        0,
+        CacheValidate::Strict,
+    );
+    let snapshot = WorkspaceIndexSnapshot::from_program(program.as_ref(), header)
+        .expect("workspace index snapshot");
+    let inline_limit = inline_payload_max_bytes(limits);
+    let snapshot_bytes = postcard::to_allocvec(&snapshot).expect("snapshot bytes");
+    assert!(
+        snapshot_bytes.len() > inline_limit,
+        "expected workspace index to exceed inline limit, got {len} bytes",
+        len = snapshot_bytes.len()
+    );
+    program.apply_workspace_index(snapshot);
+
+    // request the workspace index
+    let response =
+        harness.send_request(DaemonRequest::Query(DaemonQuery::WorkspaceIndex { handle }));
+    let payload = match response {
+        DaemonResponse::QueryResult(DaemonQueryResponse::WorkspaceIndex(payload)) => payload,
+        other => panic!("unexpected response: {other:?}"),
+    };
+
+    // assert the payload was reconstructed from deferred chunks
+    let PayloadBody::Inline { bytes } = payload.body else {
+        panic!("expected inline payload after streaming");
+    };
+    assert!(
+        bytes.len() > inline_limit,
+        "expected deferred payload, got {len} bytes",
+        len = bytes.len()
+    );
 
     harness.shutdown();
 }
@@ -208,6 +306,63 @@ fn test_protocol_file_update_variants() {
         update: remove,
     }));
     assert!(matches!(response, DaemonResponse::FileUpdated(_)));
+
+    harness.shutdown();
+}
+
+/// Applies virtual file updates over the protocol.
+#[test]
+fn test_protocol_virtual_update_emits_diagnostics() {
+    // build the protocol harness
+    let harness = TestProtocolHarness::new();
+
+    // handshake and open the workspace
+    let _ = harness.handshake();
+    let handle = harness.open_workspace();
+
+    let path = harness.test.root.join("virtual.ds");
+
+    // apply a valid virtual update
+    let valid = FileUpdate {
+        path: path.clone(),
+        update: FileUpdateKind::Text {
+            content: "export const value = 1".to_string(),
+        },
+        write_to_disk: false,
+    };
+    let response = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+        handle,
+        update: valid,
+    }));
+    let updates = match response {
+        DaemonResponse::FileUpdated(response) => response.updates,
+        other => panic!("unexpected response: {other:?}"),
+    };
+    assert!(
+        updates.iter().all(|update| update.diagnostics.is_empty()),
+        "expected no diagnostics for valid virtual content"
+    );
+
+    // apply an invalid virtual update
+    let invalid = FileUpdate {
+        path,
+        update: FileUpdateKind::Text {
+            content: "export const value = ;".to_string(),
+        },
+        write_to_disk: false,
+    };
+    let response = harness.send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+        handle,
+        update: invalid,
+    }));
+    let updates = match response {
+        DaemonResponse::FileUpdated(response) => response.updates,
+        other => panic!("unexpected response: {other:?}"),
+    };
+    assert!(
+        updates.iter().any(|update| !update.diagnostics.is_empty()),
+        "expected diagnostics for invalid virtual content"
+    );
 
     harness.shutdown();
 }

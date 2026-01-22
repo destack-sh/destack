@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use destack_source::{
@@ -10,8 +10,8 @@ use destack_workspace::{MemoryCacheStore, Program, Session};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenWorkspaceRequest, ProtocolClient, ProtocolClientOptions,
-    ProtocolServer, ProtocolServerError, WorkspaceHandleId, WorkspaceOpenOptions,
-    loopback_transport_pair,
+    ProtocolServer, ProtocolServerError, ProtocolServerOptions, WorkspaceHandleId,
+    WorkspaceOpenOptions, loopback_transport_pair,
 };
 use crate::{
     Daemon, DaemonUpdate, DaemonWatchBatchResult, WatchBatch, WatchCoordinator, WatchPolicy,
@@ -57,6 +57,8 @@ pub struct TestProtocolHarness {
     pub test: TestDaemon,
     /// The protocol client.
     pub client: ProtocolClient,
+    /// Captured server error, if any.
+    server_error: Arc<Mutex<Option<String>>>,
     /// Server thread handle.
     server_handle: Option<JoinHandle<Result<(), ProtocolServerError>>>,
 }
@@ -186,6 +188,11 @@ impl TestDaemon {
         TestProtocolHarness::from_test(self.clone())
     }
 
+    /// Build a protocol harness with custom server options.
+    pub fn protocol_with_options(&self, options: ProtocolServerOptions) -> TestProtocolHarness {
+        TestProtocolHarness::from_test_with_options(self.clone(), options)
+    }
+
     /// Resolve a path relative to the primary root when needed.
     fn resolve_path(&self, path: impl AsRef<Path>) -> PathBuf {
         resolve_test_path(&self.root, path)
@@ -283,13 +290,33 @@ impl TestProtocolHarness {
 
     /// Create a protocol harness from an existing test daemon.
     pub fn from_test(test: TestDaemon) -> Self {
+        Self::from_test_with_options(test, ProtocolServerOptions::default())
+    }
+
+    /// Create a protocol harness with explicit server options.
+    pub fn from_test_with_options(test: TestDaemon, options: ProtocolServerOptions) -> Self {
         // create loopback transports
         let (client_transport, server_transport) = loopback_transport_pair(16);
         let daemon = Arc::new(test.daemon.clone());
 
+        // track server errors for debugging
+        let server_error = Arc::new(Mutex::new(None));
+        let error_handle = server_error.clone();
+
         // start the protocol server
-        let server = ProtocolServer::new(daemon);
-        let server_handle = thread::spawn(move || server.serve(&server_transport));
+        let server = ProtocolServer::with_options(daemon, options);
+        let server_handle = thread::spawn(move || {
+            // run the server loop
+            let result = server.serve(&server_transport);
+
+            // capture errors for the harness
+            if let Err(error) = &result {
+                if let Ok(mut slot) = error_handle.lock() {
+                    *slot = Some(error.to_string());
+                }
+            }
+            result
+        });
 
         // create protocol client
         let client = ProtocolClient::new(Arc::new(client_transport));
@@ -297,20 +324,37 @@ impl TestProtocolHarness {
         Self {
             test,
             client,
+            server_error,
             server_handle: Some(server_handle),
         }
     }
 
     /// Perform a handshake and return the response.
     pub fn handshake(&self) -> crate::protocol::HandshakeResponse {
-        self.client
-            .handshake(ProtocolClientOptions::default())
-            .expect("handshake")
+        self.handshake_with(ProtocolClientOptions::default())
+    }
+
+    /// Perform a handshake with explicit options.
+    pub fn handshake_with(
+        &self,
+        options: ProtocolClientOptions,
+    ) -> crate::protocol::HandshakeResponse {
+        self.client.handshake(options).expect("handshake")
     }
 
     /// Send a daemon request through the protocol client.
     pub fn send_request(&self, request: DaemonRequest) -> DaemonResponse {
-        self.client.send_request(request).expect("request")
+        match self.client.send_request(request) {
+            Ok(response) => response,
+            Err(error) => {
+                let server_error = self.server_error.lock().ok().and_then(|slot| slot.clone());
+                let message = match server_error {
+                    Some(server_error) => format!("request: {error} (server: {server_error})"),
+                    None => format!("request: {error}"),
+                };
+                panic!("{message}");
+            }
+        }
     }
 
     /// Open the default workspace and return the handle id.

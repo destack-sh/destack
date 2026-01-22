@@ -1,17 +1,20 @@
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use destack_source::{
-    Diagnostic, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus,
+    Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
+    FileWatchStatus,
 };
-use destack_workspace::{InvalidationKind, InvalidationPlan};
+use destack_workspace::{InvalidationKind, InvalidationPlan, Program};
 
 use crate::{DaemonMessage, DaemonUpdate, WatchBatch as DaemonWatchBatch};
 
 use super::{
     DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
-    DiagnosticBatch, InvalidationKind as ProtocolInvalidationKind, InvalidationSummary,
-    RescanReason, WatchBatch as ProtocolWatchBatch, WatchEvent as ProtocolWatchEvent,
-    WatchEventKind as ProtocolWatchEventKind, WatchStatus as ProtocolWatchStatus,
+    DiagnosticBatch, FileSnapshot, InvalidationKind as ProtocolInvalidationKind,
+    InvalidationSummary, RescanReason, WatchBatch as ProtocolWatchBatch,
+    WatchEvent as ProtocolWatchEvent, WatchEventKind as ProtocolWatchEventKind,
+    WatchStatus as ProtocolWatchStatus,
 };
 
 impl From<InvalidationKind> for ProtocolInvalidationKind {
@@ -72,6 +75,7 @@ impl From<&DaemonMessage> for DaemonMessageRecord {
                 (ProtocolMessageKind::Warning, Some(path.clone()))
             }
             DaemonMessage::RescanInvalidationFailed { .. } => (ProtocolMessageKind::Warning, None),
+            DaemonMessage::RescanAnalyzeFailed { .. } => (ProtocolMessageKind::Warning, None),
             DaemonMessage::WatchStatusError { .. } => (ProtocolMessageKind::Warning, None),
             DaemonMessage::WatchRescanRequested { .. } => (ProtocolMessageKind::Info, None),
             DaemonMessage::ConfigReloadWorkspaceFailed { .. } => {
@@ -260,4 +264,52 @@ pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch
         .collect();
     batches.sort_by_key(|batch| batch.file_id.0);
     batches
+}
+
+/// Convert diagnostics into file snapshots for rendering.
+pub fn files_to_snapshots(program: &Program, diagnostics: &[Diagnostic]) -> Vec<FileSnapshot> {
+    // collect unique file ids in order
+    let mut seen = HashSet::new();
+    let mut snapshots = Vec::new();
+    for diagnostic in diagnostics {
+        if seen.insert(diagnostic.file_id)
+            && let Some(snapshot) = snapshot_for_file(program, diagnostic.file_id)
+        {
+            snapshots.push(snapshot);
+        }
+    }
+
+    // keep snapshots stable by file id
+    snapshots.sort_by_key(|snapshot| snapshot.id.0);
+    snapshots
+}
+
+/// Build a snapshot for a file id.
+fn snapshot_for_file(program: &Program, file_id: FileId) -> Option<FileSnapshot> {
+    // load the file metadata
+    let file = program.files.get_maybe(file_id)?;
+
+    // resolve text content when available
+    let content = match &file.content {
+        FileContent::Text { .. } | FileContent::Json { .. } => Some(file.text().to_string()),
+        FileContent::Missing | FileContent::Unloaded | FileContent::Binary { .. } => {
+            if let Some(path) = &file.path
+                && !file.ty.is_binary()
+                && let Ok(content) = program.fs.read_to_string(path)
+            {
+                Some(content)
+            } else {
+                None
+            }
+        }
+    };
+
+    Some(FileSnapshot {
+        id: file.id,
+        name: file.name.clone(),
+        uri: file.uri.clone(),
+        path: file.path.clone(),
+        file_type: file.ty,
+        content,
+    })
 }

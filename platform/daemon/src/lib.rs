@@ -3,6 +3,7 @@
 #![feature(str_as_str)]
 #![feature(thread_id_value)]
 
+mod command;
 mod daemon;
 mod diagnostic;
 pub mod protocol;
@@ -12,6 +13,7 @@ mod watch;
 #[cfg(test)]
 pub mod tests;
 
+pub use command::*;
 pub use daemon::*;
 pub use diagnostic::*;
 pub use repl::*;
