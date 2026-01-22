@@ -7,10 +7,11 @@ use std::time::Duration;
 use destack_compiler::{AnalyzeTask, Compiler, CompilerOptions, OptimizeTask};
 use destack_parser::source_colorizer;
 use destack_source::{
-    File, FileType, MemoryFileSystem, ModuleStamp, PrintOptions, ProfileStamp, Uri,
+    File, FileType, MemoryFileSystem, ModuleId, ModuleStamp, PrintOptions, ProfileStamp, Uri,
 };
 use destack_workspace::{
-    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, TargetId,
+    DsConfig, DsConfigOptions, DsConfigTargetOptions, MemoryCacheStore, OutputFormat, Session,
+    TargetId,
 };
 
 use crate::harness::print::color;
@@ -34,9 +35,11 @@ pub struct SpecificationSuite {
 impl SpecificationSuite {
     /// Load all specification tests from the fixtures/specification directory.
     pub fn load() -> Self {
+        // setup fixtures and suite container
         let fixtures = fixtures_dir();
         let mut suite = Self::default();
 
+        // discover spec markdown files
         let spec_dir = fixtures.join("specification");
         for md_path in discover_md_files(&spec_dir).unwrap_or_default() {
             suite.add_file(&spec_dir, &md_path);
@@ -46,6 +49,7 @@ impl SpecificationSuite {
     }
 
     fn add_file(&mut self, base_dir: &Path, md_path: &Path) {
+        // parse tests from the markdown file
         let cases = match parse_mdtest_file(md_path) {
             Ok(cases) => cases,
             Err(error) => {
@@ -53,9 +57,11 @@ impl SpecificationSuite {
             }
         };
 
+        // compute file path labels
         let relative_path = md_path.strip_prefix(base_dir).unwrap_or(md_path);
         let relative_name = relative_path.to_string_lossy();
 
+        // register each test case
         for case in cases {
             let name = format!(
                 "{relative_name}/{}/{}",
@@ -82,12 +88,14 @@ impl Suite for SpecificationSuite {
     }
 
     fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
+        // resolve the parsed md test
         let Some(md_test) = self.tests.get(&case.full_name()) else {
             return TestResult::Failed {
                 message: "test not found".to_string(),
             };
         };
 
+        // select timeout and run the test
         let timeout = context
             .timeout
             .unwrap_or_else(|| Duration::from_secs(TEST_TIMEOUT_SECONDS));
@@ -95,7 +103,7 @@ impl Suite for SpecificationSuite {
     }
 
     fn timeout(&self) -> Option<Duration> {
-        // timeout is enforced by run_with_timeout
+        // timeout enforced by run_with_timeout
         None
     }
 }
@@ -103,8 +111,8 @@ impl Suite for SpecificationSuite {
 #[derive(Debug)]
 struct SharedSpecEnvironment {
     /// The shared test session.
-    session: Arc<destack_workspace::Session>,
-    /// The shared in-memory file system.
+    session: Arc<Session>,
+    /// The shared in memory file system.
     fs: Arc<MemoryFileSystem>,
     /// The next unique test id.
     next_id: AtomicUsize,
@@ -113,6 +121,7 @@ struct SharedSpecEnvironment {
 impl SharedSpecEnvironment {
     /// Create a new shared environment for spec tests.
     fn new() -> Self {
+        // initialize shared filesystem and session
         let fs = Arc::new(MemoryFileSystem::new());
         let cwd = PathBuf::from("/test/spec");
         let session = Arc::new(
@@ -129,6 +138,7 @@ impl SharedSpecEnvironment {
 
     /// Allocate a unique root directory for a test case.
     fn root_for(&self, test: &MdTestCase) -> PathBuf {
+        // allocate a unique directory per test
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let section = slug(&test.section);
         let name = slug(&test.name);
@@ -142,6 +152,7 @@ thread_local! {
 
 /// Run a single spec test: compile the code and compare errors against expectations.
 fn run_specification_test(test: &MdTestCase) -> TestResult {
+    // setup the test environment
     let (session, program, main_path) = SHARED_SPEC_ENV.with(|env| {
         let root = env.root_for(test);
         setup_test_environment_with_session(test, env.session.clone(), env.fs.clone(), root)
@@ -158,7 +169,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         },
     );
 
-    // find the main file to compile
+    // resolve the main module to compile
     let module_id = match compiler.resolve_path_to_module(&main_path) {
         Ok(id) => id,
         Err(e) => {
@@ -168,14 +179,26 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         }
     };
 
-    // apply dsconfig.json for compiler options and targets
+    // apply dsconfig options and targets
     let prefer_native = test_option_bool(test, "native").unwrap_or(false);
     if let Err(error) = apply_dsconfig_for_spec(&program, module_id, &main_path, prefer_native) {
         return TestResult::Failed { message: error };
     }
 
-    // run analysis
-    let (profile, load_libs) = select_profile_for_mdtest(&program, module_id, test, prefer_native);
+    // select profile and lib loading
+    let (profile, mut load_libs) = select_profile_for_mdtest(
+        &program,
+        module_id,
+        test,
+        prefer_native,
+    );
+
+    // load libs only when explicitly requested
+    if !load_libs && has_explicit_libs(&program, module_id) {
+        load_libs = true;
+    }
+
+    // enqueue analysis task
     compiler.options.load_libs = load_libs;
     let module_version = program.modules.get(module_id).read().version;
     let profile_version = program
@@ -191,6 +214,7 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
     // run optimize passes only for native spec tests
     let run_optimize = prefer_native;
     if run_optimize {
+        // select target and profile for diagnostics
         let diagnostic_target = program.ensure_target_for_module(module_id);
         let diagnostic_profile =
             program.profile_id_for_target_or_default(module_id, &diagnostic_target);
@@ -205,6 +229,8 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
             target: diagnostic_target,
         });
     }
+
+    // compile and drop the compiler
     compiler.compile();
     drop(compiler);
 
@@ -217,10 +243,10 @@ fn run_specification_test(test: &MdTestCase) -> TestResult {
         .map(|d| d.message.clone())
         .collect();
 
-    // compare against expected errors (bullet items in markdown)
+    // compare against expected errors
     let result = compare_errors(&test.bullet_items, &actual_errors);
 
-    // on failure, append rendered diagnostics for context
+    // append rendered diagnostics for failures
     match result {
         TestResult::Failed { mut message } => {
             let options = PrintOptions::new().with_colorizer(source_colorizer());
@@ -248,6 +274,32 @@ fn test_option_bool(test: &MdTestCase, key: &str) -> Option<bool> {
     }
 }
 
+fn has_explicit_libs(program: &destack_workspace::Program, module_id: ModuleId) -> bool {
+    // resolve the module package
+    let package_id = {
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        module.package_id
+    };
+    let package = program.packages.get(package_id);
+    let package = package.read();
+    let Some(dsconfig) = package.dsconfig.as_ref() else {
+        return false;
+    };
+
+    // check compiler lib entries
+    if !dsconfig.options.compiler.lib.is_empty() {
+        return true;
+    }
+
+    // check target lib entries
+    dsconfig
+        .options
+        .targets
+        .values()
+        .any(|target| target.lib.is_some())
+}
+
 fn apply_dsconfig_for_spec(
     program: &destack_workspace::Program,
     module_id: destack_source::ModuleId,
@@ -269,6 +321,7 @@ fn apply_dsconfig_for_spec(
             return Ok(());
         }
 
+        // build a default dsconfig for js output
         let file_id = program.files.next_id();
         let mut options = DsConfigOptions::default();
         let target = DsConfigTargetOptions {
@@ -286,6 +339,7 @@ fn apply_dsconfig_for_spec(
             content: Default::default(),
         };
 
+        // attach the default dsconfig to the package
         let package_id = {
             let module = program.modules.get(module_id);
             let module = module.read();
@@ -362,11 +416,12 @@ fn apply_dsconfig_for_spec(
 
 /// Compare expected errors against actual errors.
 fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
+    // normalize expected and actual errors
     let expected_patterns: Vec<ExpectedError> =
         expected.iter().map(|s| ExpectedError::parse(s)).collect();
     let actual_normalized: Vec<String> = actual.iter().map(|s| normalize_error(s)).collect();
 
-    // find expected errors that didn't occur
+    // find expected errors that did not occur
     let mut missing: Vec<&str> = Vec::new();
     for expected in &expected_patterns {
         if !actual_normalized.iter().any(|a| expected.matches(a)) {
@@ -374,7 +429,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         }
     }
 
-    // find actual errors that weren't expected
+    // find unexpected actual errors
     let mut unexpected: Vec<&str> = Vec::new();
     for act in &actual_normalized {
         if !expected_patterns.iter().any(|e| e.matches(act)) {
@@ -382,7 +437,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         }
     }
 
-    // if no errors are missing or unexpected, return passed
+    // return success when nothing is missing or unexpected
     if missing.is_empty() && unexpected.is_empty() {
         return TestResult::Passed;
     }
@@ -396,6 +451,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
         }
     }
     if !unexpected.is_empty() {
+        // add unexpected errors block
         if !message.is_empty() {
             message.push('\n');
         }
@@ -413,6 +469,7 @@ fn compare_errors(expected: &[String], actual: &[String]) -> TestResult {
 
 /// Normalize an error message for fuzzy comparison.
 fn normalize_error(s: &str) -> String {
+    // normalize whitespace and punctuation
     let s = s.trim().to_lowercase();
     let s = s.replace('`', "");
     s.split_whitespace().collect::<Vec<_>>().join(" ")

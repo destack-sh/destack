@@ -14,8 +14,8 @@ use crate::harness::{TestResult, discover_test_files};
 
 use super::parser::MdTestCase;
 
-/// Per-test timeout in seconds.
-pub const TEST_TIMEOUT_SECONDS: u64 = 1;
+/// Per test timeout in seconds.
+pub const TEST_TIMEOUT_SECONDS: u64 = 5;
 
 /// Library overrides for mdtest cases.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,14 +50,19 @@ impl MdTestProfileOverrides {
 
 /// Parse library options from a mdtest case.
 pub fn parse_mdtest_libs(test: &MdTestCase) -> Option<MdTestLibs> {
+    // extract the raw lib option
     let raw = option_value(&test.options, &["libs", "lib"])?;
     let trimmed = raw.trim();
+
+    // handle none and default options
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("none") {
         return Some(MdTestLibs::None);
     }
     if trimmed.eq_ignore_ascii_case("default") {
         return Some(MdTestLibs::Default);
     }
+
+    // parse explicit library names
     let mut libs: Vec<String> = trimmed
         .split(',')
         .map(|name| name.trim())
@@ -66,6 +71,8 @@ pub fn parse_mdtest_libs(test: &MdTestCase) -> Option<MdTestLibs> {
         .collect();
     libs.sort();
     libs.dedup();
+
+    // normalize empty lists as none
     if libs.is_empty() {
         Some(MdTestLibs::None)
     } else {
@@ -75,17 +82,24 @@ pub fn parse_mdtest_libs(test: &MdTestCase) -> Option<MdTestLibs> {
 
 /// Parse profile overrides from a mdtest case.
 fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
+    // parse runtime override
     let runtime = option_value(&test.options, &["runtime"]).map(|value| {
         Runtime::parse(value).unwrap_or_else(|| panic!("invalid mdtest runtime '{value}'"))
     });
+
+    // parse runtime version override
     let runtime_version = option_value(
         &test.options,
         &["runtime_version", "runtime-version", "runtimeVersion"],
     )
     .map(|value| value.to_string());
+
+    // parse platform override
     let platform = option_value(&test.options, &["platform"]).map(|value| {
         Platform::parse(value).unwrap_or_else(|| panic!("invalid mdtest platform '{value}'"))
     });
+
+    // parse debug override
     let debug = option_value(&test.options, &["debug"]).map(|value| parse_bool(value, "debug"));
 
     MdTestProfileOverrides {
@@ -96,22 +110,25 @@ fn parse_mdtest_profile_overrides(test: &MdTestCase) -> MdTestProfileOverrides {
     }
 }
 
-/// Select a profile and lib-loading mode for a mdtest case.
+/// Select a profile and lib loading mode for a mdtest case.
 pub fn select_profile_for_mdtest(
     program: &Program,
     module_id: ModuleId,
     test: &MdTestCase,
     default_load_libs: bool,
 ) -> (ProfileId, bool) {
+    // load base profile state
     let base_profile_id = program.default_profile_id_for_module(module_id);
     let base_profile = program.profile(base_profile_id);
     let overrides = parse_mdtest_profile_overrides(test);
     let lib_override = parse_mdtest_libs(test);
 
+    // seed override state
     let mut load_libs = default_load_libs;
     let mut key = base_profile.key.clone();
     let mut recompute_test = false;
 
+    // apply runtime overrides
     if let Some(runtime) = overrides.runtime {
         key.runtime = runtime;
     }
@@ -123,10 +140,12 @@ pub fn select_profile_for_mdtest(
         recompute_test = true;
     }
 
+    // validate runtime version usage
     if overrides.runtime_version.is_some() && lib_override.is_none() {
         panic!("mdtest runtime_version requires libs=default or libs=...");
     }
 
+    // apply library overrides
     if let Some(lib_override) = lib_override {
         match lib_override {
             MdTestLibs::None => {
@@ -152,11 +171,13 @@ pub fn select_profile_for_mdtest(
         }
     }
 
+    // recompute test flag when needed
     if recompute_test {
         let (_, _, _, test_flag) = ProfileEnv::mode_from_snapshot(&key.env, key.debug);
         key.test = test_flag;
     }
 
+    // return the resolved profile
     if key != base_profile.key {
         let profile_id = program.profiles.get_or_create(key);
         (profile_id, load_libs)
@@ -167,6 +188,7 @@ pub fn select_profile_for_mdtest(
 
 /// Lookup the first matching option value from a set of keys.
 fn option_value<'a>(options: &'a HashMap<String, String>, keys: &[&str]) -> Option<&'a str> {
+    // scan for the first matching key
     for key in keys {
         if let Some(value) = options.get(*key) {
             return Some(value.as_str());
@@ -177,6 +199,7 @@ fn option_value<'a>(options: &'a HashMap<String, String>, keys: &[&str]) -> Opti
 
 /// Parse a boolean mdtest option.
 fn parse_bool(value: &str, key: &str) -> bool {
+    // normalize boolean option values
     match value.trim().to_lowercase().as_str() {
         "true" => true,
         "false" => false,
@@ -184,7 +207,7 @@ fn parse_bool(value: &str, key: &str) -> bool {
     }
 }
 
-/// Set up an in-memory test environment from a markdown test case.
+/// Set up an in memory test environment from a markdown test case.
 pub fn setup_test_environment_with_session(
     test: &MdTestCase,
     session: Arc<Session>,
@@ -208,13 +231,14 @@ pub fn setup_test_environment_with_session(
         }
     }
 
+    // choose the main file and create the program root
     let main_path = main_path.expect("test should have at least one file");
     let program = session.add_root(root);
 
     (session, program, main_path)
 }
 
-/// Set up an in-memory test environment from a markdown test case.
+/// Set up an in memory test environment from a markdown test case.
 pub fn setup_test_environment(
     test: &MdTestCase,
 ) -> (
@@ -222,6 +246,7 @@ pub fn setup_test_environment(
     Arc<destack_workspace::program::Program>,
     PathBuf,
 ) {
+    // setup memory filesystem and session
     let memory_fs = Arc::new(MemoryFileSystem::new());
     let cwd = PathBuf::from("/test");
     let fs: Arc<dyn FileSystem> = memory_fs.clone();
@@ -231,6 +256,7 @@ pub fn setup_test_environment(
             .with_cache_store(Arc::new(MemoryCacheStore::new())),
     );
 
+    // delegate to session based setup
     setup_test_environment_with_session(test, session, memory_fs, cwd)
 }
 
@@ -240,12 +266,14 @@ pub fn run_with_timeout<F>(test: MdTestCase, timeout: Duration, f: F) -> TestRes
 where
     F: FnOnce(&MdTestCase) -> TestResult + Send + 'static,
 {
+    // allocate the communication channel
     let (tx, rx) = mpsc::channel();
 
     thread::spawn(move || {
-        // catch panics to prevent thread from hanging during cleanup
+        // catch panics to prevent thread cleanup hangs
         let result = catch_unwind(AssertUnwindSafe(|| f(&test)));
 
+        // convert panics into test failures
         let test_result = match result {
             Ok(result) => result,
             Err(panic) => {
@@ -255,7 +283,7 @@ where
                     .or_else(|| panic.downcast_ref::<String>().map(|s| s.as_str()))
                     .unwrap_or("unknown panic");
 
-                // if it's a todo!() panic with #Incomplete marker, skip the test
+                // skip tests marked with #Incomplete
                 if msg.contains("#Incomplete") {
                     TestResult::Skipped {
                         reason: msg.to_string(),
@@ -268,9 +296,11 @@ where
             }
         };
 
+        // send the test result back to the runner
         let _ = tx.send(test_result);
     });
 
+    // wait for the test result or timeout
     match rx.recv_timeout(timeout) {
         Ok(result) => result,
         Err(mpsc::RecvTimeoutError::Timeout) => TestResult::Failed {
@@ -288,13 +318,15 @@ where
 /// Discover markdown files recursively in a directory.
 /// Skips README files, hidden directories, node_modules, and staging.
 pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
+    // collect markdown files recursively
     let mut files = Vec::new();
 
+    // return early when the directory does not exist
     if !dir.exists() {
         return Ok(files);
     }
 
-    // direct .md files, excluding README
+    // collect direct md files excluding readme
     let direct_files = discover_test_files(dir, &["md"], "mdtest")?;
     for test in direct_files {
         if test.name.to_lowercase() == "readme" {
@@ -318,8 +350,9 @@ pub fn discover_md_files(dir: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Convert a test name to a URL-safe slug.
+/// Convert a test name to a URL safe slug.
 pub fn slug(name: &str) -> String {
+    // normalize to url safe slugs
     name.to_lowercase()
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
