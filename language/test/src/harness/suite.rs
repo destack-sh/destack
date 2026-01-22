@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::time::Duration;
 
 use super::{RunContext, TestCase, TestOptions, TestResult};
@@ -20,4 +21,9 @@ pub trait Suite: Send + Sync {
 
     /// Report additional suite-specific summary information after the run.
     fn report(&self, _results: &[(TestCase, TestResult)], _context: &RunContext<'_>) {}
+
+    /// Return expected failures for this suite when available.
+    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+        None
+    }
 }

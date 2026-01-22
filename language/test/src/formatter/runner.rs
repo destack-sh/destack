@@ -1,11 +1,14 @@
-use std::collections::HashMap;
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::harness::{
     RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
+    save_expected_failures,
 };
-use crate::mdtest::{MdTestCase, discover_md_files, parse_mdtest_file, slug};
+use crate::mdtest::{
+    MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file, slug,
+};
 
 use super::{roundtrip, transform};
 
@@ -14,6 +17,8 @@ use super::{roundtrip, transform};
 pub struct FormatterSuite {
     mdtests: HashMap<String, MdTestCase>,
     cases: Vec<TestCase>,
+    expected_failures: HashSet<String>,
+    expected_failures_path: PathBuf,
 }
 
 impl FormatterSuite {
@@ -25,6 +30,8 @@ impl FormatterSuite {
 
         suite.discover_roundtrip_tests(&formatter_dir);
         suite.discover_mdtest_tests(&formatter_dir);
+        suite.expected_failures = load_mdtest_expected_failures(&formatter_dir);
+        suite.expected_failures_path = formatter_dir.join("known-failures.txt");
 
         suite
     }
@@ -95,8 +102,43 @@ impl Suite for FormatterSuite {
         }
     }
 
+    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+        if self.expected_failures.is_empty() {
+            None
+        } else {
+            Some(&self.expected_failures)
+        }
+    }
+
     fn timeout(&self) -> Option<Duration> {
         Some(Duration::from_secs(10))
+    }
+
+    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+        if !context.options.update_known_failures {
+            return;
+        }
+
+        let mut failures = HashSet::new();
+        for (case, result) in results {
+            if result.is_failed() {
+                failures.insert(case.full_name());
+            }
+        }
+
+        if let Err(error) = save_expected_failures(&self.expected_failures_path, &failures) {
+            eprintln!(
+                "failed to update {}: {error}",
+                self.expected_failures_path.display()
+            );
+            return;
+        }
+
+        println!(
+            "  {} updated with {} failures",
+            self.expected_failures_path.display(),
+            failures.len()
+        );
     }
 }
 

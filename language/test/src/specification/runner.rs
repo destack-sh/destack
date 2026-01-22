@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -17,10 +17,12 @@ use destack_workspace::{
 use crate::harness::print::color;
 use crate::harness::{
     RunContext, Suite, TestCase, TestOptions, TestResult, fixtures_dir, format_diagnostics,
+    save_expected_failures,
 };
 use crate::mdtest::{
-    MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, parse_mdtest_file, run_with_timeout,
-    select_profile_for_mdtest, setup_test_environment_with_session, slug,
+    MdTestCase, TEST_TIMEOUT_SECONDS, discover_md_files, load_mdtest_expected_failures,
+    parse_mdtest_file, run_with_timeout, select_profile_for_mdtest,
+    setup_test_environment_with_session, slug,
 };
 
 /// Test suite for type checking specification tests.
@@ -30,6 +32,10 @@ pub struct SpecificationSuite {
     tests: HashMap<String, MdTestCase>,
     /// List of discovered test cases.
     cases: Vec<TestCase>,
+    /// Known failing tests for baseline tracking.
+    expected_failures: HashSet<String>,
+    /// Location of the known failures file.
+    expected_failures_path: PathBuf,
 }
 
 impl SpecificationSuite {
@@ -45,6 +51,8 @@ impl SpecificationSuite {
             suite.add_file(&spec_dir, &md_path);
         }
 
+        suite.expected_failures = load_mdtest_expected_failures(&spec_dir);
+        suite.expected_failures_path = spec_dir.join("known-failures.txt");
         suite
     }
 
@@ -87,6 +95,14 @@ impl Suite for SpecificationSuite {
         self.cases.clone()
     }
 
+    fn expected_failures(&self, _options: &TestOptions) -> Option<&HashSet<String>> {
+        if self.expected_failures.is_empty() {
+            None
+        } else {
+            Some(&self.expected_failures)
+        }
+    }
+
     fn run(&self, case: &TestCase, context: &RunContext<'_>) -> TestResult {
         // resolve the parsed md test
         let Some(md_test) = self.tests.get(&case.full_name()) else {
@@ -105,6 +121,34 @@ impl Suite for SpecificationSuite {
     fn timeout(&self) -> Option<Duration> {
         // timeout enforced by run_with_timeout
         None
+    }
+
+    fn report(&self, results: &[(TestCase, TestResult)], context: &RunContext<'_>) {
+        if !context.options.update_known_failures {
+            return;
+        }
+
+        // collect current failures for baseline updates
+        let mut failures = HashSet::new();
+        for (case, result) in results {
+            if result.is_failed() {
+                failures.insert(case.full_name());
+            }
+        }
+
+        if let Err(error) = save_expected_failures(&self.expected_failures_path, &failures) {
+            eprintln!(
+                "failed to update {}: {error}",
+                self.expected_failures_path.display()
+            );
+            return;
+        }
+
+        println!(
+            "  {} updated with {} failures",
+            self.expected_failures_path.display(),
+            failures.len()
+        );
     }
 }
 
