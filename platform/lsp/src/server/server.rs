@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
-use std::time::Instant;
 
 use dashmap::DashMap;
 use destack_ast::NodeParentIndex;
-use destack_daemon::{Daemon, DaemonMessage, DaemonMessageKind, DaemonUpdate, WatchBatch};
+use destack_daemon::protocol::{
+    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
+};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
@@ -29,6 +30,7 @@ use crate::query::navigation::{
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
+use crate::server::daemon::LspDaemonClient;
 
 pub const CONFIG_GLOBS: [&str; 2] = ["**/dsconfig.json", "**/tsconfig*.json"];
 
@@ -47,8 +49,8 @@ pub struct DestackLanguageServer {
     overlay_fs: Arc<OverlayFileSystem>,
     /// The session.
     session: OnceLock<Arc<Session>>,
-    /// The daemon.
-    daemon: OnceLock<Arc<Daemon>>,
+    /// The daemon client.
+    daemon: OnceLock<Arc<LspDaemonClient>>,
     /// The open documents.
     open_documents: DashMap<String, OpenDocument>,
     /// The watch registration ID.
@@ -78,7 +80,7 @@ impl DestackLanguageServer {
 
     /// Get the daemon (must be called after initialize).
     #[inline]
-    fn daemon(&self) -> &Arc<Daemon> {
+    fn daemon(&self) -> &Arc<LspDaemonClient> {
         self.daemon.get().expect("daemon not initialized")
     }
 
@@ -90,7 +92,7 @@ impl DestackLanguageServer {
             return;
         };
 
-        if let Err(error) = self.daemon().analyze_path(path) {
+        if let Err(error) = self.daemon().ensure_analyzed_for_path(path) {
             tracing::debug!(?error, path = ?path, "lsp.query.analyze_failed");
         }
     }
@@ -132,23 +134,6 @@ impl DestackLanguageServer {
         }
     }
 
-    /// Collect all active watch roots.
-    fn watch_roots(&self) -> Vec<PathBuf> {
-        // collect roots from active programs
-        let session = self.session();
-        let mut roots = Vec::new();
-        for entry in session.programs.iter() {
-            roots.push(entry.key().clone());
-        }
-
-        // fall back to the session root when no programs exist
-        if roots.is_empty() {
-            roots.push(session.cwd.clone());
-        }
-
-        roots
-    }
-
     /// Apply watch events and publish diagnostics.
     async fn apply_watch_events(&self, events: Vec<FileWatchEvent>) {
         // skip empty batches
@@ -156,27 +141,19 @@ impl DestackLanguageServer {
             return;
         }
 
-        // build the watch batch
-        let started_at = Instant::now();
-        let mut batch = WatchBatch::new(started_at);
-        batch.events = events;
-        batch.ended_at = Instant::now();
-
         // apply updates through the daemon
         let daemon = self.daemon().clone();
-        let mut result = daemon.apply_watch_batch(&batch);
-
-        // rescan when requested
-        if result.rescan {
-            let roots = self.watch_roots();
-            let rescan = daemon.rescan_roots_with_analysis(&roots);
-            result.updates.extend(rescan.updates);
-            result.messages.extend(rescan.messages);
-        }
+        let result = match daemon.apply_watch_events(events) {
+            Ok(result) => result,
+            Err(error) => {
+                tracing::debug!(?error, "lsp.watch.apply_failed");
+                return;
+            }
+        };
 
         tracing::trace!(
             updates = result.updates.len(),
-            rescan = result.rescan,
+            rescan = false,
             "lsp.watch.apply"
         );
 
@@ -186,7 +163,7 @@ impl DestackLanguageServer {
     }
 
     /// Publish diagnostics for a batch of daemon updates.
-    async fn publish_watch_updates(&self, updates: Vec<DaemonUpdate>) {
+    async fn publish_watch_updates(&self, updates: Vec<DaemonUpdateRecord>) {
         // publish diagnostics per updated file
         let session = self.session().clone();
         for update in updates {
@@ -206,16 +183,14 @@ impl DestackLanguageServer {
     }
 
     /// Publish watch warnings for a batch.
-    async fn publish_watch_messages(&self, messages: Vec<DaemonMessage>) {
+    async fn publish_watch_messages(&self, messages: Vec<DaemonMessageRecord>) {
         for message in messages {
-            let message_type = match message.kind() {
-                DaemonMessageKind::Info => lsp::MessageType::INFO,
-                DaemonMessageKind::Warning => lsp::MessageType::WARNING,
-                DaemonMessageKind::Error => lsp::MessageType::ERROR,
+            let message_type = match message.kind {
+                ProtocolMessageKind::Info => lsp::MessageType::INFO,
+                ProtocolMessageKind::Warning => lsp::MessageType::WARNING,
+                ProtocolMessageKind::Error => lsp::MessageType::ERROR,
             };
-            self.client
-                .log_message(message_type, message.render())
-                .await;
+            self.client.log_message(message_type, message.message).await;
         }
     }
 
@@ -227,7 +202,7 @@ impl DestackLanguageServer {
         content: String,
     ) {
         // apply the virtual file update through the daemon
-        let updates = match self.daemon().update_virtual_file(path, content) {
+        let result = match self.daemon().update_virtual_file(path, content) {
             Ok(updates) => updates,
             Err(error) => {
                 tracing::debug!(?error, "lsp.invalidate.file");
@@ -235,10 +210,24 @@ impl DestackLanguageServer {
             }
         };
 
-        // publish diagnostics for the updated files
+        // ensure analysis for the primary path
+        if let Err(error) = self.daemon().ensure_analyzed_for_path(path) {
+            tracing::debug!(?error, "lsp.invalidate.analyze_failed");
+        }
+
+        // gather diagnostics for updated files
         let session = self.session().clone();
-        let primary_file_id = updates.first().map(|update| update.file_id);
-        for update in updates {
+        let program = session.find_program_for_path(path);
+        let mut diagnostics_by_file = program.diagnostic_store.snapshot_by_file();
+
+        // publish diagnostics for the updated files
+        let primary_file_id = result.updates.first().map(|update| update.file_id);
+        for mut update in result.updates {
+            if update.diagnostics.is_empty() {
+                update.diagnostics = diagnostics_by_file
+                    .remove(&update.file_id)
+                    .unwrap_or_default();
+            }
             let file = session.files.get(update.file_id);
             let uri = if Some(update.file_id) == primary_file_id {
                 Some(uri.clone())
@@ -257,6 +246,8 @@ impl DestackLanguageServer {
                 .publish_diagnostics(uri, diagnostics, None)
                 .await;
         }
+
+        self.publish_watch_messages(result.messages).await;
     }
 }
 
@@ -337,11 +328,17 @@ impl LanguageServer for DestackLanguageServer {
             .unwrap_or_else(|_| Workspace::single_package(cwd.clone()));
         let root = workspace.root.clone();
         let session = Arc::new(session.with_workspace(workspace));
-        session.add_root(root);
+        session.add_root(root.clone());
         let _ = self.session.set(session.clone());
 
-        // create daemon for the session
-        let daemon = Arc::new(Daemon::new(session));
+        // create daemon client for the session
+        let daemon = match LspDaemonClient::new(session.clone(), vec![root.clone()]) {
+            Ok(daemon) => Arc::new(daemon),
+            Err(error) => {
+                tracing::debug!(?error, "lsp.daemon.init_failed");
+                return Err(jsonrpc::Error::internal_error());
+            }
+        };
         let _ = self.daemon.set(daemon);
 
         // build file operation filters for workspace notifications
@@ -461,6 +458,9 @@ impl LanguageServer for DestackLanguageServer {
         self.client
             .log_message(lsp::MessageType::INFO, "destack.shutdown")
             .await;
+        if let Some(daemon) = self.daemon.get() {
+            daemon.shutdown();
+        }
         Ok(())
     }
 
@@ -550,14 +550,19 @@ impl LanguageServer for DestackLanguageServer {
 
         for folder in params.event.added {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
-                session.get_or_create_program(path);
+                session.get_or_create_program(path.clone());
+                if let Err(error) = daemon.open_workspace_root(path) {
+                    tracing::debug!(?error, "lsp.workspace.add_failed");
+                }
             }
         }
 
         for folder in params.event.removed {
             if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
                 let _ = session.remove_root(&path);
-                let _ = daemon.remove_program_handle(&path);
+                if let Err(error) = daemon.close_workspace_root(&path) {
+                    tracing::debug!(?error, "lsp.workspace.remove_failed");
+                }
             }
         }
     }
