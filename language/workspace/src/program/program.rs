@@ -5,8 +5,8 @@ use std::sync::Arc;
 use destack_ast as ast;
 use destack_base::StringPool;
 use destack_source::{
-    DiagnosticCollector, File, FileContent, FileId, FileRegistry, FileSystem, FileType,
-    FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,
+    DiagnosticCollector, DiagnosticStore, File, FileContent, FileId, FileRegistry, FileSystem,
+    FileType, FileVersion, LanguageType, ModuleId, ModuleVersion, PackageId, PackageVersion, Uri,
 };
 use indexmap::IndexMap;
 use parking_lot::RwLock;
@@ -107,6 +107,8 @@ pub struct Program {
     pub workspace_index: RwLock<Option<Arc<WorkspaceIndexSnapshot>>>,
     /// The diagnostic collector.
     pub diagnostics: DiagnosticCollector,
+    /// The diagnostic store.
+    pub diagnostic_store: DiagnosticStore,
 
     // builtins
     /// Language builtins.
@@ -150,6 +152,7 @@ impl Program {
         let strings = Arc::new(StringPool::new());
         let diagnostics = DiagnosticCollector::new();
         let workspace_index = RwLock::new(None);
+        let diagnostic_store = DiagnosticStore::new();
 
         // create and insert the root package and module (for global caching)
         let (root_module_id, fallback_file_id) =
@@ -171,6 +174,7 @@ impl Program {
             strings,
             workspace_index,
             diagnostics,
+            diagnostic_store,
             builtins: None,
 
             root_module_id,
@@ -196,6 +200,7 @@ impl Program {
         let profiles = Arc::new(ProfileRegistry::new());
         let index = Arc::new(ProgramIndex::new());
         let workspace_index = RwLock::new(None);
+        let diagnostic_store = DiagnosticStore::new();
 
         // create and insert the root package and module
         let (root_module_id, fallback_file_id) =
@@ -217,6 +222,7 @@ impl Program {
             strings,
             workspace_index,
             diagnostics,
+            diagnostic_store,
             builtins,
 
             root_module_id,

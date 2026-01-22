@@ -130,7 +130,7 @@ fn collect_diagnostic_fixes(
     // iterate through all programs to find diagnostics for this file
     for program in session.programs.iter() {
         let program = program.value();
-        let diagnostics = program.diagnostics.iter();
+        let diagnostics = program.diagnostic_store.diagnostics_for_file(file);
         for diagnostic in diagnostics {
             // skip diagnostics for other files
             if diagnostic.file_id != file {
