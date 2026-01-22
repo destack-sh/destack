@@ -90,6 +90,7 @@ dist
 
 # IDE/Editor
 .idea/
+.vscode/
 .vscode-test
 .cursor
 *.code-workspace
