@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_compiler::ImportError;
-use destack_source::Diagnostic;
+use destack_source::{Diagnostic, FileId};
 use destack_workspace::InvalidationError;
 
 /// Diagnostics produced by daemon work.
@@ -33,6 +33,11 @@ pub enum DaemonError {
         /// The file path that failed.
         path: PathBuf,
     },
+    /// File id is not tracked in the program.
+    FileIdNotTracked {
+        /// The file id that failed.
+        file_id: FileId,
+    },
     /// Module resolution failed.
     Resolve {
         /// The module path that failed.
@@ -58,6 +63,9 @@ impl std::fmt::Display for DaemonError {
             }
             DaemonError::FileNotTracked { path } => {
                 write!(f, "file is not tracked: {}", path.display())
+            }
+            DaemonError::FileIdNotTracked { file_id } => {
+                write!(f, "file id is not tracked: {file_id:?}")
             }
             DaemonError::Resolve { path, error } => {
                 write!(f, "failed to resolve module {}: {error}", path.display())

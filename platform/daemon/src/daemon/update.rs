@@ -7,8 +7,8 @@ use dashmap::mapref::entry::Entry;
 use destack_compiler::{AnalyzeTask, Compiler, ResolveTask};
 use destack_resolver::{CachePolicy, ResolveError, ResolveOptions, Resolver};
 use destack_source::{
-    Diagnostic, FileContent, FileId, FileType, FileWatchEvent, FileWatchEventKind,
-    FileWatchRescanReason, FileWatchStatus, ModuleId, ModuleStamp,
+    Diagnostic, DiagnosticStoreUpdate, FileContent, FileId, FileType, FileWatchEvent,
+    FileWatchEventKind, FileWatchRescanReason, FileWatchStatus, ModuleId, ModuleStamp,
 };
 use destack_workspace::{
     FileUpdate, InvalidationKind, ModuleGraphKey, ProfileId, Program, TargetId,
@@ -356,8 +356,11 @@ impl Daemon {
             .extend(self.refresh_program_configs(&resolver, program));
 
         // analyze updated modules when requested
-        if analyze {
-            self.analyze_updates(program, compiler, &mut result.updates);
+        if analyze && let Err(error) = self.analyze_updates(program, compiler, &mut result.updates)
+        {
+            result.messages.push(DaemonMessage::RescanAnalyzeFailed {
+                error: error.to_string(),
+            });
         }
 
         result
@@ -483,7 +486,7 @@ impl Daemon {
         updates.push(update);
 
         // analyze the updated module when available
-        self.analyze_updates(&program, &compiler, &mut updates);
+        self.analyze_updates(&program, &compiler, &mut updates)?;
 
         Ok(updates)
     }
@@ -552,12 +555,51 @@ impl Daemon {
                 error: Box::new(error),
             })?;
 
+        // clear diagnostics collector before recompiling
+        let _ = program.diagnostics.drain();
+
         // enqueue analysis tasks and compile
         let profile = program.default_profile_id_for_module(module_id);
         let module = compiler.module_stamp(module_id);
         let profile = compiler.profile_stamp(profile);
         compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
         compiler.compile();
+
+        // group diagnostics by file id
+        let diagnostics = program.diagnostics.collect();
+        let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
+        for diagnostic in diagnostics.iter() {
+            diagnostics_by_file
+                .entry(diagnostic.file_id)
+                .or_default()
+                .push(diagnostic);
+        }
+
+        // collect file versions for the module and diagnostics
+        let mut store_updates = Vec::new();
+        let module = program.modules.get(module_id);
+        let module = module.read();
+        store_updates.push(DiagnosticStoreUpdate::new(
+            module.file_id,
+            module.source_version,
+            diagnostics_by_file
+                .remove(&module.file_id)
+                .unwrap_or_default(),
+        ));
+        for (file_id, diagnostics) in diagnostics_by_file {
+            let file = program
+                .files
+                .get_maybe(file_id)
+                .ok_or(DaemonError::FileIdNotTracked { file_id })?;
+            store_updates.push(DiagnosticStoreUpdate::new(
+                file_id,
+                file.version,
+                diagnostics,
+            ));
+        }
+
+        // commit diagnostics to the store
+        program.diagnostic_store.apply_updates(store_updates);
 
         Ok(())
     }
@@ -568,7 +610,7 @@ impl Daemon {
         program: &Program,
         compiler: &Compiler,
         updates: &mut Vec<DaemonUpdate>,
-    ) {
+    ) -> Result<(), DaemonError> {
         // collect modules and file ids that require analysis
         let mut module_ids = HashSet::new();
         let mut file_ids = HashSet::new();
@@ -599,10 +641,10 @@ impl Daemon {
         }
         updates.extend(extra_updates);
 
-        // drop diagnostics for updated files before recompiling
-        program
-            .diagnostics
-            .retain(|diagnostic| !file_ids.contains(&diagnostic.file_id));
+        // clear diagnostics before any compilation work
+        if !module_ids.is_empty() {
+            let _ = program.diagnostics.drain();
+        }
 
         // ensure module graphs are ready before expanding dependents
         self.ensure_module_graphs_ready(program, compiler, &module_ids);
@@ -652,37 +694,57 @@ impl Daemon {
             updates.extend(dependency_updates);
         }
 
-        // skip when no modules require analysis
-        if module_ids.is_empty() {
-            return;
-        }
+        // compile modules when analysis is required
+        if !module_ids.is_empty() {
+            // enqueue analysis tasks
+            for module_id in &module_ids {
+                let profile = program.default_profile_id_for_module(*module_id);
+                let module = compiler.module_stamp(*module_id);
+                let profile = compiler.profile_stamp(profile);
+                compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
+            }
 
-        // enqueue analysis tasks
-        for module_id in &module_ids {
-            let profile = program.default_profile_id_for_module(*module_id);
-            let module = compiler.module_stamp(*module_id);
-            let profile = compiler.profile_stamp(profile);
-            compiler.enqueue(AnalyzeTask::AnalyzeModuleValidate { module, profile });
-        }
+            // run the analysis pass
+            compiler.compile();
 
-        // run the analysis pass
-        compiler.compile();
-
-        // attach diagnostics for each update
-        let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
-        for diagnostic in program.diagnostics.iter() {
-            if file_ids.contains(&diagnostic.file_id) {
-                diagnostics_by_file
-                    .entry(diagnostic.file_id)
-                    .or_default()
-                    .push(diagnostic.clone());
+            // attach diagnostics for each update
+            let mut diagnostics_by_file: HashMap<FileId, Vec<Diagnostic>> = HashMap::new();
+            for diagnostic in program.diagnostics.iter() {
+                if file_ids.contains(&diagnostic.file_id) {
+                    diagnostics_by_file
+                        .entry(diagnostic.file_id)
+                        .or_default()
+                        .push(diagnostic.clone());
+                }
+            }
+            for update in updates.iter_mut() {
+                update.diagnostics = diagnostics_by_file
+                    .remove(&update.file_id)
+                    .unwrap_or_default();
             }
         }
-        for update in updates.iter_mut() {
-            update.diagnostics = diagnostics_by_file
-                .remove(&update.file_id)
-                .unwrap_or_default();
+
+        // build store updates for changed files
+        let mut store_updates = Vec::new();
+        for update in updates.iter() {
+            let file =
+                program
+                    .files
+                    .get_maybe(update.file_id)
+                    .ok_or(DaemonError::FileIdNotTracked {
+                        file_id: update.file_id,
+                    })?;
+            store_updates.push(DiagnosticStoreUpdate::new(
+                update.file_id,
+                file.version,
+                update.diagnostics.clone(),
+            ));
         }
+
+        // commit diagnostics to the store
+        program.diagnostic_store.apply_updates(store_updates);
+
+        Ok(())
     }
 
     /// Ensure module graphs are available for dependency fan-out.
@@ -889,7 +951,7 @@ impl Daemon {
     }
 
     /// Resolve the daemon program handle for a path.
-    fn program_handle_for_path(&self, path: &Path) -> Arc<ProgramHandle> {
+    pub(crate) fn program_handle_for_path(&self, path: &Path) -> Arc<ProgramHandle> {
         // resolve the program first
         let program = self.session.find_program_for_path(path);
         let key = program.cwd.clone();
@@ -1098,7 +1160,9 @@ impl Daemon {
     fn error_requires_rescan(&self, error: &DaemonError) -> bool {
         matches!(
             error,
-            DaemonError::FileNotTracked { .. } | DaemonError::Resolve { .. }
+            DaemonError::FileNotTracked { .. }
+                | DaemonError::FileIdNotTracked { .. }
+                | DaemonError::Resolve { .. }
         )
     }
 

@@ -53,6 +53,11 @@ pub enum DaemonMessage {
         /// The failure detail.
         error: String,
     },
+    /// Report that a rescan analysis failed.
+    RescanAnalyzeFailed {
+        /// The failure detail.
+        error: String,
+    },
     /// Report that a watcher status contained an error.
     WatchStatusError {
         /// The watcher error message.
@@ -99,6 +104,7 @@ impl DaemonMessage {
             DaemonMessage::ConfigReloadWorkspaceFailed { .. } => DaemonMessageKind::Warning,
             DaemonMessage::ConfigReloadPackageFailed { .. } => DaemonMessageKind::Warning,
             DaemonMessage::ConfigReloadTsconfigFailed { .. } => DaemonMessageKind::Warning,
+            DaemonMessage::RescanAnalyzeFailed { .. } => DaemonMessageKind::Warning,
         }
     }
 
@@ -116,6 +122,7 @@ impl DaemonMessage {
             DaemonMessage::ConfigReloadWorkspaceFailed { .. } => "config_reload_workspace_failed",
             DaemonMessage::ConfigReloadPackageFailed { .. } => "config_reload_package_failed",
             DaemonMessage::ConfigReloadTsconfigFailed { .. } => "config_reload_tsconfig_failed",
+            DaemonMessage::RescanAnalyzeFailed { .. } => "rescan_analyze_failed",
         }
     }
 
@@ -139,6 +146,9 @@ impl DaemonMessage {
             }
             DaemonMessage::RescanInvalidationFailed { file_id, error } => {
                 format!("watch: failed to rescan {file_id:?}: {error}")
+            }
+            DaemonMessage::RescanAnalyzeFailed { error } => {
+                format!("watch: failed to analyze updated modules: {error}")
             }
             DaemonMessage::WatchStatusError { message } => format!("watch: {message}"),
             DaemonMessage::WatchRescanRequested { reason } => {
