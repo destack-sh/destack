@@ -1,42 +1,123 @@
 
-function @d20(v0: i64) -> i64 { block0(v0: i64): v1 = iconst 1i64 v2 = iadd v0, v1 return v2 }
-function @d19(v0: i64) -> i64 { block0(v0: i64): v1 = call @d20(v0) return v1 }
-function @d18(v0: i64) -> i64 { block0(v0: i64): v1 = call @d19(v0) return v1 }
-function @d17(v0: i64) -> i64 { block0(v0: i64): v1 = call @d18(v0) return v1 }
-function @d16(v0: i64) -> i64 { block0(v0: i64): v1 = call @d17(v0) return v1 }
-function @d15(v0: i64) -> i64 { block0(v0: i64): v1 = call @d16(v0) return v1 }
-function @d14(v0: i64) -> i64 { block0(v0: i64): v1 = call @d15(v0) return v1 }
-function @d13(v0: i64) -> i64 { block0(v0: i64): v1 = call @d14(v0) return v1 }
-function @d12(v0: i64) -> i64 { block0(v0: i64): v1 = call @d13(v0) return v1 }
-function @d11(v0: i64) -> i64 { block0(v0: i64): v1 = call @d12(v0) return v1 }
-function @d10(v0: i64) -> i64 { block0(v0: i64): v1 = call @d11(v0) return v1 }
-function @d9(v0: i64) -> i64 { block0(v0: i64): v1 = call @d10(v0) return v1 }
-function @d8(v0: i64) -> i64 { block0(v0: i64): v1 = call @d9(v0) return v1 }
-function @d7(v0: i64) -> i64 { block0(v0: i64): v1 = call @d8(v0) return v1 }
-function @d6(v0: i64) -> i64 { block0(v0: i64): v1 = call @d7(v0) return v1 }
-function @d5(v0: i64) -> i64 { block0(v0: i64): v1 = call @d6(v0) return v1 }
-function @d4(v0: i64) -> i64 { block0(v0: i64): v1 = call @d5(v0) return v1 }
-function @d3(v0: i64) -> i64 { block0(v0: i64): v1 = call @d4(v0) return v1 }
-function @d2(v0: i64) -> i64 { block0(v0: i64): v1 = call @d3(v0) return v1 }
-function @d1(v0: i64) -> i64 { block0(v0: i64): v1 = call @d2(v0) return v1 }
+function @d20(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = iconst 1i64
+    v2: i64 = iadd v0, v1
+    return v2
+}
+function @d19(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d20(v0)
+    return v1
+}
+function @d18(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d19(v0)
+    return v1
+}
+function @d17(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d18(v0)
+    return v1
+}
+function @d16(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d17(v0)
+    return v1
+}
+function @d15(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d16(v0)
+    return v1
+}
+function @d14(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d15(v0)
+    return v1
+}
+function @d13(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d14(v0)
+    return v1
+}
+function @d12(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d13(v0)
+    return v1
+}
+function @d11(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d12(v0)
+    return v1
+}
+function @d10(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d11(v0)
+    return v1
+}
+function @d9(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d10(v0)
+    return v1
+}
+function @d8(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d9(v0)
+    return v1
+}
+function @d7(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d8(v0)
+    return v1
+}
+function @d6(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d7(v0)
+    return v1
+}
+function @d5(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d6(v0)
+    return v1
+}
+function @d4(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d5(v0)
+    return v1
+}
+function @d3(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d4(v0)
+    return v1
+}
+function @d2(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d3(v0)
+    return v1
+}
+function @d1(v0: i64) -> i64 {
+block0(v0: i64):
+    v1: i64 = call @d2(v0)
+    return v1
+}
 
 function @call_direct_deep(v0: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64):
-    v1 = iconst 0i64
+    v1: i64 = iconst 0i64
     jump block1(v1, v1)
 
 // loop condition, check limit
 block1(v2: i64, v3: i64):
-    v4 = icmp_sge v2, v0
+    v4: bool = icmp_sge v2, v0
     branch v4, block3(v3), block2
 
 // loop body, call helper
 block2:
-    v5 = call @d1(v3)
-    v6 = iconst 1i64
-    v7 = iadd v2, v6
+    v5: i64 = call @d1(v3)
+    v6: i64 = iconst 1i64
+    v7: i64 = iadd v2, v6
     jump block1(v7, v5)
 
 // return result

@@ -3,8 +3,8 @@ function @hash_table_probe(v0: i64, v1: i64, v2: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64, v2: i64):
-    v3 = iconst 8i64
-    v4 = icmp_slt v1, v3
+    v3: i64 = iconst 8i64
+    v4: bool = icmp_slt v1, v3
     branch v4, block1, block2
 
 // merge branch, continue
@@ -17,231 +17,231 @@ block2:
 
 // update state, merge branch
 block3(v5: i64):
-    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v7 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v8 = iconst 0i64
-    v9 = iconst 1i64
-    v10 = isub v8, v9
-    v11 = isub v10, v9
+    v6: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v7: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v8: i64 = iconst 0i64
+    v9: i64 = iconst 1i64
+    v10: i64 = isub v8, v9
+    v11: i64 = isub v10, v9
     jump block4(v8, v6, v7, v5, v10, v11)
 
 // loop condition, check limit
 block4(v12: i64, v13: ref<managed i64>, v14: ref<managed i64>, v15: i64, v16: i64, v17: i64):
-    v18 = icmp_sge v12, v15
+    v18: bool = icmp_sge v12, v15
     branch v18, block6(v13, v14, v15, v16, v17), block5
 
 // loop body, update aggregates
 block5:
-    v19 = element.addr v13, v12 -> ref<borrowed i64>
+    v19: ref<borrowed i64> = element.addr v13, v12 -> ref<borrowed i64>
     store v19, v16
-    v20 = element.addr v14, v12 -> ref<borrowed i64>
+    v20: ref<borrowed i64> = element.addr v14, v12 -> ref<borrowed i64>
     store v20, v8
-    v21 = iadd v12, v9
+    v21: i64 = iadd v12, v9
     jump block4(v21, v13, v14, v15, v16, v17)
 
 // merge branch, continue
 block6(v22: ref<managed i64>, v23: ref<managed i64>, v24: i64, v25: i64, v26: i64):
-    v27 = iconst 0i64
-    v28 = iconst 0i64
+    v27: i64 = iconst 0i64
+    v28: i64 = iconst 0i64
     jump block7(v27, v28, v22, v23, v24, v25, v26)
 
 // loop condition, check limit
 block7(v29: i64, v30: i64, v31: ref<managed i64>, v32: ref<managed i64>, v33: i64, v34: i64, v35: i64):
-    v36 = icmp_sge v29, v0
+    v36: bool = icmp_sge v29, v0
     branch v36, block29(v30), block8
 
 // base case check
 block8:
-    v37 = iconst 1103515245i64
-    v38 = imul v29, v37
-    v39 = iadd v38, v2
-    v40 = iconst 16i64
-    v41 = sshr v39, v40
-    v42 = bxor v39, v41
-    v43 = iconst 2147483647i64
-    v44 = band v42, v43
-    v45 = srem v44, v33
-    v46 = iconst 3i64
-    v47 = band v39, v46
-    v48 = iconst 0i64
-    v49 = icmp_eq v47, v48
+    v37: i64 = iconst 1103515245i64
+    v38: i64 = imul v29, v37
+    v39: i64 = iadd v38, v2
+    v40: i64 = iconst 16i64
+    v41: i64 = sshr v39, v40
+    v42: i64 = bxor v39, v41
+    v43: i64 = iconst 2147483647i64
+    v44: i64 = band v42, v43
+    v45: i64 = srem v44, v33
+    v46: i64 = iconst 3i64
+    v47: i64 = band v39, v46
+    v48: i64 = iconst 0i64
+    v49: bool = icmp_eq v47, v48
     branch v49, block9, block10
 
 // merge branch, continue
 block9:
-    v50 = iconst 0i64
+    v50: i64 = iconst 0i64
     jump block11(v50, v45, v30, v42, v39)
 
 // base case check
 block10:
-    v51 = iconst 1i64
-    v52 = icmp_eq v47, v51
+    v51: i64 = iconst 1i64
+    v52: bool = icmp_eq v47, v51
     branch v52, block19, block24
 
 // loop condition, check limit
 block11(v53: i64, v54: i64, v55: i64, v56: i64, v57: i64):
-    v58 = icmp_sge v53, v33
+    v58: bool = icmp_sge v53, v33
     branch v58, block28(v55), block12
 
 // base case check
 block12:
-    v59 = element.addr v31, v54 -> ref<borrowed i64>
-    v60 = load v59 -> i64
-    v61 = icmp_eq v60, v56
+    v59: ref<borrowed i64> = element.addr v31, v54 -> ref<borrowed i64>
+    v60: i64 = load v59 -> i64
+    v61: bool = icmp_eq v60, v56
     branch v61, block13, block14
 
 // update state, merge branch
 block13:
-    v62 = element.addr v32, v54 -> ref<borrowed i64>
+    v62: ref<borrowed i64> = element.addr v32, v54 -> ref<borrowed i64>
     store v62, v57
-    v63 = iadd v55, v57
+    v63: i64 = iadd v55, v57
     jump block27(v63)
 
 // base case check
 block14:
-    v64 = icmp_eq v60, v34
+    v64: bool = icmp_eq v60, v34
     branch v64, block16, block15
 
 // base case check
 block15:
-    v65 = icmp_eq v60, v35
+    v65: bool = icmp_eq v60, v35
     branch v65, block16, block17
 
 // update state, merge branch
 block16:
-    v66 = element.addr v31, v54 -> ref<borrowed i64>
+    v66: ref<borrowed i64> = element.addr v31, v54 -> ref<borrowed i64>
     store v66, v56
-    v67 = element.addr v32, v54 -> ref<borrowed i64>
+    v67: ref<borrowed i64> = element.addr v32, v54 -> ref<borrowed i64>
     store v67, v57
-    v68 = iadd v55, v57
+    v68: i64 = iadd v55, v57
     jump block27(v68)
 
 // branch on condition
 block17:
-    v69 = iconst 1i64
-    v70 = iadd v54, v69
-    v71 = icmp_sge v70, v33
+    v69: i64 = iconst 1i64
+    v70: i64 = iadd v54, v69
+    v71: bool = icmp_sge v70, v33
     branch v71, block18, block23
 
 // loop body, update accumulators
 block18:
-    v72 = iconst 0i64
-    v73 = iadd v53, v69
+    v72: i64 = iconst 0i64
+    v73: i64 = iadd v53, v69
     jump block11(v73, v72, v55, v56, v57)
 
 // loop body, update accumulators
 block23:
-    v74 = iadd v53, v69
+    v74: i64 = iadd v53, v69
     jump block11(v74, v70, v55, v56, v57)
 
 // merge branch, continue
 block19:
-    v75 = iconst 0i64
+    v75: i64 = iconst 0i64
     jump block20(v75, v45, v30, v42)
 
 // loop condition, check limit
 block20(v76: i64, v77: i64, v78: i64, v79: i64):
-    v80 = icmp_sge v76, v33
+    v80: bool = icmp_sge v76, v33
     branch v80, block28(v78), block21
 
 // base case check
 block21:
-    v81 = element.addr v31, v77 -> ref<borrowed i64>
-    v82 = load v81 -> i64
-    v83 = icmp_eq v82, v79
+    v81: ref<borrowed i64> = element.addr v31, v77 -> ref<borrowed i64>
+    v82: i64 = load v81 -> i64
+    v83: bool = icmp_eq v82, v79
     branch v83, block22, block25
 
 // update state, merge branch
 block22:
-    v84 = element.addr v32, v77 -> ref<borrowed i64>
-    v85 = load v84 -> i64
-    v86 = iadd v78, v85
+    v84: ref<borrowed i64> = element.addr v32, v77 -> ref<borrowed i64>
+    v85: i64 = load v84 -> i64
+    v86: i64 = iadd v78, v85
     jump block27(v86)
 
 // base case check
 block25:
-    v87 = icmp_eq v82, v34
+    v87: bool = icmp_eq v82, v34
     branch v87, block28(v78), block26
 
 // branch on condition
 block26:
-    v88 = iconst 1i64
-    v89 = iadd v77, v88
-    v90 = icmp_sge v89, v33
+    v88: i64 = iconst 1i64
+    v89: i64 = iadd v77, v88
+    v90: bool = icmp_sge v89, v33
     branch v90, block30, block31
 
 // loop body, update accumulators
 block30:
-    v91 = iconst 0i64
-    v92 = iadd v76, v88
+    v91: i64 = iconst 0i64
+    v92: i64 = iadd v76, v88
     jump block20(v92, v91, v78, v79)
 
 // loop body, update accumulators
 block31:
-    v93 = iadd v76, v88
+    v93: i64 = iadd v76, v88
     jump block20(v93, v89, v78, v79)
 
 // merge branch, continue
 block24:
-    v94 = iconst 0i64
+    v94: i64 = iconst 0i64
     jump block32(v94, v45, v30, v42)
 
 // loop condition, check limit
 block32(v95: i64, v96: i64, v97: i64, v98: i64):
-    v99 = icmp_sge v95, v33
+    v99: bool = icmp_sge v95, v33
     branch v99, block28(v97), block33
 
 // base case check
 block33:
-    v100 = element.addr v31, v96 -> ref<borrowed i64>
-    v101 = load v100 -> i64
-    v102 = icmp_eq v101, v98
+    v100: ref<borrowed i64> = element.addr v31, v96 -> ref<borrowed i64>
+    v101: i64 = load v100 -> i64
+    v102: bool = icmp_eq v101, v98
     branch v102, block34, block37
 
 // loop body, update aggregates
 block34:
-    v103 = element.addr v32, v96 -> ref<borrowed i64>
-    v104 = load v103 -> i64
-    v105 = iadd v97, v104
-    v106 = element.addr v31, v96 -> ref<borrowed i64>
+    v103: ref<borrowed i64> = element.addr v32, v96 -> ref<borrowed i64>
+    v104: i64 = load v103 -> i64
+    v105: i64 = iadd v97, v104
+    v106: ref<borrowed i64> = element.addr v31, v96 -> ref<borrowed i64>
     store v106, v35
-    v107 = element.addr v32, v96 -> ref<borrowed i64>
-    v108 = iconst 0i64
+    v107: ref<borrowed i64> = element.addr v32, v96 -> ref<borrowed i64>
+    v108: i64 = iconst 0i64
     store v107, v108
     jump block27(v105)
 
 // base case check
 block37:
-    v109 = icmp_eq v101, v34
+    v109: bool = icmp_eq v101, v34
     branch v109, block28(v97), block38
 
 // branch on condition
 block38:
-    v110 = iconst 1i64
-    v111 = iadd v96, v110
-    v112 = icmp_sge v111, v33
+    v110: i64 = iconst 1i64
+    v111: i64 = iadd v96, v110
+    v112: bool = icmp_sge v111, v33
     branch v112, block39, block40
 
 // loop body, update accumulators
 block39:
-    v113 = iconst 0i64
-    v114 = iadd v95, v110
+    v113: i64 = iconst 0i64
+    v114: i64 = iadd v95, v110
     jump block32(v114, v113, v97, v98)
 
 // loop body, update accumulators
 block40:
-    v115 = iadd v95, v110
+    v115: i64 = iadd v95, v110
     jump block32(v115, v111, v97, v98)
 
 // merge branches, advance loop
 block27(v116: i64):
-    v117 = iconst 1i64
-    v118 = iadd v29, v117
+    v117: i64 = iconst 1i64
+    v118: i64 = iadd v29, v117
     jump block7(v118, v116, v31, v32, v33, v34, v35)
 
 // merge branches, advance loop
 block28(v119: i64):
-    v120 = iadd v119, v44
+    v120: i64 = iadd v119, v44
     jump block27(v120)
 
 // return result

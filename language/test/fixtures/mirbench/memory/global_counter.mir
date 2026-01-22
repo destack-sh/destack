@@ -6,29 +6,29 @@ function @global_counter(v0: i64) -> i64 {
 
 // entry, init globals
 block0(v0: i64):
-    v1 = global.addr @counter -> ref<raw addrspace(global) mut i64>
-    v2 = iconst 0i64
+    v1: ref<raw addrspace(global) mut i64> = global.addr @counter -> ref<raw addrspace(global) mut i64>
+    v2: i64 = iconst 0i64
     store v1, v2
-    v3 = global.const @seed
+    v3: i64 = global.const @seed
     jump block1(v2, v1, v3)
 
 // loop condition, check limit
 block1(v4: i64, v5: ref<raw addrspace(global) mut i64>, v6: i64):
-    v7 = icmp_sge v4, v0
+    v7: bool = icmp_sge v4, v0
     branch v7, block3(v5), block2
 
 // loop body, update memory
 block2:
-    v8 = load v5 -> i64
-    v9 = iadd v8, v6
-    v10 = bxor v9, v4
+    v8: i64 = load v5 -> i64
+    v9: i64 = iadd v8, v6
+    v10: i64 = bxor v9, v4
     store v5, v10
-    v11 = iconst 1i64
-    v12 = iadd v4, v11
+    v11: i64 = iconst 1i64
+    v12: i64 = iadd v4, v11
     jump block1(v12, v5, v6)
 
 // return accumulated value
 block3(v13: ref<raw addrspace(global) mut i64>):
-    v14 = load v13 -> i64
+    v14: i64 = load v13 -> i64
     return v14
 }

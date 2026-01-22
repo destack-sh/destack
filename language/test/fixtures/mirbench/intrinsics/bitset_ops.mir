@@ -3,38 +3,38 @@ function @bitset_ops(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 0i64
-    v3 = iconst 2654435769i64
-    v4 = bxor v1, v3
-    v5 = iconst 0i64
+    v2: i64 = iconst 0i64
+    v3: i64 = iconst 2654435769i64
+    v4: i64 = bxor v1, v3
+    v5: i64 = iconst 0i64
     jump block1(v2, v1, v4, v5)
 
 // loop condition, check limit
 block1(v6: i64, v7: i64, v8: i64, v9: i64):
-    v10 = icmp_sge v6, v0
+    v10: bool = icmp_sge v6, v0
     branch v10, block3(v7, v8, v9), block2
 
 // loop body, update memory
 block2:
-    v11 = iconst 63i64
-    v12 = band v6, v11
-    v13 = iconst 1i64
-    v14 = ishl v13, v12
-    v15 = bxor v7, v14
-    v16 = intrinsic.popcnt(v15)
-    v17 = intrinsic.rotate_right(v15, v16)
-    v18 = bxor v8, v17
-    v19 = intrinsic.popcnt(v18)
-    v20 = intrinsic.rotate_left(v18, v19)
-    v21 = iadd v9, v16
-    v22 = iadd v21, v19
-    v23 = iconst 1i64
-    v24 = iadd v6, v23
+    v11: i64 = iconst 63i64
+    v12: i64 = band v6, v11
+    v13: i64 = iconst 1i64
+    v14: i64 = ishl v13, v12
+    v15: i64 = bxor v7, v14
+    v16: i64 = intrinsic.popcnt(v15)
+    v17: i64 = intrinsic.rotate_right(v15, v16)
+    v18: i64 = bxor v8, v17
+    v19: i64 = intrinsic.popcnt(v18)
+    v20: i64 = intrinsic.rotate_left(v18, v19)
+    v21: i64 = iadd v9, v16
+    v22: i64 = iadd v21, v19
+    v23: i64 = iconst 1i64
+    v24: i64 = iadd v6, v23
     jump block1(v24, v17, v20, v22)
 
 // return result
 block3(v25: i64, v26: i64, v27: i64):
-    v28 = bxor v25, v26
-    v29 = bxor v28, v27
+    v28: i64 = bxor v25, v26
+    v29: i64 = bxor v28, v27
     return v29
 }

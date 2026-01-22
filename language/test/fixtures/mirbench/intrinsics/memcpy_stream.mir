@@ -3,13 +3,13 @@ function @memcpy_stream(v0: i64, v1: i64) -> i64 {
 
 // entry, init state
 block0(v0: i64, v1: i64):
-    v2 = iconst 1i64
-    v3 = icmp_slt v1, v2
+    v2: i64 = iconst 1i64
+    v3: bool = icmp_slt v1, v2
     branch v3, block1, block2
 
 // merge branch, continue
 block1:
-    v4 = iconst 1i64
+    v4: i64 = iconst 1i64
     jump block3(v4)
 
 // merge branch, continue
@@ -18,32 +18,32 @@ block2:
 
 // merge branch, continue
 block3(v5: i64):
-    v6 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v7 = managed.alloc_array i64, v5 -> ref<managed i64>
-    v8 = iconst 0i64
+    v6: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v7: ref<managed i64> = managed.alloc_array i64, v5 -> ref<managed i64>
+    v8: i64 = iconst 0i64
     jump block4(v8, v6, v7, v5)
 
 // loop condition, check limit
 block4(v9: i64, v10: ref<managed i64>, v11: ref<managed i64>, v12: i64):
-    v13 = icmp_sge v9, v12
+    v13: bool = icmp_sge v9, v12
     branch v13, block6(v10, v11, v12), block5
 
 // loop body, update aggregates
 block5:
-    v14 = element.addr v10, v9 -> ref<borrowed i64>
-    v15 = iconst 7i64
-    v16 = imul v9, v15
+    v14: ref<borrowed i64> = element.addr v10, v9 -> ref<borrowed i64>
+    v15: i64 = iconst 7i64
+    v16: i64 = imul v9, v15
     store v14, v16
-    v17 = iconst 1i64
-    v18 = iadd v9, v17
+    v17: i64 = iconst 1i64
+    v18: i64 = iadd v9, v17
     jump block4(v18, v10, v11, v12)
 
 // branch on condition
 block6(v19: ref<managed i64>, v20: ref<managed i64>, v21: i64):
-    v22 = iconst 1i64
-    v23 = isub v21, v22
-    v24 = iconst 0i64
-    v25 = iconst 0i64
+    v22: i64 = iconst 1i64
+    v23: i64 = isub v21, v22
+    v24: i64 = iconst 0i64
+    v25: i64 = iconst 0i64
     jump block7(v24, v25, v19, v20, v21, v23)
 block7(
     v26: i64,
@@ -53,19 +53,19 @@ block7(
     v30: i64,
     v31: i64
 ):
-    v32 = icmp_sge v26, v0
+    v32: bool = icmp_sge v26, v0
     branch v32, block9(v27), block8
 
 // loop body, update aggregates
 block8:
-    v33 = element.addr v28, v31 -> ref<borrowed i64>
+    v33: ref<borrowed i64> = element.addr v28, v31 -> ref<borrowed i64>
     store v33, v26
     intrinsic.memcpy(v29, v28, v30)
-    v34 = element.addr v29, v31 -> ref<borrowed i64>
-    v35 = load v34 -> i64
-    v36 = iadd v27, v35
-    v37 = iconst 1i64
-    v38 = iadd v26, v37
+    v34: ref<borrowed i64> = element.addr v29, v31 -> ref<borrowed i64>
+    v35: i64 = load v34 -> i64
+    v36: i64 = iadd v27, v35
+    v37: i64 = iconst 1i64
+    v38: i64 = iadd v26, v37
     jump block7(v38, v36, v28, v29, v30, v31)
 
 // return result
