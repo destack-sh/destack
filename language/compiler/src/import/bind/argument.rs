@@ -255,7 +255,14 @@ impl Compiler {
         let argument_id =
             tree.reserve_from_source(NodeType::Argument, ast_argument_id.id, scope, parent_id);
         match ast_argument {
-            ast::Argument::Named { name, value, .. } => {
+            ast::Argument::Named {
+                modifiers,
+                name,
+                value,
+                ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let name = self
                     .program
                     .strings
@@ -271,9 +278,15 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Named { name, value })
+                tree.insert(argument_id, Argument::Named {
+                    modifiers,
+                    name,
+                    value,
+                })
             }
-            ast::Argument::Positional { value, .. } => {
+            ast::Argument::Positional { modifiers, value } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -285,9 +298,16 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Positional { value })
+                tree.insert(argument_id, Argument::Positional { modifiers, value })
             }
-            ast::Argument::Spread { label, value, .. } => {
+            ast::Argument::Spread {
+                modifiers,
+                label,
+                value,
+                ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let label =
                     label.map(|label| self.program.strings.intern_from(&ast.strings, label));
                 let value = self.bind_expression(
@@ -301,9 +321,20 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Spread { label, value })
+                tree.insert(argument_id, Argument::Spread {
+                    modifiers,
+                    label,
+                    value,
+                })
             }
-            ast::Argument::Labeled { label, value, .. } => {
+            ast::Argument::Labeled {
+                modifiers,
+                label,
+                value,
+                ..
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.bind_binding_modifier(module, ast, modifiers));
                 let label = self.program.strings.intern_from(&ast.strings, *label);
                 let value = self.bind_expression(
                     module,
@@ -316,7 +347,11 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Labeled { label, value })
+                tree.insert(argument_id, Argument::Labeled {
+                    modifiers,
+                    label,
+                    value,
+                })
             }
         }
     }

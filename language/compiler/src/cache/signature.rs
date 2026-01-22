@@ -725,13 +725,13 @@ impl<'a> SignatureHasher<'a> {
                     .hash(&mut hasher);
             }
             Type::Conditional {
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
                 else_type,
             } => {
-                distributive.hash(&mut hasher);
+                distributive_symbol.hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *left, types)
                     .hash(&mut hasher);
                 self.hash_type_id_in_tables(module_id, *right, types)
@@ -1115,6 +1115,7 @@ impl<'a> SignatureHasher<'a> {
         // seed the hasher with the parameter name
         let mut hasher = FxHasher::default();
         self.hash_string_id(parameter.name).hash(&mut hasher);
+        parameter.symbol.hash(&mut hasher);
 
         // hash parameter details
         self.hash_type_id_in_tables(module_id, parameter.constraint, types)

@@ -266,18 +266,26 @@ impl Compiler {
             }
 
             let updated = match argument {
-                Argument::Named { name, .. } => Argument::Named {
+                Argument::Named { modifiers, name, .. } => Argument::Named {
+                    modifiers,
                     name,
                     value: cast_value_id,
                 },
-                Argument::Labeled { label, .. } => Argument::Labeled {
+                Argument::Labeled {
+                    modifiers, label, ..
+                } => Argument::Labeled {
+                    modifiers,
                     label,
                     value: cast_value_id,
                 },
-                Argument::Positional { .. } => Argument::Positional {
+                Argument::Positional { modifiers, .. } => Argument::Positional {
+                    modifiers,
                     value: cast_value_id,
                 },
-                Argument::Spread { label, .. } => Argument::Spread {
+                Argument::Spread {
+                    modifiers, label, ..
+                } => Argument::Spread {
+                    modifiers,
                     label,
                     value: cast_value_id,
                 },

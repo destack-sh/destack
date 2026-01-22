@@ -20,7 +20,7 @@ impl Compiler {
         let type_key = self.program.strings.intern("type");
 
         for arg_id in arguments {
-            let Argument::Named { name, value } = tree.get(*arg_id) else {
+            let Argument::Named { name, value, .. } = tree.get(*arg_id) else {
                 continue;
             };
             if *name != type_key {
