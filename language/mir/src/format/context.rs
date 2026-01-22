@@ -293,6 +293,7 @@ where
 }
 
 /// Build synthetic type aliases based on usage counts.
+#[allow(clippy::type_complexity)]
 fn build_synthetic_aliases(
     tree: &NodeTree,
     strings: &ImmutableStringPool,
@@ -331,9 +332,7 @@ fn build_synthetic_aliases(
 
         // group candidates by structure
         let key = type_key_for_alias(tree, strings, type_id);
-        let entry = candidates
-            .entry(key)
-            .or_insert_with(AliasCandidateGroup::new);
+        let entry = candidates.entry(key).or_default();
         entry.total_uses += uses;
         entry.type_ids.push(type_id);
 
@@ -480,13 +479,6 @@ struct AliasCandidateGroup {
     type_ids: Vec<LocalNodeId<Type>>,
     /// Metadata names seen for the group.
     metadata_names: HashSet<String>,
-}
-
-impl AliasCandidateGroup {
-    /// Create an empty alias candidate group.
-    fn new() -> Self {
-        Self::default()
-    }
 }
 
 /// Build a structural key used for alias grouping.

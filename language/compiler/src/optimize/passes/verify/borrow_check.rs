@@ -186,6 +186,23 @@ impl<'a> BorrowCheckContext<'a> {
             );
             self.borrows_of.entry(origin).or_default().insert(id);
         }
+
+        // seed local borrows from analysis
+        for (reference, local, at) in borrow_state.active_local_borrows() {
+            let id = self.alloc_borrow_id();
+            let is_mutable = self.derive_mutability(reference);
+            self.active_borrows.insert(
+                id,
+                ActiveBorrow {
+                    reference,
+                    origin: None,
+                    is_mutable,
+                    created_at: at,
+                    provenance: HashSet::new(),
+                },
+            );
+            self.local_borrows.entry(local).or_default().insert(id);
+        }
     }
 
     /// Create an anchored node ID for diagnostics.
@@ -265,25 +282,43 @@ impl<'a> BorrowCheckContext<'a> {
         self.local_borrows.entry(local).or_default().insert(id);
     }
 
+    /// Check whether a new local borrow conflicts with existing borrows.
+    fn check_local_borrow_conflict(
+        &mut self,
+        local: mir::LocalNodeId<mir::Local>,
+        is_mutable: bool,
+        at: mir::LocalNodeId<Instruction>,
+        context: &impl DiagnosticEmitter,
+    ) {
+        let Some(borrow_ids) = self.local_borrows.get(&local) else {
+            return;
+        };
+
+        let conflict = borrow_ids.iter().find_map(|id| {
+            let borrow = self.active_borrows.get(id)?;
+            if is_mutable || borrow.is_mutable {
+                Some((borrow.created_at, borrow.is_mutable))
+            } else {
+                None
+            }
+        });
+
+        if let Some((existing_at, existing_is_mutable)) = conflict {
+            self.had_aliasing_violations = true;
+            context.emit_error(OptimizeError::ConflictingBorrow {
+                node: self.anchor(at),
+                existing_borrow: self.anchor(existing_at),
+                existing_is_mutable,
+            });
+        }
+    }
+
     /// Check if a local has any active borrows.
     fn local_has_borrow(&self, local: mir::LocalNodeId<mir::Local>) -> Option<&ActiveBorrow> {
         self.local_borrows
             .get(&local)
             .and_then(|ids| ids.iter().next())
             .and_then(|id| self.active_borrows.get(id))
-    }
-
-    /// Get active borrows of a value (direct borrows only).
-    fn borrows_of_value(&self, value: Value) -> impl Iterator<Item = &ActiveBorrow> {
-        self.borrows_of
-            .get(&value)
-            .into_iter()
-            .flat_map(|ids| ids.iter().filter_map(|id| self.active_borrows.get(id)))
-    }
-
-    /// Check if a value has any active borrows (mutable or immutable).
-    fn has_any_borrow(&self, value: Value) -> Option<&ActiveBorrow> {
-        self.borrows_of_value(value).next()
     }
 
     /// Remove a borrow by ID.
@@ -323,6 +358,9 @@ impl<'a> BorrowCheckContext<'a> {
 
         // find conflicting borrows using alias analysis
         let conflict = self.active_borrows.values().find_map(|borrow| {
+            // local borrows only guard local.set
+            borrow.origin?;
+
             let borrow_loc = MemoryLocation::from_ptr(borrow.reference);
 
             // check if locations may alias
@@ -404,6 +442,11 @@ impl<'a> BorrowCheckContext<'a> {
 
         // check borrows that may alias the dropped value
         let conflicting_borrow = self.active_borrows.values().find(|borrow| {
+            // local borrows are handled by local.set checks
+            if borrow.origin.is_none() {
+                return false;
+            }
+
             // check direct transitive borrow relationship (provenance chain)
             if borrow.origin == Some(value) || borrow.provenance.contains(&value) {
                 return true;
@@ -447,15 +490,62 @@ impl<'a> BorrowCheckContext<'a> {
         at: mir::LocalNodeId<Instruction>,
         context: &impl DiagnosticEmitter,
     ) {
-        // check if the value being moved has active borrows
-        let borrowed_at = self.has_any_borrow(value).map(|b| b.created_at);
-        if let Some(borrowed_at) = borrowed_at {
-            // moving while borrowed invalidates the borrow
+        let Some(&ty_id) = self.value_types.get(&value) else {
+            return;
+        };
+
+        let ty = self.tree.get(ty_id);
+        let Type::Reference { kind, .. } = ty else {
+            return;
+        };
+
+        if matches!(kind, ReferenceKind::Raw | ReferenceKind::Borrowed) {
+            return;
+        }
+
+        // build the move location
+        let move_loc = MemoryLocation::from_ptr(value);
+
+        // check for any active borrow that aliases the move
+        let conflicting_borrow = self.active_borrows.values().find(|borrow| {
+            // local borrows only guard local.set
+            if borrow.origin.is_none() {
+                return false;
+            }
+
+            // check direct provenance links
+            if borrow.origin == Some(value) || borrow.provenance.contains(&value) {
+                return true;
+            }
+
+            // check aliasing between the move and the borrow
+            let borrow_ptr = borrow.origin.unwrap_or(borrow.reference);
+            let borrow_loc = MemoryLocation::from_ptr(borrow_ptr);
+            self.alias_analysis
+                .alias(&move_loc, &borrow_loc)
+                .may_alias()
+        });
+
+        // check for conflicts with active borrows
+        if let Some(borrow) = conflicting_borrow {
             context.emit_error(OptimizeError::MoveOfBorrowedValue {
                 node: self.anchor(at),
-                borrowed_at: self.anchor(borrowed_at),
+                borrowed_at: self.anchor(borrow.created_at),
             });
             self.had_aliasing_violations = true;
+            return;
+        }
+
+        // check for conflicts with entry borrow state
+        if let Some(entry_state) = &self.entry_borrow_state {
+            let borrow_state = entry_state.get(value);
+            if let Some(borrowed_at) = borrow_state.borrow_location() {
+                context.emit_error(OptimizeError::MoveOfBorrowedValue {
+                    node: self.anchor(at),
+                    borrowed_at: self.anchor(borrowed_at),
+                });
+                self.had_aliasing_violations = true;
+            }
         }
     }
 
@@ -674,8 +764,12 @@ fn expire_dead_borrows(
         .iter()
         .filter(|(_, borrow)| {
             if instruction_index == 0 {
-                // at block entry, check if value is not live-in
-                !liveness.is_live_in(block_id, borrow.reference)
+                let block = tree.get(block_id);
+                let is_block_param = block
+                    .parameters
+                    .iter()
+                    .any(|param| param.value == borrow.reference);
+                !liveness.is_live_in(block_id, borrow.reference) && !is_block_param
             } else {
                 // check if value is dead after previous instruction
                 !liveness.is_live_after_instruction(
@@ -755,21 +849,27 @@ fn check_instruction(
             checker.check_local_set_while_borrowed(*local, instruction_id, context);
         }
 
-        // local.get may borrow from a local (track for local.set checks)
+        // local.get loads a value without creating a borrow
         Instruction::LocalGet { destination, local } => {
-            // track that this value came from this local
+            // track the value type for later use
             let local_decl = checker.tree.get(*local);
             checker.register_value_type(*destination, local_decl.ty);
+        }
 
-            // if local contains owned/managed ref, local.get is borrowing
-            let ty = checker.tree.get(local_decl.ty);
-            if let Type::Reference {
-                kind: ReferenceKind::Owned | ReferenceKind::Managed,
-                mutability,
-                ..
-            } = ty
-            {
-                let is_mutable = *mutability == Mutability::Mutable;
+        // local.addr creates a borrow of a local
+        Instruction::LocalAddr {
+            destination,
+            local,
+            result_type,
+        } => {
+            // track reference type for later borrow lookups
+            checker.register_value_type(*destination, *result_type);
+
+            // only references participate in borrow checking
+            let ty = checker.tree.get(*result_type);
+            if matches!(ty, Type::Reference { .. }) {
+                let is_mutable = checker.mutability_from_reference_type(*result_type);
+                checker.check_local_borrow_conflict(*local, is_mutable, instruction_id, context);
                 checker.add_local_borrow(*destination, *local, is_mutable, instruction_id);
             }
         }
@@ -1076,6 +1176,88 @@ block0:
         let mut test = TestProgram::new(input);
         test.run_pass(&BorrowCheck);
         test.assert_no_errors();
+    }
+
+    /// local.set while borrowed is rejected.
+    #[test]
+    fn test_detect_local_set_while_borrowed() {
+        let input = r#"function @test() -> void {
+local0: i32 ; owned, mut
+block0:
+    v0 = iconst 1i32
+    local.set local0, v0
+    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
+    v2 = iconst 2i32
+    local.set local0, v2
+    v3 = load v1 -> i32
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalSetWhileBorrowed { .. }));
+    }
+
+    /// Multiple shared local borrows do not conflict.
+    #[test]
+    fn test_verify_local_shared_borrows_no_conflict() {
+        let input = r#"function @test() -> void {
+local0: i32 ; owned, mut
+block0:
+    v0 = iconst 0i32
+    local.set local0, v0
+    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
+    v2 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
+    v3 = load v1 -> i32
+    v4 = load v2 -> i32
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_no_errors();
+    }
+
+    /// local borrows propagate through block parameters.
+    #[test]
+    fn test_detect_local_borrow_propagates_across_blocks() {
+        let input = r#"function @test() -> void {
+local0: i32 ; owned, mut
+block0:
+    v0 = iconst 1i32
+    local.set local0, v0
+    v1 = local.addr local0 -> ref<borrowed addrspace(stack) i32>
+    jump block1(v1)
+block1(v2: ref<borrowed addrspace(stack) i32>):
+    v3 = iconst 2i32
+    local.set local0, v3
+    v4 = load v2 -> i32
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::LocalSetWhileBorrowed { .. }));
+    }
+
+    /// Multiple mutable local borrows conflict.
+    #[test]
+    fn test_detect_local_borrow_conflict() {
+        let input = r#"function @test() -> void {
+local0: i32 ; owned, mut
+block0:
+    v0 = iconst 0i32
+    local.set local0, v0
+    v1 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
+    v2 = local.addr local0 -> ref<borrowed addrspace(stack) mut i32>
+    v3 = load v1 -> i32
+    v4 = load v2 -> i32
+    return
+}"#;
+
+        let mut test = TestProgram::new(input);
+        test.run_pass(&BorrowCheck);
+        test.assert_error(|e| matches!(e, OptimizeError::ConflictingBorrow { .. }));
     }
 
     /// Multiple parameters with no conflicts is valid.
