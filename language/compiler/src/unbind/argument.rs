@@ -161,7 +161,13 @@ impl Compiler {
         let argument = tree.get(argument_id);
         let span = self.unbind_span(module, argument_id.into());
         let ast_argument = match argument {
-            dir::Argument::Named { name, value } => {
+            dir::Argument::Named {
+                modifiers,
+                name,
+                value,
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let name =
                     ast::Name::Identifier(ast_strings.intern_from(&self.program.strings, *name));
                 let value = self.unbind_expression(
@@ -174,12 +180,14 @@ impl Compiler {
                     context,
                 );
                 ast::Argument::Named {
-                    modifiers: None,
+                    modifiers,
                     name,
                     value,
                 }
             }
-            dir::Argument::Positional { value } => {
+            dir::Argument::Positional { modifiers, value } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let value = self.unbind_expression(
                     module,
                     *value,
@@ -190,11 +198,17 @@ impl Compiler {
                     context,
                 );
                 ast::Argument::Positional {
-                    modifiers: None,
+                    modifiers,
                     value,
                 }
             }
-            dir::Argument::Spread { label, value } => {
+            dir::Argument::Spread {
+                modifiers,
+                label,
+                value,
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let label =
                     label.map(|label| ast_strings.intern_from(&self.program.strings, label));
                 let value = self.unbind_expression(
@@ -207,12 +221,18 @@ impl Compiler {
                     context,
                 );
                 ast::Argument::Spread {
-                    modifiers: None,
+                    modifiers,
                     label,
                     value,
                 }
             }
-            dir::Argument::Labeled { label, value } => {
+            dir::Argument::Labeled {
+                modifiers,
+                label,
+                value,
+            } => {
+                let modifiers =
+                    modifiers.map(|modifiers| self.unbind_binding_modifier(context, &modifiers));
                 let label = ast_strings.intern_from(&self.program.strings, *label);
                 let value = self.unbind_expression(
                     module,
@@ -224,7 +244,7 @@ impl Compiler {
                     context,
                 );
                 ast::Argument::Labeled {
-                    modifiers: None,
+                    modifiers,
                     label,
                     value,
                 }

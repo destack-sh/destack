@@ -237,7 +237,7 @@ impl Compiler {
         let first_argument_id = arguments.first()?;
         let argument = tree.get(*first_argument_id);
         let value_id = match argument {
-            dir::Argument::Positional { value }
+            dir::Argument::Positional { value, .. }
             | dir::Argument::Named { value, .. }
             | dir::Argument::Labeled { value, .. } => *value,
             dir::Argument::Spread { .. } => return None,

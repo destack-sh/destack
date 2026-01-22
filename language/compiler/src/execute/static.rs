@@ -121,7 +121,10 @@ impl Compiler {
                         tree, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
-                    let argument = dir::Argument::Positional { value: value_id };
+                    let argument = dir::Argument::Positional {
+                        modifiers: None,
+                        value: value_id,
+                    };
                     let argument_id = tree.insert(argument_any, argument);
                     argument_ids.push(argument_id);
                 }
@@ -150,7 +153,10 @@ impl Compiler {
                         tree, module_id, profile_id, anchor_id, value_any, scope, element,
                     )?;
                     let value_id = tree.insert(value_any, value_expression);
-                    let argument = dir::Argument::Positional { value: value_id };
+                    let argument = dir::Argument::Positional {
+                        modifiers: None,
+                        value: value_id,
+                    };
                     let argument_id = tree.insert(argument_any, argument);
                     argument_ids.push(argument_id);
                 }

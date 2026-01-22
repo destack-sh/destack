@@ -34,7 +34,8 @@ impl FunctionContext<'_> {
         for element_id in elements {
             let element = self.env.dir_tree.get(*element_id);
             match element {
-                dir::Argument::Positional { value } | dir::Argument::Labeled { value, .. } => {
+                dir::Argument::Positional { value, .. }
+                | dir::Argument::Labeled { value, .. } => {
                     let (value, _) = self.lower_value_expression(*value)?;
                     element_values.push(value);
                 }
@@ -80,7 +81,7 @@ impl FunctionContext<'_> {
         for element_id in elements {
             let element = self.env.dir_tree.get(*element_id);
             match element {
-                dir::Argument::Positional { value } => {
+                dir::Argument::Positional { value, .. } => {
                     let (value, _) = self.lower_value_expression(*value)?;
                     element_values.push(value);
                 }
