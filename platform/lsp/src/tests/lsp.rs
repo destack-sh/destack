@@ -1,7 +1,14 @@
+use std::sync::Arc;
+
 use destack_lsp_types as lsp;
-use destack_source::FileSystem;
+use destack_resolver::{ResolveOptions, Resolver};
+use destack_source::{
+    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem,
+};
+use destack_workspace::{MemoryCacheStore, Session, Workspace};
 
 use super::harness::{harness_for_fs, test_fs, uri_for_path};
+use crate::server::LspDaemonClient;
 
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
@@ -22,6 +29,54 @@ async fn test_lsp_did_open_publishes_diagnostics() {
     assert!(diagnostics.diagnostics.is_empty());
 }
 
+/// LSP daemon client emits diagnostics for virtual updates.
+#[test]
+fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
+    let fs = TemporaryPhysicalFileSystem::new_with_prefix("lsp_daemon_client");
+    let overlay = Arc::new(OverlayFileSystem::with_inner(Arc::new(
+        PhysicalFileSystem::new(),
+    )));
+    let root = fs.root().to_path_buf();
+    let session = Session::new(root.clone())
+        .with_fs(overlay)
+        .with_cache_store(Arc::new(MemoryCacheStore::new()));
+    let resolver = Resolver::from_session(&session, ResolveOptions::default());
+    let workspace = resolver
+        .discover_workspace(&root)
+        .unwrap_or_else(|_| Workspace::single_package(root.clone()));
+    let session = Arc::new(session.with_workspace(workspace));
+    session.add_root(root.clone());
+
+    let daemon =
+        LspDaemonClient::new(session.clone(), vec![root.clone()]).expect("expected daemon client");
+
+    let path = root.join("main.ds");
+    let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
+    let initial = daemon
+        .update_virtual_file(&path, "export const x: number = 1;\n".to_string())
+        .expect("expected initial update");
+    assert!(
+        initial
+            .updates
+            .iter()
+            .all(|update| update.diagnostics.is_empty()),
+        "expected no diagnostics for valid content"
+    );
+
+    let updated = daemon
+        .update_virtual_file(&path, "export const x = ;\n".to_string())
+        .expect("expected updated diagnostics");
+    assert!(
+        updated
+            .updates
+            .iter()
+            .any(|update| !update.diagnostics.is_empty()),
+        "expected diagnostics for invalid content"
+    );
+
+    daemon.shutdown();
+}
+
 /// LSP didChange publishes updated diagnostics.
 #[tokio::test]
 async fn test_lsp_did_change_updates_diagnostics() {
@@ -37,7 +92,7 @@ async fn test_lsp_did_change_updates_diagnostics() {
     let initial = harness.next_diagnostics_for(&uri).await;
 
     harness
-        .did_change(uri.clone(), "export const x: number = \"bad\";\n", 2)
+        .did_change(uri.clone(), "export const x = ;\n", 2)
         .await;
 
     let updated = harness.next_diagnostics_for(&uri).await;
