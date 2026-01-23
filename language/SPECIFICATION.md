@@ -167,10 +167,9 @@ export struct User {
 #### Public boundaries and surface inference
 
 Exported bindings may omit explicit annotations when their types can be inferred from local syntax.
-The compiler internally publishes an "export summary" for each module of declared or locally inferred export types.
-Other modules import that summary instead of inferring across module boundaries.
-Inference cycles across modules are forbidden: if an exported binding depends on another module’s
-inferred export, it must be explicitly annotated.
+Other modules use the declared or locally inferred types of imports without re-inferring them.
+Inference cycles across modules are forbidden: if an exported binding participates in an inference cycle,
+it must be explicitly annotated to break the cycle.
 
 Examples:
 
@@ -180,7 +179,7 @@ export let counter = 0;             // ok, inferred and widened locally
 export function add(a: int, b: int) { // ok, return type inferred locally
     a + b
 }
-export const shared = other.value;  // requires annotation if other.value lacks a declared type
+export const shared = other.value;  // ok when no inference cycle is formed
 ```
 
 ```
