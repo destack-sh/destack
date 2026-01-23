@@ -41,8 +41,8 @@ block7:
 
 // merge branches, continue
 block8(v11: i64):
-    v12: ref<managed i64> = managed.alloc_array i64, v8 -> ref<managed i64>
-    v13: ref<managed i64> = managed.alloc_array i64, v11 -> ref<managed i64>
+    v12: ref<managed i64> = managed.alloc_array i64, v8
+    v13: ref<managed i64> = managed.alloc_array i64, v11
     local.set local0, v12
     local.set local1, v13
     v14: i64 = iconst 0i64
@@ -61,7 +61,7 @@ block10:
     v22: i64 = iconst 255i64
     v23: i64 = band v21, v22
     v24: ref<managed i64> = local.get local1
-    v25: ref<borrowed i64> = element.addr v24, v15 -> ref<borrowed i64>
+    v25: ref<borrowed i64> = element.addr v24, v15
     store v25, v23
     v26: i64 = iconst 1i64
     v27: i64 = iadd v15, v26
@@ -101,7 +101,7 @@ block15:
     v52: i64 = imul v40, v43
     v53: i64 = srem v52, v44
     v54: ref<managed i64> = local.get local0
-    v55: ref<borrowed i64> = element.addr v54, v53 -> ref<borrowed i64>
+    v55: ref<borrowed i64> = element.addr v54, v53
     v56: ref<managed i64> = local.get local1
     v57: i32 = intrinsic.memcmp(v55, v56, v43)
     v58: i64 = sextend v57 -> i64
@@ -119,8 +119,8 @@ block16(v61: i64, v62: i64, v63: i64, v64: i64, v65: i64, v66: i64):
 block17:
     v68: i64 = iadd v63, v61
     v69: ref<managed i64> = local.get local0
-    v70: ref<borrowed i64> = element.addr v69, v68 -> ref<borrowed i64>
-    v71: i64 = load v70 -> i64
+    v70: ref<borrowed i64> = element.addr v69, v68
+    v71: i64 = load v70
     v72: bool = icmp_eq v71, v65
     branch v72, block18, block22
 

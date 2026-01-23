@@ -6,7 +6,7 @@ function @global_counter(v0: i64) -> i64 {
 
 // entry, init globals
 block0(v0: i64):
-    v1: ref<raw addrspace(global) mut i64> = global.addr @counter -> ref<raw addrspace(global) mut i64>
+    v1: ref<raw addrspace(global) mut i64> = global.addr @counter
     v2: i64 = iconst 0i64
     store v1, v2
     v3: i64 = global.const @seed
@@ -19,7 +19,7 @@ block1(v4: i64, v5: ref<raw addrspace(global) mut i64>, v6: i64):
 
 // loop body, update memory
 block2:
-    v8: i64 = load v5 -> i64
+    v8: i64 = load v5
     v9: i64 = iadd v8, v6
     v10: i64 = bxor v9, v4
     store v5, v10
@@ -29,6 +29,6 @@ block2:
 
 // return accumulated value
 block3(v13: ref<raw addrspace(global) mut i64>):
-    v14: i64 = load v13 -> i64
+    v14: i64 = load v13
     return v14
 }
