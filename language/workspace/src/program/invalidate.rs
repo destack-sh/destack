@@ -871,12 +871,17 @@ mod tests {
         // add a minimal dir entry for the profile
         let module = program.modules.get(module_id);
         let mut module = module.write();
+
+        // file id
+        let file_id = module.file_id;
+
+        // anchor expression
         let anchor_id = match module.code_mut().ast.as_mut() {
-            Some(ast) => ast.ensure_anchor_expression(module.file_id),
+            Some(ast) => ast.ensure_anchor_expression(file_id),
             None => {
                 // synthesize a minimal AST for diagnostics
                 let mut ast = ModuleAst::new(module_id, module.version);
-                let anchor_id = ast.ensure_anchor_expression(module.file_id);
+                let anchor_id = ast.ensure_anchor_expression(file_id);
                 module.code_mut().ast = Some(ast);
                 anchor_id
             }

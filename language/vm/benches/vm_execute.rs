@@ -1,9 +1,61 @@
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::profiler::Profiler;
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_test_mirbench as program;
 use destack_vm::memory::Value;
-use pprof::criterion::{Output, PProfProfiler};
+use pprof::flamegraph::Options as FlamegraphOptions;
+use pprof::ProfilerGuard;
 use program::Program;
+use std::hint::black_box;
 use std::env;
+use std::path::Path;
+
+/// Pprof profiler for Criterion benches.
+struct PprofProfiler {
+    /// The sampling frequency in hertz.
+    frequency: i32,
+    /// The active profiler guard.
+    active_profiler: Option<ProfilerGuard<'static>>,
+}
+
+impl PprofProfiler {
+    /// Create a new profiler with the given frequency.
+    fn new(frequency: i32) -> Self {
+        Self {
+            frequency,
+            active_profiler: None,
+        }
+    }
+}
+
+impl Profiler for PprofProfiler {
+    /// Start a profiling session.
+    fn start_profiling(&mut self, _benchmark_id: &str, _benchmark_dir: &Path) {
+        self.active_profiler = Some(ProfilerGuard::new(self.frequency).unwrap());
+    }
+
+    /// Stop profiling and write the flamegraph.
+    fn stop_profiling(&mut self, _benchmark_id: &str, benchmark_dir: &Path) {
+        // ensure the output directory exists
+        std::fs::create_dir_all(benchmark_dir).unwrap();
+
+        // open the flamegraph output file
+        let output_path = benchmark_dir.join("flamegraph.svg");
+        let output_file = std::fs::File::create(&output_path).unwrap_or_else(|_| {
+            panic!("file system error while creating {}", output_path.display())
+        });
+
+        // build and write the flamegraph
+        if let Some(profiler) = self.active_profiler.take() {
+            let mut options = FlamegraphOptions::default();
+            profiler
+                .report()
+                .build()
+                .unwrap()
+                .flamegraph_with_options(output_file, &mut options)
+                .expect("error while writing flamegraph");
+        }
+    }
+}
 
 /// Build input sizes for a benchmark program.
 fn benchmark_sizes(program: &Program) -> Vec<i64> {
@@ -142,7 +194,7 @@ fn profiler() -> Criterion {
         .and_then(|v| v.parse().ok())
         .unwrap_or(100);
 
-    Criterion::default().with_profiler(PProfProfiler::new(hz, Output::Flamegraph(None)))
+    Criterion::default().with_profiler(PprofProfiler::new(hz))
 }
 
 criterion_group! {

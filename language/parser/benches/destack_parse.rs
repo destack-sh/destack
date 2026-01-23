@@ -1,12 +1,62 @@
-use criterion::{
-    BatchSize, BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main,
-};
+use criterion::profiler::Profiler;
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
-use pprof::criterion::{Output, PProfProfiler};
+use pprof::flamegraph::Options as FlamegraphOptions;
+use pprof::ProfilerGuard;
 use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
+use std::hint::black_box;
 use std::{env, fs};
+
+/// Pprof profiler for Criterion benches.
+struct PprofProfiler {
+    /// The sampling frequency in hertz.
+    frequency: i32,
+    /// The active profiler guard.
+    active_profiler: Option<ProfilerGuard<'static>>,
+}
+
+impl PprofProfiler {
+    /// Create a new profiler with the given frequency.
+    fn new(frequency: i32) -> Self {
+        Self {
+            frequency,
+            active_profiler: None,
+        }
+    }
+}
+
+impl Profiler for PprofProfiler {
+    /// Start a profiling session.
+    fn start_profiling(&mut self, _benchmark_id: &str, _benchmark_dir: &Path) {
+        self.active_profiler = Some(ProfilerGuard::new(self.frequency).unwrap());
+    }
+
+    /// Stop profiling and write the flamegraph.
+    fn stop_profiling(&mut self, _benchmark_id: &str, benchmark_dir: &Path) {
+        // ensure the output directory exists
+        fs::create_dir_all(benchmark_dir).unwrap();
+
+        // open the flamegraph output file
+        let output_path = benchmark_dir.join("flamegraph.svg");
+        let output_file = fs::File::create(&output_path).unwrap_or_else(|_| {
+            panic!("file system error while creating {}", output_path.display())
+        });
+
+        // build and write the flamegraph
+        if let Some(profiler) = self.active_profiler.take() {
+            let mut options = FlamegraphOptions::default();
+            profiler
+                .report()
+                .build()
+                .unwrap()
+                .flamegraph_with_options(output_file, &mut options)
+                .expect("error while writing flamegraph");
+        }
+    }
+}
 
 /// Benchmark parsing for workspace sources.
 fn bench_parse(criterion: &mut Criterion) {
@@ -165,7 +215,7 @@ fn profiler() -> Criterion {
         .and_then(|value| value.parse().ok())
         .unwrap_or(100);
 
-    Criterion::default().with_profiler(PProfProfiler::new(sample_rate, Output::Flamegraph(None)))
+    Criterion::default().with_profiler(PprofProfiler::new(sample_rate))
 }
 
 criterion_group! {
