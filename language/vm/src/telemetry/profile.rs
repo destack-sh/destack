@@ -106,7 +106,7 @@ impl InstructionProfile {
             .samples
             .iter()
             .map(|(name, samples)| InstructionProfileEntry {
-                name: *name,
+                name,
                 samples: *samples,
                 percent: *samples as f64 / self.total_samples as f64 * 100.0,
             })

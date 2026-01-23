@@ -15,10 +15,10 @@ function @select(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
     run_mir_expect(mir, "select", &[Value::bool(true)], Value::int32(1));
@@ -32,10 +32,10 @@ function @select(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
     run_mir_expect(mir, "select", &[Value::bool(false)], Value::int32(0));
@@ -47,7 +47,7 @@ fn test_jump() {
     let mir = r#"
 function @jump_test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     jump block1
 block1:
     return v0
@@ -63,13 +63,13 @@ function @switch_test(v0: i32) -> i32 {
 block0(v0: i32):
     switch v0, block3, 0 => block1, 1 => block2
 block1:
-    v1 = iconst 100i32
+    v1: i32 = iconst 100i32
     return v1
 block2:
-    v2 = iconst 200i32
+    v2: i32 = iconst 200i32
     return v2
 block3:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
     run_mir_expect(mir, "switch_test", &[Value::int32(0)], Value::int32(100));
@@ -83,15 +83,15 @@ fn test_simple_call() {
     let mir = r#"
 function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 
 function @caller() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 20i32
-    v2 = call @add(v0, v1)
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
+    v2: i32 = call @add(v0, v1)
     return v2
 }"#;
     run_mir_expect(mir, "caller", &[], Value::int32(30));
@@ -103,15 +103,15 @@ fn test_recursive_factorial() {
     let mir = r#"
 function @factorial(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_sle v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_sle v0, v1
     branch v2, block1, block2
 block1:
     return v1
 block2:
-    v3 = isub v0, v1
-    v4 = call @factorial(v3)
-    v5 = imul v0, v4
+    v3: i32 = isub v0, v1
+    v4: i32 = call @factorial(v3)
+    v5: i32 = imul v0, v4
     return v5
 }"#;
     run_mir_expect(mir, "factorial", &[Value::int32(5)], Value::int32(120));
@@ -123,7 +123,7 @@ fn test_stack_overflow() {
     let mir = r#"
 function @infinite() -> i32 {
 block0:
-    v0 = call @infinite()
+    v0: i32 = call @infinite()
     return v0
 }"#;
     let result = run_mir(mir, "infinite", &[]);
@@ -138,7 +138,7 @@ fn test_step_limit() {
     let mir = r#"
 function @infinite_loop() -> i32 {
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     jump block0
 }"#;
     let result = run_mir(mir, "infinite_loop", &[]);
@@ -164,15 +164,15 @@ fn test_call_stack_preserved() {
     let mir = r#"
 function @inner() -> i32 {
 block0:
-    v0 = iconst 10i32
+    v0: i32 = iconst 10i32
     return v0
 }
 
 function @outer() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v1 = call @inner()
-    v2 = iadd v0, v1
+    v0: i32 = iconst 5i32
+    v1: i32 = call @inner()
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
     run_mir_expect(mir, "outer", &[], Value::int32(15));
@@ -184,16 +184,16 @@ fn test_multiple_function_calls() {
     let mir = r#"
 function @double(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
-    v2 = imul v0, v1
+    v1: i32 = iconst 2i32
+    v2: i32 = imul v0, v1
     return v2
 }
 
 function @caller() -> i32 {
 block0:
-    v0 = iconst 3i32
-    v1 = call @double(v0)
-    v2 = call @double(v1)
+    v0: i32 = iconst 3i32
+    v1: i32 = call @double(v0)
+    v2: i32 = call @double(v1)
     return v2
 }"#;
     run_mir_expect(mir, "caller", &[], Value::int32(12));
@@ -205,14 +205,14 @@ fn test_call_indirect() {
     let mir_text = r#"
 function @double(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
-    v2 = imul v0, v1
+    v1: i32 = iconst 2i32
+    v2: i32 = imul v0, v1
     return v2
 }
 
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
     // parse the MIR
@@ -245,7 +245,7 @@ fn test_call_indirect_type_mismatch() {
     let mir_text = r#"
 function @caller(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
     let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
@@ -266,13 +266,13 @@ fn test_tail_call_direct() {
     let mir = r#"
 function @countdown(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block2, block1
 block1:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = iadd v1, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = iadd v1, v4
     tailcall @countdown(v5, v6)
 block2:
     return v1
@@ -280,7 +280,7 @@ block2:
 
 function @entry(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     tailcall @countdown(v0, v1)
 }"#;
 
@@ -296,13 +296,13 @@ fn test_tail_call_indirect() {
     let mir_text = r#"
 function @countdown(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 0i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block2, block1
 block1:
-    v4 = iconst 1i32
-    v5 = isub v0, v4
-    v6 = iadd v1, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = isub v0, v4
+    v6: i32 = iadd v1, v4
     tailcall @countdown(v5, v6)
 block2:
     return v1
@@ -310,7 +310,7 @@ block2:
 
 function @entry(v0: i32, v1: fn(i32, i32) -> i32) -> i32 {
 block0(v0: i32, v1: fn(i32, i32) -> i32):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     tailcall.indirect v1(v0, v2) -> fn(i32, i32) -> i32
 }"#;
 
@@ -345,11 +345,11 @@ fn test_block_parameters_jump() {
     let mir = r#"
 function @block_params() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 20i32
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
     jump block1(v0, v1)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
     run_mir_expect(mir, "block_params", &[], Value::int32(30));
@@ -361,8 +361,8 @@ fn test_block_parameters_branch() {
     let mir = r#"
 function @branch_params(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 100i32
-    v2 = iconst 200i32
+    v1: i32 = iconst 100i32
+    v2: i32 = iconst 200i32
     branch v0, block1(v1), block1(v2)
 block1(v3: i32):
     return v3

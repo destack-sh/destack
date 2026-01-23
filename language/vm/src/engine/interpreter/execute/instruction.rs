@@ -9,7 +9,7 @@ use crate::telemetry::stat_inc;
 
 /// Load a value from a pointer.
 #[inline(always)]
-pub(super) fn load_from_pointer(
+pub(crate) fn load_from_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -48,7 +48,7 @@ pub(super) fn load_from_pointer(
 
 /// Store a value to a pointer.
 #[inline(always)]
-pub(super) fn store_to_pointer(
+pub(crate) fn store_to_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -92,7 +92,7 @@ pub(super) fn store_to_pointer(
 
 /// Load a value from a managed reference.
 #[inline(always)]
-pub(super) fn load_from_managed_reference(
+pub(crate) fn load_from_managed_reference(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -110,7 +110,7 @@ pub(super) fn load_from_managed_reference(
 
 /// Load a value from a raw pointer.
 #[inline(always)]
-pub(super) fn load_from_raw_pointer(
+pub(crate) fn load_from_raw_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -128,7 +128,7 @@ pub(super) fn load_from_raw_pointer(
 
 /// Load a value from a stack pointer.
 #[inline(always)]
-pub(super) fn load_from_stack_pointer(
+pub(crate) fn load_from_stack_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -146,7 +146,7 @@ pub(super) fn load_from_stack_pointer(
 
 /// Load a value from a local pointer.
 #[inline(always)]
-pub(super) fn load_from_local_pointer(
+pub(crate) fn load_from_local_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -164,7 +164,7 @@ pub(super) fn load_from_local_pointer(
 
 /// Load a value from a global pointer.
 #[inline(always)]
-pub(super) fn load_from_global_pointer(
+pub(crate) fn load_from_global_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
 ) -> Result<Value, Error> {
@@ -182,7 +182,7 @@ pub(super) fn load_from_global_pointer(
 
 /// Store a value through a managed reference.
 #[inline(always)]
-pub(super) fn store_to_managed_reference(
+pub(crate) fn store_to_managed_reference(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -201,7 +201,7 @@ pub(super) fn store_to_managed_reference(
 
 /// Store a value through a raw pointer.
 #[inline(always)]
-pub(super) fn store_to_raw_pointer(
+pub(crate) fn store_to_raw_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -220,7 +220,7 @@ pub(super) fn store_to_raw_pointer(
 
 /// Store a value through a stack pointer.
 #[inline(always)]
-pub(super) fn store_to_stack_pointer(
+pub(crate) fn store_to_stack_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -239,7 +239,7 @@ pub(super) fn store_to_stack_pointer(
 
 /// Store a value through a local pointer.
 #[inline(always)]
-pub(super) fn store_to_local_pointer(
+pub(crate) fn store_to_local_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -258,7 +258,7 @@ pub(super) fn store_to_local_pointer(
 
 /// Store a value through a global pointer.
 #[inline(always)]
-pub(super) fn store_to_global_pointer(
+pub(crate) fn store_to_global_pointer(
     state: &mut ThreadedState<'_, '_>,
     ptr: Value,
     val: Value,
@@ -337,7 +337,7 @@ fn check_array_index(
 
 /// Get the address of a field from an aggregate or pointer.
 #[inline(always)]
-pub(super) fn field_addr(
+pub(crate) fn field_addr(
     state: &mut ThreadedState<'_, '_>,
     aggregate: Value,
     index: u32,
@@ -389,7 +389,7 @@ pub(super) fn field_addr(
 
 /// Get the address of a field from a managed reference.
 #[inline(always)]
-pub(super) fn field_addr_managed(
+pub(crate) fn field_addr_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
@@ -408,7 +408,7 @@ pub(super) fn field_addr_managed(
 
 /// Get the address of a field from a raw pointer.
 #[inline(always)]
-pub(super) fn field_addr_raw(
+pub(crate) fn field_addr_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
@@ -427,7 +427,7 @@ pub(super) fn field_addr_raw(
 
 /// Get the address of a field from a stack pointer.
 #[inline(always)]
-pub(super) fn field_addr_stack(
+pub(crate) fn field_addr_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
@@ -447,7 +447,7 @@ pub(super) fn field_addr_stack(
 
 /// Get the address of a field from a local pointer.
 #[inline(always)]
-pub(super) fn field_addr_local(
+pub(crate) fn field_addr_local(
     state: &mut ThreadedState<'_, '_>,
     pointer: LocalPointer,
     index: u32,
@@ -462,7 +462,7 @@ pub(super) fn field_addr_local(
 
 /// Get the address of a field from a global pointer.
 #[inline(always)]
-pub(super) fn field_addr_global(
+pub(crate) fn field_addr_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
@@ -478,7 +478,7 @@ pub(super) fn field_addr_global(
 
 /// Get the address of an element from an array or pointer.
 #[inline(always)]
-pub(super) fn element_addr(
+pub(crate) fn element_addr(
     state: &mut ThreadedState<'_, '_>,
     array: Value,
     index: u64,
@@ -530,7 +530,7 @@ pub(super) fn element_addr(
 
 /// Get the address of an element from a managed reference.
 #[inline(always)]
-pub(super) fn element_addr_managed(
+pub(crate) fn element_addr_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
@@ -549,7 +549,7 @@ pub(super) fn element_addr_managed(
 
 /// Get the address of an element from a raw pointer.
 #[inline(always)]
-pub(super) fn element_addr_raw(
+pub(crate) fn element_addr_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
@@ -568,7 +568,7 @@ pub(super) fn element_addr_raw(
 
 /// Get the address of an element from a stack pointer.
 #[inline(always)]
-pub(super) fn element_addr_stack(
+pub(crate) fn element_addr_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
@@ -588,7 +588,7 @@ pub(super) fn element_addr_stack(
 
 /// Get the address of an element from a local pointer.
 #[inline(always)]
-pub(super) fn element_addr_local(
+pub(crate) fn element_addr_local(
     state: &mut ThreadedState<'_, '_>,
     pointer: LocalPointer,
     index: u64,
@@ -603,7 +603,7 @@ pub(super) fn element_addr_local(
 
 /// Get the address of an element from a global pointer.
 #[inline(always)]
-pub(super) fn element_addr_global(
+pub(crate) fn element_addr_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
@@ -622,7 +622,7 @@ pub(super) fn element_addr_global(
 
 /// Load a field from a managed heap allocation.
 #[inline(always)]
-pub(super) fn load_field_managed(
+pub(crate) fn load_field_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
@@ -730,7 +730,7 @@ pub(super) fn load_field_managed(
 
 /// Store a field into a managed heap allocation.
 #[inline(always)]
-pub(super) fn store_field_managed(
+pub(crate) fn store_field_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u32,
@@ -844,7 +844,7 @@ pub(super) fn store_field_managed(
 
 /// Load a field from a raw heap allocation.
 #[inline(always)]
-pub(super) fn load_field_raw(
+pub(crate) fn load_field_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
@@ -906,7 +906,7 @@ pub(super) fn load_field_raw(
 
 /// Store a field into a raw heap allocation.
 #[inline(always)]
-pub(super) fn store_field_raw(
+pub(crate) fn store_field_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u32,
@@ -969,7 +969,7 @@ pub(super) fn store_field_raw(
 
 /// Load a field from a stack allocation.
 #[inline(always)]
-pub(super) fn load_field_stack(
+pub(crate) fn load_field_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
@@ -1047,7 +1047,7 @@ pub(super) fn load_field_stack(
 
 /// Store a field into a stack allocation.
 #[inline(always)]
-pub(super) fn store_field_stack(
+pub(crate) fn store_field_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u32,
@@ -1127,7 +1127,7 @@ pub(super) fn store_field_stack(
 
 /// Load a field from a global allocation.
 #[inline(always)]
-pub(super) fn load_field_global(
+pub(crate) fn load_field_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
@@ -1231,7 +1231,7 @@ pub(super) fn load_field_global(
 
 /// Store a field into a global allocation.
 #[inline(always)]
-pub(super) fn store_field_global(
+pub(crate) fn store_field_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u32,
@@ -1336,7 +1336,7 @@ pub(super) fn store_field_global(
 
 /// Load an element from a managed heap allocation.
 #[inline(always)]
-pub(super) fn load_element_managed(
+pub(crate) fn load_element_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
@@ -1419,7 +1419,7 @@ pub(super) fn load_element_managed(
 
 /// Store an element into a managed heap allocation.
 #[inline(always)]
-pub(super) fn store_element_managed(
+pub(crate) fn store_element_managed(
     state: &mut ThreadedState<'_, '_>,
     handle: HeapHandle,
     index: u64,
@@ -1501,7 +1501,7 @@ pub(super) fn store_element_managed(
 
 /// Load an element from a raw heap allocation.
 #[inline(always)]
-pub(super) fn load_element_raw(
+pub(crate) fn load_element_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
@@ -1569,7 +1569,7 @@ pub(super) fn load_element_raw(
 
 /// Store an element into a raw heap allocation.
 #[inline(always)]
-pub(super) fn store_element_raw(
+pub(crate) fn store_element_raw(
     state: &mut ThreadedState<'_, '_>,
     pointer: RawPointer,
     index: u64,
@@ -1638,7 +1638,7 @@ pub(super) fn store_element_raw(
 
 /// Load an element from a stack allocation.
 #[inline(always)]
-pub(super) fn load_element_stack(
+pub(crate) fn load_element_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
@@ -1714,7 +1714,7 @@ pub(super) fn load_element_stack(
 
 /// Store an element into a stack allocation.
 #[inline(always)]
-pub(super) fn store_element_stack(
+pub(crate) fn store_element_stack(
     state: &mut ThreadedState<'_, '_>,
     pointer: StackPointer,
     index: u64,
@@ -1791,7 +1791,7 @@ pub(super) fn store_element_stack(
 
 /// Load an element from a global allocation.
 #[inline(always)]
-pub(super) fn load_element_global(
+pub(crate) fn load_element_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
@@ -1893,7 +1893,7 @@ pub(super) fn load_element_global(
 
 /// Store an element into a global allocation.
 #[inline(always)]
-pub(super) fn store_element_global(
+pub(crate) fn store_element_global(
     state: &mut ThreadedState<'_, '_>,
     pointer: GlobalPointer,
     index: u64,
@@ -1996,7 +1996,7 @@ pub(super) fn store_element_global(
 
 /// Get a field from an aggregate value.
 #[inline(always)]
-pub(super) fn get_field(
+pub(crate) fn get_field(
     state: &mut ThreadedState<'_, '_>,
     agg: Value,
     index: u32,
@@ -2016,7 +2016,7 @@ pub(super) fn get_field(
 
 /// Set a field on an aggregate value.
 #[inline(always)]
-pub(super) fn set_field(
+pub(crate) fn set_field(
     state: &mut ThreadedState<'_, '_>,
     agg: Value,
     index: u32,
@@ -2038,7 +2038,7 @@ pub(super) fn set_field(
 
 /// Get an element from an array value.
 #[inline(always)]
-pub(super) fn get_element(
+pub(crate) fn get_element(
     state: &mut ThreadedState<'_, '_>,
     arr: Value,
     index: u64,
@@ -2058,7 +2058,7 @@ pub(super) fn get_element(
 
 /// Set an element on an array value.
 #[inline(always)]
-pub(super) fn set_element(
+pub(crate) fn set_element(
     state: &mut ThreadedState<'_, '_>,
     arr: Value,
     index: u64,

@@ -32,6 +32,12 @@ pub struct RawCell {
     pub storage: RawCellStorage,
 }
 
+impl Default for RawCell {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RawCell {
     /// Create a new empty value cell.
     pub fn new() -> Self {

@@ -11,7 +11,7 @@ fn test_intrinsic_clz() {
     let mir = r#"
 function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = intrinsic.clz(v0)
+    v1: u32 = intrinsic.clz(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x00800000)], Value::uint32(8));
@@ -23,7 +23,7 @@ fn test_intrinsic_ctz() {
     let mir = r#"
 function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = intrinsic.ctz(v0)
+    v1: u32 = intrinsic.ctz(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0x80)], Value::uint32(7));
@@ -35,7 +35,7 @@ fn test_intrinsic_popcnt() {
     let mir = r#"
 function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = intrinsic.popcnt(v0)
+    v1: u32 = intrinsic.popcnt(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::uint32(0xFF)], Value::uint32(8));
@@ -47,7 +47,7 @@ fn test_intrinsic_byte_swap() {
     let mir = r#"
 function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = intrinsic.byte_swap(v0)
+    v1: u32 = intrinsic.byte_swap(v0)
     return v1
 }"#;
     run_mir_expect(
@@ -64,7 +64,7 @@ fn test_intrinsic_rotate_left() {
     let mir = r#"
 function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = intrinsic.rotate_left(v0, v1)
+    v2: u32 = intrinsic.rotate_left(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -81,7 +81,7 @@ fn test_intrinsic_rotate_right() {
     let mir = r#"
 function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = intrinsic.rotate_right(v0, v1)
+    v2: u32 = intrinsic.rotate_right(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -100,8 +100,8 @@ fn test_intrinsic_add_overflow_no_overflow() {
     let mir = r#"
 function @test_result(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 0
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
     let output = run_mir_ok(mir, "test_result", &[Value::int32(10), Value::int32(20)]);
@@ -111,8 +111,8 @@ block0(v0: i32, v1: i32):
     let mir = r#"
 function @test_flag(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 1
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: bool = field.get v2, 1
     return v3
 }"#;
     let output = run_mir_ok(mir, "test_flag", &[Value::int32(10), Value::int32(20)]);
@@ -125,8 +125,8 @@ fn test_intrinsic_add_overflow_with_overflow() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.overflow(v0, v1)
-    v3 = field.get v2, 1
+    v2: (i32, bool) = intrinsic.add.overflow(v0, v1)
+    v3: bool = field.get v2, 1
     return v3
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::int32(i32::MAX), Value::int32(1)]);
@@ -143,8 +143,8 @@ fn test_intrinsic_sub_overflow() {
     let mir = r#"
 function @test(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
-    v2 = intrinsic.sub.overflow(v0, v1)
-    v3 = field.get v2, 1
+    v2: (u32, bool) = intrinsic.sub.overflow(v0, v1)
+    v3: bool = field.get v2, 1
     return v3
 }"#;
     let output = run_mir_ok(mir, "test", &[Value::uint32(0), Value::uint32(1)]);
@@ -163,7 +163,7 @@ fn test_intrinsic_sat_add() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.sat(v0, v1)
+    v2: i32 = intrinsic.add.sat(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -180,7 +180,7 @@ fn test_intrinsic_sat_sub() {
     let mir = r#"
 function @test(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = intrinsic.sub.sat(v0, v1)
+    v2: u32 = intrinsic.sub.sat(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -198,7 +198,7 @@ fn test_intrinsic_add_unchecked() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.add.unchecked(v0, v1)
+    v2: i32 = intrinsic.add.unchecked(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -214,7 +214,7 @@ fn test_intrinsic_div_unchecked() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.div.unchecked(v0, v1)
+    v2: i32 = intrinsic.div.unchecked(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -230,7 +230,7 @@ fn test_intrinsic_div_by_zero_unchecked() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.div.unchecked(v0, v1)
+    v2: i32 = intrinsic.div.unchecked(v0, v1)
     return v2
 }"#;
     let result = run_mir(mir, "test", &[Value::int32(100), Value::int32(0)]);
@@ -244,7 +244,7 @@ fn test_intrinsic_sqrt() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.sqrt(v0)
+    v1: f64 = intrinsic.sqrt(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(16.0)], Value::float64(4.0));
@@ -255,7 +255,7 @@ fn test_intrinsic_abs() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.abs(v0)
+    v1: f64 = intrinsic.abs(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(-42.5)], Value::float64(42.5));
@@ -266,7 +266,7 @@ fn test_intrinsic_floor() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.floor(v0)
+    v1: f64 = intrinsic.floor(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.7)], Value::float64(3.0));
@@ -277,7 +277,7 @@ fn test_intrinsic_ceil() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.ceil(v0)
+    v1: f64 = intrinsic.ceil(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.2)], Value::float64(4.0));
@@ -288,7 +288,7 @@ fn test_intrinsic_round() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.round(v0)
+    v1: f64 = intrinsic.round(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::float64(3.5)], Value::float64(4.0));
@@ -299,7 +299,7 @@ fn test_intrinsic_min() {
     let mir = r#"
 function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = intrinsic.min(v0, v1)
+    v2: f64 = intrinsic.min(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -315,7 +315,7 @@ fn test_intrinsic_max() {
     let mir = r#"
 function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = intrinsic.max(v0, v1)
+    v2: f64 = intrinsic.max(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -331,7 +331,7 @@ fn test_intrinsic_pow() {
     let mir = r#"
 function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = intrinsic.pow(v0, v1)
+    v2: f64 = intrinsic.pow(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -348,7 +348,7 @@ fn test_intrinsic_fma() {
     let mir = r#"
 function @test(v0: f64, v1: f64, v2: f64) -> f64 {
 block0(v0: f64, v1: f64, v2: f64):
-    v3 = intrinsic.fma(v0, v1, v2)
+    v3: f64 = intrinsic.fma(v0, v1, v2)
     return v3
 }"#;
     run_mir_expect(
@@ -370,9 +370,9 @@ fn test_intrinsic_sin_cos() {
     let mir = r#"
 function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = intrinsic.sin(v0)
-    v2 = intrinsic.cos(v0)
-    v3 = fadd v1, v2
+    v1: f64 = intrinsic.sin(v0)
+    v2: f64 = intrinsic.cos(v0)
+    v3: f64 = fadd v1, v2
     return v3
 }"#;
     // sin(0) = 0, cos(0) = 1, so result = 1
@@ -386,7 +386,7 @@ fn test_intrinsic_likely() {
     let mir = r#"
 function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = intrinsic.likely(v0)
+    v1: bool = intrinsic.likely(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::bool(true)], Value::bool(true));
@@ -397,7 +397,7 @@ fn test_intrinsic_unlikely() {
     let mir = r#"
 function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = intrinsic.unlikely(v0)
+    v1: bool = intrinsic.unlikely(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::bool(false)], Value::bool(false));
@@ -408,7 +408,7 @@ fn test_intrinsic_black_box() {
     let mir = r#"
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = intrinsic.black_box(v0)
+    v1: i32 = intrinsic.black_box(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
@@ -421,7 +421,7 @@ fn test_intrinsic_raw_eq_true() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.raw_eq(v0, v1)
+    v2: i32 = intrinsic.raw_eq(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -437,7 +437,7 @@ fn test_intrinsic_raw_eq_false() {
     let mir = r#"
 function @test(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = intrinsic.raw_eq(v0, v1)
+    v2: i32 = intrinsic.raw_eq(v0, v1)
     return v2
 }"#;
     run_mir_expect(
@@ -494,7 +494,7 @@ fn test_intrinsic_transmute() {
     let mir = r#"
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = intrinsic.transmute(v0)
+    v1: i32 = intrinsic.transmute(v0)
     return v1
 }"#;
     run_mir_expect(mir, "test", &[Value::int32(42)], Value::int32(42));
@@ -508,13 +508,13 @@ fn test_intrinsic_return_address() {
     let mir = r#"
 function @inner() -> u64 {
 block0:
-    v0 = intrinsic.return_address()
+    v0: u64 = intrinsic.return_address()
     return v0
 }
 
 function @test() -> u64 {
 block0:
-    v0 = call @inner()
+    v0: u64 = call @inner()
     return v0
 }"#;
     // should return non-zero since there's a caller
@@ -530,7 +530,7 @@ fn test_intrinsic_return_address_no_caller() {
     let mir = r#"
 function @test() -> u64 {
 block0:
-    v0 = intrinsic.return_address()
+    v0: u64 = intrinsic.return_address()
     return v0
 }"#;
     run_mir_expect(mir, "test", &[], Value::uint64(0));
@@ -542,13 +542,13 @@ fn test_intrinsic_frame_address() {
     let mir = r#"
 function @inner() -> u64 {
 block0:
-    v0 = intrinsic.frame_address()
+    v0: u64 = intrinsic.frame_address()
     return v0
 }
 
 function @test() -> u64 {
 block0:
-    v0 = call @inner()
+    v0: u64 = call @inner()
     return v0
 }"#;
     let output = run_mir_ok(mir, "test", &[]);
@@ -566,9 +566,9 @@ block0:
 #[test]
 fn test_intrinsic_reduce_add() {
     let mir = r#"
-function @test(v0: (i32, i32, i32, i32)) -> i32 {
-block0(v0: (i32, i32, i32, i32)):
-    v1 = intrinsic.reduce.add(v0)
+function @test(v0: vector<i32, 4>) -> i32 {
+block0(v0: vector<i32, 4>):
+    v1: i32 = vector.reduce add, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -589,9 +589,9 @@ block0(v0: (i32, i32, i32, i32)):
 #[test]
 fn test_intrinsic_reduce_mul() {
     let mir = r#"
-function @test(v0: (i32, i32, i32, i32)) -> i32 {
-block0(v0: (i32, i32, i32, i32)):
-    v1 = intrinsic.reduce.mul(v0)
+function @test(v0: vector<i32, 4>) -> i32 {
+block0(v0: vector<i32, 4>):
+    v1: i32 = vector.reduce mul, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -612,9 +612,9 @@ block0(v0: (i32, i32, i32, i32)):
 #[test]
 fn test_intrinsic_reduce_min() {
     let mir = r#"
-function @test(v0: (i32, i32, i32, i32)) -> i32 {
-block0(v0: (i32, i32, i32, i32)):
-    v1 = intrinsic.reduce.min(v0)
+function @test(v0: vector<i32, 4>) -> i32 {
+block0(v0: vector<i32, 4>):
+    v1: i32 = vector.reduce min, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -635,9 +635,9 @@ block0(v0: (i32, i32, i32, i32)):
 #[test]
 fn test_intrinsic_reduce_max() {
     let mir = r#"
-function @test(v0: (i32, i32, i32, i32)) -> i32 {
-block0(v0: (i32, i32, i32, i32)):
-    v1 = intrinsic.reduce.max(v0)
+function @test(v0: vector<i32, 4>) -> i32 {
+block0(v0: vector<i32, 4>):
+    v1: i32 = vector.reduce max, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -658,9 +658,9 @@ block0(v0: (i32, i32, i32, i32)):
 #[test]
 fn test_intrinsic_reduce_and() {
     let mir = r#"
-function @test(v0: (u32, u32, u32, u32)) -> u32 {
-block0(v0: (u32, u32, u32, u32)):
-    v1 = intrinsic.reduce.and(v0)
+function @test(v0: vector<u32, 4>) -> u32 {
+block0(v0: vector<u32, 4>):
+    v1: u32 = vector.reduce and, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -681,9 +681,9 @@ block0(v0: (u32, u32, u32, u32)):
 #[test]
 fn test_intrinsic_reduce_or() {
     let mir = r#"
-function @test(v0: (u32, u32, u32, u32)) -> u32 {
-block0(v0: (u32, u32, u32, u32)):
-    v1 = intrinsic.reduce.or(v0)
+function @test(v0: vector<u32, 4>) -> u32 {
+block0(v0: vector<u32, 4>):
+    v1: u32 = vector.reduce or, v0
     return v1
 }"#;
     let output = run_mir_with_ok(mir, "test", |interp| {
@@ -704,9 +704,9 @@ block0(v0: (u32, u32, u32, u32)):
 #[test]
 fn test_intrinsic_reduce_xor() {
     let mir = r#"
-function @test(v0: (u32, u32, u32, u32)) -> u32 {
-block0(v0: (u32, u32, u32, u32)):
-    v1 = intrinsic.reduce.xor(v0)
+function @test(v0: vector<u32, 4>) -> u32 {
+block0(v0: vector<u32, 4>):
+    v1: u32 = vector.reduce xor, v0
     return v1
 }"#;
     // 1 ^ 2 ^ 3 ^ 4 = 4

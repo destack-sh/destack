@@ -9,10 +9,10 @@ fn test_yield_resume_value() {
     let mir = r#"
 function @yield_once(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
+    v1: i32 = iconst 5i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
 
@@ -49,7 +49,7 @@ fn test_yield_resume_value_ignored() {
     let mir = r#"
 function @yield_ignore(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
     return v2
@@ -88,13 +88,13 @@ fn test_yield_multiple() {
     let mir = r#"
 function @yield_twice(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     yield v4, block2(v4)
 block2(v5: i32, v6: i32):
-    v7 = iadd v5, v6
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
 
@@ -143,7 +143,7 @@ fn test_yield_resume_no_args() {
     let mir = r#"
 function @yield_no_args(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 4i32
+    v1: i32 = iconst 4i32
     yield v1, block1
 block1(v2: i32):
     return v2
@@ -184,12 +184,12 @@ function @yield_with_local(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 
 block0(v0: i32):
-    v1 = iconst 4i32
+    v1: i32 = iconst 4i32
     local.set local0, v1
     yield v1, block1
 block1(v2: i32):
-    v3 = local.get local0
-    v4 = iadd v3, v2
+    v3: i32 = local.get local0
+    v4: i32 = iadd v3, v2
     return v4
 }"#;
 
@@ -226,12 +226,12 @@ fn test_yield_resume_arguments_prefix() {
     let mir = r#"
 function @yield_prefix(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 10i32
-    v2 = iconst 20i32
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 20i32
     yield v1, block1(v0, v2)
 block1(v3: i32, v4: i32, v5: i32):
-    v6 = iadd v3, v4
-    v7 = iadd v6, v5
+    v6: i32 = iadd v3, v4
+    v7: i32 = iadd v6, v5
     return v7
 }"#;
 
@@ -268,15 +268,15 @@ fn test_yield_clears_trailing_params() {
     let mir = r#"
 function @yield_trailing(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 99i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 99i32
     jump block1(v0, v1, v2)
 block1(v3: i32, v4: i32, v5: i32):
-    v6 = iconst 0i32
-    v7 = icmp_eq v5, v6
+    v6: i32 = iconst 0i32
+    v7: bool = icmp_eq v5, v6
     branch v7, block3(v5), block2(v3, v4, v5)
 block2(v8: i32, v9: i32, v10: i32):
-    v11 = iadd v8, v9
+    v11: i32 = iadd v8, v9
     yield v11, block1(v8, v9)
 block3(v12: i32):
     return v12
@@ -317,15 +317,15 @@ function @yield_inner(v0: i32) -> i32 {
 block0(v0: i32):
     yield v0, block1
 block1(v1: i32):
-    v2 = iconst 1i32
-    v3 = iadd v1, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v1, v2
     return v3
 }
 
 function @outer(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call @yield_inner(v0)
-    v2 = iadd v1, v0
+    v1: i32 = call @yield_inner(v0)
+    v2: i32 = iadd v1, v0
     return v2
 }"#;
 
@@ -362,10 +362,10 @@ fn test_run_function_rejects_yield() {
     let mir = r#"
 function @yield_once(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
+    v1: i32 = iconst 5i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
 
@@ -387,10 +387,10 @@ fn test_resume_invalid_continuation() {
     let mir = r#"
 function @yield_once(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
+    v1: i32 = iconst 5i32
     yield v1, block1(v0)
 block1(v2: i32, v3: i32):
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
 
@@ -424,7 +424,7 @@ fn test_continuation_clone_for_fork() {
     let mir = r#"
 function @yield_once() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     yield v0, block1
 block1(v1: i32):
     return v1
@@ -476,9 +476,9 @@ type @Pair = { i32, i32 }
 
 function @yield_alloc() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = struct @Pair (v0, v1)
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: @Pair = struct @Pair (v0, v1)
     yield v0, block1(v2)
 block1(v3: @Pair, v4: i32):
     return v4

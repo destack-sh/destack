@@ -7,7 +7,7 @@ fn test_truncate_i64_to_i32() {
     let mir = r#"
 function @trunc(v0: i64) -> i32 {
 block0(v0: i64):
-    v1 = trunc v0 -> i32
+    v1: i32 = trunc v0 -> i32
     return v1
 }"#;
     run_mir_expect(
@@ -24,7 +24,7 @@ fn test_truncate_preserves_sign() {
     let mir = r#"
 function @trunc(v0: i64) -> i32 {
 block0(v0: i64):
-    v1 = trunc v0 -> i32
+    v1: i32 = trunc v0 -> i32
     return v1
 }"#;
     run_mir_expect(mir, "trunc", &[Value::int64(-1)], Value::int32(-1));
@@ -37,7 +37,7 @@ fn test_zero_extend() {
     let mir = r#"
 function @uext(v0: u8) -> u32 {
 block0(v0: u8):
-    v1 = uextend v0 -> u32
+    v1: u32 = uextend v0 -> u32
     return v1
 }"#;
     run_mir_expect(mir, "uext", &[Value::uint(200, 8)], Value::uint32(200));
@@ -49,7 +49,7 @@ fn test_sign_extend() {
     let mir = r#"
 function @sext(v0: i8) -> i32 {
 block0(v0: i8):
-    v1 = sextend v0 -> i32
+    v1: i32 = sextend v0 -> i32
     return v1
 }"#;
     // positive value
@@ -66,7 +66,7 @@ fn test_float_to_signed_int() {
     let mir = r#"
 function @f2i(v0: f64) -> i32 {
 block0(v0: f64):
-    v1 = fcvt_to_sint v0 -> i32
+    v1: i32 = fcvt_to_sint v0 -> i32
     return v1
 }"#;
     run_mir_expect(mir, "f2i", &[Value::float64(42.9)], Value::int32(42));
@@ -79,7 +79,7 @@ fn test_float_to_unsigned_int() {
     let mir = r#"
 function @f2u(v0: f64) -> u32 {
 block0(v0: f64):
-    v1 = fcvt_to_uint v0 -> u32
+    v1: u32 = fcvt_to_uint v0 -> u32
     return v1
 }"#;
     run_mir_expect(mir, "f2u", &[Value::float64(42.9)], Value::uint32(42));
@@ -91,7 +91,7 @@ fn test_signed_int_to_float() {
     let mir = r#"
 function @i2f(v0: i32) -> f64 {
 block0(v0: i32):
-    v1 = scvt_to_float v0 -> f64
+    v1: f64 = scvt_to_float v0 -> f64
     return v1
 }"#;
     run_mir_expect(mir, "i2f", &[Value::int32(42)], Value::float64(42.0));
@@ -104,7 +104,7 @@ fn test_unsigned_int_to_float() {
     let mir = r#"
 function @u2f(v0: u32) -> f64 {
 block0(v0: u32):
-    v1 = ucvt_to_float v0 -> f64
+    v1: f64 = ucvt_to_float v0 -> f64
     return v1
 }"#;
     run_mir_expect(mir, "u2f", &[Value::uint32(42)], Value::float64(42.0));
@@ -116,7 +116,7 @@ fn test_float_extend() {
     let mir = r#"
 function @fext(v0: f32) -> f64 {
 block0(v0: f32):
-    v1 = fwiden v0 -> f64
+    v1: f64 = fwiden v0 -> f64
     return v1
 }"#;
     run_mir_expect(mir, "fext", &[Value::float32(3.5)], Value::float64(3.5));
@@ -128,7 +128,7 @@ fn test_float_truncate() {
     let mir = r#"
 function @ftrunc(v0: f64) -> f32 {
 block0(v0: f64):
-    v1 = fnarrow v0 -> f32
+    v1: f32 = fnarrow v0 -> f32
     return v1
 }"#;
     run_mir_expect(mir, "ftrunc", &[Value::float64(3.5)], Value::float32(3.5));
@@ -140,7 +140,7 @@ fn test_int_to_float32() {
     let mir = r#"
 function @i2f32(v0: i32) -> f32 {
 block0(v0: i32):
-    v1 = scvt_to_float v0 -> f32
+    v1: f32 = scvt_to_float v0 -> f32
     return v1
 }"#;
     run_mir_expect(mir, "i2f32", &[Value::int32(42)], Value::float32(42.0));
