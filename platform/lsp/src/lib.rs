@@ -7,7 +7,7 @@ pub mod server;
 pub use query::*;
 pub use server::DestackLanguageServer;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test"))]
 pub mod tests;
 
 use destack_lsp_server::{LspService, Server};

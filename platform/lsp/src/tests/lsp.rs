@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 
 use destack_lsp_types as lsp;
 use destack_resolver::{ResolveOptions, Resolver};
@@ -7,8 +8,8 @@ use destack_source::{
 };
 use destack_workspace::{MemoryCacheStore, Session, Workspace};
 
-use super::harness::{harness_for_fs, test_fs, uri_for_path};
-use crate::server::LspDaemonClient;
+use super::harness::{LspHarness, harness_for_fs, test_fs, uri_for_path};
+use crate::server::daemon::LspDaemonClient;
 
 /// LSP didOpen publishes diagnostics for the document.
 #[tokio::test]
@@ -47,8 +48,8 @@ fn test_lsp_daemon_client_virtual_update_emits_diagnostics() {
     let session = Arc::new(session.with_workspace(workspace));
     session.add_root(root.clone());
 
-    let daemon =
-        LspDaemonClient::new(session.clone(), vec![root.clone()]).expect("expected daemon client");
+    let daemon = LspDaemonClient::new_in_process(session.clone(), vec![root.clone()])
+        .expect("expected daemon client");
 
     let path = root.join("main.ds");
     let _ = fs.write_text("main.ds", "export const x: number = 1;\n");
@@ -302,4 +303,58 @@ async fn test_lsp_config_change_fanout_publishes_diagnostics() {
     let diagnostics_b = harness.next_diagnostics_for(&uri_b).await;
     assert_eq!(diagnostics_a.uri, uri_a);
     assert_eq!(diagnostics_b.uri, uri_b);
+}
+
+/// LSP updates stay scoped to the workspace root.
+#[tokio::test]
+async fn test_lsp_multi_root_scopes_diagnostics() {
+    // set up two workspace roots
+    let fs_a = test_fs("multi_root_a");
+    let fs_b = test_fs("multi_root_b");
+    let root_a = fs_a.root().to_path_buf();
+    let root_b = fs_b.root().to_path_buf();
+    let _ = fs_a.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+    let _ = fs_b.write_text("dsconfig.json", "{ \"compilerOptions\": {} }\n");
+
+    // write invalid modules in both roots
+    let module_a = fs_a.write_text("a.ds", "export const a = ;\n").unwrap();
+    let module_b = fs_b.write_text("b.ds", "export const b = ;\n").unwrap();
+
+    // initialize the server with the first root
+    let mut harness = LspHarness::new(root_a.clone());
+    harness.initialize().await;
+
+    // add the second root as a workspace folder
+    harness
+        .did_change_workspace_folders(vec![root_b.clone()], vec![])
+        .await;
+
+    // open both modules to register them with the daemon
+    let uri_a = uri_for_path(&module_a);
+    let uri_b = uri_for_path(&module_b);
+    harness
+        .did_open(uri_a.clone(), "export const a = ;\n")
+        .await;
+    harness
+        .did_open(uri_b.clone(), "export const b = ;\n")
+        .await;
+
+    // drain initial diagnostics
+    let diagnostics_a = harness.next_diagnostics_for(&uri_a).await;
+    let diagnostics_b = harness.next_diagnostics_for(&uri_b).await;
+    assert!(!diagnostics_a.diagnostics.is_empty());
+    assert!(!diagnostics_b.diagnostics.is_empty());
+
+    // fix the second module
+    harness
+        .did_change(uri_b.clone(), "export const b: number = 1;\n", 2)
+        .await;
+    let diagnostics_b = harness.next_diagnostics_for(&uri_b).await;
+    assert!(diagnostics_b.diagnostics.is_empty());
+
+    // ensure no extra diagnostics are published for the first root
+    let remaining = harness
+        .collect_diagnostics_for_timeout(Duration::from_millis(200))
+        .await;
+    assert!(!remaining.iter().any(|entry| entry.uri == uri_a));
 }

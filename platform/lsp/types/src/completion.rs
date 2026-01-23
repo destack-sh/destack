@@ -696,27 +696,44 @@ mod tests {
     use super::*;
     use crate::tests::test_deserialization;
 
+    /// Decode tag support shapes for completion item capabilities.
     #[test]
     fn test_tag_support_deserialization() {
-        let mut empty = CompletionItemCapability::default();
-        empty.tag_support = None;
+        // build empty capability with tag support disabled
+        let empty = CompletionItemCapability {
+            tag_support: None,
+            ..Default::default()
+        };
 
+        // assertion block
         test_deserialization(r#"{}"#, &empty);
         test_deserialization(r#"{"tagSupport": false}"#, &empty);
 
-        let mut t = CompletionItemCapability::default();
-        t.tag_support = Some(TagSupport { value_set: vec![] });
+        // build capability with empty tag support
+        let t = CompletionItemCapability {
+            tag_support: Some(TagSupport { value_set: vec![] }),
+            ..Default::default()
+        };
+
+        // assertion block
         test_deserialization(r#"{"tagSupport": true}"#, &t);
 
-        let mut t = CompletionItemCapability::default();
-        t.tag_support = Some(TagSupport {
-            value_set: vec![CompletionItemTag::DEPRECATED],
-        });
+        // build capability with deprecated tag support
+        let t = CompletionItemCapability {
+            tag_support: Some(TagSupport {
+                value_set: vec![CompletionItemTag::DEPRECATED],
+            }),
+            ..Default::default()
+        };
+
+        // assertion block
         test_deserialization(r#"{"tagSupport": {"valueSet": [1]}}"#, &t);
     }
 
+    /// Format completion kinds with debug output.
     #[test]
     fn test_debug_enum() {
+        // assertion block
         assert_eq!(format!("{:?}", CompletionItemKind::TEXT), "Text");
         assert_eq!(
             format!("{:?}", CompletionItemKind::TYPE_PARAMETER),
@@ -724,8 +741,10 @@ mod tests {
         );
     }
 
+    /// Convert completion kinds from strings.
     #[test]
     fn test_try_from_enum() {
+        // assertion block
         use std::convert::TryInto;
         assert_eq!("Text".try_into(), Ok(CompletionItemKind::TEXT));
         assert_eq!(

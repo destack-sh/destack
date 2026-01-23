@@ -1,20 +1,24 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use dashmap::DashMap;
 use destack_daemon::protocol::{
     AnalyzeRequest, CloseWorkspaceRequest, DaemonMessageRecord, DaemonRequest, DaemonResponse,
     DaemonUpdateRecord, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
-    ProtocolClient, ProtocolClientOptions, RescanReason, RescanWorkspaceRequest, WatchBatch,
-    WatchBatchRequest, WatchEvent, WorkspaceHandleId, WorkspaceOpenOptions,
-    loopback_transport_pair,
+    ProtocolClient, RescanReason, RescanWorkspaceRequest, WatchBatch, WatchBatchRequest,
+    WatchEvent, WorkspaceHandleId, WorkspaceOpenOptions,
 };
-use destack_daemon::{DaemonService, DaemonServiceError, DaemonServiceOptions};
+use destack_daemon::{
+    DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
+    connect_in_process_daemon, connect_ipc_daemon,
+};
 use destack_source::{FileWatchEvent, FileWatchEventKind};
 use destack_workspace::Session;
 use parking_lot::Mutex;
+
+/// Environment variable that forces the LSP to use the in process daemon.
+pub const LSP_DAEMON_IN_PROCESS_ENV: &str = "DESTACK_LSP_IN_PROCESS";
 
 /// Result of applying daemon updates in the LSP.
 #[derive(Debug, Default)]
@@ -31,36 +35,59 @@ pub struct LspDaemonClient {
     /// Session for workspace resolution.
     session: Arc<Session>,
     /// Protocol client used for requests.
-    client: ProtocolClient,
+    client: Arc<ProtocolClient>,
     /// Workspace handle ids keyed by root.
     handles: DashMap<PathBuf, WorkspaceHandleId>,
-    /// Server thread handle.
-    server_handle: Mutex<Option<JoinHandle<Result<(), DaemonServiceError>>>>,
+    /// Connection state for in process daemons.
+    connection: Mutex<Option<DaemonConnection>>,
 }
 
 impl LspDaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(session: Arc<Session>, roots: Vec<PathBuf>) -> Result<Self, String> {
-        // configure the daemon service
-        let options = DaemonServiceOptions::default();
-        let service = DaemonService::with_options(session.clone(), options);
-
-        // start the protocol server over a loopback transport
-        let (client_transport, server_transport) = loopback_transport_pair(16);
-        let server_handle = thread::spawn(move || service.serve_transport(&server_transport));
-
-        // build the protocol client and handshake
-        let client = ProtocolClient::new(Arc::new(client_transport));
-        if let Err(error) = client.handshake(ProtocolClientOptions::default()) {
-            shutdown_server(&client, server_handle);
-            return Err(format!("daemon handshake failed: {error}"));
+        // force the in process daemon when requested
+        if std::env::var_os(LSP_DAEMON_IN_PROCESS_ENV).is_some() {
+            return Self::new_in_process(session, roots);
         }
 
+        // build the ipc connection
+        let instance = DaemonInstance::from_session(&session);
+        let launch = build_launch_config(&session, &instance);
+        let options = DaemonConnectOptions::default();
+        let connection = connect_ipc_daemon(&instance, options, Some(launch))
+            .map_err(|error| format!("daemon connect failed: {error}"))?;
+        let client = connection.client.clone();
+
+        // build the daemon client state
         let daemon = Self {
             session,
             client,
             handles: DashMap::new(),
-            server_handle: Mutex::new(Some(server_handle)),
+            connection: Mutex::new(Some(connection)),
+        };
+
+        // open each workspace root
+        for root in roots {
+            daemon.open_workspace_root(root)?;
+        }
+
+        Ok(daemon)
+    }
+
+    /// Create an in process daemon client for the provided roots.
+    pub fn new_in_process(session: Arc<Session>, roots: Vec<PathBuf>) -> Result<Self, String> {
+        // build the in process connection
+        let options = DaemonConnectOptions::default();
+        let connection = connect_in_process_daemon(session.clone(), options)
+            .map_err(|error| format!("daemon connect failed: {error}"))?;
+        let client = connection.client.clone();
+
+        // build the daemon client state
+        let daemon = Self {
+            session,
+            client,
+            handles: DashMap::new(),
+            connection: Mutex::new(Some(connection)),
         };
 
         // open each workspace root
@@ -73,10 +100,12 @@ impl LspDaemonClient {
 
     /// Ensure the workspace root is opened.
     pub fn open_workspace_root(&self, root: PathBuf) -> Result<(), String> {
+        // return early when the root is already open
         if self.handles.contains_key(&root) {
             return Ok(());
         }
 
+        // build the open request
         let options = WorkspaceOpenOptions {
             watch: false,
             ..Default::default()
@@ -85,11 +114,14 @@ impl LspDaemonClient {
             root: root.clone(),
             options,
         };
+
+        // send the open request
         let response = self
             .client
             .send_request(DaemonRequest::OpenWorkspace(request))
             .map_err(|error| format!("open workspace failed: {error}"))?;
 
+        // extract the workspace handle
         let handle = match response {
             DaemonResponse::WorkspaceOpened(response) => response.handle,
             DaemonResponse::Error(error) => {
@@ -100,16 +132,19 @@ impl LspDaemonClient {
             }
         };
 
+        // store the workspace handle
         self.handles.insert(root, handle);
         Ok(())
     }
 
     /// Close an opened workspace root.
     pub fn close_workspace_root(&self, root: &Path) -> Result<(), String> {
+        // resolve the workspace handle
         let Some(entry) = self.handles.remove(root) else {
             return Ok(());
         };
 
+        // send the close request
         let handle = entry.1;
         let response = self
             .client
@@ -118,6 +153,7 @@ impl LspDaemonClient {
             }))
             .map_err(|error| format!("close workspace failed: {error}"))?;
 
+        // map the close response
         match response {
             DaemonResponse::WorkspaceClosed(_) => Ok(()),
             DaemonResponse::Error(error) => Err(format!("close workspace failed: {error}")),
@@ -127,7 +163,10 @@ impl LspDaemonClient {
 
     /// Ensure a path is analyzed by the daemon.
     pub fn ensure_analyzed_for_path(&self, path: &Path) -> Result<(), String> {
+        // resolve the workspace handle
         let handle = self.handle_for_path(path)?;
+
+        // send the analyze request
         let request = AnalyzeRequest {
             handle,
             path: path.to_path_buf(),
@@ -137,6 +176,7 @@ impl LspDaemonClient {
             .send_request(DaemonRequest::Analyze(request))
             .map_err(|error| format!("analyze request failed: {error}"))?;
 
+        // map the analyze response
         match response {
             DaemonResponse::Analyzed(_) => Ok(()),
             DaemonResponse::Error(error) => Err(format!("analyze request failed: {error}")),
@@ -150,7 +190,10 @@ impl LspDaemonClient {
         path: &Path,
         content: String,
     ) -> Result<LspDaemonResult, String> {
+        // resolve the workspace handle
         let handle = self.handle_for_path(path)?;
+
+        // build and send the update
         let update = FileUpdate {
             path: path.to_path_buf(),
             update: FileUpdateKind::Text { content },
@@ -164,6 +207,7 @@ impl LspDaemonClient {
             }))
             .map_err(|error| format!("apply file update failed: {error}"))?;
 
+        // map the update response
         match response {
             DaemonResponse::FileUpdated(response) => Ok(LspDaemonResult {
                 updates: response.updates,
@@ -179,19 +223,24 @@ impl LspDaemonClient {
         &self,
         events: Vec<FileWatchEvent>,
     ) -> Result<LspDaemonResult, String> {
+        // return empty results for empty inputs
         let mut result = LspDaemonResult::default();
         if events.is_empty() {
             return Ok(result);
         }
 
+        // apply watch events per workspace
         for entry in self.handles.iter() {
             let root = entry.key();
             let handle = *entry.value();
+
+            // build the watch batch for this root
             let batch = watch_batch_for_root(root, &events);
             let Some(batch) = batch else {
                 continue;
             };
 
+            // send the watch batch request
             let response = self
                 .client
                 .send_request(DaemonRequest::ApplyWatchBatch(WatchBatchRequest {
@@ -200,6 +249,7 @@ impl LspDaemonClient {
                 }))
                 .map_err(|error| format!("apply watch batch failed: {error}"))?;
 
+            // map the watch batch response
             let response = match response {
                 DaemonResponse::WatchBatchApplied(response) => response,
                 DaemonResponse::Error(error) => {
@@ -210,9 +260,11 @@ impl LspDaemonClient {
                 }
             };
 
+            // collect update records
             result.updates.extend(response.updates);
             result.messages.extend(response.messages);
 
+            // rescan when requested by the daemon
             if response.rescan {
                 let rescan = self.rescan_handle(handle, RescanReason::Update)?;
                 result.updates.extend(rescan.updates);
@@ -225,34 +277,36 @@ impl LspDaemonClient {
 
     /// Shutdown the daemon connection.
     pub fn shutdown(&self) {
-        let _ = self.client.send_request(DaemonRequest::Shutdown);
-        let handle = self.server_handle.lock().take();
-        if let Some(handle) = handle {
-            let _ = handle.join();
-        }
+        let _ = self.connection.lock().take();
     }
 
+    /// Look up the workspace handle for a root.
     fn handle_for_root(&self, root: &Path) -> Option<WorkspaceHandleId> {
         self.handles.get(root).map(|entry| *entry.value())
     }
 
+    /// Resolve the workspace handle for a path.
     fn handle_for_path(&self, path: &Path) -> Result<WorkspaceHandleId, String> {
+        // resolve the root for the path
         let program = self.session.find_program_for_path(path);
         let root = program.cwd.clone();
         if let Some(handle) = self.handle_for_root(&root) {
             return Ok(handle);
         }
 
+        // open the root on demand
         self.open_workspace_root(root.clone())?;
         self.handle_for_root(&root)
             .ok_or_else(|| "workspace handle missing after open".to_string())
     }
 
+    /// Request a rescan for a workspace handle.
     fn rescan_handle(
         &self,
         handle: WorkspaceHandleId,
         reason: RescanReason,
     ) -> Result<LspDaemonResult, String> {
+        // send the rescan request
         let response = self
             .client
             .send_request(DaemonRequest::RescanWorkspace(RescanWorkspaceRequest {
@@ -261,6 +315,7 @@ impl LspDaemonClient {
             }))
             .map_err(|error| format!("rescan workspace failed: {error}"))?;
 
+        // map the rescan response
         match response {
             DaemonResponse::WorkspaceRescanned(response) => Ok(LspDaemonResult {
                 updates: response.updates,
@@ -272,17 +327,16 @@ impl LspDaemonClient {
     }
 }
 
-impl Drop for LspDaemonClient {
-    fn drop(&mut self) {
-        // shut down the server thread on drop
-        if let Some(handle) = self.server_handle.lock().take() {
-            let _ = self.client.send_request(DaemonRequest::Shutdown);
-            let _ = handle.join();
-        }
-    }
+/// Build the launch config for the ipc daemon.
+fn build_launch_config(session: &Session, instance: &DaemonInstance) -> DaemonLaunchConfig {
+    let mut launch = DaemonLaunchConfig::for_instance(instance);
+    launch.cwd = Some(session.cwd.clone());
+    launch
 }
 
+/// Build a watch batch for a workspace root.
 fn watch_batch_for_root(root: &Path, events: &[FileWatchEvent]) -> Option<WatchBatch> {
+    // filter events that match the root
     let filtered: Vec<WatchEvent> = events
         .iter()
         .filter(|event| event_matches_root(event, root))
@@ -292,10 +346,13 @@ fn watch_batch_for_root(root: &Path, events: &[FileWatchEvent]) -> Option<WatchB
         return None;
     }
 
+    // detect overflow events for the root
     let overflowed = events
         .iter()
         .filter(|event| event_matches_root(event, root))
         .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
+
+    // build the batch payload
     let (started_at_ns, ended_at_ns) = watch_batch_timestamps();
     Some(WatchBatch {
         events: filtered,
@@ -306,37 +363,39 @@ fn watch_batch_for_root(root: &Path, events: &[FileWatchEvent]) -> Option<WatchB
     })
 }
 
+/// Return true when the event touches the workspace root.
 fn event_matches_root(event: &FileWatchEvent, root: &Path) -> bool {
+    // match current paths
     if event.path.starts_with(root) {
         return true;
     }
 
+    // match previous paths
     event
         .previous_path
         .as_ref()
         .is_some_and(|path| path.starts_with(root))
 }
 
+/// Capture the start and end timestamps for a watch batch.
 fn watch_batch_timestamps() -> (u64, u64) {
+    // capture the current time
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default();
     (duration_to_ns(now), duration_to_ns(now))
 }
 
+/// Convert a duration to a clamped nanosecond count.
 fn duration_to_ns(duration: Duration) -> u64 {
+    // return a clamped nanosecond count
     let nanos = duration.as_nanos();
-    if nanos > u64::MAX as u128 {
-        u64::MAX
-    } else {
-        nanos as u64
-    }
-}
 
-fn shutdown_server(
-    client: &ProtocolClient,
-    server_handle: JoinHandle<Result<(), DaemonServiceError>>,
-) {
-    let _ = client.send_request(DaemonRequest::Shutdown);
-    let _ = server_handle.join();
+    // clamp to u64 max on overflow
+    if nanos > u64::MAX as u128 {
+        return u64::MAX;
+    }
+
+    // use the exact nanosecond count
+    nanos as u64
 }
