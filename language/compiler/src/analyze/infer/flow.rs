@@ -754,7 +754,7 @@ impl Compiler {
                 }
 
                 let target_type = self.try_evaluate_expression_to_type_value(
-                    module, profile, *value, tree, symbols, types, true,
+                    module, profile, *value, tree, symbols, types, true, true, true, true,
                 )?;
                 if matches!(target_type, Type::Unevaluated(_)) {
                     return Ok(None);

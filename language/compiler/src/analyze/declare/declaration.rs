@@ -211,6 +211,16 @@ impl Compiler {
                     }
                 }
 
+                // validate comptime usage for array size parameters
+                if static_parameters
+                    .as_ref()
+                    .is_some_and(|parameters| !parameters.is_empty())
+                {
+                    self.validate_static_value_parameter_usage_in_type_expression(
+                        module, profile, *value, tree, symbols, types, false, true,
+                    )?;
+                }
+
                 // avoid eager evaluation for generic aliases
                 let declared_ty_id = if static_parameters
                     .as_ref()

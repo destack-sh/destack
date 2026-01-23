@@ -167,8 +167,10 @@ export struct User {
 #### Public boundaries and surface inference
 
 Exported bindings may omit explicit annotations when their types can be inferred from local syntax.
-This inference never consults inferred types from other modules.
-If an exported binding depends on a value whose declared type is unavailable, it must be annotated.
+The compiler internally publishes an "export summary" for each module of declared or locally inferred export types.
+Other modules import that summary instead of inferring across module boundaries.
+Inference cycles across modules are forbidden: if an exported binding depends on another module’s
+inferred export, it must be explicitly annotated.
 
 Examples:
 
@@ -1084,9 +1086,9 @@ since static parameters are needed for instantiation and type resolution.
 Defaults on static parameters apply when arguments are omitted.
 Static arguments may reference other static parameters as long as the resulting expression remains static.
 
-### Comptime Parameters
+### Comptime Dynamic Parameters
 
-Parameters can be marked `comptime` to require compile-time-known arguments:
+Dynamic parameters can also be marked `comptime` to require compile-time-known arguments:
 
 ```
 function createBuffer(comptime size: int): uint8[] {
@@ -1102,14 +1104,8 @@ const N = comptime 1024;      // ok: redundant but valid
 createBuffer(N);              // ok: N is comptime-known
 ```
 
-Comptime parameters enable:
-- Specialization based on constant values
-- Compile-time loop unrolling
-- Dead code elimination based on parameter values
-
-Comptime parameters still require **static expressions** as arguments. The call site may
-evaluate the function body via comptime execution, but the arguments themselves must be
-known during Analyze.
+Comptime parameters require **static expressions** as arguments. 
+The call site may evaluate the function body via comptime execution, but the arguments themselves must be known during Analyze.
 
 ### Comptime Conditions
 
@@ -1248,57 +1244,6 @@ In practice, this isn't its own "feature", but just a nice consequence of other 
 3. **Branch elimination**: comptime conditionals select which code survives.
 4. **Inlining**: comptime expressions become constants.
 
-#### Comptime Example: JSON Parser
-
-This example demonstrates code specialization by creating a type safe JSON parser.
-
-```ds
-@inline
-function parse<T>(json: string): T {
-    const obj = JSON.parse(json);
-    let result: Partial<T> = {};
-
-    @unroll
-    for (const field of comptime Type<T>.fields) {
-        if (comptime field.type extends string) {
-            result[field.name] = String(obj[field.name]);
-        } else if (comptime field.type extends number) {
-            result[field.name] = Number(obj[field.name]);
-        } else if (comptime field.type extends boolean) {
-            result[field.name] = Boolean(obj[field.name]);
-        } else {
-            result[field.name] = parse<typeof field.type>(obj[field.name]);
-        }
-    }
-
-    return result as T;
-}
-
-struct User { 
-    name: string, 
-    age: int, 
-    active: boolean 
-}
-
-// when instantiated, the loop is unrolled and branches are eliminated:
-const user = parse<User>('{"name": "Alice", "age": 30, "active": true}');
-```
-
-After comptime evaluation with `User`, the function becomes:
-
-```ds
-function parse_User(json: string): User {
-    const obj = JSON.parse(json);
-    let result: Partial<User> = {};
-
-    result.name = String(obj.name);
-    result.age = Number(obj.age);
-    result.active = Boolean(obj.active);
-
-    return result as User;
-}
-```
-
 #### Comptime Example: Cache Table
 
 This example demonstrates comptime type conditions for conditional behavior.
@@ -1330,8 +1275,8 @@ export struct CacheTable<
     K,
     V,
     Context: CacheContext<K>,
-    bucketCount: uint16,
-    bucketSize: uint16,
+    comptime bucketCount: uint16,
+    comptime bucketSize: uint16,
 > {
     /// Comptime block for compile-time assertions.
     /// Runs once per instantiation of this generic struct.
@@ -1536,7 +1481,9 @@ Nominal interfaces require explicit ("nominal") `implements` declarations.
 interface Drawable {
     draw(): void
 }
-const x: Drawable = { draw() {} }  // OK: structural match
+const x: Drawable = { 
+    draw() { } 
+};  // OK: structural match
 
 // Nominal interface (requires explicit "nominal" `implements`)
 newtype interface Add<T, R = this> {
@@ -1657,19 +1604,6 @@ let p: Point = new Point(1, 2);       // ok: constructor syntax
 let p: Point = { x: 1, y: 2 };        // error: object literal is not Point
 ```
 
-#### Reference Boundaries
-
-Struct values are boxed when a reference type is required.
-Boxing allocates managed storage and copies the value.
-Boxing is compiler inserted and does not introduce a surface `Box<T>` type.
-Boxing does not change the struct type or make `===` valid.
-Unboxing copies the value out of the box.
-Mutations through a boxed reference only affect that boxed instance.
-Repeated boxing of the same value produces distinct reference identities.
-Reference contexts include object types, interfaces, class types, `any`, and `unknown`.
-When a generic `T` flows into a reference context, value type instantiations are boxed.
-Escape analysis may still allocate struct values on the heap without changing semantics.
-
 #### Pattern Matching
 
 Struct patterns require the type name (unlike newtypes which auto-unwrap):
@@ -1690,6 +1624,7 @@ Structs can `implements` interfaces but cannot `extends` (use embedding instead)
 struct Point implements Drawable {
     x: float32;
     y: float32;
+
     draw(): void { ... }
 }
 
@@ -1709,15 +1644,15 @@ You can explicitly reference or copy either structs or classes.
 
 Class-shaped types like structs and interfaces can declare associated type aliases ("static type members") using the `type` keyword:
 
-```
+```ds
 struct Container<T> {
     type Item = T;
     type Iter = ContainerIterator<T>;
 
     items: T[],
 
-    iter(): Iter { 
-        ContainerIterator { items: this.items } 
+    iter(): Iter {
+        ContainerIterator { items: this.items }
     }
 }
 ```
@@ -1733,7 +1668,7 @@ const item: Container<int>.Item = 42;  // Item resolves to int
 
 In interfaces, associated types can be declared without a default (abstract) or with a default:
 
-```
+```ds
 interface Iterable<T> {
     type Item;                    // abstract: implementors must provide
     type Iter: Iterator<Item>;    // abstract with constraint
@@ -1751,11 +1686,12 @@ extension<T> for Container<T> implements Iterable<T> {
 
 ### Enum
 
-Enums conceptually follow TypeScript, but remain strictly nominal types.
+Enums conceptually follow TypeScript, but remain strictly nominal types to avoid accidental implicit coercions.
 Enum values do _not_ implicitly coerce to their backing type.
 Explicit casts are required to convert between enums and their backing types.
 The backing type is inferred from member values and is either an integer or string type.
 When member values are omitted, the backing type defaults to the configured integer width.
+
 Enum member values are constant expressions.
 Integer-backed enums allow constant integer expressions using literals, unary +/-, binary arithmetic or bitwise operators, casts, parentheses, and references to earlier enum members.
 Integer-backed enums assign implicit values starting at zero, and explicit values advance the next implicit value by one.

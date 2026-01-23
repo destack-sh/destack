@@ -208,12 +208,17 @@ This keeps TypeScript compatibility while preserving explicit module ownership.
 # Module Boundaries
 
 Analyze keeps a TypeTable per module.
-When an expression references a symbol from another module, Analyze copies the referenced declared
-type into the local TypeTable. Structural types are copied recursively; nominal references retain
-their GlobalSymbolId identity. Inference variables from remote modules are replaced with explicit
-`unknown` to keep inference local. Exported surfaces should have declared types for stable
-cross-module typing; if surface inference cannot resolve an export without cross-module inference,
-the export must be explicitly annotated or defaults to `unknown` with a warning.
+Inference is local and never requires whole-program analysis.
+
+Exported bindings publish an **ExportSummary** of their declared or locally inferred types.
+Other modules import that summary instead of inferring across module boundaries.
+Inference cycles across modules are forbidden: if an exported surface cannot be inferred without
+depending on another module’s inferred types, it must be explicitly annotated.
+
+When an expression references a symbol from another module, Analyze copies the exported type into
+the local TypeTable. Structural types are copied recursively; nominal references retain their
+GlobalSymbolId identity. Inference variables from remote modules are replaced with explicit
+`unknown` to keep inference local.
 
 # Tests
 
