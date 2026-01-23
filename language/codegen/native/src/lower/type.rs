@@ -56,7 +56,10 @@ pub(crate) fn lower_type(
             )),
         },
 
-        mir::Type::Type | mir::Type::Reference { .. } | mir::Type::FunctionPointer { .. } => {
+        mir::Type::Type
+        | mir::Type::Reference { .. }
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::TensorReference { .. } => {
             // inline pointer_type
             let ty = match pointer_bytes {
                 4 => cir::types::I32,
@@ -83,6 +86,16 @@ pub(crate) fn lower_type(
 
         mir::Type::Struct { .. } => Err(CodegenCraneliftError::unsupported_type(
             "struct types must be lowered to memory operations",
+            type_id.into_any(),
+        )),
+
+        mir::Type::Vector { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "vector types are not yet supported by the native backend",
+            type_id.into_any(),
+        )),
+
+        mir::Type::Tensor { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "tensor types are not yet supported by the native backend",
             type_id.into_any(),
         )),
     }

@@ -4,11 +4,11 @@ use super::compile_mir_to_normalized_clif;
 #[test]
 fn test_string_global() {
     let mir = r#"
-global @hello: ref<raw i8> = "hello" ; const
+global @hello: [u8; 5] = b"hello" ; const
 
-function @get_hello() -> i64 {
+function @get_hello() -> ref<raw addrspace(global) [u8; 5]> {
 block0:
-    v0 = global.addr @hello -> ref<raw addrspace(global) ref<raw i8>>
+    v0: ref<raw addrspace(global) [u8; 5]> = global.addr @hello
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -24,11 +24,11 @@ block0:
 #[test]
 fn test_empty_string_global() {
     let mir = r#"
-global @empty: ref<raw i8> = "" ; const
+global @empty: [u8; 0] = b"" ; const
 
-function @get_empty() -> i64 {
+function @get_empty() -> ref<raw addrspace(global) [u8; 0]> {
 block0:
-    v0 = global.addr @empty -> ref<raw addrspace(global) ref<raw i8>>
+    v0: ref<raw addrspace(global) [u8; 0]> = global.addr @empty
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -46,7 +46,7 @@ global @magic: i32 = 42i32 ; const
 
 function @get_magic() -> i32 {
 block0:
-    v0 = global.const @magic
+    v0: i32 = global.const @magic
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -67,12 +67,12 @@ global @counter: i32 = 0i32 ; mut
 
 function @increment() -> i32 {
 block0:
-    v0 = global.addr @counter -> ref<raw addrspace(global) mut i32>
-    v1 = load v0 -> i32
-    v2 = iconst 1i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(global) mut i32> = global.addr @counter
+    v1: i32 = load v0
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -94,8 +94,8 @@ global @data: i64 = zeroinit ; mut
 
 function @get_data() -> i64 {
 block0:
-    v0 = global.addr @data -> ref<raw addrspace(global) mut i64>
-    v1 = load v0 -> i64
+    v0: ref<raw addrspace(global) mut i64> = global.addr @data
+    v1: i64 = load v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);

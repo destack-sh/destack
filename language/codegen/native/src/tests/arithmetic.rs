@@ -11,9 +11,9 @@ fn test_integer_arithmetic_chain() {
     let mir = r#"
 function @arithmetic(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = isub v2, v0
-    v4 = imul v3, v1
+    v2: i32 = iadd v0, v1
+    v3: i32 = isub v2, v0
+    v4: i32 = imul v3, v1
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -38,9 +38,9 @@ fn test_signed_division() {
     let mir = r#"
 function @divide(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = sdiv v0, v1
-    v3 = srem v0, v1
-    v4 = iadd v2, v3
+    v2: i32 = sdiv v0, v1
+    v3: i32 = srem v0, v1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -65,9 +65,9 @@ fn test_bitwise_operations() {
     let mir = r#"
 function @bitwise(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = band v0, v1
-    v3 = bor v2, v0
-    v4 = bxor v3, v1
+    v2: i32 = band v0, v1
+    v3: i32 = bor v2, v0
+    v4: i32 = bxor v3, v1
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -92,7 +92,7 @@ fn test_signed_comparison() {
     let mir = r#"
 function @compare(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_slt v0, v1
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -115,7 +115,7 @@ fn test_unary_negation() {
     let mir = r#"
 function @negate(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = ineg v0
+    v1: i32 = ineg v0
     return v1
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -138,9 +138,9 @@ fn test_integer_constants() {
     let mir = r#"
 function @constants() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst 100i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst 100i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -164,7 +164,7 @@ fn test_char_constant() {
     let mir = r#"
 function @char_const() -> i32 {
 block0:
-    v0 = iconst 'A'
+    v0: u32 = iconst 'A'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -187,7 +187,7 @@ fn test_char_constant_unicode() {
     let mir = r#"
 function @emoji() -> i32 {
 block0:
-    v0 = iconst '😀'
+    v0: u32 = iconst '😀'
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);

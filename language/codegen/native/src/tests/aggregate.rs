@@ -7,9 +7,9 @@ fn test_struct_construction_i32_i32() {
     let mir = r#"
 function @make_point() -> ref<raw { i32, i32 }> {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 20i32
-    v2 = struct { i32, i32 } (v0, v1)
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -37,9 +37,9 @@ fn test_tuple_construction_i32_i32() {
     let mir = r#"
 function @make_pair() -> ref<raw (i32, i32)> {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst 99i32
-    v2 = tuple (i32, i32) (v0, v1)
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst 99i32
+    v2: (i32, i32) = tuple (i32, i32) (v0, v1)
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -67,10 +67,10 @@ fn test_array_construction_i32_3() {
     let mir = r#"
 function @make_array() -> ref<raw [i32; 3]> {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = array [i32; 3] (v0, v1, v2)
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
     return v3
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -100,10 +100,10 @@ fn test_struct_construction_mixed_types() {
     let mir = r#"
 function @make_mixed() -> ref<raw { i8, i32, i16 }> {
 block0:
-    v0 = iconst 1i8
-    v1 = iconst 100i32
-    v2 = iconst 50i16
-    v3 = struct { i8, i32, i16 } (v0, v1, v2)
+    v0: i8 = iconst 1i8
+    v1: i32 = iconst 100i32
+    v2: i16 = iconst 50i16
+    v3: { i8, i32, i16 } = struct { i8, i32, i16 } (v0, v1, v2)
     return v3
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -134,9 +134,9 @@ fn test_array_construction_i64_2() {
     let mir = r#"
 function @make_array() -> ref<raw [i64; 2]> {
 block0:
-    v0 = iconst 100i64
-    v1 = iconst 200i64
-    v2 = array [i64; 2] (v0, v1)
+    v0: i64 = iconst 100i64
+    v1: i64 = iconst 200i64
+    v2: [i64; 2] = array [i64; 2] (v0, v1)
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);

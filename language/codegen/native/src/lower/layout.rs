@@ -110,6 +110,77 @@ pub(crate) fn compute_type_layout(
             fields,
             copyability: _,
         } => compute_struct_layout(tree, fields, pointer_bytes),
+
+        // vectors: treat as packed elements for now
+        mir::Type::Vector {
+            element,
+            lanes,
+            copyability: _,
+        } => {
+            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let size = element_layout.size * *lanes;
+            Ok(TypeLayout::new(size, element_layout.alignment))
+        }
+
+        // tensors: packed element storage based on layout
+        mir::Type::Tensor {
+            element,
+            shape,
+            layout,
+            copyability: _,
+        } => {
+            let element_layout = compute_type_layout(tree, *element, pointer_bytes)?;
+            let element_count = compute_tensor_element_count(shape, layout);
+            if let Some(element_count) = element_count {
+                let size = element_layout.size * (element_count as u32);
+                Ok(TypeLayout::new(size, element_layout.alignment))
+            } else {
+                Ok(TypeLayout::natural(pointer_bytes as u32))
+            }
+        }
+
+        // tensor references are reference-like
+        mir::Type::TensorReference { .. } => Ok(TypeLayout::natural(pointer_bytes as u32)),
+    }
+}
+
+fn compute_tensor_element_count(
+    shape: &[mir::TensorDimension],
+    layout: &mir::TensorLayout,
+) -> Option<u64> {
+    if shape.iter().any(|dim| dim.is_dynamic()) {
+        return None;
+    }
+    match layout {
+        mir::TensorLayout::RowMajor | mir::TensorLayout::ColumnMajor => {
+            Some(shape.iter().filter_map(static_dim).product())
+        }
+        mir::TensorLayout::Strided { strides } => {
+            if strides.iter().any(|stride| stride.is_dynamic()) {
+                return None;
+            }
+            let mut max_index = 0u64;
+            for (dim, stride) in shape
+                .iter()
+                .filter_map(static_dim)
+                .zip(strides.iter().filter_map(static_dim))
+            {
+                if dim == 0 {
+                    continue;
+                }
+                let last_index = dim - 1;
+                let offset = last_index.saturating_mul(stride);
+                max_index = max_index.max(offset);
+            }
+            Some(max_index.saturating_add(1))
+        }
+    }
+}
+
+fn static_dim(dim: &mir::TensorDimension) -> Option<u64> {
+    match dim {
+        mir::TensorDimension::Static(value) => Some(*value),
+        mir::TensorDimension::Dynamic => None,
     }
 }
 
