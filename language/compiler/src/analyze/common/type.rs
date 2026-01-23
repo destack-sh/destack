@@ -1,11 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    StaticArgument, StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral,
-    TypeTable,
+    Declaration, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
+    StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ModuleDir, ProfileId};
+use destack_workspace::{Module, ProfileId};
 
 use crate::{AnalyzeResult, Compiler};
 
@@ -139,117 +138,122 @@ impl Compiler {
                 current.local_id.with_type(symbol_entry.ty),
             );
 
-            // load the remote alias target, evaluating when needed
+            // collect remote alias target metadata without mutating remote types
             let remote_dir = remote_module.dir(profile);
-            let mut remote_types = remote_dir.types.write();
-            let mut alias_target_id = match remote_types.get_alias_target_type_id(typed_symbol) {
-                Some(alias_target_id) => alias_target_id,
-                None => {
-                    let primary_declaration = symbol_entry.primary_declaration?;
-                    let declaration_id = primary_declaration
-                        .try_into_local_typed::<Declaration>()
-                        .ok()?;
-                    let declaration = remote_dir.tree.read().get(declaration_id).clone();
-                    let Declaration::Type { value, .. } = declaration else {
-                        return None;
-                    };
+            let mut alias_target_id = None;
+            let mut alias_expression_id = None;
+            let mut needs_materialization = false;
+            {
+                let remote_types = remote_dir.types.read();
+                if let Some(remote_target_id) =
+                    remote_types.get_alias_target_type_id(typed_symbol)
+                {
+                    alias_target_id = Some(remote_target_id);
+                    let remote_target_ty = remote_types.get_type(remote_target_id);
+                    // keep unevaluated alias targets for local evaluation
+                    if let Type::Unevaluated(expression_id) = remote_target_ty {
+                        alias_expression_id = Some(*expression_id);
+                    } else {
+                        // detect unevaluated static arguments that must be materialized locally
+                        needs_materialization = self.type_contains_unevaluated_static_arguments(
+                            remote_target_id,
+                            &remote_types,
+                            &mut HashSet::new(),
+                        );
+                        // reuse fully materialized targets directly
+                        if !needs_materialization {
+                            let imported_id = self.import_type_from_remote_for_node(
+                                source_id,
+                                remote_target_ty,
+                                &remote_types,
+                                typed_symbol,
+                                types,
+                            );
+                            types.set_alias_target_type_id(typed_symbol, imported_id);
+                            return Some(imported_id);
+                        }
+                    }
+                }
+            }
 
-                    let evaluated = self.try_evaluate_expression_to_type_value(
+            // fall back to the declaration expression when no alias target is cached
+            if alias_target_id.is_none() {
+                let primary_declaration = symbol_entry.primary_declaration?;
+                let declaration_id = primary_declaration
+                    .try_into_local_typed::<Declaration>()
+                    .ok()?;
+                let declaration = remote_dir.tree.read().get(declaration_id).clone();
+                let Declaration::Type { value, .. } = declaration else {
+                    return None;
+                };
+                alias_expression_id = Some(value);
+            }
+
+            // evaluate alias targets in a scratch table to keep node ids remote
+            // FUGU #Broken: cloning the entire type table is heavy, revisit in Phase 3
+            let mut scratch_types = {
+                let remote_types = remote_dir.types.read();
+                remote_types.clone()
+            };
+
+            // evaluate unevaluated alias targets in the scratch table
+            if let Some(expression_id) = alias_expression_id {
+                let evaluated = self
+                    .try_evaluate_expression_to_type_value(
                         &remote_module,
                         profile,
-                        value,
+                        expression_id,
                         &remote_dir.tree.read(),
                         &remote_dir.symbols.read(),
-                        &mut remote_types,
+                        &mut scratch_types,
                         false,
                         true,
                         false,
                         true,
+                    )
+                    .ok()?;
+                let scratch_alias_target_id =
+                    scratch_types.insert_type_from_any(evaluated, expression_id.into_any());
+                alias_target_id = Some(scratch_alias_target_id);
+                needs_materialization = true;
+            }
+
+            // import the scratch alias target into the local type table
+            if let Some(scratch_alias_target_id) = alias_target_id {
+                // materialize static arguments using the remote module context
+                if needs_materialization
+                    && self.type_contains_unevaluated_static_arguments(
+                        scratch_alias_target_id,
+                        &scratch_types,
+                        &mut HashSet::new(),
+                    )
+                {
+                    let tree = remote_dir.tree.read();
+                    let symbols = remote_dir.symbols.read();
+                    let mut cache = HashMap::new();
+                    let materialized = self.materialize_static_arguments_in_type(
+                        &remote_module,
+                        profile,
+                        scratch_alias_target_id,
+                        &tree,
+                        &symbols,
+                        &mut scratch_types,
+                        &mut cache,
                     );
-                    let evaluated = evaluated.ok()?;
-                    let alias_target_id =
-                        remote_types.insert_type_from_any(evaluated, value.into_any());
-                    remote_types.set_alias_target_type_id(typed_symbol, alias_target_id);
-                    alias_target_id
+                    alias_target_id = Some(materialized);
                 }
-            };
-            if let Type::Unevaluated(expression_id) = *remote_types.get_type(alias_target_id) {
-                self.try_evaluate_remote_alias_target(
-                    &remote_module,
-                    profile,
-                    alias_target_id,
-                    expression_id,
-                    remote_dir,
-                    &mut remote_types,
+
+                let scratch_alias_target_id = alias_target_id?;
+                let scratch_target_ty = scratch_types.get_type(scratch_alias_target_id);
+                let local_alias_target_id = self.import_type_from_remote_for_node(
+                    source_id,
+                    scratch_target_ty,
+                    &scratch_types,
+                    typed_symbol,
+                    types,
                 );
-            }
-
-            // materialize static arguments before importing remote alias targets
-            if self.type_contains_unevaluated_static_arguments(
-                alias_target_id,
-                &remote_types,
-                &mut HashSet::new(),
-            ) {
-                let tree = remote_dir.tree.read();
-                let symbols = remote_dir.symbols.read();
-                let mut cache = HashMap::new();
-                alias_target_id = self.materialize_static_arguments_in_type(
-                    &remote_module,
-                    profile,
-                    alias_target_id,
-                    &tree,
-                    &symbols,
-                    &mut remote_types,
-                    &mut cache,
-                );
-            }
-
-            let alias_target_ty = remote_types.get_type(alias_target_id);
-            let imported_id = self.import_type_from_remote_for_node(
-                source_id,
-                alias_target_ty,
-                &remote_types,
-                typed_symbol,
-                types,
-            );
-
-            return Some(imported_id);
-        }
-    }
-
-    /// Try to evaluate a remote alias target expression in place.
-    fn try_evaluate_remote_alias_target(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        alias_target_id: LocalTypeId,
-        expression_id: LocalNodeId<Expression>,
-        dir: &ModuleDir,
-        types: &mut TypeTable,
-    ) {
-        // evaluate the alias target when possible
-        let tree = dir.tree.read();
-        let symbols = dir.symbols.read();
-        match self.try_evaluate_expression_to_type_value(
-            module,
-            profile,
-            expression_id,
-            &tree,
-            &symbols,
-            types,
-            false,
-            true,
-            false,
-            true,
-        ) {
-            Ok(evaluated_ty) => {
-                // cache the evaluated target for normalization
-                let ty = types.get_type_mut(alias_target_id);
-                *ty = evaluated_ty;
-                types.invalidate_normalization_cache();
-            }
-            Err(_error) => {
-                // ignore failures to avoid cascading errors in callers
+                types.set_alias_target_type_id(typed_symbol, local_alias_target_id);
+                return Some(local_alias_target_id);
             }
         }
     }
