@@ -179,7 +179,7 @@ quickcheck_macros = "1.1.0"
 schemars = { version = "1.2", features = ["indexmap2"] }
 static_assertions = "1.1.0"
 criterion = { version = "0.8", features = ["html_reports"] }
-pprof = { version = "0.15", features = ["flamegraph", "criterion"] }
+pprof = { version = "0.15", features = ["flamegraph"] }
 
 [workspace.lints.rust]
 missing_debug_implementations = "warn"
