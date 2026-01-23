@@ -151,7 +151,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             let element_ty = tree.get(*element);
             visitor.visit_type(tree, *element, element_ty);
         }
-        Type::TensorView { element, .. } => {
+        Type::TensorReference { element, .. } => {
             let element_ty = tree.get(*element);
             visitor.visit_type(tree, *element, element_ty);
         }

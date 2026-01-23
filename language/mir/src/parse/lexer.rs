@@ -175,12 +175,12 @@ impl<'a> Lexer<'a> {
             }
             "vector" => TokenType::Vector,
             "tensor" => TokenType::Tensor,
-            "tensor_view" => {
+            "tensor_ref" => {
                 if self.peek() == Some('?') {
                     self.advance();
-                    TokenType::TensorViewNullable
+                    TokenType::TensorReferenceNullable
                 } else {
-                    TokenType::TensorView
+                    TokenType::TensorReference
                 }
             }
             "addrspace" => TokenType::AddrSpace,

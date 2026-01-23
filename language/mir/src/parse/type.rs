@@ -81,7 +81,7 @@ impl<'a> Parser<'a> {
                     is_nullable,
                 }
             }
-            TokenType::TensorView => {
+            TokenType::TensorReference => {
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
                 let (kind, address_space, mutability, element) = self.parse_reference_header()?;
@@ -93,7 +93,7 @@ impl<'a> Parser<'a> {
                     TensorLayout::RowMajor
                 };
                 self.eat_token(TokenType::GreaterThan)?;
-                Type::TensorView {
+                Type::TensorReference {
                     kind,
                     address_space,
                     mutability,
@@ -103,7 +103,7 @@ impl<'a> Parser<'a> {
                     is_nullable: false,
                 }
             }
-            TokenType::TensorViewNullable => {
+            TokenType::TensorReferenceNullable => {
                 self.bump();
                 self.eat_token(TokenType::LessThan)?;
                 let (kind, address_space, mutability, element) = self.parse_reference_header()?;
@@ -115,7 +115,7 @@ impl<'a> Parser<'a> {
                     TensorLayout::RowMajor
                 };
                 self.eat_token(TokenType::GreaterThan)?;
-                Type::TensorView {
+                Type::TensorReference {
                     kind,
                     address_space,
                     mutability,
@@ -273,7 +273,7 @@ impl<'a> Parser<'a> {
         Ok(self.intern_type(ty))
     }
 
-    /// Parse the reference header for ref and tensor_view types.
+    /// Parse the reference header for ref and tensor_ref types.
     fn parse_reference_header(
         &mut self,
     ) -> ParseResult<(ReferenceKind, AddressSpace, Mutability, LocalNodeId<Type>)> {

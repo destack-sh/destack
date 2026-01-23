@@ -6,10 +6,10 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local,
-    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator,
-    Value, VectorReduceOperator,
+    LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, Type, UnaryOperator, Value, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -342,36 +342,36 @@ pub enum Instruction {
     },
 
     // tensor operations (tensor.*)
-    /// Load a tensor element from a tensor view.
+    /// Load a tensor element from a tensor reference.
     TensorLoad {
         /// The SSA value to define with the loaded element.
         destination: Value,
-        /// The tensor view to load from.
+        /// The tensor reference to load from.
         view: Value,
         /// The index values (stored in NodeTree's argument buffer).
         indices: ArgumentSlice,
     },
-    /// Store a tensor element into a tensor view.
+    /// Store a tensor element into a tensor reference.
     TensorStore {
-        /// The tensor view to store into.
+        /// The tensor reference to store into.
         view: Value,
         /// The index values (stored in NodeTree's argument buffer).
         indices: ArgumentSlice,
         /// The value to store.
         value: Value,
     },
-    /// Fill a tensor view with a scalar value.
+    /// Fill a tensor reference with a scalar value.
     TensorFill {
-        /// The tensor view to fill.
+        /// The tensor reference to fill.
         view: Value,
         /// The scalar value to write.
         value: Value,
     },
-    /// Copy elements from a source tensor view into a destination tensor view.
+    /// Copy elements from a source tensor reference into a destination tensor reference.
     TensorCopy {
-        /// The destination tensor view.
+        /// The destination tensor reference.
         target: Value,
-        /// The source tensor view.
+        /// The source tensor reference.
         source: Value,
     },
     /// Reshape a tensor value into a new shape.
@@ -810,12 +810,16 @@ impl Instruction {
             Instruction::TensorSlice { tensor, .. } => smallvec![*tensor],
             Instruction::TensorPad { tensor, value, .. } => smallvec![*tensor, *value],
             Instruction::TensorConcat { .. } => smallvec![],
-            Instruction::TensorReduce { tensor, initial, .. } => smallvec![*tensor, *initial],
+            Instruction::TensorReduce {
+                tensor, initial, ..
+            } => smallvec![*tensor, *initial],
             Instruction::TensorDot { left, right, .. } => smallvec![*left, *right],
             Instruction::TensorConvolution { input, kernel, .. } => {
                 smallvec![*input, *kernel]
             }
-            Instruction::TensorGather { operand, indices, .. } => {
+            Instruction::TensorGather {
+                operand, indices, ..
+            } => {
                 smallvec![*operand, *indices]
             }
             Instruction::TensorScatter {

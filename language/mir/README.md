@@ -305,7 +305,7 @@ Use `layout=column_major` for contiguous column-major tensors.
 Use `layout=strided([s0, s1, ...])` for explicit strides.
 
 Tensor view types represent reference-like views into tensor-shaped memory.
-Use `tensor_view<kind addrspace(space) mut T, [d0, d1, ...], layout=...>` in MIR text.
+Use `tensor_ref<kind addrspace(space) mut T, [d0, d1, ...], layout=...>` in MIR text.
 The `kind` is one of `managed`, `owned`, `borrowed`, or `raw`.
 The `mut` marker and `addrspace(...)` clause follow the same rules as `ref<...>` syntax.
 
@@ -351,7 +351,7 @@ ref<raw addrspace(shared) i32>
 ref<raw addrspace(7) mut i32>
 ```
 
-Non generic address spaces are only valid for borrowed and raw references, including tensor views.
+Non generic address spaces are only valid for borrowed and raw references, including tensor references.
 `addrspace(constant)` references are always immutable.
 `addrspace(generic)` is the default and is omitted in canonical MIR formatting.
 Address space changes are explicit and use the `addrspace.cast` intrinsic.

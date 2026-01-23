@@ -87,7 +87,7 @@ pub(super) enum TypeKey {
         copyability: Copyability,
     },
     /// Tensor view type.
-    TensorView {
+    TensorReference {
         kind: ReferenceKind,
         address_space: AddressSpace,
         mutability: Mutability,
@@ -177,7 +177,7 @@ impl TypeKey {
                 layout: layout.clone(),
                 copyability: *copyability,
             },
-            Type::TensorView {
+            Type::TensorReference {
                 kind,
                 address_space,
                 mutability,
@@ -185,7 +185,7 @@ impl TypeKey {
                 shape,
                 layout,
                 is_nullable,
-            } => TypeKey::TensorView {
+            } => TypeKey::TensorReference {
                 kind: *kind,
                 address_space: *address_space,
                 mutability: *mutability,

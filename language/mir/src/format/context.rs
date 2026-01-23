@@ -610,7 +610,7 @@ fn type_key_for_alias(
             let layout_key = format_tensor_layout_key(layout);
             format!("tensor<{element_key}, {shape_key}, {layout_key}>")
         }
-        Type::TensorView {
+        Type::TensorReference {
             kind,
             address_space,
             mutability,
@@ -619,12 +619,12 @@ fn type_key_for_alias(
             layout,
             is_nullable,
         } => {
-            // format tensor view keys with reference header, shape, and layout
+            // format tensor reference keys with reference header, shape, and layout
             let mut result = String::new();
             if *is_nullable {
-                result.push_str("tensor_view?<");
+                result.push_str("tensor_ref?<");
             } else {
-                result.push_str("tensor_view<");
+                result.push_str("tensor_ref<");
             }
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
@@ -897,7 +897,7 @@ fn record_type_use_inner(
         Type::Tensor { element, .. } => {
             record_type_use_inner(tree, *element, counts, visited);
         }
-        Type::TensorView { element, .. } => {
+        Type::TensorReference { element, .. } => {
             record_type_use_inner(tree, *element, counts, visited);
         }
         Type::FunctionPointer { parameters, result } => {

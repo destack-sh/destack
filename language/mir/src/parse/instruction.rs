@@ -1,11 +1,10 @@
 use crate::{
     ArgumentSlice, AtomicScope, BinaryOperator, CastOperator, CheckConstraint, CheckTarget,
     DispatchTableId, Function, Instruction, Intrinsic, LocalNodeId, MemoryLocationSet,
-    MemoryOrdering,
-    MemoryScope, MemorySemantics, SwitchCase, Terminator, TensorConvolutionDimensionNumbers,
+    MemoryOrdering, MemoryScope, MemorySemantics, SwitchCase, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator,
-    Value, VectorReduceOperator,
+    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Terminator, Type,
+    UnaryOperator, Value, VectorReduceOperator,
 };
 
 use super::constant::{parse_intrinsic_name, parse_memory_location};
@@ -495,7 +494,10 @@ impl<'a> Parser<'a> {
             }
             "tensor.convert" => {
                 let tensor = self.parse_value()?;
-                Instruction::TensorConvert { destination, tensor }
+                Instruction::TensorConvert {
+                    destination,
+                    tensor,
+                }
             }
 
             // function calls
@@ -867,8 +869,8 @@ impl<'a> Parser<'a> {
         // read values
         while !self.peek_token(TokenType::CloseBracket) {
             let value = self.parse_int_literal()?;
-            let value = u32::try_from(value)
-                .map_err(|_| ParseError::invalid("u32 literal", self.pos()))?;
+            let value =
+                u32::try_from(value).map_err(|_| ParseError::invalid("u32 literal", self.pos()))?;
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -889,8 +891,8 @@ impl<'a> Parser<'a> {
         // read values
         while !self.peek_token(TokenType::CloseBracket) {
             let value = self.parse_int_literal()?;
-            let value = u64::try_from(value)
-                .map_err(|_| ParseError::invalid("u64 literal", self.pos()))?;
+            let value =
+                u64::try_from(value).map_err(|_| ParseError::invalid("u64 literal", self.pos()))?;
             values.push(value);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
@@ -1100,10 +1102,7 @@ impl<'a> Parser<'a> {
                 "output_feature" => output_feature = Some(self.parse_int_as_u32()?),
                 "output_spatial" => output_spatial = Some(self.parse_u32_bracket_list()?),
                 _ => {
-                    return Err(ParseError::invalid(
-                        "convolution dimension key",
-                        key_start,
-                    ));
+                    return Err(ParseError::invalid("convolution dimension key", key_start));
                 }
             }
             if !self.eat_token_maybe(TokenType::Comma) {
@@ -1167,9 +1166,9 @@ impl<'a> Parser<'a> {
 
         while self.peek_token(TokenType::Comma) {
             // check if the next key belongs to group counts
-            let next_key = self.peek_nth_token(1).ok_or_else(|| {
-                ParseError::unexpected_end("convolution window key", self.pos())
-            })?;
+            let next_key = self
+                .peek_nth_token(1)
+                .ok_or_else(|| ParseError::unexpected_end("convolution window key", self.pos()))?;
             if next_key.ty == TokenType::Identifier
                 && (next_key.text == "feature_group" || next_key.text == "batch_group")
             {

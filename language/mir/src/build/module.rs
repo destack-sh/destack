@@ -232,8 +232,8 @@ impl ModuleBuilder {
         })
     }
 
-    /// Create a tensor view type.
-    pub fn type_tensor_view(
+    /// Create a tensor reference type.
+    pub fn type_tensor_reference(
         &mut self,
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
@@ -243,7 +243,7 @@ impl ModuleBuilder {
         layout: TensorLayout,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::TensorView {
+        self.tree.insert_type(Type::TensorReference {
             kind,
             address_space,
             mutability,
