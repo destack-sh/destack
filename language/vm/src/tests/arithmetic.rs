@@ -8,7 +8,7 @@ fn test_add_i32() {
     let mir = r#"
 function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -25,7 +25,7 @@ fn test_subtract_i32() {
     let mir = r#"
 function @sub(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = isub v0, v1
+    v2: i32 = isub v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -42,7 +42,7 @@ fn test_multiply_i32() {
     let mir = r#"
 function @mul(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = imul v0, v1
+    v2: i32 = imul v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -59,7 +59,7 @@ fn test_divide_i32() {
     let mir = r#"
 function @div(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = sdiv v0, v1
+    v2: i32 = sdiv v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -76,7 +76,7 @@ fn test_negate_i32() {
     let mir = r#"
 function @neg(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = ineg v0
+    v1: i32 = ineg v0
     return v1
 }"#;
     run_mir_expect(mir, "neg", &[Value::int32(42)], Value::int32(-42));
@@ -88,7 +88,7 @@ fn test_compare_equal() {
     let mir = r#"
 function @eq(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -111,7 +111,7 @@ fn test_compare_less_than() {
     let mir = r#"
 function @lt(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_slt v0, v1
+    v2: bool = icmp_slt v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -134,7 +134,7 @@ fn test_constant_i32() {
     let mir = r#"
 function @constant() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
     run_mir_expect(mir, "constant", &[], Value::int32(42));
@@ -146,7 +146,7 @@ fn test_constant_bool_true() {
     let mir = r#"
 function @const_true() -> bool {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     return v0
 }"#;
     run_mir_expect(mir, "const_true", &[], Value::bool(true));
@@ -158,7 +158,7 @@ fn test_constant_bool_false() {
     let mir = r#"
 function @const_false() -> bool {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     return v0
 }"#;
     run_mir_expect(mir, "const_false", &[], Value::bool(false));
@@ -170,7 +170,7 @@ fn test_boolean_and() {
     let mir = r#"
 function @and(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
-    v2 = band v0, v1
+    v2: bool = band v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -193,7 +193,7 @@ fn test_boolean_or() {
     let mir = r#"
 function @or(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
-    v2 = bor v0, v1
+    v2: bool = bor v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -216,7 +216,7 @@ fn test_boolean_not() {
     let mir = r#"
 function @not(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = bnot v0
+    v1: bool = bnot v0
     return v1
 }"#;
     run_mir_expect(mir, "not", &[Value::bool(true)], Value::bool(false));
@@ -229,7 +229,7 @@ fn test_float_add() {
     let mir = r#"
 function @fadd(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = fadd v0, v1
+    v2: f64 = fadd v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -246,7 +246,7 @@ fn test_unsigned_divide() {
     let mir = r#"
 function @udiv(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = udiv v0, v1
+    v2: u32 = udiv v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -263,7 +263,7 @@ fn test_signed_remainder() {
     let mir = r#"
 function @srem(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = srem v0, v1
+    v2: i32 = srem v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -287,7 +287,7 @@ fn test_unsigned_remainder() {
     let mir = r#"
 function @urem(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = urem v0, v1
+    v2: u32 = urem v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -304,8 +304,8 @@ fn test_division_by_zero() {
     let mir = r#"
 function @div_zero(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = sdiv v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = sdiv v0, v1
     return v2
 }"#;
     let result = run_mir(mir, "div_zero", &[Value::int32(10)]);
@@ -319,7 +319,7 @@ fn test_compare_not_equal() {
     let mir = r#"
 function @ne(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_ne v0, v1
+    v2: bool = icmp_ne v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -342,7 +342,7 @@ fn test_compare_signed_greater() {
     let mir = r#"
 function @sgt(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_sgt v0, v1
+    v2: bool = icmp_sgt v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -372,7 +372,7 @@ fn test_compare_signed_greater_equal() {
     let mir = r#"
 function @sge(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_sge v0, v1
+    v2: bool = icmp_sge v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -401,7 +401,7 @@ fn test_compare_signed_less_equal() {
     let mir = r#"
 function @sle(v0: i32, v1: i32) -> bool {
 block0(v0: i32, v1: i32):
-    v2 = icmp_sle v0, v1
+    v2: bool = icmp_sle v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -430,7 +430,7 @@ fn test_compare_unsigned_less() {
     let mir = r#"
 function @ult(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
-    v2 = icmp_ult v0, v1
+    v2: bool = icmp_ult v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -453,7 +453,7 @@ fn test_compare_unsigned_greater() {
     let mir = r#"
 function @ugt(v0: u32, v1: u32) -> bool {
 block0(v0: u32, v1: u32):
-    v2 = icmp_ugt v0, v1
+    v2: bool = icmp_ugt v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -476,7 +476,7 @@ fn test_bitwise_xor() {
     let mir = r#"
 function @xor(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = bxor v0, v1
+    v2: i32 = bxor v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -493,7 +493,7 @@ fn test_shift_left() {
     let mir = r#"
 function @shl(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = ishl v0, v1
+    v2: i32 = ishl v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -510,7 +510,7 @@ fn test_arithmetic_shift_right() {
     let mir = r#"
 function @sshr(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = sshr v0, v1
+    v2: i32 = sshr v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -534,7 +534,7 @@ fn test_logical_shift_right() {
     let mir = r#"
 function @ushr(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = ushr v0, v1
+    v2: u32 = ushr v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -551,7 +551,7 @@ fn test_float_subtract() {
     let mir = r#"
 function @fsub(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = fsub v0, v1
+    v2: f64 = fsub v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -568,7 +568,7 @@ fn test_float_multiply() {
     let mir = r#"
 function @fmul(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = fmul v0, v1
+    v2: f64 = fmul v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -585,7 +585,7 @@ fn test_float_divide() {
     let mir = r#"
 function @fdiv(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = fdiv v0, v1
+    v2: f64 = fdiv v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -602,7 +602,7 @@ fn test_float_negate() {
     let mir = r#"
 function @fneg(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = fneg v0
+    v1: f64 = fneg v0
     return v1
 }"#;
     run_mir_expect(mir, "fneg", &[Value::float64(3.5)], Value::float64(-3.5));
@@ -615,7 +615,7 @@ fn test_float_compare_equal() {
     let mir = r#"
 function @fcmp_eq(v0: f64, v1: f64) -> bool {
 block0(v0: f64, v1: f64):
-    v2 = fcmp_eq v0, v1
+    v2: bool = fcmp_eq v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -638,7 +638,7 @@ fn test_float_compare_less() {
     let mir = r#"
 function @fcmp_lt(v0: f64, v1: f64) -> bool {
 block0(v0: f64, v1: f64):
-    v2 = fcmp_lt v0, v1
+    v2: bool = fcmp_lt v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -661,7 +661,7 @@ fn test_float32_operations() {
     let mir = r#"
 function @f32_add(v0: f32, v1: f32) -> f32 {
 block0(v0: f32, v1: f32):
-    v2 = fadd v0, v1
+    v2: f32 = fadd v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -678,7 +678,7 @@ fn test_float32_compare() {
     let mir = r#"
 function @f32_lt(v0: f32, v1: f32) -> bool {
 block0(v0: f32, v1: f32):
-    v2 = fcmp_lt v0, v1
+    v2: bool = fcmp_lt v0, v1
     return v2
 }"#;
     run_mir_expect(
@@ -695,7 +695,7 @@ fn test_bitwise_not_int() {
     let mir = r#"
 function @bnot(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = bnot v0
+    v1: i32 = bnot v0
     return v1
 }"#;
     run_mir_expect(mir, "bnot", &[Value::int32(0)], Value::int32(-1));
@@ -707,7 +707,7 @@ fn test_unsigned_bitwise() {
     let mir = r#"
 function @uand(v0: u32, v1: u32) -> u32 {
 block0(v0: u32, v1: u32):
-    v2 = band v0, v1
+    v2: u32 = band v0, v1
     return v2
 }"#;
     run_mir_expect(

@@ -125,7 +125,7 @@ fn copy_values_between_frames(
 }
 
 /// Copy values between frames using a precomputed plan.
-pub(super) fn copy_values_with_plan(
+pub(crate) fn copy_values_with_plan(
     values: &mut [Value],
     source_frame: &Frame,
     dest_frame: &Frame,

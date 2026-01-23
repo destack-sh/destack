@@ -473,6 +473,210 @@ pub enum ThreadedInstructionData {
         elements: ArgumentRange,
     },
 
+    /// Broadcast a scalar to all vector lanes.
+    VectorSplat {
+        dest: mir::Value,
+        value: mir::Value,
+        lanes: u32,
+    },
+
+    /// Extract a lane from a vector.
+    VectorExtract {
+        dest: mir::Value,
+        vector: mir::Value,
+        index: mir::Value,
+    },
+
+    /// Insert a lane into a vector.
+    VectorInsert {
+        dest: mir::Value,
+        vector: mir::Value,
+        index: mir::Value,
+        value: mir::Value,
+    },
+
+    /// Shuffle vector lanes using a constant mask.
+    VectorShuffle {
+        dest: mir::Value,
+        left: mir::Value,
+        right: mir::Value,
+        mask: Vec<u32>,
+    },
+
+    /// Reduce a vector to a scalar.
+    VectorReduce {
+        dest: mir::Value,
+        operator: mir::VectorReduceOperator,
+        vector: mir::Value,
+    },
+
+    /// Load a tensor element from a view.
+    TensorLoad {
+        dest: mir::Value,
+        view: mir::Value,
+        indices: ArgumentRange,
+        view_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Store a tensor element into a view.
+    TensorStore {
+        view: mir::Value,
+        indices: ArgumentRange,
+        value: mir::Value,
+        view_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Fill a tensor reference with a scalar value.
+    TensorFill {
+        view: mir::Value,
+        value: mir::Value,
+        view_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Copy elements between tensor references.
+    TensorCopy {
+        target: mir::Value,
+        source: mir::Value,
+        target_type: mir::LocalNodeId<mir::Type>,
+        source_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Reshape a tensor into a new shape.
+    TensorReshape {
+        dest: mir::Value,
+        tensor: mir::Value,
+        shape: ArgumentRange,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Broadcast a tensor into a larger shape.
+    TensorBroadcast {
+        dest: mir::Value,
+        tensor: mir::Value,
+        dimensions: Vec<u32>,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Permute tensor dimensions.
+    TensorTranspose {
+        dest: mir::Value,
+        tensor: mir::Value,
+        permutation: Vec<u32>,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Slice a tensor by offsets, sizes, and strides.
+    TensorSlice {
+        dest: mir::Value,
+        tensor: mir::Value,
+        arguments: ArgumentRange,
+        offsets_count: u16,
+        sizes_count: u16,
+        strides_count: u16,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Pad a tensor with low, high, and interior padding.
+    TensorPad {
+        dest: mir::Value,
+        tensor: mir::Value,
+        arguments: ArgumentRange,
+        low_count: u16,
+        high_count: u16,
+        interior_count: u16,
+        value: mir::Value,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Concatenate tensors along a dimension.
+    TensorConcat {
+        /// The destination value.
+        dest: mir::Value,
+        /// The input tensor values.
+        tensors: ArgumentRange,
+        /// The input tensor types.
+        tensor_types: Vec<mir::LocalNodeId<mir::Type>>,
+        /// The concatenation axis.
+        axis: u32,
+        /// The destination tensor type.
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Reduce a tensor along axes.
+    TensorReduce {
+        dest: mir::Value,
+        operator: mir::TensorReduceOperator,
+        tensor: mir::Value,
+        initial: mir::Value,
+        axes: Vec<u32>,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Dot product of two tensors.
+    TensorDot {
+        dest: mir::Value,
+        left: mir::Value,
+        right: mir::Value,
+        dimensions: mir::TensorDotDimensionNumbers,
+        left_type: mir::LocalNodeId<mir::Type>,
+        right_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Convolution between an input tensor and a kernel tensor.
+    TensorConvolution {
+        dest: mir::Value,
+        input: mir::Value,
+        kernel: mir::Value,
+        dimensions: mir::TensorConvolutionDimensionNumbers,
+        window: mir::TensorConvolutionWindow,
+        feature_group_count: u32,
+        batch_group_count: u32,
+        input_type: mir::LocalNodeId<mir::Type>,
+        kernel_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Gather slices from a tensor based on indices.
+    TensorGather {
+        dest: mir::Value,
+        operand: mir::Value,
+        indices: mir::Value,
+        dimensions: mir::TensorGatherDimensionNumbers,
+        slice_sizes: Vec<u32>,
+        operand_type: mir::LocalNodeId<mir::Type>,
+        indices_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Scatter updates into a tensor based on indices.
+    TensorScatter {
+        dest: mir::Value,
+        operand: mir::Value,
+        indices: mir::Value,
+        updates: mir::Value,
+        dimensions: mir::TensorScatterDimensionNumbers,
+        mode: mir::TensorScatterMode,
+        operand_type: mir::LocalNodeId<mir::Type>,
+        indices_type: mir::LocalNodeId<mir::Type>,
+        updates_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Convert a tensor element type.
+    TensorConvert {
+        dest: mir::Value,
+        tensor: mir::Value,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
     /// Store an element through element.addr + store.
     ElementStore {
         array: mir::Value,
@@ -528,6 +732,9 @@ pub enum ThreadedInstructionData {
         intrinsic: mir::Intrinsic,
         arguments: ArgumentRange,
         ordering: Option<mir::MemoryOrdering>,
+        scope: Option<mir::AtomicScope>,
+        memory_scope: Option<mir::MemoryScope>,
+        semantics: Option<mir::MemorySemantics>,
     },
 
     /// Return from function.
@@ -676,6 +883,27 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::ElementSet { .. } => "element_set",
             ThreadedInstructionData::ElementStore { .. } => "element_store",
             ThreadedInstructionData::Aggregate { .. } => "aggregate",
+            ThreadedInstructionData::VectorSplat { .. } => "vector_splat",
+            ThreadedInstructionData::VectorExtract { .. } => "vector_extract",
+            ThreadedInstructionData::VectorInsert { .. } => "vector_insert",
+            ThreadedInstructionData::VectorShuffle { .. } => "vector_shuffle",
+            ThreadedInstructionData::VectorReduce { .. } => "vector_reduce",
+            ThreadedInstructionData::TensorLoad { .. } => "tensor_load",
+            ThreadedInstructionData::TensorStore { .. } => "tensor_store",
+            ThreadedInstructionData::TensorFill { .. } => "tensor_fill",
+            ThreadedInstructionData::TensorCopy { .. } => "tensor_copy",
+            ThreadedInstructionData::TensorReshape { .. } => "tensor_reshape",
+            ThreadedInstructionData::TensorBroadcast { .. } => "tensor_broadcast",
+            ThreadedInstructionData::TensorTranspose { .. } => "tensor_transpose",
+            ThreadedInstructionData::TensorSlice { .. } => "tensor_slice",
+            ThreadedInstructionData::TensorPad { .. } => "tensor_pad",
+            ThreadedInstructionData::TensorConcat { .. } => "tensor_concat",
+            ThreadedInstructionData::TensorReduce { .. } => "tensor_reduce",
+            ThreadedInstructionData::TensorDot { .. } => "tensor_dot",
+            ThreadedInstructionData::TensorConvolution { .. } => "tensor_convolution",
+            ThreadedInstructionData::TensorGather { .. } => "tensor_gather",
+            ThreadedInstructionData::TensorScatter { .. } => "tensor_scatter",
+            ThreadedInstructionData::TensorConvert { .. } => "tensor_convert",
             ThreadedInstructionData::ManagedAlloc { .. } => "managed_alloc",
             ThreadedInstructionData::ManagedAllocArray { .. } => "managed_alloc_array",
             ThreadedInstructionData::RawAlloc { .. } => "raw_alloc",

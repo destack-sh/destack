@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::ThreadedHandler;
 use crate::memory::{ReferenceMeta, Value};
 
-use super::super::execute::dispatch;
+use super::super::dispatch;
 use super::threaded::{
     ArgumentRange, ConstValue, CopyPair, CopyRange, INVALID_FUNCTION_INDEX, INVALID_VALUE_ID,
     SwitchCase, SwitchRange, ThreadedBlock, ThreadedFunction, ThreadedInstruction,
@@ -144,6 +144,14 @@ fn merge_block_param_kind(existing: ValueKind, incoming: ValueKind) -> ValueKind
         (other, ValueKind::Unknown) => other,
         (other, _) => other,
     }
+}
+
+/// Resolve a MIR value type from the function type table.
+fn value_type_for_value(
+    value: mir::Value,
+    value_types: &[Option<mir::LocalNodeId<mir::Type>>],
+) -> Option<mir::LocalNodeId<mir::Type>> {
+    value_types.get(value.0 as usize).copied().flatten()
 }
 
 /// Propagate value kinds into block parameters from control flow edges.
@@ -799,6 +807,7 @@ pub(crate) fn thread_function(
             function_indices,
             &value_kinds,
             &value_uses,
+            &func.value_types,
             &mut argument_pool,
             &mut switch_case_pool,
             &mut copy_pool,
@@ -836,6 +845,7 @@ fn thread_block(
     function_indices: &[u32],
     value_kinds: &ValueKinds,
     value_uses: &[u32],
+    value_types: &[Option<mir::LocalNodeId<mir::Type>>],
     argument_pool: &mut Vec<mir::Value>,
     switch_case_pool: &mut Vec<SwitchCase>,
     copy_pool: &mut Vec<CopyPair>,
@@ -888,6 +898,7 @@ fn thread_block(
             tree,
             inst,
             value_kinds,
+            value_types,
             argument_pool,
             copy_pool,
             function_indices,
@@ -1409,6 +1420,7 @@ fn thread_instruction(
     tree: &mir::NodeTree,
     inst: &mir::Instruction,
     value_kinds: &ValueKinds,
+    value_types: &[Option<mir::LocalNodeId<mir::Type>>],
     argument_pool: &mut Vec<mir::Value>,
     copy_pool: &mut Vec<CopyPair>,
     function_indices: &[u32],
@@ -1839,6 +1851,461 @@ fn thread_instruction(
             }
         }
 
+        mir::Instruction::VectorSplat { destination, value } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing vector type for {destination:?}"));
+            let mir::Type::Vector { lanes, .. } = tree.get(dest_type) else {
+                panic!("expected vector type for {destination:?}");
+            };
+            ThreadedInstruction {
+                handler: dispatch::handle_vector_splat,
+                data: ThreadedInstructionData::VectorSplat {
+                    dest: *destination,
+                    value: *value,
+                    lanes: *lanes,
+                },
+            }
+        }
+
+        mir::Instruction::VectorExtract {
+            destination,
+            vector,
+            index,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_vector_extract,
+            data: ThreadedInstructionData::VectorExtract {
+                dest: *destination,
+                vector: *vector,
+                index: *index,
+            },
+        },
+
+        mir::Instruction::VectorInsert {
+            destination,
+            vector,
+            index,
+            value,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_vector_insert,
+            data: ThreadedInstructionData::VectorInsert {
+                dest: *destination,
+                vector: *vector,
+                index: *index,
+                value: *value,
+            },
+        },
+
+        mir::Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            mask,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_vector_shuffle,
+            data: ThreadedInstructionData::VectorShuffle {
+                dest: *destination,
+                left: *left,
+                right: *right,
+                mask: mask.clone(),
+            },
+        },
+
+        mir::Instruction::VectorReduce {
+            destination,
+            operator,
+            vector,
+        } => ThreadedInstruction {
+            handler: dispatch::handle_vector_reduce,
+            data: ThreadedInstructionData::VectorReduce {
+                dest: *destination,
+                operator: *operator,
+                vector: *vector,
+            },
+        },
+
+        mir::Instruction::TensorLoad {
+            destination,
+            view,
+            indices,
+        } => {
+            let view_type = value_type_for_value(*view, value_types)
+                .unwrap_or_else(|| panic!("missing tensor reference type for {view:?}"));
+            let args = push_argument_range(argument_pool, tree.get_arguments(*indices));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_load,
+                data: ThreadedInstructionData::TensorLoad {
+                    dest: *destination,
+                    view: *view,
+                    indices: args,
+                    view_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorStore {
+            view,
+            indices,
+            value,
+        } => {
+            let view_type = value_type_for_value(*view, value_types)
+                .unwrap_or_else(|| panic!("missing tensor reference type for {view:?}"));
+            let args = push_argument_range(argument_pool, tree.get_arguments(*indices));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_store,
+                data: ThreadedInstructionData::TensorStore {
+                    view: *view,
+                    indices: args,
+                    value: *value,
+                    view_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorFill { view, value } => {
+            let view_type = value_type_for_value(*view, value_types)
+                .unwrap_or_else(|| panic!("missing tensor reference type for {view:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_fill,
+                data: ThreadedInstructionData::TensorFill {
+                    view: *view,
+                    value: *value,
+                    view_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorCopy { target, source } => {
+            let target_type = value_type_for_value(*target, value_types)
+                .unwrap_or_else(|| panic!("missing tensor reference type for {target:?}"));
+            let source_type = value_type_for_value(*source, value_types)
+                .unwrap_or_else(|| panic!("missing tensor reference type for {source:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_copy,
+                data: ThreadedInstructionData::TensorCopy {
+                    target: *target,
+                    source: *source,
+                    target_type,
+                    source_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorReshape {
+            destination,
+            tensor,
+            shape,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            let args = push_argument_range(argument_pool, tree.get_arguments(*shape));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_reshape,
+                data: ThreadedInstructionData::TensorReshape {
+                    dest: *destination,
+                    tensor: *tensor,
+                    shape: args,
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            dimensions,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_broadcast,
+                data: ThreadedInstructionData::TensorBroadcast {
+                    dest: *destination,
+                    tensor: *tensor,
+                    dimensions: dimensions.clone(),
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorTranspose {
+            destination,
+            tensor,
+            permutation,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_transpose,
+                data: ThreadedInstructionData::TensorTranspose {
+                    dest: *destination,
+                    tensor: *tensor,
+                    permutation: permutation.clone(),
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorSlice {
+            destination,
+            tensor,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_slice,
+                data: ThreadedInstructionData::TensorSlice {
+                    dest: *destination,
+                    tensor: *tensor,
+                    arguments: args,
+                    offsets_count: *offsets_count,
+                    sizes_count: *sizes_count,
+                    strides_count: *strides_count,
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorPad {
+            destination,
+            tensor,
+            arguments,
+            low_count,
+            high_count,
+            interior_count,
+            value,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_pad,
+                data: ThreadedInstructionData::TensorPad {
+                    dest: *destination,
+                    tensor: *tensor,
+                    arguments: args,
+                    low_count: *low_count,
+                    high_count: *high_count,
+                    interior_count: *interior_count,
+                    value: *value,
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorConcat {
+            destination,
+            tensors,
+            axis,
+        } => {
+            // resolve destination type
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+
+            // collect input values and types
+            let tensor_values = tree.get_arguments(*tensors);
+            let args = push_argument_range(argument_pool, tensor_values);
+
+            let mut tensor_types = Vec::with_capacity(tensor_values.len());
+            for value in tensor_values {
+                let value_type = value_type_for_value(*value, value_types)
+                    .unwrap_or_else(|| panic!("missing tensor type for {value:?}"));
+                tensor_types.push(value_type);
+            }
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_concat,
+                data: ThreadedInstructionData::TensorConcat {
+                    dest: *destination,
+                    tensors: args,
+                    tensor_types,
+                    axis: *axis,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorReduce {
+            destination,
+            operator,
+            tensor,
+            initial,
+            axes,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_reduce,
+                data: ThreadedInstructionData::TensorReduce {
+                    dest: *destination,
+                    operator: *operator,
+                    tensor: *tensor,
+                    initial: *initial,
+                    axes: axes.clone(),
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            dimensions,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let left_type = value_type_for_value(*left, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {left:?}"));
+            let right_type = value_type_for_value(*right, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {right:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_dot,
+                data: ThreadedInstructionData::TensorDot {
+                    dest: *destination,
+                    left: *left,
+                    right: *right,
+                    dimensions: dimensions.clone(),
+                    left_type,
+                    right_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            dimensions,
+            window,
+            feature_group_count,
+            batch_group_count,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let input_type = value_type_for_value(*input, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {input:?}"));
+            let kernel_type = value_type_for_value(*kernel, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {kernel:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_convolution,
+                data: ThreadedInstructionData::TensorConvolution {
+                    dest: *destination,
+                    input: *input,
+                    kernel: *kernel,
+                    dimensions: dimensions.clone(),
+                    window: window.clone(),
+                    feature_group_count: *feature_group_count,
+                    batch_group_count: *batch_group_count,
+                    input_type,
+                    kernel_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            dimensions,
+            slice_sizes,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let operand_type = value_type_for_value(*operand, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {operand:?}"));
+            let indices_type = value_type_for_value(*indices, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {indices:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_gather,
+                data: ThreadedInstructionData::TensorGather {
+                    dest: *destination,
+                    operand: *operand,
+                    indices: *indices,
+                    dimensions: dimensions.clone(),
+                    slice_sizes: slice_sizes.clone(),
+                    operand_type,
+                    indices_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            dimensions,
+            mode,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let operand_type = value_type_for_value(*operand, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {operand:?}"));
+            let indices_type = value_type_for_value(*indices, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {indices:?}"));
+            let updates_type = value_type_for_value(*updates, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {updates:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_scatter,
+                data: ThreadedInstructionData::TensorScatter {
+                    dest: *destination,
+                    operand: *operand,
+                    indices: *indices,
+                    updates: *updates,
+                    dimensions: dimensions.clone(),
+                    mode: *mode,
+                    operand_type,
+                    indices_type,
+                    updates_type,
+                    dest_type,
+                },
+            }
+        }
+
+        mir::Instruction::TensorConvert {
+            destination,
+            tensor,
+        } => {
+            let dest_type = value_type_for_value(*destination, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {destination:?}"));
+            let source_type = value_type_for_value(*tensor, value_types)
+                .unwrap_or_else(|| panic!("missing tensor type for {tensor:?}"));
+            ThreadedInstruction {
+                handler: dispatch::handle_tensor_convert,
+                data: ThreadedInstructionData::TensorConvert {
+                    dest: *destination,
+                    tensor: *tensor,
+                    source_type,
+                    dest_type,
+                },
+            }
+        }
+
         mir::Instruction::ManagedAlloc {
             destination,
             layout,
@@ -1901,6 +2368,9 @@ fn thread_instruction(
             intrinsic,
             arguments,
             ordering,
+            scope,
+            memory_scope,
+            semantics,
         } => {
             let args = push_argument_range(argument_pool, tree.get_arguments(*arguments));
             ThreadedInstruction {
@@ -1910,6 +2380,9 @@ fn thread_instruction(
                     intrinsic: *intrinsic,
                     arguments: args,
                     ordering: *ordering,
+                    scope: *scope,
+                    memory_scope: *memory_scope,
+                    semantics: *semantics,
                 },
             }
         }
@@ -1925,6 +2398,15 @@ fn build_value_kinds(
 ) -> ValueKinds {
     // allocate value kinds
     let mut value_kinds = ValueKinds::new(value_count);
+
+    // seed explicit value types
+    for (index, ty) in func.value_types.iter().enumerate() {
+        let Some(ty) = ty else {
+            continue;
+        };
+        let value = mir::Value(index as u32);
+        value_kinds.set(value, kind_from_type(tree, *ty));
+    }
 
     // seed function parameter kinds
     for param in &func.parameters {
@@ -2145,6 +2627,27 @@ fn infer_instruction_kind(
         mir::Instruction::Struct { ty, .. } => Some(kind_from_type(tree, *ty)),
         mir::Instruction::Tuple { ty, .. } => Some(kind_from_type(tree, *ty)),
         mir::Instruction::Array { ty, .. } => Some(kind_from_type(tree, *ty)),
+        mir::Instruction::VectorSplat { .. }
+        | mir::Instruction::VectorExtract { .. }
+        | mir::Instruction::VectorInsert { .. }
+        | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorReduce { .. }
+        | mir::Instruction::TensorLoad { .. }
+        | mir::Instruction::TensorStore { .. }
+        | mir::Instruction::TensorFill { .. }
+        | mir::Instruction::TensorCopy { .. }
+        | mir::Instruction::TensorReshape { .. }
+        | mir::Instruction::TensorBroadcast { .. }
+        | mir::Instruction::TensorTranspose { .. }
+        | mir::Instruction::TensorSlice { .. }
+        | mir::Instruction::TensorPad { .. }
+        | mir::Instruction::TensorConcat { .. }
+        | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorDot { .. }
+        | mir::Instruction::TensorConvolution { .. }
+        | mir::Instruction::TensorGather { .. }
+        | mir::Instruction::TensorScatter { .. }
+        | mir::Instruction::TensorConvert { .. } => None,
         mir::Instruction::ManagedAlloc { result_type, .. }
         | mir::Instruction::ManagedAllocArray { result_type, .. }
         | mir::Instruction::RawAlloc { result_type, .. }
@@ -2251,7 +2754,22 @@ fn kind_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -> Valu
             element: *element,
             length: *length,
         },
-        mir::Type::Tuple { .. } | mir::Type::Struct { .. } => ValueKind::Aggregate { ty },
+        mir::Type::Tuple { .. }
+        | mir::Type::Struct { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. } => ValueKind::Aggregate { ty },
+        mir::Type::TensorReference {
+            kind,
+            address_space,
+            mutability,
+            element,
+            is_nullable,
+            ..
+        } => ValueKind::Pointer {
+            pointee: *element,
+            storage: pointer_storage_from_reference(*address_space, *kind),
+            reference: ReferenceMeta::new(*kind, *address_space, *mutability, *is_nullable),
+        },
     }
 }
 
@@ -2368,7 +2886,10 @@ fn slot_count_from_type(tree: &mir::NodeTree, ty: mir::LocalNodeId<mir::Type>) -
         | mir::Type::Float { .. }
         | mir::Type::Type
         | mir::Type::Reference { .. }
-        | mir::Type::FunctionPointer { .. } => Some(1),
+        | mir::Type::FunctionPointer { .. }
+        | mir::Type::Vector { .. }
+        | mir::Type::Tensor { .. }
+        | mir::Type::TensorReference { .. } => Some(1),
     }
 }
 

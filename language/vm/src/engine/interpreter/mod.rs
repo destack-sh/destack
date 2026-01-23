@@ -1,4 +1,5 @@
 mod decode;
+mod dispatch;
 mod execute;
 mod state;
 
