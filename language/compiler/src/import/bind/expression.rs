@@ -726,6 +726,11 @@ impl Compiler {
                 let qualifier = qualifier
                     .as_ref()
                     .map(|path| self.bind_path(module, ast, path));
+                let static_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -739,7 +744,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::TypeThenValue,
+                                static_argument_space_order,
                             )
                         })
                         .collect()
@@ -865,6 +870,11 @@ impl Compiler {
                     space_order,
                 );
                 let name = self.program.strings.intern_from(&ast.strings, *name);
+                let static_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -878,7 +888,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::TypeThenValue,
+                                static_argument_space_order,
                             )
                         })
                         .collect()
@@ -906,6 +916,11 @@ impl Compiler {
                     types,
                     space_order,
                 );
+                let static_argument_space_order = if module.language_type.is_destack() {
+                    SymbolSpaceOrder::ValueThenType
+                } else {
+                    SymbolSpaceOrder::TypeThenValue
+                };
                 let static_arguments = static_arguments.as_ref().map(|arguments| {
                     arguments
                         .iter()
@@ -919,7 +934,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::TypeThenValue,
+                                static_argument_space_order,
                             )
                         })
                         .collect()

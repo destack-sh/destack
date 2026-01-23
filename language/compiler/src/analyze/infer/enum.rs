@@ -4,6 +4,7 @@ use destack_dir::{
     LocalNodeId, NodeTree, NodeType, PrimitiveType, ScalarLiteral, StaticExpression, StringId,
     SymbolTable, Type, TypeLiteral, TypeTable,
 };
+use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
 
 #[allow(clippy::too_many_arguments)]
@@ -211,29 +212,174 @@ impl Compiler {
     pub(crate) fn enum_field_value_for_symbol_reference(
         &self,
         module: &Module,
+        profile: ProfileId,
         enum_symbol: GlobalSymbolId,
         target_symbol: GlobalSymbolId,
         symbols: &SymbolTable,
-        types: &TypeTable,
+        types: &mut TypeTable,
     ) -> Option<EnumFieldValue> {
-        // only allow local enum member references
-        if target_symbol.module_id != module.id {
-            return None;
+        if target_symbol.module_id == module.id {
+            // ensure the target is an enum field on this enum
+            let target_entry = symbols.get_symbol(target_symbol.local_id);
+            let primary = target_entry.primary_declaration?;
+            if primary.local_id.ty != NodeType::EnumField {
+                return None;
+            }
+            let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
+            let scope_owner = scope.owner_id?;
+            let scope_owner = scope_owner.into_global(module.id);
+            if scope_owner != enum_symbol
+                && !self.symbols_share_merge_group(enum_symbol, scope_owner, symbols)
+            {
+                return None;
+            }
+
+            if types.get_enum_field_value(target_symbol).is_none() {
+                let tree = module.dir(profile).tree.read();
+                let _ = self.ensure_enum_field_values_for_symbol(
+                    module,
+                    profile,
+                    enum_symbol,
+                    &tree,
+                    symbols,
+                    types,
+                );
+            }
+
+            return types.get_enum_field_value(target_symbol);
         }
 
+        // load remote module data for enum field values
+        self.require_analyze_module_infer(target_symbol.module_id, profile)
+            .map_err(AnalyzeError::from)
+            .ok()?;
+        let remote_module = self.program.modules.get(target_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_dir = remote_module.dir(profile);
+        let remote_symbols = remote_dir.symbols.read();
+        let remote_types = remote_dir.types.read();
+
         // ensure the target is an enum field on this enum
-        let target_entry = symbols.get_symbol(target_symbol.local_id);
+        let target_entry = remote_symbols.get_symbol(target_symbol.local_id);
         let primary = target_entry.primary_declaration?;
         if primary.local_id.ty != NodeType::EnumField {
             return None;
         }
-        let scope = symbols.get_scope_by_symbol(target_symbol.local_id);
+        let scope = remote_symbols.get_scope_by_symbol(target_symbol.local_id);
         let scope_owner = scope.owner_id?;
-        if scope_owner.into_global(module.id) != enum_symbol {
+        let scope_owner = scope_owner.into_global(remote_module.id);
+        if scope_owner != enum_symbol
+            && !self.symbols_share_merge_group(enum_symbol, scope_owner, &remote_symbols)
+        {
             return None;
         }
 
-        types.get_enum_field_value(target_symbol)
+        remote_types.get_enum_field_value(target_symbol)
+    }
+
+    /// Check whether two symbols share the same merge group.
+    fn symbols_share_merge_group(
+        &self,
+        left: GlobalSymbolId,
+        right: GlobalSymbolId,
+        symbols: &SymbolTable,
+    ) -> bool {
+        if left.module_id != right.module_id {
+            return false;
+        }
+
+        let left_entry = symbols.get_symbol(left.local_id);
+        let right_entry = symbols.get_symbol(right.local_id);
+        match (left_entry.merge_group, right_entry.merge_group) {
+            (Some(left_group), Some(right_group)) => left_group == right_group,
+            _ => false,
+        }
+    }
+
+    /// Ensure enum field values are available for a symbol when possible.
+    fn ensure_enum_field_values_for_symbol(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        enum_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<()> {
+        let fields = self.enum_fields_for_symbol_in_tree(enum_symbol, tree, symbols);
+        if fields.is_empty() {
+            return Ok(());
+        }
+
+        let values_ready = fields.iter().all(|field_id| {
+            let field = tree.get(*field_id);
+            let field_symbol = field.symbol.into_global(module.id);
+            types.get_enum_field_value(field_symbol).is_some()
+        });
+        if values_ready {
+            return Ok(());
+        }
+
+        let _ = self.infer_enum_field_values(
+            module,
+            profile,
+            enum_symbol,
+            &fields,
+            tree,
+            symbols,
+            types,
+        )?;
+        Ok(())
+    }
+
+    /// Collect enum field ids for a symbol in a single tree.
+    fn enum_fields_for_symbol_in_tree(
+        &self,
+        enum_symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> Vec<LocalNodeId<EnumField>> {
+        let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
+        let candidate_ids = if let Some(group_id) = symbol_entry.merge_group {
+            symbols.merge_group_symbols(group_id).to_vec()
+        } else {
+            vec![enum_symbol.local_id]
+        };
+
+        let mut fields = Vec::new();
+        for candidate_id in candidate_ids {
+            let candidate_entry = symbols.get_symbol(candidate_id);
+            let mut declaration_ids = Vec::new();
+
+            if let Some(primary) = candidate_entry.primary_declaration
+                && primary.local_id.ty == NodeType::Declaration
+            {
+                declaration_ids.push(LocalNodeId::<Declaration>::new(primary.local_id.id));
+            }
+
+            if let Some(secondaries) = candidate_entry.secondary_declarations.as_deref() {
+                for declaration in secondaries {
+                    if declaration.local_id.ty == NodeType::Declaration {
+                        declaration_ids
+                            .push(LocalNodeId::<Declaration>::new(declaration.local_id.id));
+                    }
+                }
+            }
+
+            for declaration_id in declaration_ids {
+                let declaration = tree.get(declaration_id);
+                let Declaration::Enum {
+                    fields: enum_fields,
+                    ..
+                } = declaration
+                else {
+                    continue;
+                };
+                fields.extend_from_slice(enum_fields);
+            }
+        }
+
+        fields
     }
 
     /// Resolve the integer backing type for an enum expression.
@@ -295,48 +441,85 @@ impl Compiler {
     pub(crate) fn enum_field_symbol_for_name(
         &self,
         module: &Module,
+        profile: ProfileId,
         enum_symbol: GlobalSymbolId,
         field_name: StringId,
         tree: &NodeTree,
         symbols: &SymbolTable,
     ) -> Option<GlobalSymbolId> {
-        // only resolve within the same module
+        // resolve fields in remote modules when needed
         if enum_symbol.module_id != module.id {
-            return None;
+            self.require_analyze_module_declare(enum_symbol.module_id, profile)
+                .map_err(AnalyzeError::from)
+                .ok()?;
+            let remote_module = self.program.modules.get(enum_symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_dir = remote_module.dir(profile);
+            let remote_tree = remote_dir.tree.read();
+            let remote_symbols = remote_dir.symbols.read();
+
+            return self.enum_field_symbol_for_name_in_tree(
+                enum_symbol,
+                field_name,
+                &remote_tree,
+                &remote_symbols,
+                remote_module.id,
+            );
         }
 
-        // collect enum declarations for the symbol
+        self.enum_field_symbol_for_name_in_tree(enum_symbol, field_name, tree, symbols, module.id)
+    }
+
+    /// Scan enum declarations in a single tree for a field symbol.
+    fn enum_field_symbol_for_name_in_tree(
+        &self,
+        enum_symbol: GlobalSymbolId,
+        field_name: StringId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        module_id: ModuleId,
+    ) -> Option<GlobalSymbolId> {
         let symbol_entry = symbols.get_symbol(enum_symbol.local_id);
-        let mut declaration_ids = Vec::new();
+        let candidate_ids = if let Some(group_id) = symbol_entry.merge_group {
+            symbols.merge_group_symbols(group_id).to_vec()
+        } else {
+            vec![enum_symbol.local_id]
+        };
 
-        // include the primary declaration when available
-        if let Some(primary) = symbol_entry.primary_declaration
-            && primary.local_id.ty == NodeType::Declaration
-        {
-            declaration_ids.push(LocalNodeId::<Declaration>::new(primary.local_id.id));
-        }
+        for candidate_id in candidate_ids {
+            let candidate_entry = symbols.get_symbol(candidate_id);
+            let mut declaration_ids = Vec::new();
 
-        // include secondary declarations when present
-        if let Some(secondaries) = symbol_entry.secondary_declarations.as_deref() {
-            for declaration in secondaries {
-                if declaration.local_id.ty == NodeType::Declaration {
-                    declaration_ids.push(LocalNodeId::<Declaration>::new(declaration.local_id.id));
+            // include the primary declaration when available
+            if let Some(primary) = candidate_entry.primary_declaration
+                && primary.local_id.ty == NodeType::Declaration
+            {
+                declaration_ids.push(LocalNodeId::<Declaration>::new(primary.local_id.id));
+            }
+
+            // include secondary declarations when present
+            if let Some(secondaries) = candidate_entry.secondary_declarations.as_deref() {
+                for declaration in secondaries {
+                    if declaration.local_id.ty == NodeType::Declaration {
+                        declaration_ids
+                            .push(LocalNodeId::<Declaration>::new(declaration.local_id.id));
+                    }
                 }
             }
-        }
 
-        // scan enum members for the matching field
-        for declaration_id in declaration_ids {
-            let declaration = tree.get(declaration_id);
-            let Declaration::Enum { fields, .. } = declaration else {
-                continue;
-            };
+            // scan enum members for the matching field
+            for declaration_id in declaration_ids {
+                let declaration = tree.get(declaration_id);
+                let Declaration::Enum { fields, .. } = declaration else {
+                    continue;
+                };
 
-            // return the symbol for the matching field name
-            for field_id in fields {
-                let field = tree.get(*field_id);
-                if field.name == field_name {
-                    return Some(field.symbol.into_global(module.id));
+                // return the symbol for the matching field name
+                for field_id in fields {
+                    let field = tree.get(*field_id);
+                    if field.name == field_name {
+                        return Some(field.symbol.into_global(module_id));
+                    }
                 }
             }
         }

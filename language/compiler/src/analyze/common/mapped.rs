@@ -122,40 +122,22 @@ impl Compiler {
                 value: TypeLiteral::Any,
             } => {
                 // any exposes all key kinds
-                let mut keys = KeySet::default();
-                // seed all index kinds
-                keys.insert_index_kind(MappedIndexKind::String);
-                keys.insert_index_kind(MappedIndexKind::Number);
-                keys.insert_index_kind(MappedIndexKind::Symbol);
-                keys
+                self.key_set_for_all_index_kinds()
             }
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::String),
             } => {
                 // primitives contribute their index kind
-                let mut keys = KeySet::default();
-                // seed string index kind
-                keys.insert_index_kind(MappedIndexKind::String);
-                keys
+                self.key_set_for_index_kind(MappedIndexKind::String)
             }
             Type::TypeLiteral {
                 value: TypeLiteral::Primitive(PrimitiveType::Number),
-            } => {
-                let mut keys = KeySet::default();
-                // seed number index kind
-                keys.insert_index_kind(MappedIndexKind::Number);
-                keys
-            }
+            } => self.key_set_for_index_kind(MappedIndexKind::Number),
             Type::TypeLiteral {
                 value:
                     TypeLiteral::Primitive(PrimitiveType::Symbol)
                     | TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
-            } => {
-                let mut keys = KeySet::default();
-                // seed symbol index kind
-                keys.insert_index_kind(MappedIndexKind::Symbol);
-                keys
-            }
+            } => self.key_set_for_index_kind(MappedIndexKind::Symbol),
             Type::Object {
                 fields,
                 index_signatures,
@@ -165,9 +147,7 @@ impl Compiler {
                 self.key_set_for_object(&fields, &index_signatures, types)
             }
             Type::Tuple { elements, .. } => {
-                let mut keys = KeySet::default();
-                // seed number index kind
-                keys.insert_index_kind(MappedIndexKind::Number);
+                let mut keys = self.key_set_for_index_kind(MappedIndexKind::Number);
                 // collect tuple element indexes as literal keys
                 for (index, _) in elements.iter().enumerate() {
                     let index_id = self.program.strings.intern(&index.to_string());
@@ -176,9 +156,7 @@ impl Compiler {
                 keys
             }
             Type::Array { .. } | Type::ArraySized { .. } => {
-                let mut keys = KeySet::default();
-                keys.insert_index_kind(MappedIndexKind::Number);
-                keys
+                self.key_set_for_index_kind(MappedIndexKind::Number)
             }
             Type::Reference {
                 symbol,
@@ -231,11 +209,7 @@ impl Compiler {
                 }
 
                 // fall back to all key kinds
-                let mut keys = KeySet::default();
-                keys.insert_index_kind(MappedIndexKind::String);
-                keys.insert_index_kind(MappedIndexKind::Number);
-                keys.insert_index_kind(MappedIndexKind::Symbol);
-                keys
+                self.key_set_for_all_index_kinds()
             }
             Type::Union { elements } => {
                 // seed the intersection with the first union member
@@ -297,6 +271,24 @@ impl Compiler {
             }
             _ => KeySet::default(),
         }
+    }
+
+    /// Build a key set for a single index kind.
+    fn key_set_for_index_kind(&self, kind: MappedIndexKind) -> KeySet {
+        // seed the requested index kind
+        let mut keys = KeySet::default();
+        keys.insert_index_kind(kind);
+        keys
+    }
+
+    /// Build a key set with all index kinds.
+    fn key_set_for_all_index_kinds(&self) -> KeySet {
+        // seed all index kinds
+        let mut keys = KeySet::default();
+        keys.insert_index_kind(MappedIndexKind::String);
+        keys.insert_index_kind(MappedIndexKind::Number);
+        keys.insert_index_kind(MappedIndexKind::Symbol);
+        keys
     }
 
     /// Collect key information from an object type.
@@ -582,8 +574,7 @@ impl Compiler {
         }
 
         // substitute distributive symbols into the branch types when needed
-        let (right, then_type, else_type) = if let Some(distributive_symbol) = distributive_symbol
-        {
+        let (right, then_type, else_type) = if let Some(distributive_symbol) = distributive_symbol {
             let mut substitutions = HashMap::new();
             substitutions.insert(distributive_symbol, left);
             let mut cache = HashMap::new();
@@ -1243,44 +1234,38 @@ impl Compiler {
         }
 
         // find the source type for modifier inheritance
-        let source_type_id = parameter_symbol
-            .and_then(|parameter_symbol| self.mapped_source_type_id(parameter_symbol, constraint, value, types));
+        let source_type_id = parameter_symbol.and_then(|parameter_symbol| {
+            self.mapped_source_type_id(parameter_symbol, constraint, value, types)
+        });
 
         // expand each mapped key into fields or index signatures
         let mut fields: Vec<TypeField> = Vec::new();
         let mut index_values: HashMap<MappedIndexKind, Vec<LocalTypeId>> = HashMap::new();
+        
         // precompute normalized value and remap when the parameter is unused
         let normalized_value_without_param = if parameter_symbol.is_none() {
-            Some(self.normalize_type_inner(
-                module, profile, value, symbols, types, mode, visited,
-            ))
+            Some(self.normalize_type_inner(module, profile, value, symbols, types, mode, visited))
         } else {
             None
         };
-        let normalized_remap_without_param =
-            if let Some(key_remap) = key_remap && parameter_symbol.is_none() {
-                let normalized_remap = self.normalize_type_inner(
-                    module,
-                    profile,
-                    key_remap,
-                    symbols,
-                    types,
-                    mode,
-                    visited,
-                );
-                let mut remapped = Vec::new();
-                self.collect_mapped_keys_for_type(
-                    module,
-                    profile,
-                    normalized_remap,
-                    symbols,
-                    types,
-                    &mut remapped,
-                );
-                Some(remapped)
-            } else {
-                None
-            };
+        let normalized_remap_without_param = if let Some(key_remap) = key_remap
+            && parameter_symbol.is_none()
+        {
+            let normalized_remap = self
+                .normalize_type_inner(module, profile, key_remap, symbols, types, mode, visited);
+            let mut remapped = Vec::new();
+            self.collect_mapped_keys_for_type(
+                module,
+                profile,
+                normalized_remap,
+                symbols,
+                types,
+                &mut remapped,
+            );
+            Some(remapped)
+        } else {
+            None
+        };
 
         for key in keys {
             let key_type_id = match &key {
@@ -1488,13 +1473,7 @@ impl Compiler {
                 // expand each union member
                 for element_id in elements {
                     self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
-                        element_id,
-                        symbols,
-                        types,
-                        keys,
-                        visited,
+                        module, profile, element_id, symbols, types, keys, visited,
                     );
                 }
             }
@@ -1508,12 +1487,7 @@ impl Compiler {
                 // follow constraint bounds for static parameter references
                 if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
                     && let Some(constraint_id) = self.static_parameter_constraint_type(
-                        module,
-                        profile,
-                        symbol,
-                        source_id,
-                        symbols,
-                        types,
+                        module, profile, symbol, source_id, symbols, types,
                     )
                 {
                     self.collect_mapped_keys_for_type_inner(
@@ -1550,13 +1524,7 @@ impl Compiler {
                             &mut Vec::new(),
                         );
                         self.collect_mapped_keys_for_type_inner(
-                            module,
-                            profile,
-                            normalized,
-                            symbols,
-                            types,
-                            keys,
-                            visited,
+                            module, profile, normalized, symbols, types, keys, visited,
                         );
                     }
                 }
@@ -1577,13 +1545,7 @@ impl Compiler {
                     &mut normalize_visited,
                 );
                 self.collect_mapped_keys_for_type_inner(
-                    module,
-                    profile,
-                    normalized,
-                    symbols,
-                    types,
-                    keys,
-                    visited,
+                    module, profile, normalized, symbols, types, keys, visited,
                 );
             }
             Type::Conditional { .. } => {
@@ -1599,13 +1561,7 @@ impl Compiler {
                 );
                 if normalized != type_id {
                     self.collect_mapped_keys_for_type_inner(
-                        module,
-                        profile,
-                        normalized,
-                        symbols,
-                        types,
-                        keys,
-                        visited,
+                        module, profile, normalized, symbols, types, keys, visited,
                     );
                 }
             }

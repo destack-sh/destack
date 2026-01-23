@@ -108,9 +108,7 @@ impl ModuleLowerer<'_> {
         let argument = match argument {
             dir::Argument::Named { name: _, value, .. }
             | dir::Argument::Labeled {
-                label: _,
-                value,
-                ..
+                label: _, value, ..
             }
             | dir::Argument::Positional { value, .. } => {
                 let value = self
@@ -119,9 +117,7 @@ impl ModuleLowerer<'_> {
                 Argument::Positional { value }
             }
             dir::Argument::Spread {
-                label: _,
-                value,
-                ..
+                label: _, value, ..
             } => {
                 let value = self
                     .lower_expression(*value)

@@ -1,4 +1,3 @@
-mod argument;
 mod canonical;
 mod conditional;
 mod declarator;
@@ -14,7 +13,6 @@ mod strict;
 mod template;
 mod r#type;
 
-pub(crate) use argument::{StaticParameterReferencePosition, StaticParameterReferences};
 pub(crate) use canonical::CanonicalSymbolMode;
 pub(crate) use destack_dir::NormalizationMode;
 pub(crate) use json::json_value_to_type;

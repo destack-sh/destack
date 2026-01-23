@@ -20,37 +20,46 @@ impl Compiler {
             return None;
         }
 
-        // read the primary declaration for the symbol
+        // collect primary and secondary declarations for the symbol
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let primary_declaration = symbol_entry.primary_declaration?;
-
-        // ensure the declaration is local to the module
-        if primary_declaration.module_id != module.id {
-            return None;
+        let mut declaration_ids = Vec::new();
+        if let Some(primary) = symbol_entry.primary_declaration {
+            declaration_ids.push(primary);
+        }
+        if let Some(secondaries) = symbol_entry.secondary_declarations.as_deref() {
+            declaration_ids.extend(secondaries.iter().copied());
         }
 
-        // require a direct binding for the primary declaration
-        if !self.primary_declaration_is_direct_binding(
-            primary_declaration.local_id,
-            symbol.local_id,
-            tree,
-        ) {
-            return None;
+        // find the first direct binding declarator
+        for declaration_id in declaration_ids {
+            if declaration_id.module_id != module.id {
+                continue;
+            }
+
+            if !self.primary_declaration_is_direct_binding(
+                declaration_id.local_id,
+                symbol.local_id,
+                tree,
+            ) {
+                continue;
+            }
+
+            if let Some(declarator_id) =
+                self.declarator_parent_for_node(declaration_id.local_id, tree)
+            {
+                return Some(declarator_id);
+            }
+
+            if let Some(declarator_id) = self.direct_binding_declarator_in_expression(
+                declaration_id.local_id,
+                symbol.local_id,
+                tree,
+            ) {
+                return Some(declarator_id);
+            }
         }
 
-        // walk up to find the declarator containing the binding
-        if let Some(declarator_id) =
-            self.declarator_parent_for_node(primary_declaration.local_id, tree)
-        {
-            return Some(declarator_id);
-        }
-
-        // scan let or using expressions for a matching direct binding
-        self.direct_binding_declarator_in_expression(
-            primary_declaration.local_id,
-            symbol.local_id,
-            tree,
-        )
+        None
     }
 
     /// Return true when the primary declaration is a direct binding.

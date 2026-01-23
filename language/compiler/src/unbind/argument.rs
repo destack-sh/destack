@@ -197,10 +197,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::Argument::Positional {
-                    modifiers,
-                    value,
-                }
+                ast::Argument::Positional { modifiers, value }
             }
             dir::Argument::Spread {
                 modifiers,

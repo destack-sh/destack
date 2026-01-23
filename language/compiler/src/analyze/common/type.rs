@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use destack_dir::{
-    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression,
-    StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
+    StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
-use destack_workspace::{Module, ProfileId};
+use destack_workspace::{Module, ModuleDir, ProfileId};
 
 use crate::{AnalyzeResult, Compiler};
 
@@ -79,10 +79,7 @@ impl Compiler {
         let remote_module = remote_module.read();
         let remote_symbols = remote_module.dir(profile).symbols.read();
         let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-        GlobalSymbolId::new(
-            symbol.module_id,
-            symbol.local_id.with_type(symbol_entry.ty),
-        )
+        GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty))
     }
 
     /// Import the alias target type for a symbol when available.
@@ -118,8 +115,21 @@ impl Compiler {
 
         let typed_symbol =
             GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty));
-        let remote_types = remote_module.dir(profile).types.read();
+
+        // load the remote alias target, evaluating when needed
+        let remote_dir = remote_module.dir(profile);
+        let mut remote_types = remote_dir.types.write();
         let alias_target_id = remote_types.get_alias_target_type_id(typed_symbol)?;
+        if let Type::Unevaluated(expression_id) = *remote_types.get_type(alias_target_id) {
+            self.try_evaluate_remote_alias_target(
+                &remote_module,
+                profile,
+                alias_target_id,
+                expression_id,
+                remote_dir,
+                &mut remote_types,
+            );
+        }
         let alias_target_ty = remote_types.get_type(alias_target_id);
         Some(self.import_type_from_remote_for_node(
             source_id,
@@ -128,6 +138,40 @@ impl Compiler {
             typed_symbol,
             types,
         ))
+    }
+
+    /// Try to evaluate a remote alias target expression in place.
+    fn try_evaluate_remote_alias_target(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        alias_target_id: LocalTypeId,
+        expression_id: LocalNodeId<Expression>,
+        dir: &ModuleDir,
+        types: &mut TypeTable,
+    ) {
+        // evaluate the alias target when possible
+        let tree = dir.tree.read();
+        let symbols = dir.symbols.read();
+        match self.try_evaluate_expression_to_type_value(
+            module,
+            profile,
+            expression_id,
+            &tree,
+            &symbols,
+            types,
+            false,
+        ) {
+            Ok(evaluated_ty) => {
+                // cache the evaluated target for normalization
+                let ty = types.get_type_mut(alias_target_id);
+                *ty = evaluated_ty;
+                types.invalidate_normalization_cache();
+            }
+            Err(_) => {
+                // ignore failures to avoid cascading errors in callers
+            }
+        }
     }
 
     /// Unwrap a type-as-value wrapper to the underlying type id.
@@ -321,206 +365,6 @@ impl Compiler {
         types.insert_type_from_any(intersection, types.get_type_source(source_type_id))
     }
 
-    /// Check whether a type contains references without resolved instance types.
-    pub(crate) fn type_contains_unresolved_reference(
-        &self,
-        ty_id: LocalTypeId,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        // avoid infinite recursion in self-referential types
-        if !visited.insert(ty_id) {
-            return false;
-        }
-
-        match types.get_type(ty_id) {
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => {
-                if types.get_instance_type_id(*symbol).is_none() {
-                    return true;
-                }
-
-                static_arguments.as_ref().is_some_and(|arguments| {
-                    arguments.iter().any(|argument| {
-                        self.static_argument_contains_unresolved_reference(argument, types, visited)
-                    })
-                })
-            }
-            Type::Value { value } => {
-                self.type_contains_unresolved_reference(*value, types, visited)
-            }
-            Type::Conditional {
-                distributive_symbol: _,
-                left,
-                right,
-                then_type,
-                else_type,
-            } => {
-                self.type_contains_unresolved_reference(*left, types, visited)
-                    || self.type_contains_unresolved_reference(*right, types, visited)
-                    || self.type_contains_unresolved_reference(*then_type, types, visited)
-                    || self.type_contains_unresolved_reference(*else_type, types, visited)
-            }
-            Type::Mapped {
-                parameter, value, ..
-            } => {
-                self.type_contains_unresolved_reference(parameter.constraint, types, visited)
-                    || parameter.key_remap.is_some_and(|key_remap| {
-                        self.type_contains_unresolved_reference(key_remap, types, visited)
-                    })
-                    || self.type_contains_unresolved_reference(*value, types, visited)
-            }
-            Type::Index { left, index } => {
-                self.type_contains_unresolved_reference(*left, types, visited)
-                    || self.type_contains_unresolved_reference(*index, types, visited)
-            }
-            Type::TemplateLiteral { spans, .. } => spans
-                .iter()
-                .any(|span| self.type_contains_unresolved_reference(*span, types, visited)),
-            Type::Import {
-                static_arguments, ..
-            } => static_arguments.as_ref().is_some_and(|arguments| {
-                arguments.iter().any(|argument| {
-                    self.static_argument_contains_unresolved_reference(argument, types, visited)
-                })
-            }),
-            Type::Unary { right, .. }
-            | Type::ValueOf { right, .. }
-            | Type::ReferenceOf { right, .. }
-            | Type::PointerOf { right, .. } => {
-                self.type_contains_unresolved_reference(*right, types, visited)
-            }
-            Type::Binary { left, right, .. } => {
-                self.type_contains_unresolved_reference(*left, types, visited)
-                    || self.type_contains_unresolved_reference(*right, types, visited)
-            }
-            Type::ArraySized { element, .. } => {
-                self.type_contains_unresolved_reference(*element, types, visited)
-            }
-            Type::Array { element, .. } => element.is_some_and(|element| {
-                self.type_contains_unresolved_reference(element, types, visited)
-            }),
-            Type::Tuple { elements, .. } => elements
-                .iter()
-                .any(|element| self.type_contains_unresolved_reference(element.ty, types, visited)),
-            Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                fields
-                    .iter()
-                    .any(|field| self.type_contains_unresolved_reference(field.ty, types, visited))
-                    || call_signatures.iter().any(|signature| {
-                        self.type_contains_unresolved_reference(*signature, types, visited)
-                    })
-                    || construct_signatures.iter().any(|signature| {
-                        self.type_contains_unresolved_reference(*signature, types, visited)
-                    })
-                    || index_signatures.iter().any(|signature| {
-                        self.type_contains_unresolved_reference(signature.key_type, types, visited)
-                            || self.type_contains_unresolved_reference(
-                                signature.value_type,
-                                types,
-                                visited,
-                            )
-                    })
-            }
-            Type::Function {
-                static_parameters,
-                this_parameter,
-                dynamic_parameters,
-                return_type,
-                ..
-            } => {
-                static_parameters.iter().any(|parameter| {
-                    self.type_contains_unresolved_reference(*parameter, types, visited)
-                }) || this_parameter.is_some_and(|parameter| {
-                    self.type_contains_unresolved_reference(parameter, types, visited)
-                }) || dynamic_parameters.iter().any(|parameter| {
-                    self.type_contains_unresolved_reference(*parameter, types, visited)
-                }) || return_type.is_some_and(|return_type| {
-                    self.type_contains_unresolved_reference(return_type, types, visited)
-                })
-            }
-            Type::Union { elements } | Type::Intersection { elements } => elements
-                .iter()
-                .any(|element| self.type_contains_unresolved_reference(*element, types, visited)),
-            Type::TypeLiteral { .. }
-            | Type::InferVar { .. }
-            | Type::Error
-            | Type::Unevaluated(_)
-            | Type::Infer { .. }
-            | Type::Predicate { .. }
-            | Type::This => false,
-        }
-    }
-
-    /// Check whether a static argument contains unresolved references.
-    pub(crate) fn static_argument_contains_unresolved_reference(
-        &self,
-        argument: &StaticArgument,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        // inspect the argument payload
-        match argument {
-            StaticArgument::Unevaluated { .. } => false,
-            StaticArgument::Evaluated { value, .. } => {
-                self.static_expression_contains_unresolved_reference(value, types, visited)
-            }
-        }
-    }
-
-    /// Check whether a static expression contains unresolved references.
-    pub(crate) fn static_expression_contains_unresolved_reference(
-        &self,
-        expression: &StaticExpression,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        // inspect the expression structure
-        match expression {
-            StaticExpression::Type { ty } => {
-                self.type_contains_unresolved_reference(*ty, types, visited)
-            }
-            StaticExpression::Declaration {
-                static_arguments, ..
-            } => static_arguments.as_ref().is_some_and(|arguments| {
-                arguments.iter().any(|argument| {
-                    self.static_argument_contains_unresolved_reference(argument, types, visited)
-                })
-            }),
-            StaticExpression::ArrayExpression { elements }
-            | StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
-                self.static_expression_contains_unresolved_reference(element, types, visited)
-            }),
-            StaticExpression::ObjectExpression { properties } => {
-                properties.iter().any(|property| match property {
-                    StaticProperty::Unevaluated { .. } => false,
-                    StaticProperty::Field { value, default, .. } => {
-                        self.static_expression_contains_unresolved_reference(value, types, visited)
-                            || default.as_ref().is_some_and(|default| {
-                                self.static_expression_contains_unresolved_reference(
-                                    default, types, visited,
-                                )
-                            })
-                    }
-                    StaticProperty::Method { body, .. } => {
-                        self.static_expression_contains_unresolved_reference(body, types, visited)
-                    }
-                })
-            }
-            StaticExpression::Unevaluated { .. }
-            | StaticExpression::ScalarLiteral { .. }
-            | StaticExpression::TypeLiteral { .. }
-            | StaticExpression::RangeExpression { .. } => false,
-        }
-    }
-
     /// Check whether a type contains an error type.
     pub(crate) fn type_contains_error(
         &self,
@@ -548,9 +392,10 @@ impl Compiler {
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. }
-            | Type::Infer { constraint: Some(right), .. } => {
-                self.type_contains_error(right, types, visited)
-            }
+            | Type::Infer {
+                constraint: Some(right),
+                ..
+            } => self.type_contains_error(right, types, visited),
             Type::Conditional {
                 left,
                 right,
@@ -583,9 +428,10 @@ impl Compiler {
                     .any(|argument| self.static_argument_contains_error(argument, types, visited))
             }),
             Type::ArraySized { element, .. }
-            | Type::Array { element: Some(element), .. } => {
-                self.type_contains_error(element, types, visited)
-            }
+            | Type::Array {
+                element: Some(element),
+                ..
+            } => self.type_contains_error(element, types, visited),
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_contains_error(element.ty, types, visited)),
@@ -614,18 +460,20 @@ impl Compiler {
                 dynamic_parameters,
                 return_type,
                 ..
-            } => static_parameters
-                .iter()
-                .any(|parameter| self.type_contains_error(*parameter, types, visited))
-                || this_parameter.is_some_and(|parameter| {
-                    self.type_contains_error(parameter, types, visited)
-                })
-                || dynamic_parameters
+            } => {
+                static_parameters
                     .iter()
                     .any(|parameter| self.type_contains_error(*parameter, types, visited))
-                || return_type.is_some_and(|return_type| {
-                    self.type_contains_error(return_type, types, visited)
-                }),
+                    || this_parameter.is_some_and(|parameter| {
+                        self.type_contains_error(parameter, types, visited)
+                    })
+                    || dynamic_parameters
+                        .iter()
+                        .any(|parameter| self.type_contains_error(*parameter, types, visited))
+                    || return_type.is_some_and(|return_type| {
+                        self.type_contains_error(return_type, types, visited)
+                    })
+            }
             Type::Union { elements } | Type::Intersection { elements } => elements
                 .iter()
                 .any(|element| self.type_contains_error(*element, types, visited)),
@@ -633,7 +481,9 @@ impl Compiler {
             | Type::TypeLiteral { .. }
             | Type::InferVar { .. }
             | Type::Unevaluated(_)
-            | Type::Infer { constraint: None, .. }
+            | Type::Infer {
+                constraint: None, ..
+            }
             | Type::Predicate { .. }
             | Type::This => false,
         };
@@ -667,16 +517,17 @@ impl Compiler {
                         ),
                 })
             }),
-            Type::Value { value } => self.type_contains_unevaluated_static_arguments(
-                value, types, visited,
-            ),
+            Type::Value { value } => {
+                self.type_contains_unevaluated_static_arguments(value, types, visited)
+            }
             Type::Unary { right, .. }
             | Type::ValueOf { right, .. }
             | Type::ReferenceOf { right, .. }
             | Type::PointerOf { right, .. }
-            | Type::Infer { constraint: Some(right), .. } => {
-                self.type_contains_unevaluated_static_arguments(right, types, visited)
-            }
+            | Type::Infer {
+                constraint: Some(right),
+                ..
+            } => self.type_contains_unevaluated_static_arguments(right, types, visited),
             Type::Conditional {
                 left,
                 right,
@@ -686,16 +537,8 @@ impl Compiler {
             } => {
                 self.type_contains_unevaluated_static_arguments(left, types, visited)
                     || self.type_contains_unevaluated_static_arguments(right, types, visited)
-                    || self.type_contains_unevaluated_static_arguments(
-                        then_type,
-                        types,
-                        visited,
-                    )
-                    || self.type_contains_unevaluated_static_arguments(
-                        else_type,
-                        types,
-                        visited,
-                    )
+                    || self.type_contains_unevaluated_static_arguments(then_type, types, visited)
+                    || self.type_contains_unevaluated_static_arguments(else_type, types, visited)
             }
             Type::Binary { left, right, .. } => {
                 self.type_contains_unevaluated_static_arguments(left, types, visited)
@@ -708,9 +551,9 @@ impl Compiler {
                 self.type_contains_unevaluated_static_arguments(left, types, visited)
                     || self.type_contains_unevaluated_static_arguments(index, types, visited)
             }
-            Type::TemplateLiteral { spans, .. } => spans.iter().any(|span| {
-                self.type_contains_unevaluated_static_arguments(*span, types, visited)
-            }),
+            Type::TemplateLiteral { spans, .. } => spans
+                .iter()
+                .any(|span| self.type_contains_unevaluated_static_arguments(*span, types, visited)),
             Type::Import {
                 static_arguments, ..
             } => static_arguments.as_ref().is_some_and(|arguments| {
@@ -723,9 +566,10 @@ impl Compiler {
                 })
             }),
             Type::ArraySized { element, .. }
-            | Type::Array { element: Some(element), .. } => {
-                self.type_contains_unevaluated_static_arguments(element, types, visited)
-            }
+            | Type::Array {
+                element: Some(element),
+                ..
+            } => self.type_contains_unevaluated_static_arguments(element, types, visited),
             Type::Tuple { elements, .. } => elements.iter().any(|element| {
                 self.type_contains_unevaluated_static_arguments(element.ty, types, visited)
             }),
@@ -759,30 +603,29 @@ impl Compiler {
                 dynamic_parameters,
                 return_type,
                 ..
-            } => static_parameters
-                .iter()
-                .any(|parameter| {
+            } => {
+                static_parameters.iter().any(|parameter| {
                     self.type_contains_unevaluated_static_arguments(*parameter, types, visited)
-                })
-                || this_parameter.is_some_and(|parameter| {
+                }) || this_parameter.is_some_and(|parameter| {
                     self.type_contains_unevaluated_static_arguments(parameter, types, visited)
-                })
-                || dynamic_parameters
-                    .iter()
-                    .any(|parameter| {
-                        self.type_contains_unevaluated_static_arguments(*parameter, types, visited)
-                    })
-                || return_type.is_some_and(|return_type| {
+                }) || dynamic_parameters.iter().any(|parameter| {
+                    self.type_contains_unevaluated_static_arguments(*parameter, types, visited)
+                }) || return_type.is_some_and(|return_type| {
                     self.type_contains_unevaluated_static_arguments(return_type, types, visited)
-                }),
-            Type::Union { elements } | Type::Intersection { elements } => elements
-                .iter()
-                .any(|element| self.type_contains_unevaluated_static_arguments(*element, types, visited)),
+                })
+            }
+            Type::Union { elements } | Type::Intersection { elements } => {
+                elements.iter().any(|element| {
+                    self.type_contains_unevaluated_static_arguments(*element, types, visited)
+                })
+            }
             Type::Array { element: None, .. }
             | Type::TypeLiteral { .. }
             | Type::InferVar { .. }
             | Type::Unevaluated(_)
-            | Type::Infer { constraint: None, .. }
+            | Type::Infer {
+                constraint: None, ..
+            }
             | Type::Predicate { .. }
             | Type::This
             | Type::Error => false,
@@ -817,27 +660,16 @@ impl Compiler {
                         ),
                 })
             }),
-            StaticExpression::RangeExpression {
-                start,
-                end,
-                ..
-            } => {
-                self.static_expression_contains_unevaluated_static_arguments(
-                    start,
-                    types,
-                    visited,
-                ) || self.static_expression_contains_unevaluated_static_arguments(
-                    end,
-                    types,
-                    visited,
-                )
+            StaticExpression::RangeExpression { start, end, .. } => {
+                self.static_expression_contains_unevaluated_static_arguments(start, types, visited)
+                    || self.static_expression_contains_unevaluated_static_arguments(
+                        end, types, visited,
+                    )
             }
             StaticExpression::ArrayExpression { elements }
             | StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
                 self.static_expression_contains_unevaluated_static_arguments(
-                    element,
-                    types,
-                    visited,
+                    element, types, visited,
                 )
             }),
             StaticExpression::ObjectExpression { properties } => {
@@ -845,24 +677,17 @@ impl Compiler {
                     StaticProperty::Unevaluated { .. } => false,
                     StaticProperty::Field { value, default, .. } => {
                         self.static_expression_contains_unevaluated_static_arguments(
-                            value,
-                            types,
-                            visited,
+                            value, types, visited,
                         ) || default.as_ref().is_some_and(|default| {
                             self.static_expression_contains_unevaluated_static_arguments(
-                                default,
-                                types,
-                                visited,
+                                default, types, visited,
                             )
                         })
                     }
-                    StaticProperty::Method { body, .. } => {
-                        self.static_expression_contains_unevaluated_static_arguments(
-                            body,
-                            types,
-                            visited,
-                        )
-                    }
+                    StaticProperty::Method { body, .. } => self
+                        .static_expression_contains_unevaluated_static_arguments(
+                            body, types, visited,
+                        ),
                 })
             }
         }
@@ -900,9 +725,9 @@ impl Compiler {
                     .any(|argument| self.static_argument_contains_error(argument, types, visited))
             }),
             StaticExpression::ArrayExpression { elements }
-            | StaticExpression::TupleExpression { elements } => elements.iter().any(|element| {
-                self.static_expression_contains_error(element, types, visited)
-            }),
+            | StaticExpression::TupleExpression { elements } => elements
+                .iter()
+                .any(|element| self.static_expression_contains_error(element, types, visited)),
             StaticExpression::ObjectExpression { properties } => {
                 properties.iter().any(|property| match property {
                     StaticProperty::Unevaluated { .. } => false,

@@ -843,7 +843,10 @@ impl Compiler {
                         )
                     });
                 let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
-                    matches!(types.get_type(expected_ty_id), Type::Tuple { .. })
+                    matches!(
+                        types.get_type(expected_ty_id),
+                        Type::Tuple { .. } | Type::ArraySized { .. }
+                    )
                 });
 
                 // infer element types using any contextual type
@@ -3536,6 +3539,7 @@ impl Compiler {
             expression_id.into_any(),
             Some(canonical_symbol),
             Some(static_argument_ids),
+            None,
             &static_parameters,
             &dynamic_parameters,
             return_type,
@@ -3669,8 +3673,8 @@ impl Compiler {
 
                     // specialize instance types with explicit static arguments
                     if let Some(static_arguments) = static_arguments.as_ref()
-                        && let Some(resolved_arguments) =
-                            self.resolve_type_reference_static_arguments(
+                        && let Some(resolved_arguments) = self
+                            .resolve_type_reference_static_arguments(
                                 module,
                                 profile,
                                 node_id,
@@ -3737,31 +3741,15 @@ impl Compiler {
                     &mut normalize_visited,
                 );
                 self.collect_object_literal_candidates(
-                    module,
-                    profile,
-                    node_id,
-                    normalized,
-                    options,
-                    tree,
-                    symbols,
-                    types,
-                    candidates,
-                    visited,
+                    module, profile, node_id, normalized, options, tree, symbols, types,
+                    candidates, visited,
                 )?;
             }
             Type::Union { elements } => {
                 for element in elements {
                     self.collect_object_literal_candidates(
-                        module,
-                        profile,
-                        node_id,
-                        element,
-                        options,
-                        tree,
-                        symbols,
-                        types,
-                        candidates,
-                        visited,
+                        module, profile, node_id, element, options, tree, symbols, types,
+                        candidates, visited,
                     )?;
                 }
             }

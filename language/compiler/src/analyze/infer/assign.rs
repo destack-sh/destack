@@ -137,68 +137,38 @@ impl Compiler {
         let source = types.get_type(source_id).clone();
 
         // prevent implicit enum backing coercions
-        if self.enum_symbol_for_type(&source, types).is_some()
-            && matches!(
-                target,
-                Type::TypeLiteral {
-                    value: TypeLiteral::Primitive(
-                        PrimitiveType::Number
-                            | PrimitiveType::Int(_)
-                            | PrimitiveType::Float(_)
-                            | PrimitiveType::String
-                    )
-                } | Type::TypeLiteral {
-                    value: TypeLiteral::ScalarLiteral(
-                        ScalarLiteral::Integer(_) | ScalarLiteral::String(_)
-                    )
-                }
-            )
-        {
+        if self.blocks_enum_backing_assignability(&source, &target, types) {
             return Assignability::NotAssignable;
         }
 
-        // normalize conditional types that can be resolved in flow mode
-        if matches!(target, Type::Conditional { .. }) {
-            let normalized_target = self.normalize_type(
+        // normalize conditional targets that can be resolved in flow mode
+        if let Some(normalized_target) =
+            self.normalize_conditional_for_assignability(module, profile, target_id, symbols, types)
+        {
+            return self.is_type_assignable(
                 module,
                 profile,
-                target_id,
                 symbols,
-                types,
-                NormalizationMode::Flow,
-            );
-            if normalized_target != target_id {
-                return self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    normalized_target,
-                    source_id,
-                    types,
-                    options,
-                );
-            }
-        }
-        if matches!(source, Type::Conditional { .. }) {
-            let normalized_source = self.normalize_type(
-                module,
-                profile,
+                normalized_target,
                 source_id,
-                symbols,
                 types,
-                NormalizationMode::Flow,
+                options,
             );
-            if normalized_source != source_id {
-                return self.is_type_assignable(
-                    module,
-                    profile,
-                    symbols,
-                    target_id,
-                    normalized_source,
-                    types,
-                    options,
-                );
-            }
+        }
+
+        // normalize conditional sources that can be resolved in flow mode
+        if let Some(normalized_source) =
+            self.normalize_conditional_for_assignability(module, profile, source_id, symbols, types)
+        {
+            return self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                target_id,
+                normalized_source,
+                types,
+                options,
+            );
         }
 
         // infer targets: treat as wildcard with optional constraints
@@ -500,6 +470,49 @@ impl Compiler {
                 if !self.array_readonly_assignable(target_readonly, source_readonly) {
                     return Assignability::NotAssignable;
                 }
+                Assignability::Assignable
+            }
+
+            // fixed array from tuple literal
+            (
+                Type::ArraySized {
+                    element: target_elem,
+                    count: target_count,
+                    is_readonly: target_readonly,
+                },
+                Type::Tuple {
+                    elements: source_elements,
+                    is_readonly: source_readonly,
+                },
+            ) => {
+                if !self.array_readonly_assignable(target_readonly, source_readonly) {
+                    return Assignability::NotAssignable;
+                }
+
+                if !self.array_sized_count_matches_length(
+                    target_count,
+                    source_elements.len(),
+                    types,
+                ) {
+                    return Assignability::NotAssignable;
+                }
+
+                for element in source_elements {
+                    if element.is_rest
+                        || self.is_type_assignable(
+                            module,
+                            profile,
+                            symbols,
+                            target_elem,
+                            element.ty,
+                            types,
+                            options,
+                        ) == Assignability::NotAssignable
+                    {
+                        return Assignability::NotAssignable;
+                    }
+                }
+
                 Assignability::Assignable
             }
 
@@ -1854,6 +1867,29 @@ impl Compiler {
         target_value == source_value
     }
 
+    /// Check whether a fixed array count matches a literal length.
+    fn array_sized_count_matches_length(
+        &self,
+        count: LocalNodeId<Expression>,
+        length: usize,
+        types: &TypeTable,
+    ) -> bool {
+        let count_global = count.into_global_any(types.module_id);
+        let Some(count_ty_id) = types.get_inferred_type_id(count_global) else {
+            return false;
+        };
+
+        let count_ty = types.get_type(count_ty_id);
+        let Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(value)),
+        } = count_ty
+        else {
+            return false;
+        };
+
+        *value == length as i64
+    }
+
     /// Expand type alias references that include static arguments.
     fn expand_assignability_alias_reference(
         &self,
@@ -2425,6 +2461,65 @@ impl Compiler {
         }
 
         false
+    }
+
+    /// Normalize a conditional type for assignability when it resolves in flow mode.
+    fn normalize_conditional_for_assignability(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        type_id: LocalTypeId,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // only conditional types participate in flow normalization
+        if !matches!(types.get_type(type_id), Type::Conditional { .. }) {
+            return None;
+        }
+
+        // normalize in flow mode to resolve conditionals
+        let normalized = self.normalize_type(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            NormalizationMode::Flow,
+        );
+        if normalized == type_id {
+            return None;
+        }
+
+        Some(normalized)
+    }
+
+    /// Check whether enum backing coercions are disallowed for assignability.
+    fn blocks_enum_backing_assignability(
+        &self,
+        source: &Type,
+        target: &Type,
+        types: &TypeTable,
+    ) -> bool {
+        // only reject enum backing coercions
+        if self.enum_symbol_for_type(source, types).is_none() {
+            return false;
+        }
+
+        matches!(
+            target,
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(
+                    PrimitiveType::Number
+                        | PrimitiveType::Int(_)
+                        | PrimitiveType::Float(_)
+                        | PrimitiveType::String
+                )
+            } | Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(
+                    ScalarLiteral::Integer(_) | ScalarLiteral::String(_)
+                )
+            }
+        )
     }
 }
 

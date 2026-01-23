@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeResult, Compiler};
 use destack_dir::{
-    Argument, BinaryOperator, BindingKind, Declaration, DynamicKey, EnumFieldValue, Expression,
-    FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Mutability, NodeTree, PrimitiveType, Property, Resolution, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticParameterKind, SymbolTable, Type, TypeElement,
-    TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable, TypeUnaryOperator,
-    UnaryOperator,
+    Argument, BinaryOperator, BindingKind, Declaration, DependencyItem, DynamicKey, EnumFieldValue,
+    Expression, FunctionMode, FunctionSignature, GlobalSymbolId, IntrinsicType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, NodeType, PrimitiveType, Property,
+    Resolution, ScalarLiteral, StaticArgument, StaticExpression, StaticParameterKind, SymbolTable,
+    Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeMappedParameter, TypeTable,
+    TypeUnaryOperator, UnaryOperator,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -119,12 +119,11 @@ impl Compiler {
     ) -> AnalyzeResult<Type> {
         // reuse cached declared types when requested
         let global_node_id = expression_id.into_global_any(module.id);
-        if use_declared_cache {
-            if let Some(existing) = types.get_declared_type_id(global_node_id)
-                && !matches!(types.get_type(existing), Type::Unevaluated(_))
-            {
-                return Ok(types.get_type(existing).clone());
-            }
+        if use_declared_cache
+            && let Some(existing) = types.get_declared_type_id(global_node_id)
+            && !matches!(types.get_type(existing), Type::Unevaluated(_))
+        {
+            return Ok(types.get_type(existing).clone());
         }
 
         // avoid recursive evaluation loops
@@ -304,6 +303,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> bool {
+        // resolve the referenced symbol first
         let (Expression::LocalReference { target_symbol, .. }
         | Expression::ModuleReference { target_symbol, .. }
         | Expression::GlobalReference { target_symbol, .. }) = tree.get(expression_id)
@@ -311,19 +311,83 @@ impl Compiler {
             return false;
         };
 
-        if let Some(kind) = types.get_static_parameter_kind(*target_symbol) {
+        // prefer local symbol tables for local references
+        if target_symbol.module_id == module.id {
+            return self.is_static_value_parameter_reference_in_symbols(
+                module,
+                profile,
+                *target_symbol,
+                expression_id,
+                symbols,
+                types,
+            );
+        }
+
+        // use the owning module to avoid indexing the wrong symbol table
+        let remote_module = self.program.modules.get(target_symbol.module_id);
+        let remote_module = remote_module.read();
+        let remote_symbols = remote_module.dir(profile).symbols.read();
+        self.is_static_value_parameter_reference_in_symbols(
+            &remote_module,
+            profile,
+            *target_symbol,
+            expression_id,
+            &remote_symbols,
+            types,
+        )
+    }
+
+    /// Check whether a symbol is a static value parameter within a symbol table.
+    fn is_static_value_parameter_reference_in_symbols(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        target_symbol: GlobalSymbolId,
+        expression_id: LocalNodeId<Expression>,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> bool {
+        // ensure the symbol is a static parameter
+        let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+        if !symbol_entry.is_static_parameter() {
+            return false;
+        }
+
+        // honor cached kinds first
+        if let Some(kind) = types.get_static_parameter_kind(target_symbol) {
             return kind == StaticParameterKind::Value;
         }
 
+        // check declared constraint hints
         let constraint_kind = self.static_parameter_kind_hint(
             module,
             profile,
-            *target_symbol,
+            target_symbol,
             expression_id.into_any(),
             symbols,
             types,
         );
-        matches!(constraint_kind, Some(StaticParameterKind::Value))
+        if matches!(constraint_kind, Some(StaticParameterKind::Value)) {
+            return true;
+        }
+
+        // fall back to declared parameter constraints when hints are missing
+        let symbol = symbols.get_symbol(target_symbol.local_id);
+        let Some(primary_declaration) = symbol.primary_declaration else {
+            return false;
+        };
+        let Some(declared_type_id) = types.get_declared_type_id(primary_declaration) else {
+            return false;
+        };
+
+        self.static_parameter_kind_is_value_like(
+            module,
+            profile,
+            declared_type_id,
+            expression_id.into_any(),
+            symbols,
+            types,
+        )
     }
 
     /// Try to evaluate an Expression as a Type id.
@@ -493,30 +557,8 @@ impl Compiler {
                 continue;
             }
 
-            // fall back to resolving the argument type
-            let resolved = self.evaluate_expression_to_type(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-                true,
-                true,
-            )?;
-
             // keep unevaluated arguments so later phases can resolve them
-            let Some(resolved) = resolved else {
-                evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
-                continue;
-            };
-
-            // treat resolved types as static arguments
-            let ty_id = types.insert_type_from(resolved, expression_id);
-            evaluated_arguments.push(StaticArgument::Evaluated {
-                name,
-                value: StaticExpression::Type { ty: ty_id },
-            });
+            evaluated_arguments.push(StaticArgument::Unevaluated { node: *argument_id });
         }
 
         Ok(Some(evaluated_arguments))
@@ -618,6 +660,7 @@ impl Compiler {
         types: &mut TypeTable,
         enum_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
+        let mut visited = HashSet::new();
         self.evaluate_static_expression_value_inner(
             module,
             profile,
@@ -626,6 +669,7 @@ impl Compiler {
             symbols,
             types,
             enum_symbol,
+            &mut visited,
         )
     }
 
@@ -640,6 +684,7 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         enum_symbol: Option<GlobalSymbolId>,
+        visited: &mut HashSet<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticExpression>> {
         let expression = tree.get(expression_id);
 
@@ -660,6 +705,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 );
             }
             Expression::Cast { value, .. } => {
@@ -671,6 +717,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 );
             }
             Expression::OwnershipCast { value, .. } => {
@@ -682,6 +729,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 );
             }
             Expression::Unary { operator, right } => {
@@ -693,6 +741,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 )?;
                 let Some(StaticExpression::ScalarLiteral { value }) = right_value else {
                     return Ok(None);
@@ -723,6 +772,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 )?;
                 let right_value = self.evaluate_static_expression_value_inner(
                     module,
@@ -732,6 +782,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 )?;
                 let (left_value, right_value) = match (left_value, right_value) {
                     (
@@ -805,11 +856,40 @@ impl Compiler {
                     return Ok(Some(StaticExpression::Type { ty }));
                 }
 
+                // unwrap import/export dependency items before canonicalizing
+                let mut lookup_symbol = *target_symbol;
+                if lookup_symbol.module_id == module.id {
+                    let symbol_entry = symbols.get_symbol(lookup_symbol.local_id);
+                    if let Some(primary_declaration) = symbol_entry.primary_declaration
+                        && primary_declaration.local_id.ty == NodeType::DependencyItem
+                    {
+                        let item_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+                        if let DependencyItem::Local { target_symbol, .. }
+                        | DependencyItem::Remote { target_symbol, .. } = tree.get(item_id)
+                        {
+                            lookup_symbol = *target_symbol;
+                        }
+                    }
+                }
+
+                if let Some(value) = self.static_expression_from_constant_reference(
+                    module,
+                    profile,
+                    lookup_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )? {
+                    return Ok(Some(value));
+                }
+
                 let Some(enum_symbol) = enum_symbol else {
                     return Ok(None);
                 };
                 let value = self.enum_field_value_for_symbol_reference(
                     module,
+                    profile,
                     enum_symbol,
                     *target_symbol,
                     symbols,
@@ -826,7 +906,7 @@ impl Compiler {
                 }
             }
             Expression::Member {
-                left,
+                left: _,
                 name,
                 static_arguments,
             } => {
@@ -846,20 +926,14 @@ impl Compiler {
                     };
                     candidate.target_symbol
                 } else {
-                    let left_symbol = match tree.get(*left) {
-                        Expression::LocalReference { target_symbol, .. }
-                        | Expression::ModuleReference { target_symbol, .. }
-                        | Expression::GlobalReference { target_symbol, .. } => *target_symbol,
-                        _ => return Ok(None),
-                    };
-
-                    if left_symbol != enum_symbol {
-                        return Ok(None);
-                    }
-
-                    let Some(field_symbol) =
-                        self.enum_field_symbol_for_name(module, enum_symbol, *name, tree, symbols)
-                    else {
+                    let Some(field_symbol) = self.enum_field_symbol_for_name(
+                        module,
+                        profile,
+                        enum_symbol,
+                        *name,
+                        tree,
+                        symbols,
+                    ) else {
                         return Ok(None);
                     };
 
@@ -868,6 +942,7 @@ impl Compiler {
 
                 let value = self.enum_field_value_for_symbol_reference(
                     module,
+                    profile,
                     enum_symbol,
                     target_symbol,
                     symbols,
@@ -896,6 +971,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 )?;
                 let end_value = self.evaluate_static_expression_value_inner(
                     module,
@@ -905,6 +981,7 @@ impl Compiler {
                     symbols,
                     types,
                     enum_symbol,
+                    visited,
                 )?;
 
                 let (Some(start_value), Some(end_value)) = (start_value, end_value) else {
@@ -939,6 +1016,7 @@ impl Compiler {
                         symbols,
                         types,
                         enum_symbol,
+                        visited,
                     )?;
                     let Some(value) = value else {
                         return Ok(None);
@@ -961,6 +1039,7 @@ impl Compiler {
                         symbols,
                         types,
                         enum_symbol,
+                        visited,
                     )?;
                     let Some(value) = value else {
                         return Ok(None);
@@ -974,6 +1053,186 @@ impl Compiler {
         };
 
         Ok(Some(value))
+    }
+
+    /// Resolve constant bindings into static expressions when possible.
+    fn static_expression_from_constant_reference(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        visited: &mut HashSet<GlobalSymbolId>,
+    ) -> AnalyzeResult<Option<StaticExpression>> {
+        // evaluate using the owning module context
+        if symbol.module_id != module.id {
+            self.require_analyze_module_infer(symbol.module_id, profile)
+                .map_err(AnalyzeError::from)?;
+
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_dir = remote_module.dir(profile);
+            let remote_tree = remote_dir.tree.read();
+            let remote_symbols = remote_dir.symbols.read();
+            let mut remote_types = remote_dir.types.write();
+            return self.static_expression_from_constant_reference(
+                &remote_module,
+                profile,
+                symbol,
+                &remote_tree,
+                &remote_symbols,
+                &mut remote_types,
+                visited,
+            );
+        }
+
+        // avoid recursive constant evaluation
+        if !visited.insert(symbol) {
+            return Ok(None);
+        }
+
+        // ensure dependency items are resolved before evaluating local constants
+        if symbol.module_id == module.id {
+            self.require_resolve_module_direct(module.id, profile)
+                .map_err(AnalyzeError::from)?;
+        }
+
+        let value = if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(module, symbol, tree, symbols)
+        {
+            let declarator = tree.get(declarator_id);
+
+            // require immutable bindings for static arguments
+            let parent_id = tree.get_parent(declarator_id.id);
+            let Some(parent_id) = parent_id else {
+                visited.remove(&symbol);
+                return Ok(None);
+            };
+            if parent_id.ty != NodeType::Expression {
+                visited.remove(&symbol);
+                return Ok(None);
+            }
+
+            let expression_id = parent_id.into_typed::<Expression>();
+            let Expression::Let { mutability, .. } = tree.get(expression_id) else {
+                visited.remove(&symbol);
+                return Ok(None);
+            };
+            if *mutability != Mutability::Immutable {
+                visited.remove(&symbol);
+                return Ok(None);
+            }
+
+            // evaluate the initializer as a static expression
+            let Some(value_id) = declarator.value else {
+                visited.remove(&symbol);
+                return Ok(None);
+            };
+            self.evaluate_static_expression_value_inner(
+                module, profile, value_id, tree, symbols, types, None, visited,
+            )?
+        } else {
+            let symbol_entry = symbols.get_symbol(symbol.local_id);
+
+            // follow export/import dependency targets when available
+            if let Some(primary_declaration) = symbol_entry.primary_declaration
+                && primary_declaration.local_id.ty == NodeType::DependencyItem
+                && let item_id = primary_declaration.local_id.into_typed::<DependencyItem>()
+                && let DependencyItem::Local { target_symbol, .. }
+                | DependencyItem::Remote { target_symbol, .. } = tree.get(item_id)
+                && let Some(value) = self.static_expression_from_constant_reference(
+                    module,
+                    profile,
+                    *target_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )?
+            {
+                visited.remove(&symbol);
+                return Ok(Some(value));
+            }
+
+            // follow export expressions that wrap dependency items
+            if let Some(primary_declaration) = symbol_entry.primary_declaration
+                && primary_declaration.local_id.ty == NodeType::Expression
+            {
+                let expression_id = primary_declaration.local_id.into_typed::<Expression>();
+                if let Expression::Export { items, .. } = tree.get(expression_id) {
+                    for item_id in items {
+                        match tree.get(*item_id) {
+                            DependencyItem::Local {
+                                symbol: Some(local_symbol),
+                                target_symbol,
+                                ..
+                            }
+                            | DependencyItem::Remote {
+                                symbol: Some(local_symbol),
+                                target_symbol,
+                                ..
+                            } if *local_symbol == symbol.local_id => {
+                                if let Some(value) = self
+                                    .static_expression_from_constant_reference(
+                                        module,
+                                        profile,
+                                        *target_symbol,
+                                        tree,
+                                        symbols,
+                                        types,
+                                        visited,
+                                    )?
+                                {
+                                    visited.remove(&symbol);
+                                    return Ok(Some(value));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            if let Some(target_symbol) = symbol_entry.target_symbol {
+                self.static_expression_from_constant_reference(
+                    module,
+                    profile,
+                    target_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )?
+            } else if let Some(canonical_symbol) = symbol_entry.canonical_symbol {
+                self.static_expression_from_constant_reference(
+                    module,
+                    profile,
+                    canonical_symbol,
+                    tree,
+                    symbols,
+                    types,
+                    visited,
+                )?
+            } else {
+                // fall back to inferred literal value types
+                if let Some(value_type_id) = types.get_value_type_id(symbol)
+                    && let Type::TypeLiteral {
+                        value: TypeLiteral::ScalarLiteral(value),
+                    } = types.get_type(value_type_id)
+                {
+                    Some(StaticExpression::ScalarLiteral {
+                        value: value.clone(),
+                    })
+                } else {
+                    None
+                }
+            }
+        };
+
+        visited.remove(&symbol);
+        Ok(value)
     }
 
     /// Evaluate an Expression into a Type with validation controls.
@@ -1269,9 +1528,8 @@ impl Compiler {
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                let distributive_symbol = self.conditional_left_distributive_symbol(
-                    module, profile, left_id, symbols, types,
-                );
+                let distributive_symbol = self
+                    .conditional_left_distributive_symbol(module, profile, left_id, symbols, types);
                 let should_validate_branches = !self.type_contains_static_parameters(
                     module,
                     profile,
@@ -1597,6 +1855,31 @@ impl Compiler {
                 static_arguments,
                 ..
             } => {
+                // follow dependency items for local imports before canonicalization
+                let mut target_symbol = target_symbol;
+                if target_symbol.module_id == module.id {
+                    let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+                    if let Some(primary_declaration) = symbol_entry.primary_declaration
+                        && primary_declaration.local_id.ty == NodeType::DependencyItem
+                    {
+                        let item_id = primary_declaration.local_id.into_typed::<DependencyItem>();
+                        if let DependencyItem::Local {
+                            target_symbol: dependency_target,
+                            ..
+                        }
+                        | DependencyItem::Remote {
+                            target_symbol: dependency_target,
+                            ..
+                        } = tree.get(item_id)
+                        {
+                            target_symbol = *dependency_target;
+                        }
+                    }
+                }
+
+                // align the reference to the stored symbol type before canonicalization
+                let target_symbol = self.typed_symbol_id(module, profile, target_symbol, symbols);
+
                 // resolve import targets without collapsing type aliases
                 let target_symbol = self.canonical_symbol_id(
                     module,
@@ -1609,6 +1892,7 @@ impl Compiler {
                 // prefer merged type symbols for namespaces
                 let target_symbol =
                     self.merged_type_symbol_id(module, symbols, profile, target_symbol);
+                let target_symbol = self.typed_symbol_id(module, profile, target_symbol, symbols);
                 let static_arguments = self.evaluate_static_arguments(
                     module,
                     profile,
@@ -2094,14 +2378,7 @@ impl Compiler {
             let declarator = tree.get(declarator_id);
             if let Some(value_id) = declarator.value {
                 let ty = self.try_evaluate_expression_to_type_value_with_controls(
-                    module,
-                    profile,
-                    value_id,
-                    tree,
-                    symbols,
-                    types,
-                    true,
-                    true,
+                    module, profile, value_id, tree, symbols, types, true, true,
                 )?;
                 if !matches!(ty, Type::Unevaluated(_)) {
                     return Ok(ty);
