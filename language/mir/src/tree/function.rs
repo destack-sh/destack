@@ -205,7 +205,7 @@ pub struct Function {
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
     /// SSA value types by value id.
-    pub value_types: Vec<Option<LocalNodeId<Type>>>,
+    pub value_types: Vec<LocalNodeId<Type>>,
     /// The return type.
     pub return_type: LocalNodeId<Type>,
     /// Lifetime bounds for the return value.
@@ -329,7 +329,7 @@ impl Function {
 
     /// Get the type for an SSA value.
     pub fn value_type(&self, value: Value) -> Option<LocalNodeId<Type>> {
-        self.value_types.get(value.0 as usize).copied().flatten()
+        self.value_types.get(value.0 as usize).copied()
     }
 
     /// Get the type for an SSA value or panic if missing.
@@ -343,29 +343,42 @@ impl Function {
 
     /// Record the type for an SSA value.
     pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+        // append at the end is okay
         let index = value.0 as usize;
-        if self.value_types.len() <= index {
-            self.value_types.resize(index + 1, None);
+        if index == self.value_types.len() {
+            self.value_types.push(ty);
+            return;
         }
-        self.value_types[index] = Some(ty);
+
+        // idempotent set is okay
+        if index < self.value_types.len() {
+            let existing = self.value_types[index];
+            if existing == ty {
+                return;
+            }
+
+            panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+        }
+
+        panic!("value type index {index} exceeds next value id");
     }
 
     /// Seed the value type table from typed parameters.
-    fn seed_value_types(
-        parameters: &[TypedValue],
-        next_value_id: u32,
-    ) -> Vec<Option<LocalNodeId<Type>>> {
+    fn seed_value_types(parameters: &[TypedValue], next_value_id: u32) -> Vec<LocalNodeId<Type>> {
         // initialize the type table with the next value id
-        let mut value_types = vec![None; next_value_id as usize];
+        let mut value_types = Vec::with_capacity(next_value_id as usize);
+        let mut ordered: Vec<_> = parameters.iter().collect();
+        ordered.sort_by_key(|param| param.value.0);
 
         // populate parameter types by their value ids
-        for param in parameters {
-            let index = param.value.0 as usize;
-            if index >= value_types.len() {
-                value_types.resize(index + 1, None);
+        for (expected, param) in ordered.into_iter().enumerate() {
+            if param.value.0 as usize != expected {
+                panic!("missing value type for v{expected}");
             }
-            value_types[index] = Some(param.ty);
+
+            value_types.push(param.ty);
         }
+
         value_types
     }
 
@@ -442,7 +455,10 @@ impl Function {
             }
         }
 
-        self.next_value_id = max_id + 1;
+        // avoid reusing value ids when blocks were removed
+        let computed_next = max_id + 1;
+        let min_next = self.value_types.len() as u32;
+        self.next_value_id = self.next_value_id.max(computed_next).max(min_next);
     }
 
     /// Add a local variable and return its id.

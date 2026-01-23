@@ -149,14 +149,14 @@ block0(v0: u32, v1: ref<managed void>):
     v2: bool = icmp_eq v0, v0
     check v2, type v0, i32, block1, block4
 block1:
-    v5: bool = icmp_eq v0, v0
-    check v5, union v0, 1, block4, block5
-block2:
     v3: bool = icmp_eq v0, v0
-    check v3, vtable v1, i32, block2, block4
-block3:
+    check v3, union v0, 1, block4, block5
+block2:
     v4: bool = icmp_eq v0, v0
-    check v4, itab v1, 0, block3, block5
+    check v4, vtable v1, i32, block2, block4
+block3:
+    v5: bool = icmp_eq v0, v0
+    check v5, itab v1, 0, block3, block5
 block4:
     v6: i32 = iconst 0i32
     return v6
@@ -209,25 +209,30 @@ block0(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_ref<borr
     v6: vector<i32, 4> = vector.insert v4, v1, v1
     v7: vector<i32, 4> = vector.shuffle v4, v6, [0, 1, 2, 3]
     v8: i32 = vector.reduce add, v7
-    v9: i32 = iconst 0i32
-    v10: i32 = iconst 1i32
-    v11: i32 = tensor.load v3, [v9, v10]
-    tensor.store v3, [v10, v9], v11
-    tensor.fill v3, v9
+    v9: vector<bool, 4> = vector.compare icmp_eq, v4, v6
+    v10: vector<i32, 4> = vector.convert exact, v4
+    v11: i32 = iconst 0i32
+    v12: i32 = iconst 1i32
+    v13: i32 = tensor.load v3, [v11, v12]
+    tensor.store v3, [v12, v11], v13
+    tensor.fill v3, v11
     tensor.copy v3, v3
-    v12: tensor<i32, [2, 2]> = tensor.reshape v2, [v9, v10]
-    v13: tensor<i32, [2, 2]> = tensor.broadcast v2, [0, 1]
-    v14: tensor<i32, [2, 2]> = tensor.transpose v2, [1, 0]
-    v15: tensor<i32, [2, 2]> = tensor.slice v2, offsets=[v9, v9], sizes=[v10, v10], strides=[v10, v10]
-    v16: tensor<i32, [2, 2]> = tensor.pad v2, value=v9, low=[v9, v9], high=[v9, v9], interior=[v9, v9]
-    v17: tensor<i32, [2, 2]> = tensor.concat [v2, v2], axis=0
-    v18: tensor<i32, [2, 2]> = tensor.reduce add, v2, v9, axes=[0]
-    v19: tensor<i32, [2, 2]> = tensor.dot v2, v2, dims(lhs_batch=[], rhs_batch=[], lhs_contract=[1], rhs_contract=[0])
-    v20: tensor<i32, [2, 2]> = tensor.convolution v2, v2, dims(input_batch=0, input_feature=1, input_spatial=[2, 3], kernel_input_feature=0, kernel_output_feature=1, kernel_spatial=[2, 3], output_batch=0, output_feature=1, output_spatial=[2, 3]), strides=[1, 1], padding_low=[0, 0], padding_high=[0, 0], lhs_dilation=[1, 1], rhs_dilation=[1, 1], window_reversal=[false, false], feature_group=1, batch_group=1
-    v21: tensor<i32, [2, 2]> = tensor.gather v2, v2, dims(offset_dims=[0], collapsed_slice_dims=[1], start_index_map=[0], index_vector_dim=1), slice_sizes=[1, 1]
-    v22: tensor<i32, [2, 2]> = tensor.scatter v2, v2, v2, dims(update_window_dims=[0], inserted_window_dims=[1], scatter_dims_to_operand_dims=[0], index_vector_dim=1), mode=replace
-    v23: tensor<i32, [2, 2]> = tensor.convert v2
-    return v12
+    v14: tensor<i32, [2, 2]> = tensor.reshape v2, [v11, v12]
+    v15: tensor<i32, [2, 2]> = tensor.broadcast v2, [0, 1]
+    v16: tensor<i32, [2, 2]> = tensor.transpose v2, [1, 0]
+    v17: tensor<i32, [2, 2]> = tensor.cast v2
+    v18: tensor_ref<borrowed i32, [2, 2]> = tensor.view v3, offsets=[v11, v11], sizes=[v12, v12], strides=[v12, v12]
+    v19: tensor<i32, [2, 2]> = tensor.slice v2, offsets=[v11, v11], sizes=[v12, v12], strides=[v12, v12]
+    v20: tensor<i32, [2, 2]> = tensor.pad v2, value=v11, low=[v11, v11], high=[v11, v11], interior=[v11, v11]
+    v21: tensor<i32, [2, 2]> = tensor.concat [v2, v2], axis=0
+    v22: tensor<bool, [2, 2]> = tensor.compare icmp_eq, v2, v2
+    v23: tensor<i32, [2, 2]> = tensor.reduce add, v2, v11, axes=[0]
+    v24: tensor<i32, [2, 2]> = tensor.dot v2, v2, dims(lhs_batch=[], rhs_batch=[], lhs_contract=[1], rhs_contract=[0])
+    v25: tensor<i32, [2, 2]> = tensor.convolution v2, v2, dims(input_batch=0, input_feature=1, input_spatial=[2, 3], kernel_input_feature=0, kernel_output_feature=1, kernel_spatial=[2, 3], output_batch=0, output_feature=1, output_spatial=[2, 3]), strides=[1, 1], padding_low=[0, 0], padding_high=[0, 0], lhs_dilation=[1, 1], rhs_dilation=[1, 1], window_reversal=[false, false], feature_group=1, batch_group=1
+    v26: tensor<i32, [2, 2]> = tensor.gather v2, v2, dims(offset_dims=[0], collapsed_slice_dims=[1], start_index_map=[0], index_vector_dim=1), slice_sizes=[1, 1]
+    v27: tensor<i32, [2, 2]> = tensor.scatter v2, v2, v2, dims(update_window_dims=[0], inserted_window_dims=[1], scatter_dims_to_operand_dims=[0], index_vector_dim=1), mode=replace
+    v28: tensor<f32, [2, 2]> = tensor.convert exact, v2
+    return v14
 }"#,
     );
 }

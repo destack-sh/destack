@@ -1122,8 +1122,7 @@ fn test_ssa_passthrough_intermediate_block() {
     let (tree, strings) = module.finish_immutable();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
-    // expected: block3 passes the updated x (v5) from block2 to block1
-    // note: v3 is "skipped" because a trivial phi was allocated and removed for block3
+    // expected: block3 passes the updated x (v4) from block2 to block1
     // note: block3 has no block parameter since it has only one predecessor
     let expected = "\
 function @passthrough(v0: bool) -> i32 {
@@ -1133,11 +1132,11 @@ block0(v0: bool):
 block1(v2: i32):
     branch v0, block2, block4
 block2:
-    v4: i32 = iconst 10i32
-    v5: i32 = iadd v2, v4
+    v3: i32 = iconst 10i32
+    v4: i32 = iadd v2, v3
     jump block3
 block3:
-    jump block1(v5)
+    jump block1(v4)
 block4:
     return v2
 }";

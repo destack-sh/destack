@@ -8,8 +8,9 @@ use crate::{
     AtomicScope, BinaryOperator, CallEffects, Constant, Function, Global, Intrinsic, Local,
     LocalNodeId, MemoryOrdering, MemoryScope, MemorySemantics, Node, NodeType,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
-    TensorScatterMode, Type, UnaryOperator, Value, VectorReduceOperator,
+    TensorConvertMode, TensorGatherDimensionNumbers, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, Type, UnaryOperator, Value,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -340,6 +341,30 @@ pub enum Instruction {
         /// The vector value to reduce.
         vector: Value,
     },
+    /// Compare two vectors elementwise.
+    ///
+    /// The result is a vector of boolean lanes.
+    VectorCompare {
+        /// The SSA value to define with the comparison result.
+        destination: Value,
+        /// The comparison operator to apply.
+        operator: BinaryOperator,
+        /// The left vector operand.
+        left: Value,
+        /// The right vector operand.
+        right: Value,
+    },
+    /// Convert vector element types with an explicit mode.
+    ///
+    /// The result must have the same lane count as the input.
+    VectorConvert {
+        /// The SSA value to define with the converted vector.
+        destination: Value,
+        /// The conversion mode to apply.
+        mode: VectorConvertMode,
+        /// The vector value to convert.
+        vector: Value,
+    },
 
     // tensor operations (tensor.*)
     /// Load a tensor element from a tensor reference.
@@ -401,6 +426,28 @@ pub enum Instruction {
         /// The permutation of dimensions.
         permutation: Vec<u32>,
     },
+    /// Refine a tensor type without changing its contents.
+    TensorCast {
+        /// The SSA value to define with the cast tensor.
+        destination: Value,
+        /// The tensor value to cast.
+        tensor: Value,
+    },
+    /// Create a view into a tensor reference.
+    TensorView {
+        /// The SSA value to define with the view result.
+        destination: Value,
+        /// The tensor reference to view.
+        view: Value,
+        /// The view arguments (offsets, sizes, strides) stored in NodeTree's argument buffer.
+        arguments: ArgumentSlice,
+        /// The number of offset values.
+        offsets_count: u16,
+        /// The number of size values.
+        sizes_count: u16,
+        /// The number of stride values.
+        strides_count: u16,
+    },
     /// Slice a tensor by offsets, sizes, and strides.
     TensorSlice {
         /// The SSA value to define with the sliced tensor.
@@ -441,6 +488,19 @@ pub enum Instruction {
         tensors: ArgumentSlice,
         /// The concatenation axis.
         axis: u32,
+    },
+    /// Compare two tensors elementwise.
+    ///
+    /// The result is a tensor with boolean element type and matching shape.
+    TensorCompare {
+        /// The SSA value to define with the comparison result.
+        destination: Value,
+        /// The comparison operator to apply.
+        operator: BinaryOperator,
+        /// The left tensor operand.
+        left: Value,
+        /// The right tensor operand.
+        right: Value,
     },
     /// Reduce a tensor along axes with a fixed operator.
     TensorReduce {
@@ -512,9 +572,13 @@ pub enum Instruction {
         mode: TensorScatterMode,
     },
     /// Convert a tensor element type.
+    ///
+    /// The result must have the same shape as the input.
     TensorConvert {
         /// The SSA value to define with the converted tensor.
         destination: Value,
+        /// The conversion mode to apply.
+        mode: TensorConvertMode,
         /// The tensor value to convert.
         tensor: Value,
     },
@@ -718,6 +782,8 @@ impl Instruction {
             Instruction::VectorInsert { destination, .. } => Some(*destination),
             Instruction::VectorShuffle { destination, .. } => Some(*destination),
             Instruction::VectorReduce { destination, .. } => Some(*destination),
+            Instruction::VectorCompare { destination, .. } => Some(*destination),
+            Instruction::VectorConvert { destination, .. } => Some(*destination),
             Instruction::TensorLoad { destination, .. } => Some(*destination),
             Instruction::TensorStore { .. } => None,
             Instruction::TensorFill { .. } => None,
@@ -725,9 +791,12 @@ impl Instruction {
             Instruction::TensorReshape { destination, .. } => Some(*destination),
             Instruction::TensorBroadcast { destination, .. } => Some(*destination),
             Instruction::TensorTranspose { destination, .. } => Some(*destination),
+            Instruction::TensorCast { destination, .. } => Some(*destination),
+            Instruction::TensorView { destination, .. } => Some(*destination),
             Instruction::TensorSlice { destination, .. } => Some(*destination),
             Instruction::TensorPad { destination, .. } => Some(*destination),
             Instruction::TensorConcat { destination, .. } => Some(*destination),
+            Instruction::TensorCompare { destination, .. } => Some(*destination),
             Instruction::TensorReduce { destination, .. } => Some(*destination),
             Instruction::TensorDot { destination, .. } => Some(*destination),
             Instruction::TensorConvolution { destination, .. } => Some(*destination),
@@ -800,6 +869,8 @@ impl Instruction {
             } => smallvec![*vector, *index, *value],
             Instruction::VectorShuffle { left, right, .. } => smallvec![*left, *right],
             Instruction::VectorReduce { vector, .. } => smallvec![*vector],
+            Instruction::VectorCompare { left, right, .. } => smallvec![*left, *right],
+            Instruction::VectorConvert { vector, .. } => smallvec![*vector],
             Instruction::TensorLoad { view, .. } => smallvec![*view],
             Instruction::TensorStore { view, value, .. } => smallvec![*view, *value],
             Instruction::TensorFill { view, value } => smallvec![*view, *value],
@@ -807,9 +878,12 @@ impl Instruction {
             Instruction::TensorReshape { tensor, .. } => smallvec![*tensor],
             Instruction::TensorBroadcast { tensor, .. } => smallvec![*tensor],
             Instruction::TensorTranspose { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorCast { tensor, .. } => smallvec![*tensor],
+            Instruction::TensorView { view, .. } => smallvec![*view],
             Instruction::TensorSlice { tensor, .. } => smallvec![*tensor],
             Instruction::TensorPad { tensor, value, .. } => smallvec![*tensor, *value],
             Instruction::TensorConcat { .. } => smallvec![],
+            Instruction::TensorCompare { left, right, .. } => smallvec![*left, *right],
             Instruction::TensorReduce {
                 tensor, initial, ..
             } => smallvec![*tensor, *initial],
@@ -859,6 +933,7 @@ impl Instruction {
             Instruction::TensorLoad { indices, .. } => Some(*indices),
             Instruction::TensorStore { indices, .. } => Some(*indices),
             Instruction::TensorReshape { shape, .. } => Some(*shape),
+            Instruction::TensorView { arguments, .. } => Some(*arguments),
             Instruction::TensorSlice { arguments, .. } => Some(*arguments),
             Instruction::TensorPad { arguments, .. } => Some(*arguments),
             Instruction::TensorConcat { tensors, .. } => Some(*tensors),

@@ -1,6 +1,7 @@
 use crate::{
-    AddressSpace, Constant, ExecutionModel, ExecutionStage, GlobalInitializer, MirFormatOptions,
-    ModuleBuilder, Mutability, ReferenceKind, format_mir,
+    AddressSpace, BinaryOperator, Constant, Copyability, ExecutionModel, ExecutionStage,
+    GlobalInitializer, MirFormatOptions, ModuleBuilder, Mutability, ReferenceKind,
+    TensorConvertMode, TensorDimension, TensorLayout, VectorConvertMode, format_mir,
 };
 
 /// Simple add function with two parameters.
@@ -100,6 +101,102 @@ function @local_addr() -> void {
     local0: i32 ; owned, mut
 block0:
     v0: ref<borrowed addrspace(stack) mut i32> = local.addr local0
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// Format vector compare and convert operations.
+#[test]
+fn test_format_vector_compare_and_convert() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let bool_type = module.type_bool();
+    let f32_type = module.type_f32();
+    let vector_i32_type = module.type_vector(i32_type, 4, Copyability::Trivial);
+    let vector_bool_type = module.type_vector(bool_type, 4, Copyability::Trivial);
+    let vector_f32_type = module.type_vector(f32_type, 4, Copyability::Trivial);
+
+    // build function
+    let void_type = module.type_void();
+    let mut builder = module.function("vector_ops", &[], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let scalar_value = builder.iconst_i32(1);
+    let left_vector = builder.vector_splat(vector_i32_type, scalar_value);
+    let right_vector = builder.vector_splat(vector_i32_type, scalar_value);
+    let _comparison = builder.vector_compare(
+        vector_bool_type,
+        BinaryOperator::Equal,
+        left_vector,
+        right_vector,
+    );
+    let _converted =
+        builder.vector_convert(vector_f32_type, VectorConvertMode::Exact, left_vector);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @vector_ops() -> void {
+block0:
+    v0: i32 = iconst 1i32
+    v1: vector<i32, 4> = vector.splat v0
+    v2: vector<i32, 4> = vector.splat v0
+    v3: vector<bool, 4> = vector.compare icmp_eq, v1, v2
+    v4: vector<f32, 4> = vector.convert exact, v1
+    return
+}";
+    assert_eq!(output, expected);
+}
+
+/// Format tensor compare and convert operations.
+#[test]
+fn test_format_tensor_compare_and_convert() {
+    // setup
+    let mut module = ModuleBuilder::new();
+    let i32_type = module.type_i32();
+    let bool_type = module.type_bool();
+    let f32_type = module.type_f32();
+    let shape = vec![TensorDimension::Static(2), TensorDimension::Static(2)];
+    let tensor_i32_type =
+        module.type_tensor(i32_type, shape.clone(), TensorLayout::RowMajor, Copyability::Trivial);
+    let tensor_bool_type =
+        module.type_tensor(bool_type, shape.clone(), TensorLayout::RowMajor, Copyability::Trivial);
+    let tensor_f32_type =
+        module.type_tensor(f32_type, shape, TensorLayout::RowMajor, Copyability::Trivial);
+
+    // build function
+    let void_type = module.type_void();
+    let mut builder = module.function("tensor_ops", &[tensor_i32_type, tensor_i32_type], void_type);
+    let entry_block = builder.create_block();
+    builder.switch_to_block(entry_block);
+    let left_tensor = builder.function_parameter(0);
+    let right_tensor = builder.function_parameter(1);
+    let _comparison = builder.tensor_compare(
+        tensor_bool_type,
+        BinaryOperator::Equal,
+        left_tensor,
+        right_tensor,
+    );
+    let _converted =
+        builder.tensor_convert(tensor_f32_type, TensorConvertMode::Exact, left_tensor);
+    builder.return_(None);
+    builder.seal_block(entry_block);
+    builder.finish();
+
+    // verify formatted output
+    let (tree, strings) = module.finish_immutable();
+    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let expected = "\
+function @tensor_ops(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>) -> void {
+block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
+    v2: tensor<bool, [2, 2]> = tensor.compare icmp_eq, v0, v1
+    v3: tensor<f32, [2, 2]> = tensor.convert exact, v0
     return
 }";
     assert_eq!(output, expected);

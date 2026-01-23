@@ -113,6 +113,8 @@ pub struct MirFormatContext<'a> {
     pub type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     /// Synthetic aliases generated for readability.
     pub synthetic_aliases: Vec<(LocalNodeId<Type>, String)>,
+    /// Map from SSA value to its display index in the current function.
+    pub value_indices: HashMap<Value, usize>,
     /// The function currently being formatted.
     pub current_function: Option<LocalNodeId<Function>>,
 }
@@ -168,6 +170,7 @@ impl<'a> MirFormatContext<'a> {
             global_names,
             type_alias_by_type,
             synthetic_aliases,
+            value_indices: HashMap::new(),
             current_function: None,
         }
     }
@@ -192,6 +195,17 @@ impl<'a> MirFormatContext<'a> {
 
         // fall back to the local id
         id.id as usize
+    }
+
+    /// Get the display index for an SSA value in the current function.
+    pub fn value_index(&self, value: Value) -> usize {
+        // resolve the cached value index when available
+        if let Some(index) = self.value_indices.get(&value) {
+            return *index;
+        }
+
+        // fall back to the raw value id
+        value.0 as usize
     }
 
     /// Get the unique function display name.

@@ -6,7 +6,8 @@ use crate::{Constant, MirFormatContext, MirFormatter, Value};
 
 impl<'a> Format<MirFormatContext<'a>> for Value {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        write!(f, [text(&format!("v{}", self.0))])
+        let index = f.context().value_index(*self);
+        write!(f, [text(&format!("v{index}"))])
     }
 }
 

@@ -201,6 +201,14 @@ impl<'a> Parser<'a> {
     pub(super) fn record_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
         if let Some(function_id) = self.current_function {
             let function = self.tree.get_mut(function_id);
+            let existing = function.value_type(value);
+            if let Some(existing) = existing {
+                if existing != ty {
+                    panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+                }
+                return;
+            }
+
             function.set_value_type(value, ty);
         }
     }

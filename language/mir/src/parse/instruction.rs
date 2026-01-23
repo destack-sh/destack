@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use crate::{
     ArgumentSlice, AtomicScope, BinaryOperator, CastOperator, CheckConstraint, CheckTarget,
     DispatchTableId, Function, Instruction, Intrinsic, LocalNodeId, MemoryLocationSet,
     MemoryOrdering, MemoryScope, MemorySemantics, SwitchCase, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Terminator, Type,
-    UnaryOperator, Value, VectorReduceOperator,
+    TensorConvertMode, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
+    Terminator, Type, UnaryOperator, Value, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::constant::{parse_intrinsic_name, parse_memory_location};
@@ -304,6 +306,29 @@ impl<'a> Parser<'a> {
                     vector,
                 }
             }
+            "vector.compare" => {
+                let operator = self.parse_compare_operator()?;
+                self.eat_token(TokenType::Comma)?;
+                let left = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let right = self.parse_value()?;
+                Instruction::VectorCompare {
+                    destination,
+                    operator,
+                    left,
+                    right,
+                }
+            }
+            "vector.convert" => {
+                let mode = self.parse_vector_convert_mode()?;
+                self.eat_token(TokenType::Comma)?;
+                let vector = self.parse_value()?;
+                Instruction::VectorConvert {
+                    destination,
+                    mode,
+                    vector,
+                }
+            }
 
             // tensor operations
             "tensor.load" => {
@@ -349,6 +374,31 @@ impl<'a> Parser<'a> {
                     destination,
                     tensor,
                     permutation,
+                }
+            }
+            "tensor.cast" => {
+                let tensor = self.parse_value()?;
+                Instruction::TensorCast { destination, tensor }
+            }
+            "tensor.view" => {
+                let view = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let offsets = self.parse_named_value_list("offsets")?;
+                self.eat_token(TokenType::Comma)?;
+                let sizes = self.parse_named_value_list("sizes")?;
+                self.eat_token(TokenType::Comma)?;
+                let strides = self.parse_named_value_list("strides")?;
+                let arguments = self.pack_tensor_ranges(&offsets, &sizes, &strides)?;
+                let offsets_count = self.parse_u16_count(offsets.len(), "offsets count")?;
+                let sizes_count = self.parse_u16_count(sizes.len(), "sizes count")?;
+                let strides_count = self.parse_u16_count(strides.len(), "strides count")?;
+                Instruction::TensorView {
+                    destination,
+                    view,
+                    arguments,
+                    offsets_count,
+                    sizes_count,
+                    strides_count,
                 }
             }
             "tensor.slice" => {
@@ -406,6 +456,19 @@ impl<'a> Parser<'a> {
                     destination,
                     tensors,
                     axis,
+                }
+            }
+            "tensor.compare" => {
+                let operator = self.parse_compare_operator()?;
+                self.eat_token(TokenType::Comma)?;
+                let left = self.parse_value()?;
+                self.eat_token(TokenType::Comma)?;
+                let right = self.parse_value()?;
+                Instruction::TensorCompare {
+                    destination,
+                    operator,
+                    left,
+                    right,
                 }
             }
             "tensor.reduce" => {
@@ -493,9 +556,12 @@ impl<'a> Parser<'a> {
                 }
             }
             "tensor.convert" => {
+                let mode = self.parse_tensor_convert_mode()?;
+                self.eat_token(TokenType::Comma)?;
                 let tensor = self.parse_value()?;
                 Instruction::TensorConvert {
                     destination,
+                    mode,
                     tensor,
                 }
             }
@@ -987,12 +1053,39 @@ impl<'a> Parser<'a> {
         Ok(operator)
     }
 
+    /// Parse a vector conversion mode.
+    fn parse_vector_convert_mode(&mut self) -> ParseResult<VectorConvertMode> {
+        // parse the mode token
+        let token = self.eat_token(TokenType::Identifier)?;
+        let mode = VectorConvertMode::parse(token.text)
+            .ok_or_else(|| ParseError::invalid("vector convert mode", token.start))?;
+        Ok(mode)
+    }
+
+    /// Parse a tensor conversion mode.
+    fn parse_tensor_convert_mode(&mut self) -> ParseResult<TensorConvertMode> {
+        // parse the mode token
+        let token = self.eat_token(TokenType::Identifier)?;
+        let mode = TensorConvertMode::parse(token.text)
+            .ok_or_else(|| ParseError::invalid("tensor convert mode", token.start))?;
+        Ok(mode)
+    }
+
     /// Parse a tensor reduction operator.
     fn parse_tensor_reduce_operator(&mut self) -> ParseResult<TensorReduceOperator> {
         // parse the operator token
         let token = self.eat_token(TokenType::Identifier)?;
         let operator = TensorReduceOperator::parse(token.text)
             .ok_or_else(|| ParseError::invalid("tensor reduce operator", token.start))?;
+        Ok(operator)
+    }
+
+    /// Parse a comparison operator for vector or tensor operations.
+    fn parse_compare_operator(&mut self) -> ParseResult<BinaryOperator> {
+        // parse the operator token
+        let token = self.eat_token(TokenType::Identifier)?;
+        let operator = BinaryOperator::from_str(token.text)
+            .map_err(|_| ParseError::invalid("comparison operator", token.start))?;
         Ok(operator)
     }
 

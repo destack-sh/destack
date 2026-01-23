@@ -114,7 +114,6 @@ impl<'a> Parser<'a> {
             self.eat_token(TokenType::Colon)?;
             let ty = self.parse_type()?;
             values.push(TypedValue::new(value, ty));
-            self.record_value_type(value, ty);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
