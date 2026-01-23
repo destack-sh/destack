@@ -1,3 +1,4 @@
+use super::argument::InheritedStaticArguments;
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Compiler, InferContext};
 use destack_base::StringId;
@@ -67,7 +68,6 @@ struct MemberVisibilityContext {
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Infer a member access expression.
-    /// NOTE #Cleanup: infer_member_expression has grown too convoluted (esp. the method/function paths)
     pub(super) fn infer_member_expression(
         &self,
         module: &Module,
@@ -93,48 +93,26 @@ impl Compiler {
                 value: TypeLiteral::Any,
             }
         ) {
-            let ty = Type::TypeLiteral {
-                value: TypeLiteral::Any,
-            };
-            return Ok(types.insert_type_from(ty, expression_id));
+            return Ok(self.any_member_access_type(expression_id, types));
         }
 
         // resolve the member key for lookup
         let member_key = StaticKey::Name(member_name);
 
         // handle enum field access early to preserve nominal enum types
-        if let Some(enum_symbol) = self
-            .enum_symbol_for_receiver_symbol(module, left_id, ctx.profile, tree, symbols)
-            .or_else(|| self.enum_symbol_for_type(&left_ty, types))
-        {
-            let enum_field_symbol = self.enum_field_symbol_for_member_key(
-                module,
-                enum_symbol,
-                &member_key,
-                ctx.profile,
-                tree,
-                symbols,
-            )?;
-            if let Some(enum_field_symbol) = enum_field_symbol {
-                let enum_reference = Type::Reference {
-                    symbol: enum_symbol,
-                    static_arguments: None,
-                };
-                let enum_reference_id = types.insert_type_from(enum_reference, expression_id);
-                let resolution = MemberResolution::Static {
-                    symbol: enum_field_symbol,
-                };
-                self.record_member_resolution(
-                    expression_id.into_global_any(module.id),
-                    Some(left_ty_id),
-                    &resolution,
-                    None,
-                    None,
-                    true,
-                    types,
-                );
-                return Ok(enum_reference_id);
-            }
+        if let Some(enum_reference_id) = self.resolve_enum_field_access(
+            module,
+            expression_id,
+            left_id,
+            left_ty_id,
+            &left_ty,
+            &member_key,
+            ctx.profile,
+            tree,
+            symbols,
+            types,
+        )? {
+            return Ok(enum_reference_id);
         }
 
         // ensure instance types are available for reference receivers
@@ -252,12 +230,7 @@ impl Compiler {
         };
 
         // merge inherited and extension substitutions
-        let mut substitutions = inherited.substitutions.clone();
-        if let Some(context) = extension_context.as_ref() {
-            for (symbol, ty_id) in &context.substitutions {
-                substitutions.insert(*symbol, *ty_id);
-            }
-        }
+        let substitutions = self.merge_member_substitutions(&inherited, extension_context.as_ref());
 
         // decide how to filter member lookups for this receiver
         let lookup_mode = self.member_lookup_mode_for_receiver_expression(
@@ -324,6 +297,7 @@ impl Compiler {
                             expression_id.into_any(),
                             member_symbol,
                             Some(static_argument_ids),
+                            None,
                             &static_parameters,
                             &dynamic_parameters,
                             return_type,
@@ -386,21 +360,15 @@ impl Compiler {
                         };
 
                         if let Some(member_symbol) = member_symbol {
-                            let mut instance_arguments = match extension_context.as_ref() {
-                                Some(context) => context.arguments.clone(),
-                                None => inherited.arguments.clone(),
-                            };
-                            instance_arguments.extend(resolved.static_arguments);
-
-                            if !instance_arguments.is_empty() {
-                                let instance_id = self.register_instance_for_node(
-                                    expression_id.into_global_any(module.id),
-                                    member_symbol,
-                                    instance_arguments,
-                                    types,
-                                );
-                                member_instance_id = Some(instance_id);
-                            }
+                            member_instance_id = self.register_member_instance_for_arguments(
+                                module,
+                                expression_id,
+                                member_symbol,
+                                &inherited,
+                                extension_context.as_ref(),
+                                &resolved.static_arguments,
+                                types,
+                            );
                         }
 
                         types.insert_type_from(instantiated_fn, expression_id)
@@ -429,6 +397,7 @@ impl Compiler {
                                 expression_id.into_any(),
                                 member_symbol,
                                 Some(static_argument_ids),
+                                None,
                                 &static_parameters,
                                 &dynamic_parameters,
                                 return_type,
@@ -498,21 +467,15 @@ impl Compiler {
                         }
 
                         if let Some(member_symbol) = member_symbol {
-                            let mut instance_arguments = match extension_context.as_ref() {
-                                Some(context) => context.arguments.clone(),
-                                None => inherited.arguments.clone(),
-                            };
-                            instance_arguments.extend(resolved_static_arguments);
-
-                            if !instance_arguments.is_empty() {
-                                let instance_id = self.register_instance_for_node(
-                                    expression_id.into_global_any(module.id),
-                                    member_symbol,
-                                    instance_arguments,
-                                    types,
-                                );
-                                member_instance_id = Some(instance_id);
-                            }
+                            member_instance_id = self.register_member_instance_for_arguments(
+                                module,
+                                expression_id,
+                                member_symbol,
+                                &inherited,
+                                extension_context.as_ref(),
+                                &resolved_static_arguments,
+                                types,
+                            );
                         }
 
                         if resolved_signatures.is_empty() {
@@ -626,6 +589,119 @@ impl Compiler {
         };
 
         Ok(resolved_member_ty_id)
+    }
+
+    /// Return the member access type for `any` receivers.
+    fn any_member_access_type(
+        &self,
+        expression_id: LocalNodeId<Expression>,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // preserve any when the receiver is any
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::Any,
+        };
+        types.insert_type_from(ty, expression_id)
+    }
+
+    /// Resolve enum field member access when the receiver is an enum.
+    fn resolve_enum_field_access(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        left_id: LocalNodeId<Expression>,
+        left_ty_id: LocalTypeId,
+        left_ty: &Type,
+        member_key: &StaticKey,
+        profile: ProfileId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // select the enum symbol for the receiver
+        let enum_symbol = self
+            .enum_symbol_for_receiver_symbol(module, left_id, profile, tree, symbols)
+            .or_else(|| self.enum_symbol_for_type(left_ty, types));
+        let Some(enum_symbol) = enum_symbol else {
+            return Ok(None);
+        };
+
+        // resolve the enum field symbol for the requested member key
+        let enum_field_symbol = self.enum_field_symbol_for_member_key(
+            module,
+            enum_symbol,
+            member_key,
+            profile,
+            tree,
+            symbols,
+        )?;
+        let Some(enum_field_symbol) = enum_field_symbol else {
+            return Ok(None);
+        };
+
+        // record the member resolution for the enum field
+        let resolution = MemberResolution::Static {
+            symbol: enum_field_symbol,
+        };
+        self.record_member_resolution(
+            expression_id.into_global_any(module.id),
+            Some(left_ty_id),
+            &resolution,
+            None,
+            None,
+            true,
+            types,
+        );
+
+        // return the nominal enum reference type
+        let enum_reference = Type::Reference {
+            symbol: enum_symbol,
+            static_arguments: None,
+        };
+        Ok(Some(types.insert_type_from(enum_reference, expression_id)))
+    }
+
+    /// Merge inherited and extension substitutions for member lookup.
+    fn merge_member_substitutions(
+        &self,
+        inherited: &InheritedStaticArguments,
+        extension_context: Option<&ExtensionMemberContext>,
+    ) -> HashMap<GlobalSymbolId, LocalTypeId> {
+        let mut substitutions = inherited.substitutions.clone();
+        if let Some(context) = extension_context {
+            for (symbol, ty_id) in &context.substitutions {
+                substitutions.insert(*symbol, *ty_id);
+            }
+        }
+        substitutions
+    }
+
+    /// Register instance arguments for a resolved member symbol.
+    fn register_member_instance_for_arguments(
+        &self,
+        module: &Module,
+        expression_id: LocalNodeId<Expression>,
+        member_symbol: GlobalSymbolId,
+        inherited: &InheritedStaticArguments,
+        extension_context: Option<&ExtensionMemberContext>,
+        resolved_arguments: &[StaticArgument],
+        types: &mut TypeTable,
+    ) -> Option<destack_dir::LocalInstanceId> {
+        let mut instance_arguments = match extension_context {
+            Some(context) => context.arguments.clone(),
+            None => inherited.arguments.clone(),
+        };
+        instance_arguments.extend_from_slice(resolved_arguments);
+        if instance_arguments.is_empty() {
+            return None;
+        }
+
+        Some(self.register_instance_for_node(
+            expression_id.into_global_any(module.id),
+            member_symbol,
+            instance_arguments,
+            types,
+        ))
     }
 
     /// Resolve the enum symbol that owns an enum field symbol.

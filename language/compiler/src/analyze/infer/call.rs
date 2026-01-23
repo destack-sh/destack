@@ -6,8 +6,8 @@ use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler
 use destack_dir::{
     Argument, Constraint, Declaration, DispatchKey, Expression, FunctionKind, GlobalSymbolId,
     InferOrigin, InferTable, LocalInstanceId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
-    ResolutionCandidate, ResolvedSignature, ScalarLiteral, StaticArgument, StaticKey,
-    StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    ResolutionCandidate, ResolvedSignature, ScalarLiteral, StaticArgument, StaticExpression,
+    StaticKey, StaticParameterKind, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -198,6 +198,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         callee_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
         signature_ty_id: LocalTypeId,
         call_receiver_ty_id: Option<LocalTypeId>,
         profile: ProfileId,
@@ -222,6 +223,7 @@ impl Compiler {
             expression_id.into_any(),
             callee_symbol,
             static_arguments,
+            dynamic_arguments,
             &static_parameters,
             &dynamic_parameters,
             return_type,
@@ -616,6 +618,7 @@ impl Compiler {
                 expression_id,
                 callee_symbol,
                 static_arguments,
+                Some(dynamic_arguments),
                 *signature_ty_id,
                 call_receiver_ty_id,
                 profile,
@@ -1126,6 +1129,29 @@ impl Compiler {
                     options,
                 ) == Assignability::NotAssignable
             {
+                // allow static literal arguments to flow to literal parameter types
+                if let Some(argument) = dynamic_arguments.get(index)
+                    && let Some(literal_ty_id) = self.static_literal_type_from_argument(
+                        module,
+                        profile,
+                        tree.get(*argument).value(),
+                        tree,
+                        symbols,
+                        types,
+                    )?
+                    && self.is_type_assignable(
+                        module,
+                        profile,
+                        symbols,
+                        *param_ty_id,
+                        literal_ty_id,
+                        types,
+                        options,
+                    ) != Assignability::NotAssignable
+                {
+                    continue;
+                }
+
                 let argument_node = dynamic_arguments
                     .get(index)
                     .map(|id| id.into_global_any(module.id))
@@ -1232,9 +1258,70 @@ impl Compiler {
                     return Ok(false);
                 }
             }
+
+            // check static literal expressions like enum members against literal parameters
+            if let Some(literal_ty_id) = self.static_literal_type_from_argument(
+                module,
+                profile,
+                argument_value_id,
+                tree,
+                symbols,
+                types,
+            )? && self.is_type_assignable(
+                module,
+                profile,
+                symbols,
+                param_ty_id,
+                literal_ty_id,
+                types,
+                options,
+            ) == Assignability::NotAssignable
+            {
+                return Ok(false);
+            }
         }
 
         Ok(true)
+    }
+
+    /// Resolve a scalar literal type for static argument expressions when possible.
+    fn static_literal_type_from_argument(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        argument_value_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // detect enum member contexts for static evaluation
+        let enum_symbol = match tree.get(argument_value_id) {
+            Expression::Member { left, .. } => self
+                .reference_symbol_for_expression(module, *left, profile, tree, symbols)
+                .filter(|symbol| symbol.ty() == SymbolType::Enum),
+            _ => None,
+        };
+
+        // evaluate to a scalar literal when possible
+        let value = self.evaluate_static_expression_value(
+            module,
+            profile,
+            argument_value_id,
+            tree,
+            symbols,
+            types,
+            enum_symbol,
+        )?;
+        let Some(StaticExpression::ScalarLiteral { value }) = value else {
+            return Ok(None);
+        };
+
+        let ty = Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(value),
+        };
+        Ok(Some(
+            types.insert_type_from_any(ty, argument_value_id.into_any()),
+        ))
     }
 
     /// Return union elements for a type used as an argument when possible.
@@ -1520,6 +1607,7 @@ impl Compiler {
                     expression_id,
                     Some(member_symbol),
                     static_arguments,
+                    Some(dynamic_arguments),
                     signature_ty_id,
                     Some(*element_id),
                     profile,
@@ -2025,6 +2113,7 @@ impl Compiler {
                     expression_id,
                     callee_symbol,
                     effective_static_arguments,
+                    Some(dynamic_arguments),
                     signature_ty_id,
                     call_receiver_ty_id,
                     ctx.profile,
@@ -2303,6 +2392,7 @@ impl Compiler {
                     expression_id,
                     callee_symbol,
                     static_arguments,
+                    Some(dynamic_arguments),
                     signature_ty_id,
                     None,
                     ctx.profile,
@@ -2474,6 +2564,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_arguments: Option<&[LocalNodeId<Argument>]>,
+        dynamic_arguments: Option<&[LocalNodeId<Argument>]>,
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
@@ -2489,6 +2580,7 @@ impl Compiler {
             node_id,
             owner_symbol,
             static_arguments,
+            dynamic_arguments,
             static_parameters,
             dynamic_parameters,
             return_type,
@@ -2518,6 +2610,7 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         owner_symbol: Option<GlobalSymbolId>,
         static_argument_ids: Option<&[LocalNodeId<Argument>]>,
+        dynamic_argument_ids: Option<&[LocalNodeId<Argument>]>,
         static_parameters: &[LocalTypeId],
         dynamic_parameters: &[LocalTypeId],
         return_type: Option<LocalTypeId>,
@@ -2571,25 +2664,12 @@ impl Compiler {
             }
         }
 
-        // collect referenced symbols from the dynamic signature when needed
-        let mut referenced_symbols = HashSet::new();
         if needs_inference {
-            let mut visited = HashSet::new();
-            for ty_id in dynamic_parameters.iter().copied().chain(return_type) {
-                self.collect_type_reference_symbols(
-                    ty_id,
-                    types,
-                    &mut referenced_symbols,
-                    &mut visited,
-                );
-            }
-
             self.ensure_static_parameter_kinds_for_signature(
                 module,
                 profile,
                 node_id,
                 &static_parameter_symbols,
-                &referenced_symbols,
                 tree,
                 symbols,
                 types,
@@ -2627,8 +2707,27 @@ impl Compiler {
         // resolve each parameter and build substitutions
         let mut substitutions = HashMap::new();
         let mut resolved_arguments = Vec::with_capacity(static_parameters.len());
+        let mut has_missing_value_argument = false;
         for (index, static_parameter) in static_parameters.iter().enumerate() {
             let assigned_argument = assigned_arguments.get(index).cloned().flatten();
+            let inferred_argument = if assigned_argument.is_none() {
+                if let Some(dynamic_arguments) = dynamic_argument_ids {
+                    self.infer_static_argument_from_dynamic_arguments(
+                        module,
+                        profile,
+                        static_parameter,
+                        dynamic_parameters,
+                        dynamic_arguments,
+                        tree,
+                        symbols,
+                        types,
+                    )?
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
             let error_node = if let Some(argument) = &assigned_argument {
                 match argument {
@@ -2642,7 +2741,7 @@ impl Compiler {
             };
 
             // resolve the static argument value
-            let resolved_argument = match self.resolve_static_argument(
+            let mut resolved_argument = match self.resolve_static_argument(
                 module,
                 profile,
                 static_parameter,
@@ -2653,15 +2752,25 @@ impl Compiler {
                 types,
             )? {
                 Some(argument) => argument,
-                None => self.missing_static_argument_for_function(
-                    module,
-                    profile,
-                    node_id,
-                    owner_symbol,
-                    static_parameter,
-                    infer,
-                    types,
-                )?,
+                None => {
+                    if let Some(inferred_argument) = inferred_argument {
+                        inferred_argument
+                    } else {
+                        // track missing value arguments to suppress cascading errors
+                        if static_parameter.kind == StaticParameterKind::Value {
+                            has_missing_value_argument = true;
+                        }
+                        self.missing_static_argument_for_function(
+                            module,
+                            profile,
+                            node_id,
+                            owner_symbol,
+                            static_parameter,
+                            infer,
+                            types,
+                        )?
+                    }
+                }
             };
 
             // materialized type argument validation when needed
@@ -2695,6 +2804,22 @@ impl Compiler {
                 options,
             )? {
                 substitutions.insert(static_parameter.symbol, substitution_ty_id);
+
+                if static_parameter.kind == StaticParameterKind::Value
+                    && !matches!(types.get_type(substitution_ty_id), Type::Error)
+                {
+                    let argument_name = match &resolved_argument {
+                        StaticArgument::Evaluated { name, .. } => *name,
+                        StaticArgument::Unevaluated { .. } => None,
+                    };
+                    let replacement = StaticArgument::Evaluated {
+                        name: argument_name,
+                        value: StaticExpression::Type {
+                            ty: substitution_ty_id,
+                        },
+                    };
+                    resolved_argument = self.normalize_value_static_argument(replacement, types);
+                }
             }
 
             resolved_arguments.push(resolved_argument);
@@ -2702,15 +2827,27 @@ impl Compiler {
 
         // apply substitutions to the dynamic signature
         let mut cache = HashMap::new();
-        let resolved_dynamic_parameters = dynamic_parameters
-            .iter()
-            .map(|parameter| {
-                self.substitute_static_parameters(*parameter, &substitutions, types, &mut cache)
+        let resolved_dynamic_parameters = if has_missing_value_argument {
+            let error_ty_id = types.insert_type_from_any(Type::Error, node_id);
+            dynamic_parameters
+                .iter()
+                .map(|_| error_ty_id)
+                .collect::<Vec<_>>()
+        } else {
+            dynamic_parameters
+                .iter()
+                .map(|parameter| {
+                    self.substitute_static_parameters(*parameter, &substitutions, types, &mut cache)
+                })
+                .collect::<Vec<_>>()
+        };
+        let resolved_return_type = if has_missing_value_argument {
+            Some(types.insert_type_from_any(Type::Error, node_id))
+        } else {
+            return_type.map(|return_type| {
+                self.substitute_static_parameters(return_type, &substitutions, types, &mut cache)
             })
-            .collect::<Vec<_>>();
-        let resolved_return_type = return_type.map(|return_type| {
-            self.substitute_static_parameters(return_type, &substitutions, types, &mut cache)
-        });
+        };
 
         Ok(Some(ResolvedSignature {
             dynamic_parameters: resolved_dynamic_parameters,
@@ -2856,6 +2993,7 @@ impl Compiler {
             module,
             expression_id.into_any(),
             member_symbol,
+            None,
             None,
             &static_parameters,
             &dynamic_parameters,

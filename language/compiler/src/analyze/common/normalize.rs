@@ -175,36 +175,13 @@ impl Compiler {
                 let mut normalized_elements = Vec::with_capacity(elements.len());
                 let mut did_change = false;
                 for element in elements {
-                    // unwrap readonly/const element modifiers into tuple element flags
-                    let mut element_ty_id = element.ty;
-                    let mut element_is_readonly = element.is_readonly;
-                    if let Type::Unary {
-                        operator: TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst,
-                        right,
-                    } = types.get_type(element_ty_id)
-                    {
-                        element_ty_id = *right;
-                        element_is_readonly = true;
-                        did_change = true;
-                    }
-
-                    let normalized_ty = self.normalize_type_inner(
-                        module,
-                        profile,
-                        element_ty_id,
-                        symbols,
-                        types,
-                        mode,
-                        visited,
+                    let (normalized, element_changed) = self.normalize_tuple_element(
+                        module, profile, element, symbols, types, mode, visited,
                     );
-                    if normalized_ty != element.ty || element_is_readonly != element.is_readonly {
+                    if element_changed {
                         did_change = true;
                     }
-                    normalized_elements.push(TypeElement {
-                        ty: normalized_ty,
-                        is_readonly: element_is_readonly,
-                        ..element
-                    });
+                    normalized_elements.push(normalized);
                 }
 
                 if !did_change {
@@ -515,13 +492,7 @@ impl Compiler {
                 TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
                     // materialize readonly modifiers during normalization
                     let normalized_right = self.normalize_type_inner(
-                        module,
-                        profile,
-                        right,
-                        symbols,
-                        types,
-                        mode,
-                        visited,
+                        module, profile, right, symbols, types, mode, visited,
                     );
                     self.materialize_readonly_type(source_id, normalized_right, types)
                 }
@@ -698,9 +669,7 @@ impl Compiler {
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
         // return cached normalization results when available
-        if let Some(normalized) =
-            types.normalized_alias_reference(symbol, mode, arguments)
-        {
+        if let Some(normalized) = types.normalized_alias_reference(symbol, mode, arguments) {
             return Some(normalized);
         }
 
@@ -716,59 +685,30 @@ impl Compiler {
                 let _ = self.require_analyze_module_declare(symbol.module_id, profile);
             }
 
-            // fetch or import the alias target type when available
-            let alias_target_id = self.alias_target_type_id_for_symbol(
+            // resolve the instance type, including alias targets and remote imports
+            let instance_type_id = self.instance_type_id_for_normalization(
+                module, profile, symbol, source_id, symbols, types,
+            )?;
+
+            // select the static arguments to substitute
+            let resolved_arguments = self.resolved_static_arguments_for_normalization(
+                module, source_id, symbol, arguments, types,
+            );
+
+            // materialize unevaluated alias targets before normalization
+            let materialized_instance = self.materialize_alias_instance_for_normalization(
                 module,
                 profile,
                 symbol,
-                source_id,
-                symbols,
+                instance_type_id,
                 types,
             );
 
-            // fall back to instance types when alias targets are unavailable
-            let instance_type_id = if let Some(alias_target_id) = alias_target_id {
-                alias_target_id
-            } else if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
-                instance_type_id
-            } else if let Ok(Some(instance_type_id)) =
-                self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)
-            {
-                instance_type_id
-            } else if symbol.module_id != module.id {
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_types = remote_module.dir(profile).types.read();
-                let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
-                let remote_instance_ty = remote_types.get_type(remote_instance_id);
-                let local_instance_id = self.import_type_from_remote_for_node(
-                    source_id,
-                    remote_instance_ty,
-                    &remote_types,
-                    symbol,
-                    types,
-                );
-                types.set_instance_type(symbol, local_instance_id);
-                local_instance_id
-            } else {
-                return None;
-            };
-
-            // prefer resolved instance arguments when unevaluated arguments are present
-            let resolved_arguments = if arguments
-                .iter()
-                .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
-            {
-                self.resolved_static_arguments_for_reference(module, source_id, symbol, types)
-                    .unwrap_or_else(|| arguments.to_vec())
-            } else {
-                arguments.to_vec()
-            };
             if resolved_arguments.is_empty() {
                 return Some(self.normalize_type_inner(
                     module,
                     profile,
-                    instance_type_id,
+                    materialized_instance,
                     symbols,
                     types,
                     mode,
@@ -793,7 +733,7 @@ impl Compiler {
                 return Some(self.normalize_type_inner(
                     module,
                     profile,
-                    instance_type_id,
+                    materialized_instance,
                     symbols,
                     types,
                     mode,
@@ -801,47 +741,7 @@ impl Compiler {
                 ));
             }
 
-            // substitute parameters inside the instance type
-            let needs_materialization =
-                matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
-                    || self.type_contains_unevaluated_static_arguments(
-                        instance_type_id,
-                        types,
-                        &mut HashSet::new(),
-                    );
-            // materialize static arguments using the alias module context
-            let materialized_instance = if !needs_materialization {
-                instance_type_id
-            } else if symbol.module_id == module.id {
-                let argument_tree = module.dir(profile).tree.read();
-                let argument_symbols = module.dir(profile).symbols.read();
-                let mut materialize_cache = HashMap::new();
-                self.materialize_static_arguments_in_type(
-                    module,
-                    profile,
-                    instance_type_id,
-                    &argument_tree,
-                    &argument_symbols,
-                    types,
-                    &mut materialize_cache,
-                )
-            } else {
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let argument_tree = remote_module.dir(profile).tree.read();
-                let argument_symbols = remote_module.dir(profile).symbols.read();
-                let mut materialize_cache = HashMap::new();
-                self.materialize_static_arguments_in_type(
-                    &remote_module,
-                    profile,
-                    instance_type_id,
-                    &argument_tree,
-                    &argument_symbols,
-                    types,
-                    &mut materialize_cache,
-                )
-            };
-
+            // substitute and normalize
             let mut cache = HashMap::new();
             let substituted = self.substitute_static_parameters(
                 materialized_instance,
@@ -849,8 +749,6 @@ impl Compiler {
                 types,
                 &mut cache,
             );
-
-            // normalize the substituted shape
             Some(self.normalize_type_inner(
                 module,
                 profile,
@@ -864,12 +762,7 @@ impl Compiler {
 
         types.clear_normalization_alias_in_progress(symbol);
         if let Some(normalized_id) = normalized {
-            types.set_normalized_alias_reference(
-                symbol,
-                mode,
-                arguments.to_vec(),
-                normalized_id,
-            );
+            types.set_normalized_alias_reference(symbol, mode, arguments.to_vec(), normalized_id);
         }
         normalized
     }
@@ -889,6 +782,177 @@ impl Compiler {
             return None;
         }
         Some(instance.static_arguments.clone())
+    }
+
+    /// Resolve the instance type id for alias normalization.
+    /// Resolve the instance type id used for alias normalization.
+    fn instance_type_id_for_normalization(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        source_id: LocalNodeIdAny,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Option<LocalTypeId> {
+        // fetch or import the alias target type when available
+        if let Some(alias_target_id) =
+            self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
+        {
+            return Some(alias_target_id);
+        }
+
+        // fall back to instance types when alias targets are unavailable
+        if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
+            return Some(instance_type_id);
+        }
+        if let Ok(Some(instance_type_id)) =
+            self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)
+        {
+            return Some(instance_type_id);
+        }
+
+        // import remote instance types when needed
+        if symbol.module_id != module.id {
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_types = remote_module.dir(profile).types.read();
+            let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
+            let remote_instance_ty = remote_types.get_type(remote_instance_id);
+            let local_instance_id = self.import_type_from_remote_for_node(
+                source_id,
+                remote_instance_ty,
+                &remote_types,
+                symbol,
+                types,
+            );
+            types.set_instance_type(symbol, local_instance_id);
+            return Some(local_instance_id);
+        }
+
+        None
+    }
+
+    /// Resolve the static arguments used for alias normalization.
+    fn resolved_static_arguments_for_normalization(
+        &self,
+        module: &Module,
+        source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        arguments: &[StaticArgument],
+        types: &TypeTable,
+    ) -> Vec<StaticArgument> {
+        // prefer resolved instance arguments when unevaluated arguments are present
+        if arguments
+            .iter()
+            .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
+        {
+            return self
+                .resolved_static_arguments_for_reference(module, source_id, symbol, types)
+                .unwrap_or_else(|| arguments.to_vec());
+        }
+
+        arguments.to_vec()
+    }
+
+    /// Materialize alias targets before normalization when needed.
+    fn materialize_alias_instance_for_normalization(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        instance_type_id: LocalTypeId,
+        types: &mut TypeTable,
+    ) -> LocalTypeId {
+        // materialize unevaluated alias targets before normalization
+        let needs_materialization =
+            matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
+                || self.type_contains_unevaluated_static_arguments(
+                    instance_type_id,
+                    types,
+                    &mut HashSet::new(),
+                );
+        if !needs_materialization {
+            return instance_type_id;
+        }
+
+        // materialize static arguments using the alias module context
+        if symbol.module_id == module.id {
+            let argument_tree = module.dir(profile).tree.read();
+            let argument_symbols = module.dir(profile).symbols.read();
+            let mut materialize_cache = HashMap::new();
+            self.materialize_static_arguments_in_type(
+                module,
+                profile,
+                instance_type_id,
+                &argument_tree,
+                &argument_symbols,
+                types,
+                &mut materialize_cache,
+            )
+        } else {
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let argument_tree = remote_module.dir(profile).tree.read();
+            let argument_symbols = remote_module.dir(profile).symbols.read();
+            let mut materialize_cache = HashMap::new();
+            self.materialize_static_arguments_in_type(
+                &remote_module,
+                profile,
+                instance_type_id,
+                &argument_tree,
+                &argument_symbols,
+                types,
+                &mut materialize_cache,
+            )
+        }
+    }
+
+    /// Normalize a tuple element, lifting readonly modifiers into flags.
+    fn normalize_tuple_element(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        element: TypeElement,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        mode: NormalizationMode,
+        visited: &mut Vec<LocalTypeId>,
+    ) -> (TypeElement, bool) {
+        // unwrap readonly/const modifiers into tuple element flags
+        let mut element_ty_id = element.ty;
+        let mut element_is_readonly = element.is_readonly;
+        let mut did_change = false;
+        if let Type::Unary {
+            operator: TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst,
+            right,
+        } = types.get_type(element_ty_id)
+        {
+            element_ty_id = *right;
+            element_is_readonly = true;
+            did_change = true;
+        }
+
+        // normalize the tuple element type
+        let normalized_ty = self.normalize_type_inner(
+            module,
+            profile,
+            element_ty_id,
+            symbols,
+            types,
+            mode,
+            visited,
+        );
+        if normalized_ty != element.ty || element_is_readonly != element.is_readonly {
+            did_change = true;
+        }
+
+        let normalized_element = TypeElement {
+            ty: normalized_ty,
+            is_readonly: element_is_readonly,
+            ..element
+        };
+        (normalized_element, did_change)
     }
 
     /// Normalize union types by flattening and collapsing special cases.

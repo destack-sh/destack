@@ -391,24 +391,18 @@ impl TypeTable {
         arguments: Vec<StaticArgument>,
         normalized_type: LocalTypeId,
     ) {
-        if self
-            .normalized_alias_by_symbol
-            .iter()
-            .any(|entry| {
-                entry.symbol == symbol_id
-                    && entry.mode == mode
-                    && entry.arguments == arguments
-            })
-        {
+        if self.normalized_alias_by_symbol.iter().any(|entry| {
+            entry.symbol == symbol_id && entry.mode == mode && entry.arguments == arguments
+        }) {
             return;
         }
-
-        self.normalized_alias_by_symbol.push(AliasNormalizationEntry {
-            symbol: symbol_id,
-            mode,
-            arguments,
-            normalized_type,
-        });
+        self.normalized_alias_by_symbol
+            .push(AliasNormalizationEntry {
+                symbol: symbol_id,
+                mode,
+                arguments,
+                normalized_type,
+            });
     }
 
     /// Mark assignability for a target and source pair.
@@ -712,7 +706,8 @@ impl TypeTable {
             .iter()
             .position(|(symbol, stored)| *symbol == symbol_id && stored == arguments)
         {
-            self.static_argument_resolution_in_progress.swap_remove(index);
+            self.static_argument_resolution_in_progress
+                .swap_remove(index);
         }
     }
 

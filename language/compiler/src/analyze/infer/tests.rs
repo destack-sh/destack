@@ -7,8 +7,8 @@ use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
     FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind,
-    InferTable, IntType, LocalNodeId, LocalTypeId, NodeTree, NormalizationMode, Pattern,
-    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
+    InferTable, IntType, LocalNodeId, LocalScopeMark, LocalTypeId, NodeTree, NormalizationMode,
+    Pattern, PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
     SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
     TypeUnaryOperator,
 };
@@ -364,7 +364,7 @@ enum Status {
 "#;
     let module_id = test.add_module("test.ds", source);
     test.analyze_module(module_id);
-    test.compile();
+    test.compile_check_clean();
 
     // resolve enum symbol and load module types
     let enum_symbol = test.canonical_symbol_for_path("test.ds", "Status");
@@ -1409,7 +1409,6 @@ let b = obj.y;
     // run analyze pipeline
     test.analyze_module(module_id);
     test.compile();
-    test.check_clean();
 }
 
 /// Resolve member access across multiple fields.
@@ -2405,8 +2404,7 @@ let ok: boolean = value;
 #[test]
 fn test_analyze_builtin_pick_optional_shape() {
     // Pick preserves optional fields for literal keys.
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_libs(&["es5"]);
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -2472,8 +2470,7 @@ type AgeOnly = Pick<Person, "age">;
 #[test]
 fn test_analyze_builtin_omit_shape() {
     // Omit removes the specified keys from the source shape.
-    let test = TestProgram::memory_sequential_with_prelude_and_libs()
-        .with_profile_libs(&["es5"]);
+    let test = TestProgram::memory_sequential_with_prelude_and_libs().with_profile_libs(&["es5"]);
     let module_id = test.add_module(
         "test.ds",
         r#"
@@ -2538,9 +2535,13 @@ type ExcludedKeys = Exclude<keyof Person, "age">;
         } => *ty,
         _ => panic!("expected Exclude right argument to be a type"),
     };
-    assert_type!(types, exclude_right, Type::TypeLiteral {
-        value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
-    });
+    assert_type!(
+        types,
+        exclude_right,
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+        }
+    );
     let es5_module = test.module("builtin://lib/es/es5/index.d.ts");
     let es5_module = es5_module.read();
     let es5_profile = test.default_profile_id(es5_module.id);
@@ -3436,4 +3437,71 @@ const status = Status.Active;
         &options,
     );
     assert!(!assignable.is_assignable());
+}
+
+// static value arguments accept imported constants
+#[test]
+fn test_analyze_static_value_argument_imported_constant() {
+    let test = TestProgram::memory_sequential();
+    let _utils_id = test.add_module("utils.ds", "export const SIZE = 4;");
+    let main_id = test.add_module(
+        "main.ds",
+        r#"
+import { SIZE } from "./utils.ds";
+
+type Buffer<N: number> = uint8[N];
+
+declare let value: Buffer<SIZE>;
+"#,
+    );
+
+    test.analyze_module(main_id);
+    test.compile();
+
+    test.with_dir_types_mut(main_id, |module, profile, dir, tree, symbols, types| {
+        let key = StaticKey::Name(test.program.strings.intern("SIZE"));
+        let namespace_scope = symbols.get_scope_by_id(dir.namespace_scope);
+        let symbol_id = symbols
+            .find_active_symbol_up_to(namespace_scope, key, LocalScopeMark::end())
+            .map(|symbol| symbol.into_global(module.id))
+            .expect("expected imported SIZE symbol");
+
+        let mut expression_id = None;
+        for argument_id in tree.iter_node_ids_of_type::<destack_dir::Argument>() {
+            let argument = tree.get(argument_id);
+            let value_id = argument.value();
+            let value_expression = tree.get(value_id);
+            let is_reference = match value_expression {
+                Expression::LocalReference { target_symbol, .. }
+                | Expression::ModuleReference { target_symbol, .. }
+                | Expression::GlobalReference { target_symbol, .. } => *target_symbol == symbol_id,
+                _ => false,
+            };
+            if is_reference {
+                expression_id = Some(value_id);
+                break;
+            }
+        }
+        let expression_id = expression_id.expect("expected SIZE reference");
+        let value = test
+            .compiler
+            .evaluate_static_expression_value(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+                types,
+                None,
+            )
+            .expect("static evaluation failed")
+            .expect("expected SIZE reference to evaluate");
+
+        match value {
+            StaticExpression::ScalarLiteral {
+                value: ScalarLiteral::Integer(value),
+            } => assert_eq!(value, 4),
+            other => panic!("expected reference literal, got {other:?}"),
+        }
+    });
 }

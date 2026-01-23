@@ -278,11 +278,14 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Named {
-                    modifiers,
-                    name,
-                    value,
-                })
+                tree.insert(
+                    argument_id,
+                    Argument::Named {
+                        modifiers,
+                        name,
+                        value,
+                    },
+                )
             }
             ast::Argument::Positional { modifiers, value } => {
                 let modifiers =
@@ -321,11 +324,14 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Spread {
-                    modifiers,
-                    label,
-                    value,
-                })
+                tree.insert(
+                    argument_id,
+                    Argument::Spread {
+                        modifiers,
+                        label,
+                        value,
+                    },
+                )
             }
             ast::Argument::Labeled {
                 modifiers,
@@ -347,11 +353,14 @@ impl Compiler {
                     types,
                     space_order,
                 );
-                tree.insert(argument_id, Argument::Labeled {
-                    modifiers,
-                    label,
-                    value,
-                })
+                tree.insert(
+                    argument_id,
+                    Argument::Labeled {
+                        modifiers,
+                        label,
+                        value,
+                    },
+                )
             }
         }
     }

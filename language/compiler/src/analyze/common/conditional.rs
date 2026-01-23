@@ -631,17 +631,18 @@ impl Compiler {
             && symbol == right_symbol
             && let (Some(left_arguments), Some(right_arguments)) =
                 (left_arguments.as_deref(), right_arguments.as_deref())
-            && let Some(inferred) = self.infer_conditional_type_substitutions_for_reference_arguments(
-                module,
-                profile,
-                left_arguments,
-                right_arguments,
-                distributive,
-                source_id,
-                symbols,
-                types,
-                visited,
-            )
+            && let Some(inferred) = self
+                .infer_conditional_type_substitutions_for_reference_arguments(
+                    module,
+                    profile,
+                    left_arguments,
+                    right_arguments,
+                    distributive,
+                    source_id,
+                    symbols,
+                    types,
+                    visited,
+                )
         {
             return Some(inferred);
         }
@@ -1362,13 +1363,7 @@ impl Compiler {
                         let options = self.analyze_context_options_for_module(module.id);
                         matched_dynamic = self
                             .is_type_assignable(
-                                module,
-                                profile,
-                                symbols,
-                                only,
-                                tuple_type,
-                                types,
-                                &options,
+                                module, profile, symbols, only, tuple_type, types, &options,
                             )
                             .is_assignable();
                     }

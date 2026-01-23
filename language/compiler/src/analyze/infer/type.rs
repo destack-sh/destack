@@ -3041,8 +3041,16 @@ impl Compiler {
                 )
             }
 
+            // unevaluated remote types can't be imported reliably, fall back to a reference
+            Type::Unevaluated(_) => types.insert_imported_type_from_any(
+                Type::Reference {
+                    symbol: target_symbol,
+                    static_arguments: None,
+                },
+                node_id,
+            ),
             // types that can't be meaningfully copied: fall back to reference
-            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_imported_type_from_any(
+            Type::ArraySized { .. } => types.insert_imported_type_from_any(
                 Type::Reference {
                     symbol: target_symbol,
                     static_arguments: None,

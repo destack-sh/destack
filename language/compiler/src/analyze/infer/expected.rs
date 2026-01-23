@@ -352,6 +352,9 @@ impl Compiler {
                     expected[index] = Some(element.ty);
                 }
             }
+            Type::ArraySized { element, .. } => {
+                expected.fill(Some(*element));
+            }
             Type::Array {
                 element: Some(element_ty_id),
                 ..
@@ -372,6 +375,7 @@ impl Compiler {
     ) -> Option<LocalTypeId> {
         let expected_ty_id = self.expected_value_type(expected_ty_id, types)?;
         match types.get_type(expected_ty_id) {
+            Type::ArraySized { element, .. } => Some(*element),
             Type::Array {
                 element: Some(element_ty_id),
                 ..

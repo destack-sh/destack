@@ -266,7 +266,9 @@ impl Compiler {
             }
 
             let updated = match argument {
-                Argument::Named { modifiers, name, .. } => Argument::Named {
+                Argument::Named {
+                    modifiers, name, ..
+                } => Argument::Named {
                     modifiers,
                     name,
                     value: cast_value_id,

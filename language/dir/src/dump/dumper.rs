@@ -1837,11 +1837,7 @@ impl<'a> NodeVisitor for Dumper<'a> {
 
     fn visit_argument(&mut self, tree: &NodeTree, id: LocalNodeId<Argument>, argument: &Argument) {
         match argument {
-            Argument::Named {
-                name,
-                value: _,
-                ..
-            } => {
+            Argument::Named { name, value: _, .. } => {
                 self.node("Argument::Named", id.id)
                     .field("name", name)
                     .end();
@@ -1850,18 +1846,14 @@ impl<'a> NodeVisitor for Dumper<'a> {
                 self.node("Argument::Positional", id.id).end();
             }
             Argument::Spread {
-                label,
-                value: _,
-                ..
+                label, value: _, ..
             } => {
                 self.node("Argument::Spread", id.id)
                     .field_optional("label", label)
                     .end();
             }
             Argument::Labeled {
-                label,
-                value: _,
-                ..
+                label, value: _, ..
             } => {
                 self.node("Argument::Labeled", id.id)
                     .field("label", label)

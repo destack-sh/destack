@@ -99,6 +99,10 @@ pub enum AnalyzeError {
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },
 
+    /// Static argument is required but was not provided.
+    #[error(code = "EA114", message = "missing static argument")]
+    MissingStaticArgument { node: AnchoredGlobalNodeId },
+
     /// Array size expressions must be constant integers.
     #[error(code = "EA111", message = "array size must be a constant integer")]
     InvalidArraySize { node: AnchoredGlobalNodeId },
