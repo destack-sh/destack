@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
     AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DynamicKey,
@@ -345,16 +346,9 @@ impl Compiler {
                 )?;
                 resolved.unwrap_or(StaticArgument::Unevaluated { node })
             }
-            (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => self
-                .resolve_value_static_argument(
-                    module,
-                    profile,
-                    static_parameter,
-                    node,
-                    tree,
-                    symbols,
-                    types,
-                )?,
+            (StaticParameterKind::Value, StaticArgument::Unevaluated { node }) => {
+                self.resolve_value_static_argument(module, profile, node, tree, symbols, types)?
+            }
             (StaticParameterKind::Type, StaticArgument::Evaluated { name, value }) => {
                 // preserve explicit values when type arguments stay unconverted
                 if !treat_type_arguments_as_types {
@@ -390,32 +384,15 @@ impl Compiler {
         &self,
         module: &Module,
         profile: ProfileId,
-        static_parameter: &StaticParameter,
         node: LocalNodeId<Argument>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
-        // resolve enum constraints to enable enum member evaluation
-        let enum_symbol = self.static_parameter_enum_symbol(
-            module,
-            profile,
-            static_parameter,
-            node.into_any(),
-            symbols,
-            types,
-        );
-
         // prefer static value evaluation first
-        if let Some(value) = self.evaluate_static_argument_as_value_inner(
-            module,
-            profile,
-            node,
-            tree,
-            symbols,
-            types,
-            enum_symbol,
-        )? {
+        if let Some(value) = self
+            .evaluate_static_argument_as_value_inner(module, profile, node, tree, symbols, types)?
+        {
             return Ok(value);
         }
 
@@ -434,33 +411,6 @@ impl Compiler {
 
         // reject non-static values when no reference is available
         Ok(StaticArgument::Unevaluated { node })
-    }
-
-    /// Resolve enum constraints for a static parameter when available.
-    fn static_parameter_enum_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        static_parameter: &StaticParameter,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<GlobalSymbolId> {
-        // only value parameters can be constrained by enums
-        if static_parameter.kind != StaticParameterKind::Value {
-            return None;
-        }
-
-        // resolve the declared constraint to an enum symbol
-        self.static_parameter_constraint_type(
-            module,
-            profile,
-            static_parameter.symbol,
-            source_id,
-            symbols,
-            types,
-        )
-        .and_then(|constraint_id| self.enum_symbol_for_type(types.get_type(constraint_id), types))
     }
 
     /// Coerce value static arguments into literal value expressions when possible.
@@ -568,16 +518,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<StaticArgument> {
-        // resolve enum constraints for the default expression
-        let enum_symbol = self.static_parameter_enum_symbol(
-            module,
-            profile,
-            static_parameter,
-            default_expression.local_id.into_any(),
-            symbols,
-            types,
-        );
-
         // select the module context for the default expression
         if default_expression.module_id == module.id {
             return self.evaluate_static_default_argument(
@@ -587,7 +527,6 @@ impl Compiler {
                 static_parameter.name,
                 default_expression.local_id,
                 treat_type_arguments_as_types,
-                enum_symbol,
                 tree,
                 symbols,
                 types,
@@ -606,7 +545,6 @@ impl Compiler {
             static_parameter.name,
             default_expression.local_id,
             treat_type_arguments_as_types,
-            enum_symbol,
             &default_tree,
             &default_symbols,
             types,
@@ -1245,238 +1183,6 @@ impl Compiler {
         }
     }
 
-    /// Infer a static parameter kind from a static argument value.
-    fn static_expression_kind_hint(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        value: &StaticExpression,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<StaticParameterKind> {
-        match value {
-            StaticExpression::ScalarLiteral { .. }
-            | StaticExpression::RangeExpression { .. }
-            | StaticExpression::ArrayExpression { .. }
-            | StaticExpression::TupleExpression { .. }
-            | StaticExpression::ObjectExpression { .. }
-            | StaticExpression::Declaration { .. } => Some(StaticParameterKind::Value),
-            StaticExpression::Unevaluated { .. } => None,
-            StaticExpression::TypeLiteral { .. } => Some(StaticParameterKind::Type),
-            StaticExpression::Type { ty } => {
-                // treat non-reference types as type parameters
-                let Type::Reference { symbol, .. } = types.get_type(*ty) else {
-                    return Some(StaticParameterKind::Type);
-                };
-                // non-static symbols default to type parameters
-                if !self.symbol_is_static_parameter(module, profile, *symbol, symbols, types) {
-                    return Some(StaticParameterKind::Type);
-                }
-                // honor cached static parameter kinds when present
-                if let Some(kind) = types.get_static_parameter_kind(*symbol) {
-                    return Some(kind);
-                }
-                // fall back to constraint hints
-                let source_id = types.get_type_source(*ty);
-                let hint = self
-                    .static_parameter_kind_hint(module, profile, *symbol, source_id, symbols, types)
-                    .unwrap_or(StaticParameterKind::Type);
-                Some(hint)
-            }
-        }
-    }
-
-    /// Infer a static parameter kind from a default expression.
-    pub(super) fn static_expression_kind_hint_for_expression(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression: &GlobalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<StaticParameterKind>> {
-        // handle defaults in the current module
-        if expression.module_id == module.id {
-            return self.static_expression_kind_hint_for_expression_in_module(
-                module,
-                profile,
-                expression.local_id,
-                tree,
-                symbols,
-                types,
-            );
-        }
-
-        // load the default module context
-        let default_module = self.program.modules.get(expression.module_id);
-        let default_module = default_module.read();
-        let default_tree = default_module.dir(profile).tree.read();
-        let default_symbols = default_module.dir(profile).symbols.read();
-        self.static_expression_kind_hint_for_expression_in_module(
-            &default_module,
-            profile,
-            expression.local_id,
-            &default_tree,
-            &default_symbols,
-            types,
-        )
-    }
-
-    /// Infer a static parameter kind from a local expression.
-    fn static_expression_kind_hint_for_expression_in_module(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        expression: LocalNodeId<Expression>,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<StaticParameterKind>> {
-        // attempt static value evaluation first
-        if let Some(value) = self.evaluate_static_expression_value(
-            module, profile, expression, tree, symbols, types, None,
-        )? && let Some(kind) =
-            self.static_expression_kind_hint(module, profile, &value, symbols, types)
-        {
-            return Ok(Some(kind));
-        }
-
-        // fall back to type evaluation when resolvable
-        let resolved = self.try_evaluate_expression_to_type_value(
-            module, profile, expression, tree, symbols, types, false,
-        )?;
-        if matches!(resolved, Type::Unevaluated(_) | Type::Error) {
-            return Ok(None);
-        }
-
-        Ok(Some(StaticParameterKind::Type))
-    }
-
-    /// Ensure extension static parameter kinds are aligned with target parameters.
-    pub(super) fn ensure_extension_static_parameter_kinds(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        node_id: LocalNodeIdAny,
-        extension_symbol: GlobalSymbolId,
-        extension_parameters: &[GlobalSymbolId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<bool> {
-        // skip when the extension has no parameters
-        if extension_parameters.is_empty() {
-            return Ok(true);
-        }
-
-        // resolve the extension target symbol in the owning module
-        let resolve_target_symbol = |_extension_module: &Module,
-                                     extension_tree: &NodeTree,
-                                     extension_symbols: &SymbolTable|
-         -> Option<GlobalSymbolId> {
-            let symbol_entry = extension_symbols.get_symbol(extension_symbol.local_id);
-            let declaration_id = symbol_entry
-                .primary_declaration?
-                .try_into_local_typed::<Declaration>()
-                .ok()?;
-            let declaration = extension_tree.get(declaration_id);
-            let Declaration::Extension { target_symbol, .. } = declaration else {
-                return None;
-            };
-            *target_symbol
-        };
-
-        let target_symbol = if extension_symbol.module_id == module.id {
-            resolve_target_symbol(module, tree, symbols)
-        } else {
-            let remote_module = self.program.modules.get(extension_symbol.module_id);
-            let remote_module = remote_module.read();
-            let remote_tree = remote_module.dir(profile).tree.read();
-            let remote_symbols = remote_module.dir(profile).symbols.read();
-            resolve_target_symbol(&remote_module, &remote_tree, &remote_symbols)
-        };
-
-        let Some(target_symbol) = target_symbol else {
-            return Ok(false);
-        };
-
-        // resolve the target parameter list
-        let target_parameters =
-            self.collect_static_parameter_symbols(module, target_symbol, profile, tree, symbols);
-        let Some(target_parameters) = target_parameters else {
-            return Ok(false);
-        };
-        if target_parameters.is_empty() {
-            return Ok(false);
-        }
-
-        // resolve the target argument mapping from the extension declaration
-        let target_mapping =
-            self.extension_target_argument_mapping(extension_symbol, extension_parameters, profile);
-        let Some(target_mapping) = target_mapping else {
-            return Ok(false);
-        };
-
-        // invert the target mapping for extension lookup
-        let mut extension_to_target = vec![None; extension_parameters.len()];
-        for (target_index, extension_index) in target_mapping.into_iter().enumerate() {
-            if extension_index >= extension_to_target.len()
-                || extension_to_target[extension_index].is_some()
-            {
-                return Ok(false);
-            }
-            extension_to_target[extension_index] = Some(target_index);
-        }
-
-        // ensure target parameter kinds are inferred
-        self.ensure_static_parameter_kinds_for_symbol(
-            module,
-            profile,
-            node_id,
-            target_symbol,
-            tree,
-            symbols,
-            types,
-        )?;
-
-        // map target parameter kinds onto extension parameters
-        for (extension_index, extension_symbol) in extension_parameters.iter().enumerate() {
-            let Some(target_index) = extension_to_target
-                .get(extension_index)
-                .and_then(|value| *value)
-            else {
-                continue;
-            };
-            let Some(target_parameter_symbol) = target_parameters.get(target_index) else {
-                continue;
-            };
-
-            let target_kind = types
-                .get_static_parameter_kind(*target_parameter_symbol)
-                .unwrap_or(StaticParameterKind::Type);
-            types.set_static_parameter_kind(*extension_symbol, target_kind);
-
-            // inherit value constraint types from target parameters
-            if types
-                .get_static_parameter_constraint_type(*extension_symbol)
-                .is_none()
-                && let Some(constraint_id) = self.static_parameter_constraint_type(
-                    module,
-                    profile,
-                    *target_parameter_symbol,
-                    node_id,
-                    symbols,
-                    types,
-                )
-            {
-                types.set_static_parameter_constraint_type(*extension_symbol, constraint_id);
-            }
-        }
-
-        Ok(true)
-    }
-
     /// Resolve the target argument mapping for an extension declaration.
     pub(super) fn extension_target_argument_mapping(
         &self,
@@ -1676,6 +1382,29 @@ impl Compiler {
         // align the symbol id with the stored symbol type
         let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
 
+        // canonicalize import targets while preserving alias identity
+        let symbol = self.canonical_symbol_id(
+            module,
+            symbols,
+            profile,
+            symbol,
+            CanonicalSymbolMode::PreserveAliases,
+        );
+        let symbol = self.merged_type_symbol_id(module, symbols, profile, symbol);
+        let mut symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+
+        // follow alias targets when import bindings are untyped
+        if symbol.ty() == SymbolType::Void {
+            symbol = self.canonical_symbol_id(
+                module,
+                symbols,
+                profile,
+                symbol,
+                CanonicalSymbolMode::FollowAliases,
+            );
+            symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+        }
+
         // ensure remote declarations are available before resolving arguments
         if symbol.module_id != module.id {
             self.require_analyze_module_declare(symbol.module_id, profile)
@@ -1770,6 +1499,7 @@ impl Compiler {
                 return Ok(None);
             }
         };
+
         if parameter_symbols.is_empty() {
             // keep explicit arguments when no parameters exist
             if let Some(static_arguments) = static_arguments
@@ -1781,20 +1511,12 @@ impl Compiler {
             return Ok(None);
         }
 
-        // ensure static parameter kinds are inferred for the declaration
-        self.ensure_static_parameter_kinds_for_symbol(
-            module, profile, node_id, symbol, tree, symbols, types,
-        )?;
-
-        // gather static parameter metadata with cached kinds
+        // gather static parameter metadata for the declaration
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = types
-                    .get_static_parameter_kind(*symbol_id)
-                    .unwrap_or(StaticParameterKind::Type);
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, node_id, profile, tree, symbols, types,
+                    module, *symbol_id, node_id, profile, tree, symbols, types,
                 )
             })
             .collect();
@@ -2053,15 +1775,12 @@ impl Compiler {
             return HashMap::new();
         }
 
-        // collect static parameters with cached kinds
+        // collect static parameters for the declaration
         let static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = self.resolve_cached_static_parameter_kind(
-                    module, profile, *symbol_id, source_id, symbols, types,
-                );
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, source_id, profile, tree, symbols, types,
+                    module, *symbol_id, source_id, profile, tree, symbols, types,
                 )
             })
             .collect();
@@ -2126,33 +1845,6 @@ impl Compiler {
         substitutions
     }
 
-    /// Resolve and cache a static parameter kind for a symbol.
-    fn resolve_cached_static_parameter_kind(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol_id: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> StaticParameterKind {
-        // reuse cached kinds when available
-        if let Some(kind) = types.get_static_parameter_kind(symbol_id) {
-            return kind;
-        }
-
-        // cache constraint-based hints when available
-        if let Some(kind) =
-            self.static_parameter_kind_hint(module, profile, symbol_id, source_id, symbols, types)
-        {
-            types.set_static_parameter_kind(symbol_id, kind);
-            return kind;
-        }
-
-        // default to type parameters when no hints exist
-        StaticParameterKind::Type
-    }
-
     /// Evaluate a static argument as a type.
     pub(super) fn evaluate_static_argument_as_type(
         &self,
@@ -2208,11 +1900,10 @@ impl Compiler {
             tree,
             symbols,
             types,
-            None,
         )
     }
 
-    /// Evaluate a static argument as a value with an optional enum context.
+    /// Evaluate a static argument as a value.
     fn evaluate_static_argument_as_value_inner(
         &self,
         module: &Module,
@@ -2221,7 +1912,6 @@ impl Compiler {
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-        enum_symbol: Option<GlobalSymbolId>,
     ) -> AnalyzeResult<Option<StaticArgument>> {
         // capture argument name for reuse in evaluated form
         let argument = tree.get(argument_id);
@@ -2239,23 +1929,21 @@ impl Compiler {
             tree,
             symbols,
             types,
-            enum_symbol,
+            None,
         )?;
         let value = if let Some(value) = value {
             value
-        } else if let Some(literal_value) = self.enum_member_literal_value(
-            module,
-            profile,
-            expression_id,
-            enum_symbol,
-            tree,
-            symbols,
-            types,
-        )? {
-            // evaluate enum field members to their literal values
-            StaticExpression::ScalarLiteral {
-                value: literal_value,
-            }
+        } else if let Some(enum_symbol) =
+            self.enum_symbol_for_member_expression(module, profile, expression_id, tree, symbols)?
+        {
+            let ty = types.insert_type_from_any(
+                Type::Reference {
+                    symbol: enum_symbol,
+                    static_arguments: None,
+                },
+                expression_id.into_any(),
+            );
+            StaticExpression::Type { ty }
         } else {
             return Ok(None);
         };
@@ -2266,17 +1954,15 @@ impl Compiler {
         }))
     }
 
-    /// Resolve enum member literals for static arguments.
-    fn enum_member_literal_value(
+    /// Resolve the enum symbol for an enum member expression.
+    fn enum_symbol_for_member_expression(
         &self,
         module: &Module,
         profile: ProfileId,
         expression_id: LocalNodeId<Expression>,
-        enum_symbol: Option<GlobalSymbolId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<Option<ScalarLiteral>> {
+    ) -> AnalyzeResult<Option<GlobalSymbolId>> {
         let Expression::Member {
             name,
             static_arguments,
@@ -2289,37 +1975,21 @@ impl Compiler {
             return Ok(None);
         }
 
-        // resolve the enum symbol from the constraint or the member receiver
-        let enum_symbol = enum_symbol.or_else(|| {
-            self.reference_symbol_for_expression(module, *left, profile, tree, symbols)
-                .filter(|symbol| symbol.ty() == SymbolType::Enum)
-        });
-        let Some(enum_symbol) = enum_symbol else {
-            return Ok(None);
-        };
-
-        // resolve the enum field symbol and value
-        let Some(field_symbol) =
-            self.enum_field_symbol_for_name(module, profile, enum_symbol, *name, tree, symbols)
+        let Some(enum_symbol) = self
+            .reference_symbol_for_expression(module, *left, profile, tree, symbols)
+            .filter(|symbol| symbol.ty() == SymbolType::Enum)
         else {
             return Ok(None);
         };
-        let Some(field_value) = self.enum_field_value_for_symbol_reference(
-            module,
-            profile,
-            enum_symbol,
-            field_symbol,
-            symbols,
-            types,
-        ) else {
-            return Ok(None);
-        };
 
-        let literal = match field_value {
-            EnumFieldValue::Int(value) => ScalarLiteral::Integer(value),
-            EnumFieldValue::String(value) => ScalarLiteral::String(value),
-        };
-        Ok(Some(literal))
+        if self
+            .enum_field_symbol_for_name(module, profile, enum_symbol, *name, tree, symbols)
+            .is_some()
+        {
+            Ok(Some(enum_symbol))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Convert a static argument into a type id for substitution.
@@ -2466,10 +2136,6 @@ impl Compiler {
             return Ok(None);
         }
 
-        // resolve enum constraints for member literal evaluation
-        let enum_symbol =
-            self.enum_symbol_for_type(types.get_type(static_parameter.declared_type_id), types);
-
         // scan positional arguments for direct static parameter references
         for (param_ty_id, argument_id) in dynamic_parameters.iter().zip(dynamic_arguments.iter()) {
             let param_ty_id = self.unwrap_type_value(*param_ty_id, types);
@@ -2483,9 +2149,26 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                enum_symbol,
+                None,
             )?;
-            let Some(value) = value else {
+            let value = if let Some(value) = value {
+                value
+            } else if let Some(enum_symbol) = self.enum_symbol_for_member_expression(
+                module,
+                profile,
+                expression_id,
+                tree,
+                symbols,
+            )? {
+                let ty = types.insert_type_from_any(
+                    Type::Reference {
+                        symbol: enum_symbol,
+                        static_arguments: None,
+                    },
+                    expression_id.into_any(),
+                );
+                StaticExpression::Type { ty }
+            } else {
                 continue;
             };
 
@@ -2586,7 +2269,6 @@ impl Compiler {
         name: Option<StringId>,
         default_expression: LocalNodeId<Expression>,
         treat_type_arguments_as_types: bool,
-        enum_symbol: Option<GlobalSymbolId>,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
@@ -2600,7 +2282,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                enum_symbol,
+                None,
             )?
         {
             return Ok(StaticArgument::Evaluated { name, value });
@@ -2616,6 +2298,9 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
+                    true,
+                    true,
+                    true,
                     true,
                 )?;
 
@@ -2642,9 +2327,24 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    enum_symbol,
+                    None,
                 )? {
                     value
+                } else if let Some(enum_symbol) = self.enum_symbol_for_member_expression(
+                    module,
+                    profile,
+                    default_expression,
+                    tree,
+                    symbols,
+                )? {
+                    let ty = types.insert_type_from_any(
+                        Type::Reference {
+                            symbol: enum_symbol,
+                            static_arguments: None,
+                        },
+                        default_expression.into_any(),
+                    );
+                    StaticExpression::Type { ty }
                 } else {
                     StaticExpression::Unevaluated {
                         node: default_expression,
@@ -2978,7 +2678,41 @@ impl Compiler {
                     ty_id
                 }
             }
-            Type::Import { .. } => ty_id,
+            Type::Import {
+                target,
+                qualifier,
+                static_arguments,
+            } => {
+                let Some(static_arguments) = static_arguments else {
+                    return ty_id;
+                };
+
+                let mut changed = false;
+                let mapped_arguments = static_arguments
+                    .iter()
+                    .map(|argument| {
+                        let mapped =
+                            self.substitute_static_argument(argument, substitutions, types, cache);
+                        if mapped != *argument {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Import {
+                            target,
+                            qualifier,
+                            static_arguments: Some(mapped_arguments),
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
             Type::Infer { name, constraint } => {
                 let mapped_constraint = constraint.map(|constraint| {
                     self.substitute_static_parameters(constraint, substitutions, types, cache)
@@ -3127,25 +2861,32 @@ impl Compiler {
                 elements,
                 is_readonly,
             } => {
-                let mut changed = false;
+                let mut did_change = false;
                 let mapped_elements = elements
-                    .iter()
+                    .into_iter()
                     .map(|element| {
-                        let mapped = self.substitute_static_parameters(
-                            element.ty,
-                            substitutions,
-                            types,
-                            cache,
-                        );
-                        if mapped != element.ty {
-                            changed = true;
+                        let TypeElement {
+                            label,
+                            ty,
+                            is_optional,
+                            is_readonly,
+                            is_rest,
+                        } = element;
+                        let mapped_ty =
+                            self.substitute_static_parameters(ty, substitutions, types, cache);
+                        if mapped_ty != ty {
+                            did_change = true;
                         }
-                        let mut element = element.clone();
-                        element.ty = mapped;
-                        element
+                        TypeElement {
+                            label,
+                            ty: mapped_ty,
+                            is_optional,
+                            is_readonly,
+                            is_rest,
+                        }
                     })
                     .collect::<Vec<_>>();
-                if changed {
+                if did_change {
                     types.insert_type_from_type(
                         Type::Tuple {
                             elements: mapped_elements,
@@ -3744,7 +3485,67 @@ impl Compiler {
                     ty_id
                 }
             }
-            Type::Import { .. } | Type::Infer { .. } => ty_id,
+            Type::Import {
+                target,
+                qualifier,
+                static_arguments,
+            } => {
+                let Some(static_arguments) = static_arguments else {
+                    return ty_id;
+                };
+
+                let mut changed = false;
+                let mapped_arguments = static_arguments
+                    .iter()
+                    .map(|argument| {
+                        let StaticArgument::Evaluated { name, value } = argument else {
+                            return argument.clone();
+                        };
+
+                        let mapped_value = match value {
+                            StaticExpression::Type { ty } => {
+                                let mapped_ty = self.materialize_static_arguments_in_type(
+                                    argument_module,
+                                    profile,
+                                    *ty,
+                                    argument_tree,
+                                    argument_symbols,
+                                    types,
+                                    cache,
+                                );
+                                if mapped_ty != *ty {
+                                    changed = true;
+                                }
+                                StaticExpression::Type { ty: mapped_ty }
+                            }
+                            _ => value.clone(),
+                        };
+
+                        let mapped_argument = StaticArgument::Evaluated {
+                            name: *name,
+                            value: mapped_value,
+                        };
+                        if &mapped_argument != argument {
+                            changed = true;
+                        }
+                        mapped_argument
+                    })
+                    .collect::<Vec<_>>();
+
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Import {
+                            target,
+                            qualifier,
+                            static_arguments: Some(mapped_arguments),
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Infer { .. } => ty_id,
             Type::Predicate {
                 asserts,
                 subject,
@@ -4195,7 +3996,7 @@ impl Compiler {
     }
 
     /// Materialize static arguments for a type reference based on parameter kinds.
-    fn materialize_static_arguments_for_reference(
+    pub(crate) fn materialize_static_arguments_for_reference(
         &self,
         argument_module: &Module,
         profile: ProfileId,
@@ -4235,39 +4036,20 @@ impl Compiler {
             return static_arguments.to_vec();
         };
 
-        // ensure static parameter kinds are inferred
-        if self
-            .ensure_static_parameter_kinds_for_symbol(
-                argument_module,
-                profile,
-                source_id,
-                symbol,
-                argument_tree,
-                argument_symbols,
-                types,
-            )
-            .is_err()
-        {
-            return static_arguments.to_vec();
-        }
-
         // map parameter names to their resolved kinds
         let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
         let mut parameter_name_kinds = HashMap::new();
         for parameter_symbol in parameter_symbols {
-            let kind = types
-                .get_static_parameter_kind(parameter_symbol)
-                .unwrap_or(StaticParameterKind::Type);
             let parameter = self.collect_static_parameter(
                 argument_module,
                 parameter_symbol,
-                kind,
                 source_id,
                 profile,
                 argument_tree,
                 argument_symbols,
                 types,
             );
+            let kind = parameter.kind;
             if let Some(name) = parameter.name {
                 parameter_name_kinds.insert(name, kind);
             }

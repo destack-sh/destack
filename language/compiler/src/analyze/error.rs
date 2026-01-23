@@ -99,6 +99,13 @@ pub enum AnalyzeError {
     )]
     NonStaticArgument { node: AnchoredGlobalNodeId },
 
+    /// Static value parameters must be marked with comptime.
+    #[error(
+        code = "EA115",
+        message = "static value parameters must be explicitly marked with comptime"
+    )]
+    StaticParameterRequiresComptime { node: AnchoredGlobalNodeId },
+
     /// Static argument is required but was not provided.
     #[error(code = "EA114", message = "missing static argument")]
     MissingStaticArgument { node: AnchoredGlobalNodeId },

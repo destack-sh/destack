@@ -1241,7 +1241,7 @@ impl Compiler {
         // expand each mapped key into fields or index signatures
         let mut fields: Vec<TypeField> = Vec::new();
         let mut index_values: HashMap<MappedIndexKind, Vec<LocalTypeId>> = HashMap::new();
-        
+
         // precompute normalized value and remap when the parameter is unused
         let normalized_value_without_param = if parameter_symbol.is_none() {
             Some(self.normalize_type_inner(module, profile, value, symbols, types, mode, visited))

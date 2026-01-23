@@ -1,8 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument,
-    StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalNodeIdAny, LocalTypeId, NodeTree,
+    StaticArgument, StaticExpression, StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::{Module, ModuleDir, ProfileId};
 
@@ -92,52 +93,128 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> Option<LocalTypeId> {
-        // load the local alias target when the symbol is local
-        if symbol.module_id == module.id {
-            let symbol_entry = symbols.get_symbol(symbol.local_id);
-            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+        let mut visited = HashSet::new();
+        let mut current = symbol;
+
+        loop {
+            if !visited.insert(current) {
                 return None;
             }
 
-            let typed_symbol =
-                GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty));
-            return types.get_alias_target_type_id(typed_symbol);
-        }
+            // load the local alias target when the symbol is local
+            if current.module_id == module.id {
+                let symbol_entry = symbols.get_symbol(current.local_id);
+                if matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                    let typed_symbol = GlobalSymbolId::new(
+                        current.module_id,
+                        current.local_id.with_type(symbol_entry.ty),
+                    );
+                    if let Some(target) = types.get_alias_target_type_id(typed_symbol) {
+                        return Some(target);
+                    }
+                }
 
-        // import the alias target when the symbol is remote
-        let remote_module = self.program.modules.get(symbol.module_id);
-        let remote_module = remote_module.read();
-        let remote_symbols = remote_module.dir(profile).symbols.read();
-        let symbol_entry = remote_symbols.get_symbol(symbol.local_id);
-        if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
-            return None;
-        }
+                // follow import targets for local alias references
+                let target_symbol =
+                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)?;
+                current = target_symbol;
+                continue;
+            }
 
-        let typed_symbol =
-            GlobalSymbolId::new(symbol.module_id, symbol.local_id.with_type(symbol_entry.ty));
+            // import the alias target when the symbol is remote
+            let remote_module = self.program.modules.get(current.module_id);
+            let remote_module = remote_module.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
+            let symbol_entry = remote_symbols.get_symbol(current.local_id);
+            if !matches!(symbol_entry.ty, SymbolType::TypeAlias | SymbolType::Newtype) {
+                // follow remote import targets when present
+                let target_symbol =
+                    symbol_entry.target_symbol.or(symbol_entry.canonical_symbol)?;
+                current = target_symbol;
+                continue;
+            }
 
-        // load the remote alias target, evaluating when needed
-        let remote_dir = remote_module.dir(profile);
-        let mut remote_types = remote_dir.types.write();
-        let alias_target_id = remote_types.get_alias_target_type_id(typed_symbol)?;
-        if let Type::Unevaluated(expression_id) = *remote_types.get_type(alias_target_id) {
-            self.try_evaluate_remote_alias_target(
-                &remote_module,
-                profile,
-                alias_target_id,
-                expression_id,
-                remote_dir,
-                &mut remote_types,
+            let typed_symbol = GlobalSymbolId::new(
+                current.module_id,
+                current.local_id.with_type(symbol_entry.ty),
             );
+
+            // load the remote alias target, evaluating when needed
+            let remote_dir = remote_module.dir(profile);
+            let mut remote_types = remote_dir.types.write();
+            let mut alias_target_id = match remote_types.get_alias_target_type_id(typed_symbol) {
+                Some(alias_target_id) => alias_target_id,
+                None => {
+                    let primary_declaration = symbol_entry.primary_declaration?;
+                    let declaration_id = primary_declaration
+                        .try_into_local_typed::<Declaration>()
+                        .ok()?;
+                    let declaration = remote_dir.tree.read().get(declaration_id).clone();
+                    let Declaration::Type { value, .. } = declaration else {
+                        return None;
+                    };
+
+                    let evaluated = self.try_evaluate_expression_to_type_value(
+                        &remote_module,
+                        profile,
+                        value,
+                        &remote_dir.tree.read(),
+                        &remote_dir.symbols.read(),
+                        &mut remote_types,
+                        false,
+                        true,
+                        false,
+                        true,
+                    );
+                    let evaluated = evaluated.ok()?;
+                    let alias_target_id =
+                        remote_types.insert_type_from_any(evaluated, value.into_any());
+                    remote_types.set_alias_target_type_id(typed_symbol, alias_target_id);
+                    alias_target_id
+                }
+            };
+            if let Type::Unevaluated(expression_id) = *remote_types.get_type(alias_target_id) {
+                self.try_evaluate_remote_alias_target(
+                    &remote_module,
+                    profile,
+                    alias_target_id,
+                    expression_id,
+                    remote_dir,
+                    &mut remote_types,
+                );
+            }
+
+            // materialize static arguments before importing remote alias targets
+            if self.type_contains_unevaluated_static_arguments(
+                alias_target_id,
+                &remote_types,
+                &mut HashSet::new(),
+            ) {
+                let tree = remote_dir.tree.read();
+                let symbols = remote_dir.symbols.read();
+                let mut cache = HashMap::new();
+                alias_target_id = self.materialize_static_arguments_in_type(
+                    &remote_module,
+                    profile,
+                    alias_target_id,
+                    &tree,
+                    &symbols,
+                    &mut remote_types,
+                    &mut cache,
+                );
+            }
+
+            let alias_target_ty = remote_types.get_type(alias_target_id);
+            let imported_id = self.import_type_from_remote_for_node(
+                source_id,
+                alias_target_ty,
+                &remote_types,
+                typed_symbol,
+                types,
+            );
+
+            return Some(imported_id);
         }
-        let alias_target_ty = remote_types.get_type(alias_target_id);
-        Some(self.import_type_from_remote_for_node(
-            source_id,
-            alias_target_ty,
-            &remote_types,
-            typed_symbol,
-            types,
-        ))
     }
 
     /// Try to evaluate a remote alias target expression in place.
@@ -161,6 +238,9 @@ impl Compiler {
             &symbols,
             types,
             false,
+            true,
+            false,
+            true,
         ) {
             Ok(evaluated_ty) => {
                 // cache the evaluated target for normalization
@@ -168,7 +248,7 @@ impl Compiler {
                 *ty = evaluated_ty;
                 types.invalidate_normalization_cache();
             }
-            Err(_) => {
+            Err(_error) => {
                 // ignore failures to avoid cascading errors in callers
             }
         }

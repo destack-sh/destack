@@ -2094,7 +2094,7 @@ fn test_analyze_type_reference_default_static_value() {
     let module_id = test.add_module(
         "test.ds",
         r#"
-struct Buffer<T, N: number = 4> {
+struct Buffer<T, comptime N: number = 4> {
     value: T
 }
 
@@ -3449,7 +3449,7 @@ fn test_analyze_static_value_argument_imported_constant() {
         r#"
 import { SIZE } from "./utils.ds";
 
-type Buffer<N: number> = uint8[N];
+type Buffer<comptime N: number> = uint8[N];
 
 declare let value: Buffer<SIZE>;
 "#,

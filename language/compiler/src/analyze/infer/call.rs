@@ -1294,14 +1294,6 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
-        // detect enum member contexts for static evaluation
-        let enum_symbol = match tree.get(argument_value_id) {
-            Expression::Member { left, .. } => self
-                .reference_symbol_for_expression(module, *left, profile, tree, symbols)
-                .filter(|symbol| symbol.ty() == SymbolType::Enum),
-            _ => None,
-        };
-
         // evaluate to a scalar literal when possible
         let value = self.evaluate_static_expression_value(
             module,
@@ -1310,7 +1302,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-            enum_symbol,
+            None,
         )?;
         let Some(StaticExpression::ScalarLiteral { value }) = value else {
             return Ok(None);
@@ -2655,36 +2647,12 @@ impl Compiler {
             })
             .collect::<Vec<_>>();
 
-        // detect whether any static parameter kinds need inference
-        let mut needs_inference = false;
-        for symbol_id in static_parameter_symbols.iter().copied() {
-            if types.get_static_parameter_kind(symbol_id).is_none() {
-                needs_inference = true;
-                break;
-            }
-        }
-
-        if needs_inference {
-            self.ensure_static_parameter_kinds_for_signature(
-                module,
-                profile,
-                node_id,
-                &static_parameter_symbols,
-                tree,
-                symbols,
-                types,
-            )?;
-        }
-
-        // collect static parameters with cached kinds
+        // collect static parameters for the signature
         let static_parameters = static_parameter_symbols
             .iter()
             .map(|symbol_id| {
-                let kind = types
-                    .get_static_parameter_kind(*symbol_id)
-                    .unwrap_or(StaticParameterKind::Type);
                 self.collect_static_parameter(
-                    module, *symbol_id, kind, node_id, profile, tree, symbols, types,
+                    module, *symbol_id, node_id, profile, tree, symbols, types,
                 )
             })
             .collect::<Vec<_>>();

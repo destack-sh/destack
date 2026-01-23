@@ -1,9 +1,8 @@
-use crate::analyze::common::CanonicalSymbolMode;
-use crate::{AnalyzeResult, Compiler};
+use crate::Compiler;
 use destack_dir::{
     Declaration, FunctionSignature, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NodeTree,
     Parameter, StaticArgument, StaticExpression, StaticParameter, StaticParameterKind,
-    StaticProperty, SymbolTable, SymbolType, Type, TypeLiteral, TypeTable,
+    StaticProperty, SymbolTable, Type, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId};
@@ -11,488 +10,63 @@ use std::collections::HashSet;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Determine whether static parameters for a symbol should be treated as type parameters.
-    pub(super) fn static_parameters_are_type_only(
-        &self,
-        module: &Module,
-        symbol: GlobalSymbolId,
-    ) -> bool {
-        // treat local symbols based on the current module language type
-        if symbol.module_id == module.id {
-            return module.language_type.is_declaration();
-        }
-
-        // fall back to the symbol module's language type
-        let symbol_module = self.program.modules.get(symbol.module_id);
-        let symbol_module = symbol_module.read();
-        symbol_module.language_type.is_declaration()
-    }
-
-    /// Ensure static parameter kinds are inferred for a declaration symbol.
-    pub(super) fn ensure_static_parameter_kinds_for_symbol(
+    /// Resolve the static parameter kind for a symbol.
+    pub(crate) fn static_parameter_kind_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
-        node_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        // collect parameter symbols for the declaration
-        let parameter_symbols =
-            self.collect_static_parameter_symbols(module, symbol, profile, tree, symbols);
-        let Some(parameter_symbols) = parameter_symbols else {
-            return Ok(());
-        };
-        if parameter_symbols.is_empty() {
-            return Ok(());
-        }
-
-        // mark in-progress parameters and skip re-entrant inference
-        let mut in_progress = Vec::new();
-        for symbol_id in parameter_symbols.iter().copied() {
-            if types.get_static_parameter_kind(symbol_id).is_some() {
-                continue;
-            }
-            if types.is_static_parameter_kind_in_progress(symbol_id) {
-                return Ok(());
-            }
-            types.mark_static_parameter_kind_in_progress(symbol_id);
-            in_progress.push(symbol_id);
-        }
-        if in_progress.is_empty() {
-            return Ok(());
-        }
-
-        // run inference with in-progress guards cleared on exit
-        let result = (|| {
-            // handle extension parameter kinds through target mappings
-            if symbol.ty() == SymbolType::Extension
-                && self.ensure_extension_static_parameter_kinds(
-                    module,
-                    profile,
-                    node_id,
-                    symbol,
-                    &parameter_symbols,
-                    tree,
-                    symbols,
-                    types,
-                )?
-            {
-                return Ok(());
-            }
-
-            // prefer type-only parameters in declaration modules
-            let force_type_parameters = self.static_parameters_are_type_only(module, symbol);
-
-            // infer and cache kinds for each parameter symbol
-            for symbol_id in parameter_symbols.iter().copied() {
-                // skip parameters with cached kinds
-                if types.get_static_parameter_kind(symbol_id).is_some() {
-                    continue;
-                }
-
-                // collect static parameter metadata
-                let static_parameter = self.collect_static_parameter(
-                    module,
-                    symbol_id,
-                    StaticParameterKind::Type,
-                    node_id,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                );
-
-                // derive default kind hints from parameter defaults
-                let default_kind_hint = if let Some(default_expression) =
-                    static_parameter.default_expression.as_ref()
-                {
-                    self.static_expression_kind_hint_for_expression(
-                        module,
-                        profile,
-                        default_expression,
-                        tree,
-                        symbols,
-                        types,
-                    )?
-                } else {
-                    None
-                };
-
-                // derive constraint kind hints from parameter bounds
-                let constraint_kind_hint = if force_type_parameters {
-                    None
-                } else {
-                    self.static_parameter_kind_hint(
-                        module, profile, symbol_id, node_id, symbols, types,
-                    )
-                };
-
-                let resolved_kind = self.resolve_static_parameter_kind_from_hints(
-                    types,
-                    symbol_id,
-                    force_type_parameters,
-                    constraint_kind_hint,
-                    default_kind_hint,
-                );
-                types.set_static_parameter_kind(symbol_id, resolved_kind);
-            }
-
-            Ok(())
-        })();
-
-        // clear in-progress markers
-        for symbol_id in in_progress {
-            types.clear_static_parameter_kind_in_progress(symbol_id);
-        }
-
-        result
-    }
-
-    /// Ensure static parameter kinds are inferred for a function signature.
-    pub(super) fn ensure_static_parameter_kinds_for_signature(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        node_id: LocalNodeIdAny,
-        static_parameter_symbols: &[GlobalSymbolId],
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> AnalyzeResult<()> {
-        // skip when there are no parameters
-        if static_parameter_symbols.is_empty() {
-            return Ok(());
-        }
-
-        // skip when all kinds are already cached
-        let mut needs_inference = false;
-        for symbol_id in static_parameter_symbols.iter().copied() {
-            if types.get_static_parameter_kind(symbol_id).is_none() {
-                needs_inference = true;
-                break;
-            }
-        }
-        if !needs_inference {
-            return Ok(());
-        }
-
-        // mark in-progress parameters and skip re-entrant inference
-        let mut in_progress = Vec::new();
-        for symbol_id in static_parameter_symbols.iter().copied() {
-            if types.get_static_parameter_kind(symbol_id).is_some() {
-                continue;
-            }
-            if types.is_static_parameter_kind_in_progress(symbol_id) {
-                return Ok(());
-            }
-            types.mark_static_parameter_kind_in_progress(symbol_id);
-            in_progress.push(symbol_id);
-        }
-        if in_progress.is_empty() {
-            return Ok(());
-        }
-
-        let result = (|| {
-            // prefer type-only parameters in declaration modules
-            let force_type_parameters = static_parameter_symbols
-                .iter()
-                .any(|symbol_id| self.static_parameters_are_type_only(module, *symbol_id));
-
-            // infer and cache kinds for each parameter symbol
-            for symbol_id in static_parameter_symbols.iter().copied() {
-                // skip parameters with cached kinds
-                if types.get_static_parameter_kind(symbol_id).is_some() {
-                    continue;
-                }
-
-                // collect static parameter metadata
-                let static_parameter = self.collect_static_parameter(
-                    module,
-                    symbol_id,
-                    StaticParameterKind::Type,
-                    node_id,
-                    profile,
-                    tree,
-                    symbols,
-                    types,
-                );
-
-                // derive default kind hints from parameter defaults
-                let default_kind_hint = if let Some(default_expression) =
-                    static_parameter.default_expression.as_ref()
-                {
-                    self.static_expression_kind_hint_for_expression(
-                        module,
-                        profile,
-                        default_expression,
-                        tree,
-                        symbols,
-                        types,
-                    )?
-                } else {
-                    None
-                };
-
-                // derive constraint kind hints from parameter bounds
-                let constraint_kind_hint = if force_type_parameters {
-                    None
-                } else {
-                    self.static_parameter_kind_hint(
-                        module, profile, symbol_id, node_id, symbols, types,
-                    )
-                };
-
-                let resolved_kind = self.resolve_static_parameter_kind_from_hints(
-                    types,
-                    symbol_id,
-                    force_type_parameters,
-                    constraint_kind_hint,
-                    default_kind_hint,
-                );
-                types.set_static_parameter_kind(symbol_id, resolved_kind);
-            }
-
-            Ok(())
-        })();
-
-        // clear in-progress markers
-        for symbol_id in in_progress {
-            types.clear_static_parameter_kind_in_progress(symbol_id);
-        }
-
-        result
-    }
-
-    /// Resolve the kind of a static parameter using explicit hints.
-    pub(super) fn resolve_static_parameter_kind_from_hints(
-        &self,
-        types: &mut TypeTable,
-        symbol_id: GlobalSymbolId,
-        force_type_parameters: bool,
-        constraint_kind_hint: Option<StaticParameterKind>,
-        default_kind_hint: Option<StaticParameterKind>,
     ) -> StaticParameterKind {
         // reuse cached kinds when available
-        if let Some(kind) = types.get_static_parameter_kind(symbol_id) {
+        if let Some(kind) = types.get_static_parameter_kind(symbol) {
             return kind;
         }
 
-        // respect declaration forcing
-        if force_type_parameters {
-            return StaticParameterKind::Type;
-        }
-
-        // prefer explicit constraint hints over defaults
-        if let Some(constraint_kind) = constraint_kind_hint {
-            return constraint_kind;
-        }
-
-        // fall back to default expression hints when available
-        if let Some(default_kind) = default_kind_hint {
-            return default_kind;
-        }
-
-        StaticParameterKind::Type
-    }
-
-    /// Infer a static parameter kind from its declared constraint.
-    pub(crate) fn static_parameter_kind_hint(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<StaticParameterKind> {
-        // resolve the declared constraint type
-        let constraint_id = self
-            .static_parameter_constraint_type(module, profile, symbol, source_id, symbols, types)?;
-
-        // evaluate unevaluated constraints when possible
-        if matches!(types.get_type(constraint_id), Type::Unevaluated(_)) {
-            let tree = module.dir(profile).tree.read();
-            if self
-                .evaluate_type(module, profile, constraint_id, &tree, symbols, types)
-                .is_err()
-            {
-                return None;
-            }
-        }
-
-        // treat value-like constraints as value parameters
-        let is_value_like = self.static_parameter_kind_is_value_like(
-            module,
-            profile,
-            constraint_id,
-            source_id,
-            symbols,
-            types,
-        );
-        if is_value_like {
-            Some(StaticParameterKind::Value)
+        // resolve from the owning module when needed
+        let kind = if symbol.module_id == module.id {
+            self.static_parameter_kind_for_symbol_in_module(symbol, tree, symbols)
         } else {
-            None
-        }
-    }
-
-    /// Return true when a constraint type implies a value static parameter kind.
-    pub(crate) fn static_parameter_kind_is_value_like(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        constraint_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> bool {
-        // track recursive constraints to avoid loops
-        let mut in_progress = HashSet::new();
-        self.static_parameter_kind_is_value_like_inner(
-            module,
-            profile,
-            constraint_id,
-            source_id,
-            symbols,
-            types,
-            &mut in_progress,
-        )
-    }
-
-    /// Return true when the literal is valid for a value static parameter kind.
-    fn static_parameter_literal_is_value_like(&self, value: &TypeLiteral) -> bool {
-        matches!(
-            value,
-            TypeLiteral::Primitive(_)
-                | TypeLiteral::ScalarLiteral(_)
-                | TypeLiteral::Null
-                | TypeLiteral::Undefined
-        )
-    }
-
-    /// Resolve the alias target type for a constraint reference.
-    fn static_parameter_alias_target_type(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        symbol: GlobalSymbolId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-    ) -> Option<LocalTypeId> {
-        // reuse the shared alias target helper
-        self.alias_target_type_id_for_symbol(module, profile, symbol, source_id, symbols, types)
-    }
-
-    /// Walk a constraint type and decide if it enforces a value parameter.
-    fn static_parameter_kind_is_value_like_inner(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        type_id: LocalTypeId,
-        source_id: LocalNodeIdAny,
-        symbols: &SymbolTable,
-        types: &mut TypeTable,
-        in_progress: &mut HashSet<LocalTypeId>,
-    ) -> bool {
-        // reject recursive constraints
-        if !in_progress.insert(type_id) {
-            return false;
-        }
-
-        // inspect the constraint shape
-        let ty = types.get_type(type_id).clone();
-        let is_value_like = match ty {
-            Type::TypeLiteral { value } => self.static_parameter_literal_is_value_like(&value),
-            Type::Union { elements } => {
-                // unions must be uniformly value like
-                if elements.is_empty() {
-                    false
-                } else {
-                    elements.iter().all(|element_id| {
-                        self.static_parameter_kind_is_value_like_inner(
-                            module,
-                            profile,
-                            *element_id,
-                            source_id,
-                            symbols,
-                            types,
-                            in_progress,
-                        )
-                    })
-                }
-            }
-            Type::Reference {
-                symbol,
-                static_arguments,
-            } => {
-                // reject explicit static arguments
-                if static_arguments
-                    .as_ref()
-                    .is_some_and(|arguments| !arguments.is_empty())
-                {
-                    false
-                } else {
-                    // prefer enum constraints directly
-                    let canonical_symbol = self.canonical_symbol_id(
-                        module,
-                        symbols,
-                        profile,
-                        symbol,
-                        CanonicalSymbolMode::PreserveAliases,
-                    );
-                    if canonical_symbol.ty() == SymbolType::Enum {
-                        return true;
-                    }
-
-                    // resolve aliases before classifying
-                    let alias_target = self.static_parameter_alias_target_type(
-                        module, profile, symbol, source_id, symbols, types,
-                    );
-                    if let Some(alias_target) = alias_target {
-                        self.static_parameter_kind_is_value_like_inner(
-                            module,
-                            profile,
-                            alias_target,
-                            source_id,
-                            symbols,
-                            types,
-                            in_progress,
-                        )
-                    } else {
-                        false
-                    }
-                }
-            }
-            Type::Unevaluated(_) => {
-                // evaluate lazily and retry when possible
-                let tree = module.dir(profile).tree.read();
-                if self
-                    .evaluate_type(module, profile, type_id, &tree, symbols, types)
-                    .is_ok()
-                {
-                    self.static_parameter_kind_is_value_like_inner(
-                        module,
-                        profile,
-                        type_id,
-                        source_id,
-                        symbols,
-                        types,
-                        in_progress,
-                    )
-                } else {
-                    false
-                }
-            }
-            _ => false,
+            let remote_module = self.program.modules.get(symbol.module_id);
+            let remote_module = remote_module.read();
+            let remote_tree = remote_module.dir(profile).tree.read();
+            let remote_symbols = remote_module.dir(profile).symbols.read();
+            self.static_parameter_kind_for_symbol_in_module(symbol, &remote_tree, &remote_symbols)
         };
 
-        // clear recursion guard before returning
-        in_progress.remove(&type_id);
-        is_value_like
+        // cache resolved kinds
+        types.set_static_parameter_kind(symbol, kind);
+        kind
+    }
+
+    /// Resolve the static parameter kind inside a module tree.
+    fn static_parameter_kind_for_symbol_in_module(
+        &self,
+        symbol: GlobalSymbolId,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+    ) -> StaticParameterKind {
+        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let Some(primary) = symbol_entry.primary_declaration else {
+            return StaticParameterKind::Type;
+        };
+        let Ok(parameter_id) = primary.local_id.try_into_typed::<Parameter>() else {
+            return StaticParameterKind::Type;
+        };
+        let parameter = tree.get(parameter_id);
+        self.static_parameter_kind_for_parameter(parameter)
+    }
+
+    /// Resolve the static parameter kind from a parameter node.
+    fn static_parameter_kind_for_parameter(&self, parameter: &Parameter) -> StaticParameterKind {
+        let timing = parameter.modifiers().and_then(|modifiers| modifiers.timing);
+        if matches!(timing, Some(destack_dir::Timing::Comptime)) {
+            StaticParameterKind::Value
+        } else {
+            StaticParameterKind::Type
+        }
     }
 
     /// Build static parameter placeholders for a function signature.
@@ -631,19 +205,18 @@ impl Compiler {
         &self,
         module: &Module,
         symbol_id: GlobalSymbolId,
-        kind: StaticParameterKind,
         fallback_source_id: LocalNodeIdAny,
         profile: ProfileId,
         tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> StaticParameter {
+        // prefer parameter metadata from the owning module
         let parameter = if symbol_id.module_id == module.id {
             self.collect_static_parameter_in_module(
                 module,
                 profile,
                 symbol_id,
-                kind,
                 fallback_source_id,
                 tree,
                 symbols,
@@ -659,7 +232,6 @@ impl Compiler {
                 &remote_module,
                 profile,
                 symbol_id,
-                kind,
                 fallback_source_id,
                 &remote_tree,
                 &remote_symbols,
@@ -667,7 +239,10 @@ impl Compiler {
             )
         };
 
+        // fall back when parameter metadata is unavailable
         parameter.unwrap_or_else(|| {
+            let kind = self
+                .static_parameter_kind_for_symbol(module, profile, symbol_id, tree, symbols, types);
             self.fallback_static_parameter(symbol_id, kind, fallback_source_id, types)
         })
     }
@@ -807,7 +382,6 @@ impl Compiler {
         module: &Module,
         _profile: ProfileId,
         symbol_id: GlobalSymbolId,
-        kind: StaticParameterKind,
         fallback_source_id: LocalNodeIdAny,
         tree: &NodeTree,
         symbols: &SymbolTable,
@@ -837,6 +411,9 @@ impl Compiler {
             };
             types.insert_type_from_any(ty, fallback_source_id)
         };
+
+        // resolve the static parameter kind from the parameter modifiers
+        let kind = self.static_parameter_kind_for_parameter(parameter);
 
         // derive the parameter name for mapping
         let name = match parameter {

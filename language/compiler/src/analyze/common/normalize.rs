@@ -7,6 +7,7 @@ use destack_dir::{
 };
 use destack_workspace::{Module, ProfileId};
 
+use super::CanonicalSymbolMode;
 use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
@@ -64,8 +65,28 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
-                // align the symbol id with the stored symbol type
+                // follow import targets while preserving alias identity
+                let symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    self.typed_symbol_id(module, profile, symbol, symbols),
+                    CanonicalSymbolMode::PreserveAliases,
+                );
                 let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+
+                // choose a typed alias symbol when references are untyped imports
+                let mut alias_symbol = symbol;
+                if alias_symbol.ty() == SymbolType::Void {
+                    alias_symbol = self.canonical_symbol_id(
+                        module,
+                        symbols,
+                        profile,
+                        alias_symbol,
+                        CanonicalSymbolMode::FollowAliases,
+                    );
+                    alias_symbol = self.typed_symbol_id(module, profile, alias_symbol, symbols);
+                }
 
                 // rewrite well known references to canonical shapes
                 if let Some(normalized) = self.normalize_well_known_type_reference(
@@ -89,14 +110,23 @@ impl Compiler {
                     )
                 }
                 // expand type aliases with static arguments
-                else if symbol.ty() == SymbolType::TypeAlias {
+                else if alias_symbol.ty() == SymbolType::TypeAlias {
                     let arguments = static_arguments.as_deref().unwrap_or(&[]);
                     let expanded = self.normalize_type_alias_reference_with_arguments(
-                        module, profile, source_id, symbol, arguments, symbols, types, mode,
+                        module,
+                        profile,
+                        source_id,
+                        alias_symbol,
+                        arguments,
+                        symbols,
+                        types,
+                        mode,
                         visited,
                     );
                     if let Some(expanded) = expanded {
-                        expanded
+                        self.normalize_type_inner(
+                            module, profile, expanded, symbols, types, mode, visited,
+                        )
                     } else {
                         let unwrapped = self.unwrap_normalization_alias_reference(type_id, types);
                         if unwrapped != type_id {
@@ -692,7 +722,7 @@ impl Compiler {
 
             // select the static arguments to substitute
             let resolved_arguments = self.resolved_static_arguments_for_normalization(
-                module, source_id, symbol, arguments, types,
+                module, profile, source_id, symbol, arguments, symbols, types,
             );
 
             // materialize unevaluated alias targets before normalization
@@ -749,7 +779,7 @@ impl Compiler {
                 types,
                 &mut cache,
             );
-            Some(self.normalize_type_inner(
+            let normalized_id = self.normalize_type_inner(
                 module,
                 profile,
                 substituted,
@@ -757,7 +787,8 @@ impl Compiler {
                 types,
                 mode,
                 visited,
-            ))
+            );
+            Some(normalized_id)
         })();
 
         types.clear_normalization_alias_in_progress(symbol);
@@ -837,16 +868,45 @@ impl Compiler {
     fn resolved_static_arguments_for_normalization(
         &self,
         module: &Module,
+        profile: ProfileId,
         source_id: LocalNodeIdAny,
         symbol: GlobalSymbolId,
         arguments: &[StaticArgument],
-        types: &TypeTable,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
     ) -> Vec<StaticArgument> {
         // prefer resolved instance arguments when unevaluated arguments are present
         if arguments
             .iter()
             .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
         {
+            // resolve unevaluated arguments using the full reference resolver
+            let options = self.analyze_context_options_for_module(module.id);
+            let tree = module.dir(profile).tree.read();
+            if let Ok(Some(resolved)) = self.resolve_type_reference_static_arguments(
+                module,
+                profile,
+                source_id,
+                symbol,
+                Some(arguments),
+                false,
+                &options,
+                &tree,
+                symbols,
+                types,
+            ) {
+                return resolved;
+            }
+
+            // fall back to local materialization when resolution is incomplete
+            let tree = module.dir(profile).tree.read();
+            let resolved = self.materialize_static_arguments_for_reference(
+                module, profile, symbol, arguments, &tree, symbols, types,
+            );
+            if resolved != arguments {
+                return resolved;
+            }
+
             return self
                 .resolved_static_arguments_for_reference(module, source_id, symbol, types)
                 .unwrap_or_else(|| arguments.to_vec());
