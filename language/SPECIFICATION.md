@@ -1641,7 +1641,7 @@ You can explicitly reference or copy either structs or classes.
 
 #### Associated Types
 
-Structs and classes can declare associated type aliases using the `type` keyword:
+Class-shaped types like structs and interfaces can declare associated type aliases ("static type members") using the `type` keyword:
 
 ```
 struct Container<T> {
@@ -1650,7 +1650,9 @@ struct Container<T> {
 
     items: T[],
 
-    iter(): Iter { ContainerIterator { items: this.items } }
+    iter(): Iter { 
+        ContainerIterator { items: this.items } 
+    }
 }
 ```
 

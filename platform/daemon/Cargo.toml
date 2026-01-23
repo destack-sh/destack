@@ -31,6 +31,8 @@ destack_runtime = { workspace = true }
 crossbeam-deque = { workspace = true }
 crossbeam-channel = { workspace = true }
 dashmap = { workspace = true }
+fs2 = { workspace = true }
+interprocess = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }

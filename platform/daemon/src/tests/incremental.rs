@@ -145,7 +145,7 @@ fn test_daemon_rescan_refreshes_file() {
         .expect("write updated file");
 
     // rescan to refresh file contents
-    let result = test.daemon.rescan_roots(&[test.root.clone()]);
+    let result = test.daemon.rescan_roots(std::slice::from_ref(&test.root));
 
     // check that the rescan reports updates without errors
     assert!(result.updated());
@@ -180,7 +180,9 @@ fn test_daemon_rescan_with_analysis_emits_diagnostics() {
         .expect("write invalid file");
 
     // rescan and analyze to surface diagnostics
-    let result = test.daemon.rescan_roots_with_analysis(&[test.root.clone()]);
+    let result = test
+        .daemon
+        .rescan_roots_with_analysis(std::slice::from_ref(&test.root));
     assert!(result.updated());
 
     // confirm diagnostics for the rescan update

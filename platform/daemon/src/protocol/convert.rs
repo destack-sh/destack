@@ -52,6 +52,7 @@ impl From<&DaemonUpdate> for DaemonUpdateRecord {
         Self {
             module_id: update.module_id,
             file_id: update.file_id,
+            file: update.file.clone(),
             invalidation: InvalidationSummary::from(&update.invalidation),
             diagnostics: update.diagnostics.clone(),
         }

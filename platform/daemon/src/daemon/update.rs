@@ -7,14 +7,15 @@ use dashmap::mapref::entry::Entry;
 use destack_compiler::{AnalyzeTask, Compiler, ResolveTask};
 use destack_resolver::{CachePolicy, ResolveError, ResolveOptions, Resolver};
 use destack_source::{
-    Diagnostic, DiagnosticStoreUpdate, FileContent, FileId, FileType, FileWatchEvent,
+    Diagnostic, DiagnosticStoreUpdate, File, FileContent, FileId, FileType, FileWatchEvent,
     FileWatchEventKind, FileWatchRescanReason, FileWatchStatus, ModuleId, ModuleStamp,
 };
 use destack_workspace::{
-    FileUpdate, InvalidationKind, ModuleGraphKey, ProfileId, Program, TargetId,
+    FileUpdate, InvalidationKind, InvalidationPlan, ModuleGraphKey, ProfileId, Program, TargetId,
 };
 use parking_lot::Mutex;
 
+use crate::protocol::FileSnapshot;
 use crate::{
     DaemonError, DaemonMessage, DaemonRescanResult, DaemonUpdate, DaemonWatchBatchResult,
     DaemonWatchEventResult,
@@ -341,12 +342,19 @@ impl Daemon {
             };
 
             let module_id = program.modules.get_id_by_file_id(file_id);
-            result.updates.push(DaemonUpdate {
-                module_id,
-                file_id,
-                invalidation,
-                diagnostics: Vec::new(),
-            });
+            let update = match build_update(program, module_id, file_id, invalidation) {
+                Ok(update) => update,
+                Err(error) => {
+                    result
+                        .messages
+                        .push(DaemonMessage::RescanInvalidationFailed {
+                            file_id,
+                            error: error.to_string(),
+                        });
+                    continue;
+                }
+            };
+            result.updates.push(update);
         }
 
         // refresh configs after a rescan to pick up new configuration files
@@ -477,12 +485,7 @@ impl Daemon {
         }
 
         let mut updates = Vec::new();
-        let update = DaemonUpdate {
-            module_id,
-            file_id,
-            invalidation,
-            diagnostics: Vec::new(),
-        };
+        let update = build_update(&program, module_id, file_id, invalidation)?;
         updates.push(update);
 
         // analyze the updated module when available
@@ -630,12 +633,13 @@ impl Daemon {
                 let module = module.read();
                 let file_id = module.file_id;
                 if file_ids.insert(file_id) {
-                    extra_updates.push(DaemonUpdate {
-                        module_id: Some(module_id),
+                    let extra_update = build_update(
+                        program,
+                        Some(module_id),
                         file_id,
-                        invalidation: update.invalidation.clone(),
-                        diagnostics: Vec::new(),
-                    });
+                        update.invalidation.clone(),
+                    )?;
+                    extra_updates.push(extra_update);
                 }
             }
         }
@@ -683,12 +687,9 @@ impl Daemon {
                 let module = program.modules.get(module_id);
                 let file_id = module.read().file_id;
                 if file_ids.insert(file_id) {
-                    dependency_updates.push(DaemonUpdate {
-                        module_id: Some(module_id),
-                        file_id,
-                        invalidation: invalidation.clone(),
-                        diagnostics: Vec::new(),
-                    });
+                    let dependency_update =
+                        build_update(program, Some(module_id), file_id, invalidation.clone())?;
+                    dependency_updates.push(dependency_update);
                 }
             }
             updates.extend(dependency_updates);
@@ -1209,4 +1210,55 @@ struct WatchStatusResult {
     rescan: Option<bool>,
     /// Optional message payload.
     message: Option<DaemonMessage>,
+}
+
+/// Build a daemon update from program state and invalidation metadata.
+fn build_update(
+    program: &Program,
+    module_id: Option<ModuleId>,
+    file_id: FileId,
+    invalidation: InvalidationPlan,
+) -> Result<DaemonUpdate, DaemonError> {
+    // resolve the file snapshot for the update
+    let file = file_snapshot_for_id(program, file_id)?;
+
+    Ok(DaemonUpdate {
+        module_id,
+        file_id,
+        file,
+        invalidation,
+        diagnostics: Vec::new(),
+    })
+}
+
+/// Build a file snapshot for a program file id.
+fn file_snapshot_for_id(program: &Program, file_id: FileId) -> Result<FileSnapshot, DaemonError> {
+    // resolve the file from the registry
+    let file = program
+        .files
+        .get_maybe(file_id)
+        .ok_or(DaemonError::FileIdNotTracked { file_id })?;
+
+    Ok(file_snapshot_from_file(&file))
+}
+
+/// Build a file snapshot for protocol updates.
+fn file_snapshot_from_file(file: &File) -> FileSnapshot {
+    // capture the file content when available
+    let content = match &file.content {
+        FileContent::Text { content } => Some(content.clone()),
+        FileContent::Json { content, .. } => Some(content.clone()),
+        FileContent::Binary { .. } => None,
+        FileContent::Missing => None,
+        FileContent::Unloaded => None,
+    };
+
+    FileSnapshot {
+        id: file.id,
+        name: file.name.clone(),
+        uri: file.uri.clone(),
+        path: file.path.clone(),
+        file_type: file.ty,
+        content,
+    }
 }
