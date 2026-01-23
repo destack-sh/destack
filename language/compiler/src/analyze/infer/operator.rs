@@ -722,7 +722,7 @@ impl Compiler {
         )?;
 
         // resolve index expression and literal string when possible
-        let (index_ty_id, literal_string) = if let Some(index_id) = index_id {
+        let (index_ty_id, literal_string, static_key) = if let Some(index_id) = index_id {
             let index_ty_id =
                 self.infer_expression(module, index_id, tree, symbols, types, infer, ctx)?;
             let literal_string = match tree.get(index_id) {
@@ -731,9 +731,16 @@ impl Compiler {
                 } => Some(self.program.strings.get(*name_id)),
                 _ => None,
             };
-            (Some(index_ty_id), literal_string)
+            let static_key = self.static_key_from_dynamic_key(
+                ctx.profile,
+                DynamicKey::Expression(index_id),
+                tree,
+                symbols,
+                types,
+            );
+            (Some(index_ty_id), literal_string, static_key)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         // reject computed property access when configured
@@ -763,6 +770,7 @@ impl Compiler {
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
+            static_key.as_ref(),
             types,
             options.no_unchecked_indexed_access,
         );
@@ -929,7 +937,7 @@ impl Compiler {
         let receiver_ty = types.get_type(receiver_ty_id).clone();
 
         // resolve index expression and literal string when possible
-        let (index_ty_id, literal_string) = if let Some(index_id) = index_id {
+        let (index_ty_id, literal_string, static_key) = if let Some(index_id) = index_id {
             let index_ty_id =
                 self.infer_expression(module, *index_id, tree, symbols, types, infer, ctx)?;
             let literal_string = match tree.get(*index_id) {
@@ -938,9 +946,16 @@ impl Compiler {
                 } => Some(self.program.strings.get(*name_id)),
                 _ => None,
             };
-            (Some(index_ty_id), literal_string)
+            let static_key = self.static_key_from_dynamic_key(
+                ctx.profile,
+                DynamicKey::Expression(*index_id),
+                tree,
+                symbols,
+                types,
+            );
+            (Some(index_ty_id), literal_string, static_key)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         // reject computed property access when configured
@@ -970,6 +985,7 @@ impl Compiler {
             receiver_ty_id,
             index_ty_id,
             literal_string.as_deref(),
+            static_key.as_ref(),
             types,
             false,
         );
@@ -2409,6 +2425,7 @@ impl Compiler {
         receiver_ty_id: LocalTypeId,
         index_ty_id: Option<LocalTypeId>,
         literal_string: Option<&str>,
+        static_key: Option<&StaticKey>,
         types: &mut TypeTable,
         include_undefined: bool,
     ) -> Option<LocalTypeId> {
@@ -2489,6 +2506,12 @@ impl Compiler {
                     }
                 }
 
+                if let Some(key) = static_key
+                    && let Some(field) = fields.iter().find(|field| field.key.matches(key))
+                {
+                    return Some(field.ty);
+                }
+
                 let signature_ty_id = self.infer_index_signature_access(
                     index_signatures,
                     index_ty_id,
@@ -2505,6 +2528,7 @@ impl Compiler {
                     instance_ty_id,
                     index_ty_id,
                     literal_string,
+                    static_key,
                     types,
                     include_undefined,
                 )

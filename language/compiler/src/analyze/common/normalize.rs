@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
     GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, StaticArgument, SymbolTable,
@@ -64,6 +64,9 @@ impl Compiler {
                 symbol,
                 static_arguments,
             } => {
+                // align the symbol id with the stored symbol type
+                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+
                 // rewrite well known references to canonical shapes
                 if let Some(normalized) = self.normalize_well_known_type_reference(
                     module,
@@ -172,14 +175,34 @@ impl Compiler {
                 let mut normalized_elements = Vec::with_capacity(elements.len());
                 let mut did_change = false;
                 for element in elements {
+                    // unwrap readonly/const element modifiers into tuple element flags
+                    let mut element_ty_id = element.ty;
+                    let mut element_is_readonly = element.is_readonly;
+                    if let Type::Unary {
+                        operator: TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst,
+                        right,
+                    } = types.get_type(element_ty_id)
+                    {
+                        element_ty_id = *right;
+                        element_is_readonly = true;
+                        did_change = true;
+                    }
+
                     let normalized_ty = self.normalize_type_inner(
-                        module, profile, element.ty, symbols, types, mode, visited,
+                        module,
+                        profile,
+                        element_ty_id,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
                     );
-                    if normalized_ty != element.ty {
+                    if normalized_ty != element.ty || element_is_readonly != element.is_readonly {
                         did_change = true;
                     }
                     normalized_elements.push(TypeElement {
                         ty: normalized_ty,
+                        is_readonly: element_is_readonly,
                         ..element
                     });
                 }
@@ -361,7 +384,7 @@ impl Compiler {
                 }
             }
             Type::Conditional {
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
@@ -371,7 +394,7 @@ impl Compiler {
                 profile,
                 type_id,
                 source_id,
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
@@ -489,6 +512,19 @@ impl Compiler {
                 TypeUnaryOperator::Keyof => self.normalize_keyof_type(
                     module, profile, source_id, right, symbols, types, mode, visited,
                 ),
+                TypeUnaryOperator::Readonly | TypeUnaryOperator::AsConst => {
+                    // materialize readonly modifiers during normalization
+                    let normalized_right = self.normalize_type_inner(
+                        module,
+                        profile,
+                        right,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                    );
+                    self.materialize_readonly_type(source_id, normalized_right, types)
+                }
                 _ => {
                     // normalize unary operand
                     let original_right = right;
@@ -649,7 +685,7 @@ impl Compiler {
     }
 
     /// Normalize type alias references with static arguments.
-    fn normalize_type_alias_reference_with_arguments(
+    pub(super) fn normalize_type_alias_reference_with_arguments(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -661,6 +697,13 @@ impl Compiler {
         mode: NormalizationMode,
         visited: &mut Vec<LocalTypeId>,
     ) -> Option<LocalTypeId> {
+        // return cached normalization results when available
+        if let Some(normalized) =
+            types.normalized_alias_reference(symbol, mode, arguments)
+        {
+            return Some(normalized);
+        }
+
         // skip alias expansion when already resolving the same alias
         if types.is_normalization_alias_in_progress(symbol) {
             return None;
@@ -668,17 +711,59 @@ impl Compiler {
         types.mark_normalization_alias_in_progress(symbol);
 
         let normalized = (|| {
-            // fetch the alias instance type
-            let instance_type_id = types.get_instance_type_id(symbol)?;
+            // ensure remote declarations are ready before reading instance types
+            if symbol.module_id != module.id {
+                let _ = self.require_analyze_module_declare(symbol.module_id, profile);
+            }
 
-            // prefer resolved instance arguments when available
-            let resolved_arguments = self
-                .resolved_static_arguments_for_reference(module, source_id, types)
-                .unwrap_or_else(|| {
-                    // use provided arguments directly during normalization
-                    // (validation should have happened during original type resolution)
-                    arguments.to_vec()
-                });
+            // fetch or import the alias target type when available
+            let alias_target_id = self.alias_target_type_id_for_symbol(
+                module,
+                profile,
+                symbol,
+                source_id,
+                symbols,
+                types,
+            );
+
+            // fall back to instance types when alias targets are unavailable
+            let instance_type_id = if let Some(alias_target_id) = alias_target_id {
+                alias_target_id
+            } else if let Some(instance_type_id) = types.get_instance_type_id(symbol) {
+                instance_type_id
+            } else if let Ok(Some(instance_type_id)) =
+                self.resolve_instance_type_for_symbol(module, profile, source_id, symbol, types)
+            {
+                instance_type_id
+            } else if symbol.module_id != module.id {
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.read();
+                let remote_types = remote_module.dir(profile).types.read();
+                let remote_instance_id = remote_types.get_instance_type_id(symbol)?;
+                let remote_instance_ty = remote_types.get_type(remote_instance_id);
+                let local_instance_id = self.import_type_from_remote_for_node(
+                    source_id,
+                    remote_instance_ty,
+                    &remote_types,
+                    symbol,
+                    types,
+                );
+                types.set_instance_type(symbol, local_instance_id);
+                local_instance_id
+            } else {
+                return None;
+            };
+
+            // prefer resolved instance arguments when unevaluated arguments are present
+            let resolved_arguments = if arguments
+                .iter()
+                .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
+            {
+                self.resolved_static_arguments_for_reference(module, source_id, symbol, types)
+                    .unwrap_or_else(|| arguments.to_vec())
+            } else {
+                arguments.to_vec()
+            };
             if resolved_arguments.is_empty() {
                 return Some(self.normalize_type_inner(
                     module,
@@ -717,9 +802,49 @@ impl Compiler {
             }
 
             // substitute parameters inside the instance type
+            let needs_materialization =
+                matches!(types.get_type(instance_type_id), Type::Unevaluated(_))
+                    || self.type_contains_unevaluated_static_arguments(
+                        instance_type_id,
+                        types,
+                        &mut HashSet::new(),
+                    );
+            // materialize static arguments using the alias module context
+            let materialized_instance = if !needs_materialization {
+                instance_type_id
+            } else if symbol.module_id == module.id {
+                let argument_tree = module.dir(profile).tree.read();
+                let argument_symbols = module.dir(profile).symbols.read();
+                let mut materialize_cache = HashMap::new();
+                self.materialize_static_arguments_in_type(
+                    module,
+                    profile,
+                    instance_type_id,
+                    &argument_tree,
+                    &argument_symbols,
+                    types,
+                    &mut materialize_cache,
+                )
+            } else {
+                let remote_module = self.program.modules.get(symbol.module_id);
+                let remote_module = remote_module.read();
+                let argument_tree = remote_module.dir(profile).tree.read();
+                let argument_symbols = remote_module.dir(profile).symbols.read();
+                let mut materialize_cache = HashMap::new();
+                self.materialize_static_arguments_in_type(
+                    &remote_module,
+                    profile,
+                    instance_type_id,
+                    &argument_tree,
+                    &argument_symbols,
+                    types,
+                    &mut materialize_cache,
+                )
+            };
+
             let mut cache = HashMap::new();
             let substituted = self.substitute_static_parameters(
-                instance_type_id,
+                materialized_instance,
                 &substitutions,
                 types,
                 &mut cache,
@@ -738,6 +863,14 @@ impl Compiler {
         })();
 
         types.clear_normalization_alias_in_progress(symbol);
+        if let Some(normalized_id) = normalized {
+            types.set_normalized_alias_reference(
+                symbol,
+                mode,
+                arguments.to_vec(),
+                normalized_id,
+            );
+        }
         normalized
     }
 
@@ -746,11 +879,15 @@ impl Compiler {
         &self,
         module: &Module,
         source_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
         types: &TypeTable,
     ) -> Option<Vec<StaticArgument>> {
         // return resolved instance arguments when available
         let instance_id = types.get_instance_for_node(source_id.into_global(module.id))?;
         let instance = types.get_instance(instance_id);
+        if instance.symbol_id != symbol {
+            return None;
+        }
         Some(instance.static_arguments.clone())
     }
 
@@ -929,6 +1066,101 @@ impl Compiler {
             return any_type;
         }
 
+        // strip nullish values when intersecting with empty object types
+        let source_id = types.get_type_source(type_id);
+        let mut empty_object_id = None;
+        let mut remaining = Vec::new();
+        for element_id in filtered {
+            let is_empty_object = match types.get_type(element_id) {
+                Type::Object {
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
+                } => {
+                    fields.is_empty()
+                        && call_signatures.is_empty()
+                        && construct_signatures.is_empty()
+                        && index_signatures.is_empty()
+                }
+                _ => false,
+            };
+
+            if is_empty_object {
+                if empty_object_id.is_none() {
+                    empty_object_id = Some(element_id);
+                }
+            } else {
+                remaining.push(element_id);
+            }
+        }
+
+        let filtered = if let Some(empty_object_id) = empty_object_id {
+            if remaining.is_empty() {
+                return empty_object_id;
+            }
+
+            let mut stripped = Vec::new();
+            for element_id in remaining {
+                match types.get_type(element_id) {
+                    Type::TypeLiteral {
+                        value: TypeLiteral::Null | TypeLiteral::Undefined,
+                    } => {
+                        return types.insert_type_from_any(
+                            Type::TypeLiteral {
+                                value: TypeLiteral::Never,
+                            },
+                            source_id,
+                        );
+                    }
+                    Type::Union { elements } => {
+                        let mut non_nullish = Vec::new();
+                        let mut has_nullish = false;
+                        for union_id in elements {
+                            match types.get_type(*union_id) {
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Null | TypeLiteral::Undefined,
+                                } => {
+                                    has_nullish = true;
+                                }
+                                _ => non_nullish.push(*union_id),
+                            }
+                        }
+
+                        if !has_nullish {
+                            stripped.push(element_id);
+                            continue;
+                        }
+
+                        if non_nullish.is_empty() {
+                            return types.insert_type_from_any(
+                                Type::TypeLiteral {
+                                    value: TypeLiteral::Never,
+                                },
+                                source_id,
+                            );
+                        }
+
+                        if non_nullish.len() == 1 {
+                            stripped.push(non_nullish[0]);
+                        } else {
+                            stripped.push(types.insert_type_from_any(
+                                Type::Union {
+                                    elements: non_nullish,
+                                },
+                                source_id,
+                            ));
+                        }
+                    }
+                    _ => stripped.push(element_id),
+                }
+            }
+
+            stripped
+        } else {
+            remaining
+        };
+
         // fall back to unknown when the intersection collapses
         if filtered.is_empty() {
             return unknown_type.unwrap_or_else(|| {
@@ -965,11 +1197,22 @@ impl Compiler {
         let mut visited = Vec::new();
         loop {
             // exit when the current type is not a reference
-            let Type::Reference { symbol, .. } = types.get_type(current_id) else {
+            let Type::Reference {
+                symbol,
+                static_arguments,
+            } = types.get_type(current_id)
+            else {
                 break;
             };
             // exit when this is not a type alias
             if symbol.ty() != SymbolType::TypeAlias {
+                break;
+            }
+            // avoid unwrapping aliases with explicit static arguments
+            if static_arguments
+                .as_ref()
+                .is_some_and(|arguments| !arguments.is_empty())
+            {
                 break;
             }
             // exit on alias cycles

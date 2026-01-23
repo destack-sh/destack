@@ -49,10 +49,41 @@ impl Compiler {
 
         // ensure builtins are resolved before declaring symbols
         self.require_resolve_builtins(profile)?;
+
+        // ensure ambient libs are declared before user modules
+        let mut lib_collector = TaskResultCollector::new();
+        if self.options.load_libs && module.is_user() {
+            if let Err(error) = self.require_resolve_libs(profile)
+                && let Some(error) = lib_collector.try_collect::<(), _>(Err(error))
+            {
+                return Err(AnalyzeError::from(error));
+            }
+            if let Some(builtins) = self.program.builtins.as_ref() {
+                let profile_key = &self.program.profile(profile).key;
+                if let Some(ambient_libs) = builtins.ambient_libs(profile_key) {
+                    for lib_module_id in ambient_libs {
+                        if lib_module_id == module_id {
+                            continue;
+                        }
+                        if let Err(error) =
+                            self.require_analyze_module_declare(lib_module_id, profile)
+                            && let Some(error) = lib_collector.try_collect::<(), _>(Err(error))
+                        {
+                            return Err(AnalyzeError::from(error));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(dependency) = lib_collector.try_into_yield_any() {
+            return Err(AnalyzeError::Yield { dependency });
+        }
+
+        // snapshot the module dir tables for analysis
         let dir = module.dir(profile);
         let tree = dir.tree.read();
-        let mut symbols = dir.symbols.write();
         let mut types = dir.types.write();
+        let symbols = dir.symbols.read();
         let mut collector = TaskResultCollector::new();
         let mut has_dependency = false;
 
@@ -124,13 +155,19 @@ impl Compiler {
             self.declare_module_declarations(&module, profile, &tree, &symbols, &mut types),
         );
 
+        // drop the read guard before taking a mutable lock for decorators
+        drop(symbols);
+
         // attach well known decorator metadata to symbols
+        let mut symbols = dir.symbols.write();
         self.collect(
             &mut collector,
             self.register_symbol_decorators(&module, profile, &tree, &mut symbols),
         );
+        drop(symbols);
 
         // declare exported value types with local-only inference
+        let symbols = dir.symbols.read();
         let exported_symbols = dir.exported_symbols.read();
         self.collect(
             &mut collector,

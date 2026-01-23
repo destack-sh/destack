@@ -91,19 +91,63 @@ impl Compiler {
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Type> {
+        self.try_evaluate_expression_to_type_value_impl(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+            true,
+        )
+    }
+
+    /// Evaluate an Expression as a Type with an optional declared cache lookup.
+    fn try_evaluate_expression_to_type_value_impl(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        expression_id: LocalNodeId<Expression>,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+        validate_static_argument_bounds: bool,
+        enforce_implicit_managed: bool,
+        use_declared_cache: bool,
+    ) -> AnalyzeResult<Type> {
+        // reuse cached declared types when requested
+        let global_node_id = expression_id.into_global_any(module.id);
+        if use_declared_cache {
+            if let Some(existing) = types.get_declared_type_id(global_node_id)
+                && !matches!(types.get_type(existing), Type::Unevaluated(_))
+            {
+                return Ok(types.get_type(existing).clone());
+            }
+        }
+
+        // avoid recursive evaluation loops
+        if types.is_expression_type_in_progress(global_node_id) {
+            return Ok(Type::Unevaluated(expression_id));
+        }
+        types.mark_expression_type_in_progress(global_node_id);
+
+        let result = self.evaluate_expression_to_type(
+            module,
+            profile,
+            expression_id,
+            tree,
+            symbols,
+            types,
+            validate_static_argument_bounds,
+            enforce_implicit_managed,
+        );
+
+        types.clear_expression_type_in_progress(global_node_id);
+
         // evaluate to a concrete type when possible
-        let ty = self
-            .evaluate_expression_to_type(
-                module,
-                profile,
-                expression_id,
-                tree,
-                symbols,
-                types,
-                validate_static_argument_bounds,
-                enforce_implicit_managed,
-            )?
-            .unwrap_or(Type::Unevaluated(expression_id));
+        let ty = result?.unwrap_or(Type::Unevaluated(expression_id));
         Ok(ty)
     }
 
@@ -296,6 +340,12 @@ impl Compiler {
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<LocalTypeId> {
+        // reuse cached expression types when available
+        let global_node_id = expression_id.into_global_any(module.id);
+        if let Some(existing) = types.get_declared_type_id(global_node_id) {
+            return Ok(existing);
+        }
+
         // evaluate to a concrete type when possible
         let ty = self.try_evaluate_expression_to_type_value_with_controls(
             module,
@@ -307,7 +357,14 @@ impl Compiler {
             validate_static_argument_bounds,
             enforce_implicit_managed,
         )?;
-        Ok(types.insert_type_from(ty, expression_id))
+        let ty_id = types.insert_type_from(ty.clone(), expression_id);
+
+        // cache resolved type expressions for reuse
+        if !matches!(ty, Type::Unevaluated(_)) {
+            types.set_declared_type(global_node_id, ty_id);
+        }
+
+        Ok(ty_id)
     }
 
     /// Evaluate a function signature into a Type.
@@ -1212,8 +1269,9 @@ impl Compiler {
                     validate_static_argument_bounds,
                     enforce_implicit_managed,
                 )?;
-                let distributive =
-                    self.conditional_left_is_distributive(module, profile, left_id, symbols, types);
+                let distributive_symbol = self.conditional_left_distributive_symbol(
+                    module, profile, left_id, symbols, types,
+                );
                 let should_validate_branches = !self.type_contains_static_parameters(
                     module,
                     profile,
@@ -1243,7 +1301,7 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?;
                 Type::Conditional {
-                    distributive,
+                    distributive_symbol,
                     left: left_id,
                     right: right_id,
                     then_type: then_type_id,
@@ -1297,6 +1355,7 @@ impl Compiler {
                 )?;
                 let parameter = TypeMappedParameter {
                     name: parameter.name,
+                    symbol: parameter_symbol,
                     constraint,
                     key_remap,
                 };
@@ -1630,6 +1689,20 @@ impl Compiler {
                         }
                         _ => {}
                     }
+                    let modifiers = match argument {
+                        Argument::Named { modifiers, .. }
+                        | Argument::Labeled { modifiers, .. }
+                        | Argument::Positional { modifiers, .. }
+                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                    };
+                    if let Some(modifiers) = modifiers {
+                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
+                            element.is_optional = true;
+                        }
+                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
+                            element.is_readonly = true;
+                        }
+                    }
                     element_types.push(element);
                 }
 
@@ -1644,10 +1717,8 @@ impl Compiler {
                 // evaluate element types
                 let mut element_types = Vec::with_capacity(elements.len());
                 for element_id in elements {
-                    let value_id = {
-                        let argument = tree.get(element_id);
-                        argument.value()
-                    };
+                    let argument = tree.get(element_id);
+                    let value_id = argument.value();
                     let value_ty_id = self.try_evaluate_expression_to_type(
                         module,
                         profile,
@@ -1658,7 +1729,22 @@ impl Compiler {
                         validate_static_argument_bounds,
                         enforce_implicit_managed,
                     )?;
-                    element_types.push(TypeElement::new(value_ty_id));
+                    let mut element = TypeElement::new(value_ty_id);
+                    let modifiers = match argument {
+                        Argument::Named { modifiers, .. }
+                        | Argument::Labeled { modifiers, .. }
+                        | Argument::Positional { modifiers, .. }
+                        | Argument::Spread { modifiers, .. } => modifiers.as_ref(),
+                    };
+                    if let Some(modifiers) = modifiers {
+                        if matches!(modifiers.kind, Some(BindingKind::Maybe)) {
+                            element.is_optional = true;
+                        }
+                        if matches!(modifiers.mutability, Some(Mutability::Immutable)) {
+                            element.is_readonly = true;
+                        }
+                    }
+                    element_types.push(element);
                 }
 
                 Type::Tuple {
@@ -1959,7 +2045,7 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         right_id: LocalNodeId<Expression>,
         tree: &NodeTree,
-        _symbols: &SymbolTable,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<Type> {
         // unwrap parenthesized targets
@@ -1979,28 +2065,53 @@ impl Compiler {
         };
 
         // resolve the value type for the target symbol
-        let value_ty_id = if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
-            Some(value_ty_id)
-        } else if target_symbol.module_id != module.id {
-            Some(self.resolve_remote_symbol_value_type(
+        if let Some(value_ty_id) = types.get_value_type_id(target_symbol) {
+            return Ok(types.get_type(value_ty_id).clone());
+        }
+
+        if target_symbol.module_id != module.id {
+            let value_ty_id = self.resolve_remote_symbol_value_type(
                 module,
                 profile,
                 expression_id.into_any(),
                 target_symbol,
                 types,
-            )?)
-        } else {
-            None
-        };
+            )?;
+            return Ok(types.get_type(value_ty_id).clone());
+        }
 
-        // fall back to unknown when the value type is missing
-        let Some(value_ty_id) = value_ty_id else {
-            return Ok(Type::TypeLiteral {
-                value: TypeLiteral::Unknown,
-            });
-        };
+        // fall back to local declaration types when available
+        if let Some(declarator_id) =
+            self.direct_binding_declarator_for_symbol(module, target_symbol, tree, symbols)
+        {
+            let declared_ty_id =
+                types.get_declared_type_id(declarator_id.into_global_any(module.id));
+            if let Some(declared_ty_id) = declared_ty_id {
+                self.evaluate_type(module, profile, declared_ty_id, tree, symbols, types)?;
+                return Ok(types.get_type(declared_ty_id).clone());
+            }
 
-        Ok(types.get_type(value_ty_id).clone())
+            let declarator = tree.get(declarator_id);
+            if let Some(value_id) = declarator.value {
+                let ty = self.try_evaluate_expression_to_type_value_with_controls(
+                    module,
+                    profile,
+                    value_id,
+                    tree,
+                    symbols,
+                    types,
+                    true,
+                    true,
+                )?;
+                if !matches!(ty, Type::Unevaluated(_)) {
+                    return Ok(ty);
+                }
+            }
+        }
+
+        Ok(Type::TypeLiteral {
+            value: TypeLiteral::Unknown,
+        })
     }
 }
 

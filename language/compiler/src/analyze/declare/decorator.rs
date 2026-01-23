@@ -742,7 +742,7 @@ impl Compiler {
         for argument_id in arguments {
             let argument = tree.get(*argument_id);
             let value_id = match argument {
-                Argument::Positional { value }
+                Argument::Positional { value, .. }
                 | Argument::Named { value, .. }
                 | Argument::Labeled { value, .. } => *value,
                 Argument::Spread { .. } => {

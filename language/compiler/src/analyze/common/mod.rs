@@ -1,6 +1,7 @@
 mod argument;
 mod canonical;
 mod conditional;
+mod declarator;
 mod json;
 mod key;
 mod literal;

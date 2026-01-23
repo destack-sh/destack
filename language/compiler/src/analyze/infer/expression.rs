@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use super::declaration::DeclaratorConstraint;
@@ -6,8 +6,8 @@ use super::member::MemberLookupMode;
 
 use crate::analyze::common::CanonicalSymbolMode;
 use crate::{
-    AnalyzeError, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind, Compiler,
-    FlowContext, InferContext,
+    AnalyzeError, AnalyzeOptions, AnalyzeResult, AnalyzeWarning, Assignability, BreakTargetKind,
+    Compiler, FlowContext, InferContext,
 };
 use destack_builtin::LanguageSymbol;
 use destack_dir::{
@@ -15,9 +15,10 @@ use destack_dir::{
     Declaration, Declarator, DependencySource, DynamicKey, Expression, FlowGraphBuilder,
     ForEachBinding, FunctionKind, GlobalSymbolId, IfCondition, InferOrigin, InferScope, InferTable,
     LocalNodeId, LocalNodeIdAny, LocalSymbolId, LocalTypeId, MatchCase, MatchKind, MatchSelector,
-    MatchSource, Mutability, NodeTree, NodeType, Pattern, PatternField, PrimitiveType, Property,
-    Resolution, StaticKey, StringId, SymbolDecorators, SymbolSpace, SymbolTable, SymbolType, Type,
-    TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
+    MatchSource, Mutability, NodeTree, NodeType, NormalizationMode, Pattern, PatternField,
+    PrimitiveType, Property, Resolution, StaticKey, StringId, SymbolDecorators, SymbolSpace,
+    SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeKind, TypeLiteral, TypeTable,
+    WellKnownSymbol,
 };
 use destack_workspace::{Module, ModuleSource, ProfileId};
 
@@ -70,139 +71,6 @@ impl Compiler {
         }
 
         Ok(ty_id)
-    }
-
-    /// Resolve a direct binding declarator for a symbol.
-    fn direct_binding_declarator_for_symbol(
-        &self,
-        module: &Module,
-        symbol: GlobalSymbolId,
-        tree: &NodeTree,
-        symbols: &SymbolTable,
-    ) -> Option<LocalNodeId<Declarator>> {
-        // only local bindings can use local declaration data
-        if symbol.module_id != module.id {
-            return None;
-        }
-
-        // read the primary declaration for the symbol
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let primary_declaration = symbol_entry.primary_declaration?;
-
-        // ensure the declaration is local to the module
-        if primary_declaration.module_id != module.id {
-            return None;
-        }
-
-        // require a direct binding for the primary declaration
-        if !self.primary_declaration_is_direct_binding(
-            primary_declaration.local_id,
-            symbol.local_id,
-            tree,
-        ) {
-            return None;
-        }
-
-        // walk up to find the declarator containing the binding
-        if let Some(declarator_id) =
-            self.declarator_parent_for_node(primary_declaration.local_id, tree)
-        {
-            return Some(declarator_id);
-        }
-
-        // scan let or using expressions for a matching direct binding
-        self.direct_binding_declarator_in_expression(
-            primary_declaration.local_id,
-            symbol.local_id,
-            tree,
-        )
-    }
-
-    /// Return true when the primary declaration is a direct binding.
-    fn primary_declaration_is_direct_binding(
-        &self,
-        declaration_id: LocalNodeIdAny,
-        symbol: LocalSymbolId,
-        tree: &NodeTree,
-    ) -> bool {
-        // accept direct binding patterns with no destructuring
-        if declaration_id.ty == NodeType::Pattern {
-            let pattern_id = declaration_id.into_typed::<Pattern>();
-            let Pattern::Binding {
-                symbol: binding_symbol,
-                pattern,
-                ..
-            } = tree.get(pattern_id)
-            else {
-                return false;
-            };
-
-            return *binding_symbol == symbol && pattern.is_none();
-        }
-
-        // reject pattern fields because they are not primary bindings
-        if declaration_id.ty == NodeType::PatternField {
-            return false;
-        }
-
-        true
-    }
-
-    /// Walk up the tree to find an enclosing declarator.
-    fn declarator_parent_for_node(
-        &self,
-        node_id: LocalNodeIdAny,
-        tree: &NodeTree,
-    ) -> Option<LocalNodeId<Declarator>> {
-        // climb parents until a declarator is found
-        let mut current = node_id;
-        loop {
-            if current.ty == NodeType::Declarator {
-                return Some(current.into_typed());
-            }
-            let parent = tree.get_parent(current.id)?;
-            current = parent;
-        }
-    }
-
-    /// Find a direct binding declarator inside a let or using expression.
-    fn direct_binding_declarator_in_expression(
-        &self,
-        declaration_id: LocalNodeIdAny,
-        symbol: LocalSymbolId,
-        tree: &NodeTree,
-    ) -> Option<LocalNodeId<Declarator>> {
-        // only expressions can contain declarator lists
-        if declaration_id.ty != NodeType::Expression {
-            return None;
-        }
-
-        // select declarator lists from let and using expressions
-        let expression_id = declaration_id.into_typed::<Expression>();
-        let declarators = match tree.get(expression_id) {
-            Expression::Let { declarators, .. } => declarators.as_slice(),
-            Expression::Using { declarators, .. } => declarators.as_slice(),
-            _ => return None,
-        };
-
-        // find a matching direct binding declarator
-        for declarator_id in declarators {
-            let declarator = tree.get(*declarator_id);
-            let Pattern::Binding {
-                symbol: binding_symbol,
-                pattern,
-                ..
-            } = tree.get(declarator.pattern)
-            else {
-                continue;
-            };
-
-            if *binding_symbol == symbol && pattern.is_none() {
-                return Some(*declarator_id);
-            }
-        }
-
-        None
     }
 
     /// Infer a direct binding value type when none is cached yet.
@@ -962,7 +830,18 @@ impl Compiler {
             // array expression: infer element types and build array type
             Expression::ArrayExpression { elements } => {
                 // resolve contextual type for array literals
-                let expected_ty_id = self.expected_value_type(ctx.expected_type, types);
+                let expected_ty_id = self
+                    .expected_value_type(ctx.expected_type, types)
+                    .map(|expected_ty_id| {
+                        self.normalize_type(
+                            module,
+                            ctx.profile,
+                            expected_ty_id,
+                            symbols,
+                            types,
+                            NormalizationMode::Assign,
+                        )
+                    });
                 let expected_is_tuple = expected_ty_id.is_some_and(|expected_ty_id| {
                     matches!(types.get_type(expected_ty_id), Type::Tuple { .. })
                 });
@@ -1228,8 +1107,11 @@ impl Compiler {
                     module,
                     ctx.profile,
                     expression_id.into_any(),
-                    ctx.expected_type,
+                    expected_object_ty_id,
                     &literal_fields,
+                    &ctx.options,
+                    tree,
+                    symbols,
                     types,
                 )?;
                 if let Some(spread_override) = spread_override {
@@ -1285,18 +1167,56 @@ impl Compiler {
                 left,
                 static_arguments,
                 dynamic_arguments,
-            } => self.infer_call_expression(
-                module,
-                expression_id,
-                *left,
-                static_arguments.as_deref(),
-                dynamic_arguments,
-                tree,
-                symbols,
-                types,
-                infer,
-                ctx,
-            )?,
+            } => {
+                let return_ty_id = self.infer_call_expression(
+                    module,
+                    expression_id,
+                    *left,
+                    static_arguments.as_deref(),
+                    dynamic_arguments,
+                    tree,
+                    symbols,
+                    types,
+                    infer,
+                    ctx,
+                )?;
+
+                let expects_unique_symbol = ctx.expected_type.is_some_and(|expected_ty_id| {
+                    matches!(
+                        types.get_type(expected_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                        }
+                    )
+                });
+                if expects_unique_symbol
+                    && let Some(callee_symbol) = self.reference_symbol_for_expression(
+                        module,
+                        *left,
+                        ctx.profile,
+                        tree,
+                        symbols,
+                    )
+                    && self.is_well_known_symbol(
+                        ctx.profile,
+                        callee_symbol,
+                        WellKnownSymbol::Symbol,
+                    )
+                    && matches!(
+                        types.get_type(return_ty_id),
+                        Type::TypeLiteral {
+                            value: TypeLiteral::Primitive(PrimitiveType::Symbol),
+                        }
+                    )
+                {
+                    let ty = Type::TypeLiteral {
+                        value: TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+                    };
+                    types.insert_type_from(ty, expression_id)
+                } else {
+                    return_ty_id
+                }
+            }
 
             Expression::Member {
                 left,
@@ -2261,8 +2181,11 @@ impl Compiler {
                     module,
                     ctx.profile,
                     expression_id.into_any(),
-                    Some(ty_id),
+                    expected_object_ty_id,
                     &literal_fields,
+                    &ctx.options,
+                    tree,
+                    symbols,
                     types,
                 )?;
 
@@ -3654,6 +3577,9 @@ impl Compiler {
         node_id: LocalNodeIdAny,
         expected_ty_id: Option<LocalTypeId>,
         fields: &[ObjectLiteralField],
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<()> {
         // collect candidates for excess property checks
@@ -3662,13 +3588,18 @@ impl Compiler {
             return Ok(());
         };
         let mut candidates: Vec<LocalTypeId> = Vec::new();
+        let mut visited = HashSet::new();
         self.collect_object_literal_candidates(
             module,
             profile,
             node_id,
             expected_ty_id,
+            options,
+            tree,
+            symbols,
             types,
             &mut candidates,
+            &mut visited,
         )?;
         if candidates.is_empty() {
             return Ok(());
@@ -3711,24 +3642,126 @@ impl Compiler {
         profile: ProfileId,
         node_id: LocalNodeIdAny,
         expected_ty_id: LocalTypeId,
+        options: &AnalyzeOptions,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         candidates: &mut Vec<LocalTypeId>,
+        visited: &mut HashSet<LocalTypeId>,
     ) -> AnalyzeResult<()> {
+        // avoid recursive candidate discovery loops
+        if !visited.insert(expected_ty_id) {
+            return Ok(());
+        }
+
         match types.get_type(expected_ty_id).clone() {
             Type::Object { .. } => {
                 candidates.push(expected_ty_id);
             }
-            Type::Reference { symbol, .. } => {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
                 let instance_ty_id =
                     self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
                 if let Some(instance_ty_id) = instance_ty_id {
-                    candidates.push(instance_ty_id);
+                    let mut candidate_id = instance_ty_id;
+
+                    // specialize instance types with explicit static arguments
+                    if let Some(static_arguments) = static_arguments.as_ref()
+                        && let Some(resolved_arguments) =
+                            self.resolve_type_reference_static_arguments(
+                                module,
+                                profile,
+                                node_id,
+                                symbol,
+                                Some(static_arguments.as_slice()),
+                                true,
+                                options,
+                                tree,
+                                symbols,
+                                types,
+                            )?
+                        && !resolved_arguments.is_empty()
+                    {
+                        let substitutions = self.build_type_parameter_substitutions_for_symbol(
+                            module,
+                            profile,
+                            symbol,
+                            node_id,
+                            &resolved_arguments,
+                            tree,
+                            symbols,
+                            types,
+                        );
+                        if !substitutions.is_empty() {
+                            let mut cache = HashMap::new();
+                            candidate_id = self.substitute_static_parameters(
+                                instance_ty_id,
+                                &substitutions,
+                                types,
+                                &mut cache,
+                            );
+                        }
+                    }
+
+                    let normalized = self.normalize_type(
+                        module,
+                        profile,
+                        candidate_id,
+                        symbols,
+                        types,
+                        NormalizationMode::Assign,
+                    );
+                    candidates.push(normalized);
                 }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                // expand mapped types into object candidates
+                let source_id = types.get_type_source(expected_ty_id);
+                let mut normalize_visited = Vec::new();
+                let normalized = self.normalize_mapped_type(
+                    module,
+                    profile,
+                    source_id,
+                    parameter,
+                    modifiers,
+                    value,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut normalize_visited,
+                );
+                self.collect_object_literal_candidates(
+                    module,
+                    profile,
+                    node_id,
+                    normalized,
+                    options,
+                    tree,
+                    symbols,
+                    types,
+                    candidates,
+                    visited,
+                )?;
             }
             Type::Union { elements } => {
                 for element in elements {
                     self.collect_object_literal_candidates(
-                        module, profile, node_id, element, types, candidates,
+                        module,
+                        profile,
+                        node_id,
+                        element,
+                        options,
+                        tree,
+                        symbols,
+                        types,
+                        candidates,
+                        visited,
                     )?;
                 }
             }

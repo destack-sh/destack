@@ -2688,6 +2688,7 @@ impl Compiler {
                 static_parameter,
                 &resolved_argument,
                 materialized_substitution,
+                tree,
                 symbols,
                 types,
                 Some(infer),

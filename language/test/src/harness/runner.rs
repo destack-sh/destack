@@ -4,11 +4,11 @@ use std::time::Instant;
 use rayon::ThreadPoolBuilder;
 use rayon::prelude::*;
 
+use super::print::color;
 use super::{
     RunContext, Suite, TestCase, TestOptions, TestResult, TestSummary, filter_tests,
     print_failures, print_result, print_summary, print_test_list,
 };
-use super::print::color;
 use std::collections::HashSet;
 
 /// Shared runner implementation for all `destack_test` suites.
@@ -24,12 +24,10 @@ impl Runner {
 
         let cases = suite.discover(options);
         let expected_failures = suite.expected_failures(options);
-        let (exit_code, results, expected_summary) = Self::run_cases_and_collect(
-            cases,
-            expected_failures,
-            &context,
-            |case, ctx| suite.run(case, ctx),
-        );
+        let (exit_code, results, expected_summary) =
+            Self::run_cases_and_collect(cases, expected_failures, &context, |case, ctx| {
+                suite.run(case, ctx)
+            });
 
         suite.report(&results, &context);
         if let Some(summary) = expected_summary {
@@ -53,7 +51,11 @@ impl Runner {
         expected_failures: Option<&HashSet<String>>,
         context: &RunContext<'_>,
         run: F,
-    ) -> (ExitCode, Vec<(TestCase, TestResult)>, Option<ExpectedFailureSummary>)
+    ) -> (
+        ExitCode,
+        Vec<(TestCase, TestResult)>,
+        Option<ExpectedFailureSummary>,
+    )
     where
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
@@ -192,11 +194,7 @@ impl Runner {
         }
 
         if fixed > 0 {
-            println!(
-                "{} {} tests fixed",
-                color::green("FIXED:"),
-                fixed
-            );
+            println!("{} {} tests fixed", color::green("FIXED:"), fixed);
             for name in summary.fixed.iter().take(20) {
                 println!("  {name}");
             }

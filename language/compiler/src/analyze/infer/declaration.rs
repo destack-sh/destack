@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::expression::has_implicit_return;
 use crate::{AnalyzeError, AnalyzeResult, Assignability, Compiler, InferContext};
@@ -1443,8 +1443,12 @@ impl Compiler {
 
         // type check: if both declared and inferred, check assignability
         if let (Some(declared), Some(inferred)) = (declared_ty_id, inferred_ty_id) {
+            let mut visited = HashSet::new();
+            let skip_assignability = self.type_contains_error(declared, types, &mut visited)
+                || self.type_contains_error(inferred, types, &mut visited);
+
             // apply inference constraints when required
-            if matches!(constraint, DeclaratorConstraint::Assignable) {
+            if !skip_assignability && matches!(constraint, DeclaratorConstraint::Assignable) {
                 infer.push_constraint(Constraint::Subtype {
                     sub_type: inferred,
                     super_type: declared,
@@ -1452,7 +1456,8 @@ impl Compiler {
                 });
             }
 
-            if !self.is_infer_var_type(declared, types)
+            if !skip_assignability
+                && !self.is_infer_var_type(declared, types)
                 && !self.is_infer_var_type(inferred, types)
                 && self.is_type_assignable(
                     module,

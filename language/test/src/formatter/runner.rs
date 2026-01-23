@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::harness::{
-    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files, fixtures_dir,
-    save_expected_failures,
+    RunContext, Runner, Suite, TestCase, TestOptions, TestResult, discover_test_files,
+    fixtures_dir, save_expected_failures,
 };
 use crate::mdtest::{
     MdTestCase, discover_md_files, load_mdtest_expected_failures, parse_mdtest_file, slug,

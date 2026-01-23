@@ -428,7 +428,7 @@ type Buffer<N: number> = uint8[N];
 
 declare function make<N: number>(value: uint8[N]): Buffer<N>;
 
-let data = [1, 2, 3, 4];tgrf
+let data = [1, 2, 3, 4];
 let value = make(data);
 ```
 

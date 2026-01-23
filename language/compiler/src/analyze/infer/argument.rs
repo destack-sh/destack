@@ -3,11 +3,12 @@ use std::collections::{HashMap, HashSet};
 use super::super::common::{StaticParameterReferencePosition, StaticParameterReferences};
 use crate::{AnalyzeError, AnalyzeOptions, AnalyzeResult, Assignability, Compiler, InferContext};
 use destack_dir::{
-    AnchoredGlobalNodeId, Argument, Constraint, Declaration, Expression, GlobalNodeId,
-    GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, NodeTree, StaticArgument, StaticExpression, StaticParameter,
-    StaticParameterKind, StaticProperty, StringId, SymbolTable, SymbolType, Type, TypeElement,
-    TypeField, TypeLiteral, TypeMappedParameter, TypeTable,
+    AnchoredGlobalNodeId, Argument, BindingKind, Constraint, Declaration, DynamicKey, Expression,
+    GlobalNodeId, GlobalNodeIdAny, GlobalSymbolId, InferOrigin, InferScope, InferTable,
+    LocalNodeId, LocalNodeIdAny, LocalTypeId, Mutability, NodeTree, StaticArgument,
+    StaticExpression, StaticKey, StaticParameter, StaticParameterKind, StaticProperty,
+    StringId, SymbolTable, SymbolType, Type, TypeElement, TypeField, TypeLiteral,
+    TypeMappedParameter, TypeTable,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -200,7 +201,7 @@ impl Compiler {
         let mut argument_ctx = ctx.fork().with_expected_type(expected_ty_id);
 
         match argument {
-            Argument::Positional { value } => {
+            Argument::Positional { value, .. } => {
                 self.infer_expression(
                     module,
                     *value,
@@ -211,7 +212,7 @@ impl Compiler {
                     &mut argument_ctx,
                 )?;
             }
-            Argument::Named { name: _, value } => {
+            Argument::Named { name: _, value, .. } => {
                 self.infer_expression(
                     module,
                     *value,
@@ -222,7 +223,7 @@ impl Compiler {
                     &mut argument_ctx,
                 )?;
             }
-            Argument::Labeled { label: _, value } => {
+            Argument::Labeled { label: _, value, .. } => {
                 self.infer_expression(
                     module,
                     *value,
@@ -233,7 +234,11 @@ impl Compiler {
                     &mut argument_ctx,
                 )?;
             }
-            Argument::Spread { label: _, value } => {
+            Argument::Spread {
+                label: _,
+                value,
+                ..
+            } => {
                 self.infer_expression(
                     module,
                     *value,
@@ -570,9 +575,20 @@ impl Compiler {
             )?;
         }
 
+        // re-evaluate unevaluated arguments before building the substitution type
+        let resolved_argument = if let StaticArgument::Unevaluated { node } = resolved_static_argument
+        {
+            self.evaluate_static_argument_as_type(
+                module, profile, *node, tree, symbols, types,
+            )?
+            .unwrap_or_else(|| resolved_static_argument.clone())
+        } else {
+            resolved_static_argument.clone()
+        };
+
         // build the substitution type from the argument
         let substitution_ty_id =
-            self.convert_static_argument_type(resolved_static_argument, error_node.local_id, types);
+            self.convert_static_argument_type(&resolved_argument, error_node.local_id, types);
 
         // ensure referenced instance types are available for validation
         self.ensure_reference_instance_types_for_type(
@@ -600,6 +616,7 @@ impl Compiler {
         profile: ProfileId,
         error_node: GlobalNodeIdAny,
         value: &StaticExpression,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
     ) -> AnalyzeResult<LocalTypeId> {
@@ -626,7 +643,24 @@ impl Compiler {
             }
         }
 
-        // normalize literal arguments into value types
+        // normalize static expression shapes into value types
+        self.static_expression_value_type(
+            module, profile, error_node, value, tree, symbols, types,
+        )
+    }
+
+    /// Convert a static expression into a value type for validation.
+    fn static_expression_value_type(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        error_node: GlobalNodeIdAny,
+        value: &StaticExpression,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<LocalTypeId> {
+        // map scalar and type literal values directly
         let ty = match value {
             StaticExpression::ScalarLiteral { value } => Type::TypeLiteral {
                 value: TypeLiteral::ScalarLiteral(value.clone()),
@@ -634,7 +668,94 @@ impl Compiler {
             StaticExpression::TypeLiteral { value } => Type::TypeLiteral {
                 value: value.clone(),
             },
-            _ => Type::TypeLiteral {
+            StaticExpression::Type { ty } => {
+                return Ok(*ty);
+            }
+            StaticExpression::ArrayExpression { elements }
+            | StaticExpression::TupleExpression { elements } => {
+                // map tuple literal expressions into tuple types
+                let mut element_types = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let element_ty_id = self.static_expression_value_type(
+                        module,
+                        profile,
+                        error_node,
+                        element,
+                        tree,
+                        symbols,
+                        types,
+                    )?;
+                    element_types.push(TypeElement::new(element_ty_id));
+                }
+                Type::Tuple {
+                    elements: element_types,
+                    is_readonly: false,
+                }
+            }
+            StaticExpression::ObjectExpression { properties } => {
+                // map object literal expressions into structural object types
+                let mut fields = Vec::new();
+                for property in properties {
+                    match property {
+                        StaticProperty::Unevaluated { .. } => {}
+                        StaticProperty::Field {
+                            modifiers,
+                            key,
+                            value,
+                            default: _,
+                            symbol: _,
+                        } => {
+                            let key = match *key {
+                                Some(DynamicKey::Name(name)) => Some(StaticKey::Name(name)),
+                                Some(DynamicKey::Number(name)) => Some(StaticKey::Number(name)),
+                                _ => None,
+                            };
+                            let Some(key) = key else {
+                                continue;
+                            };
+                            let field_ty_id = self.static_expression_value_type(
+                                module,
+                                profile,
+                                error_node,
+                                value,
+                                tree,
+                                symbols,
+                                types,
+                            )?;
+                            let is_optional = modifiers.is_some_and(|modifiers| {
+                                modifiers.kind.is_some_and(|kind| kind == BindingKind::Maybe)
+                            });
+                            let is_readonly = modifiers.is_some_and(|modifiers| {
+                                modifiers
+                                    .mutability
+                                    .is_some_and(|mutability| mutability == Mutability::Immutable)
+                            });
+                            fields.push(TypeField {
+                                key,
+                                ty: field_ty_id,
+                                is_optional,
+                                is_readonly,
+                            });
+                        }
+                        StaticProperty::Method {
+                            modifiers: _,
+                            key: _,
+                            signature: _,
+                            body: _,
+                            symbol: _,
+                        } => {}
+                    }
+                }
+                Type::Object {
+                    fields,
+                    call_signatures: Vec::new(),
+                    construct_signatures: Vec::new(),
+                    index_signatures: Vec::new(),
+                }
+            }
+            StaticExpression::RangeExpression { .. }
+            | StaticExpression::Declaration { .. }
+            | StaticExpression::Unevaluated { .. } => Type::TypeLiteral {
                 value: TypeLiteral::Unknown,
             },
         };
@@ -651,6 +772,7 @@ impl Compiler {
         static_parameter: &StaticParameter,
         resolved_static_argument: &StaticArgument,
         prepared_substitution: Option<LocalTypeId>,
+        tree: &NodeTree,
         symbols: &SymbolTable,
         types: &mut TypeTable,
         infer: Option<&mut InferTable>,
@@ -695,6 +817,16 @@ impl Compiler {
                     &mut cache,
                 )
             };
+
+            // accept all arguments when the declared bound is unknown or any
+            if matches!(
+                types.get_type(expected_ty_id),
+                Type::TypeLiteral {
+                    value: TypeLiteral::Unknown | TypeLiteral::Any
+                }
+            ) {
+                return Ok(Some(substitution_ty_id));
+            }
 
             // skip validation when nested references are unresolved in declaration modules
             if module.language_type.is_declaration() {
@@ -876,7 +1008,9 @@ impl Compiler {
             self.error(AnalyzeError::NonStaticArgument {
                 node: error_node.into_anchored(Some(profile)),
             });
-            return Ok(None);
+            return Ok(Some(
+                types.insert_type_from_any(Type::Error, error_node.local_id),
+            ));
         }
         if let StaticArgument::Evaluated { value, .. } = resolved_static_argument {
             // reject non static value arguments
@@ -886,12 +1020,21 @@ impl Compiler {
                 self.error(AnalyzeError::NonStaticArgument {
                     node: error_node.into_anchored(Some(profile)),
                 });
-                return Ok(None);
+                return Ok(Some(
+                    types.insert_type_from_any(Type::Error, error_node.local_id),
+                ));
             }
 
             // reject not assignable value arguments
-            let value_ty_id = self
-                .static_value_argument_type(module, profile, error_node, value, symbols, types)?;
+            let value_ty_id = self.static_value_argument_type(
+                module,
+                profile,
+                error_node,
+                value,
+                tree,
+                symbols,
+                types,
+            )?;
             if !self.is_infer_var_type(static_parameter.declared_type_id, types)
                 && self.is_type_assignable(
                     module,
@@ -909,6 +1052,9 @@ impl Compiler {
                     expected_ty: static_parameter.declared_type_id.into_global(module.id),
                     actual_ty: value_ty_id.into_global(module.id),
                 });
+                return Ok(Some(
+                    types.insert_type_from_any(Type::Error, error_node.local_id),
+                ));
             }
         }
 
@@ -1150,60 +1296,32 @@ impl Compiler {
     ) -> AnalyzeResult<StaticParameterReferences> {
         let mut references = StaticParameterReferences::default();
 
-        // ensure instance types are ready for reference collection
-        if types.get_instance_type_id(symbol).is_none() {
-            self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
-        }
+        // avoid instance-driven reference discovery for aliases
+        let symbol_type = symbol.ty();
+        let use_instance_types = !matches!(symbol_type, SymbolType::TypeAlias | SymbolType::Newtype);
 
-        // collect references from the instance type when possible
-        if let Some(ty_id) = types.get_instance_type_id(symbol) {
-            self.collect_reference_symbols_from_type_id(
-                module,
-                profile,
-                ty_id,
-                tree,
-                symbols,
-                types,
-                &mut references.type_symbols,
-            )?;
-        }
+        if use_instance_types {
+            // ensure instance types are ready for reference collection
+            if types.get_instance_type_id(symbol).is_none() {
+                self.resolve_instance_type_for_symbol(module, profile, node_id, symbol, types)?;
+            }
 
-        // include alias targets for nominal alias symbols
-        if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype) {
-            if symbol.module_id == module.id {
-                if let Some(alias_target_id) = types.get_alias_target_type_id(symbol) {
-                    self.collect_reference_symbols_from_type_id(
-                        module,
-                        profile,
-                        alias_target_id,
-                        tree,
-                        symbols,
-                        types,
-                        &mut references.type_symbols,
-                    )?;
-                }
-            } else {
-                let remote_module = self.program.modules.get(symbol.module_id);
-                let remote_module = remote_module.read();
-                let remote_tree = remote_module.dir(profile).tree.read();
-                let remote_symbols = remote_module.dir(profile).symbols.read();
-                let mut remote_types = remote_module.dir(profile).types.write();
-                if let Some(alias_target_id) = remote_types.get_alias_target_type_id(symbol) {
-                    self.collect_reference_symbols_from_type_id(
-                        &remote_module,
-                        profile,
-                        alias_target_id,
-                        &remote_tree,
-                        &remote_symbols,
-                        &mut remote_types,
-                        &mut references.type_symbols,
-                    )?;
-                }
+            // collect references from the instance type when possible
+            if let Some(ty_id) = types.get_instance_type_id(symbol) {
+                self.collect_reference_symbols_from_type_id(
+                    module,
+                    profile,
+                    ty_id,
+                    tree,
+                    symbols,
+                    types,
+                    &mut references.type_symbols,
+                )?;
             }
         }
 
         // collect usage from declaration expressions when possible
-        if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+        if matches!(symbol_type, SymbolType::TypeAlias | SymbolType::Newtype)
             && references.type_symbols.is_empty()
             && references.value_symbols.is_empty()
         {
@@ -1559,6 +1677,65 @@ impl Compiler {
             return Ok(None);
         }
 
+        // reuse resolved arguments when an instance is already registered for this node
+        let node_global_id = node_id.into_global(module.id);
+        if let Some(instance_id) = types.get_instance_for_node(node_global_id) {
+            let instance = types.get_instance(instance_id);
+            if instance.symbol_id == symbol {
+                if instance.static_arguments.is_empty() {
+                    return Ok(None);
+                }
+                return Ok(Some(instance.static_arguments.clone()));
+            }
+        }
+
+        // guard against recursive resolution on the same reference
+        let argument_slice = static_arguments.unwrap_or(&[]);
+        if types.is_static_argument_resolution_in_progress(symbol, argument_slice) {
+            if !argument_slice.is_empty() {
+                return Ok(Some(argument_slice.to_vec()));
+            }
+            return Ok(None);
+        }
+
+        // mark resolution as in progress for this argument set
+        let argument_snapshot = argument_slice.to_vec();
+        types.mark_static_argument_resolution_in_progress(symbol, argument_snapshot.clone());
+
+        let result = self.resolve_type_reference_static_arguments_inner(
+            module,
+            profile,
+            node_id,
+            symbol,
+            static_arguments,
+            validate_static_argument_bounds,
+            options,
+            treat_type_arguments_as_types,
+            tree,
+            symbols,
+            types,
+        );
+
+        // clear the in progress marker
+        types.clear_static_argument_resolution_in_progress(symbol, &argument_snapshot);
+        result
+    }
+
+    /// Resolve static arguments for a type reference.
+    fn resolve_type_reference_static_arguments_inner(
+        &self,
+        module: &Module,
+        profile: ProfileId,
+        node_id: LocalNodeIdAny,
+        symbol: GlobalSymbolId,
+        static_arguments: Option<&[StaticArgument]>,
+        validate_static_argument_bounds: bool,
+        options: &AnalyzeOptions,
+        treat_type_arguments_as_types: bool,
+        tree: &NodeTree,
+        symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> AnalyzeResult<Option<Vec<StaticArgument>>> {
         // ensure remote declarations are resolved before reading defaults
         if symbol.module_id != module.id {
             self.require_resolve_module_direct(symbol.module_id, profile)
@@ -1600,9 +1777,23 @@ impl Compiler {
         let mut static_parameters: Vec<_> = parameter_symbols
             .iter()
             .map(|symbol_id| {
+                // infer a kind when the cache is empty
                 let kind = types
                     .get_static_parameter_kind(*symbol_id)
-                    .unwrap_or(StaticParameterKind::Type);
+                    .unwrap_or_else(|| {
+                        let hint = self
+                            .static_parameter_kind_hint(
+                                module,
+                                profile,
+                                *symbol_id,
+                                node_id,
+                                symbols,
+                                types,
+                            )
+                            .unwrap_or(StaticParameterKind::Type);
+                        types.set_static_parameter_kind(*symbol_id, hint);
+                        hint
+                    });
                 self.collect_static_parameter(
                     module, *symbol_id, kind, node_id, profile, tree, symbols, types,
                 )
@@ -1781,6 +1972,7 @@ impl Compiler {
                     static_parameter,
                     &resolved_argument,
                     materialized_substitution,
+                    tree,
                     symbols,
                     types,
                     None,
@@ -1790,24 +1982,37 @@ impl Compiler {
                 None
             };
 
-            // update resolved type arguments with validated substitutions
-            if static_parameter.kind == StaticParameterKind::Type
-                && let Some(substitution_ty_id) = validated_type
-            {
+            // update resolved arguments with validated substitutions
+            if let Some(substitution_ty_id) = validated_type {
                 let argument_name = match &resolved_argument {
                     StaticArgument::Evaluated { name, .. } => *name,
                     StaticArgument::Unevaluated { .. } => None,
                 };
-                resolved_argument = StaticArgument::Evaluated {
-                    name: argument_name,
-                    value: StaticExpression::Type {
-                        ty: substitution_ty_id,
-                    },
-                };
+                if matches!(types.get_type(substitution_ty_id), Type::Error)
+                    || static_parameter.kind == StaticParameterKind::Type
+                {
+                    resolved_argument = StaticArgument::Evaluated {
+                        name: argument_name,
+                        value: StaticExpression::Type {
+                            ty: substitution_ty_id,
+                        },
+                    };
+                }
             }
 
             resolved_argument_map.insert(static_parameter.symbol, resolved_argument.clone());
             resolved_arguments.push(resolved_argument);
+        }
+
+        // record resolved arguments for this reference instance
+        if !resolved_arguments.is_empty() && self.is_instantiable_symbol(symbol) {
+            let node_global_id = node_id.into_global(module.id);
+            self.register_instance_for_node(
+                node_global_id,
+                symbol,
+                resolved_arguments.clone(),
+                types,
+            );
         }
 
         Ok(Some(resolved_arguments))
@@ -1991,7 +2196,7 @@ impl Compiler {
     }
 
     /// Convert a static argument into a type id for substitution.
-    pub(super) fn convert_static_argument_type(
+    pub(crate) fn convert_static_argument_type(
         &self,
         argument: &StaticArgument,
         source_id: LocalNodeIdAny,
@@ -2212,6 +2417,7 @@ impl Compiler {
         if let Some(mapped) = cache.get(&ty_id).copied() {
             return mapped;
         }
+        cache.insert(ty_id, ty_id);
 
         let ty = types.get_type(ty_id).clone();
         let mapped = match ty {
@@ -2315,37 +2521,131 @@ impl Compiler {
                 }
             }
             Type::Conditional {
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
                 else_type,
             } => {
-                let mapped_left =
-                    self.substitute_static_parameters(left, substitutions, types, cache);
-                let mapped_right =
-                    self.substitute_static_parameters(right, substitutions, types, cache);
-                let mapped_then =
-                    self.substitute_static_parameters(then_type, substitutions, types, cache);
-                let mapped_else =
-                    self.substitute_static_parameters(else_type, substitutions, types, cache);
-                if mapped_left == left
-                    && mapped_right == right
-                    && mapped_then == then_type
-                    && mapped_else == else_type
-                {
-                    ty_id
+                let distributive_union = match distributive_symbol {
+                    Some(symbol) => match types.get_type(left).clone() {
+                        Type::Reference {
+                            symbol: reference_symbol,
+                            static_arguments: None,
+                        } if reference_symbol == symbol => {
+                            if let Some(substitution) = substitutions.get(&symbol) {
+                                let mut union_source = *substitution;
+                                if let Type::Reference {
+                                    symbol: union_symbol,
+                                    static_arguments: None,
+                                } = types.get_type(union_source)
+                                    && union_symbol.ty() == SymbolType::TypeAlias
+                                    && let Some(instance_id) =
+                                        types.get_instance_type_id(*union_symbol)
+                                {
+                                    union_source = instance_id;
+                                }
+
+                                match types.get_type(union_source).clone() {
+                                    Type::Union { elements } => Some((symbol, elements)),
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+
+                if let Some((symbol, elements)) = distributive_union {
+                    let mut branches = Vec::with_capacity(elements.len());
+                    for element in elements {
+                        let mut branch_substitutions = substitutions.clone();
+                        branch_substitutions.insert(symbol, element);
+                        let mut branch_cache = HashMap::new();
+                        let mapped_left = self.substitute_static_parameters(
+                            left,
+                            &branch_substitutions,
+                            types,
+                            &mut branch_cache,
+                        );
+                        let mapped_right = self.substitute_static_parameters(
+                            right,
+                            &branch_substitutions,
+                            types,
+                            &mut branch_cache,
+                        );
+                        let mapped_then = self.substitute_static_parameters(
+                            then_type,
+                            &branch_substitutions,
+                            types,
+                            &mut branch_cache,
+                        );
+                        let mapped_else = self.substitute_static_parameters(
+                            else_type,
+                            &branch_substitutions,
+                            types,
+                            &mut branch_cache,
+                        );
+                        let branch_id = types.insert_type_from_type(
+                            Type::Conditional {
+                                distributive_symbol: None,
+                                left: mapped_left,
+                                right: mapped_right,
+                                then_type: mapped_then,
+                                else_type: mapped_else,
+                            },
+                            ty_id,
+                        );
+                        branches.push(branch_id);
+                    }
+
+                    types.insert_type_from_type(Type::Union { elements: branches }, ty_id)
                 } else {
-                    types.insert_type_from_type(
-                        Type::Conditional {
-                            distributive,
-                            left: mapped_left,
-                            right: mapped_right,
-                            then_type: mapped_then,
-                            else_type: mapped_else,
-                        },
-                        ty_id,
-                    )
+                    let mapped_left =
+                        self.substitute_static_parameters(left, substitutions, types, cache);
+                    let mut branch_substitutions = substitutions.clone();
+                    if let Some(symbol) = distributive_symbol {
+                        branch_substitutions.remove(&symbol);
+                    }
+                    let mapped_right = self.substitute_static_parameters(
+                        right,
+                        &branch_substitutions,
+                        types,
+                        cache,
+                    );
+                    let mapped_then = self.substitute_static_parameters(
+                        then_type,
+                        &branch_substitutions,
+                        types,
+                        cache,
+                    );
+                    let mapped_else = self.substitute_static_parameters(
+                        else_type,
+                        &branch_substitutions,
+                        types,
+                        cache,
+                    );
+                    if mapped_left == left
+                        && mapped_right == right
+                        && mapped_then == then_type
+                        && mapped_else == else_type
+                    {
+                        ty_id
+                    } else {
+                        types.insert_type_from_type(
+                            Type::Conditional {
+                                distributive_symbol,
+                                left: mapped_left,
+                                right: mapped_right,
+                                then_type: mapped_then,
+                                else_type: mapped_else,
+                            },
+                            ty_id,
+                        )
+                    }
                 }
             }
             Type::Mapped {
@@ -2372,6 +2672,7 @@ impl Compiler {
                 } else {
                     let parameter = TypeMappedParameter {
                         name: parameter.name,
+                        symbol: parameter.symbol,
                         constraint: mapped_constraint,
                         key_remap: mapped_key_remap,
                     };
@@ -2826,6 +3127,968 @@ impl Compiler {
 
         cache.insert(ty_id, mapped);
         mapped
+    }
+
+    /// Materialize static arguments inside type references for substitution.
+    pub(crate) fn materialize_static_arguments_in_type(
+        &self,
+        argument_module: &Module,
+        profile: ProfileId,
+        ty_id: LocalTypeId,
+        argument_tree: &NodeTree,
+        argument_symbols: &SymbolTable,
+        types: &mut TypeTable,
+        cache: &mut HashMap<LocalTypeId, LocalTypeId>,
+    ) -> LocalTypeId {
+        // evaluate unevaluated types before materialization
+        if matches!(types.get_type(ty_id), Type::Unevaluated(_)) {
+            let _ = self.evaluate_type(
+                argument_module,
+                profile,
+                ty_id,
+                argument_tree,
+                argument_symbols,
+                types,
+            );
+        }
+
+        // reuse cached materializations to avoid recursion loops
+        if let Some(mapped) = cache.get(&ty_id).copied() {
+            return mapped;
+        }
+        cache.insert(ty_id, ty_id);
+
+        // snapshot the current type before mapping
+        let ty = types.get_type(ty_id).clone();
+        if matches!(ty, Type::Unevaluated(_)) {
+            return ty_id;
+        }
+
+        let mapped = match ty {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                let Some(static_arguments) = static_arguments else {
+                    return ty_id;
+                };
+
+                // materialize unevaluated arguments using parameter kinds
+                let mut resolved_arguments = self.materialize_static_arguments_for_reference(
+                    argument_module,
+                    profile,
+                    symbol,
+                    &static_arguments,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                );
+
+                // materialize nested argument types for substitution
+                let mut changed = resolved_arguments != static_arguments;
+                for argument in resolved_arguments.iter_mut() {
+                    let StaticArgument::Evaluated { name, value } = argument else {
+                        continue;
+                    };
+                    let StaticExpression::Type { ty } = value else {
+                        continue;
+                    };
+                    let mapped_ty = self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        *ty,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    );
+                    if mapped_ty != *ty {
+                        *argument = StaticArgument::Evaluated {
+                            name: *name,
+                            value: StaticExpression::Type { ty: mapped_ty },
+                        };
+                        changed = true;
+                    }
+                }
+
+                // reuse the existing type when no arguments changed
+                if !changed {
+                    ty_id
+                } else {
+                    if !resolved_arguments.is_empty() {
+                        self.register_instance_for_symbol(
+                            symbol,
+                            resolved_arguments.clone(),
+                            types,
+                        );
+                    }
+
+                    types.insert_type_from_type(
+                        Type::Reference {
+                            symbol,
+                            static_arguments: Some(resolved_arguments),
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::This | Type::TypeLiteral { .. } | Type::InferVar { .. } | Type::Error => ty_id,
+            Type::Value { value } => {
+                // propagate materialization through type-as-value wrappers
+                let mapped_value = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    value,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_value == value {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(Type::Value { value: mapped_value }, ty_id)
+                }
+            }
+            Type::Unary { operator, right } => {
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Unary {
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let mapped_left = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    left,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_left == left && mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Binary {
+                            left: mapped_left,
+                            operator,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Conditional {
+                distributive_symbol,
+                left,
+                right,
+                then_type,
+                else_type,
+            } => {
+                let mapped_left = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    left,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_then = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    then_type,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_else = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    else_type,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_left == left
+                    && mapped_right == right
+                    && mapped_then == then_type
+                    && mapped_else == else_type
+                {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Conditional {
+                            distributive_symbol,
+                            left: mapped_left,
+                            right: mapped_right,
+                            then_type: mapped_then,
+                            else_type: mapped_else,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Mapped {
+                parameter,
+                modifiers,
+                value,
+            } => {
+                let mapped_constraint = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    parameter.constraint,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_key_remap = parameter.key_remap.map(|key_remap| {
+                    self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        key_remap,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    )
+                });
+                let mapped_value = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    value,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_constraint == parameter.constraint
+                    && mapped_key_remap == parameter.key_remap
+                    && mapped_value == value
+                {
+                    ty_id
+                } else {
+                    let parameter = TypeMappedParameter {
+                        name: parameter.name,
+                        symbol: parameter.symbol,
+                        constraint: mapped_constraint,
+                        key_remap: mapped_key_remap,
+                    };
+                    types.insert_type_from_type(
+                        Type::Mapped {
+                            parameter,
+                            modifiers,
+                            value: mapped_value,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Index { left, index } => {
+                let mapped_left = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    left,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                let mapped_index = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    index,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_left == left && mapped_index == index {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Index {
+                            left: mapped_left,
+                            index: mapped_index,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::TemplateLiteral { strings, spans } => {
+                let mut changed = false;
+                let mapped_spans = spans
+                    .iter()
+                    .map(|span| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *span,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *span {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type_from_type(
+                        Type::TemplateLiteral {
+                            strings,
+                            spans: mapped_spans,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Import { .. } | Type::Infer { .. } => ty_id,
+            Type::Predicate {
+                asserts,
+                subject,
+                target,
+            } => {
+                let mapped_target = target.map(|target| {
+                    self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        target,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    )
+                });
+                if mapped_target == target {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Predicate {
+                            asserts,
+                            subject,
+                            target: mapped_target,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ValueOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ValueOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ReferenceOf {
+                mutability,
+                variance,
+                right,
+            } => {
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ReferenceOf {
+                            mutability,
+                            variance,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::PointerOf { mutability, right } => {
+                let mapped_right = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    right,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_right == right {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::PointerOf {
+                            mutability,
+                            right: mapped_right,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::ArraySized {
+                element,
+                count,
+                is_readonly,
+            } => {
+                let mapped_element = self.materialize_static_arguments_in_type(
+                    argument_module,
+                    profile,
+                    element,
+                    argument_tree,
+                    argument_symbols,
+                    types,
+                    cache,
+                );
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::ArraySized {
+                            element: mapped_element,
+                            count,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Array {
+                element,
+                is_readonly,
+            } => {
+                let mapped_element = element.map(|element| {
+                    self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        element,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    )
+                });
+                if mapped_element == element {
+                    ty_id
+                } else {
+                    types.insert_type_from_type(
+                        Type::Array {
+                            element: mapped_element,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                }
+            }
+            Type::Tuple {
+                elements,
+                is_readonly,
+            } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            element.ty,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != element.ty {
+                            changed = true;
+                        }
+                        let mut element = element.clone();
+                        element.ty = mapped;
+                        element
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Tuple {
+                            elements: mapped_elements,
+                            is_readonly,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Object {
+                fields,
+                call_signatures,
+                construct_signatures,
+                index_signatures,
+            } => {
+                let mut changed = false;
+                let mapped_fields = fields
+                    .iter()
+                    .map(|field| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            field.ty,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != field.ty {
+                            changed = true;
+                        }
+                        TypeField {
+                            key: field.key,
+                            ty: mapped,
+                            is_optional: field.is_optional,
+                            is_readonly: field.is_readonly,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_call_signatures = call_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *signature,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_construct_signatures = construct_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *signature,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *signature {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_index_signatures = index_signatures
+                    .iter()
+                    .map(|signature| {
+                        let mapped_key = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            signature.key_type,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        let mapped_value = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            signature.value_type,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped_key != signature.key_type
+                            || mapped_value != signature.value_type
+                        {
+                            changed = true;
+                        }
+                        let mut signature = signature.clone();
+                        signature.key_type = mapped_key;
+                        signature.value_type = mapped_value;
+                        signature
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Object {
+                            fields: mapped_fields,
+                            call_signatures: mapped_call_signatures,
+                            construct_signatures: mapped_construct_signatures,
+                            index_signatures: mapped_index_signatures,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Function {
+                asynchrony,
+                cardinality,
+                static_parameters,
+                this_parameter,
+                dynamic_parameters,
+                return_type,
+            } => {
+                let mut changed = false;
+                let mapped_this = this_parameter.map(|this_parameter| {
+                    let mapped = self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        this_parameter,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    );
+                    if mapped != this_parameter {
+                        changed = true;
+                    }
+                    mapped
+                });
+                let mapped_parameters = dynamic_parameters
+                    .iter()
+                    .map(|parameter| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *parameter,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *parameter {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                let mapped_return = return_type.map(|return_type| {
+                    let mapped = self.materialize_static_arguments_in_type(
+                        argument_module,
+                        profile,
+                        return_type,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        cache,
+                    );
+                    if mapped != return_type {
+                        changed = true;
+                    }
+                    mapped
+                });
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Function {
+                            asynchrony,
+                            cardinality,
+                            static_parameters,
+                            this_parameter: mapped_this,
+                            dynamic_parameters: mapped_parameters,
+                            return_type: mapped_return,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Union { elements } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *element,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *element {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type_from_type(Type::Union { elements: mapped_elements }, ty_id)
+                } else {
+                    ty_id
+                }
+            }
+            Type::Intersection { elements } => {
+                let mut changed = false;
+                let mapped_elements = elements
+                    .iter()
+                    .map(|element| {
+                        let mapped = self.materialize_static_arguments_in_type(
+                            argument_module,
+                            profile,
+                            *element,
+                            argument_tree,
+                            argument_symbols,
+                            types,
+                            cache,
+                        );
+                        if mapped != *element {
+                            changed = true;
+                        }
+                        mapped
+                    })
+                    .collect::<Vec<_>>();
+                if changed {
+                    types.insert_type_from_type(
+                        Type::Intersection {
+                            elements: mapped_elements,
+                        },
+                        ty_id,
+                    )
+                } else {
+                    ty_id
+                }
+            }
+            Type::Unevaluated(_) => ty_id,
+        };
+
+        cache.insert(ty_id, mapped);
+        mapped
+    }
+
+    /// Materialize static arguments for a type reference based on parameter kinds.
+    fn materialize_static_arguments_for_reference(
+        &self,
+        argument_module: &Module,
+        profile: ProfileId,
+        symbol: GlobalSymbolId,
+        static_arguments: &[StaticArgument],
+        argument_tree: &NodeTree,
+        argument_symbols: &SymbolTable,
+        types: &mut TypeTable,
+    ) -> Vec<StaticArgument> {
+        // skip when no arguments need evaluation
+        if !static_arguments
+            .iter()
+            .any(|argument| matches!(argument, StaticArgument::Unevaluated { .. }))
+        {
+            return static_arguments.to_vec();
+        }
+
+        // collect parameter symbols for the reference
+        let Some(parameter_symbols) = self.collect_static_parameter_symbols(
+            argument_module,
+            symbol,
+            profile,
+            argument_tree,
+            argument_symbols,
+        ) else {
+            return static_arguments.to_vec();
+        };
+        if parameter_symbols.is_empty() {
+            return static_arguments.to_vec();
+        }
+
+        // select a source node for parameter inference
+        let Some(source_id) = static_arguments.iter().find_map(|argument| match argument {
+            StaticArgument::Unevaluated { node } => Some(node.into_any()),
+            _ => None,
+        }) else {
+            return static_arguments.to_vec();
+        };
+
+        // ensure static parameter kinds are inferred
+        if self
+            .ensure_static_parameter_kinds_for_symbol(
+                argument_module,
+                profile,
+                source_id,
+                symbol,
+                argument_tree,
+                argument_symbols,
+                types,
+            )
+            .is_err()
+        {
+            return static_arguments.to_vec();
+        }
+
+        // map parameter names to their resolved kinds
+        let mut parameter_kinds = Vec::with_capacity(parameter_symbols.len());
+        let mut parameter_name_kinds = HashMap::new();
+        for parameter_symbol in parameter_symbols {
+            let kind = types
+                .get_static_parameter_kind(parameter_symbol)
+                .unwrap_or(StaticParameterKind::Type);
+            let parameter = self.collect_static_parameter(
+                argument_module,
+                parameter_symbol,
+                kind,
+                source_id,
+                profile,
+                argument_tree,
+                argument_symbols,
+                types,
+            );
+            if let Some(name) = parameter.name {
+                parameter_name_kinds.insert(name, kind);
+            }
+            parameter_kinds.push(kind);
+        }
+
+        // evaluate arguments based on the referenced parameter kinds
+        let mut resolved_arguments = Vec::with_capacity(static_arguments.len());
+        for (index, argument) in static_arguments.iter().enumerate() {
+            let (argument_name, argument_node) = match argument {
+                StaticArgument::Evaluated { name, .. } => (*name, None),
+                StaticArgument::Unevaluated { node } => {
+                    let argument_node = argument_tree.get(*node);
+                    let name = match argument_node {
+                        Argument::Named { name, .. } => Some(*name),
+                        _ => None,
+                    };
+                    (name, Some(*node))
+                }
+            };
+
+            let parameter_kind = argument_name
+                .and_then(|name| parameter_name_kinds.get(&name).copied())
+                .or_else(|| parameter_kinds.get(index).copied());
+
+            let Some(parameter_kind) = parameter_kind else {
+                resolved_arguments.push(argument.clone());
+                continue;
+            };
+
+            let Some(argument_node) = argument_node else {
+                resolved_arguments.push(argument.clone());
+                continue;
+            };
+
+            let argument = argument_tree.get(argument_node);
+            let expression_id = argument.value();
+            let evaluated = match parameter_kind {
+                StaticParameterKind::Type => {
+                    if let Ok(ty_id) = self.try_evaluate_expression_to_type(
+                        argument_module,
+                        profile,
+                        expression_id,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        false,
+                        true,
+                    ) && !matches!(types.get_type(ty_id), Type::Unevaluated(_))
+                    {
+                        Some(StaticExpression::Type { ty: ty_id })
+                    } else {
+                        None
+                    }
+                }
+                StaticParameterKind::Value => self
+                    .evaluate_static_expression_value(
+                        argument_module,
+                        profile,
+                        expression_id,
+                        argument_tree,
+                        argument_symbols,
+                        types,
+                        None,
+                    )
+                    .ok()
+                    .flatten(),
+            };
+
+            if let Some(value) = evaluated {
+                resolved_arguments.push(StaticArgument::Evaluated {
+                    name: argument_name,
+                    value,
+                });
+            } else {
+                resolved_arguments.push(StaticArgument::Unevaluated { node: argument_node });
+            }
+        }
+
+        resolved_arguments
     }
 
     /// Substitute static parameters in a static argument.
