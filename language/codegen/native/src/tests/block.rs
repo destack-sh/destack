@@ -10,11 +10,11 @@ block0(v0: bool):
     branch v0, block1, block2
 
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -47,7 +47,7 @@ block0:
     jump block1
 
 block1:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -75,10 +75,10 @@ function @phi_test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     jump block3(v1)
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     jump block3(v2)
 block3(v3: i32):
     return v3
@@ -113,13 +113,13 @@ function @dispatch(v0: i32) -> i32 {
 block0(v0: i32):
     switch v0, block3, 0 => block1, 1 => block2
 block1:
-    v1 = iconst 100i32
+    v1: i32 = iconst 100i32
     return v1
 block2:
-    v2 = iconst 200i32
+    v2: i32 = iconst 200i32
     return v2
 block3:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -151,15 +151,15 @@ fn test_sequential_blocks() {
     let mir = r#"
 function @sequential() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     jump block1
 block1:
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     jump block2
 block2:
-    v3 = iconst 3i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 3i32
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
