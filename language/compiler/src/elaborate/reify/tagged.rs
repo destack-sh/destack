@@ -35,13 +35,13 @@ impl Compiler {
         symbols: &SymbolTable,
         types: &mut TypeTable,
         module: &Module,
-    ) -> ElaborateResult<()> {
+    ) -> ElaborateResult<bool> {
         // resolve the callee symbol for nominal constructor calls
         let callee_id = self.unwrap_parenthesized_expression(callee, tree);
         let Some(callee_symbol) =
             self.reference_symbol_for_expression(module, callee_id, profile, tree, symbols)
         else {
-            return Ok(());
+            return Ok(false);
         };
 
         // determine the constructor kind from the nominal declaration
@@ -53,17 +53,17 @@ impl Compiler {
             symbols,
             types,
         ) else {
-            return Ok(());
+            return Ok(false);
         };
 
         // object constructors are not represented as call expressions
         if constructor_kind == ConstructorKind::Object {
-            return Ok(());
+            return Ok(false);
         }
 
         // scalar constructors require exactly one argument
         if constructor_kind == ConstructorKind::Scalar && dynamic_arguments.len() != 1 {
-            return Ok(());
+            return Ok(false);
         }
 
         // move static arguments onto the callee reference when present
@@ -81,7 +81,7 @@ impl Compiler {
                 tree.replace(
                     expression_id,
                     Expression::TaggedScalarExpression {
-                        ty: callee,
+                        ty: callee_id,
                         value: value_id,
                     },
                 );
@@ -90,7 +90,7 @@ impl Compiler {
                 tree.replace(
                     expression_id,
                     Expression::TaggedTupleExpression {
-                        ty: callee,
+                        ty: callee_id,
                         elements: dynamic_arguments.to_vec(),
                     },
                 );
@@ -98,7 +98,7 @@ impl Compiler {
             ConstructorKind::Object => {}
         }
 
-        Ok(())
+        Ok(true)
     }
 
     /// Resolve the constructor kind for a nominal type symbol.
@@ -167,9 +167,19 @@ impl Compiler {
 
         // derive the constructor kind from the evaluated alias type
         let declared_type_id = types.get_declared_type_id(value.into_global_any(module_id))?;
-        let mut visited = HashSet::new();
-        let constructor_kind =
-            self.constructor_kind_for_type_id(declared_type_id, types, &mut visited);
+        let constructor_kind = match types.get_type(declared_type_id) {
+            Type::Unevaluated(expression_id) => match tree.get(*expression_id) {
+                Expression::TupleExpression { .. } | Expression::ArrayExpression { .. } => {
+                    ConstructorKind::Tuple
+                }
+                Expression::ObjectExpression { .. } => ConstructorKind::Object,
+                _ => ConstructorKind::Scalar,
+            },
+            _ => {
+                let mut visited = HashSet::new();
+                self.constructor_kind_for_type_id(declared_type_id, types, &mut visited)
+            }
+        };
 
         Some(constructor_kind)
     }

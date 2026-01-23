@@ -342,6 +342,11 @@ impl Compiler {
         validate_static_argument_bounds: bool,
         enforce_implicit_managed: bool,
     ) -> AnalyzeResult<Option<LocalTypeId>> {
+        // skip comptime size validation outside destack modules
+        if !module.language_type.is_destack() {
+            return Ok(None);
+        }
+
         // skip expressions that are not static parameter references
         let kind = if let Some(kind) = self.static_parameter_reference_kind(
             module,
@@ -424,13 +429,28 @@ impl Compiler {
                     return Ok(true);
                 }
                 Type::Object {
-                    index_signatures, ..
+                    fields,
+                    call_signatures,
+                    construct_signatures,
+                    index_signatures,
                 } => {
-                    return Ok(!index_signatures.is_empty());
+                    return Ok(
+                        !fields.is_empty()
+                            || !call_signatures.is_empty()
+                            || !construct_signatures.is_empty()
+                            || !index_signatures.is_empty(),
+                    );
                 }
                 Type::Reference { symbol, .. } => {
                     // follow static parameter constraints when available
-                    if let Some(constraint) = types.get_static_parameter_constraint_type(symbol) {
+                    if let Some(constraint) = self.static_parameter_constraint_type(
+                        module,
+                        profile,
+                        symbol,
+                        types.get_type_source(current_type_id),
+                        symbols,
+                        types,
+                    ) {
                         current_type_id = constraint;
                         continue;
                     }
@@ -1883,11 +1903,17 @@ impl Compiler {
                     enforce_implicit_managed,
                 )?;
 
-                // check whether the left type supports index access
-                let supports_index_access = self
-                    .type_supports_index_access(module, profile, left_id, tree, symbols, types)?;
-                let is_primitive_literal = self.type_is_primitive_literal(left_id, types);
-                let is_index_access = supports_index_access && !is_primitive_literal;
+                // treat declaration modules as index access only
+                let is_index_access = if module.language_type.is_declaration() {
+                    true
+                } else {
+                    // check whether the left type supports index access
+                    let supports_index_access = self.type_supports_index_access(
+                        module, profile, left_id, tree, symbols, types,
+                    )?;
+                    let is_primitive_literal = self.type_is_primitive_literal(left_id, types);
+                    supports_index_access && !is_primitive_literal
+                };
 
                 // compute the type index result
                 if !is_index_access {

@@ -15,6 +15,14 @@ use std::collections::HashSet;
 #[derive(Debug)]
 pub struct Runner;
 
+/// Result tuple from running test cases.
+type RunCasesResult = (
+    ExitCode,
+    Vec<(TestCase, TestResult)>,
+    Vec<(TestCase, TestResult)>,
+    Option<ExpectedFailureSummary>,
+);
+
 impl Runner {
     pub fn run_suite<S: Suite>(suite: &S, options: &TestOptions) -> ExitCode {
         let context = RunContext {
@@ -24,12 +32,17 @@ impl Runner {
 
         let cases = suite.discover(options);
         let expected_failures = suite.expected_failures(options);
-        let (exit_code, results, expected_summary) =
+        let (exit_code, results, raw_results, expected_summary) =
             Self::run_cases_and_collect(cases, expected_failures, &context, |case, ctx| {
                 suite.run(case, ctx)
             });
 
-        suite.report(&results, &context);
+        let report_results = if context.options.update_known_failures {
+            &raw_results
+        } else {
+            &results
+        };
+        suite.report(report_results, &context);
         if let Some(summary) = expected_summary {
             Self::print_expected_failure_summary(&summary);
         }
@@ -41,7 +54,7 @@ impl Runner {
     where
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
-        let (exit_code, _results, _summary) =
+        let (exit_code, _results, _raw_results, _summary) =
             Self::run_cases_and_collect(cases, None, context, run);
         exit_code
     }
@@ -51,11 +64,7 @@ impl Runner {
         expected_failures: Option<&HashSet<String>>,
         context: &RunContext<'_>,
         run: F,
-    ) -> (
-        ExitCode,
-        Vec<(TestCase, TestResult)>,
-        Option<ExpectedFailureSummary>,
-    )
+    ) -> RunCasesResult
     where
         F: Fn(&TestCase, &RunContext<'_>) -> TestResult + Send + Sync,
     {
@@ -63,12 +72,12 @@ impl Runner {
 
         if filtered.is_empty() {
             println!("no tests to run");
-            return (ExitCode::SUCCESS, Vec::new(), None);
+            return (ExitCode::SUCCESS, Vec::new(), Vec::new(), None);
         }
 
         if context.options.list {
             print_test_list(&filtered);
-            return (ExitCode::SUCCESS, Vec::new(), None);
+            return (ExitCode::SUCCESS, Vec::new(), Vec::new(), None);
         }
 
         println!();
@@ -163,8 +172,10 @@ impl Runner {
         let total_duration = start.elapsed();
 
         let mut final_results: Vec<(TestCase, TestResult)> = Vec::new();
+        let mut raw_results: Vec<(TestCase, TestResult)> = Vec::new();
         let mut expected_summary = ExpectedFailureSummary::new(expected_failures);
         for (case, result, duration) in results {
+            raw_results.push((case.clone(), result.clone()));
             let result = expected_summary.update(&case, result);
             summary.record(&result);
             print_result(&case, &result, duration, context.options.verbose);
@@ -181,7 +192,7 @@ impl Runner {
         };
 
         let expected_summary = expected_failures.map(|_| expected_summary);
-        (exit_code, final_results, expected_summary)
+        (exit_code, final_results, raw_results, expected_summary)
     }
 
     fn print_expected_failure_summary(summary: &ExpectedFailureSummary) {

@@ -9,6 +9,7 @@ use destack_dir::{
 use destack_workspace::{Module, ProfileId};
 
 use super::key::KeySet;
+use crate::analyze::common::CanonicalSymbolMode;
 use crate::Compiler;
 
 /// A mapped key produced when expanding mapped types.
@@ -163,6 +164,14 @@ impl Compiler {
                 static_arguments,
             } => {
                 // align the symbol id with the stored symbol type
+                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+                let symbol = self.canonical_symbol_id(
+                    module,
+                    symbols,
+                    profile,
+                    symbol,
+                    CanonicalSymbolMode::PreserveAliases,
+                );
                 let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
 
                 // expand alias references with arguments when available
@@ -1499,7 +1508,9 @@ impl Compiler {
                         keys,
                         visited,
                     );
-                } else if symbol.ty() == SymbolType::TypeAlias {
+                } else if symbol.ty() == SymbolType::TypeAlias
+                    && !types.is_normalization_alias_in_progress(symbol)
+                {
                     // expand alias references to collect mapped keys from utility types
                     let mut normalize_visited = Vec::new();
                     let normalized = self.normalize_type_alias_reference_with_arguments(

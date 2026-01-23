@@ -278,17 +278,7 @@ impl Compiler {
                 static_arguments,
                 dynamic_arguments,
             } => {
-                self.reify_implicit_casts_in_call(
-                    module_id,
-                    profile,
-                    expression_id,
-                    &dynamic_arguments,
-                    tree,
-                    symbols,
-                    types,
-                    module,
-                )?;
-                self.reify_tagged_constructor_call(
+                let did_reify_constructor = self.reify_tagged_constructor_call(
                     module_id,
                     profile,
                     expression_id,
@@ -300,6 +290,19 @@ impl Compiler {
                     types,
                     module,
                 )?;
+                // only insert call casts when the expression stays as a call
+                if !did_reify_constructor {
+                    self.reify_implicit_casts_in_call(
+                        module_id,
+                        profile,
+                        expression_id,
+                        &dynamic_arguments,
+                        tree,
+                        symbols,
+                        types,
+                        module,
+                    )?;
+                }
                 self.reify_resolution(module_id, profile, expression_id, tree, symbols, types)?;
             }
 
