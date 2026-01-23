@@ -1,9 +1,10 @@
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use destack_source::{FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
 
 use crate::WatchPolicy;
-use crate::tests::TestWatchHarness;
+use crate::tests::{TestDaemon, TestWatchBatch, TestWatchHarness};
 
 /// Coalesces multiple watch events into one batch.
 #[test]
@@ -128,4 +129,56 @@ fn test_watch_batch_handles_status_rescan() {
     assert!(!result.messages.is_empty());
 
     harness.stop();
+}
+
+/// Applies a batch across multiple workspace roots.
+#[test]
+fn test_watch_batch_handles_multiple_roots() {
+    let policy = WatchPolicy {
+        coalesce_window: Duration::from_millis(50),
+        max_batch_size: 8,
+    };
+    let root_a = PathBuf::from("/workspace/a");
+    let root_b = PathBuf::from("/workspace/b");
+    let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
+    let coordinator = test.watch_coordinator(policy);
+
+    let _ = coordinator
+        .next_batch()
+        .expect("expected startup batch");
+
+    let file_a = root_a.join("a.ds");
+    let file_b = root_b.join("b.ds");
+    test.write_text(&file_a, "export const a = ;");
+    test.write_text(&file_b, "export const b = ;");
+
+    test.watcher
+        .emit(test.watch_event(&file_a, FileWatchEventKind::Modified));
+    test.watcher
+        .emit(test.watch_event(&file_b, FileWatchEventKind::Modified));
+
+    let batch = coordinator
+        .next_batch()
+        .expect("expected watch batch");
+    let batch = TestWatchBatch::new(batch);
+    batch.assert_event_suffix("a.ds");
+    batch.assert_event_suffix("b.ds");
+
+    let result = test.apply_watch_batch(batch.batch());
+    let file_a_id = test
+        .session
+        .files
+        .get_id_by_path(&file_a)
+        .expect("missing file id for root a");
+    let file_b_id = test
+        .session
+        .files
+        .get_id_by_path(&file_b)
+        .expect("missing file id for root b");
+
+    // assertion block
+    assert!(result.updates.iter().any(|update| update.file_id == file_a_id));
+    assert!(result.updates.iter().any(|update| update.file_id == file_b_id));
+
+    coordinator.stop();
 }

@@ -32,6 +32,9 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
     "watch": {
         "debounceMs": 30
     },
+    "daemon": {
+        "idleShutdownMs": 600000
+    },
     "formatter": {
         "lineWidth": 100,
         "indentStyle": "space"
@@ -46,6 +49,7 @@ Destack's project configuration, similar to `tsconfig.json` but with Destack-spe
 }
 ```
 
+Daemon options control idle shutdown for background services, and `idleShutdownMs` may be set to `0` to disable it.
 Child packages inherit from parent `dsconfig.json` with "most restrictive wins" semantics.
 
 ### Incremental Compilation And Caching

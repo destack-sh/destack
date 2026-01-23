@@ -1,13 +1,15 @@
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::protocol::{
     CacheStatsPayload, DaemonNotification, DaemonQuery, DaemonQueryResponse, DaemonRequest,
     DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenWorkspaceRequest,
     PROTOCOL_VERSION, PayloadBody, PayloadChunkNotification, PayloadFormat, PayloadId,
     ProtocolClientError, ProtocolClientOptions, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
-    ProtocolNotification, ProtocolRange, ProtocolServerOptions, ProtocolVersion, RescanReason,
-    RescanWorkspaceRequest, WatchBatch, WatchBatchRequest, WatchEvent, WatchEventKind, WatchStatus,
-    WorkspaceHandleId, WorkspaceOpenOptions, inline_payload_max_bytes, payload_chunk_bytes,
+    ProtocolNotification, ProtocolRange, ProtocolServerActivity, ProtocolServerOptions,
+    ProtocolVersion, RescanReason, RescanWorkspaceRequest, WatchBatch, WatchBatchRequest,
+    WatchEvent, WatchEventKind, WatchStatus, WorkspaceHandleId, WorkspaceOpenOptions,
+    inline_payload_max_bytes, payload_chunk_bytes,
 };
 use crate::tests::{TestDaemon, TestProtocolHarness};
 use destack_workspace::{CacheValidate, WorkspaceIndexHeader, WorkspaceIndexSnapshot};
@@ -71,9 +73,10 @@ fn test_protocol_handshake_rejects_version() {
     let harness = TestProtocolHarness::new();
 
     // request an incompatible protocol range
-    let mut options = ProtocolClientOptions::default();
-    options.protocol =
-        ProtocolRange::new(ProtocolVersion::new(9, 0, 0), ProtocolVersion::new(9, 0, 1));
+    let options = ProtocolClientOptions {
+        protocol: ProtocolRange::new(ProtocolVersion::new(9, 0, 0), ProtocolVersion::new(9, 0, 1)),
+        ..Default::default()
+    };
     let error = harness
         .client
         .handshake(options)
@@ -95,13 +98,17 @@ fn test_protocol_handshake_rejects_version() {
 fn test_protocol_deferred_payload_roundtrip() {
     // configure small payload limits to force deferral
     let limits = ProtocolLimits::new(4096, 4096, 8, 16);
-    let mut server_options = ProtocolServerOptions::default();
-    server_options.limits = limits;
+    let server_options = ProtocolServerOptions {
+        limits,
+        ..Default::default()
+    };
     let harness = TestDaemon::new().protocol_with_options(server_options);
 
     // perform handshake with matching limits
-    let mut client_options = ProtocolClientOptions::default();
-    client_options.limits = limits;
+    let client_options = ProtocolClientOptions {
+        limits,
+        ..Default::default()
+    };
     let _ = harness.handshake_with(client_options);
 
     // sanity check that payload chunk sizes fit the protocol limit
@@ -482,6 +489,23 @@ fn test_protocol_shutdown_idempotent() {
     }
 
     harness.join();
+}
+
+/// Shuts down when idle and has no active leases.
+#[test]
+fn test_protocol_activity_idle_shutdown() {
+    // create an activity tracker with a short idle timeout
+    let activity = ProtocolServerActivity::new(Some(Duration::from_millis(5)));
+
+    // keep alive while a connection lease is held
+    activity.register_connection();
+    std::thread::sleep(Duration::from_millis(10));
+    assert!(!activity.should_shutdown());
+
+    // release the lease and wait for idle shutdown
+    activity.unregister_connection();
+    std::thread::sleep(Duration::from_millis(10));
+    assert!(activity.should_shutdown());
 }
 
 fn assert_cache_stats(stats: CacheStatsPayload) {

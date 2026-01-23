@@ -362,6 +362,8 @@ pub struct DsConfigOptions {
     pub cache: DsConfigCacheOptions,
     /// Watch options.
     pub watch: DsConfigWatchOptions,
+    /// Daemon options.
+    pub daemon: DsConfigDaemonOptions,
     /// Build targets.
     pub targets: IndexMap<String, DsConfigTargetOptions>,
     /// Named profiles for semantic configuration.
@@ -427,6 +429,25 @@ pub enum CacheScope {
     Workspace,
     /// Cache entries are stored in a global shared cache.
     Global,
+}
+
+/// Daemon configuration options.
+#[derive(Debug, Clone)]
+pub struct DsConfigDaemonOptions {
+    /// Idle shutdown timeout in milliseconds, or None to disable.
+    pub idle_shutdown_ms: Option<u64>,
+}
+
+/// Default idle shutdown timeout for the daemon.
+pub const DEFAULT_DAEMON_IDLE_SHUTDOWN_MS: u64 = 600_000;
+
+impl Default for DsConfigDaemonOptions {
+    /// Return default daemon options.
+    fn default() -> Self {
+        Self {
+            idle_shutdown_ms: Some(DEFAULT_DAEMON_IDLE_SHUTDOWN_MS),
+        }
+    }
 }
 
 /// Watch configuration options.
@@ -773,6 +794,9 @@ pub struct DsConfigJson {
     #[serde(default)]
     #[serde(alias = "watchOptions")]
     pub watch: DsConfigWatchJson,
+    /// Daemon options.
+    #[serde(default)]
+    pub daemon: DsConfigDaemonJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, DsConfigTargetJson>>,
     /// Named profiles for semantic configuration.
@@ -793,6 +817,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
 
         let cache = DsConfigCacheOptions::from(&json.cache);
         let watch = DsConfigWatchOptions::from(&json.watch);
+        let daemon = DsConfigDaemonOptions::from(&json.daemon);
 
         Self {
             files: json.files.clone().unwrap_or_default(),
@@ -803,6 +828,7 @@ impl From<&DsConfigJson> for DsConfigOptions {
             linter,
             cache,
             watch,
+            daemon,
             targets: json
                 .targets
                 .as_ref()
@@ -881,12 +907,35 @@ pub struct DsConfigWatchJson {
     pub poll_interval_ms: Option<u64>,
 }
 
+/// Daemon options (top-level).
+#[derive(Debug, Default, Deserialize, Clone)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct DsConfigDaemonJson {
+    /// Idle shutdown timeout in milliseconds.
+    pub idle_shutdown_ms: Option<u64>,
+}
+
 impl From<&DsConfigWatchJson> for DsConfigWatchOptions {
     fn from(json: &DsConfigWatchJson) -> Self {
         Self {
             debounce_ms: json.debounce_ms.unwrap_or(30),
             poll_interval_ms: json.poll_interval_ms,
         }
+    }
+}
+
+impl From<&DsConfigDaemonJson> for DsConfigDaemonOptions {
+    /// Convert daemon JSON options into normalized options.
+    fn from(json: &DsConfigDaemonJson) -> Self {
+        // normalize the idle shutdown setting
+        let idle_shutdown_ms = match json.idle_shutdown_ms {
+            Some(0) => None,
+            Some(value) => Some(value),
+            None => Some(DEFAULT_DAEMON_IDLE_SHUTDOWN_MS),
+        };
+
+        Self { idle_shutdown_ms }
     }
 }
 

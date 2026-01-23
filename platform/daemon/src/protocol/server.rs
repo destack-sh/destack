@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
@@ -34,6 +36,8 @@ pub struct ProtocolServer {
     state: Mutex<ProtocolServerState>,
     /// Codec used to serialize protocol messages.
     codec: Mutex<ProtocolCodec>,
+    /// Control flags for server lifetime.
+    control: ProtocolServerControl,
 }
 
 /// Options for initializing a protocol server.
@@ -47,7 +51,174 @@ pub struct ProtocolServerOptions {
     pub server_info: ServerInfo,
 }
 
+/// Control flags for protocol servers.
+#[derive(Debug, Clone)]
+pub struct ProtocolServerControl {
+    /// Shared shutdown flag.
+    shutdown: Arc<AtomicBool>,
+    /// Activity tracker for connection leases.
+    activity: Arc<ProtocolServerActivity>,
+}
+
+impl ProtocolServerControl {
+    /// Create a new control handle.
+    pub fn new(shutdown: Arc<AtomicBool>) -> Self {
+        Self::with_activity(shutdown, Arc::new(ProtocolServerActivity::default()))
+    }
+
+    /// Create a new control handle with explicit activity tracking.
+    pub fn with_activity(shutdown: Arc<AtomicBool>, activity: Arc<ProtocolServerActivity>) -> Self {
+        Self { shutdown, activity }
+    }
+
+    /// Request a daemon shutdown.
+    pub fn request_shutdown(&self) {
+        self.shutdown.store(true, Ordering::SeqCst);
+    }
+
+    /// Register a connection lease.
+    pub fn register_connection(&self) {
+        self.activity.register_connection();
+    }
+
+    /// Release a connection lease.
+    pub fn unregister_connection(&self) {
+        self.activity.unregister_connection();
+    }
+
+    /// Register a workspace handle lease.
+    pub fn register_handle(&self) {
+        self.activity.register_handle();
+    }
+
+    /// Release a workspace handle lease.
+    pub fn unregister_handle(&self) {
+        self.activity.unregister_handle();
+    }
+
+    /// Mark activity on the connection.
+    pub fn touch_activity(&self) {
+        self.activity.touch();
+    }
+
+    /// Return true if shutdown has been requested.
+    pub fn is_shutting_down(&self) -> bool {
+        self.shutdown.load(Ordering::SeqCst)
+    }
+
+    /// Return true when the server should shut down.
+    pub fn should_shutdown(&self) -> bool {
+        self.activity.should_shutdown()
+    }
+}
+
+impl Default for ProtocolServerControl {
+    /// Return a default control handle.
+    fn default() -> Self {
+        Self::new(Arc::new(AtomicBool::new(false)))
+    }
+}
+
+/// Activity tracker for server shutdown policy.
+#[derive(Debug)]
+pub struct ProtocolServerActivity {
+    /// Tracked activity state.
+    state: Mutex<ProtocolServerActivityState>,
+    /// Idle timeout for shutdown.
+    idle_shutdown: Option<Duration>,
+}
+
+impl ProtocolServerActivity {
+    /// Create a new activity tracker.
+    pub fn new(idle_shutdown: Option<Duration>) -> Self {
+        Self {
+            state: Mutex::new(ProtocolServerActivityState::new()),
+            idle_shutdown,
+        }
+    }
+
+    /// Register a connection lease.
+    pub fn register_connection(&self) {
+        let mut state = self.state.lock();
+        state.active_connections = state.active_connections.saturating_add(1);
+        state.last_activity = Instant::now();
+    }
+
+    /// Release a connection lease.
+    pub fn unregister_connection(&self) {
+        let mut state = self.state.lock();
+        state.active_connections = state.active_connections.saturating_sub(1);
+        state.last_activity = Instant::now();
+    }
+
+    /// Register a workspace handle lease.
+    pub fn register_handle(&self) {
+        let mut state = self.state.lock();
+        state.active_handles = state.active_handles.saturating_add(1);
+        state.last_activity = Instant::now();
+    }
+
+    /// Release a workspace handle lease.
+    pub fn unregister_handle(&self) {
+        let mut state = self.state.lock();
+        state.active_handles = state.active_handles.saturating_sub(1);
+        state.last_activity = Instant::now();
+    }
+
+    /// Record activity on the server.
+    pub fn touch(&self) {
+        self.state.lock().last_activity = Instant::now();
+    }
+
+    /// Return true when the daemon should shut down for idleness.
+    pub fn should_shutdown(&self) -> bool {
+        // return early when idle shutdown is disabled
+        let Some(idle_shutdown) = self.idle_shutdown else {
+            return false;
+        };
+
+        // avoid shutdown while there are active leases
+        let state = self.state.lock();
+        if state.active_connections > 0 || state.active_handles > 0 {
+            return false;
+        }
+
+        // compare elapsed idle time
+        state.last_activity.elapsed() >= idle_shutdown
+    }
+}
+
+impl Default for ProtocolServerActivity {
+    /// Return default activity tracking state.
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
+/// Activity state used for idle shutdown checks.
+#[derive(Debug)]
+struct ProtocolServerActivityState {
+    /// Number of active connections.
+    active_connections: usize,
+    /// Number of active workspace handles.
+    active_handles: usize,
+    /// Last activity timestamp.
+    last_activity: Instant,
+}
+
+impl ProtocolServerActivityState {
+    /// Create a fresh activity state.
+    fn new() -> Self {
+        Self {
+            active_connections: 0,
+            active_handles: 0,
+            last_activity: Instant::now(),
+        }
+    }
+}
+
 impl Default for ProtocolServerOptions {
+    /// Return default protocol server options.
     fn default() -> Self {
         Self {
             protocol: ProtocolRange::new(super::MIN_PROTOCOL_VERSION, super::PROTOCOL_VERSION),
@@ -124,35 +295,55 @@ impl ProtocolServer {
 
     /// Create a new protocol server with explicit options.
     pub fn with_options(daemon: Arc<Daemon>, options: ProtocolServerOptions) -> Self {
+        Self::with_control(daemon, options, ProtocolServerControl::default())
+    }
+
+    /// Create a new protocol server with explicit options and control.
+    pub fn with_control(
+        daemon: Arc<Daemon>,
+        options: ProtocolServerOptions,
+        control: ProtocolServerControl,
+    ) -> Self {
         let codec = ProtocolCodec::new(options.limits.max_payload_bytes as usize);
         Self {
             daemon,
             options,
             state: Mutex::new(ProtocolServerState::new()),
             codec: Mutex::new(codec),
+            control,
         }
     }
 
     /// Serve protocol requests over a transport until shutdown.
-    pub fn serve<T: Transport>(&self, transport: &T) -> Result<(), ProtocolServerError> {
-        loop {
+    pub fn serve<T: Transport + ?Sized>(&self, transport: &T) -> Result<(), ProtocolServerError> {
+        // register a lease for this connection
+        self.control.register_connection();
+
+        // serve requests until shutdown
+        let result = loop {
             let message = self.recv_message(transport)?;
             let Some(response) = self.handle_message(message)? else {
                 if self.is_shutting_down() {
-                    return Ok(());
+                    break Ok(());
                 }
                 continue;
             };
             self.send_message(transport, &response)?;
             self.flush_pending_payloads(transport)?;
             if self.is_shutting_down() {
-                return Ok(());
+                break Ok(());
             }
-        }
+        };
+
+        // cleanup connection resources
+        self.cleanup_connection();
+        self.control.unregister_connection();
+
+        result
     }
 
     /// Receive a protocol message from the transport.
-    fn recv_message<T: Transport>(
+    fn recv_message<T: Transport + ?Sized>(
         &self,
         transport: &T,
     ) -> Result<ProtocolMessage, ProtocolServerError> {
@@ -163,7 +354,7 @@ impl ProtocolServer {
     }
 
     /// Send a protocol message to the transport.
-    fn send_message<T: Transport>(
+    fn send_message<T: Transport + ?Sized>(
         &self,
         transport: &T,
         message: &ProtocolMessage,
@@ -179,6 +370,9 @@ impl ProtocolServer {
         &self,
         message: ProtocolMessage,
     ) -> Result<Option<ProtocolMessage>, ProtocolServerError> {
+        // mark activity for this message
+        self.control.touch_activity();
+
         match message {
             ProtocolMessage::Request(request) => {
                 let response = self.handle_request(*request);
@@ -233,7 +427,7 @@ impl ProtocolServer {
 
     /// Check if the server is shutting down.
     fn is_shutting_down(&self) -> bool {
-        self.state.lock().shutting_down
+        self.state.lock().shutting_down || self.control.is_shutting_down()
     }
 
     /// Handle protocol handshake negotiation.
@@ -278,6 +472,7 @@ impl ProtocolServer {
     /// Handle a shutdown request.
     fn handle_shutdown(&self) -> Result<DaemonResponse, ProtocolError> {
         self.state.lock().shutting_down = true;
+        self.control.request_shutdown();
         Ok(DaemonResponse::ShutdownAck)
     }
 
@@ -289,7 +484,11 @@ impl ProtocolServer {
         self.require_session()?;
 
         let root = self.normalize_root(&request.root);
-        let handle = self.open_workspace_handle(&root);
+        // open or reuse the workspace handle
+        let (handle, inserted) = self.open_workspace_handle(&root);
+        if inserted {
+            self.control.register_handle();
+        }
         let _ = self.daemon.session.get_or_create_program(root.clone());
 
         let rescan = self
@@ -321,11 +520,15 @@ impl ProtocolServer {
             .workspace_roots
             .remove(&request.handle)
             .ok_or_else(|| self.missing_workspace(request.handle))?;
-        state.workspace_handles.remove(&root);
+        let removed = state.workspace_handles.remove(&root);
         state.watch_subscriptions.remove(&request.handle);
         drop(state);
 
+        // release the workspace handle
         let _ = self.daemon.remove_program_handle(&root);
+        if removed.is_some() {
+            self.control.unregister_handle();
+        }
         Ok(DaemonResponse::WorkspaceClosed(
             super::WorkspaceClosedResponse {
                 handle: request.handle,
@@ -581,17 +784,38 @@ impl ProtocolServer {
     }
 
     /// Open or reuse a workspace handle for a root.
-    fn open_workspace_handle(&self, root: &Path) -> WorkspaceHandleId {
+    fn open_workspace_handle(&self, root: &Path) -> (WorkspaceHandleId, bool) {
         let mut state = self.state.lock();
         if let Some(existing) = state.workspace_handles.get(root) {
-            return *existing;
+            return (*existing, false);
         }
 
         let handle = WorkspaceHandleId::new(state.next_workspace_id);
         state.next_workspace_id += 1;
         state.workspace_handles.insert(root.to_path_buf(), handle);
         state.workspace_roots.insert(handle, root.to_path_buf());
-        handle
+        (handle, true)
+    }
+
+    /// Release workspace handles tied to this connection.
+    fn cleanup_connection(&self) {
+        // drain roots and clear subscriptions for this connection
+        let roots = {
+            let mut state = self.state.lock();
+            state.watch_subscriptions.clear();
+            state.workspace_handles.clear();
+            state
+                .workspace_roots
+                .drain()
+                .map(|(_, root)| root)
+                .collect::<Vec<_>>()
+        };
+
+        // release program handles for the drained roots
+        for root in roots {
+            let _ = self.daemon.remove_program_handle(&root);
+            self.control.unregister_handle();
+        }
     }
 
     /// Resolve a root for a workspace handle.
@@ -699,7 +923,7 @@ impl ProtocolServer {
     }
 
     /// Stream pending payloads as chunk notifications.
-    fn flush_pending_payloads<T: Transport>(
+    fn flush_pending_payloads<T: Transport + ?Sized>(
         &self,
         transport: &T,
     ) -> Result<(), ProtocolServerError> {
@@ -724,7 +948,7 @@ impl ProtocolServer {
     }
 
     /// Send payload chunk notifications for a deferred payload.
-    fn send_payload_chunks<T: Transport>(
+    fn send_payload_chunks<T: Transport + ?Sized>(
         &self,
         transport: &T,
         payload: PendingPayload,

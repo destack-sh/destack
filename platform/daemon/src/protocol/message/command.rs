@@ -2,11 +2,11 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use destack_source::{FileId, FileType, TargetId, Uri};
+use destack_source::{FileType, TargetId};
 
 use crate::command::{CommandPayload, CommonCommandOptions};
 
-use super::{BinaryPayload, DaemonMessageRecord, DiagnosticBatch, WorkspaceHandleId};
+use super::{BinaryPayload, DaemonMessageRecord, DiagnosticBatch, FileSnapshot, WorkspaceHandleId};
 
 /// Command request payloads.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -57,23 +57,6 @@ pub struct CommandOutputChunk {
     pub stream: OutputStream,
     /// Output bytes.
     pub bytes: Vec<u8>,
-}
-
-/// File snapshot for command diagnostics.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileSnapshot {
-    /// The file id.
-    pub id: FileId,
-    /// The file name.
-    pub name: String,
-    /// The file uri.
-    pub uri: Uri,
-    /// Optional file path.
-    pub path: Option<PathBuf>,
-    /// The file type.
-    pub file_type: FileType,
-    /// Optional file content.
-    pub content: Option<String>,
 }
 
 /// Command output stream kind.

@@ -8,8 +8,9 @@ use destack_workspace::{InvalidationPlan, Session};
 
 use super::DaemonMessage;
 use super::program::ProgramHandle;
+use crate::protocol::FileSnapshot;
 
-/// Persistent daemon state for incremental compilation.
+/// Persistent daemon state for toolchain services.
 #[derive(Debug, Clone)]
 pub struct Daemon {
     /// The active session for this daemon.
@@ -58,6 +59,8 @@ pub struct DaemonUpdate {
     pub module_id: Option<ModuleId>,
     /// The file id for the updated module.
     pub file_id: FileId,
+    /// File snapshot for the updated file.
+    pub file: FileSnapshot,
     /// The invalidation summary for the update.
     pub invalidation: InvalidationPlan,
     /// Diagnostics for the updated file.

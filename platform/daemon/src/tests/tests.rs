@@ -199,6 +199,13 @@ impl TestDaemon {
     }
 }
 
+impl Default for TestDaemon {
+    /// Return a test daemon with a default root.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestWatchHarness {
     /// Create a watch harness with the provided policy.
     pub fn new(policy: WatchPolicy) -> Self {
@@ -310,10 +317,10 @@ impl TestProtocolHarness {
             let result = server.serve(&server_transport);
 
             // capture errors for the harness
-            if let Err(error) = &result {
-                if let Ok(mut slot) = error_handle.lock() {
-                    *slot = Some(error.to_string());
-                }
+            if let Err(error) = &result
+                && let Ok(mut slot) = error_handle.lock()
+            {
+                *slot = Some(error.to_string());
             }
             result
         });
@@ -373,15 +380,22 @@ impl TestProtocolHarness {
     pub fn shutdown(mut self) {
         let _ = self.send_request(DaemonRequest::Shutdown);
         if let Some(handle) = self.server_handle.take() {
-            let _ = handle.join().expect("server join").expect("serve");
+            handle.join().expect("server join").expect("serve");
         }
     }
 
     /// Join the server thread without sending a shutdown request.
     pub fn join(mut self) {
         if let Some(handle) = self.server_handle.take() {
-            let _ = handle.join().expect("server join").expect("serve");
+            handle.join().expect("server join").expect("serve");
         }
+    }
+}
+
+impl Default for TestProtocolHarness {
+    /// Return a protocol harness backed by a default daemon.
+    fn default() -> Self {
+        Self::new()
     }
 }
 

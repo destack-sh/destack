@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use destack_source::{Diagnostic, FileId, FileVersion, ModuleId, PackageId, ProfileId};
 
+use super::FileSnapshot;
+
 /// Record of an invalidation step.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InvalidationSummary {
@@ -41,6 +43,8 @@ pub struct DaemonUpdateRecord {
     pub module_id: Option<ModuleId>,
     /// File id for the update.
     pub file_id: FileId,
+    /// File snapshot for the update.
+    pub file: FileSnapshot,
     /// Invalidation summary.
     pub invalidation: InvalidationSummary,
     /// Diagnostics produced by the update.
