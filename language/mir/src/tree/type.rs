@@ -178,7 +178,7 @@ impl Copyability {
     }
 }
 
-/// Layout for a tensor or tensor view.
+/// Layout for a tensor or tensor reference.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TensorLayout {
     /// Contiguous row-major layout.
@@ -285,7 +285,7 @@ pub enum Type {
         copyability: Copyability,
     },
     /// Reference-like view into tensor-shaped memory.
-    TensorView {
+    TensorReference {
         /// The reference kind (managed, owned, borrowed, raw).
         kind: ReferenceKind,
         /// The address space for this view.
@@ -406,7 +406,7 @@ impl Type {
                 | Type::Type
                 | Type::Reference { .. }
                 | Type::Vector { .. }
-                | Type::TensorView { .. }
+                | Type::TensorReference { .. }
         )
     }
 
@@ -417,7 +417,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Raw,
                 ..
-            } | Type::TensorView {
+            } | Type::TensorReference {
                 kind: ReferenceKind::Raw,
                 ..
             }
@@ -431,7 +431,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Managed,
                 ..
-            } | Type::TensorView {
+            } | Type::TensorReference {
                 kind: ReferenceKind::Managed,
                 ..
             }
@@ -440,7 +440,7 @@ impl Type {
 
     /// Whether this type is any kind of pointer or reference.
     pub fn is_pointer_like(&self) -> bool {
-        matches!(self, Type::Reference { .. } | Type::TensorView { .. })
+        matches!(self, Type::Reference { .. } | Type::TensorReference { .. })
     }
 
     /// Whether this type is a borrowed reference.
@@ -450,7 +450,7 @@ impl Type {
             Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 ..
-            } | Type::TensorView {
+            } | Type::TensorReference {
                 kind: ReferenceKind::Borrowed,
                 ..
             }
@@ -465,7 +465,7 @@ impl Type {
                 kind: ReferenceKind::Borrowed,
                 mutability: Mutability::Mutable,
                 ..
-            } | Type::TensorView {
+            } | Type::TensorReference {
                 kind: ReferenceKind::Borrowed,
                 mutability: Mutability::Mutable,
                 ..
@@ -507,8 +507,8 @@ impl Type {
             | Type::Vector { copyability, .. }
             | Type::Tensor { copyability, .. } => *copyability,
 
-            // tensor views behave like references
-            Type::TensorView { kind, .. } => {
+            // tensor references behave like references
+            Type::TensorReference { kind, .. } => {
                 if kind.is_owning() {
                     Copyability::Linear
                 } else {

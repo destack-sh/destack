@@ -111,15 +111,12 @@ pub(crate) fn compute_type_layout(
             }
         }
 
-        Type::TensorView { .. } => TypeLayout::natural(pointer_bytes as u32),
+        Type::TensorReference { .. } => TypeLayout::natural(pointer_bytes as u32),
     }
 }
 
 /// Compute the number of elements in a tensor.
-fn compute_tensor_element_count(
-    shape: &[TensorDimension],
-    layout: &TensorLayout,
-) -> Option<u64> {
+fn compute_tensor_element_count(shape: &[TensorDimension], layout: &TensorLayout) -> Option<u64> {
     if shape.iter().any(|dim| dim.is_dynamic()) {
         return None;
     }

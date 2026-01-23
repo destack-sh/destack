@@ -202,8 +202,8 @@ block3:
 #[test]
 fn test_roundtrip_vector_tensor_ops() {
     roundtrip(
-        r#"function @vector_tensor_ops(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_view<borrowed i32, [2, 2]>) -> tensor<i32, [2, 2]> {
-block0(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_view<borrowed i32, [2, 2]>):
+        r#"function @vector_tensor_ops(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_ref<borrowed i32, [2, 2]>) -> tensor<i32, [2, 2]> {
+block0(v0: vector<i32, 4>, v1: i32, v2: tensor<i32, [2, 2]>, v3: tensor_ref<borrowed i32, [2, 2]>):
     v4: vector<i32, 4> = vector.splat v1
     v5: i32 = vector.extract v4, v1
     v6: vector<i32, 4> = vector.insert v4, v1, v1

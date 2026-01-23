@@ -200,7 +200,11 @@ impl<'a> Parser<'a> {
     pub(super) fn resolve_function_attributes(
         &mut self,
         attributes: &[Attribute],
-    ) -> ParseResult<(Option<ExecutionModel>, Option<ExecutionStage>, Option<[u32; 3]>)> {
+    ) -> ParseResult<(
+        Option<ExecutionModel>,
+        Option<ExecutionStage>,
+        Option<[u32; 3]>,
+    )> {
         // metadata outputs
         let mut execution_model = None;
         let mut execution_stage = None;

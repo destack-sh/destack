@@ -229,7 +229,10 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 indices,
                 value,
             } => {
-                write!(f, [token("tensor.store"), space(), view, token(","), space()])?;
+                write!(
+                    f,
+                    [token("tensor.store"), space(), view, token(","), space()]
+                )?;
                 let args = f.context().tree.get_arguments(*indices);
                 format_value_bracket_list(args, f)?;
                 write!(f, [token(","), space(), value])
@@ -1244,10 +1247,7 @@ fn format_value_bracket_list<'a>(
 }
 
 /// Format a bracketed, comma-separated list of u32 values.
-fn format_u32_bracket_list<'a>(
-    values: &[u32],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_u32_bracket_list<'a>(values: &[u32], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("[")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1259,10 +1259,7 @@ fn format_u32_bracket_list<'a>(
 }
 
 /// Format a bracketed, comma-separated list of u64 values.
-fn format_u64_bracket_list<'a>(
-    values: &[u64],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_u64_bracket_list<'a>(values: &[u64], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("[")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1274,10 +1271,7 @@ fn format_u64_bracket_list<'a>(
 }
 
 /// Format a bracketed, comma-separated list of bool values.
-fn format_bool_bracket_list<'a>(
-    values: &[bool],
-    f: &mut MirFormatter<'a, '_>,
-) -> FormatResult<()> {
+fn format_bool_bracket_list<'a>(values: &[bool], f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     write!(f, [token("[")])?;
     for (i, val) in values.iter().enumerate() {
         if i > 0 {
@@ -1419,11 +1413,7 @@ fn format_tensor_gather_dimensions<'a>(
     write!(f, [token("dims"), token("(")])?;
     format_named_u32_list("offset_dims", &dimensions.offset_dims, f)?;
     write!(f, [token(","), space()])?;
-    format_named_u32_list(
-        "collapsed_slice_dims",
-        &dimensions.collapsed_slice_dims,
-        f,
-    )?;
+    format_named_u32_list("collapsed_slice_dims", &dimensions.collapsed_slice_dims, f)?;
     write!(f, [token(","), space()])?;
     format_named_u32_list("start_index_map", &dimensions.start_index_map, f)?;
     write!(
@@ -1447,11 +1437,7 @@ fn format_tensor_scatter_dimensions<'a>(
     write!(f, [token("dims"), token("(")])?;
     format_named_u32_list("update_window_dims", &dimensions.update_window_dims, f)?;
     write!(f, [token(","), space()])?;
-    format_named_u32_list(
-        "inserted_window_dims",
-        &dimensions.inserted_window_dims,
-        f,
-    )?;
+    format_named_u32_list("inserted_window_dims", &dimensions.inserted_window_dims, f)?;
     write!(f, [token(","), space()])?;
     format_named_u32_list(
         "scatter_dims_to_operand_dims",

@@ -52,10 +52,10 @@ pub enum TokenType {
     Vector,
     /// `tensor`
     Tensor,
-    /// `tensor_view`
-    TensorView,
-    /// `tensor_view?`
-    TensorViewNullable,
+    /// `tensor_ref`
+    TensorReference,
+    /// `tensor_ref?`
+    TensorReferenceNullable,
     /// `addrspace`
     AddrSpace,
     /// `fn`

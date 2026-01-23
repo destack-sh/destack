@@ -269,7 +269,6 @@ pub enum Intrinsic {
     /// Optimization barrier (prevent optimizations through this value).
     /// `(T) -> T`
     BlackBox,
-
 }
 
 impl Intrinsic {
@@ -377,7 +376,6 @@ impl Intrinsic {
             Intrinsic::Likely => "likely",
             Intrinsic::Unlikely => "unlikely",
             Intrinsic::BlackBox => "black_box",
-
         }
     }
 
@@ -639,7 +637,6 @@ pub enum IntrinsicSignature {
 
     /// Optimization barrier: (T) -> T
     Passthrough,
-
 }
 
 impl Intrinsic {
@@ -768,7 +765,6 @@ impl Intrinsic {
             Intrinsic::Expect => IntrinsicSignature::BranchHint { args: 2 },
             Intrinsic::Likely | Intrinsic::Unlikely => IntrinsicSignature::BranchHint { args: 1 },
             Intrinsic::BlackBox => IntrinsicSignature::Passthrough,
-
         }
     }
 

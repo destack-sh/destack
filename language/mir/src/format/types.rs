@@ -4,7 +4,8 @@ use destack_fir::write;
 
 use crate::{
     AddressSpace, FormatMirNode, LocalNodeId, MirFormatter, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeAlias, format_attribute_inline, format_attribute_lines,
+    TensorDimension, TensorLayout, Type, TypeAlias, format_attribute_inline,
+    format_attribute_lines,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -218,7 +219,7 @@ fn format_type_inner<'a>(
             }
             write!(f, [token(">")])
         }
-        Type::TensorView {
+        Type::TensorReference {
             kind,
             address_space,
             mutability,
@@ -228,9 +229,9 @@ fn format_type_inner<'a>(
             is_nullable,
         } => {
             let view_token = if *is_nullable {
-                "tensor_view?<"
+                "tensor_ref?<"
             } else {
-                "tensor_view<"
+                "tensor_ref<"
             };
             write!(f, [token(view_token)])?;
             format_view_header(*kind, *address_space, *mutability, *element, f)?;

@@ -1123,9 +1123,8 @@ impl<'a> Verifier<'a> {
                 ..
             } => {
                 // validate argument counts
-                let expected = *offsets_count as usize
-                    + *sizes_count as usize
-                    + *strides_count as usize;
+                let expected =
+                    *offsets_count as usize + *sizes_count as usize + *strides_count as usize;
                 let got = arguments.len();
                 if expected != got {
                     return Err(VerifyError::AggregateArgumentCountMismatch {
@@ -1143,9 +1142,8 @@ impl<'a> Verifier<'a> {
                 ..
             } => {
                 // validate argument counts
-                let expected = *low_count as usize
-                    + *high_count as usize
-                    + *interior_count as usize;
+                let expected =
+                    *low_count as usize + *high_count as usize + *interior_count as usize;
                 let got = arguments.len();
                 if expected != got {
                     return Err(VerifyError::AggregateArgumentCountMismatch {
@@ -1728,7 +1726,7 @@ impl<'a> Verifier<'a> {
             Type::Struct { .. } => "struct",
             Type::Vector { .. } => "vector",
             Type::Tensor { .. } => "tensor",
-            Type::TensorView { .. } => "tensor_view",
+            Type::TensorReference { .. } => "tensor_ref",
             Type::FunctionPointer { .. } => "fn",
         }
     }

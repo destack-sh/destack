@@ -1,8 +1,8 @@
 use crate::{
     AddressSpace, BinaryOperator, Block, CastOperator, CheckConstraint, Constant, Function, Global,
-    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryLocationSet,
-    MemorySemantics, Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership,
-    ReferenceKind, SwitchCase, Terminator, Type, UnaryOperator, Value,
+    GlobalInitializer, Instruction, Local, LocalNodeId, MemoryLocationSet, MemorySemantics,
+    Mutability, NodeTree, NodeVisitor, NodeVisitorOptions, Ownership, ReferenceKind, SwitchCase,
+    Terminator, Type, UnaryOperator, Value,
 };
 use destack_base::{Color, StringPool};
 
@@ -189,7 +189,7 @@ impl<'a> Dumper<'a> {
             } => format!("struct{{{}}}", fields.len()),
             Type::Vector { lanes, .. } => format!("vector<{lanes}>"),
             Type::Tensor { shape, .. } => format!("tensor<{}>", shape.len()),
-            Type::TensorView { shape, .. } => format!("tensor_view<{}>", shape.len()),
+            Type::TensorReference { shape, .. } => format!("tensor_ref<{}>", shape.len()),
             Type::FunctionPointer { parameters, .. } => format!("fn({})", parameters.len()),
         }
     }

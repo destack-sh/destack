@@ -1325,12 +1325,15 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Resolve the element type for a tensor view.
-    fn element_type_for_tensor_view(&self, view_type: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        let view = self.tree.get(view_type);
-        match view {
-            Type::TensorView { element, .. } => *element,
-            _ => panic!("tensor access expects tensor view type"),
+    /// Resolve the element type for a tensor reference.
+    fn element_type_for_tensor_reference(
+        &self,
+        reference_type: LocalNodeId<Type>,
+    ) -> LocalNodeId<Type> {
+        let reference_type = self.tree.get(reference_type);
+        match reference_type {
+            Type::TensorReference { element, .. } => *element,
+            _ => panic!("tensor access expects tensor reference type"),
         }
     }
 
@@ -1560,11 +1563,11 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: tensor operations
 
-    /// Load a tensor element from a tensor view.
+    /// Load a tensor element from a tensor reference.
     pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
         let view_type = self.value_type_or_panic(view, "tensor.load view");
-        let element_type = self.element_type_for_tensor_view(view_type);
+        let element_type = self.element_type_for_tensor_reference(view_type);
         let indices = self.tree.add_arguments(&indices);
         self.insert_instruction(Instruction::TensorLoad {
             destination,
@@ -1575,7 +1578,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Store a tensor element into a tensor view.
+    /// Store a tensor element into a tensor reference.
     pub fn tensor_store(&mut self, view: Value, indices: Vec<Value>, value: Value) {
         let indices = self.tree.add_arguments(&indices);
         self.insert_instruction(Instruction::TensorStore {
@@ -1585,12 +1588,12 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Fill a tensor view with a scalar value.
+    /// Fill a tensor reference with a scalar value.
     pub fn tensor_fill(&mut self, view: Value, value: Value) {
         self.insert_instruction(Instruction::TensorFill { view, value });
     }
 
-    /// Copy elements from a source tensor view into a destination tensor view.
+    /// Copy elements from a source tensor reference into a destination tensor reference.
     pub fn tensor_copy(&mut self, target: Value, source: Value) {
         self.insert_instruction(Instruction::TensorCopy { target, source });
     }
