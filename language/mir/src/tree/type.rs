@@ -273,7 +273,7 @@ pub enum Type {
         /// Copyability of this vector type.
         copyability: Copyability,
     },
-    /// Fixed-shape tensor value.
+    /// Ranked tensor value with static or dynamic shape.
     Tensor {
         /// The element type.
         element: LocalNodeId<Type>,

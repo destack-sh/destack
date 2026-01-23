@@ -53,6 +53,7 @@ impl<'a> Parser<'a> {
             let parameter_attributes = vec![PointerAttributes::default(); parameters.len()];
             let parameter_count = parameters.len();
             let value_types = seed_value_types(&parameters);
+            let next_value_id = value_types.len() as u32;
             let function = Function {
                 name: name_id,
                 parameters,
@@ -74,7 +75,7 @@ impl<'a> Parser<'a> {
                 locals: Vec::new(),
                 blocks: Vec::new(),
                 entry: None,
-                next_value_id: 0,
+                next_value_id,
             };
 
             // update the placeholder with the parsed signature
@@ -155,6 +156,7 @@ impl<'a> Parser<'a> {
         function.locals = locals;
         function.blocks = blocks;
         function.entry = Some(entry);
+        function.next_value_id = function.value_types.len() as u32;
 
         self.current_function = None;
 
@@ -188,11 +190,6 @@ impl<'a> Parser<'a> {
                 ty,
             })
             .collect();
-
-        // record parameter value types
-        for param in &parameters {
-            self.record_value_type(param.value, param.ty);
-        }
 
         Ok(parameters)
     }
@@ -264,6 +261,11 @@ impl<'a> Parser<'a> {
         } else {
             Vec::new()
         };
+
+        // record block parameter value types
+        for param in &parameters {
+            self.record_value_type(param.value, param.ty);
+        }
 
         self.eat_token(TokenType::Colon)?;
 
@@ -389,15 +391,18 @@ impl<'a> Parser<'a> {
 }
 
 /// Seed a value type table from typed parameters.
-fn seed_value_types(parameters: &[TypedValue]) -> Vec<Option<LocalNodeId<Type>>> {
-    // expand to cover parameter indices
-    let mut value_types = Vec::new();
-    for param in parameters {
-        let index = param.value.0 as usize;
-        if value_types.len() <= index {
-            value_types.resize(index + 1, None);
+fn seed_value_types(parameters: &[TypedValue]) -> Vec<LocalNodeId<Type>> {
+    // ensure parameters cover a dense range
+    let mut ordered: Vec<_> = parameters.iter().collect();
+    ordered.sort_by_key(|param| param.value.0);
+
+    let mut value_types = Vec::with_capacity(ordered.len());
+    for (expected, param) in ordered.into_iter().enumerate() {
+        if param.value.0 as usize != expected {
+            panic!("missing value type for v{expected}");
         }
-        value_types[index] = Some(param.ty);
+
+        value_types.push(param.ty);
     }
 
     value_types

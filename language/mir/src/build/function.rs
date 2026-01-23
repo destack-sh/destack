@@ -8,8 +8,8 @@ use crate::{
     LocalNodeId, MemoryEffect, MemoryOrdering, MemoryScope, MemorySemantics, Mutability, NodeTree,
     Ownership, PointerAttributes, ReferenceKind, TensorConvolutionDimensionNumbers,
     TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Terminator, Type,
-    TypedValue, UnaryOperator, Value, VectorReduceOperator,
+    TensorConvertMode, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
+    Terminator, Type, TypedValue, UnaryOperator, Value, VectorConvertMode, VectorReduceOperator,
 };
 
 use super::Variable;
@@ -90,10 +90,7 @@ impl<'a> FunctionBuilder<'a> {
                 TypedValue::new(value, ty)
             })
             .collect();
-        let mut value_types = vec![None; next_value_id as usize];
-        for param in &parameters {
-            value_types[param.value.0 as usize] = Some(param.ty);
-        }
+        let value_types = parameters.iter().map(|param| param.ty).collect();
 
         // blank function (entry will be set in finish())
         let function = Function {
@@ -254,10 +251,6 @@ impl<'a> FunctionBuilder<'a> {
     fn allocate_value(&mut self) -> Value {
         let value = Value::new(self.next_value_id);
         self.next_value_id += 1;
-        let function = self.tree.get_mut(self.function_id);
-        if function.value_types.len() <= value.0 as usize {
-            function.value_types.resize(value.0 as usize + 1, None);
-        }
         value
     }
 
@@ -546,6 +539,9 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::VectorReduce {
                     vector: argument, ..
                 }
+                | Instruction::VectorConvert {
+                    vector: argument, ..
+                }
                 | Instruction::TensorReshape {
                     tensor: argument, ..
                 }
@@ -553,6 +549,9 @@ impl<'a> FunctionBuilder<'a> {
                     tensor: argument, ..
                 }
                 | Instruction::TensorTranspose {
+                    tensor: argument, ..
+                }
+                | Instruction::TensorCast {
                     tensor: argument, ..
                 }
                 | Instruction::TensorSlice {
@@ -587,7 +586,14 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
                 }
+                Instruction::VectorCompare { left, right, .. } => {
+                    Self::replace_value_in_slot(left, from, to);
+                    Self::replace_value_in_slot(right, from, to);
+                }
                 Instruction::TensorLoad { view, .. } => {
+                    Self::replace_value_in_slot(view, from, to);
+                }
+                Instruction::TensorView { view, .. } => {
                     Self::replace_value_in_slot(view, from, to);
                 }
                 Instruction::TensorStore { view, value, .. } => {
@@ -635,6 +641,10 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(operand, from, to);
                     Self::replace_value_in_slot(indices, from, to);
                     Self::replace_value_in_slot(updates, from, to);
+                }
+                Instruction::TensorCompare { left, right, .. } => {
+                    Self::replace_value_in_slot(left, from, to);
+                    Self::replace_value_in_slot(right, from, to);
                 }
                 Instruction::CallVirtual { receiver, .. }
                 | Instruction::CallInterface { receiver, .. } => {
@@ -1561,6 +1571,42 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Compare two vectors elementwise.
+    pub fn vector_compare(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operator: BinaryOperator,
+        left: Value,
+        right: Value,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VectorCompare {
+            destination,
+            operator,
+            left,
+            right,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Convert vector element types with an explicit mode.
+    pub fn vector_convert(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        mode: VectorConvertMode,
+        vector: Value,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::VectorConvert {
+            destination,
+            mode,
+            vector,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
     // instruction builders: tensor operations
 
     /// Load a tensor element from a tensor reference.
@@ -1650,6 +1696,47 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
+    /// Refine a tensor type without changing its contents.
+    pub fn tensor_cast(&mut self, result_type: LocalNodeId<Type>, tensor: Value) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorCast {
+            destination,
+            tensor,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Create a view into a tensor reference.
+    pub fn tensor_view(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        view: Value,
+        offsets: Vec<Value>,
+        sizes: Vec<Value>,
+        strides: Vec<Value>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        let offsets_count = self.to_u16_count(offsets.len(), "offsets count");
+        let sizes_count = self.to_u16_count(sizes.len(), "sizes count");
+        let strides_count = self.to_u16_count(strides.len(), "strides count");
+        let mut values = Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
+        values.extend_from_slice(&offsets);
+        values.extend_from_slice(&sizes);
+        values.extend_from_slice(&strides);
+        let arguments = self.tree.add_arguments(&values);
+        self.insert_instruction(Instruction::TensorView {
+            destination,
+            view,
+            arguments,
+            offsets_count,
+            sizes_count,
+            strides_count,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
     /// Slice a tensor by offsets, sizes, and strides.
     pub fn tensor_slice(
         &mut self,
@@ -1725,6 +1812,25 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             tensors,
             axis,
+        });
+        self.define_value(destination, result_type);
+        destination
+    }
+
+    /// Compare two tensors elementwise.
+    pub fn tensor_compare(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        operator: BinaryOperator,
+        left: Value,
+        right: Value,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::TensorCompare {
+            destination,
+            operator,
+            left,
+            right,
         });
         self.define_value(destination, result_type);
         destination
@@ -1840,10 +1946,16 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Convert a tensor element type.
-    pub fn tensor_convert(&mut self, result_type: LocalNodeId<Type>, tensor: Value) -> Value {
+    pub fn tensor_convert(
+        &mut self,
+        result_type: LocalNodeId<Type>,
+        mode: TensorConvertMode,
+        tensor: Value,
+    ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::TensorConvert {
             destination,
+            mode,
             tensor,
         });
         self.define_value(destination, result_type);

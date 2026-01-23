@@ -689,6 +689,31 @@ impl<'a> Dumper<'a> {
                 self.write(", ");
                 self.write(&self.format_value(*vector));
             }
+            Instruction::VectorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.compare ");
+                self.write(operator.to_str());
+                self.write(", ");
+                self.write(&self.format_value(*left));
+                self.write(", ");
+                self.write(&self.format_value(*right));
+            }
+            Instruction::VectorConvert {
+                destination,
+                mode,
+                vector,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = vector.convert ");
+                self.write(mode.to_str());
+                self.write(", ");
+                self.write(&self.format_value(*vector));
+            }
 
             Instruction::TensorLoad {
                 destination,
@@ -795,6 +820,51 @@ impl<'a> Dumper<'a> {
                         self.write(", ");
                     }
                     self.write(&dim.to_string());
+                }
+                self.write("]");
+            }
+            Instruction::TensorCast {
+                destination,
+                tensor,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.cast ");
+                self.write(&self.format_value(*tensor));
+            }
+            Instruction::TensorView {
+                destination,
+                view,
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.view ");
+                self.write(&self.format_value(*view));
+                self.write(", offsets=[");
+                let args = self.tree.get_arguments(*arguments);
+                let (offsets, sizes, strides) =
+                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
+                for (i, offset) in offsets.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*offset));
+                }
+                self.write("], sizes=[");
+                for (i, size) in sizes.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*size));
+                }
+                self.write("], strides=[");
+                for (i, stride) in strides.iter().enumerate() {
+                    if i > 0 {
+                        self.write(", ");
+                    }
+                    self.write(&self.format_value(*stride));
                 }
                 self.write("]");
             }
@@ -1165,12 +1235,29 @@ impl<'a> Dumper<'a> {
                 self.write(mode.to_str());
             }
 
+            Instruction::TensorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                self.write_colored(&self.format_value(*destination), Color::Green);
+                self.write(" = tensor.compare ");
+                self.write(operator.to_str());
+                self.write(", ");
+                self.write(&self.format_value(*left));
+                self.write(", ");
+                self.write(&self.format_value(*right));
+            }
             Instruction::TensorConvert {
                 destination,
+                mode,
                 tensor,
             } => {
                 self.write_colored(&self.format_value(*destination), Color::Green);
                 self.write(" = tensor.convert ");
+                self.write(mode.to_str());
+                self.write(", ");
                 self.write(&self.format_value(*tensor));
             }
 
@@ -1789,6 +1876,26 @@ impl<'a> Dumper<'a> {
         }
         self.write("\n");
     }
+}
+
+/// Split a packed tensor range list into offsets, sizes, and strides.
+fn split_tensor_ranges(
+    values: &[Value],
+    offsets_count: u16,
+    sizes_count: u16,
+    strides_count: u16,
+) -> (&[Value], &[Value], &[Value]) {
+    // compute slice bounds
+    let offsets_end = offsets_count as usize;
+    let sizes_end = offsets_end + sizes_count as usize;
+    let strides_end = sizes_end + strides_count as usize;
+
+    // slice the packed range list
+    let offsets = &values[..offsets_end];
+    let sizes = &values[offsets_end..sizes_end];
+    let strides = &values[sizes_end..strides_end];
+
+    (offsets, sizes, strides)
 }
 
 impl<'a> NodeVisitor for Dumper<'a> {

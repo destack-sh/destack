@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     ArgumentSlice, Block, CallEffects, Function, Instruction, Local, LocalNodeId, MemoryAccessKind,
     MemoryAccessMetadata, MemoryEffect, Mutability, NodeTree, NodeType, ReferenceKind, SwitchCase,
-    Terminator, Type, Value,
+    TensorDimension, Terminator, Type, Value,
 };
 
 use super::{VerifyAnchor, VerifyError, VerifyResult};
@@ -374,7 +374,13 @@ impl<'a> Verifier<'a> {
 
                 // verify instruction invariants
                 let instruction = self.tree.get(instruction_id);
-                self.verify_instruction(instruction_id, instruction, locals, defined_values)?;
+                self.verify_instruction(
+                    function,
+                    instruction_id,
+                    instruction,
+                    locals,
+                    defined_values,
+                )?;
             }
 
             // verify terminator uses and successors
@@ -394,6 +400,7 @@ impl<'a> Verifier<'a> {
     /// Verify an instruction uses only defined values.
     fn verify_instruction(
         &self,
+        function: &Function,
         instruction_id: LocalNodeId<Instruction>,
         instruction: &Instruction,
         locals: &HashSet<LocalNodeId<Local>>,
@@ -508,8 +515,562 @@ impl<'a> Verifier<'a> {
         // validate instruction shape invariants
         self.verify_instruction_shapes(instruction, instruction_id)?;
 
+        // validate vector and tensor instruction semantics
+        self.verify_vector_tensor_ops(function, instruction, instruction_id)?;
+
         // validate inline types
         self.verify_instruction_inline_types(instruction, instruction_id)?;
+
+        Ok(())
+    }
+
+    /// Resolve a value type for verification.
+    fn value_type_or_error(
+        &self,
+        function: &Function,
+        value: Value,
+        anchor: VerifyAnchor,
+        label: &'static str,
+    ) -> VerifyResult<LocalNodeId<Type>> {
+        // look up the value type
+        let value_type = function.value_type(value).ok_or_else(|| {
+            VerifyError::MetadataInvariantViolation {
+                message: format!("missing value type for {label}"),
+                anchor,
+            }
+        })?;
+
+        Ok(value_type)
+    }
+
+    /// Check whether two tensor shapes are compatible for casts.
+    fn tensor_shapes_compatible(
+        &self,
+        left: &[TensorDimension],
+        right: &[TensorDimension],
+    ) -> bool {
+        // reject mismatched ranks
+        if left.len() != right.len() {
+            return false;
+        }
+
+        // allow dynamic to match any dimension
+        left.iter().zip(right).all(|(left_dim, right_dim)| {
+            match (left_dim, right_dim) {
+                (TensorDimension::Static(left_size), TensorDimension::Static(right_size)) => {
+                    left_size == right_size
+                }
+                _ => true,
+            }
+        })
+    }
+
+    /// Verify vector and tensor instruction invariants.
+    fn verify_vector_tensor_ops(
+        &self,
+        function: &Function,
+        instruction: &Instruction,
+        instruction_id: LocalNodeId<Instruction>,
+    ) -> VerifyResult<()> {
+        // prepare anchor for error reporting
+        let anchor = VerifyAnchor::node(instruction_id);
+
+        match instruction {
+            Instruction::VectorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                // reject non comparison operators
+                if !operator.is_comparison() {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "vector.compare requires a comparison operator".to_string(),
+                        anchor,
+                    });
+                }
+
+                // resolve operand types
+                let left_type_id =
+                    self.value_type_or_error(function, *left, anchor, "vector.compare left")?;
+                let right_type_id =
+                    self.value_type_or_error(function, *right, anchor, "vector.compare right")?;
+
+                // resolve operand vector layouts
+                let left_type = self.tree.get(left_type_id);
+                let right_type = self.tree.get(right_type_id);
+                let (left_element, left_lanes) = match left_type {
+                    Type::Vector { element, lanes, .. } => (element, lanes),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "vector.compare expects vector operands, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let (right_element, right_lanes) = match right_type {
+                    Type::Vector { element, lanes, .. } => (element, lanes),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "vector.compare expects vector operands, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched vector operands
+                if left_element != right_element || left_lanes != right_lanes {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "vector.compare expects matching vector operand types".to_string(),
+                        anchor,
+                    });
+                }
+
+                // resolve destination type
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "vector.compare result",
+                )?;
+                let destination_type = self.tree.get(destination_type_id);
+                let (result_element, result_lanes) = match destination_type {
+                    Type::Vector { element, lanes, .. } => (element, lanes),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "vector.compare result must be a vector, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched lane counts
+                if *result_lanes != *left_lanes {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "vector.compare result must match lane count".to_string(),
+                        anchor,
+                    });
+                }
+
+                // reject non boolean result element types
+                let result_element_type = self.tree.get(*result_element);
+                if !matches!(result_element_type, Type::Boolean) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "vector.compare result element type must be bool".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::VectorConvert {
+                destination,
+                vector,
+                ..
+            } => {
+                // resolve operand types
+                let source_type_id = self.value_type_or_error(
+                    function,
+                    *vector,
+                    anchor,
+                    "vector.convert source",
+                )?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "vector.convert result",
+                )?;
+
+                // resolve vector types
+                let source_type = self.tree.get(source_type_id);
+                let destination_type = self.tree.get(destination_type_id);
+                let source_lanes = match source_type {
+                    Type::Vector { lanes, .. } => lanes,
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "vector.convert expects vector source, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let destination_lanes = match destination_type {
+                    Type::Vector { lanes, .. } => lanes,
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "vector.convert expects vector result, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched lane counts
+                if source_lanes != destination_lanes {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "vector.convert must preserve lane count".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                // reject non comparison operators
+                if !operator.is_comparison() {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.compare requires a comparison operator".to_string(),
+                        anchor,
+                    });
+                }
+
+                // resolve operand types
+                let left_type_id =
+                    self.value_type_or_error(function, *left, anchor, "tensor.compare left")?;
+                let right_type_id =
+                    self.value_type_or_error(function, *right, anchor, "tensor.compare right")?;
+
+                // resolve operand tensor layouts
+                let left_type = self.tree.get(left_type_id);
+                let right_type = self.tree.get(right_type_id);
+                let (left_element, left_shape, left_layout) = match left_type {
+                    Type::Tensor {
+                        element,
+                        shape,
+                        layout,
+                        ..
+                    } => (element, shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.compare expects tensor operands, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let (right_element, right_shape, right_layout) = match right_type {
+                    Type::Tensor {
+                        element,
+                        shape,
+                        layout,
+                        ..
+                    } => (element, shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.compare expects tensor operands, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched tensor operands
+                if left_element != right_element
+                    || left_shape != right_shape
+                    || left_layout != right_layout
+                {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.compare expects matching tensor operand types".to_string(),
+                        anchor,
+                    });
+                }
+
+                // resolve destination type
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.compare result",
+                )?;
+                let destination_type = self.tree.get(destination_type_id);
+                let (result_element, result_shape, result_layout) = match destination_type {
+                    Type::Tensor {
+                        element,
+                        shape,
+                        layout,
+                        ..
+                    } => (element, shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.compare result must be a tensor, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched shapes or layouts
+                if result_shape != left_shape || result_layout != left_layout {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.compare result must match tensor shape and layout"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                // reject non boolean result element types
+                let result_element_type = self.tree.get(*result_element);
+                if !matches!(result_element_type, Type::Boolean) {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.compare result element type must be bool".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorConvert {
+                destination,
+                tensor,
+                ..
+            } => {
+                // resolve operand types
+                let source_type_id =
+                    self.value_type_or_error(function, *tensor, anchor, "tensor.convert source")?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.convert result",
+                )?;
+
+                // resolve tensor types
+                let source_type = self.tree.get(source_type_id);
+                let destination_type = self.tree.get(destination_type_id);
+                let (source_shape, source_layout) = match source_type {
+                    Type::Tensor { shape, layout, .. } => (shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.convert expects tensor source, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let (destination_shape, destination_layout) = match destination_type {
+                    Type::Tensor { shape, layout, .. } => (shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.convert expects tensor result, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject mismatched shapes or layouts
+                if source_shape != destination_shape || source_layout != destination_layout {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.convert must preserve shape and layout".to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorCast {
+                destination,
+                tensor,
+            } => {
+                // resolve operand types
+                let source_type_id =
+                    self.value_type_or_error(function, *tensor, anchor, "tensor.cast source")?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.cast result",
+                )?;
+
+                // resolve tensor types
+                let source_type = self.tree.get(source_type_id);
+                let destination_type = self.tree.get(destination_type_id);
+                let (source_element, source_shape, source_layout) = match source_type {
+                    Type::Tensor {
+                        element,
+                        shape,
+                        layout,
+                        ..
+                    } => (element, shape, layout),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.cast expects tensor source, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let (destination_element, destination_shape, destination_layout) =
+                    match destination_type {
+                        Type::Tensor {
+                            element,
+                            shape,
+                            layout,
+                            ..
+                        } => (element, shape, layout),
+                        other => {
+                            return Err(VerifyError::MetadataInvariantViolation {
+                                message: format!(
+                                    "tensor.cast expects tensor result, found {}",
+                                    self.type_kind(other)
+                                ),
+                                anchor,
+                            });
+                        }
+                    };
+
+                // reject element or layout mismatches
+                if source_element != destination_element
+                    || source_layout != destination_layout
+                    || !self.tensor_shapes_compatible(source_shape, destination_shape)
+                {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.cast requires compatible shapes and matching layout"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorView {
+                destination,
+                view,
+                offsets_count,
+                sizes_count,
+                strides_count,
+                ..
+            } => {
+                // resolve operand types
+                let source_type_id =
+                    self.value_type_or_error(function, *view, anchor, "tensor.view source")?;
+                let destination_type_id = self.value_type_or_error(
+                    function,
+                    *destination,
+                    anchor,
+                    "tensor.view result",
+                )?;
+
+                // resolve view types
+                let source_type = self.tree.get(source_type_id);
+                let destination_type = self.tree.get(destination_type_id);
+                let (
+                    source_kind,
+                    source_address_space,
+                    source_mutability,
+                    source_element,
+                    source_shape,
+                ) = match source_type {
+                    Type::TensorReference {
+                        kind,
+                        address_space,
+                        mutability,
+                        element,
+                        shape,
+                        ..
+                    } => (kind, address_space, mutability, element, shape),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.view expects tensor reference source, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+                let (
+                    destination_kind,
+                    destination_address_space,
+                    destination_mutability,
+                    destination_element,
+                    destination_shape,
+                ) = match destination_type {
+                    Type::TensorReference {
+                        kind,
+                        address_space,
+                        mutability,
+                        element,
+                        shape,
+                        ..
+                    } => (kind, address_space, mutability, element, shape),
+                    other => {
+                        return Err(VerifyError::MetadataInvariantViolation {
+                            message: format!(
+                                "tensor.view expects tensor reference result, found {}",
+                                self.type_kind(other)
+                            ),
+                            anchor,
+                        });
+                    }
+                };
+
+                // reject incompatible reference kinds
+                if source_kind != destination_kind
+                    || source_address_space != destination_address_space
+                    || source_element != destination_element
+                {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.view requires matching reference kind, address space, and element type"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+
+                // reject mutability upgrades
+                if matches!(source_mutability, Mutability::Immutable)
+                    && matches!(destination_mutability, Mutability::Mutable)
+                {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.view cannot increase mutability".to_string(),
+                        anchor,
+                    });
+                }
+
+                // reject mismatched ranks
+                if source_shape.len() != destination_shape.len() {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.view requires matching ranks".to_string(),
+                        anchor,
+                    });
+                }
+
+                // reject mismatched view argument counts
+                let expected = destination_shape.len();
+                if *offsets_count as usize != expected
+                    || *sizes_count as usize != expected
+                    || *strides_count as usize != expected
+                {
+                    return Err(VerifyError::MetadataInvariantViolation {
+                        message: "tensor.view requires offsets, sizes, and strides for each dimension"
+                            .to_string(),
+                        anchor,
+                    });
+                }
+            }
+            _ => {}
+        }
 
         Ok(())
     }
@@ -1116,6 +1677,25 @@ impl<'a> Verifier<'a> {
                 }
             }
             Instruction::TensorSlice {
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+                ..
+            } => {
+                // validate argument counts
+                let expected =
+                    *offsets_count as usize + *sizes_count as usize + *strides_count as usize;
+                let got = arguments.len();
+                if expected != got {
+                    return Err(VerifyError::AggregateArgumentCountMismatch {
+                        expected,
+                        got,
+                        anchor,
+                    });
+                }
+            }
+            Instruction::TensorView {
                 arguments,
                 offsets_count,
                 sizes_count,

@@ -592,6 +592,52 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )
             }
+            Instruction::VectorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("vector.compare"),
+                        space(),
+                        token(operator.to_str()),
+                        token(","),
+                        space(),
+                        left,
+                        token(","),
+                        space(),
+                        right
+                    ]
+                )
+            }
+            Instruction::VectorConvert {
+                destination,
+                mode,
+                vector,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("vector.convert"),
+                        space(),
+                        token(mode.to_str()),
+                        token(","),
+                        space(),
+                        vector
+                    ]
+                )
+            }
 
             Instruction::TensorLoad {
                 destination,
@@ -683,6 +729,54 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                     ]
                 )?;
                 format_u32_bracket_list(permutation, f)
+            }
+            Instruction::TensorCast {
+                destination,
+                tensor,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.cast"),
+                        space(),
+                        tensor
+                    ]
+                )
+            }
+            Instruction::TensorView {
+                destination,
+                view,
+                arguments,
+                offsets_count,
+                sizes_count,
+                strides_count,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.view"),
+                        space(),
+                        view,
+                        token(","),
+                        space()
+                    ]
+                )?;
+                let args = f.context().tree.get_arguments(*arguments);
+                let (offsets, sizes, strides) =
+                    split_tensor_ranges(args, *offsets_count, *sizes_count, *strides_count);
+                format_named_value_list("offsets", offsets, f)?;
+                write!(f, [token(","), space()])?;
+                format_named_value_list("sizes", sizes, f)?;
+                write!(f, [token(","), space()])?;
+                format_named_value_list("strides", strides, f)
             }
 
             Instruction::TensorSlice {
@@ -781,6 +875,31 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token("axis"),
                         token("="),
                         text(&axis.to_string())
+                    ]
+                )
+            }
+            Instruction::TensorCompare {
+                destination,
+                operator,
+                left,
+                right,
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("tensor.compare"),
+                        space(),
+                        token(operator.to_str()),
+                        token(","),
+                        space(),
+                        left,
+                        token(","),
+                        space(),
+                        right
                     ]
                 )
             }
@@ -958,6 +1077,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::TensorConvert {
                 destination,
+                mode,
                 tensor,
             } => {
                 format_typed_destination(*destination, f)?;
@@ -968,6 +1088,9 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         token("="),
                         space(),
                         token("tensor.convert"),
+                        space(),
+                        token(mode.to_str()),
+                        token(","),
                         space(),
                         tensor
                     ]

@@ -139,6 +139,8 @@ Each instruction defines at most one `Value`.
 | Globals | `global.addr`, `global.const` |
 | Memory | `load`, `store`, `raw.drop`, `stack.drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.addr`, `element.get`, `element.set`, `element.addr` |
+| Vector | `vector.*` (splat, extract, insert, shuffle, reduce, compare, convert) |
+| Tensor | `tensor.*` (load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
 | Allocation | `managed.alloc`, `managed.alloc_array`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic` |
@@ -297,12 +299,16 @@ Vector types represent fixed-width SIMD values.
 Use `vector<T, N>` in MIR text to denote an element type `T` and lane count `N`.
 Vectors model SIMD lane registers, while tensors model N-dimensional value semantics for accelerator-friendly optimization.
 
-Tensor types represent fixed-shape value-semantic tensors.
-Use `tensor<T, [d0, d1, ...]>` for a tensor of element type `T` and static shape.
+Tensor types represent ranked value-semantic tensors.
+Use `tensor<T, [d0, d1, ...]>` for a tensor of element type `T` and ranked shape.
+Use `dynamic` to mark dynamic dimensions.
 Tensor layouts default to `row_major` when omitted.
 Use `layout=row_major` for contiguous row-major tensors.
 Use `layout=column_major` for contiguous column-major tensors.
 Use `layout=strided([s0, s1, ...])` for explicit strides.
+Use `tensor.cast` to refine tensor shapes without changing contents.
+Use `tensor.view` to create a strided view into tensor reference storage.
+Use `tensor.view` with `offsets`, `sizes`, and `strides` lists to describe the view bounds.
 
 Tensor view types represent reference-like views into tensor-shaped memory.
 Use `tensor_ref<kind addrspace(space) mut T, [d0, d1, ...], layout=...>` in MIR text.

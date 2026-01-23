@@ -58,3 +58,58 @@ impl std::str::FromStr for VectorReduceOperator {
         Ok(value)
     }
 }
+
+/// Conversion modes for vector element conversions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum VectorConvertMode {
+    /// Require exact conversion with no rounding or saturation.
+    Exact,
+    /// Round to the nearest even representable value.
+    RoundTiesEven,
+    /// Round toward zero.
+    RoundTowardZero,
+    /// Round toward negative infinity.
+    RoundFloor,
+    /// Round toward positive infinity.
+    RoundCeil,
+    /// Clamp values that overflow the destination range.
+    Saturate,
+}
+
+impl VectorConvertMode {
+    /// Return the opcode name for this conversion mode.
+    pub fn to_str(self) -> &'static str {
+        match self {
+            VectorConvertMode::Exact => "exact",
+            VectorConvertMode::RoundTiesEven => "round_ties_even",
+            VectorConvertMode::RoundTowardZero => "round_toward_zero",
+            VectorConvertMode::RoundFloor => "round_floor",
+            VectorConvertMode::RoundCeil => "round_ceil",
+            VectorConvertMode::Saturate => "saturate",
+        }
+    }
+
+    /// Parse a conversion mode from an opcode name.
+    pub fn parse(text: &str) -> Option<Self> {
+        <Self as std::str::FromStr>::from_str(text).ok()
+    }
+}
+
+impl std::str::FromStr for VectorConvertMode {
+    type Err = ();
+
+    /// Parse a conversion mode from an opcode name.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let value = match text {
+            "exact" => VectorConvertMode::Exact,
+            "round_ties_even" => VectorConvertMode::RoundTiesEven,
+            "round_toward_zero" => VectorConvertMode::RoundTowardZero,
+            "round_floor" => VectorConvertMode::RoundFloor,
+            "round_ceil" => VectorConvertMode::RoundCeil,
+            "saturate" => VectorConvertMode::Saturate,
+            _ => return Err(()),
+        };
+
+        Ok(value)
+    }
+}
