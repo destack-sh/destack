@@ -2,12 +2,13 @@ use std::collections::HashSet;
 
 use destack_dir::{
     GlobalSymbolId, LocalTypeId, PrimitiveType, StaticArgument, StaticExpression, StaticProperty,
-    Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable,
+    Type, TypeElement, TypeField, TypeIndexSignature, TypeLiteral, TypeTable, TypeUnaryOperator,
 };
 use destack_workspace::Module;
 
 use crate::Compiler;
 
+#[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Check whether a type contains the `any` literal.
     pub(crate) fn type_contains_any(
@@ -16,7 +17,7 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_any)
+        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_any, true)
     }
 
     /// Check whether a type contains the `unknown` literal.
@@ -26,7 +27,7 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_unknown)
+        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_unknown, true)
     }
 
     /// Check whether a type contains imprecise primitive literals.
@@ -36,7 +37,13 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &TypeTable,
     ) -> bool {
-        self.type_contains_forbidden_literal(module, ty_id, types, literal_is_imprecise_primitive)
+        self.type_contains_forbidden_literal(
+            module,
+            ty_id,
+            types,
+            literal_is_imprecise_primitive,
+            false,
+        )
     }
 
     /// Check whether a type contains a forbidden literal.
@@ -46,6 +53,7 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
     ) -> bool {
         // track visited ids to prevent cycles
         let mut visited_types = HashSet::new();
@@ -57,6 +65,7 @@ impl Compiler {
             ty_id,
             types,
             predicate,
+            skip_imported_types,
             &mut visited_types,
             &mut visited_symbols,
         )
@@ -69,9 +78,15 @@ impl Compiler {
         ty_id: LocalTypeId,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
+        // skip imported types when configured to ignore lib usage
+        if skip_imported_types && types.is_imported_type(ty_id) {
+            return false;
+        }
+
         // stop on recursion
         if !visited_types.insert(ty_id) {
             return false;
@@ -83,6 +98,10 @@ impl Compiler {
         // walk the type structure
         match ty {
             Type::TypeLiteral { value } => predicate(value),
+            Type::Unary {
+                operator: TypeUnaryOperator::Keyof,
+                ..
+            } => false,
             Type::Value { value }
             | Type::Unary { right: value, .. }
             | Type::ValueOf { right: value, .. }
@@ -92,6 +111,7 @@ impl Compiler {
                 *value,
                 types,
                 predicate,
+                skip_imported_types,
                 visited_types,
                 visited_symbols,
             ),
@@ -100,11 +120,12 @@ impl Compiler {
                 *symbol,
                 types,
                 predicate,
+                skip_imported_types,
                 visited_types,
                 visited_symbols,
             ),
             Type::Conditional {
-                distributive: _,
+                distributive_symbol: _,
                 left,
                 right,
                 then_type,
@@ -115,6 +136,7 @@ impl Compiler {
                     *left,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.type_contains_forbidden_literal_inner(
@@ -122,6 +144,7 @@ impl Compiler {
                     *right,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.type_contains_forbidden_literal_inner(
@@ -129,6 +152,7 @@ impl Compiler {
                     *then_type,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.type_contains_forbidden_literal_inner(
@@ -136,6 +160,7 @@ impl Compiler {
                     *else_type,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -148,6 +173,7 @@ impl Compiler {
                     parameter.constraint,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || parameter.key_remap.is_some_and(|key_remap| {
@@ -156,6 +182,7 @@ impl Compiler {
                         key_remap,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -164,6 +191,7 @@ impl Compiler {
                     *value,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -174,6 +202,7 @@ impl Compiler {
                     *left,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.type_contains_forbidden_literal_inner(
@@ -181,6 +210,7 @@ impl Compiler {
                     *index,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -191,6 +221,7 @@ impl Compiler {
                     *span,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -206,6 +237,7 @@ impl Compiler {
                             argument,
                             types,
                             predicate,
+                            skip_imported_types,
                             visited_types,
                             visited_symbols,
                         )
@@ -218,6 +250,7 @@ impl Compiler {
                     constraint,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -228,6 +261,7 @@ impl Compiler {
                     target,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -238,6 +272,7 @@ impl Compiler {
                     *left,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.type_contains_forbidden_literal_inner(
@@ -245,6 +280,7 @@ impl Compiler {
                     *right,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -254,6 +290,7 @@ impl Compiler {
                 *element,
                 types,
                 predicate,
+                skip_imported_types,
                 visited_types,
                 visited_symbols,
             ),
@@ -263,6 +300,7 @@ impl Compiler {
                     element,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -273,6 +311,7 @@ impl Compiler {
                     element,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -289,6 +328,7 @@ impl Compiler {
                         field,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -298,6 +338,7 @@ impl Compiler {
                         *signature,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -307,6 +348,7 @@ impl Compiler {
                         *signature,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -316,6 +358,7 @@ impl Compiler {
                         signature,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -334,6 +377,7 @@ impl Compiler {
                         *parameter,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -343,6 +387,7 @@ impl Compiler {
                         parameter,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -352,6 +397,7 @@ impl Compiler {
                         *parameter,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -361,6 +407,7 @@ impl Compiler {
                         return_type,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -373,6 +420,7 @@ impl Compiler {
                         *element,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -389,6 +437,7 @@ impl Compiler {
         symbol_id: GlobalSymbolId,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -409,6 +458,7 @@ impl Compiler {
                 alias_target,
                 types,
                 predicate,
+                skip_imported_types,
                 visited_types,
                 visited_symbols,
             );
@@ -425,6 +475,7 @@ impl Compiler {
             instance_id,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         )
@@ -437,6 +488,7 @@ impl Compiler {
         element: &TypeElement,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -446,6 +498,7 @@ impl Compiler {
             element.ty,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         )
@@ -458,6 +511,7 @@ impl Compiler {
         field: &TypeField,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -467,6 +521,7 @@ impl Compiler {
             field.ty,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         )
@@ -479,6 +534,7 @@ impl Compiler {
         signature: &TypeIndexSignature,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -488,6 +544,7 @@ impl Compiler {
             signature.key_type,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         ) || self.type_contains_forbidden_literal_inner(
@@ -495,6 +552,7 @@ impl Compiler {
             signature.value_type,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         )
@@ -507,6 +565,7 @@ impl Compiler {
         argument: &StaticArgument,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -521,6 +580,7 @@ impl Compiler {
             value,
             types,
             predicate,
+            skip_imported_types,
             visited_types,
             visited_symbols,
         )
@@ -533,6 +593,7 @@ impl Compiler {
         expression: &StaticExpression,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -544,6 +605,7 @@ impl Compiler {
                 *ty,
                 types,
                 predicate,
+                skip_imported_types,
                 visited_types,
                 visited_symbols,
             ),
@@ -553,6 +615,7 @@ impl Compiler {
                     start,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || self.static_expression_contains_forbidden_literal(
@@ -560,6 +623,7 @@ impl Compiler {
                     end,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -570,6 +634,7 @@ impl Compiler {
                     element,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -580,6 +645,7 @@ impl Compiler {
                     element,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 )
@@ -591,6 +657,7 @@ impl Compiler {
                         property,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -607,6 +674,7 @@ impl Compiler {
                             argument,
                             types,
                             predicate,
+                            skip_imported_types,
                             visited_types,
                             visited_symbols,
                         )
@@ -624,6 +692,7 @@ impl Compiler {
         property: &StaticProperty,
         types: &TypeTable,
         predicate: fn(&TypeLiteral) -> bool,
+        skip_imported_types: bool,
         visited_types: &mut HashSet<LocalTypeId>,
         visited_symbols: &mut HashSet<GlobalSymbolId>,
     ) -> bool {
@@ -635,6 +704,7 @@ impl Compiler {
                     value,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ) || default.as_ref().is_some_and(|default| {
@@ -643,6 +713,7 @@ impl Compiler {
                         default,
                         types,
                         predicate,
+                        skip_imported_types,
                         visited_types,
                         visited_symbols,
                     )
@@ -654,6 +725,7 @@ impl Compiler {
                     body,
                     types,
                     predicate,
+                    skip_imported_types,
                     visited_types,
                     visited_symbols,
                 ),

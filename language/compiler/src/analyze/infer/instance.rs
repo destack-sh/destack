@@ -53,7 +53,7 @@ impl Compiler {
                 source_id,
                 symbol,
                 static_arguments.as_deref(),
-                true,
+                false,
                 &options,
                 tree,
                 symbols,

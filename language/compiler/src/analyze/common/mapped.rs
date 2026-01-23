@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{
-    Expression, GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType,
-    ScalarLiteral, StaticKey, StringId, SymbolKey, SymbolTable, Type, TypeField,
-    TypeIndexSignature, TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier,
-    TypeTable, TypeUnaryOperator,
+    GlobalSymbolId, LocalNodeIdAny, LocalTypeId, NormalizationMode, PrimitiveType, ScalarLiteral,
+    StaticKey, SymbolKey, SymbolTable, SymbolType, Type, TypeField, TypeIndexSignature,
+    TypeLiteral, TypeMappedModifiers, TypeMappedParameter, TypeModifier, TypeTable,
+    TypeUnaryOperator,
 };
 use destack_workspace::{Module, ProfileId};
 
@@ -180,7 +180,42 @@ impl Compiler {
                 keys.insert_index_kind(MappedIndexKind::Number);
                 keys
             }
-            Type::Reference { symbol, .. } => {
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                // align the symbol id with the stored symbol type
+                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+
+                // expand alias references with arguments when available
+                if matches!(symbol.ty(), SymbolType::TypeAlias | SymbolType::Newtype)
+                    && let Some(static_arguments) = static_arguments.as_ref()
+                {
+                    let source_id = types.get_type_source(type_id);
+                    if let Some(expanded_id) = self.normalize_type_alias_reference_with_arguments(
+                        module,
+                        profile,
+                        source_id,
+                        symbol,
+                        static_arguments,
+                        symbols,
+                        types,
+                        mode,
+                        visited,
+                    ) {
+                        return self.key_set_for_type(
+                            module,
+                            profile,
+                            expanded_id,
+                            symbols,
+                            types,
+                            mode,
+                            visited,
+                            visited_keys,
+                        );
+                    }
+                }
+
                 // use instance shapes when possible
                 if let Some(instance_id) = types.get_instance_type_id(symbol) {
                     return self.key_set_for_type(
@@ -418,7 +453,7 @@ impl Compiler {
         profile: ProfileId,
         type_id: LocalTypeId,
         source_id: LocalNodeIdAny,
-        distributive: bool,
+        distributive_symbol: Option<GlobalSymbolId>,
         left: LocalTypeId,
         right: LocalTypeId,
         then_type: LocalTypeId,
@@ -461,7 +496,7 @@ impl Compiler {
 
             return types.insert_type_from_any(
                 Type::Conditional {
-                    distributive,
+                    distributive_symbol,
                     left,
                     right,
                     then_type: normalized_then,
@@ -472,14 +507,36 @@ impl Compiler {
         }
 
         // distribute over unions for conditional typing
-        if distributive && let Type::Union { elements } = types.get_type(left).clone() {
+        if let Some(distributive_symbol) = distributive_symbol
+            && let Type::Union { elements } = types.get_type(left).clone()
+        {
             let mut branch_types = Vec::new();
 
             // evaluate each union element independently
             for element_id in elements {
+                let mut substitutions = HashMap::new();
+                substitutions.insert(distributive_symbol, element_id);
+                let mut cache = HashMap::new();
+                let mapped_right =
+                    self.substitute_static_parameters(right, &substitutions, types, &mut cache);
+                let mapped_then =
+                    self.substitute_static_parameters(then_type, &substitutions, types, &mut cache);
+                let mapped_else =
+                    self.substitute_static_parameters(else_type, &substitutions, types, &mut cache);
                 let branch = self.normalize_conditional_type(
-                    module, profile, type_id, source_id, false, element_id, right, then_type,
-                    else_type, symbols, types, mode, visited,
+                    module,
+                    profile,
+                    type_id,
+                    source_id,
+                    None,
+                    element_id,
+                    mapped_right,
+                    mapped_then,
+                    mapped_else,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
                 );
                 branch_types.push(branch);
             }
@@ -508,7 +565,7 @@ impl Compiler {
         }
 
         // distribute over never as an empty union
-        if distributive
+        if distributive_symbol.is_some()
             && matches!(
                 types.get_type(left),
                 Type::TypeLiteral {
@@ -524,12 +581,29 @@ impl Compiler {
             );
         }
 
+        // substitute distributive symbols into the branch types when needed
+        let (right, then_type, else_type) = if let Some(distributive_symbol) = distributive_symbol
+        {
+            let mut substitutions = HashMap::new();
+            substitutions.insert(distributive_symbol, left);
+            let mut cache = HashMap::new();
+            let mapped_right =
+                self.substitute_static_parameters(right, &substitutions, types, &mut cache);
+            let mapped_then =
+                self.substitute_static_parameters(then_type, &substitutions, types, &mut cache);
+            let mapped_else =
+                self.substitute_static_parameters(else_type, &substitutions, types, &mut cache);
+            (mapped_right, mapped_then, mapped_else)
+        } else {
+            (right, then_type, else_type)
+        };
+
         // infer conditional bindings before choosing a branch
         if self.type_contains_infer(right, types, &mut HashSet::new()) {
             if let Some(substitutions) = self.infer_conditional_type_substitutions(
                 module,
                 profile,
-                distributive,
+                distributive_symbol.is_some(),
                 left,
                 right,
                 source_id,
@@ -1120,7 +1194,7 @@ impl Compiler {
     }
 
     /// Normalize mapped types into object shapes.
-    pub(super) fn normalize_mapped_type(
+    pub(crate) fn normalize_mapped_type(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1135,34 +1209,13 @@ impl Compiler {
     ) -> LocalTypeId {
         let TypeMappedParameter {
             name,
+            symbol,
             constraint,
             key_remap,
         } = parameter;
 
-        // resolve the mapped parameter symbol
-        let parameter_symbol = self.resolve_mapped_parameter_symbol(
-            module, profile, source_id, name, value, key_remap, symbols, types,
-        );
-        let Some(parameter_symbol) = parameter_symbol else {
-            // fallback to normalized mapped type when symbol resolution fails
-            let normalized_constraint = self
-                .normalize_type_inner(module, profile, constraint, symbols, types, mode, visited);
-            let normalized_key_remap = key_remap.map(|key_remap| {
-                self.normalize_type_inner(module, profile, key_remap, symbols, types, mode, visited)
-            });
-            let normalized_value =
-                self.normalize_type_inner(module, profile, value, symbols, types, mode, visited);
-            let normalized = Type::Mapped {
-                parameter: TypeMappedParameter {
-                    name,
-                    constraint: normalized_constraint,
-                    key_remap: normalized_key_remap,
-                },
-                modifiers,
-                value: normalized_value,
-            };
-            return types.insert_type_from_any(normalized, source_id);
-        };
+        // use the mapped parameter symbol for substitution
+        let parameter_symbol = Some(symbol);
 
         // normalize the key constraint for evaluation
         let normalized_constraint =
@@ -1170,7 +1223,14 @@ impl Compiler {
 
         // collect mapped keys from the constraint
         let mut keys = Vec::new();
-        self.collect_mapped_keys_for_type(normalized_constraint, types, &mut keys);
+        self.collect_mapped_keys_for_type(
+            module,
+            profile,
+            normalized_constraint,
+            symbols,
+            types,
+            &mut keys,
+        );
         if keys.is_empty() {
             // empty key set produces an empty object
             let normalized = Type::Object {
@@ -1183,11 +1243,45 @@ impl Compiler {
         }
 
         // find the source type for modifier inheritance
-        let source_type_id = self.mapped_source_type_id(parameter_symbol, constraint, value, types);
+        let source_type_id = parameter_symbol
+            .and_then(|parameter_symbol| self.mapped_source_type_id(parameter_symbol, constraint, value, types));
 
         // expand each mapped key into fields or index signatures
         let mut fields: Vec<TypeField> = Vec::new();
         let mut index_values: HashMap<MappedIndexKind, Vec<LocalTypeId>> = HashMap::new();
+        // precompute normalized value and remap when the parameter is unused
+        let normalized_value_without_param = if parameter_symbol.is_none() {
+            Some(self.normalize_type_inner(
+                module, profile, value, symbols, types, mode, visited,
+            ))
+        } else {
+            None
+        };
+        let normalized_remap_without_param =
+            if let Some(key_remap) = key_remap && parameter_symbol.is_none() {
+                let normalized_remap = self.normalize_type_inner(
+                    module,
+                    profile,
+                    key_remap,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
+                );
+                let mut remapped = Vec::new();
+                self.collect_mapped_keys_for_type(
+                    module,
+                    profile,
+                    normalized_remap,
+                    symbols,
+                    types,
+                    &mut remapped,
+                );
+                Some(remapped)
+            } else {
+                None
+            };
+
         for key in keys {
             let key_type_id = match &key {
                 MappedKey::Field { key_type, .. } => *key_type,
@@ -1195,23 +1289,36 @@ impl Compiler {
             };
 
             // substitute the mapped parameter with the key type
-            let mut substitutions = HashMap::new();
-            substitutions.insert(parameter_symbol, key_type_id);
-            let mut cache = HashMap::new();
-            let substituted_value =
-                self.substitute_static_parameters(value, &substitutions, types, &mut cache);
-            let normalized_value = self.normalize_type_inner(
-                module,
-                profile,
-                substituted_value,
-                symbols,
-                types,
-                mode,
-                visited,
-            );
+            let normalized_value = if let Some(normalized) = normalized_value_without_param {
+                normalized
+            } else {
+                let mut substitutions = HashMap::new();
+                if let Some(parameter_symbol) = parameter_symbol {
+                    substitutions.insert(parameter_symbol, key_type_id);
+                }
+                let mut cache = HashMap::new();
+                let substituted_value =
+                    self.substitute_static_parameters(value, &substitutions, types, &mut cache);
+                self.normalize_type_inner(
+                    module,
+                    profile,
+                    substituted_value,
+                    symbols,
+                    types,
+                    mode,
+                    visited,
+                )
+            };
 
             // compute remapped keys when present
-            let remapped_keys = if let Some(key_remap) = key_remap {
+            let remapped_keys = if let Some(remapped) = normalized_remap_without_param.as_ref() {
+                remapped.clone()
+            } else if let Some(key_remap) = key_remap {
+                let mut substitutions = HashMap::new();
+                if let Some(parameter_symbol) = parameter_symbol {
+                    substitutions.insert(parameter_symbol, key_type_id);
+                }
+                let mut cache = HashMap::new();
                 let substituted_remap =
                     self.substitute_static_parameters(key_remap, &substitutions, types, &mut cache);
                 let normalized_remap = self.normalize_type_inner(
@@ -1224,7 +1331,14 @@ impl Compiler {
                     visited,
                 );
                 let mut remapped = Vec::new();
-                self.collect_mapped_keys_for_type(normalized_remap, types, &mut remapped);
+                self.collect_mapped_keys_for_type(
+                    module,
+                    profile,
+                    normalized_remap,
+                    symbols,
+                    types,
+                    &mut remapped,
+                );
                 remapped
             } else {
                 vec![key.clone()]
@@ -1299,259 +1413,6 @@ impl Compiler {
         types.insert_type_from_any(normalized, source_id)
     }
 
-    /// Find the mapped parameter symbol in scope or referenced types.
-    fn resolve_mapped_parameter_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        source_id: LocalNodeIdAny,
-        name: StringId,
-        value: LocalTypeId,
-        key_remap: Option<LocalTypeId>,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-    ) -> Option<GlobalSymbolId> {
-        // try scope lookup first
-        if let Ok(expression_id) = source_id.try_into_typed::<Expression>() {
-            let tree = module.dir(profile).tree.read();
-            let (_, scope, mark) = symbols.get_scope(expression_id, &tree);
-            let key = StaticKey::Name(name);
-            if let Some(symbol_id) = symbols
-                .find_active_symbol_up_to(scope, key, mark)
-                .or_else(|| symbols.find_active_symbol(scope, key))
-            {
-                return Some(GlobalSymbolId::new(module.id, symbol_id));
-            }
-        }
-
-        // fall back to scanning referenced symbols
-        let mut visited = HashSet::new();
-        if let Some(symbol) = self.find_type_reference_symbol(
-            module,
-            profile,
-            name,
-            value,
-            symbols,
-            types,
-            &mut visited,
-        ) {
-            return Some(symbol);
-        }
-
-        // try the key remap if present
-        if let Some(key_remap) = key_remap
-            && let Some(symbol) = self.find_type_reference_symbol(
-                module,
-                profile,
-                name,
-                key_remap,
-                symbols,
-                types,
-                &mut visited,
-            )
-        {
-            return Some(symbol);
-        }
-
-        None
-    }
-
-    /// Find a referenced symbol by name inside a type tree.
-    fn find_type_reference_symbol(
-        &self,
-        module: &Module,
-        profile: ProfileId,
-        name: StringId,
-        type_id: LocalTypeId,
-        symbols: &SymbolTable,
-        types: &TypeTable,
-        visited: &mut HashSet<LocalTypeId>,
-    ) -> Option<GlobalSymbolId> {
-        // avoid cycles while traversing
-        if !visited.insert(type_id) {
-            return None;
-        }
-
-        // walk the referenced type structure
-        match types.get_type(type_id) {
-            Type::Reference { symbol, .. } => {
-                // resolve the symbol name from the owning module
-                let symbol_name = if symbol.module_id == module.id {
-                    symbols.get_symbol(symbol.local_id).name()
-                } else {
-                    let remote_module = self.program.modules.get(symbol.module_id);
-                    let remote_module = remote_module.read();
-                    let remote_symbols = remote_module.dir(profile).symbols.read();
-                    remote_symbols.get_symbol(symbol.local_id).name()
-                };
-
-                // compare the resolved name
-                if symbol_name == Some(name) {
-                    Some(*symbol)
-                } else {
-                    None
-                }
-            }
-            Type::Value { value }
-            | Type::Unary { right: value, .. }
-            | Type::ValueOf { right: value, .. }
-            | Type::ReferenceOf { right: value, .. }
-            | Type::PointerOf { right: value, .. } => self
-                .find_type_reference_symbol(module, profile, name, *value, symbols, types, visited),
-            Type::Binary { left, right, .. } => self
-                .find_type_reference_symbol(module, profile, name, *left, symbols, types, visited)
-                .or_else(|| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *right, symbols, types, visited,
-                    )
-                }),
-            Type::Conditional {
-                distributive: _,
-                left,
-                right,
-                then_type,
-                else_type,
-            } => self
-                .find_type_reference_symbol(module, profile, name, *left, symbols, types, visited)
-                .or_else(|| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *right, symbols, types, visited,
-                    )
-                })
-                .or_else(|| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *then_type, symbols, types, visited,
-                    )
-                })
-                .or_else(|| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *else_type, symbols, types, visited,
-                    )
-                }),
-            Type::Mapped {
-                parameter, value, ..
-            } => {
-                let mapped_symbol = self.find_type_reference_symbol(
-                    module,
-                    profile,
-                    name,
-                    parameter.constraint,
-                    symbols,
-                    types,
-                    visited,
-                );
-                mapped_symbol
-                    .or_else(|| {
-                        if let Some(key_remap) = parameter.key_remap {
-                            self.find_type_reference_symbol(
-                                module, profile, name, key_remap, symbols, types, visited,
-                            )
-                        } else {
-                            None
-                        }
-                    })
-                    .or_else(|| {
-                        self.find_type_reference_symbol(
-                            module, profile, name, *value, symbols, types, visited,
-                        )
-                    })
-            }
-            Type::Index { left, index } => self
-                .find_type_reference_symbol(module, profile, name, *left, symbols, types, visited)
-                .or_else(|| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *index, symbols, types, visited,
-                    )
-                }),
-            Type::TemplateLiteral { spans, .. } => spans.iter().find_map(|span| {
-                self.find_type_reference_symbol(
-                    module, profile, name, *span, symbols, types, visited,
-                )
-            }),
-            Type::Infer { constraint, .. } => constraint.and_then(|constraint| {
-                self.find_type_reference_symbol(
-                    module, profile, name, constraint, symbols, types, visited,
-                )
-            }),
-            Type::Predicate { target, .. } => target.and_then(|target| {
-                self.find_type_reference_symbol(
-                    module, profile, name, target, symbols, types, visited,
-                )
-            }),
-            Type::Array { element, .. } => element.and_then(|element| {
-                self.find_type_reference_symbol(
-                    module, profile, name, element, symbols, types, visited,
-                )
-            }),
-            Type::ArraySized { element, .. } => self.find_type_reference_symbol(
-                module, profile, name, *element, symbols, types, visited,
-            ),
-            Type::Tuple { elements, .. } => elements.iter().find_map(|element| {
-                self.find_type_reference_symbol(
-                    module, profile, name, element.ty, symbols, types, visited,
-                )
-            }),
-            Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => fields
-                .iter()
-                .find_map(|field| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, field.ty, symbols, types, visited,
-                    )
-                })
-                .or_else(|| {
-                    call_signatures.iter().find_map(|signature| {
-                        self.find_type_reference_symbol(
-                            module, profile, name, *signature, symbols, types, visited,
-                        )
-                    })
-                })
-                .or_else(|| {
-                    construct_signatures.iter().find_map(|signature| {
-                        self.find_type_reference_symbol(
-                            module, profile, name, *signature, symbols, types, visited,
-                        )
-                    })
-                })
-                .or_else(|| {
-                    index_signatures.iter().find_map(|signature| {
-                        self.find_type_reference_symbol(
-                            module,
-                            profile,
-                            name,
-                            signature.key_type,
-                            symbols,
-                            types,
-                            visited,
-                        )
-                        .or_else(|| {
-                            self.find_type_reference_symbol(
-                                module,
-                                profile,
-                                name,
-                                signature.value_type,
-                                symbols,
-                                types,
-                                visited,
-                            )
-                        })
-                    })
-                }),
-            Type::Union { elements } | Type::Intersection { elements } => {
-                elements.iter().find_map(|element| {
-                    self.find_type_reference_symbol(
-                        module, profile, name, *element, symbols, types, visited,
-                    )
-                })
-            }
-            _ => None,
-        }
-    }
-
     /// Derive the source type used for modifier inheritance.
     fn mapped_source_type_id(
         &self,
@@ -1583,19 +1444,33 @@ impl Compiler {
     /// Collect mapped keys for a constraint type.
     fn collect_mapped_keys_for_type(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         keys: &mut Vec<MappedKey>,
     ) {
         // track visited types to avoid recursion cycles
         let mut visited = HashSet::new();
-        self.collect_mapped_keys_for_type_inner(type_id, types, keys, &mut visited);
+        self.collect_mapped_keys_for_type_inner(
+            module,
+            profile,
+            type_id,
+            symbols,
+            types,
+            keys,
+            &mut visited,
+        );
     }
 
     /// Collect mapped keys for a constraint type with a recursion guard.
     fn collect_mapped_keys_for_type_inner(
         &self,
+        module: &Module,
+        profile: ProfileId,
         type_id: LocalTypeId,
+        symbols: &SymbolTable,
         types: &mut TypeTable,
         keys: &mut Vec<MappedKey>,
         visited: &mut HashSet<LocalTypeId>,
@@ -1612,8 +1487,177 @@ impl Compiler {
             Type::Union { elements } => {
                 // expand each union member
                 for element_id in elements {
-                    self.collect_mapped_keys_for_type_inner(element_id, types, keys, visited);
+                    self.collect_mapped_keys_for_type_inner(
+                        module,
+                        profile,
+                        element_id,
+                        symbols,
+                        types,
+                        keys,
+                        visited,
+                    );
                 }
+            }
+            Type::Reference {
+                symbol,
+                static_arguments,
+            } => {
+                // align the symbol id with the stored symbol type
+                let symbol = self.typed_symbol_id(module, profile, symbol, symbols);
+
+                // follow constraint bounds for static parameter references
+                if self.symbol_is_static_parameter(module, profile, symbol, symbols, types)
+                    && let Some(constraint_id) = self.static_parameter_constraint_type(
+                        module,
+                        profile,
+                        symbol,
+                        source_id,
+                        symbols,
+                        types,
+                    )
+                {
+                    self.collect_mapped_keys_for_type_inner(
+                        module,
+                        profile,
+                        constraint_id,
+                        symbols,
+                        types,
+                        keys,
+                        visited,
+                    );
+                } else if symbol.ty() == SymbolType::TypeAlias {
+                    // expand alias references to collect mapped keys from utility types
+                    let mut normalize_visited = Vec::new();
+                    let normalized = self.normalize_type_alias_reference_with_arguments(
+                        module,
+                        profile,
+                        source_id,
+                        symbol,
+                        static_arguments.as_deref().unwrap_or(&[]),
+                        symbols,
+                        types,
+                        NormalizationMode::Assign,
+                        &mut normalize_visited,
+                    );
+                    if let Some(normalized) = normalized {
+                        let normalized = self.normalize_type_inner(
+                            module,
+                            profile,
+                            normalized,
+                            symbols,
+                            types,
+                            NormalizationMode::Assign,
+                            &mut Vec::new(),
+                        );
+                        self.collect_mapped_keys_for_type_inner(
+                            module,
+                            profile,
+                            normalized,
+                            symbols,
+                            types,
+                            keys,
+                            visited,
+                        );
+                    }
+                }
+            }
+            Type::Unary {
+                operator: TypeUnaryOperator::Keyof,
+                right,
+            } => {
+                let mut normalize_visited = Vec::new();
+                let normalized = self.normalize_keyof_type(
+                    module,
+                    profile,
+                    source_id,
+                    right,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut normalize_visited,
+                );
+                self.collect_mapped_keys_for_type_inner(
+                    module,
+                    profile,
+                    normalized,
+                    symbols,
+                    types,
+                    keys,
+                    visited,
+                );
+            }
+            Type::Conditional { .. } => {
+                let mut normalize_visited = Vec::new();
+                let normalized = self.normalize_type_inner(
+                    module,
+                    profile,
+                    type_id,
+                    symbols,
+                    types,
+                    NormalizationMode::Assign,
+                    &mut normalize_visited,
+                );
+                if normalized != type_id {
+                    self.collect_mapped_keys_for_type_inner(
+                        module,
+                        profile,
+                        normalized,
+                        symbols,
+                        types,
+                        keys,
+                        visited,
+                    );
+                }
+            }
+            Type::TypeLiteral {
+                value: TypeLiteral::ScalarLiteral(_),
+            } => {
+                // literal keys map directly to field keys
+                if let Some(key) = self.static_key_from_type(type_id, types) {
+                    let key_type = self.key_type_id_for_static_key(key, source_id, types);
+                    keys.push(MappedKey::Field { key, key_type });
+                }
+            }
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::String),
+            } => {
+                // primitive strings map to string index keys
+                keys.push(MappedKey::Index {
+                    kind: MappedIndexKind::String,
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::String,
+                        source_id,
+                        types,
+                    ),
+                });
+            }
+            Type::TypeLiteral {
+                value: TypeLiteral::Primitive(PrimitiveType::Number),
+            } => {
+                // primitive numbers map to number index keys
+                keys.push(MappedKey::Index {
+                    kind: MappedIndexKind::Number,
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::Number,
+                        source_id,
+                        types,
+                    ),
+                });
+            }
+            Type::TypeLiteral {
+                value:
+                    TypeLiteral::Primitive(PrimitiveType::Symbol)
+                    | TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
+            } => {
+                // primitive symbols map to symbol index keys
+                keys.push(MappedKey::Index {
+                    kind: MappedIndexKind::Symbol,
+                    key_type: self.key_type_id_for_index_kind(
+                        MappedIndexKind::Symbol,
+                        source_id,
+                        types,
+                    ),
+                });
             }
             Type::TypeLiteral {
                 value: TypeLiteral::Any,
@@ -1643,32 +1687,6 @@ impl Compiler {
                         types,
                     ),
                 });
-            }
-            Type::TypeLiteral {
-                value:
-                    TypeLiteral::Primitive(PrimitiveType::String)
-                    | TypeLiteral::Primitive(PrimitiveType::Number)
-                    | TypeLiteral::Primitive(PrimitiveType::Symbol)
-                    | TypeLiteral::Primitive(PrimitiveType::UniqueSymbol),
-            } => {
-                // include the matching primitive index kind
-                if let Some(kind) = self.mapped_index_kind_for_type(type_id, types) {
-                    keys.push(MappedKey::Index {
-                        kind,
-                        key_type: type_id,
-                    });
-                }
-            }
-            Type::TypeLiteral {
-                value: TypeLiteral::ScalarLiteral(_),
-            } => {
-                // include literal keys for scalar literal types
-                if let Some(key) = self.static_key_from_type(type_id, types) {
-                    keys.push(MappedKey::Field {
-                        key,
-                        key_type: type_id,
-                    });
-                }
             }
             _ => {}
         }

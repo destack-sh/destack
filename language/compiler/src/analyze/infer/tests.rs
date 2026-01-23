@@ -7,9 +7,10 @@ use destack_base::StringId;
 use destack_dir::{
     BinaryOperator, Declaration, Declarator, EnumFieldValue, Expression, ExtensionKind,
     FlowEdgeKind, FlowGraphBuilder, GlobalNodeIdAny, GlobalSymbolId, IfCondition, IfKind,
-    InferTable, IntType, LocalNodeId, LocalTypeId, NodeTree, Pattern, PrimitiveType, ScalarLiteral,
-    StaticArgument, StaticExpression, StaticKey, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Type, TypeField, TypeLiteral, TypeTable, TypeUnaryOperator,
+    InferTable, IntType, LocalNodeId, LocalTypeId, NodeTree, NormalizationMode, Pattern,
+    PrimitiveType, ScalarLiteral, StaticArgument, StaticExpression, StaticKey, SymbolKind,
+    SymbolSpace, SymbolTable, SymbolType, Type, TypeField, TypeLiteral, TypeTable,
+    TypeUnaryOperator,
 };
 use destack_source::ModuleId;
 use destack_workspace::DsConfigCompilerOptions;
@@ -2400,6 +2401,223 @@ let ok: boolean = value;
     assert!(assignable.is_assignable());
 }
 
+/// Analyze builtin Pick mapped types.
+#[test]
+fn test_analyze_builtin_pick_optional_shape() {
+    // Pick preserves optional fields for literal keys.
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Person {
+    name: string
+    age?: number
+}
+
+type AgeOnly = Pick<Person, "age">;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let profile = view.profile_id();
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let age_symbol = test
+        .resolve_to_symbol("test.ds", "AgeOnly")
+        .expect("expected AgeOnly symbol");
+    let instance_id = view
+        .types()
+        .get_instance_type_id(age_symbol)
+        .expect("expected AgeOnly instance type");
+    let pick_symbol = match view.types().get_type(instance_id) {
+        Type::Reference { symbol, .. } => *symbol,
+        other => panic!("expected Pick reference, got {other:?}"),
+    };
+
+    // verify the builtin alias target is declared
+    let pick_module = test.program.modules.get(pick_symbol.module_id);
+    let pick_module = pick_module.read();
+    let pick_types = pick_module.dir(profile).types.read();
+    let _ = pick_types
+        .get_alias_target_type_id(pick_symbol)
+        .expect("expected Pick alias target type");
+
+    // normalize the alias instance into an object shape
+    let mut types = view.types().clone();
+    let normalized = test.compiler.normalize_type(
+        &module,
+        profile,
+        instance_id,
+        view.symbols(),
+        &mut types,
+        NormalizationMode::Assign,
+    );
+    // verify the mapped field preserves optionality
+    let age_name = test.program.strings.intern("age");
+    assert_type!(types, normalized, Type::Object { fields, .. } => {
+        let age_field = fields
+            .iter()
+            .find(|field| field.key.matches(&StaticKey::Name(age_name)))
+            .expect("expected age field");
+        assert!(age_field.is_optional, "expected optional age field");
+    });
+}
+
+/// Analyze builtin Omit mapped types.
+#[test]
+fn test_analyze_builtin_omit_shape() {
+    // Omit removes the specified keys from the source shape.
+    let test = TestProgram::memory_sequential_with_prelude_and_libs()
+        .with_profile_libs(&["es5"]);
+    let module_id = test.add_module(
+        "test.ds",
+        r#"
+interface Person {
+    name: string
+    age: number
+}
+
+type WithoutAge = Omit<Person, "age">;
+type ExcludedKeys = Exclude<keyof Person, "age">;
+"#,
+    );
+
+    // run analyze pipeline
+    test.analyze_module_and_check_clean(module_id);
+
+    // load typed module data
+    let view = test.view(module_id);
+    let profile = view.profile_id();
+    let module = test.program.modules.get(module_id);
+    let module = module.read();
+    let mut types = view.types().clone();
+    let without_age_symbol = test
+        .resolve_to_symbol("test.ds", "WithoutAge")
+        .expect("expected WithoutAge symbol");
+    let instance_id = view
+        .types()
+        .get_instance_type_id(without_age_symbol)
+        .expect("expected WithoutAge instance type");
+    let excluded_keys_symbol = test
+        .resolve_to_symbol("test.ds", "ExcludedKeys")
+        .expect("expected ExcludedKeys symbol");
+    let excluded_keys_id = view
+        .types()
+        .get_instance_type_id(excluded_keys_symbol)
+        .expect("expected ExcludedKeys instance type");
+    let exclude_arguments = match types.get_type(excluded_keys_id) {
+        Type::Reference {
+            static_arguments: Some(arguments),
+            ..
+        } => arguments.clone(),
+        _ => panic!("expected ExcludedKeys to be a reference"),
+    };
+    assert_eq!(exclude_arguments.len(), 2, "expected Exclude arguments");
+    let exclude_left = match &exclude_arguments[0] {
+        StaticArgument::Evaluated {
+            value: StaticExpression::Type { ty },
+            ..
+        } => *ty,
+        _ => panic!("expected Exclude left argument to be a type"),
+    };
+    assert_type!(types, exclude_left, Type::Unary {
+        operator: TypeUnaryOperator::Keyof,
+        right,
+    } => {
+        assert_type!(types, *right, Type::Reference { .. });
+    });
+    let exclude_right = match &exclude_arguments[1] {
+        StaticArgument::Evaluated {
+            value: StaticExpression::Type { ty },
+            ..
+        } => *ty,
+        _ => panic!("expected Exclude right argument to be a type"),
+    };
+    assert_type!(types, exclude_right, Type::TypeLiteral {
+        value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(_)),
+    });
+    let es5_module = test.module("builtin://lib/es/es5/index.d.ts");
+    let es5_module = es5_module.read();
+    let es5_profile = test.default_profile_id(es5_module.id);
+    let es5_dir = es5_module.dir(es5_profile);
+    let es5_symbols = es5_dir.symbols.read();
+    let es5_types = es5_dir.types.read();
+    let exclude_definition_symbol = test
+        .resolve_to_symbol("builtin://lib/es/es5/index.d.ts", "Exclude")
+        .expect("expected Exclude symbol");
+    let exclude_definition_symbol = test.compiler.typed_symbol_id(
+        &es5_module,
+        es5_profile,
+        exclude_definition_symbol,
+        &es5_symbols,
+    );
+    let exclude_alias = es5_types
+        .get_alias_target_type_id(exclude_definition_symbol)
+        .expect("expected Exclude alias target");
+    assert_type!(es5_types, exclude_alias, Type::Conditional { distributive_symbol, .. } => {
+        assert!(
+            distributive_symbol.is_some(),
+            "expected Exclude conditional to be distributive"
+        );
+    });
+
+    // normalize the alias instance into an object shape
+    let normalized = test.compiler.normalize_type(
+        &module,
+        profile,
+        instance_id,
+        view.symbols(),
+        &mut types,
+        NormalizationMode::Assign,
+    );
+    let excluded_keys_normalized = test.compiler.normalize_type(
+        &module,
+        profile,
+        excluded_keys_id,
+        view.symbols(),
+        &mut types,
+        NormalizationMode::Assign,
+    );
+
+    // verify the omitted key is removed
+    let name_id = test.program.strings.intern("name");
+    let age_id = test.program.strings.intern("age");
+    // collect excluded keys for assertion
+    let mut keys = Vec::new();
+    match types.get_type(excluded_keys_normalized) {
+        Type::TypeLiteral {
+            value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
+        } => {
+            let key = test.program.strings.get(*string_id);
+            keys.push(key.to_string());
+        }
+        Type::Union { elements } => {
+            for element_id in elements {
+                assert_type!(types, *element_id, Type::TypeLiteral {
+                    value: TypeLiteral::ScalarLiteral(ScalarLiteral::String(string_id)),
+                } => {
+                    let key = test.program.strings.get(*string_id);
+                    keys.push(key.to_string());
+                });
+            }
+        }
+        other => panic!("expected excluded keys to be string literal(s), got {other:?}"),
+    }
+    keys.sort();
+    assert_eq!(keys, vec!["name"], "expected excluded keys to omit age");
+    assert_type!(types, normalized, Type::Object { fields, .. } => {
+        let has_name = fields.iter().any(|field| field.key.matches(&StaticKey::Name(name_id)));
+        let has_age = fields.iter().any(|field| field.key.matches(&StaticKey::Name(age_id)));
+        assert!(has_name, "expected name field");
+        assert!(!has_age, "expected age field to be omitted");
+    });
+}
+
 /// Analyze member instance inherited static arguments.
 #[test]
 fn test_analyze_member_instance_inherited_static_arguments() {
@@ -2841,13 +3059,13 @@ fn test_analyze_type_infer_scope() {
         view.types(),
         foo_instance_id,
         Type::Conditional {
-            distributive,
+            distributive_symbol,
             left,
             right,
             then_type,
             else_type
         } => {
-        assert!(*distributive);
+        assert!(distributive_symbol.is_some());
         assert_type!(view.types(), *left, Type::Reference { symbol, .. } => {
             let symbol = view.symbols().get_symbol(symbol.into_local());
             assert_string!(test.program, symbol.name().expect("expected symbol name"), "T");

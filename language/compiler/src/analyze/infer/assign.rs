@@ -962,50 +962,6 @@ impl Compiler {
                 Assignability::NotAssignable
             }
 
-            // interface target: allow function values to satisfy call signatures
-            (
-                Type::Reference {
-                    symbol: target_symbol,
-                    ..
-                },
-                Type::Function {
-                    dynamic_parameters: source_params,
-                    this_parameter: source_this,
-                    return_type: source_return,
-                    ..
-                },
-            ) => {
-                if target_symbol.ty().is_interface()
-                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
-                {
-                    let target_instance = types.get_type(target_instance_id).clone();
-                    if let Type::Object {
-                        fields: target_fields,
-                        call_signatures: target_call_signatures,
-                        construct_signatures: target_construct_signatures,
-                        index_signatures: target_index_signatures,
-                    } = target_instance
-                    {
-                        return self.is_object_assignable_from_function(
-                            module,
-                            profile,
-                            symbols,
-                            &target_fields,
-                            &target_call_signatures,
-                            &target_construct_signatures,
-                            &target_index_signatures,
-                            &source_params,
-                            &source_this,
-                            &source_return,
-                            types,
-                            options,
-                        );
-                    }
-                }
-
-                Assignability::NotAssignable
-            }
-
             // object target: allow interface sources with structural shape
             (
                 Type::Object {
@@ -1042,6 +998,50 @@ impl Compiler {
                             &source_call_signatures,
                             &source_construct_signatures,
                             &source_index_signatures,
+                            types,
+                            options,
+                        );
+                    }
+                }
+
+                Assignability::NotAssignable
+            }
+
+            // interface target: allow function values to satisfy call signatures
+            (
+                Type::Reference {
+                    symbol: target_symbol,
+                    ..
+                },
+                Type::Function {
+                    dynamic_parameters: source_params,
+                    this_parameter: source_this,
+                    return_type: source_return,
+                    ..
+                },
+            ) => {
+                if target_symbol.ty().is_interface()
+                    && let Some(target_instance_id) = types.get_instance_type_id(target_symbol)
+                {
+                    let target_instance = types.get_type(target_instance_id).clone();
+                    if let Type::Object {
+                        fields: target_fields,
+                        call_signatures: target_call_signatures,
+                        construct_signatures: target_construct_signatures,
+                        index_signatures: target_index_signatures,
+                    } = target_instance
+                    {
+                        return self.is_object_assignable_from_function(
+                            module,
+                            profile,
+                            symbols,
+                            &target_fields,
+                            &target_call_signatures,
+                            &target_construct_signatures,
+                            &target_index_signatures,
+                            &source_params,
+                            &source_this,
+                            &source_return,
                             types,
                             options,
                         );
@@ -1180,25 +1180,6 @@ impl Compiler {
                     ..
                 },
             ) => {
-                // allow structural assignability for type aliases
-                if (target_symbol.ty() == SymbolType::TypeAlias
-                    || source_symbol.ty() == SymbolType::TypeAlias)
-                    && let (Some(target_instance_id), Some(source_instance_id)) = (
-                        types.get_instance_type_id(target_symbol),
-                        types.get_instance_type_id(source_symbol),
-                    )
-                {
-                    return self.is_type_assignable(
-                        module,
-                        profile,
-                        symbols,
-                        target_instance_id,
-                        source_instance_id,
-                        types,
-                        options,
-                    );
-                }
-
                 // nominal check: same symbol or lineage
                 if target_symbol == source_symbol
                     || self.is_type_lineage_assignable(source_symbol, target_symbol, types)

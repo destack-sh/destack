@@ -244,7 +244,7 @@ impl Compiler {
                 module, profile, node_id, value, types, visited,
             ),
             Type::Conditional {
-                distributive: _,
+                distributive_symbol: _,
                 left,
                 right,
                 then_type,
@@ -459,7 +459,7 @@ impl Compiler {
     }
 
     /// Resolve the instance type for a referenced symbol into the local type table.
-    pub(super) fn resolve_instance_type_for_symbol(
+    pub(crate) fn resolve_instance_type_for_symbol(
         &self,
         module: &Module,
         profile: ProfileId,
@@ -1450,7 +1450,7 @@ impl Compiler {
     }
 
     /// Materialize readonly modifiers for object-like type expressions.
-    fn materialize_readonly_type(
+    pub(crate) fn materialize_readonly_type(
         &self,
         source_id: LocalNodeIdAny,
         ty_id: LocalTypeId,
@@ -2411,22 +2411,22 @@ impl Compiler {
     ) -> LocalTypeId {
         match remote_ty {
             // leaf types: copy directly
-            Type::TypeLiteral { value } => types.insert_type_from_any(
+            Type::TypeLiteral { value } => types.insert_imported_type_from_any(
                 Type::TypeLiteral {
                     value: value.clone(),
                 },
                 node_id,
             ),
-            Type::InferVar { .. } => types.insert_type_from_any(
+            Type::InferVar { .. } => types.insert_imported_type_from_any(
                 Type::TypeLiteral {
                     value: TypeLiteral::Unknown,
                 },
                 node_id,
             ),
-            Type::Error => types.insert_type_from_any(Type::Error, node_id),
-            Type::This => types.insert_type_from_any(Type::This, node_id),
+            Type::Error => types.insert_imported_type_from_any(Type::Error, node_id),
+            Type::This => types.insert_imported_type_from_any(Type::This, node_id),
             Type::Conditional {
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
@@ -2460,9 +2460,9 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Conditional {
-                        distributive: *distributive,
+                        distributive_symbol: *distributive_symbol,
                         left: local_left,
                         right: local_right,
                         then_type: local_then,
@@ -2501,10 +2501,11 @@ impl Compiler {
                 );
                 let parameter = TypeMappedParameter {
                     name: parameter.name,
+                    symbol: parameter.symbol,
                     constraint: local_constraint,
                     key_remap: local_key_remap,
                 };
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Mapped {
                         parameter,
                         modifiers: *modifiers,
@@ -2528,7 +2529,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Index {
                         left: local_left,
                         index: local_index,
@@ -2549,7 +2550,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::TemplateLiteral {
                         strings: strings.clone(),
                         spans: local_spans,
@@ -2577,7 +2578,7 @@ impl Compiler {
                         })
                         .collect::<Vec<_>>()
                 });
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Import {
                         target: *target,
                         qualifier: qualifier.clone(),
@@ -2596,7 +2597,7 @@ impl Compiler {
                         types,
                     )
                 });
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Infer {
                         name: *name,
                         constraint: local_constraint,
@@ -2618,7 +2619,7 @@ impl Compiler {
                         types,
                     )
                 });
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Predicate {
                         asserts: *asserts,
                         subject: *subject,
@@ -2632,7 +2633,7 @@ impl Compiler {
             Type::Array {
                 element: None,
                 is_readonly,
-            } => types.insert_type_from_any(
+            } => types.insert_imported_type_from_any(
                 Type::Array {
                     element: None,
                     is_readonly: *is_readonly,
@@ -2651,7 +2652,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Array {
                         element: Some(local_elem),
                         is_readonly: *is_readonly,
@@ -2681,7 +2682,7 @@ impl Compiler {
                         element
                     })
                     .collect();
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Tuple {
                         elements: local_elements,
                         is_readonly: *is_readonly,
@@ -2767,7 +2768,7 @@ impl Compiler {
                         }
                     })
                     .collect();
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Object {
                         fields: local_fields,
                         call_signatures: local_call_signatures,
@@ -2833,7 +2834,7 @@ impl Compiler {
                         types,
                     )
                 });
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Function {
                         asynchrony: *asynchrony,
                         cardinality: *cardinality,
@@ -2861,7 +2862,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Union {
                         elements: local_elements,
                     },
@@ -2882,7 +2883,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Intersection {
                         elements: local_elements,
                     },
@@ -2900,7 +2901,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(Type::Value { value: local_inner }, node_id)
+                types.insert_imported_type_from_any(Type::Value { value: local_inner }, node_id)
             }
             Type::ValueOf {
                 mutability,
@@ -2915,7 +2916,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::ValueOf {
                         mutability: *mutability,
                         variance: *variance,
@@ -2937,7 +2938,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::ReferenceOf {
                         mutability: *mutability,
                         variance: *variance,
@@ -2955,7 +2956,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::PointerOf {
                         mutability: *mutability,
                         right: local_inner,
@@ -2972,7 +2973,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Unary {
                         operator: *operator,
                         right: local_inner,
@@ -3001,7 +3002,7 @@ impl Compiler {
                     target_symbol,
                     types,
                 );
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Binary {
                         left: local_left,
                         operator: *operator,
@@ -3031,7 +3032,7 @@ impl Compiler {
                         })
                         .collect::<Vec<_>>()
                 });
-                types.insert_type_from_any(
+                types.insert_imported_type_from_any(
                     Type::Reference {
                         symbol: *symbol,
                         static_arguments: local_arguments,
@@ -3041,7 +3042,7 @@ impl Compiler {
             }
 
             // types that can't be meaningfully copied: fall back to reference
-            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_type_from_any(
+            Type::Unevaluated(_) | Type::ArraySized { .. } => types.insert_imported_type_from_any(
                 Type::Reference {
                     symbol: target_symbol,
                     static_arguments: None,
@@ -3508,7 +3509,7 @@ impl Compiler {
                 }
             }
             Type::Conditional {
-                distributive,
+                distributive_symbol,
                 left,
                 right,
                 then_type,
@@ -3527,7 +3528,7 @@ impl Compiler {
                 } else {
                     types.insert_type_from_type(
                         Type::Conditional {
-                            distributive,
+                            distributive_symbol,
                             left: mapped_left,
                             right: mapped_right,
                             then_type: mapped_then,
@@ -3556,6 +3557,7 @@ impl Compiler {
                 } else {
                     let parameter = TypeMappedParameter {
                         name: parameter.name,
+                        symbol: parameter.symbol,
                         constraint: mapped_constraint,
                         key_remap: mapped_key_remap,
                     };

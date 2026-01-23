@@ -211,10 +211,16 @@ impl Compiler {
                     }
                 }
 
-                // evaluate the type alias value
-                let declared_ty_id = self.try_evaluate_expression_to_type(
-                    module, profile, *value, tree, symbols, types, true, true,
-                )?;
+                // avoid eager evaluation for generic aliases
+                let declared_ty_id =
+                    if static_parameters.as_ref().is_some_and(|parameters| !parameters.is_empty())
+                    {
+                        types.insert_type_from(Type::Unevaluated(*value), *value)
+                    } else {
+                        self.try_evaluate_expression_to_type(
+                            module, profile, *value, tree, symbols, types, false, true,
+                        )?
+                    };
                 types.set_declared_type(value.into_global_any(module.id), declared_ty_id);
 
                 // register the instance type for this symbol
