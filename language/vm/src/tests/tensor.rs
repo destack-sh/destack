@@ -8,6 +8,12 @@ fn tensor_from_values(isolate: &mut Isolate, values: &[i32]) -> Value {
     create_aggregate(isolate, elements)
 }
 
+/// Create a tensor aggregate value from the provided float elements.
+fn tensor_from_f64_values(isolate: &mut Isolate, values: &[f64]) -> Value {
+    let elements = values.iter().copied().map(Value::float64).collect();
+    create_aggregate(isolate, elements)
+}
+
 /// Tensor load and store operate on tensor references.
 #[test]
 fn test_tensor_load_store() {
@@ -264,7 +270,7 @@ fn test_tensor_convert() {
     let mir = r#"
 function @tensor_convert(v0: tensor<i32, [2, 2]>) -> i32 {
 block0(v0: tensor<i32, [2, 2]>):
-    v1: tensor<i32, [2, 2]> = tensor.convert v0
+    v1: tensor<i32, [2, 2]> = tensor.convert exact, v0
     v2: i64 = iconst 0i64
     v3: i32 = element.get v1, v2
     return v3
@@ -273,4 +279,85 @@ block0(v0: tensor<i32, [2, 2]>):
         vec![tensor_from_values(interp, &[1, 2, 3, 4])]
     });
     assert_eq!(output.value, Value::int32(1));
+}
+
+/// Tensor compare returns boolean tensor elements.
+#[test]
+fn test_tensor_compare() {
+    let mir = r#"
+function @tensor_compare(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>) -> bool {
+block0(v0: tensor<i32, [2, 2]>, v1: tensor<i32, [2, 2]>):
+    v2: tensor<bool, [2, 2]> = tensor.compare icmp_eq, v0, v1
+    v3: i64 = iconst 1i64
+    v4: bool = element.get v2, v3
+    return v4
+}"#;
+    let output = run_mir_with_ok(mir, "tensor_compare", |interp| {
+        vec![
+            tensor_from_values(interp, &[1, 2, 3, 4]),
+            tensor_from_values(interp, &[1, 9, 3, 4]),
+        ]
+    });
+    // verify the comparison result
+    assert_eq!(output.value, Value::bool(false));
+}
+
+/// Tensor convert applies element-wise rounding.
+#[test]
+fn test_tensor_convert_rounding() {
+    let mir = r#"
+function @tensor_convert_rounding(v0: tensor<f64, [2, 2]>) -> i32 {
+block0(v0: tensor<f64, [2, 2]>):
+    v1: tensor<i32, [2, 2]> = tensor.convert round_toward_zero, v0
+    v2: i64 = iconst 2i64
+    v3: i32 = element.get v1, v2
+    return v3
+}"#;
+    let output = run_mir_with_ok(mir, "tensor_convert_rounding", |interp| {
+        vec![tensor_from_f64_values(interp, &[1.2, 2.9, 3.1, 4.0])]
+    });
+    // verify the converted element
+    assert_eq!(output.value, Value::int32(3));
+}
+
+/// Tensor cast forwards the tensor value.
+#[test]
+fn test_tensor_cast() {
+    let mir = r#"
+function @tensor_cast(v0: tensor<i32, [2, 2]>) -> i32 {
+block0(v0: tensor<i32, [2, 2]>):
+    v1: tensor<i32, [2, 2]> = tensor.cast v0
+    v2: i64 = iconst 3i64
+    v3: i32 = element.get v1, v2
+    return v3
+}"#;
+    let output = run_mir_with_ok(mir, "tensor_cast", |interp| {
+        vec![tensor_from_values(interp, &[1, 2, 3, 4])]
+    });
+    // verify the casted tensor element
+    assert_eq!(output.value, Value::int32(4));
+}
+
+/// Tensor view offsets the underlying reference.
+#[test]
+fn test_tensor_view() {
+    let mir = r#"
+function @tensor_view() -> i32 {
+block0:
+    v0: ref<raw addrspace(stack) mut [i32; 4]> = stack.alloc [i32; 4]
+    v1: tensor_ref<raw addrspace(stack) mut i32, [2, 2]> = bitcast v0 -> tensor_ref<raw addrspace(stack) mut i32, [2, 2]>
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
+    v4: i32 = iconst 2i32
+    v5: i32 = iconst 3i32
+    tensor.store v1, [v2, v2], v3
+    tensor.store v1, [v2, v3], v4
+    tensor.store v1, [v3, v2], v5
+    tensor.store v1, [v3, v3], v4
+    v6: tensor_ref<raw addrspace(stack) mut i32, [2, 1]> = tensor.view v1, offsets=[v2, v3], sizes=[v4, v3], strides=[v3, v3]
+    v7: i32 = tensor.load v6, [v2, v2]
+    return v7
+}"#;
+    // verify the view offset result
+    run_mir_expect(mir, "tensor_view", &[], Value::int32(2));
 }

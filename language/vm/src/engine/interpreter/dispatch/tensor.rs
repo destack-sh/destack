@@ -921,6 +921,19 @@ pub(crate) fn handle_tensor_dot(
         Err(error) => return ControlFlow::Error(error),
     };
 
+    // validate storage lengths
+    if left_slots.len() != right_slots.len() || left_slots.len() != dest_layout.storage_len {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching tensor storage".to_string(),
+            actual: format!(
+                "{} vs {} vs {}",
+                left_slots.len(),
+                right_slots.len(),
+                dest_layout.storage_len
+            ),
+        });
+    }
+
     // compute axis sets
     let lhs_batch = &dimensions.lhs_batch;
     let rhs_batch = &dimensions.rhs_batch;
@@ -1569,18 +1582,40 @@ pub(crate) fn handle_tensor_convert(
     // decode instruction data
     let ThreadedInstructionData::TensorConvert {
         dest,
+        mode,
         tensor,
-        source_type: _,
+        source_type,
         dest_type,
     } = &block[pc].data
     else {
         unreachable!()
     };
 
-    // resolve destination layout
-    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
-        Ok(layout) => layout,
-        Err(error) => return ControlFlow::Error(error),
+    // resolve tensor types
+    let source_type = match state.interpreter.isolate.tree.get(*source_type) {
+        mir::Type::Tensor { element, .. } => *element,
+        _ => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "tensor type".to_string(),
+                actual: format!("{source_type:?}"),
+            })
+        }
+    };
+    let dest_type_info = state.interpreter.isolate.tree.get(*dest_type);
+    let (dest_element, dest_layout) = match dest_type_info {
+        mir::Type::Tensor { element, .. } => {
+            let layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+                Ok(layout) => layout,
+                Err(error) => return ControlFlow::Error(error),
+            };
+            (*element, layout)
+        }
+        _ => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "tensor type".to_string(),
+                actual: format!("{dest_type:?}"),
+            })
+        }
     };
 
     // resolve source slots
@@ -1590,15 +1625,248 @@ pub(crate) fn handle_tensor_convert(
         Err(error) => return ControlFlow::Error(error),
     };
 
+    // validate storage length
+    if source_slots.len() != dest_layout.storage_len {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching tensor storage".to_string(),
+            actual: format!("{} vs {}", source_slots.len(), dest_layout.storage_len),
+        });
+    }
+
+    // resolve conversion types
+    let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_type) {
+        Ok(info) => info,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
+        Ok(info) => info,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let convert_mode = ScalarConvertMode::from(*mode);
+
     // allocate output storage
-    let mut output = vec![Value::VOID; dest_layout.storage_len];
-    for (dst, src) in output.iter_mut().zip(source_slots.iter()) {
-        *dst = *src;
+    let mut output = Vec::with_capacity(source_slots.len());
+    for src in source_slots {
+        let converted = match convert_scalar_value(*src, source_info, dest_info, convert_mode) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        output.push(converted);
     }
 
     // allocate result
     let result = state.interpreter.allocate_aggregate(output);
     state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle tensor.compare.
+pub(crate) fn handle_tensor_compare(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TensorCompare {
+        dest,
+        operator,
+        left,
+        right,
+        left_type,
+        right_type,
+        dest_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve layouts
+    let left_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *left_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let right_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *right_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // resolve operand slots
+    let left_value = state.get(*left);
+    let right_value = state.get(*right);
+    let left_slots = match aggregate_slots(state, left_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let right_slots = match aggregate_slots(state, right_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // allocate destination storage
+    let mut output = vec![Value::VOID; dest_layout.storage_len];
+
+    // compare elements
+    for_each_index(&dest_layout.shape, |output_index| {
+        let Ok(left_offset) =
+            tensor_linear_index(output_index, &left_layout.shape, &left_layout.strides)
+        else {
+            return;
+        };
+        let Ok(right_offset) =
+            tensor_linear_index(output_index, &right_layout.shape, &right_layout.strides)
+        else {
+            return;
+        };
+        let Ok(dest_offset) =
+            tensor_linear_index(output_index, &dest_layout.shape, &dest_layout.strides)
+        else {
+            return;
+        };
+        let Some(left_value) = left_slots.get(left_offset) else {
+            return;
+        };
+        let Some(right_value) = right_slots.get(right_offset) else {
+            return;
+        };
+        let Some(slot) = output.get_mut(dest_offset) else {
+            return;
+        };
+        let Ok(result) = operator::execute_binary(*operator, *left_value, *right_value) else {
+            return;
+        };
+        *slot = result;
+    });
+
+    // allocate result
+    let result = state.interpreter.allocate_aggregate(output);
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle tensor.cast.
+pub(crate) fn handle_tensor_cast(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TensorCast { dest, tensor } = &block[pc].data else {
+        unreachable!()
+    };
+
+    // forward the tensor value
+    let value = state.get(*tensor);
+    state.set(*dest, value);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle tensor.view.
+pub(crate) fn handle_tensor_view(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::TensorView {
+        dest,
+        view,
+        arguments,
+        offsets_count,
+        sizes_count,
+        strides_count,
+        source_type,
+        dest_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve layouts
+    let source_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *source_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_layout = match tensor_layout_info(&state.interpreter.isolate.tree, *dest_type) {
+        Ok(layout) => layout,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // resolve view arguments
+    let args = state.argument_slice(*arguments);
+    let (offset_values, rest) = args.split_at(*offsets_count as usize);
+    let (size_values, stride_values) = rest.split_at(*sizes_count as usize);
+    if stride_values.len() != *strides_count as usize {
+        return ControlFlow::Error(Error::InvalidInstruction);
+    }
+
+    let mut offsets = Vec::with_capacity(offset_values.len());
+    let mut sizes = Vec::with_capacity(size_values.len());
+    let mut strides = Vec::with_capacity(stride_values.len());
+    for value_id in offset_values {
+        let value = state.get(*value_id);
+        match value_to_u64(value) {
+            Ok(v) => offsets.push(v),
+            Err(error) => return ControlFlow::Error(error),
+        }
+    }
+    for value_id in size_values {
+        let value = state.get(*value_id);
+        match value_to_u64(value) {
+            Ok(v) => sizes.push(v),
+            Err(error) => return ControlFlow::Error(error),
+        }
+    }
+    for value_id in stride_values {
+        let value = state.get(*value_id);
+        match value_to_u64(value) {
+            Ok(v) => strides.push(v),
+            Err(error) => return ControlFlow::Error(error),
+        }
+    }
+
+    // validate sizes and strides against the destination layout
+    for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
+        if *expected != *actual {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "tensor.view size".to_string(),
+                actual: format!("{actual} vs {expected}"),
+            });
+        }
+    }
+    for (expected, actual) in dest_layout.strides.iter().zip(strides.iter()) {
+        if *expected != *actual {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "tensor.view stride".to_string(),
+                actual: format!("{actual} vs {expected}"),
+            });
+        }
+    }
+
+    // compute offset into the source view
+    let offset = match tensor_linear_index(&offsets, &source_layout.shape, &source_layout.strides) {
+        Ok(offset) => offset,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // offset the view pointer
+    let view_value = state.get(*view);
+    let pointer = match offset_pointer(view_value, offset, source_layout.storage_len) {
+        Ok(pointer) => pointer,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // set the view result
+    state.set(*dest, pointer);
 
     // continue to next instruction
     next!(state, block, pc)

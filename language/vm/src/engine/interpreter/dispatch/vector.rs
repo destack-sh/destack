@@ -210,3 +210,139 @@ pub(crate) fn handle_vector_reduce(
     // continue to next instruction
     next!(state, block, pc)
 }
+
+/// Handle vector.compare.
+pub(crate) fn handle_vector_compare(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::VectorCompare {
+        dest,
+        operator,
+        left,
+        right,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve vector slots
+    let left_value = state.get(*left);
+    let right_value = state.get(*right);
+    let left_slots = match aggregate_slots(state, left_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let right_slots = match aggregate_slots(state, right_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // validate lane counts
+    if left_slots.len() != right_slots.len() {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching vector lanes".to_string(),
+            actual: format!("{} vs {}", left_slots.len(), right_slots.len()),
+        });
+    }
+
+    // compare lane values
+    let mut output = Vec::with_capacity(left_slots.len());
+    for (lhs, rhs) in left_slots.iter().zip(right_slots.iter()) {
+        let value = match operator::execute_binary(*operator, *lhs, *rhs) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        output.push(value);
+    }
+
+    // allocate result aggregate
+    let result = state.interpreter.allocate_aggregate(output);
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}
+
+/// Handle vector.convert.
+pub(crate) fn handle_vector_convert(
+    state: &mut ThreadedState<'_, '_>,
+    block: &[ThreadedInstruction],
+    pc: usize,
+) -> ControlFlow {
+    // decode instruction data
+    let ThreadedInstructionData::VectorConvert {
+        dest,
+        mode,
+        vector,
+        source_type,
+        dest_type,
+    } = &block[pc].data
+    else {
+        unreachable!()
+    };
+
+    // resolve vector element types
+    let source_element = match state.interpreter.isolate.tree.get(*source_type) {
+        mir::Type::Vector { element, .. } => *element,
+        _ => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "vector type".to_string(),
+                actual: format!("{source_type:?}"),
+            })
+        }
+    };
+    let dest_vector = state.interpreter.isolate.tree.get(*dest_type);
+    let (dest_element, dest_lanes) = match dest_vector {
+        mir::Type::Vector { element, lanes, .. } => (*element, *lanes as usize),
+        _ => {
+            return ControlFlow::Error(Error::TypeMismatch {
+                expected: "vector type".to_string(),
+                actual: format!("{dest_type:?}"),
+            })
+        }
+    };
+
+    // resolve lane values
+    let vector_value = state.get(*vector);
+    let source_slots = match aggregate_slots(state, vector_value) {
+        Ok(slots) => slots,
+        Err(error) => return ControlFlow::Error(error),
+    };
+
+    // validate lane counts
+    if source_slots.len() != dest_lanes {
+        return ControlFlow::Error(Error::TypeMismatch {
+            expected: "matching vector lanes".to_string(),
+            actual: format!("{} vs {}", source_slots.len(), dest_lanes),
+        });
+    }
+
+    // convert lanes
+    let source_info = match scalar_type_info(&state.interpreter.isolate.tree, source_element) {
+        Ok(info) => info,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let dest_info = match scalar_type_info(&state.interpreter.isolate.tree, dest_element) {
+        Ok(info) => info,
+        Err(error) => return ControlFlow::Error(error),
+    };
+    let convert_mode = ScalarConvertMode::from(*mode);
+    let mut output = Vec::with_capacity(source_slots.len());
+    for value in source_slots {
+        let converted = match convert_scalar_value(*value, source_info, dest_info, convert_mode) {
+            Ok(value) => value,
+            Err(error) => return ControlFlow::Error(error),
+        };
+        output.push(converted);
+    }
+
+    // allocate result aggregate
+    let result = state.interpreter.allocate_aggregate(output);
+    state.set(*dest, result);
+
+    // continue to next instruction
+    next!(state, block, pc)
+}

@@ -510,6 +510,23 @@ pub enum ThreadedInstructionData {
         vector: mir::Value,
     },
 
+    /// Compare two vectors elementwise.
+    VectorCompare {
+        dest: mir::Value,
+        operator: mir::BinaryOperator,
+        left: mir::Value,
+        right: mir::Value,
+    },
+
+    /// Convert vector element types using an explicit mode.
+    VectorConvert {
+        dest: mir::Value,
+        mode: mir::VectorConvertMode,
+        vector: mir::Value,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
     /// Load a tensor element from a view.
     TensorLoad {
         dest: mir::Value,
@@ -669,10 +686,40 @@ pub enum ThreadedInstructionData {
         dest_type: mir::LocalNodeId<mir::Type>,
     },
 
+    /// Compare two tensors elementwise.
+    TensorCompare {
+        dest: mir::Value,
+        operator: mir::BinaryOperator,
+        left: mir::Value,
+        right: mir::Value,
+        left_type: mir::LocalNodeId<mir::Type>,
+        right_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
     /// Convert a tensor element type.
     TensorConvert {
         dest: mir::Value,
+        mode: mir::TensorConvertMode,
         tensor: mir::Value,
+        source_type: mir::LocalNodeId<mir::Type>,
+        dest_type: mir::LocalNodeId<mir::Type>,
+    },
+
+    /// Refine a tensor type without changing its contents.
+    TensorCast {
+        dest: mir::Value,
+        tensor: mir::Value,
+    },
+
+    /// Create a view into a tensor reference.
+    TensorView {
+        dest: mir::Value,
+        view: mir::Value,
+        arguments: ArgumentRange,
+        offsets_count: u16,
+        sizes_count: u16,
+        strides_count: u16,
         source_type: mir::LocalNodeId<mir::Type>,
         dest_type: mir::LocalNodeId<mir::Type>,
     },
@@ -888,6 +935,8 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::VectorInsert { .. } => "vector_insert",
             ThreadedInstructionData::VectorShuffle { .. } => "vector_shuffle",
             ThreadedInstructionData::VectorReduce { .. } => "vector_reduce",
+            ThreadedInstructionData::VectorCompare { .. } => "vector_compare",
+            ThreadedInstructionData::VectorConvert { .. } => "vector_convert",
             ThreadedInstructionData::TensorLoad { .. } => "tensor_load",
             ThreadedInstructionData::TensorStore { .. } => "tensor_store",
             ThreadedInstructionData::TensorFill { .. } => "tensor_fill",
@@ -895,6 +944,8 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::TensorReshape { .. } => "tensor_reshape",
             ThreadedInstructionData::TensorBroadcast { .. } => "tensor_broadcast",
             ThreadedInstructionData::TensorTranspose { .. } => "tensor_transpose",
+            ThreadedInstructionData::TensorCast { .. } => "tensor_cast",
+            ThreadedInstructionData::TensorView { .. } => "tensor_view",
             ThreadedInstructionData::TensorSlice { .. } => "tensor_slice",
             ThreadedInstructionData::TensorPad { .. } => "tensor_pad",
             ThreadedInstructionData::TensorConcat { .. } => "tensor_concat",
@@ -903,6 +954,7 @@ impl ThreadedInstructionData {
             ThreadedInstructionData::TensorConvolution { .. } => "tensor_convolution",
             ThreadedInstructionData::TensorGather { .. } => "tensor_gather",
             ThreadedInstructionData::TensorScatter { .. } => "tensor_scatter",
+            ThreadedInstructionData::TensorCompare { .. } => "tensor_compare",
             ThreadedInstructionData::TensorConvert { .. } => "tensor_convert",
             ThreadedInstructionData::ManagedAlloc { .. } => "managed_alloc",
             ThreadedInstructionData::ManagedAllocArray { .. } => "managed_alloc_array",
