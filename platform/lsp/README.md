@@ -6,6 +6,7 @@ Provides classic IDE features: diagnostics, completions, go-to-definition, seman
 ## Integration
 
 The LSP server is a thin client over the daemon session.
+The daemon is auto spawned per workspace and accessed over local IPC.
 Editor edits are applied to the overlay file system and forwarded as file change events.
 The daemon performs incremental compilation and returns diagnostics and query data.
 

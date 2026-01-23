@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 use dashmap::DashMap;
 use destack_ast::NodeParentIndex;
 use destack_daemon::protocol::{
-    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord,
+    DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord, DaemonUpdateRecord, FileSnapshot,
 };
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions};
@@ -13,8 +13,8 @@ use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_resolver::{ResolveOptions, Resolver};
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, LanguageType,
-    OverlayFileSystem, PhysicalFileSystem, Span, WATCHABLE_FILE_TYPES,
+    DiagnosticSeverity, File, FileId, FileSystem, FileType, FileWatchEvent, FileWatchEventKind,
+    LanguageType, OverlayFileSystem, PhysicalFileSystem, Span, WATCHABLE_FILE_TYPES,
 };
 use destack_workspace::{FormatterOptions, Session, Workspace, query};
 use serde_json::to_value;
@@ -167,7 +167,9 @@ impl DestackLanguageServer {
         // publish diagnostics per updated file
         let session = self.session().clone();
         for update in updates {
-            let file = session.files.get(update.file_id);
+            let Some(file) = upsert_file_from_snapshot(session.as_ref(), &update.file) else {
+                continue;
+            };
             let Some(uri) = lsp_uri_for_file(&file) else {
                 continue;
             };
@@ -221,15 +223,20 @@ impl DestackLanguageServer {
         let mut diagnostics_by_file = program.diagnostic_store.snapshot_by_file();
 
         // publish diagnostics for the updated files
-        let primary_file_id = result.updates.first().map(|update| update.file_id);
+        let primary_path = path;
         for mut update in result.updates {
+            let Some(file) = upsert_file_from_snapshot(session.as_ref(), &update.file) else {
+                continue;
+            };
             if update.diagnostics.is_empty() {
-                update.diagnostics = diagnostics_by_file
-                    .remove(&update.file_id)
-                    .unwrap_or_default();
+                update.diagnostics = diagnostics_by_file.remove(&file.id).unwrap_or_default();
             }
-            let file = session.files.get(update.file_id);
-            let uri = if Some(update.file_id) == primary_file_id {
+            let uri = if update
+                .file
+                .path
+                .as_ref()
+                .is_some_and(|update_path| update_path == primary_path)
+            {
                 Some(uri.clone())
             } else {
                 lsp_uri_for_file(&file)
@@ -260,6 +267,109 @@ fn lsp_uri_for_file(file: &File) -> Option<lsp::Uri> {
 
     // fall back to parsing the stored uri string
     file.uri.as_ref().parse::<lsp::Uri>().ok()
+}
+
+/// Upsert a file in the session registry from a snapshot.
+fn upsert_file_from_snapshot(session: &Session, snapshot: &FileSnapshot) -> Option<Arc<File>> {
+    // resolve the existing file id when possible
+    let registry = &session.files;
+    let existing_id = snapshot
+        .path
+        .as_ref()
+        .and_then(|path| registry.get_id_by_path(path))
+        .or_else(|| registry.get_id_by_uri(&snapshot.uri));
+
+    // allocate a new id when the file is not tracked
+    let file_id = existing_id.unwrap_or_else(|| registry.next_id());
+
+    // return early when no content is available and the file already exists
+    let Some(content) = snapshot.content.as_ref() else {
+        if let Some(existing_id) = existing_id {
+            return registry.get_maybe(existing_id);
+        }
+
+        // register an unloaded file to keep ids stable
+        let file = File::unloaded(
+            file_id,
+            snapshot.name.clone(),
+            snapshot.uri.clone(),
+            snapshot.path.clone(),
+            snapshot.file_type,
+        );
+        registry.insert(file);
+        return registry.get_maybe(file_id);
+    };
+
+    // build a file from the snapshot content
+    let file = file_from_snapshot(snapshot, file_id, content);
+
+    // replace or insert the file into the registry
+    if existing_id.is_some() {
+        registry.replace(file);
+    } else {
+        registry.insert(file);
+    }
+
+    registry.get_maybe(file_id)
+}
+
+/// Build a file from a snapshot payload.
+fn file_from_snapshot(snapshot: &FileSnapshot, file_id: FileId, content: &str) -> File {
+    // parse JSON when possible
+    if matches!(snapshot.file_type, FileType::Json)
+        && is_config_json_snapshot(snapshot)
+        && let Ok(file) = File::from_text_as_jsonc(
+            file_id,
+            snapshot.name.clone(),
+            snapshot.uri.clone(),
+            snapshot.path.clone(),
+            snapshot.file_type,
+            content.to_string(),
+        )
+    {
+        return file;
+    }
+
+    // parse non config JSON strictly
+    if matches!(snapshot.file_type, FileType::Json)
+        && let Ok(file) = File::from_text_as_json(
+            file_id,
+            snapshot.name.clone(),
+            snapshot.uri.clone(),
+            snapshot.path.clone(),
+            snapshot.file_type,
+            content.to_string(),
+        )
+    {
+        return file;
+    }
+
+    // fall back to text files for all other types
+    File::from_text(
+        file_id,
+        snapshot.name.clone(),
+        snapshot.uri.clone(),
+        snapshot.path.clone(),
+        snapshot.file_type,
+        content.to_string(),
+    )
+}
+
+/// Return true when the snapshot refers to a JSON config file.
+fn is_config_json_snapshot(snapshot: &FileSnapshot) -> bool {
+    // resolve the effective filename
+    let name = snapshot
+        .path
+        .as_ref()
+        .and_then(|path| path.file_name())
+        .and_then(|name| name.to_str())
+        .unwrap_or(snapshot.name.as_str());
+
+    if name == "dsconfig.json" || name == "jsconfig.json" {
+        return true;
+    }
+
+    name.starts_with("tsconfig") && name.ends_with(".json")
 }
 
 /// Build file watcher patterns for the client.
@@ -332,7 +442,7 @@ impl LanguageServer for DestackLanguageServer {
         let _ = self.session.set(session.clone());
 
         // create daemon client for the session
-        let daemon = match LspDaemonClient::new(session.clone(), vec![root.clone()]) {
+        let daemon = match create_daemon_client(session.clone(), root.clone()) {
             Ok(daemon) => Arc::new(daemon),
             Err(error) => {
                 tracing::debug!(?error, "lsp.daemon.init_failed");
@@ -1736,6 +1846,11 @@ impl LanguageServer for DestackLanguageServer {
 
         Ok(Some(lsp_items))
     }
+}
+
+/// Create a daemon client for the LSP session.
+fn create_daemon_client(session: Arc<Session>, root: PathBuf) -> Result<LspDaemonClient, String> {
+    LspDaemonClient::new(session, vec![root])
 }
 
 // ----------------------------------------------------------------------------

@@ -11,11 +11,21 @@ use tokio::sync::mpsc;
 use tower::Service;
 
 use crate::DestackLanguageServer;
+use crate::server::daemon::LSP_DAEMON_IN_PROCESS_ENV;
 
 const MAX_CLIENT_REQUESTS: usize = 16;
 const DEFAULT_DIAGNOSTICS_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// LSP test harness for driving the in process server.
+/// Harness mode for daemon connectivity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LspHarnessMode {
+    /// Use the in process daemon.
+    InProcess,
+    /// Use the ipc daemon.
+    Ipc,
+}
+
+/// LSP test harness for driving the server.
 #[derive(Debug)]
 pub struct LspHarness {
     /// The LSP service under test.
@@ -29,6 +39,23 @@ pub struct LspHarness {
 impl LspHarness {
     /// Create a new harness with the given workspace root.
     pub fn new(root: PathBuf) -> Self {
+        Self::new_with_mode(root, LspHarnessMode::InProcess)
+    }
+
+    /// Create a new harness with explicit daemon connectivity.
+    pub fn new_with_mode(root: PathBuf, mode: LspHarnessMode) -> Self {
+        // configure daemon mode for tests
+        unsafe {
+            match mode {
+                LspHarnessMode::InProcess => {
+                    std::env::set_var(LSP_DAEMON_IN_PROCESS_ENV, "1");
+                }
+                LspHarnessMode::Ipc => {
+                    std::env::remove_var(LSP_DAEMON_IN_PROCESS_ENV);
+                }
+            }
+        }
+
         // create the server and client socket
         let (service, client) = LspService::new(DestackLanguageServer::new);
 
@@ -212,6 +239,30 @@ impl LspHarness {
         self.notify(notification).await;
     }
 
+    /// Send a didChangeWorkspaceFolders notification.
+    pub async fn did_change_workspace_folders(
+        &mut self,
+        added: Vec<PathBuf>,
+        removed: Vec<PathBuf>,
+    ) {
+        // build workspace folder entries
+        let added = added
+            .into_iter()
+            .map(workspace_folder_for_path)
+            .collect();
+        let removed = removed
+            .into_iter()
+            .map(workspace_folder_for_path)
+            .collect();
+        let params = lsp::DidChangeWorkspaceFoldersParams {
+            event: lsp::WorkspaceFoldersChangeEvent { added, removed },
+        };
+
+        // send the notification
+        let notification = notification_with_params("workspace/didChangeWorkspaceFolders", params);
+        self.notify(notification).await;
+    }
+
     /// Initialize the LSP server with a workspace root.
     pub async fn initialize(&mut self) {
         // build initialize params
@@ -231,6 +282,45 @@ impl LspHarness {
         let initialized = lsp::InitializedParams {};
         let notification = notification_with_params("initialized", initialized);
         self.notify(notification).await;
+    }
+
+    /// Shutdown the LSP server and close the daemon connection.
+    pub async fn shutdown(&mut self) {
+        // send shutdown request
+        let request = request_with_params("shutdown", 2, serde_json::Value::Null);
+        let response = self.call(request).await;
+        let response = response.expect("shutdown response missing");
+
+        // assertion block
+        assert!(response.is_ok());
+
+        // send exit notification
+        let notification = notification_with_params("exit", serde_json::Value::Null);
+        self.notify(notification).await;
+    }
+
+    /// Collect diagnostics notifications within the timeout window.
+    pub async fn collect_diagnostics_for_timeout(
+        &mut self,
+        timeout: Duration,
+    ) -> Vec<lsp::PublishDiagnosticsParams> {
+        // collect diagnostics until the timeout expires
+        let deadline = tokio::time::Instant::now() + timeout;
+        let mut diagnostics = Vec::new();
+        loop {
+            let now = tokio::time::Instant::now();
+            let remaining = deadline.checked_duration_since(now).unwrap_or_default();
+            if remaining.is_zero() {
+                break;
+            }
+
+            match tokio::time::timeout(remaining, self.next_diagnostics()).await {
+                Ok(params) => diagnostics.push(params),
+                Err(_) => break,
+            }
+        }
+
+        diagnostics
     }
 }
 
@@ -283,6 +373,18 @@ pub fn notification_with_params<T: Serialize>(method: &str, params: T) -> Reques
 pub fn uri_for_path(path: &Path) -> lsp::Uri {
     // format a file URI from a path
     lsp::Uri::from_file_path(path).expect("file uri parse")
+}
+
+/// Build a workspace folder entry for a path.
+fn workspace_folder_for_path(path: PathBuf) -> lsp::WorkspaceFolder {
+    // derive the folder name from the path
+    let name = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("workspace")
+        .to_string();
+    let uri = uri_for_path(&path);
+    lsp::WorkspaceFolder { uri, name }
 }
 
 /// Create a new temporary filesystem for LSP tests.
