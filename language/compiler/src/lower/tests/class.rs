@@ -67,14 +67,14 @@ function sumBox(value: int32): int32 {
 type @test/test:Box = { value: i32 }
 function @sumBox(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = struct @test/test:Box (v0)
-    v2 = managed.alloc @test/test:Box -> ref<managed @test/test:Box>
+    v1: @test/test:Box = struct @test/test:Box (v0)
+    v2: ref<managed @test/test:Box> = managed.alloc @test/test:Box
     store v2, v1
-    v3 = load v2 -> @test/test:Box
-    v4 = field.get v3, 0
-    v5 = iconst 1i32
-    v6 = trunc v5 -> i32
-    v7 = iadd v4, v6
+    v3: @test/test:Box = load v2
+    v4: i32 = field.get v3, 0
+    v5: i32 = iconst 1i32
+    v6: i32 = trunc v5 -> i32
+    v7: i32 = iadd v4, v6
     return v7
 }
         "#,
@@ -127,18 +127,18 @@ global @test/test:PacketHeader#vtable: [ref?<raw void>; 2] = zeroinit ; const
 global @test/test:MessageHeader#vtable: [ref?<raw void>; 3] = zeroinit ; const
 function @ping(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>) -> i32 {
 block0(v0: ref<managed { @vtable: ref<raw void>, packetSize: i32 }>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 }
 function @readPacketSize(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = global.addr @test/test:PacketHeader#vtable -> ref<raw [ref?<raw void>; 2]>
-    v2 = bitcast v1 -> ref<raw void>
-    v3 = struct { @vtable: ref<raw void>, packetSize: i32 } (v2, v0)
-    v4 = managed.alloc { @vtable: ref<raw void>, packetSize: i32 } -> ref<managed { @vtable: ref<raw void>, packetSize: i32 }>
+    v1: ref<raw [ref?<raw void>; 2]> = global.addr @test/test:PacketHeader#vtable
+    v2: ref<raw void> = bitcast v1 -> ref<raw void>
+    v3: { @vtable: ref<raw void>, packetSize: i32 } = struct { @vtable: ref<raw void>, packetSize: i32 } (v2, v0)
+    v4: ref<managed { @vtable: ref<raw void>, packetSize: i32 }> = managed.alloc { @vtable: ref<raw void>, packetSize: i32 }
     store v4, v3
-    v5 = load v4 -> { @vtable: ref<raw void>, packetSize: i32 }
-    v6 = field.get v5, 1
+    v5: { @vtable: ref<raw void>, packetSize: i32 } = load v4
+    v6: i32 = field.get v5, 1
     return v6
 }
         "#,
@@ -429,17 +429,17 @@ global @test/test:Logger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 global @test/test:FileLogger#vtable: [ref?<raw void>; 3] = zeroinit ; const
 function @log(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 }
 function @log#1(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     return v1
 }
 function @callLogger(v0: ref<managed @Struct0>) -> i32 {
 block0(v0: ref<managed @Struct0>):
-    v1 = call.virtual v0, @Struct0, 2, @log(v0) -> fn(ref<managed @Struct0>) -> i32
+    v1: i32 = call.virtual v0, @Struct0, 2, @log(v0) -> fn(ref<managed @Struct0>) -> i32
     return v1
 }
         "#,

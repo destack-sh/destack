@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::TargetId;
 use mir::{Instruction, Terminator, Type, Value};
 
-use crate::optimize::common::terminator_arguments_for_successor;
+use crate::optimize::common::{ValueTypeMap, terminator_arguments_for_successor};
 use crate::optimize::{
     AnalysisPreservation, ControlFlowGraph, FunctionPass, Lattice, LifetimeAnalysis,
     PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature, forward_dataflow,
@@ -129,32 +129,6 @@ impl Lattice for BorrowOriginMap {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-struct ValueTypes {
-    values: HashMap<Value, mir::LocalNodeId<Type>>,
-    locals: HashMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<Type>>,
-}
-
-impl ValueTypes {
-    fn value_type(&self, value: Value) -> Option<mir::LocalNodeId<Type>> {
-        self.values.get(&value).copied()
-    }
-
-    fn local_type(&self, local: mir::LocalNodeId<mir::Local>) -> Option<mir::LocalNodeId<Type>> {
-        self.locals.get(&local).copied()
-    }
-
-    fn set_value_type(&mut self, value: Value, ty: mir::LocalNodeId<Type>) {
-        // record a value type
-        self.values.insert(value, ty);
-    }
-
-    fn set_local_type(&mut self, local: mir::LocalNodeId<mir::Local>, ty: mir::LocalNodeId<Type>) {
-        // record a local type
-        self.locals.insert(local, ty);
-    }
-}
-
 impl FunctionPass for LifetimeCheck {
     fn run(
         &self,
@@ -182,7 +156,7 @@ impl FunctionPass for LifetimeCheck {
         let strict_mode = ctx.options.strict_borrow_mode;
 
         // build value type lookup
-        let value_types = collect_value_types(function, tree);
+        let value_types = ValueTypeMap::new(function, tree);
 
         // prepare analyses for dataflow
         let analyses = ctx.function_analyses(function, tree);
@@ -311,123 +285,6 @@ fn build_entry_state(function: &mir::Function, tree: &mir::NodeTree) -> BorrowOr
     state
 }
 
-fn collect_value_types(function: &mir::Function, tree: &mir::NodeTree) -> ValueTypes {
-    // build the initial map
-    let mut types = ValueTypes::default();
-
-    // seed parameter types
-    for param in &function.parameters {
-        types.set_value_type(param.value, param.ty);
-    }
-
-    // seed block parameter types
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for param in &block.parameters {
-            types.set_value_type(param.value, param.ty);
-        }
-    }
-
-    // seed local types
-    for &local_id in &function.locals {
-        let local = tree.get(local_id);
-        types.set_local_type(local_id, local.ty);
-    }
-
-    // scan instructions for destination types
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for &inst_id in &block.instructions {
-            let inst = tree.get(inst_id);
-            let Some(dest) = inst.destination() else {
-                continue;
-            };
-
-            let Some(result_type) = instruction_result_type(inst, tree, &types) else {
-                continue;
-            };
-
-            types.set_value_type(dest, result_type);
-        }
-    }
-
-    types
-}
-
-fn instruction_result_type(
-    inst: &Instruction,
-    tree: &mir::NodeTree,
-    types: &ValueTypes,
-) -> Option<mir::LocalNodeId<Type>> {
-    // derive result types for destinations
-    match inst {
-        Instruction::Const { .. } => None,
-        Instruction::Binary { left, .. } => types.value_type(*left),
-        Instruction::Unary { argument, .. } => types.value_type(*argument),
-        Instruction::Cast { to_type, .. } => Some(*to_type),
-        Instruction::Select {
-            then_value,
-            else_value,
-            ..
-        } => types
-            .value_type(*then_value)
-            .or_else(|| types.value_type(*else_value)),
-        Instruction::LocalGet { local, .. } => types.local_type(*local),
-        Instruction::GlobalAddr { result_type, .. } => Some(*result_type),
-        Instruction::LocalAddr { result_type, .. } => Some(*result_type),
-        Instruction::GlobalConst { global, .. } => {
-            let global = tree.get(*global);
-            Some(global.ty)
-        }
-        Instruction::Load { result_type, .. } => Some(*result_type),
-        Instruction::FieldGet {
-            aggregate, index, ..
-        } => {
-            let aggregate_type = types.value_type(*aggregate)?;
-            field_type_for_value(tree, aggregate_type, *index)
-        }
-        Instruction::FieldAddr { result_type, .. } => Some(*result_type),
-        Instruction::FieldSet { aggregate, .. } => types.value_type(*aggregate),
-        Instruction::ElementGet { array, .. } => {
-            let array_type = types.value_type(*array)?;
-            element_type_for_value(tree, array_type)
-        }
-        Instruction::ElementAddr { result_type, .. } => Some(*result_type),
-        Instruction::ElementSet { array, .. } => types.value_type(*array),
-        Instruction::Struct { ty, .. } => Some(*ty),
-        Instruction::Tuple { ty, .. } => Some(*ty),
-        Instruction::Array { ty, .. } => Some(*ty),
-        Instruction::Call { signature, .. }
-        | Instruction::CallVirtual { signature, .. }
-        | Instruction::CallInterface { signature, .. }
-        | Instruction::CallIndirect { signature, .. } => signature_result_type(tree, *signature),
-        Instruction::ManagedAlloc { result_type, .. } => Some(*result_type),
-        Instruction::ManagedAllocArray { result_type, .. } => Some(*result_type),
-        Instruction::RawAlloc { result_type, .. } => Some(*result_type),
-        Instruction::StackAlloc { result_type, .. } => Some(*result_type),
-        Instruction::Intrinsic { .. } => None,
-        Instruction::Store { .. }
-        | Instruction::LocalSet { .. }
-        | Instruction::RawFree { .. }
-        | Instruction::RawDrop { .. }
-        | Instruction::StackDrop { .. }
-        | Instruction::Assume { .. } => None,
-    }
-}
-
-fn signature_result_type(
-    tree: &mir::NodeTree,
-    signature: mir::LocalNodeId<Type>,
-) -> Option<mir::LocalNodeId<Type>> {
-    // read return types from function pointers
-    let signature_type = tree.get(signature);
-    let Type::FunctionPointer { result, .. } = signature_type else {
-        return None;
-    };
-
-    Some(*result)
-}
-
 fn field_type_for_value(
     tree: &mir::NodeTree,
     aggregate_type: mir::LocalNodeId<Type>,
@@ -458,12 +315,9 @@ fn element_type_for_value(
     Some(*element)
 }
 
-fn value_contains_borrowed_refs(value: Value, tree: &mir::NodeTree, types: &ValueTypes) -> bool {
-    // default to borrowed when type is unknown
-    let Some(ty_id) = types.value_type(value) else {
-        return true;
-    };
-
+fn value_contains_borrowed_refs(value: Value, tree: &mir::NodeTree, types: &ValueTypeMap) -> bool {
+    // resolve the value type
+    let ty_id = types.require_value_type(value);
     let ty = tree.get(ty_id);
     type_contains_borrowed_refs(ty, tree)
 }
@@ -471,13 +325,10 @@ fn value_contains_borrowed_refs(value: Value, tree: &mir::NodeTree, types: &Valu
 fn local_contains_borrowed_refs(
     local: mir::LocalNodeId<mir::Local>,
     tree: &mir::NodeTree,
-    types: &ValueTypes,
+    types: &ValueTypeMap,
 ) -> bool {
-    // default to borrowed when type is unknown
-    let Some(ty_id) = types.local_type(local) else {
-        return true;
-    };
-
+    // resolve the local type
+    let ty_id = types.require_local_type(local);
     let ty = tree.get(ty_id);
     type_contains_borrowed_refs(ty, tree)
 }
@@ -487,7 +338,7 @@ fn assign_origin_if_borrowed(
     destination: Value,
     origins: BorrowOriginSet,
     tree: &mir::NodeTree,
-    types: &ValueTypes,
+    types: &ValueTypeMap,
 ) {
     // track origins only for borrowed results
     if value_contains_borrowed_refs(destination, tree, types) {
@@ -501,7 +352,7 @@ fn apply_instruction_effects(
     state: &mut BorrowOriginMap,
     instruction: &Instruction,
     tree: &mir::NodeTree,
-    types: &ValueTypes,
+    types: &ValueTypeMap,
     lifetime_analysis: &LifetimeAnalysis,
 ) {
     match instruction {
@@ -534,6 +385,195 @@ fn apply_instruction_effects(
             assign_origin_if_borrowed(state, *destination, origins, tree, types);
         }
 
+        // vector operations
+        Instruction::VectorSplat { destination, value } => {
+            let origins = state.value_origin(*value);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorExtract {
+            destination,
+            vector,
+            ..
+        } => {
+            let origins = state.value_origin(*vector);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorInsert {
+            destination,
+            vector,
+            value,
+            ..
+        } => {
+            let mut origins = state.value_origin(*vector);
+            origins.union_with(&state.value_origin(*value));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorShuffle {
+            destination,
+            left,
+            right,
+            ..
+        } => {
+            let mut origins = state.value_origin(*left);
+            origins.union_with(&state.value_origin(*right));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorReduce {
+            destination,
+            vector,
+            ..
+        } => {
+            let origins = state.value_origin(*vector);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorCompare {
+            destination,
+            left,
+            right,
+            ..
+        } => {
+            let mut origins = state.value_origin(*left);
+            origins.union_with(&state.value_origin(*right));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::VectorConvert {
+            destination,
+            vector,
+            ..
+        } => {
+            let origins = state.value_origin(*vector);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+
+        // tensor operations
+        Instruction::TensorLoad {
+            destination, view, ..
+        } => {
+            let origins = state.value_origin(*view);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorReshape {
+            destination,
+            tensor,
+            ..
+        }
+        | Instruction::TensorBroadcast {
+            destination,
+            tensor,
+            ..
+        }
+        | Instruction::TensorTranspose {
+            destination,
+            tensor,
+            ..
+        }
+        | Instruction::TensorSlice {
+            destination,
+            tensor,
+            ..
+        }
+        | Instruction::TensorCast {
+            destination,
+            tensor,
+            ..
+        }
+        | Instruction::TensorView {
+            destination,
+            view: tensor,
+            ..
+        }
+        | Instruction::TensorConvert {
+            destination,
+            tensor,
+            ..
+        } => {
+            let origins = state.value_origin(*tensor);
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorCompare {
+            destination,
+            left,
+            right,
+            ..
+        } => {
+            let mut origins = state.value_origin(*left);
+            origins.union_with(&state.value_origin(*right));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorPad {
+            destination,
+            tensor,
+            value,
+            ..
+        } => {
+            let mut origins = state.value_origin(*tensor);
+            origins.union_with(&state.value_origin(*value));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorConcat {
+            destination,
+            tensors,
+            ..
+        } => {
+            let mut origins = BorrowOriginSet::default();
+            for value in tree.get_arguments(*tensors) {
+                origins.union_with(&state.value_origin(*value));
+            }
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorReduce {
+            destination,
+            tensor,
+            initial,
+            ..
+        } => {
+            let mut origins = state.value_origin(*tensor);
+            origins.union_with(&state.value_origin(*initial));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorDot {
+            destination,
+            left,
+            right,
+            ..
+        } => {
+            let mut origins = state.value_origin(*left);
+            origins.union_with(&state.value_origin(*right));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorConvolution {
+            destination,
+            input,
+            kernel,
+            ..
+        } => {
+            let mut origins = state.value_origin(*input);
+            origins.union_with(&state.value_origin(*kernel));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorGather {
+            destination,
+            operand,
+            indices,
+            ..
+        } => {
+            let mut origins = state.value_origin(*operand);
+            origins.union_with(&state.value_origin(*indices));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+        Instruction::TensorScatter {
+            destination,
+            operand,
+            indices,
+            updates,
+            ..
+        } => {
+            let mut origins = state.value_origin(*operand);
+            origins.union_with(&state.value_origin(*indices));
+            origins.union_with(&state.value_origin(*updates));
+            assign_origin_if_borrowed(state, *destination, origins, tree, types);
+        }
+
         // locals carry their stored origins
         Instruction::LocalGet { destination, local } => {
             let origins = state.local_origin(*local);
@@ -549,6 +589,11 @@ fn apply_instruction_effects(
                 state.set_local_origin(*local, BorrowOriginSet::default());
             }
         }
+
+        // tensor stores do not produce values
+        Instruction::TensorStore { .. }
+        | Instruction::TensorFill { .. }
+        | Instruction::TensorCopy { .. } => {}
 
         // globals are static borrows
         Instruction::GlobalAddr { destination, .. }
@@ -590,9 +635,8 @@ fn apply_instruction_effects(
             index,
             ..
         } => {
-            let aggregate_type = types.value_type(*aggregate);
-            let borrowed_field = aggregate_type
-                .and_then(|ty| field_type_for_value(tree, ty, *index))
+            let aggregate_type = types.require_value_type(*aggregate);
+            let borrowed_field = field_type_for_value(tree, aggregate_type, *index)
                 .map(|field_ty| type_contains_borrowed_refs(tree.get(field_ty), tree))
                 .unwrap_or(true);
 
@@ -608,9 +652,8 @@ fn apply_instruction_effects(
         Instruction::ElementGet {
             destination, array, ..
         } => {
-            let array_type = types.value_type(*array);
-            let borrowed_element = array_type
-                .and_then(|ty| element_type_for_value(tree, ty))
+            let array_type = types.require_value_type(*array);
+            let borrowed_element = element_type_for_value(tree, array_type)
                 .map(|element_ty| type_contains_borrowed_refs(tree.get(element_ty), tree))
                 .unwrap_or(true);
 
@@ -1014,6 +1057,14 @@ mod tests {
     use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
 
+    /// Build strict borrow mode options for verification tests.
+    fn strict_options() -> PipelineOptions {
+        PipelineOptions {
+            strict_borrow_mode: true,
+            ..Default::default()
+        }
+    }
+
     /// Returning a borrowed param matches lifetime annotations.
     #[test]
     fn test_verify_return_borrowed_param() {
@@ -1022,8 +1073,7 @@ block0(v0: ref<borrowed i32>):
     return v0
 }"#;
 
-        let mut options = PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
@@ -1036,12 +1086,11 @@ block0(v0: ref<borrowed i32>):
     fn test_verify_return_borrowed_field() {
         let input = r#"function @test(v0: ref<borrowed { i32 }>) -> ref<borrowed i32> {
 block0(v0: ref<borrowed { i32 }>):
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }"#;
 
-        let mut options = PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
@@ -1054,13 +1103,12 @@ block0(v0: ref<borrowed { i32 }>):
     fn test_verify_return_local_borrow_rejected() {
         let input = r#"function @test() -> ref<borrowed i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }"#;
 
-        let mut options = PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![0]));
@@ -1076,8 +1124,7 @@ block0(v0: ref<borrowed i32>):
     return v0
 }"#;
 
-        let mut options = PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::Lifetime::Static);
@@ -1110,7 +1157,7 @@ block0(v0: ref<borrowed i32>):
     fn test_verify_annotation_ignored_warns() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -1126,12 +1173,11 @@ block0:
     fn test_verify_signature_fallback_for_indirect_call() {
         let input = r#"function @test(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>, v1: ref<borrowed i32>) -> ref<borrowed i32> {
 block0(v0: fn(ref<borrowed i32>) -> ref<borrowed i32>, v1: ref<borrowed i32>):
-    v2 = call.indirect v0(v1) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = call.indirect v0(v1) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 
-        let mut options = PipelineOptions::default();
-        options.strict_borrow_mode = true;
+        let options = strict_options();
 
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::Lifetime::Parameters(vec![1]));

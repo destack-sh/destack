@@ -4,6 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
+use crate::optimize::common::MemoryLocation;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
 };
@@ -269,7 +270,7 @@ fn store_overwritten_in_block(
     alias: &AliasAnalysis,
 ) -> bool {
     // build a memory location for the stored pointer
-    let location = crate::optimize::common::MemoryLocation::from_ptr(pointer);
+    let location = MemoryLocation::from_ptr(pointer);
 
     // scan later instructions in the block
     for instruction_id in instruction_ids.iter().skip(start + 1).copied() {
@@ -280,7 +281,7 @@ fn store_overwritten_in_block(
             pointer: other_ptr, ..
         } = instruction
         {
-            let other_loc = crate::optimize::common::MemoryLocation::from_ptr(*other_ptr);
+            let other_loc = MemoryLocation::from_ptr(*other_ptr);
             let alias_result = alias.alias(&location, &other_loc);
 
             if alias_result.is_must_alias() || location.ptr == other_loc.ptr {
@@ -313,16 +314,16 @@ mod tests {
         // v1 and v2 are unused
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v0
 }"#;
 
         // expected output
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -338,9 +339,9 @@ block0:
         // source test
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
 
@@ -356,18 +357,18 @@ block0:
         // only v0 is used
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
-    v4 = iconst 4i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
+    v4: i32 = iconst 4i32
     return v0
 }"#;
 
         // expected output
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -383,8 +384,8 @@ block0:
         // source test
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst 1i32
-    v1 = call @side_effect(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = call @side_effect(v0) -> fn(i32) -> i32
     return
 }
 function @side_effect(v0: i32) -> i32 {
@@ -404,22 +405,22 @@ block0(v0: i32):
         // v2, v3, v4, v5 are all dead
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
-    v3 = iconst 3i32
-    v4 = iconst 4i32
+    v3: i32 = iconst 3i32
+    v4: i32 = iconst 4i32
     return v1
 block2:
-    v5 = iconst 5i32
+    v5: i32 = iconst 5i32
     return v1
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2
 block1:
     return v1
@@ -439,9 +440,9 @@ block2:
         // source test
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = icmp_sgt v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: bool = icmp_sgt v0, v1
     branch v2, block1, block2
 block1:
     return v0
@@ -461,18 +462,18 @@ block2:
         // v2, v3, v4 depend on each other but none used in return
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
-    v3 = imul v2, v0
-    v4 = isub v3, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = imul v2, v0
+    v4: i32 = isub v3, v1
     return v0
 }"#;
 
         // expected output
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -488,9 +489,9 @@ block0:
         // v3 is dead, but v1 and v2 are used as block arguments
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = iconst 3i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 3i32
     branch v0, block1(v1), block1(v2)
 block1(v4: i32):
     return v4
@@ -499,11 +500,11 @@ block1(v4: i32):
         // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1(v1), block1(v2)
-block1(v4: i32):
-    return v4
+block1(v3: i32):
+    return v3
 }"#;
 
         // run the pass and verify output
@@ -518,9 +519,9 @@ block1(v4: i32):
         // source test
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return
 }"#;
 
@@ -542,16 +543,16 @@ block0:
         // v3, v4, v5 are all dead (none of their results are used)
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 100i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 100i32
     jump block1
 block1:
-    v2 = icmp_slt v0, v1
-    v3 = iconst 999i32
+    v2: bool = icmp_slt v0, v1
+    v3: i32 = iconst 999i32
     branch v2, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = imul v3, v3
+    v4: i32 = iconst 1i32
+    v5: i32 = imul v3, v3
     jump block1
 block3:
     return v0
@@ -561,11 +562,11 @@ block3:
         // v3, v4, v5 are all eliminated since their results are never used
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 100i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 100i32
     jump block1
 block1:
-    v2 = icmp_slt v0, v1
+    v2: bool = icmp_slt v0, v1
     branch v2, block2, block3
 block2:
     jump block1
@@ -585,15 +586,15 @@ block3:
         // v2, v3, v5 are dead
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 2i32
-    v3 = iconst 3i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 3i32
     jump block3(v1)
 block2:
-    v4 = iconst 4i32
-    v5 = iconst 5i32
+    v4: i32 = iconst 4i32
+    v5: i32 = iconst 5i32
     jump block3(v4)
 block3(v6: i32):
     return v6
@@ -602,15 +603,15 @@ block3(v6: i32):
         // expected output
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2
 block1:
     jump block3(v1)
 block2:
-    v4 = iconst 4i32
-    jump block3(v4)
-block3(v6: i32):
-    return v6
+    v2: i32 = iconst 4i32
+    jump block3(v2)
+block3(v3: i32):
+    return v3
 }"#;
 
         // run the pass and verify output
@@ -625,10 +626,10 @@ block3(v6: i32):
         // source test
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst 1i32
-    v1 = call @side_effect(v0) -> fn(i32) -> i32
-    v2 = call @side_effect(v0) -> fn(i32) -> i32
-    v3 = call @side_effect(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = call @side_effect(v0) -> fn(i32) -> i32
+    v2: i32 = call @side_effect(v0) -> fn(i32) -> i32
+    v3: i32 = call @side_effect(v0) -> fn(i32) -> i32
     return
 }
 function @side_effect(v0: i32) -> i32 {
@@ -650,9 +651,9 @@ block0(v0: i32):
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     local.set local0, v1
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#;
 
@@ -660,9 +661,9 @@ block0(v0: i32):
         let expected = r#"function @test(v0: i32) -> i32 {
     local0: i32 ; owned, mut
 block0(v0: i32):
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     local.set local0, v1
-    v2 = local.get local0
+    v2: i32 = local.get local0
     return v2
 }"#;
 
@@ -702,9 +703,9 @@ block0(v0: i32):
         // source test
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     store v0, v1
     store v0, v2
     return
@@ -713,9 +714,9 @@ block0:
         // expected output
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 2i32
-    store v0, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    store v0, v1
     return
 }"#;
 
@@ -731,11 +732,11 @@ block0:
         // source test
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
     store v0, v1
-    v2 = load v0 -> i32
-    v3 = iconst 2i32
+    v2: i32 = load v0
+    v3: i32 = iconst 2i32
     store v0, v3
     return v2
 }"#;

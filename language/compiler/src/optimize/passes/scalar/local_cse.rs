@@ -4,6 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::AliasAnalysis;
+use crate::optimize::common::{MemoryLocation, instruction_may_affect_memory};
 use crate::optimize::{
     AnalysisPreservation, ExpressionKey, FunctionPass, PipelineContext,
     expression_key_from_instruction, expression_key_substitute, instruction_has_side_effects,
@@ -143,7 +144,7 @@ fn eliminate_common_subexpressions_in_block(
             ..
         } = instruction
         {
-            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
+            let location = MemoryLocation::from_ptr(*pointer);
             if let Some(existing) = find_load_redundancy(&load_table, &location, alias) {
                 substitutions.insert(*destination, existing);
                 to_remove.insert(instruction_id);
@@ -232,7 +233,7 @@ fn eliminate_common_subexpressions_in_block(
 #[derive(Clone)]
 struct LoadEntry {
     /// Memory location for the load.
-    location: crate::optimize::common::MemoryLocation,
+    location: MemoryLocation,
     /// The value produced by the load.
     value: mir::Value,
 }
@@ -240,7 +241,7 @@ struct LoadEntry {
 /// Find a redundant load using alias analysis.
 fn find_load_redundancy(
     load_table: &[LoadEntry],
-    location: &crate::optimize::common::MemoryLocation,
+    location: &MemoryLocation,
     alias: &AliasAnalysis,
 ) -> Option<mir::Value> {
     // scan load table from most recent to oldest
@@ -272,7 +273,7 @@ fn instruction_may_clobber_memory(
     alias: &AliasAnalysis,
 ) -> bool {
     // skip instructions that do not touch memory
-    if !crate::optimize::common::instruction_may_affect_memory(instruction) {
+    if !instruction_may_affect_memory(instruction) {
         return false;
     }
 
@@ -310,16 +311,16 @@ mod tests {
     fn test_eliminate_simple_redundancy() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = iadd v0, v1
-    v4 = iadd v2, v3
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v4 = iadd v2, v2
-    return v4
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v2, v2
+    return v3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -331,16 +332,16 @@ block0(v0: i32, v1: i32):
     fn test_eliminate_commutative() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = iadd v1, v0
-    v4 = iadd v2, v3
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v1, v0
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v4 = iadd v2, v2
-    return v4
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v2, v2
+    return v3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -352,20 +353,20 @@ block0(v0: i32, v1: i32):
     fn test_eliminate_chain() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = iadd v0, v1
-    v4 = imul v2, v2
-    v5 = imul v3, v3
-    v6 = iadd v4, v5
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = imul v2, v2
+    v5: i32 = imul v3, v3
+    v6: i32 = iadd v4, v5
     return v6
 }"#;
         // v3 -> v2, then v5 = imul v2, v2 = v4
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v4 = imul v2, v2
-    v6 = iadd v4, v4
-    return v6
+    v2: i32 = iadd v0, v1
+    v3: i32 = imul v2, v2
+    v4: i32 = iadd v3, v3
+    return v4
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -377,9 +378,9 @@ block0(v0: i32, v1: i32):
     fn test_skip_constants() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst 42i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst 42i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         // should be unchanged: constant CSE is not done by this pass
@@ -393,11 +394,11 @@ block0:
     fn test_skip_cross_block_expressions() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     jump block1
 block1:
-    v3 = iadd v0, v1
-    v4 = iadd v2, v3
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         // should be unchanged: v3 is in a different block
@@ -411,9 +412,9 @@ block1:
     fn test_distinguish_non_commutative_operands() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = isub v0, v1
-    v3 = isub v1, v0
-    v4 = iadd v2, v3
+    v2: i32 = isub v0, v1
+    v3: i32 = isub v1, v0
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         // should be unchanged: v0 - v1 != v1 - v0
@@ -427,16 +428,16 @@ block0(v0: i32, v1: i32):
     fn test_eliminate_unary() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = ineg v0
-    v2 = ineg v0
-    v3 = iadd v1, v2
+    v1: i32 = ineg v0
+    v2: i32 = ineg v0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = ineg v0
-    v3 = iadd v1, v1
-    return v3
+    v1: i32 = ineg v0
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -448,19 +449,19 @@ block0(v0: i32):
     fn test_eliminate_multiple() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = iadd v0, v1
-    v4 = iadd v0, v1
-    v5 = iadd v0, v1
-    v6 = iadd v2, v5
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v0, v1
+    v5: i32 = iadd v0, v1
+    v6: i32 = iadd v2, v5
     return v6
 }"#;
         // all iadd v0, v1 collapse to v2
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v6 = iadd v2, v2
-    return v6
+    v2: i32 = iadd v0, v1
+    v3: i32 = iadd v2, v2
+    return v3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -472,16 +473,16 @@ block0(v0: i32, v1: i32):
     fn test_eliminate_field_get() {
         let input = r#"function @test(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
-    v1 = field.get v0, 0
-    v2 = field.get v0, 0
-    v3 = iadd v1, v2
+    v1: i32 = field.get v0, 0
+    v2: i32 = field.get v0, 0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
-    v1 = field.get v0, 0
-    v3 = iadd v1, v1
-    return v3
+    v1: i32 = field.get v0, 0
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -493,18 +494,18 @@ block0(v0: (i32, i32)):
     fn test_eliminate_redundant_loads() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = load v0 -> i32
-    v2 = load v0 -> i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    v2: i32 = load v0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = load v0 -> i32
-    v3 = iadd v1, v1
-    return v3
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -517,12 +518,12 @@ block0:
     fn test_preserve_loads_after_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = load v0 -> i32
-    v2 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = load v0
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = load v0 -> i32
-    v4 = iadd v1, v3
+    v3: i32 = load v0
+    v4: i32 = iadd v1, v3
     return v4
 }"#;
 
@@ -536,9 +537,9 @@ block0:
     fn test_distinguish_different_field_indices() {
         let input = r#"function @test(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
-    v1 = field.get v0, 0
-    v2 = field.get v0, 1
-    v3 = iadd v1, v2
+    v1: i32 = field.get v0, 0
+    v2: i32 = field.get v0, 1
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         // should be unchanged: different field indices
@@ -552,16 +553,16 @@ block0(v0: (i32, i32)):
     fn test_eliminate_element_get() {
         let input = r#"function @test(v0: [i32; 10], v1: i64) -> i32 {
 block0(v0: [i32; 10], v1: i64):
-    v2 = element.get v0, v1
-    v3 = element.get v0, v1
-    v4 = iadd v2, v3
+    v2: i32 = element.get v0, v1
+    v3: i32 = element.get v0, v1
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: [i32; 10], v1: i64) -> i32 {
 block0(v0: [i32; 10], v1: i64):
-    v2 = element.get v0, v1
-    v4 = iadd v2, v2
-    return v4
+    v2: i32 = element.get v0, v1
+    v3: i32 = iadd v2, v2
+    return v3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -573,16 +574,16 @@ block0(v0: [i32; 10], v1: i64):
     fn test_eliminate_casts() {
         let input = r#"function @test(v0: i32) -> i64 {
 block0(v0: i32):
-    v1 = sextend v0 -> i64
-    v2 = sextend v0 -> i64
-    v3 = iadd v1, v2
+    v1: i64 = sextend v0 -> i64
+    v2: i64 = sextend v0 -> i64
+    v3: i64 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: i32) -> i64 {
 block0(v0: i32):
-    v1 = sextend v0 -> i64
-    v3 = iadd v1, v1
-    return v3
+    v1: i64 = sextend v0 -> i64
+    v2: i64 = iadd v1, v1
+    return v2
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);
@@ -594,9 +595,9 @@ block0(v0: i32):
     fn test_preserve_unique_expressions() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
-    v3 = isub v0, v1
-    v4 = imul v2, v3
+    v2: i32 = iadd v0, v1
+    v3: i32 = isub v0, v1
+    v4: i32 = imul v2, v3
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -609,8 +610,8 @@ block0(v0: i32, v1: i32):
     fn test_propagate_substitutions_to_terminator() {
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = iadd v0, v1
-    v4 = iadd v0, v1
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     branch v2, block1(v4), block2(v4)
 block1(v5: i32):
     return v5
@@ -620,12 +621,12 @@ block2(v6: i32):
         // v4 -> v3, and the branch should use v3
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     branch v2, block1(v3), block2(v3)
-block1(v5: i32):
+block1(v4: i32):
+    return v4
+block2(v5: i32):
     return v5
-block2(v6: i32):
-    return v6
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LocalCse);

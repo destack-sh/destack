@@ -521,6 +521,32 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
+        | mir::Instruction::VectorSplat { .. }
+        | mir::Instruction::VectorExtract { .. }
+        | mir::Instruction::VectorInsert { .. }
+        | mir::Instruction::VectorShuffle { .. }
+        | mir::Instruction::VectorReduce { .. }
+        | mir::Instruction::VectorCompare { .. }
+        | mir::Instruction::VectorConvert { .. }
+        | mir::Instruction::TensorLoad { .. }
+        | mir::Instruction::TensorStore { .. }
+        | mir::Instruction::TensorFill { .. }
+        | mir::Instruction::TensorCopy { .. }
+        | mir::Instruction::TensorReshape { .. }
+        | mir::Instruction::TensorBroadcast { .. }
+        | mir::Instruction::TensorTranspose { .. }
+        | mir::Instruction::TensorCast { .. }
+        | mir::Instruction::TensorView { .. }
+        | mir::Instruction::TensorSlice { .. }
+        | mir::Instruction::TensorPad { .. }
+        | mir::Instruction::TensorConcat { .. }
+        | mir::Instruction::TensorReduce { .. }
+        | mir::Instruction::TensorDot { .. }
+        | mir::Instruction::TensorConvolution { .. }
+        | mir::Instruction::TensorGather { .. }
+        | mir::Instruction::TensorScatter { .. }
+        | mir::Instruction::TensorCompare { .. }
+        | mir::Instruction::TensorConvert { .. }
         | mir::Instruction::FieldSet { .. }
         | mir::Instruction::ElementSet { .. }
         | mir::Instruction::GlobalAddr { .. }

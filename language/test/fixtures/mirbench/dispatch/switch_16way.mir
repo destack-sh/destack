@@ -98,13 +98,13 @@ block18:
     jump block20(v22)
 
 // merge branches, advance loop
-block20(v24: i64):
-    v25: i64 = iadd v3, v24
-    v26: i64 = iconst 1i64
-    v27: i64 = iadd v2, v26
-    jump block1(v27, v25)
+block20(v23: i64):
+    v24: i64 = iadd v3, v23
+    v25: i64 = iconst 1i64
+    v26: i64 = iadd v2, v25
+    jump block1(v26, v24)
 
 // return result
-block19(v28: i64):
-    return v28
+block19(v27: i64):
+    return v27
 }

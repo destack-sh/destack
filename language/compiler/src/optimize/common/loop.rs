@@ -329,7 +329,7 @@ fn clone_loop_blocks_internal(
             .parameters
             .iter()
             .map(|param| {
-                let new_value = function.next_value();
+                let new_value = function.next_typed_value(param.ty);
                 value_map.insert(param.value, new_value);
                 mir::TypedValue {
                     value: new_value,
@@ -342,7 +342,7 @@ fn clone_loop_blocks_internal(
         for &instruction_id in &original.instructions {
             let instruction = tree.get(instruction_id);
             if let Some(destination) = instruction.destination() {
-                let new_value = function.next_value();
+                let new_value = function.next_typed_value_like(destination);
                 value_map.insert(destination, new_value);
             }
         }

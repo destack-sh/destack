@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use destack_mir as mir;
-use mir::{AddressSpace, Instruction, Mutability, ReferenceKind, Type, Value};
+use mir::{Instruction, ReferenceKind, Type, Value};
 
 use super::{ControlFlowGraph, DataflowResult, Lattice};
-use crate::optimize::common::{ConstantType, TypeKey, constant_matches_type, types_are_equal};
-use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, TypeContext};
+use crate::optimize::common::ValueTypeMap;
+use crate::optimize::{Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis};
 
 /// Location where a move occurred (for diagnostics).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -125,10 +125,9 @@ impl OwnershipMap {
         value: Value,
         at: MoveLocation,
         tree: &mir::NodeTree,
-        value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-        copy_values: &HashSet<Value>,
+        value_types: &ValueTypeMap,
     ) {
-        if !value_is_copy(value, tree, value_types, copy_values) {
+        if !value_is_copy(value, tree, value_types) {
             self.mark_moved_with_source(value, at);
         }
     }
@@ -255,195 +254,6 @@ impl Lattice for OwnershipMap {
     }
 }
 
-/// Compact reference metadata for pointer values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct ReferenceInfo {
-    /// Reference kind for the pointer.
-    kind: ReferenceKind,
-    /// Address space for the reference.
-    address_space: AddressSpace,
-    /// Mutability for the reference.
-    mutability: Mutability,
-    /// Nullable flag for the reference.
-    is_nullable: bool,
-}
-
-impl ReferenceInfo {
-    /// Create reference info from a MIR type when it is a reference.
-    fn from_type(ty: &Type) -> Option<Self> {
-        let Type::Reference {
-            kind,
-            address_space,
-            mutability,
-            is_nullable,
-            ..
-        } = ty
-        else {
-            return None;
-        };
-
-        Some(Self {
-            kind: *kind,
-            address_space: *address_space,
-            mutability: *mutability,
-            is_nullable: *is_nullable,
-        })
-    }
-}
-
-/// Lookup table for builtin MIR types.
-#[derive(Debug, Clone)]
-struct TypeLookup {
-    /// Pointer width for the target.
-    pointer_width_bits: u16,
-    /// Boolean type id.
-    boolean: Option<mir::LocalNodeId<Type>>,
-    /// Pointer sized signed integer type id.
-    isize: Option<mir::LocalNodeId<Type>>,
-    /// Pointer sized unsigned integer type id.
-    usize: Option<mir::LocalNodeId<Type>>,
-    /// Runtime type tag id.
-    type_tag: Option<mir::LocalNodeId<Type>>,
-    /// Integer types keyed by width and signedness.
-    ints: HashMap<(u16, bool), mir::LocalNodeId<Type>>,
-    /// Float types keyed by width.
-    floats: HashMap<u16, mir::LocalNodeId<Type>>,
-    /// Tuple types keyed by their two element types.
-    tuple2: HashMap<(mir::LocalNodeId<Type>, mir::LocalNodeId<Type>), mir::LocalNodeId<Type>>,
-}
-
-impl TypeLookup {
-    /// Build lookup tables from all types in the tree.
-    fn new(tree: &mir::NodeTree, pointer_width_bits: u16) -> Self {
-        let mut lookup = Self {
-            pointer_width_bits,
-            boolean: None,
-            isize: None,
-            usize: None,
-            type_tag: None,
-            ints: HashMap::new(),
-            floats: HashMap::new(),
-            tuple2: HashMap::new(),
-        };
-
-        for (type_id, ty) in tree.iter_nodes::<Type>() {
-            match ty {
-                Type::Boolean => {
-                    if lookup.boolean.is_none() {
-                        lookup.boolean = Some(type_id);
-                    }
-                }
-                Type::Isize => {
-                    if lookup.isize.is_none() {
-                        lookup.isize = Some(type_id);
-                    }
-                }
-                Type::Usize => {
-                    if lookup.usize.is_none() {
-                        lookup.usize = Some(type_id);
-                    }
-                }
-                Type::Type => {
-                    if lookup.type_tag.is_none() {
-                        lookup.type_tag = Some(type_id);
-                    }
-                }
-                Type::Int {
-                    width,
-                    is_signed: signed,
-                } => {
-                    lookup.ints.entry((*width, *signed)).or_insert(type_id);
-                }
-                Type::Float { width } => {
-                    lookup.floats.entry(*width).or_insert(type_id);
-                }
-                Type::Tuple { elements, .. } => {
-                    if elements.len() == 2 {
-                        lookup
-                            .tuple2
-                            .entry((elements[0], elements[1]))
-                            .or_insert(type_id);
-                    }
-                }
-                Type::Reference { .. } => {}
-                _ => {}
-            }
-        }
-
-        lookup
-    }
-
-    /// Return the boolean type id when available.
-    fn boolean(&self) -> Option<mir::LocalNodeId<Type>> {
-        self.boolean
-    }
-
-    /// Return the pointer sized signed integer type id when available.
-    fn isize(&self) -> Option<mir::LocalNodeId<Type>> {
-        self.isize
-    }
-
-    /// Return the pointer sized unsigned integer type id when available.
-    fn usize(&self) -> Option<mir::LocalNodeId<Type>> {
-        self.usize
-    }
-
-    /// Return the runtime type tag id when available.
-    fn type_tag(&self) -> Option<mir::LocalNodeId<Type>> {
-        self.type_tag
-    }
-
-    /// Return an integer type id for width and signedness.
-    fn int(&self, width: u16, signed: bool) -> Option<mir::LocalNodeId<Type>> {
-        if width == self.pointer_width_bits {
-            if signed {
-                if let Some(isize) = self.isize {
-                    return Some(isize);
-                }
-            } else if let Some(usize) = self.usize {
-                return Some(usize);
-            }
-        }
-
-        self.ints.get(&(width, signed)).copied()
-    }
-
-    /// Return a float type id for a width.
-    fn float(&self, width: u16) -> Option<mir::LocalNodeId<Type>> {
-        self.floats.get(&width).copied()
-    }
-
-    /// Return a tuple type id for the provided elements.
-    fn tuple2(
-        &self,
-        first: mir::LocalNodeId<Type>,
-        second: mir::LocalNodeId<Type>,
-    ) -> Option<mir::LocalNodeId<Type>> {
-        self.tuple2.get(&(first, second)).copied()
-    }
-
-    /// Return a reference type id for the provided reference info.
-    /// Resolve a constant type into a MIR type id.
-    fn type_for_constant(
-        &self,
-        constant: ConstantType,
-        tree: &mir::NodeTree,
-    ) -> Option<mir::LocalNodeId<Type>> {
-        let direct = match constant {
-            ConstantType::Boolean => self.boolean(),
-            ConstantType::Int { width, signed } => self.int(u16::from(width), signed),
-            ConstantType::Float { width } => self.float(u16::from(width)),
-            ConstantType::Char => self.int(32, false),
-        };
-
-        if direct.is_some() {
-            return direct;
-        }
-
-        find_type_id_by_constant(constant, self.pointer_width_bits, tree)
-    }
-}
-
 /// Ownership analysis computes ownership state for each value at every test point.
 ///
 /// This analysis uses forward dataflow to track which values have been moved
@@ -457,21 +267,12 @@ pub struct OwnershipAnalysis {
     /// Ownership state at exit of each block.
     block_exit: HashMap<mir::LocalNodeId<mir::Block>, OwnershipMap>,
     /// Type information for values (for determining copy vs move semantics).
-    value_types: HashMap<Value, mir::LocalNodeId<Type>>,
-    /// Structural type keys for values when available.
-    value_type_keys: HashMap<Value, TypeKey>,
-    /// Values known to be copy types (constants, etc.).
-    /// FUGU: remove copy_values, all Values should be fully typed
-    copy_values: HashSet<Value>,
+    value_types: ValueTypeMap,
     /// Values allocated on the stack (from StackAlloc).
     /// Used to determine whether to emit StackDrop vs RawDrop.
     stack_allocated: HashSet<Value>,
     /// Values allocated with managed allocation instructions.
     managed_allocated: HashSet<Value>,
-    /// Known pointee types for pointer values.
-    pointer_pointee_types: HashMap<Value, mir::LocalNodeId<Type>>,
-    /// Known constant types for literal values.
-    constant_types: HashMap<Value, ConstantType>,
 }
 
 impl OwnershipAnalysis {
@@ -485,18 +286,18 @@ impl OwnershipAnalysis {
         self.block_exit.get(&block)
     }
 
-    /// Get the type of a value (if known).
-    pub fn value_type(&self, value: Value) -> Option<mir::LocalNodeId<Type>> {
-        self.value_types.get(&value).copied()
+    /// Get the type of a value.
+    pub fn value_type(&self, value: Value) -> mir::LocalNodeId<Type> {
+        self.value_types.require_value_type(value)
     }
 
-    /// Get the structural type key of a value (if known).
-    pub fn value_type_key(&self, value: Value) -> Option<&TypeKey> {
-        self.value_type_keys.get(&value)
+    /// Get the type of a value.
+    pub fn require_value_type(&self, value: Value) -> mir::LocalNodeId<Type> {
+        self.value_type(value)
     }
 
     /// Return the value type map for this function.
-    pub fn value_types(&self) -> &HashMap<Value, mir::LocalNodeId<Type>> {
+    pub fn value_types(&self) -> &ValueTypeMap {
         &self.value_types
     }
 
@@ -506,17 +307,12 @@ impl OwnershipAnalysis {
         pointer: Value,
         tree: &mir::NodeTree,
     ) -> Option<mir::LocalNodeId<Type>> {
-        pointer_pointee_type(
-            pointer,
-            &self.value_types,
-            &self.pointer_pointee_types,
-            tree,
-        )
-    }
-
-    /// Return the constant type for a value when known.
-    pub fn constant_type(&self, value: Value) -> Option<ConstantType> {
-        self.constant_types.get(&value).copied()
+        let type_id = self.require_value_type(pointer);
+        let ty = tree.get(type_id);
+        match ty {
+            Type::Reference { pointee, .. } => Some(*pointee),
+            _ => None,
+        }
     }
 
     /// Check if a type has copy semantics.
@@ -538,30 +334,36 @@ impl OwnershipAnalysis {
                 kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
                 ..
             } => true,
+            // tensor references follow reference copy semantics
+            Type::TensorReference {
+                kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
+                ..
+            } => true,
             // owned and managed references are not copy
             Type::Reference {
+                kind: ReferenceKind::Owned | ReferenceKind::Managed,
+                ..
+            } => false,
+            // managed tensor references are not copy
+            Type::TensorReference {
                 kind: ReferenceKind::Owned | ReferenceKind::Managed,
                 ..
             } => false,
             // aggregates: check copyability field
             Type::Array { copyability, .. }
             | Type::Tuple { copyability, .. }
-            | Type::Struct { copyability, .. } => *copyability == mir::Copyability::Trivial,
+            | Type::Struct { copyability, .. }
+            | Type::Vector { copyability, .. }
+            | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
         }
     }
 
     /// Check if a value has copy semantics.
     pub fn value_is_copy(&self, value: Value, tree: &mir::NodeTree) -> bool {
-        // check if this value is known to be copy (e.g., from a constant)
-        if self.copy_values.contains(&value) {
-            return true;
-        }
+        // resolve the value type
+        let ty_id = self.require_value_type(value);
 
-        // otherwise check the type
-        match self.value_types.get(&value) {
-            Some(&ty_id) => self.is_copy_type(ty_id, tree),
-            None => false, // unknown type, be conservative
-        }
+        self.is_copy_type(ty_id, tree)
     }
 
     /// Set the origin for a destination value when it is move-only.
@@ -572,11 +374,6 @@ impl OwnershipAnalysis {
         origin: Option<mir::LocalNodeId<mir::Local>>,
         tree: &mir::NodeTree,
     ) {
-        if !self.value_types.contains_key(&destination) {
-            state.set_origin(destination, None);
-            return;
-        }
-
         if !self.value_is_copy(destination, tree) {
             state.set_origin(destination, origin);
         } else {
@@ -720,6 +517,85 @@ impl OwnershipAnalysis {
                 state.mark_owned(*destination);
                 self.set_origin_for_destination(state, *destination, None, tree);
             }
+
+            // vector operations
+            Instruction::VectorSplat { destination, value } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*value);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::VectorExtract {
+                destination,
+                vector,
+                ..
+            } => {
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*vector);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::VectorInsert {
+                destination,
+                vector,
+                value,
+                ..
+            } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+                state.mark_owned(*destination);
+                let origin = state.origin_for_value(*vector);
+                self.set_origin_for_destination(state, *destination, origin, tree);
+            }
+            Instruction::VectorShuffle { destination, .. }
+            | Instruction::VectorReduce { destination, .. }
+            | Instruction::VectorCompare { destination, .. }
+            | Instruction::VectorConvert { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+
+            // tensor ops that produce owned values
+            Instruction::TensorLoad { destination, .. }
+            | Instruction::TensorReshape { destination, .. }
+            | Instruction::TensorBroadcast { destination, .. }
+            | Instruction::TensorTranspose { destination, .. }
+            | Instruction::TensorSlice { destination, .. }
+            | Instruction::TensorPad { destination, .. }
+            | Instruction::TensorConcat { destination, .. }
+            | Instruction::TensorDot { destination, .. }
+            | Instruction::TensorConvolution { destination, .. }
+            | Instruction::TensorGather { destination, .. }
+            | Instruction::TensorScatter { destination, .. }
+            | Instruction::TensorCompare { destination, .. }
+            | Instruction::TensorConvert { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::TensorReduce { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+            Instruction::TensorCast { destination, .. }
+            | Instruction::TensorView { destination, .. } => {
+                state.mark_owned(*destination);
+                self.set_origin_for_destination(state, *destination, None, tree);
+            }
+
+            // tensor stores move values when needed
+            Instruction::TensorStore { value, .. } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+            }
+            Instruction::TensorFill { value, .. } => {
+                if !self.value_is_copy(*value, tree) {
+                    state.mark_moved_with_source(*value, at);
+                }
+            }
+            Instruction::TensorCopy { .. } => {}
 
             // intrinsics: some consume their arguments
             Instruction::Intrinsic {
@@ -915,89 +791,26 @@ impl OwnershipAnalysis {
         function: &mir::Function,
         tree: &mir::NodeTree,
         cfg: &ControlFlowGraph,
-        type_context: TypeContext,
     ) -> Self {
         if function.entry.is_none() {
+            let value_types = ValueTypeMap::new(function, tree);
             return Self {
                 block_entry: HashMap::new(),
                 block_exit: HashMap::new(),
-                value_types: HashMap::new(),
-                value_type_keys: HashMap::new(),
-                copy_values: HashSet::new(),
+                value_types,
                 stack_allocated: HashSet::new(),
                 managed_allocated: HashSet::new(),
-                pointer_pointee_types: HashMap::new(),
-                constant_types: HashMap::new(),
             };
         }
 
         // unwrap entry block now that we know it exists
         let entry = function.entry.unwrap();
 
-        // collect type information, copy values, and stack allocations
-        let mut value_types = HashMap::new();
-        let mut pointer_pointee_types = HashMap::new();
-        let mut constant_types = HashMap::new();
-        let mut copy_values = HashSet::new();
-        let mut stack_allocated = HashSet::new();
-        let mut managed_allocated = HashSet::new();
-        let mut reference_infos = HashMap::new();
-        let type_lookup = TypeLookup::new(tree, type_context.pointer_width_bits);
+        // collect value types for all SSA values
+        let value_types = ValueTypeMap::new(function, tree);
 
-        // function parameters
-        for param in &function.parameters {
-            register_value_type(
-                param.value,
-                param.ty,
-                tree,
-                &mut value_types,
-                &mut pointer_pointee_types,
-                &mut reference_infos,
-            );
-        }
-
-        // block parameters and instruction results
-        for &block_id in &function.blocks {
-            let block = tree.get(block_id);
-            for param in &block.parameters {
-                register_value_type(
-                    param.value,
-                    param.ty,
-                    tree,
-                    &mut value_types,
-                    &mut pointer_pointee_types,
-                    &mut reference_infos,
-                );
-            }
-
-            // collect types from instructions that have explicit types
-            for &inst_id in &block.instructions {
-                let inst = tree.get(inst_id);
-                instruction_collect_types(
-                    inst_id,
-                    inst,
-                    tree,
-                    &mut value_types,
-                    &mut pointer_pointee_types,
-                    &mut constant_types,
-                    &mut copy_values,
-                    &mut stack_allocated,
-                    &mut managed_allocated,
-                    &mut reference_infos,
-                    &type_lookup,
-                );
-            }
-        }
-
-        // build structural type keys for substitution checks
-        let value_type_keys = build_value_type_keys(
-            tree,
-            &value_types,
-            &pointer_pointee_types,
-            &reference_infos,
-            &constant_types,
-            &type_lookup,
-        );
+        // collect allocation sites for drop decisions
+        let (stack_allocated, managed_allocated) = collect_allocation_kinds(function, tree);
 
         // initial state: function parameters are owned
         let mut entry_state = OwnershipMap::new();
@@ -1007,7 +820,6 @@ impl OwnershipAnalysis {
 
         // clone for the closure
         let value_types_clone = value_types.clone();
-        let copy_values_clone = copy_values.clone();
 
         // run forward dataflow with block parameter origin tracking
         let mut result = DataflowResult::new();
@@ -1087,7 +899,6 @@ impl OwnershipAnalysis {
                     origin,
                     tree,
                     &value_types_clone,
-                    &copy_values_clone,
                 );
             }
 
@@ -1111,7 +922,6 @@ impl OwnershipAnalysis {
                         inst,
                         tree,
                         &value_types_clone,
-                        &copy_values_clone,
                     );
                 }
 
@@ -1121,7 +931,6 @@ impl OwnershipAnalysis {
                     &block.terminator,
                     tree,
                     &value_types_clone,
-                    &copy_values_clone,
                 );
 
                 let exit_changed = result
@@ -1147,12 +956,8 @@ impl OwnershipAnalysis {
             block_entry: result.block_entry,
             block_exit: result.block_exit,
             value_types,
-            value_type_keys,
-            copy_values,
             stack_allocated,
             managed_allocated,
-            pointer_pointee_types,
-            constant_types,
         }
     }
 }
@@ -1169,777 +974,78 @@ impl FunctionAnalysis for OwnershipAnalysis {
         analyses: &FunctionAnalyses<'_>,
     ) -> Self {
         let cfg = analyses.get::<ControlFlowGraph>();
-        Self::build(function, tree, &cfg, analyses.type_context())
+        Self::build(function, tree, &cfg)
     }
 }
 
-/// Record a value type and its reference metadata when applicable.
-fn register_value_type(
-    value: Value,
-    type_id: mir::LocalNodeId<Type>,
+/// Collect allocation sites for stack and managed values.
+fn collect_allocation_kinds(
+    function: &mir::Function,
     tree: &mir::NodeTree,
-    value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    reference_infos: &mut HashMap<Value, ReferenceInfo>,
-) {
-    // register the direct value type mapping
-    value_types.insert(value, type_id);
+) -> (HashSet<Value>, HashSet<Value>) {
+    // seed allocation sets
+    let mut stack_allocated = HashSet::new();
+    let mut managed_allocated = HashSet::new();
 
-    // capture reference metadata for pointer values
-    if let Some(info) = ReferenceInfo::from_type(tree.get(type_id)) {
-        reference_infos.entry(value).or_insert(info);
-        if let Type::Reference { pointee, .. } = tree.get(type_id) {
-            pointer_pointee_types.entry(value).or_insert(*pointee);
-        }
-    }
-}
-
-/// Collect type information, copy values, and stack allocations from an instruction.
-#[allow(clippy::too_many_arguments)]
-fn instruction_collect_types(
-    _instruction_id: mir::LocalNodeId<Instruction>,
-    instruction: &Instruction,
-    tree: &mir::NodeTree,
-    value_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &mut HashMap<Value, mir::LocalNodeId<Type>>,
-    constant_types: &mut HashMap<Value, ConstantType>,
-    copy_values: &mut HashSet<Value>,
-    stack_allocated: &mut HashSet<Value>,
-    managed_allocated: &mut HashSet<Value>,
-    reference_infos: &mut HashMap<Value, ReferenceInfo>,
-    type_lookup: &TypeLookup,
-) {
-    match instruction {
-        // instructions with explicit result types
-        Instruction::Cast {
-            destination,
-            to_type,
-            ..
-        } => {
-            register_value_type(
-                *destination,
-                *to_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::Struct {
-            destination, ty, ..
-        }
-        | Instruction::Tuple {
-            destination, ty, ..
-        }
-        | Instruction::Array {
-            destination, ty, ..
-        } => {
-            register_value_type(
-                *destination,
-                *ty,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        // raw allocs are copy only for raw or borrowed references
-        Instruction::RawAlloc {
-            destination,
-            result_type,
-            ..
-        } => {
-            if let Type::Reference { kind, .. } = tree.get(*result_type) {
-                if matches!(kind, ReferenceKind::Raw | ReferenceKind::Borrowed) {
-                    copy_values.insert(*destination);
+    // scan instructions for allocation results
+    for &block_id in &function.blocks {
+        let block = tree.get(block_id);
+        for &inst_id in &block.instructions {
+            let inst = tree.get(inst_id);
+            match inst {
+                Instruction::StackAlloc { destination, .. } => {
+                    stack_allocated.insert(*destination);
                 }
-            } else {
-                copy_values.insert(*destination);
-            }
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        // stack allocs produce raw pointers (copy semantics) and track allocation kind
-        Instruction::StackAlloc {
-            destination,
-            result_type,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            stack_allocated.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-
-        // managed allocs produce managed references (non copy)
-        Instruction::ManagedAlloc {
-            destination,
-            result_type,
-            ..
-        } => {
-            managed_allocated.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::ManagedAllocArray {
-            destination,
-            result_type,
-            ..
-        } => {
-            managed_allocated.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::GlobalAddr {
-            destination,
-            result_type,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::LocalAddr {
-            destination,
-            result_type,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::GlobalConst {
-            destination,
-            global,
-        } => {
-            register_value_type(
-                *destination,
-                tree.get(*global).ty,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::LocalGet { destination, local } => {
-            let local_decl = tree.get(*local);
-            register_value_type(
-                *destination,
-                local_decl.ty,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::Call { destination, .. }
-        | Instruction::CallVirtual { destination, .. }
-        | Instruction::CallInterface { destination, .. }
-        | Instruction::CallIndirect { destination, .. } => {
-            if let Some(dest) = destination
-                && let Some(signature) = instruction.call_signature()
-                && let Type::FunctionPointer { result, .. } = tree.get(signature)
-            {
-                register_value_type(
-                    *dest,
-                    *result,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-        Instruction::Intrinsic {
-            destination,
-            intrinsic,
-            arguments,
-            ..
-        } => {
-            if let Some(dest) = destination
-                && let Some(result_type) = resolve_intrinsic_result_type(
-                    *intrinsic,
-                    *arguments,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    constant_types,
-                    type_lookup,
-                )
-            {
-                register_value_type(
-                    *dest,
-                    result_type,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-
-        // for Load, get pointee type from pointer
-        Instruction::Load {
-            destination,
-            pointer,
-            ..
-        } => {
-            if let Some(pointee_type) =
-                pointer_pointee_type(*pointer, value_types, pointer_pointee_types, tree)
-            {
-                register_value_type(
-                    *destination,
-                    pointee_type,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-
-        // constants are always primitives (copy types)
-        Instruction::Const { destination, value } => {
-            copy_values.insert(*destination);
-            if let Some(constant_type) = constant_type_for_value(value) {
-                constant_types.insert(*destination, constant_type);
-                if let Some(type_id) = type_lookup.type_for_constant(constant_type, tree) {
-                    register_value_type(
-                        *destination,
-                        type_id,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
-                }
-            }
-        }
-
-        // binary/unary produce primitives (always copy)
-        Instruction::Binary {
-            destination,
-            operator,
-            left,
-            right,
-        } => {
-            copy_values.insert(*destination);
-            if binary_operator_is_comparison(*operator) {
-                if let Some(bool_type) = type_lookup.boolean() {
-                    register_value_type(
-                        *destination,
-                        bool_type,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
-                }
-            } else {
-                let inferred = value_types.get(left).or_else(|| value_types.get(right));
-                if let Some(&ty) = inferred {
-                    register_value_type(
-                        *destination,
-                        ty,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
-                }
-            }
-        }
-        Instruction::Unary {
-            destination,
-            argument,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            if let Some(&ty) = value_types.get(argument) {
-                register_value_type(
-                    *destination,
-                    ty,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-        Instruction::Select {
-            destination,
-            then_value,
-            else_value,
-            ..
-        } => {
-            let then_type =
-                value_type_for_value(*then_value, value_types, constant_types, type_lookup, tree);
-            let else_type =
-                value_type_for_value(*else_value, value_types, constant_types, type_lookup, tree);
-
-            match (then_type, else_type) {
-                (Some(then_type), Some(else_type))
-                    if types_are_equal(then_type, else_type, tree) =>
-                {
-                    register_value_type(
-                        *destination,
-                        then_type,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
-                }
-                (Some(then_type), None) | (None, Some(then_type)) => {
-                    register_value_type(
-                        *destination,
-                        then_type,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
+                Instruction::ManagedAlloc { destination, .. }
+                | Instruction::ManagedAllocArray { destination, .. } => {
+                    managed_allocated.insert(*destination);
                 }
                 _ => {}
             }
         }
-
-        // field/element access: derive type from aggregate
-        Instruction::FieldGet {
-            destination,
-            aggregate,
-            index,
-        } => {
-            if let Some(&agg_ty) = value_types.get(aggregate) {
-                let base_type = match tree.get(agg_ty) {
-                    Type::Reference { pointee, .. } => Some(*pointee),
-                    _ => Some(agg_ty),
-                };
-
-                if let Some(base_type) = base_type {
-                    match tree.get(base_type) {
-                        Type::Struct { fields, .. } => {
-                            if let Some(&field_id) = fields.get(*index as usize) {
-                                let field_def = tree.get(field_id);
-                                register_value_type(
-                                    *destination,
-                                    field_def.ty,
-                                    tree,
-                                    value_types,
-                                    pointer_pointee_types,
-                                    reference_infos,
-                                );
-                            }
-                        }
-                        Type::Tuple { elements, .. } => {
-                            if let Some(&elem_ty) = elements.get(*index as usize) {
-                                register_value_type(
-                                    *destination,
-                                    elem_ty,
-                                    tree,
-                                    value_types,
-                                    pointer_pointee_types,
-                                    reference_infos,
-                                );
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-        Instruction::ElementGet {
-            destination, array, ..
-        } => {
-            if let Some(&arr_ty) = value_types.get(array) {
-                let base_type = match tree.get(arr_ty) {
-                    Type::Reference { pointee, .. } => Some(*pointee),
-                    _ => Some(arr_ty),
-                };
-
-                if let Some(base_type) = base_type
-                    && let Type::Array { element, .. } = tree.get(base_type)
-                {
-                    register_value_type(
-                        *destination,
-                        *element,
-                        tree,
-                        value_types,
-                        pointer_pointee_types,
-                        reference_infos,
-                    );
-                }
-            }
-        }
-
-        // address instructions keep reference type
-        Instruction::FieldAddr {
-            destination,
-            result_type,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-        Instruction::ElementAddr {
-            destination,
-            result_type,
-            ..
-        } => {
-            copy_values.insert(*destination);
-            register_value_type(
-                *destination,
-                *result_type,
-                tree,
-                value_types,
-                pointer_pointee_types,
-                reference_infos,
-            );
-        }
-
-        // field.set/element.set result has same type as aggregate
-        Instruction::FieldSet {
-            destination,
-            aggregate,
-            ..
-        }
-        | Instruction::ElementSet {
-            destination,
-            array: aggregate,
-            ..
-        } => {
-            if let Some(&ty) = value_types.get(aggregate) {
-                register_value_type(
-                    *destination,
-                    ty,
-                    tree,
-                    value_types,
-                    pointer_pointee_types,
-                    reference_infos,
-                );
-            }
-        }
-
-        // other instructions: no explicit type to collect
-        _ => {}
-    }
-}
-
-/// Build structural type keys for values.
-fn build_value_type_keys(
-    tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    reference_infos: &HashMap<Value, ReferenceInfo>,
-    constant_types: &HashMap<Value, ConstantType>,
-    type_lookup: &TypeLookup,
-) -> HashMap<Value, TypeKey> {
-    // seed keys for values with explicit types
-    let mut keys = HashMap::new();
-
-    // register keys for values with explicit types
-    for (value, type_id) in value_types {
-        let type_key = TypeKey::from_type(*type_id, tree);
-        keys.insert(*value, type_key);
     }
 
-    // register keys for constants without explicit types
-    for (value, constant_type) in constant_types {
-        if keys.contains_key(value) {
-            continue;
-        }
-
-        // prefer explicit type ids when they exist
-        if let Some(type_id) = type_lookup.type_for_constant(*constant_type, tree) {
-            let type_key = TypeKey::from_type(type_id, tree);
-            keys.insert(*value, type_key);
-            continue;
-        }
-
-        // fall back to structural constant type keys
-        if let Some(type_key) = constant_type_key(*constant_type) {
-            keys.insert(*value, type_key);
-        }
-    }
-
-    // register keys for pointer values derived from instruction semantics
-    for (value, info) in reference_infos {
-        if keys.contains_key(value) {
-            continue;
-        }
-
-        // require a pointee type to build the structural key
-        let Some(pointee) = pointer_pointee_types.get(value) else {
-            continue;
-        };
-        let pointee_key = TypeKey::from_type(*pointee, tree);
-        let reference_key = TypeKey::Reference {
-            kind: info.kind,
-            address_space: info.address_space,
-            mutability: info.mutability,
-            pointee: Box::new(pointee_key),
-            is_nullable: info.is_nullable,
-        };
-        keys.insert(*value, reference_key);
-    }
-
-    keys
-}
-
-/// Resolve a type key for a constant type.
-fn constant_type_key(constant_type: ConstantType) -> Option<TypeKey> {
-    // map constant types to structural keys when possible
-    match constant_type {
-        ConstantType::Boolean => Some(TypeKey::Boolean),
-        ConstantType::Int { width, signed } => Some(TypeKey::Int {
-            width: u16::from(width),
-            signed,
-        }),
-        ConstantType::Float { width } => Some(TypeKey::Float {
-            width: u16::from(width),
-        }),
-        ConstantType::Char => Some(TypeKey::Int {
-            width: 32,
-            signed: false,
-        }),
-    }
-}
-
-/// Return the constant type for a literal value.
-fn constant_type_for_value(constant: &mir::Constant) -> Option<ConstantType> {
-    match constant {
-        mir::Constant::Boolean { .. } => Some(ConstantType::Boolean),
-        mir::Constant::Int {
-            width, is_signed, ..
-        } => Some(ConstantType::Int {
-            width: *width,
-            signed: *is_signed,
-        }),
-        mir::Constant::UInt { width, .. } => Some(ConstantType::Int {
-            width: *width,
-            signed: false,
-        }),
-        mir::Constant::Float { width, .. } => Some(ConstantType::Float { width: *width }),
-        mir::Constant::Char { .. } => Some(ConstantType::Char),
-    }
-}
-
-/// Resolve the result type for an intrinsic instruction.
-fn resolve_intrinsic_result_type(
-    intrinsic: mir::Intrinsic,
-    arguments: mir::ArgumentSlice,
-    tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    constant_types: &HashMap<Value, ConstantType>,
-    type_lookup: &TypeLookup,
-) -> Option<mir::LocalNodeId<Type>> {
-    // skip intrinsics without inferable result types
-    let result_type = intrinsic.result_type();
-    if !result_type.is_inferable() {
-        return None;
-    }
-
-    // resolve the argument list
-    let args = tree.get_arguments(arguments);
-
-    match result_type {
-        mir::IntrinsicResultType::Void | mir::IntrinsicResultType::Explicit => None,
-        mir::IntrinsicResultType::SameAsArgument(index) => {
-            let argument = *args.get(index as usize)?;
-            value_type_for_value(argument, value_types, constant_types, type_lookup, tree)
-        }
-        mir::IntrinsicResultType::Pointee(index) => {
-            let argument = *args.get(index as usize)?;
-            pointer_pointee_type(argument, value_types, pointer_pointee_types, tree)
-        }
-        mir::IntrinsicResultType::CheckedArithmetic => {
-            let argument = *args.first()?;
-            let element_type =
-                value_type_for_value(argument, value_types, constant_types, type_lookup, tree)?;
-            let bool_type = type_lookup.boolean()?;
-            type_lookup
-                .tuple2(element_type, bool_type)
-                .or_else(|| find_tuple_type_in_tree(tree, element_type, bool_type))
-        }
-        mir::IntrinsicResultType::Bool => type_lookup.boolean(),
-        mir::IntrinsicResultType::I32 => type_lookup.int(32, true),
-        mir::IntrinsicResultType::Isize => type_lookup.isize(),
-        mir::IntrinsicResultType::Usize => type_lookup.usize(),
-        mir::IntrinsicResultType::TypeTag => type_lookup.type_tag(),
-    }
-}
-
-/// Resolve a value type from known values or constants.
-fn value_type_for_value(
-    value: Value,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    constant_types: &HashMap<Value, ConstantType>,
-    type_lookup: &TypeLookup,
-    tree: &mir::NodeTree,
-) -> Option<mir::LocalNodeId<Type>> {
-    // use direct value types when available
-    if let Some(&type_id) = value_types.get(&value) {
-        return Some(type_id);
-    }
-
-    // map constants to an existing type id
-    let constant_type = constant_types.get(&value)?;
-    type_lookup.type_for_constant(*constant_type, tree)
-}
-
-/// Find a tuple type matching the provided element types.
-fn find_tuple_type_in_tree(
-    tree: &mir::NodeTree,
-    first: mir::LocalNodeId<Type>,
-    second: mir::LocalNodeId<Type>,
-) -> Option<mir::LocalNodeId<Type>> {
-    tree.iter_nodes::<Type>()
-        .find_map(|(type_id, ty)| match ty {
-            Type::Tuple { elements, .. }
-                if elements.len() == 2 && elements[0] == first && elements[1] == second =>
-            {
-                Some(type_id)
-            }
-            _ => None,
-        })
-}
-
-/// Find a type matching a constant type.
-fn find_type_id_by_constant(
-    constant: ConstantType,
-    pointer_width_bits: u16,
-    tree: &mir::NodeTree,
-) -> Option<mir::LocalNodeId<Type>> {
-    tree.iter_nodes::<Type>()
-        .find(|(type_id, _)| constant_matches_type(constant, *type_id, pointer_width_bits, tree))
-        .map(|(type_id, _)| type_id)
-}
-
-/// Return the pointee type for a pointer value when available.
-fn pointer_pointee_type(
-    pointer: Value,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    pointer_pointee_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    tree: &mir::NodeTree,
-) -> Option<mir::LocalNodeId<Type>> {
-    // read the explicit pointer type when present
-    if let Some(&type_id) = value_types.get(&pointer)
-        && let Type::Reference { pointee, .. } = tree.get(type_id)
-    {
-        return Some(*pointee);
-    }
-
-    // fall back to tracked pointee types
-    pointer_pointee_types.get(&pointer).copied()
-}
-
-/// Check whether a binary operator yields a boolean result.
-fn binary_operator_is_comparison(operator: mir::BinaryOperator) -> bool {
-    use mir::BinaryOperator::*;
-    matches!(
-        operator,
-        Equal
-            | NotEqual
-            | SignedLessThan
-            | SignedLessEqual
-            | SignedGreaterThan
-            | SignedGreaterEqual
-            | UnsignedLessThan
-            | UnsignedLessEqual
-            | UnsignedGreaterThan
-            | UnsignedGreaterEqual
-            | FloatEqual
-            | FloatNotEqual
-            | FloatLessThan
-            | FloatLessEqual
-            | FloatGreaterThan
-            | FloatGreaterEqual
-    )
+    (stack_allocated, managed_allocated)
 }
 
 /// Check if a value has copy semantics.
 fn value_is_copy(
     value: Value,
     tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    copy_values: &HashSet<Value>,
+    value_types: &ValueTypeMap,
 ) -> bool {
-    // check if known to be copy (constants, binary/unary results)
-    if copy_values.contains(&value) {
-        return true;
-    }
-
-    // otherwise check the type
-    match value_types.get(&value) {
-        Some(&ty_id) => {
-            let ty = tree.get(ty_id);
-            match ty {
-                Type::Void
-                | Type::Boolean
-                | Type::Int { .. }
-                | Type::Isize
-                | Type::Usize
-                | Type::Float { .. }
-                | Type::Type => true,
-                Type::FunctionPointer { .. } => true,
-                Type::Reference {
-                    kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
-                    ..
-                } => true,
-                Type::Reference {
-                    kind: ReferenceKind::Owned | ReferenceKind::Managed,
-                    ..
-                } => false,
-                Type::Array { copyability, .. }
-                | Type::Tuple { copyability, .. }
-                | Type::Struct { copyability, .. } => *copyability == mir::Copyability::Trivial,
-            }
-        }
-        None => false,
+    let type_id = value_types.require_value_type(value);
+    let ty = tree.get(type_id);
+    match ty {
+        Type::Void
+        | Type::Boolean
+        | Type::Int { .. }
+        | Type::Isize
+        | Type::Usize
+        | Type::Float { .. }
+        | Type::Type => true,
+        Type::FunctionPointer { .. } => true,
+        Type::Reference {
+            kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
+            ..
+        } => true,
+        Type::TensorReference {
+            kind: ReferenceKind::Raw | ReferenceKind::Borrowed,
+            ..
+        } => true,
+        Type::Reference {
+            kind: ReferenceKind::Owned | ReferenceKind::Managed,
+            ..
+        } => false,
+        Type::TensorReference {
+            kind: ReferenceKind::Owned | ReferenceKind::Managed,
+            ..
+        } => false,
+        Type::Array { copyability, .. }
+        | Type::Tuple { copyability, .. }
+        | Type::Struct { copyability, .. }
+        | Type::Vector { copyability, .. }
+        | Type::Tensor { copyability, .. } => *copyability == mir::Copyability::Trivial,
     }
 }
 
@@ -1949,15 +1055,9 @@ fn set_origin_if_move_only(
     destination: Value,
     origin: Option<mir::LocalNodeId<mir::Local>>,
     tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    copy_values: &HashSet<Value>,
+    value_types: &ValueTypeMap,
 ) {
-    if !value_types.contains_key(&destination) {
-        state.set_origin(destination, None);
-        return;
-    }
-
-    if !value_is_copy(destination, tree, value_types, copy_values) {
+    if !value_is_copy(destination, tree, value_types) {
         state.set_origin(destination, origin);
     } else {
         state.set_origin(destination, None);
@@ -1970,8 +1070,7 @@ fn process_instruction(
     inst_id: mir::LocalNodeId<Instruction>,
     inst: &Instruction,
     tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    copy_values: &HashSet<Value>,
+    value_types: &ValueTypeMap,
 ) {
     let at = MoveLocation::Instruction(inst_id);
 
@@ -1989,13 +1088,13 @@ fn process_instruction(
 
         // store moves the value (if non-copy)
         Instruction::Store { value, .. } => {
-            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
         }
 
         // local.set moves the value (if non-copy)
         Instruction::LocalSet { value, .. } => {
             // move the assigned value when required
-            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
 
             // local receives a fresh owned value
             if let Instruction::LocalSet { local, .. } = inst {
@@ -2013,7 +1112,6 @@ fn process_instruction(
                 Some(*local),
                 tree,
                 value_types,
-                copy_values,
             );
         }
 
@@ -2045,12 +1143,11 @@ fn process_instruction(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
             if let Some(dest) = destination {
                 state.mark_owned(*dest);
-                set_origin_if_move_only(state, *dest, None, tree, value_types, copy_values);
+                set_origin_if_move_only(state, *dest, None, tree, value_types);
             }
         }
 
@@ -2061,10 +1158,10 @@ fn process_instruction(
             value,
             ..
         } => {
-            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*aggregate);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::ElementSet {
             destination,
@@ -2072,10 +1169,10 @@ fn process_instruction(
             value,
             ..
         } => {
-            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types, copy_values);
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*array);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
 
         // aggregate construction moves all fields (if non-copy)
@@ -2091,11 +1188,10 @@ fn process_instruction(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::Tuple {
             destination,
@@ -2109,11 +1205,10 @@ fn process_instruction(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::Array {
             destination,
@@ -2127,12 +1222,79 @@ fn process_instruction(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
+
+        // vector operations
+        Instruction::VectorSplat { destination, value } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*value);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::VectorExtract {
+            destination,
+            vector,
+            ..
+        } => {
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*vector);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::VectorInsert {
+            destination,
+            vector,
+            value,
+            ..
+        } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+            state.mark_owned(*destination);
+            let origin = state.origin_for_value(*vector);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
+        }
+        Instruction::VectorShuffle { destination, .. }
+        | Instruction::VectorReduce { destination, .. }
+        | Instruction::VectorCompare { destination, .. }
+        | Instruction::VectorConvert { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
+        }
+
+        // tensor ops that produce owned values
+        Instruction::TensorLoad { destination, .. }
+        | Instruction::TensorReshape { destination, .. }
+        | Instruction::TensorBroadcast { destination, .. }
+        | Instruction::TensorTranspose { destination, .. }
+        | Instruction::TensorSlice { destination, .. }
+        | Instruction::TensorPad { destination, .. }
+        | Instruction::TensorConcat { destination, .. }
+        | Instruction::TensorReduce { destination, .. }
+        | Instruction::TensorDot { destination, .. }
+        | Instruction::TensorConvolution { destination, .. }
+        | Instruction::TensorGather { destination, .. }
+        | Instruction::TensorScatter { destination, .. }
+        | Instruction::TensorCompare { destination, .. }
+        | Instruction::TensorConvert { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
+        }
+        Instruction::TensorCast { destination, .. }
+        | Instruction::TensorView { destination, .. } => {
+            state.mark_owned(*destination);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
+        }
+
+        // tensor stores move values when required
+        Instruction::TensorStore { value, .. } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+        }
+        Instruction::TensorFill { value, .. } => {
+            state.mark_moved_if_not_copy_with_source(*value, at, tree, value_types);
+        }
+        Instruction::TensorCopy { .. } => {}
 
         // intrinsics: some consume arguments
         Instruction::Intrinsic {
@@ -2149,13 +1311,12 @@ fn process_instruction(
                         at.clone(),
                         tree,
                         value_types,
-                        copy_values,
                     );
                 }
             }
             if let Some(dest) = destination {
                 state.mark_owned(*dest);
-                set_origin_if_move_only(state, *dest, None, tree, value_types, copy_values);
+                set_origin_if_move_only(state, *dest, None, tree, value_types);
             }
         }
 
@@ -2165,7 +1326,7 @@ fn process_instruction(
         // instructions that produce new values
         Instruction::Binary { destination, .. } => {
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::Unary {
             destination,
@@ -2174,7 +1335,7 @@ fn process_instruction(
         } => {
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*argument);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::Cast {
             destination,
@@ -2183,7 +1344,7 @@ fn process_instruction(
         } => {
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*argument);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::Select {
             destination,
@@ -2199,11 +1360,11 @@ fn process_instruction(
                 (Some(left), Some(right)) if left == right => Some(left),
                 _ => None,
             };
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::Load { destination, .. } => {
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::FieldGet {
             destination,
@@ -2212,22 +1373,22 @@ fn process_instruction(
         } => {
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*aggregate);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::FieldAddr { destination, .. } => {
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::ElementGet {
             destination, array, ..
         } => {
             state.mark_owned(*destination);
             let origin = state.origin_for_value(*array);
-            set_origin_if_move_only(state, *destination, origin, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, origin, tree, value_types);
         }
         Instruction::ElementAddr { destination, .. } => {
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
         Instruction::Const { destination, .. }
         | Instruction::GlobalAddr { destination, .. }
@@ -2238,7 +1399,7 @@ fn process_instruction(
         | Instruction::StackAlloc { destination, .. }
         | Instruction::ManagedAllocArray { destination, .. } => {
             state.mark_owned(*destination);
-            set_origin_if_move_only(state, *destination, None, tree, value_types, copy_values);
+            set_origin_if_move_only(state, *destination, None, tree, value_types);
         }
     }
 }
@@ -2249,15 +1410,14 @@ fn process_terminator(
     block_id: mir::LocalNodeId<mir::Block>,
     terminator: &mir::Terminator,
     tree: &mir::NodeTree,
-    value_types: &HashMap<Value, mir::LocalNodeId<Type>>,
-    copy_values: &HashSet<Value>,
+    value_types: &ValueTypeMap,
 ) {
     let at = MoveLocation::Terminator(block_id);
 
     match terminator {
         mir::Terminator::Return { value } => {
             if let Some(v) = value {
-                state.mark_moved_if_not_copy_with_source(*v, at, tree, value_types, copy_values);
+                state.mark_moved_if_not_copy_with_source(*v, at, tree, value_types);
             }
         }
         mir::Terminator::Jump { arguments, .. } => {
@@ -2267,7 +1427,6 @@ fn process_terminator(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
         }
@@ -2281,7 +1440,6 @@ fn process_terminator(
                 at.clone(),
                 tree,
                 value_types,
-                copy_values,
             );
             for &arg in resume_arguments {
                 state.mark_moved_if_not_copy_with_source(
@@ -2289,7 +1447,6 @@ fn process_terminator(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
         }
@@ -2304,7 +1461,6 @@ fn process_terminator(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
         }
@@ -2323,7 +1479,6 @@ fn process_terminator(
                 at.clone(),
                 tree,
                 value_types,
-                copy_values,
             );
             for &arg in arguments {
                 state.mark_moved_if_not_copy_with_source(
@@ -2331,7 +1486,6 @@ fn process_terminator(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
         }
@@ -2343,7 +1497,6 @@ fn process_terminator(
                 at.clone(),
                 tree,
                 value_types,
-                copy_values,
             );
             for &arg in arguments {
                 state.mark_moved_if_not_copy_with_source(
@@ -2351,7 +1504,6 @@ fn process_terminator(
                     at.clone(),
                     tree,
                     value_types,
-                    copy_values,
                 );
             }
         }
@@ -2445,7 +1597,7 @@ mod tests {
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#,
         );
@@ -2467,9 +1619,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     raw.drop v0
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v1
 }"#,
         );
@@ -2500,7 +1652,7 @@ block1:
 block2:
     jump block3
 block3:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#,
         );

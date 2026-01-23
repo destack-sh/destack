@@ -577,7 +577,7 @@ mod tests {
     fn test_guard_eliminate_branch_facts() {
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     branch v3, block1, block2
 block1:
     check v3, bounds.unsigned v0, v1, v2, block3, block4
@@ -590,7 +590,7 @@ block4:
 }"#;
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     branch v3, block1, block2
 block1:
     jump block3
@@ -612,7 +612,7 @@ block4:
     fn test_guard_eliminate_assume_fact() {
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     assume v3
     check v3, bounds.unsigned v0, v1, v2, block1, block2
 block1:
@@ -622,7 +622,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     assume v3
     jump block1
 block1:
@@ -641,7 +641,7 @@ block2:
     fn test_guard_eliminate_constant_condition() {
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = iconst false
+    v3: bool = iconst false
     check v3, bounds.unsigned v0, v1, v2, block1, block2
 block1:
     return v0
@@ -650,7 +650,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = iconst false
+    v3: bool = iconst false
     jump block2
 block1:
     return v0
@@ -668,8 +668,8 @@ block2:
     fn test_guard_eliminate_negated_condition() {
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
-    v4 = bnot v3
+    v3: bool = icmp_eq v0, v1
+    v4: bool = bnot v3
     branch v3, block1, block2
 block1:
     return v0
@@ -682,8 +682,8 @@ block4:
 }"#;
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
-    v4 = bnot v3
+    v3: bool = icmp_eq v0, v1
+    v4: bool = bnot v3
     branch v3, block1, block2
 block1:
     return v0
@@ -705,7 +705,7 @@ block4:
     fn test_guard_eliminate_block_param_condition() {
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     branch v3, block1(v3), block2(v3)
 block1(v4: bool):
     check v4, bounds.unsigned v0, v1, v2, block3, block4
@@ -718,7 +718,7 @@ block4:
 }"#;
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     branch v3, block1(v3), block2(v3)
 block1(v4: bool):
     jump block3
@@ -773,8 +773,8 @@ block4:
     fn test_guard_eliminate_bounds_constraint_success() {
         let input = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
 block0(v0: bool, v1: [u32; 4]):
-    v2 = iconst 2u32
-    v3 = iconst 4u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 4u32
     check v0, bounds.unsigned v2, v3, v1, block1, block2
 block1:
     return v2
@@ -783,8 +783,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
 block0(v0: bool, v1: [u32; 4]):
-    v2 = iconst 2u32
-    v3 = iconst 4u32
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 4u32
     jump block1
 block1:
     return v2
@@ -802,8 +802,8 @@ block2:
     fn test_guard_eliminate_bounds_constraint_failure() {
         let input = r#"function @test(v0: bool, v1: [u32; 0]) -> u32 {
 block0(v0: bool, v1: [u32; 0]):
-    v2 = iconst 0u32
-    v3 = iconst 0u32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 0u32
     check v0, bounds.unsigned v2, v3, v1, block1, block2
 block1:
     unreachable
@@ -812,8 +812,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool, v1: [u32; 0]) -> u32 {
 block0(v0: bool, v1: [u32; 0]):
-    v2 = iconst 0u32
-    v3 = iconst 0u32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 0u32
     jump block2
 block1:
     unreachable
@@ -831,7 +831,7 @@ block2:
     fn test_guard_eliminate_div_zero_constraint_success() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 4i32
+    v1: i32 = iconst 4i32
     check v0, div_zero v1, block1, block2
 block1:
     return v1
@@ -840,7 +840,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 4i32
+    v1: i32 = iconst 4i32
     jump block1
 block1:
     return v1
@@ -858,7 +858,7 @@ block2:
     fn test_guard_eliminate_div_zero_constraint_failure() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     check v0, div_zero v1, block1, block2
 block1:
     unreachable
@@ -867,7 +867,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block2
 block1:
     unreachable
@@ -885,7 +885,7 @@ block2:
     fn test_guard_eliminate_shift_constraint_success() {
         let input = r#"function @test(v0: bool) -> u8 {
 block0(v0: bool):
-    v1 = iconst 3u8
+    v1: u8 = iconst 3u8
     check v0, shift.unsigned v1, 8, block1, block2
 block1:
     return v1
@@ -894,7 +894,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> u8 {
 block0(v0: bool):
-    v1 = iconst 3u8
+    v1: u8 = iconst 3u8
     jump block1
 block1:
     return v1
@@ -912,7 +912,7 @@ block2:
     fn test_guard_eliminate_shift_constraint_failure() {
         let input = r#"function @test(v0: bool) -> u8 {
 block0(v0: bool):
-    v1 = iconst 8u8
+    v1: u8 = iconst 8u8
     check v0, shift.unsigned v1, 8, block1, block2
 block1:
     unreachable
@@ -921,7 +921,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> u8 {
 block0(v0: bool):
-    v1 = iconst 8u8
+    v1: u8 = iconst 8u8
     jump block2
 block1:
     unreachable
@@ -939,7 +939,7 @@ block2:
     fn test_guard_eliminate_narrow_constraint_success() {
         let input = r#"function @test(v0: bool) -> u16 {
 block0(v0: bool):
-    v1 = iconst 12u16
+    v1: u16 = iconst 12u16
     check v0, narrow.unsigned v1, 8, block1, block2
 block1:
     return v1
@@ -948,7 +948,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> u16 {
 block0(v0: bool):
-    v1 = iconst 12u16
+    v1: u16 = iconst 12u16
     jump block1
 block1:
     return v1
@@ -966,7 +966,7 @@ block2:
     fn test_guard_eliminate_narrow_constraint_failure() {
         let input = r#"function @test(v0: bool) -> u16 {
 block0(v0: bool):
-    v1 = iconst 300u16
+    v1: u16 = iconst 300u16
     check v0, narrow.unsigned v1, 8, block1, block2
 block1:
     unreachable
@@ -975,7 +975,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> u16 {
 block0(v0: bool):
-    v1 = iconst 300u16
+    v1: u16 = iconst 300u16
     jump block2
 block1:
     unreachable
@@ -993,8 +993,8 @@ block2:
     fn test_guard_eliminate_overflow_constraint_success() {
         let input = r#"function @test(v0: bool) -> i8 {
 block0(v0: bool):
-    v1 = iconst 1i8
-    v2 = iconst 2i8
+    v1: i8 = iconst 1i8
+    v2: i8 = iconst 2i8
     check v0, overflow.signed.iadd v1, v2, block1, block2
 block1:
     return v1
@@ -1003,8 +1003,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i8 {
 block0(v0: bool):
-    v1 = iconst 1i8
-    v2 = iconst 2i8
+    v1: i8 = iconst 1i8
+    v2: i8 = iconst 2i8
     jump block1
 block1:
     return v1
@@ -1022,8 +1022,8 @@ block2:
     fn test_guard_eliminate_overflow_constraint_failure() {
         let input = r#"function @test(v0: bool) -> i8 {
 block0(v0: bool):
-    v1 = iconst 120i8
-    v2 = iconst 120i8
+    v1: i8 = iconst 120i8
+    v2: i8 = iconst 120i8
     check v0, overflow.signed.iadd v1, v2, block1, block2
 block1:
     unreachable
@@ -1032,8 +1032,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i8 {
 block0(v0: bool):
-    v1 = iconst 120i8
-    v2 = iconst 120i8
+    v1: i8 = iconst 120i8
+    v2: i8 = iconst 120i8
     jump block2
 block1:
     unreachable

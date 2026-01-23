@@ -478,16 +478,16 @@ mod tests {
     fn test_fold_binary_add() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
     return v2
 }"#;
 
@@ -502,20 +502,20 @@ block0:
         // 2 * 3 = 6, then 6 + 4 = 10
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = imul v0, v1
-    v3 = iconst 4i32
-    v4 = iadd v2, v3
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = imul v0, v1
+    v3: i32 = iconst 4i32
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = iconst 6i32
-    v3 = iconst 4i32
-    v4 = iconst 10i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 6i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 10i32
     return v4
 }"#;
 
@@ -529,16 +529,16 @@ block0:
     fn test_fold_comparison() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 5i32
-    v1 = iconst 3i32
-    v2 = icmp_sgt v0, v1
+    v0: i32 = iconst 5i32
+    v1: i32 = iconst 3i32
+    v2: bool = icmp_sgt v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst 5i32
-    v1 = iconst 3i32
-    v2 = iconst true
+    v0: i32 = iconst 5i32
+    v1: i32 = iconst 3i32
+    v2: bool = iconst true
     return v2
 }"#;
 
@@ -553,8 +553,8 @@ block0:
         // v0 is a parameter, not a constant
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
 
@@ -568,14 +568,14 @@ block0(v0: i32):
     fn test_fold_unary_negation_instruction() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = ineg v0
+    v0: i32 = iconst 42i32
+    v1: i32 = ineg v0
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst -42i32
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst -42i32
     return v1
 }"#;
 
@@ -589,14 +589,14 @@ block0:
     fn test_fold_boolean_not() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst true
-    v1 = bnot v0
+    v0: bool = iconst true
+    v1: bool = bnot v0
     return v1
 }"#;
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst true
-    v1 = iconst false
+    v0: bool = iconst true
+    v1: bool = iconst false
     return v1
 }"#;
 
@@ -610,16 +610,16 @@ block0:
     fn test_fold_unsigned_division() {
         let input = r#"function @test() -> u32 {
 block0:
-    v0 = iconst 10u32
-    v1 = iconst 3u32
-    v2 = udiv v0, v1
+    v0: u32 = iconst 10u32
+    v1: u32 = iconst 3u32
+    v2: u32 = udiv v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> u32 {
 block0:
-    v0 = iconst 10u32
-    v1 = iconst 3u32
-    v2 = iconst 3u32
+    v0: u32 = iconst 10u32
+    v1: u32 = iconst 3u32
+    v2: u32 = iconst 3u32
     return v2
 }"#;
 
@@ -633,9 +633,9 @@ block0:
     fn test_preserve_division_by_zero() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 0i32
-    v2 = sdiv v0, v1
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 0i32
+    v2: i32 = sdiv v0, v1
     return v2
 }"#;
 
@@ -649,26 +649,26 @@ block0:
     fn test_fold_across_blocks() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 5i32
-    v2 = iconst 3i32
+    v1: i32 = iconst 5i32
+    v2: i32 = iconst 3i32
     branch v0, block1, block2
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     return v3
 block2:
-    v4 = imul v1, v2
+    v4: i32 = imul v1, v2
     return v4
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 5i32
-    v2 = iconst 3i32
+    v1: i32 = iconst 5i32
+    v2: i32 = iconst 3i32
     branch v0, block1, block2
 block1:
-    v3 = iconst 8i32
+    v3: i32 = iconst 8i32
     return v3
 block2:
-    v4 = iconst 15i32
+    v4: i32 = iconst 15i32
     return v4
 }"#;
 
@@ -683,15 +683,15 @@ block2:
         let input = r#"global @flag: bool = true ; const
 function @test() -> bool {
 block0:
-    v0 = global.const @flag
-    v1 = bnot v0
+    v0: bool = global.const @flag
+    v1: bool = bnot v0
     return v1
 }"#;
         let expected = r#"global @flag: bool = true ; const
 function @test() -> bool {
 block0:
-    v0 = iconst true
-    v1 = iconst false
+    v0: bool = iconst true
+    v1: bool = iconst false
     return v1
 }"#;
 
@@ -706,8 +706,8 @@ block0:
         let input = r#"global @flag: bool = true ; mut
 function @test() -> bool {
 block0:
-    v0 = global.const @flag
-    v1 = bnot v0
+    v0: bool = global.const @flag
+    v1: bool = bnot v0
     return v1
 }"#;
 
@@ -721,18 +721,18 @@ block0:
     fn test_fold_block_param_constant() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
+    v0: i32 = iconst 3i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = iadd v1, v1
+    v2: i32 = iadd v1, v1
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
+    v0: i32 = iconst 3i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = iconst 6i32
+    v2: i32 = iconst 6i32
     return v2
 }"#;
 
@@ -746,14 +746,14 @@ block1(v1: i32):
     fn test_fold_cast_sign_extend() {
         let input = r#"function @test() -> i64 {
 block0:
-    v0 = iconst -1i32
-    v1 = sextend v0 -> i64
+    v0: i32 = iconst -1i32
+    v1: i64 = sextend v0 -> i64
     return v1
 }"#;
         let expected = r#"function @test() -> i64 {
 block0:
-    v0 = iconst -1i32
-    v1 = iconst -1i64
+    v0: i32 = iconst -1i32
+    v1: i64 = iconst -1i64
     return v1
 }"#;
 
@@ -767,14 +767,14 @@ block0:
     fn test_fold_cast_truncate() {
         let input = r#"function @test() -> u8 {
 block0:
-    v0 = iconst 257u16
-    v1 = trunc v0 -> u8
+    v0: u16 = iconst 257u16
+    v1: u8 = trunc v0 -> u8
     return v1
 }"#;
         let expected = r#"function @test() -> u8 {
 block0:
-    v0 = iconst 257u16
-    v1 = iconst 1u8
+    v0: u16 = iconst 257u16
+    v1: u8 = iconst 1u8
     return v1
 }"#;
 
@@ -789,20 +789,20 @@ block0:
         // 10 & 12 = 8, 10 | 12 = 14, 10 ^ 12 = 6
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 12i32
-    v2 = band v0, v1
-    v3 = bor v0, v1
-    v4 = bxor v0, v1
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 12i32
+    v2: i32 = band v0, v1
+    v3: i32 = bor v0, v1
+    v4: i32 = bxor v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 12i32
-    v2 = iconst 8i32
-    v3 = iconst 14i32
-    v4 = iconst 6i32
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 12i32
+    v2: i32 = iconst 8i32
+    v3: i32 = iconst 14i32
+    v4: i32 = iconst 6i32
     return v2
 }"#;
 
@@ -817,18 +817,18 @@ block0:
         // 8 << 2 = 32, 8 >> 2 = 2 (signed/arithmetic)
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 8i32
-    v1 = iconst 2i32
-    v2 = ishl v0, v1
-    v3 = sshr v0, v1
+    v0: i32 = iconst 8i32
+    v1: i32 = iconst 2i32
+    v2: i32 = ishl v0, v1
+    v3: i32 = sshr v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 8i32
-    v1 = iconst 2i32
-    v2 = iconst 32i32
-    v3 = iconst 2i32
+    v0: i32 = iconst 8i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 32i32
+    v3: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -843,18 +843,18 @@ block0:
         // true && false = false, true || false = true
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst true
-    v1 = iconst false
-    v2 = band v0, v1
-    v3 = bor v0, v1
+    v0: bool = iconst true
+    v1: bool = iconst false
+    v2: bool = band v0, v1
+    v3: bool = bor v0, v1
     return v2
 }"#;
         let expected = r#"function @test() -> bool {
 block0:
-    v0 = iconst true
-    v1 = iconst false
-    v2 = iconst false
-    v3 = iconst true
+    v0: bool = iconst true
+    v1: bool = iconst false
+    v2: bool = iconst false
+    v3: bool = iconst true
     return v2
 }"#;
 
@@ -868,18 +868,18 @@ block0:
     fn test_fold_select_true_condition() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
-    v2 = iconst 0i32
-    v3 = select v0, v1, v2
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
+    v3: i32 = select v0, v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
-    v2 = iconst 0i32
-    v3 = iconst 42i32
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 42i32
     return v3
 }"#;
 
@@ -893,18 +893,18 @@ block0:
     fn test_fold_select_false_condition() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
-    v1 = iconst 42i32
-    v2 = iconst 0i32
-    v3 = select v0, v1, v2
+    v0: bool = iconst false
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
+    v3: i32 = select v0, v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
-    v1 = iconst 42i32
-    v2 = iconst 0i32
-    v3 = iconst 0i32
+    v0: bool = iconst false
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
 
@@ -918,9 +918,9 @@ block0:
     fn test_preserve_select_non_constant_condition() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 42i32
-    v2 = iconst 0i32
-    v3 = select v0, v1, v2
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
+    v3: i32 = select v0, v1, v2
     return v3
 }"#;
 
@@ -934,15 +934,15 @@ block0(v0: bool):
     fn test_fold_select_constant_to_copy() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst true
-    v2 = iadd v0, v0
-    v3 = select v1, v2, v0
+    v1: bool = iconst true
+    v2: i32 = iadd v0, v0
+    v3: i32 = select v1, v2, v0
     return v3
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst true
-    v2 = iadd v0, v0
+    v1: bool = iconst true
+    v2: i32 = iadd v0, v0
     return v2
 }"#;
 
@@ -956,24 +956,24 @@ block0(v0: i32):
     fn test_fold_constant_branch() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     jump block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -987,14 +987,14 @@ block2:
     fn test_fold_intrinsic_clz() {
         let input = r#"function @test() -> u32 {
 block0:
-    v0 = iconst 8u32
-    v1 = intrinsic.clz(v0)
+    v0: u32 = iconst 8u32
+    v1: u32 = intrinsic.clz(v0)
     return v1
 }"#;
         let expected = r#"function @test() -> u32 {
 block0:
-    v0 = iconst 8u32
-    v1 = iconst 28u32
+    v0: u32 = iconst 8u32
+    v1: u32 = iconst 28u32
     return v1
 }"#;
 

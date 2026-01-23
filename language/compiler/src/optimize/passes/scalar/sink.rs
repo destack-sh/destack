@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::optimize::common::{
-    build_instruction_block_map, build_use_def_maps, build_value_definition_map,
+    MemoryLocation, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
     instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
@@ -318,7 +318,7 @@ fn memory_read_can_sink(
     match instruction {
         mir::Instruction::Load { pointer, .. } => {
             // check for clobbering memory operations
-            let location = crate::optimize::common::MemoryLocation::from_ptr(*pointer);
+            let location = MemoryLocation::from_ptr(*pointer);
             for &later_id in &block.instructions[index + 1..] {
                 let later = tree.get(later_id);
                 if instruction_may_affect_memory(later) && alias.may_clobber(later_id, &location) {
@@ -361,8 +361,8 @@ mod tests {
     fn test_sink_to_single_user() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     branch v1, block1, block2
 block1:
     return v3
@@ -371,10 +371,10 @@ block2:
 }"#;
         let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     branch v1, block1, block2
 block1:
-    v3 = iadd v0, v2
+    v3: i32 = iadd v0, v2
     return v3
 block2:
     return v0
@@ -389,10 +389,10 @@ block2:
     fn test_preserve_terminator_use() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    v3 = iconst 10i32
-    v4 = icmp_slt v2, v3
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = iconst 10i32
+    v4: bool = icmp_slt v2, v3
     branch v4, block1, block2
 block1:
     return v2
@@ -413,13 +413,13 @@ block2:
     fn test_preserve_side_effects() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     raw.drop v0
     branch v1, block1, block2
 block1:
     return v2
 block2:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
         // v2 is used only in block1, so it could sink if not for drop ordering
@@ -431,10 +431,10 @@ block0(v0: i32, v1: bool):
     raw.drop v0
     branch v1, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     return v2
 block2:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -447,8 +447,8 @@ block2:
     fn test_preserve_multiple_users() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     branch v1, block1, block2
 block1:
     return v3
@@ -466,10 +466,10 @@ block2:
     fn test_sink_chain_unconditional() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    v3 = iconst 2i32
-    v4 = iadd v2, v3
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = iconst 2i32
+    v4: i32 = iadd v2, v3
     jump block1
 block1:
     return v4
@@ -480,12 +480,12 @@ block1:
         // v4 used only in block1 → sinks
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
-    v3 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = iconst 2i32
     jump block1
 block1:
-    v4 = iadd v2, v3
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let mut test = TestProgram::new(input);
@@ -498,8 +498,8 @@ block1:
     fn test_preserve_multiple_predecessors() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     branch v1, block1, block2
 block1:
     jump block3
@@ -519,13 +519,13 @@ block3:
     fn test_preserve_no_sink_into_loop() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     jump block1
 block1:
     branch v1, block2, block3
 block2:
-    v4 = iadd v3, v3
+    v4: i32 = iadd v3, v3
     jump block1
 block3:
     return v3
@@ -557,9 +557,9 @@ block0:
     fn test_preserve_same_block_use() {
         let input = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
-    v4 = iadd v3, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
+    v4: i32 = iadd v3, v2
     branch v1, block1, block2
 block1:
     return v4
@@ -571,11 +571,11 @@ block2:
         // v4 could sink to block1, but v3 and v2 cannot
         let expected = r#"function @test(v0: i32, v1: bool) -> i32 {
 block0(v0: i32, v1: bool):
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     branch v1, block1, block2
 block1:
-    v4 = iadd v3, v2
+    v4: i32 = iadd v3, v2
     return v4
 block2:
     return v0
@@ -590,8 +590,8 @@ block2:
     fn test_preserve_nothing_to_sink() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -607,11 +607,11 @@ block0(v0: i32):
 block0(v0: i32, v1: bool):
     jump block1
 block1:
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     branch v1, block2, block3
 block2:
-    v4 = iadd v3, v2
+    v4: i32 = iadd v3, v2
     jump block1
 block3:
     return v3
@@ -634,8 +634,8 @@ block3:
 block0(v0: i32, v1: bool):
     jump block1
 block1:
-    v2 = iconst 1i32
-    v3 = iadd v0, v2
+    v2: i32 = iconst 1i32
+    v3: i32 = iadd v0, v2
     jump block2
 block2:
     branch v1, block1, block3
@@ -660,7 +660,7 @@ block3:
     fn test_preserve_load_with_intervening_store() {
         let input = r#"function @test(v0: ref<raw i32>, v1: bool, v2: i32) -> i32 {
 block0(v0: ref<raw i32>, v1: bool, v2: i32):
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     store v0, v2
     branch v1, block1, block2
 block1:
@@ -681,8 +681,8 @@ block2:
     fn test_sink_load_no_intervening_ops() {
         let input = r#"function @test(v0: ref<raw i32>, v1: bool) -> i32 {
 block0(v0: ref<raw i32>, v1: bool):
-    v2 = load v0 -> i32
-    v3 = iconst 0i32
+    v2: i32 = load v0
+    v3: i32 = iconst 0i32
     branch v1, block1, block2
 block1:
     return v2
@@ -696,10 +696,10 @@ block2:
 block0(v0: ref<raw i32>, v1: bool):
     branch v1, block1, block2
 block1:
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 block2:
-    v3 = iconst 0i32
+    v3: i32 = iconst 0i32
     return v3
 }"#;
         let mut test = TestProgram::new(input);
@@ -712,8 +712,8 @@ block2:
     fn test_sink_pure_past_store() {
         let input = r#"function @test(v0: i32, v1: ref<raw i32>, v2: bool) -> i32 {
 block0(v0: i32, v1: ref<raw i32>, v2: bool):
-    v3 = iconst 1i32
-    v4 = iadd v0, v3
+    v3: i32 = iconst 1i32
+    v4: i32 = iadd v0, v3
     store v1, v0
     branch v2, block1, block2
 block1:
@@ -725,11 +725,11 @@ block2:
         // it can be sunk past the store since it doesn't read memory
         let expected = r#"function @test(v0: i32, v1: ref<raw i32>, v2: bool) -> i32 {
 block0(v0: i32, v1: ref<raw i32>, v2: bool):
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     store v1, v0
     branch v2, block1, block2
 block1:
-    v4 = iadd v0, v3
+    v4: i32 = iadd v0, v3
     return v4
 block2:
     return v0

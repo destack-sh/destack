@@ -5,12 +5,13 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{
     AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
-    MemoryAccessLocation, MemorySSA, OwnershipAnalysis,
+    MemoryAccessLocation, MemorySSA,
 };
 use crate::optimize::common::{
-    address_spaces_may_alias, alias_scopes_may_alias, apply_substitutions_in_function,
-    can_substitute_value, effect_is_trackable, location_sets_may_alias,
-    memory_locations_compatible, resolve_substitution_chains, tbaa_tags_may_alias,
+    ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
+    apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
+    location_sets_may_alias, memory_locations_compatible, resolve_substitution_chains,
+    tbaa_tags_may_alias,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
@@ -93,15 +94,16 @@ impl FunctionPass for LoadStoreForward {
         };
 
         // get analyses
-        let (aa, memory_ssa, dom_children, ownership) = {
+        let (aa, memory_ssa, dom_children) = {
             let analyses = ctx.function_analyses(function, tree);
             let domtree = analyses.get::<DominatorTree>();
             let aa = analyses.get::<AliasAnalysis>().clone();
             let memory_ssa = analyses.get::<MemorySSA>();
-            let ownership = analyses.get::<OwnershipAnalysis>();
             let dom_children = build_dominator_children(function, &domtree);
-            (aa, memory_ssa, dom_children, ownership)
+            (aa, memory_ssa, dom_children)
         };
+
+        let value_types = ValueTypeMap::new(function, tree);
 
         // run load store forwarding
         let changed = run_load_store_forward(
@@ -111,7 +113,7 @@ impl FunctionPass for LoadStoreForward {
             &aa,
             memory_ssa.as_ref(),
             &dom_children,
-            ownership.as_ref(),
+            &value_types,
             ctx.type_context(),
         );
 
@@ -141,7 +143,7 @@ fn run_load_store_forward(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     type_context: TypeContext,
 ) -> bool {
     // run forwarding using dominator tree traversal
@@ -151,7 +153,7 @@ fn run_load_store_forward(
         aa,
         memory_ssa,
         dom_children,
-        ownership,
+        value_types,
         type_context,
     );
 
@@ -335,7 +337,7 @@ fn find_forwardable_loads(
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
     dom_children: &HashMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     type_context: TypeContext,
 ) -> (
     HashMap<mir::Value, mir::Value>,
@@ -366,7 +368,7 @@ fn find_forwardable_loads(
                     tree,
                     aa,
                     memory_ssa,
-                    ownership,
+                    value_types,
                     type_context,
                     &mut available,
                     &mut substitutions,
@@ -399,8 +401,8 @@ fn process_block(
     tree: &mir::NodeTree,
     aa: &AliasAnalysis,
     memory_ssa: &MemorySSA,
-    ownership: &OwnershipAnalysis,
-    type_context: TypeContext,
+    value_types: &ValueTypeMap,
+    _type_context: TypeContext,
     available: &mut AvailableMemory,
     substitutions: &mut HashMap<mir::Value, mir::Value>,
     to_remove: &mut HashSet<mir::LocalNodeId<mir::Instruction>>,
@@ -471,8 +473,7 @@ fn process_block(
                     && can_substitute_value(
                         *destination,
                         existing,
-                        ownership,
-                        type_context.pointer_width_bits,
+                        value_types,
                         tree,
                     )
                 {
@@ -519,8 +520,7 @@ fn process_block(
                     && can_substitute_value(
                         *destination,
                         existing,
-                        ownership,
-                        type_context.pointer_width_bits,
+                        value_types,
                         tree,
                     )
                 {
@@ -646,16 +646,16 @@ mod tests {
     fn test_forward_simple_store_load() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     return v1
 }"#;
@@ -670,11 +670,11 @@ block0:
     fn test_no_forward_different_pointers() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = input;
@@ -689,19 +689,19 @@ block0:
     fn test_kill_on_clobbering_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
-    v2 = iconst 100i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 100i32
     store v0, v1
     store v0, v2
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
-    v2 = iconst 100i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 100i32
     store v0, v1
     store v0, v2
     return v2
@@ -717,21 +717,21 @@ block0:
     fn test_forward_multiple_loads() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
-    v3 = load v0 -> i32
-    v4 = iadd v2, v3
+    v2: i32 = load v0
+    v3: i32 = load v0
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v4 = iadd v1, v1
-    return v4
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -744,9 +744,9 @@ block0:
     fn test_forward_through_trivial_memory_phi() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst true
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: bool = iconst true
     store v0, v1
     branch v2, block1, block2
 block1:
@@ -754,14 +754,14 @@ block1:
 block2:
     jump block3
 block3:
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst true
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: bool = iconst true
     store v0, v1
     branch v2, block1, block2
 block1:
@@ -782,9 +782,9 @@ block3:
     fn test_forward_through_triple_memory_phi() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst 0u32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: u32 = iconst 0u32
     store v0, v1
     switch v2, block1, 0 => block2, 1 => block3
 block1:
@@ -794,14 +794,14 @@ block2:
 block3:
     jump block4
 block4:
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst 0u32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: u32 = iconst 0u32
     store v0, v1
     switch v2, block1, 0 => block2, 1 => block3
 block1:
@@ -824,21 +824,21 @@ block4:
     fn test_forward_through_non_aliasing_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    v3 = iconst 100i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    v3: i32 = iconst 100i32
     store v0, v2
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    v3 = iconst 100i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    v3: i32 = iconst 100i32
     store v0, v2
     store v1, v3
     return v2
@@ -855,19 +855,19 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 42i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 42i32
     store v1, v2
     return v2
 }"#;
@@ -883,30 +883,30 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 1 -> ref<borrowed i32>
-    v3 = iconst 10i32
-    v4 = iconst 20i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 1
+    v3: i32 = iconst 10i32
+    v4: i32 = iconst 20i32
     store v1, v3
     store v2, v4
-    v5 = load v1 -> i32
-    v6 = load v2 -> i32
-    v7 = iadd v5, v6
+    v5: i32 = load v1
+    v6: i32 = load v2
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v0, 1 -> ref<borrowed i32>
-    v3 = iconst 10i32
-    v4 = iconst 20i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v0, 1
+    v3: i32 = iconst 10i32
+    v4: i32 = iconst 20i32
     store v1, v3
     store v2, v4
-    v7 = iadd v3, v4
-    return v7
+    v5: i32 = iadd v3, v4
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -919,16 +919,16 @@ block0:
     fn test_load_to_load_forwarding() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = load v0 -> i32
-    v3 = iadd v1, v2
+    v1: i32 = load v0
+    v2: i32 = load v0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v3 = iadd v1, v1
-    return v3
+    v1: i32 = load v0
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -941,20 +941,20 @@ block0(v0: ref<raw i32>):
     fn test_load_load_killed_by_store() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = iconst 99i32
+    v1: i32 = load v0
+    v2: i32 = iconst 99i32
     store v0, v2
-    v3 = load v0 -> i32
-    v4 = iadd v1, v3
+    v3: i32 = load v0
+    v4: i32 = iadd v1, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = iconst 99i32
+    v1: i32 = load v0
+    v2: i32 = iconst 99i32
     store v0, v2
-    v4 = iadd v1, v2
-    return v4
+    v3: i32 = iadd v1, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -967,18 +967,18 @@ block0(v0: ref<raw i32>):
     fn test_cross_block_forward_simple() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     jump block1
 block1:
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     jump block1
 block1:
@@ -995,31 +995,31 @@ block1:
     fn test_cross_block_forward_diamond() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v1, v2
     branch v0, block1, block2
 block1:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     jump block3(v3)
 block2:
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     jump block3(v4)
 block3(v5: i32):
     return v5
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v1, v2
     branch v0, block1, block2
 block1:
     jump block3(v2)
 block2:
     jump block3(v2)
-block3(v5: i32):
-    return v5
+block3(v3: i32):
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1034,14 +1034,14 @@ block3(v5: i32):
 block0(v0: bool, v1: ref<raw i32>):
     branch v0, block1, block2
 block1:
-    v2 = iconst 42i32
+    v2: i32 = iconst 42i32
     store v1, v2
     jump block3
 block2:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     jump block3
 block3:
-    v4 = iconst 0i32
+    v4: i32 = iconst 0i32
     return v4
 }"#;
         let expected = input;
@@ -1056,8 +1056,8 @@ block3:
     fn test_cross_block_deep_chain() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     jump block1
 block1:
@@ -1065,13 +1065,13 @@ block1:
 block2:
     jump block3
 block3:
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     jump block1
 block1:
@@ -1092,20 +1092,20 @@ block3:
     fn test_cross_block_load_to_load() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     jump block1
 block1:
-    v2 = load v0 -> i32
-    v3 = iadd v1, v2
+    v2: i32 = load v0
+    v3: i32 = iadd v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     jump block1
 block1:
-    v3 = iadd v1, v1
-    return v3
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1119,11 +1119,11 @@ block1:
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     call @external(v0) -> fn(ref<raw i32>) -> void
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1139,18 +1139,18 @@ block0:
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     call @external(v0) -> fn(ref<raw i32>) -> void
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     call @external(v0) -> fn(ref<raw i32>) -> void
     return v1
@@ -1182,13 +1182,13 @@ block0:
         let input = r#"extern function @external(ref<raw i32>) -> void
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     call @external(v0) -> fn(ref<raw i32>) -> void
     jump block1
 block1:
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1203,13 +1203,13 @@ block1:
     fn test_volatile_load_is_barrier() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
-    v3 = intrinsic.volatile.load(v1)
-    v4 = load v0 -> i32
-    v5 = iadd v3, v4
+    v3: ref<raw addrspace(stack) i32> = intrinsic.volatile.load(v1)
+    v4: i32 = load v0
+    v5: ref<raw addrspace(stack) i32> = iadd v3, v4
     return v5
 }"#;
         let expected = input;
@@ -1224,13 +1224,13 @@ block0:
     fn test_volatile_store_is_barrier() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    v3 = iconst 99i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    v3: i32 = iconst 99i32
     store v0, v2
     intrinsic.volatile.store(v1, v3)
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = input;
@@ -1245,13 +1245,13 @@ block0:
     fn test_atomic_load_is_barrier() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
-    v3 = intrinsic.atomic.load(v1, acquire)
-    v4 = load v0 -> i32
-    v5 = iadd v3, v4
+    v3: i32 = intrinsic.atomic.load(v1, ordering=acquire, scope=device, memory_scope=device, semantics=any)
+    v4: i32 = load v0
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
         let expected = input;
@@ -1266,13 +1266,13 @@ block0:
     fn test_atomic_store_is_barrier() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    v3 = iconst 99i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    v3: i32 = iconst 99i32
     store v0, v2
-    intrinsic.atomic.store(v1, v3, release)
-    v4 = load v0 -> i32
+    intrinsic.atomic.store(v1, v3, ordering=release, scope=device, memory_scope=device, semantics=any)
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = input;
@@ -1287,11 +1287,11 @@ block0:
     fn test_atomic_fence_is_barrier() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    intrinsic.atomic.fence(seq_cst)
-    v2 = load v0 -> i32
+    intrinsic.atomic.fence(ordering=seq_cst, scope=device, memory_scope=device, semantics=any)
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1306,18 +1306,18 @@ block0:
     fn test_forward_across_noalias_scope() {
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     return v2
 }"#;
@@ -1363,18 +1363,18 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_forward_across_tbaa_disjoint() {
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     return v2
 }"#;
@@ -1424,18 +1424,18 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_forward_across_tbaa_disjoint_offsets() {
         let input = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
         let expected = r#"function @test(v0: ref<raw mut i32>, v1: ref<raw mut i32>) -> i32 {
 block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     return v2
 }"#;
@@ -1484,10 +1484,10 @@ block0(v0: ref<raw mut i32>, v1: ref<raw mut i32>):
     fn test_no_forward_size_mismatch() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 1i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = input;
@@ -1530,21 +1530,21 @@ block0:
     fn test_transitive_substitution() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
-    v3 = load v0 -> i32
-    v4 = iadd v2, v3
+    v2: i32 = load v0
+    v3: i32 = load v0
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v4 = iadd v1, v1
-    return v4
+    v2: i32 = iadd v1, v1
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1568,7 +1568,7 @@ block0:
     fn test_no_changes_preserves_all() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }"#;
         let expected = input;

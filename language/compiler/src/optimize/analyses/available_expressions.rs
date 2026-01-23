@@ -224,10 +224,10 @@ mod tests {
         let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     jump block1
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 }"#,
         );
@@ -258,12 +258,12 @@ block1:
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     jump block3
 block2:
     jump block3
 block3:
-    v4 = iadd v1, v2
+    v4: i32 = iadd v1, v2
     return v4
 }"#,
         );
@@ -291,13 +291,13 @@ block3:
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     jump block3
 block2:
-    v4 = iadd v1, v2
+    v4: i32 = iadd v1, v2
     jump block3
 block3:
-    v5 = iadd v1, v2
+    v5: i32 = iadd v1, v2
     return v5
 }"#,
         );
@@ -325,7 +325,7 @@ block3:
     local0: i32 ; owned, mut
 block0(v0: i32):
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#,
         );
@@ -349,13 +349,13 @@ block0(v0: i32):
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1, block2
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     jump block3
 block2:
-    v4 = iadd v2, v1
+    v4: i32 = iadd v2, v1
     jump block3
 block3:
-    v5 = iadd v1, v2
+    v5: i32 = iadd v1, v2
     return v5
 }"#,
         );
@@ -381,8 +381,8 @@ block3:
         let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iadd v0, v1
-    v4 = iadd v3, v2
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v3, v2
     return v4
 }"#,
         );
@@ -424,13 +424,13 @@ block0(v0: i32, v1: i32, v2: i32):
         let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     jump block1
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 }"#,
         );

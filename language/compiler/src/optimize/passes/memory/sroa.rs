@@ -484,17 +484,17 @@ fn split_allocation(
     let mut new_allocs: Vec<mir::Value> = Vec::new();
 
     for &elem_type in &candidate.element_types {
-        let new_value = function.next_value();
-        new_allocs.push(new_value);
-
-        // create the new StackAlloc instruction
-        let result_type = tree.insert(mir::Type::Reference {
+        let result_type = tree.insert_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
             address_space: candidate.reference_spec.address_space,
             mutability: candidate.reference_spec.mutability,
             pointee: elem_type,
             is_nullable: candidate.reference_spec.is_nullable,
         });
+        let new_value = function.next_typed_value(result_type);
+        new_allocs.push(new_value);
+
+        // create the new StackAlloc instruction
         let new_inst = mir::Instruction::StackAlloc {
             destination: new_value,
             layout: elem_type,
@@ -610,11 +610,12 @@ fn rewrite_base_load(
             .get(&index)
             .copied()
             .expect("missing scalar slot for aggregate element");
-        let element_value = function.next_value();
+        let element_type = candidate.element_types[index];
+        let element_value = function.next_typed_value(element_type);
         let load_inst = mir::Instruction::Load {
             destination: element_value,
             pointer: element_pointer,
-            result_type: candidate.element_types[index],
+            result_type: element_type,
         };
         let load_id = tree.insert(load_inst);
         new_instructions.push(load_id);
@@ -654,7 +655,8 @@ fn rewrite_base_store(
             .get(&index)
             .copied()
             .expect("missing scalar slot for aggregate element");
-        let element_value = function.next_value();
+        let element_type = candidate.element_types[index];
+        let element_value = function.next_typed_value(element_type);
 
         // handle array extraction using element indices
         if is_array {
@@ -737,7 +739,11 @@ fn insert_index_constant(
     };
 
     // emit constant index
-    let destination = function.next_value();
+    let type_id = tree.insert_type(mir::Type::Int {
+        width: 64,
+        is_signed: true,
+    });
+    let destination = function.next_typed_value(type_id);
     let constant = mir::Constant::Int {
         value: index_value,
         width: 64,
@@ -796,21 +802,21 @@ mod tests {
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 42i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v5 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    store v4, v2
-    v3 = load v4 -> i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    store v1, v2
+    v3: i32 = load v1
     return v3
 }"#;
 
@@ -826,20 +832,20 @@ block0:
     fn test_split_tuple() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc (i32, i64) -> ref<raw addrspace(stack) (i32, i64)>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) (i32, i64)> = stack.alloc (i32, i64)
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 42i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v5 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
-    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    store v4, v2
-    v3 = load v4 -> i32
+    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
+    store v1, v2
+    v3: i32 = load v1
     return v3
 }"#;
 
@@ -855,25 +861,25 @@ block0:
     fn test_split_small_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 4] -> ref<raw addrspace(stack) [i32; 4]>
-    v1 = iconst 0i64
-    v2 = element.addr v0, v1 -> ref<borrowed i32>
-    v3 = iconst 42i32
+    v0: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v1: i64 = iconst 0i64
+    v2: ref<borrowed i32> = element.addr v0, v1
+    v3: i32 = iconst 42i32
     store v2, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v6 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v5 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 0i64
-    v3 = iconst 42i32
-    store v5, v3
-    v4 = load v5 -> i32
-    return v4
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v4: i64 = iconst 0i64
+    v5: i32 = iconst 42i32
+    store v3, v5
+    v6: i32 = load v3
+    return v6
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -888,12 +894,12 @@ block0:
     fn test_preserve_large_array() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 100] -> ref<raw addrspace(stack) [i32; 100]>
-    v1 = iconst 0i64
-    v2 = element.addr v0, v1 -> ref<borrowed i32>
-    v3 = iconst 42i32
+    v0: ref<raw addrspace(stack) [i32; 100]> = stack.alloc [i32; 100]
+    v1: i64 = iconst 0i64
+    v2: ref<borrowed i32> = element.addr v0, v1
+    v3: i32 = iconst 42i32
     store v2, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     return v4
 }"#;
 
@@ -912,7 +918,7 @@ block0:
 extern function @external(ref<raw @Point>) -> void
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
     call @external(v0) -> fn(ref<raw @Point>) -> void
     return
 }"#;
@@ -930,11 +936,11 @@ block0:
     fn test_preserve_dynamic_index() {
         let input = r#"function @test(v0: i64) -> i32 {
 block0(v0: i64):
-    v1 = stack.alloc [i32; 4] -> ref<raw addrspace(stack) [i32; 4]>
-    v2 = element.addr v1, v0 -> ref<borrowed i32>
-    v3 = iconst 42i32
+    v1: ref<raw addrspace(stack) [i32; 4]> = stack.alloc [i32; 4]
+    v2: ref<borrowed i32> = element.addr v1, v0
+    v3: i32 = iconst 42i32
     store v2, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     return v4
 }"#;
 
@@ -952,31 +958,31 @@ block0(v0: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 10i32
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 10i32
     store v1, v2
-    v3 = field.addr v0, 1 -> ref<borrowed i32>
-    v4 = iconst 20i32
+    v3: ref<borrowed i32> = field.addr v0, 1
+    v4: i32 = iconst 20i32
     store v3, v4
-    v5 = load v1 -> i32
-    v6 = load v3 -> i32
-    v7 = iadd v5, v6
+    v5: i32 = load v1
+    v6: i32 = load v3
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v9 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 10i32
-    store v8, v2
-    v4 = iconst 20i32
-    store v9, v4
-    v5 = load v8 -> i32
-    v6 = load v9 -> i32
-    v7 = iadd v5, v6
-    return v7
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 10i32
+    store v1, v2
+    v3: i32 = iconst 20i32
+    store v0, v3
+    v4: i32 = load v1
+    v5: i32 = load v0
+    v6: i32 = iadd v4, v5
+    return v6
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -994,22 +1000,22 @@ block0:
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v0 = stack.alloc @Outer -> ref<raw addrspace(stack) @Outer>
-    v1 = field.addr v0, 1 -> ref<borrowed i64>
-    v2 = iconst 42i64
+    v0: ref<raw addrspace(stack) @Outer> = stack.alloc @Outer
+    v1: ref<borrowed i64> = field.addr v0, 1
+    v2: i64 = iconst 42i64
     store v1, v2
-    v3 = load v1 -> i64
+    v3: i64 = load v1
     return v3
 }"#;
         let expected = r#"type @Inner = { i32, i32 }
 type @Outer = { @Inner, i64 }
 function @test() -> i64 {
 block0:
-    v5 = stack.alloc i64 -> ref<raw addrspace(stack) i64>
-    v4 = stack.alloc @Inner -> ref<raw addrspace(stack) @Inner>
-    v2 = iconst 42i64
-    store v5, v2
-    v3 = load v5 -> i64
+    v0: ref<raw addrspace(stack) i64> = stack.alloc i64
+    v1: ref<raw addrspace(stack) @Inner> = stack.alloc @Inner
+    v2: i64 = iconst 42i64
+    store v0, v2
+    v3: i64 = load v0
     return v3
 }"#;
 
@@ -1025,10 +1031,10 @@ block0:
     fn test_no_aggregates() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -1046,7 +1052,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: ref<raw ref<raw @Point>>) -> void {
 block0(v0: ref<raw ref<raw @Point>>):
-    v1 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
+    v1: ref<raw addrspace(stack) @Point> = stack.alloc @Point
     store v0, v1
     return
 }"#;
@@ -1065,21 +1071,21 @@ block0(v0: ref<raw ref<raw @Point>>):
         let input = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Wrapper -> ref<raw addrspace(stack) @Wrapper>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) @Wrapper> = stack.alloc @Wrapper
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: i32 = iconst 42i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = r#"type @Wrapper = { i32 }
 function @test() -> i32 {
 block0:
-    v4 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
-    store v4, v2
-    v3 = load v4 -> i32
-    return v3
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
+    store v0, v1
+    v2: i32 = load v0
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1095,7 +1101,7 @@ block0:
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: bool) -> void {
 block0(v0: bool):
-    v1 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
+    v1: ref<raw addrspace(stack) @Point> = stack.alloc @Point
     branch v0, block1(v1), block2
 block1(v2: ref<raw @Point>):
     return
@@ -1113,26 +1119,26 @@ block2:
     fn test_split_array_constant_param_index() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i64
+    v1: i64 = iconst 0i64
     branch v0, block1(v1), block1(v1)
 block1(v2: i64):
-    v3 = stack.alloc [i32; 2] -> ref<raw addrspace(stack) [i32; 2]>
-    v4 = element.addr v3, v2 -> ref<borrowed i32>
-    v5 = iconst 42i32
+    v3: ref<raw addrspace(stack) [i32; 2]> = stack.alloc [i32; 2]
+    v4: ref<borrowed i32> = element.addr v3, v2
+    v5: i32 = iconst 42i32
     store v4, v5
-    v6 = load v4 -> i32
+    v6: i32 = load v4
     return v6
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 0i64
-    branch v0, block1(v1), block1(v1)
-block1(v2: i64):
-    v5 = iconst 42i32
-    store v7, v5
-    v6 = load v7 -> i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i64 = iconst 0i64
+    branch v0, block1(v3), block1(v3)
+block1(v4: i64):
+    v5: i32 = iconst 42i32
+    store v2, v5
+    v6: i32 = load v2
     return v6
 }"#;
 
@@ -1147,32 +1153,32 @@ block1(v2: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc @Point -> ref<raw addrspace(stack) @Point>
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = struct @Point (v1, v2)
+    v0: ref<raw addrspace(stack) @Point> = stack.alloc @Point
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: @Point = struct @Point (v1, v2)
     store v0, v3
-    v4 = load v0 -> @Point
-    v5 = field.get v4, 0
+    v4: @Point = load v0
+    v5: i32 = field.get v4, 0
     return v5
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test() -> i32 {
 block0:
-    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v6 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = struct @Point (v1, v2)
-    v8 = field.get v3, 0
-    store v6, v8
-    v9 = field.get v3, 1
-    store v7, v9
-    v10 = load v6 -> i32
-    v11 = load v7 -> i32
-    v4 = struct @Point (v10, v11)
-    v5 = field.get v4, 0
-    return v5
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
+    v4: @Point = struct @Point (v2, v3)
+    v5: i32 = field.get v4, 0
+    store v1, v5
+    v6: i32 = field.get v4, 1
+    store v0, v6
+    v7: i32 = load v1
+    v8: i32 = load v0
+    v9: @Point = struct @Point (v7, v8)
+    v10: i32 = field.get v9, 0
+    return v10
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1185,35 +1191,35 @@ block0:
     fn test_rewrite_base_pointer_array_load_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc [i32; 2] -> ref<raw addrspace(stack) [i32; 2]>
-    v1 = iconst 10i32
-    v2 = iconst 20i32
-    v3 = array [i32; 2] (v1, v2)
+    v0: ref<raw addrspace(stack) [i32; 2]> = stack.alloc [i32; 2]
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 20i32
+    v3: [i32; 2] = array [i32; 2] (v1, v2)
     store v0, v3
-    v4 = load v0 -> i32
-    v5 = iconst 1i64
-    v6 = element.get v4, v5
+    v4: [i32; 2] = load v0
+    v5: i64 = iconst 1i64
+    v6: i32 = element.get v4, v5
     return v6
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v8 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v7 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 10i32
-    v2 = iconst 20i32
-    v3 = array [i32; 2] (v1, v2)
-    v10 = iconst 0i64
-    v9 = element.get v3, v10
-    store v7, v9
-    v12 = iconst 1i64
-    v11 = element.get v3, v12
-    store v8, v11
-    v13 = load v7 -> i32
-    v14 = load v8 -> i32
-    v4 = array [i32; 2] (v13, v14)
-    v5 = iconst 1i64
-    v6 = element.get v4, v5
-    return v6
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 20i32
+    v4: [i32; 2] = array [i32; 2] (v2, v3)
+    v5: i64 = iconst 0i64
+    v6: i32 = element.get v4, v5
+    store v1, v6
+    v7: i64 = iconst 1i64
+    v8: i32 = element.get v4, v7
+    store v0, v8
+    v9: i32 = load v1
+    v10: i32 = load v0
+    v11: [i32; 2] = array [i32; 2] (v9, v10)
+    v12: i64 = iconst 1i64
+    v13: i32 = element.get v11, v12
+    return v13
 }"#;
 
         let mut test = TestProgram::new(input);

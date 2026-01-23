@@ -5,9 +5,10 @@ use destack_mir as mir;
 
 use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
 use crate::optimize::common::{
-    CallsiteHotness, block_execution_counts, block_hotness_from_counts,
-    block_parameters_used_outside_block, block_uses_available_in_predecessor, build_use_def_maps,
-    collect_reachable_blocks, instruction_is_speculatable, instruction_map, scaled_profile_count,
+    CallsiteHotness, CallsiteHotnessPolicy, EdgeSplitPolicy, block_execution_counts,
+    block_hotness_from_counts, block_parameters_used_outside_block,
+    block_uses_available_in_predecessor, build_use_def_maps, collect_reachable_blocks,
+    ensure_edge_block, instruction_is_speculatable, instruction_map, scaled_profile_count,
     terminator_edges, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
@@ -242,7 +243,7 @@ fn run_cfg_layout(
 fn classify_cold_blocks(
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
     entry_count: u64,
-    policy: &crate::optimize::common::CallsiteHotnessPolicy,
+    policy: &CallsiteHotnessPolicy,
 ) -> HashSet<mir::LocalNodeId<mir::Block>> {
     // collect blocks classified as cold
     let mut cold = HashSet::new();
@@ -263,7 +264,7 @@ fn classify_cold_blocks(
 fn outline_cold_edges(
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
-    cfg: &crate::optimize::analyses::ControlFlowGraph,
+    cfg: &ControlFlowGraph,
     cold_blocks: &mut HashSet<mir::LocalNodeId<mir::Block>>,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
@@ -287,14 +288,14 @@ fn outline_cold_edges(
             }
 
             // insert an edge block for multi successor preds
-            let edge_block = crate::optimize::common::ensure_edge_block(
+            let edge_block = ensure_edge_block(
                 block_id,
                 successor,
                 function,
                 tree,
                 cfg,
                 &mut edge_blocks,
-                crate::optimize::common::EdgeSplitPolicy::PredecessorMultiSuccessor,
+                EdgeSplitPolicy::PredecessorMultiSuccessor,
                 &mut changed,
             );
 
@@ -320,7 +321,7 @@ fn duplicate_hot_edges(
     tree: &mut mir::NodeTree,
     domtree: &DominatorTree,
     profile: &mir::ProfileTable,
-    policy: &crate::optimize::common::CallsiteHotnessPolicy,
+    policy: &CallsiteHotnessPolicy,
     block_counts: &mut HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> bool {
     // build definition metadata
@@ -488,7 +489,7 @@ fn duplicate_hot_edges(
                 let instruction = tree.get(*instruction_id).clone();
 
                 if let Some(destination) = instruction.destination() {
-                    let new_destination = function.next_value();
+                    let new_destination = function.next_typed_value_like(destination);
                     value_map.insert(destination, new_destination);
                 }
 
@@ -775,7 +776,7 @@ fn compute_edge_weights(
     function: &mir::Function,
     tree: &mir::NodeTree,
     profile: &mir::ProfileTable,
-    policy: &crate::optimize::common::CallsiteHotnessPolicy,
+    policy: &CallsiteHotnessPolicy,
     block_counts: &HashMap<mir::LocalNodeId<mir::Block>, u64>,
 ) -> HashMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>), u64> {
     // derive edge scaling parameters
@@ -814,10 +815,10 @@ mod tests {
 block0(v0: bool):
     branch v0, block1, block2
 block2:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     return v1
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     return v2
 }"#;
 
@@ -825,11 +826,11 @@ block1:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
-    return v2
-block2:
-    v1 = iconst 2i32
+    v1: i32 = iconst 1i32
     return v1
+block2:
+    v2: i32 = iconst 2i32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -855,10 +856,10 @@ block2:
 block0(v0: bool):
     branch v0, block1, block2
 block2:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     return v1
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     return v2
 }"#;
 
@@ -876,21 +877,21 @@ block1:
 block0(v0: bool):
     branch v0, block1, block2
 block2:
-    v2 = iconst 2i32
-    return v2
-block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 2i32
     return v1
+block1:
+    v2: i32 = iconst 1i32
+    return v2
 }"#;
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block3
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 block3:
     jump block2
@@ -919,21 +920,21 @@ block3:
 block0(v0: i32):
     switch v0, block2, 0 => block1
 block2:
-    v2 = iconst 2i32
-    return v2
-block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 2i32
     return v1
+block1:
+    v2: i32 = iconst 1i32
+    return v2
 }"#;
 
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     switch v0, block3, 0 => block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 block3:
     jump block2
@@ -960,27 +961,27 @@ block3:
     fn test_cfg_layout_check_orders_hot_blocks() {
         let input = r#"function @test(v0: u32, v1: [u32; 8]) -> i32 {
 block0(v0: u32, v1: [u32; 8]):
-    v2 = iconst 1u32
-    v3 = icmp_ult v0, v2
+    v2: u32 = iconst 1u32
+    v3: bool = icmp_ult v0, v2
     check v3, bounds.unsigned v0, v2, v1, block1, block2
 block2:
-    v5 = iconst 2i32
-    return v5
-block1:
-    v4 = iconst 1i32
+    v4: i32 = iconst 2i32
     return v4
+block1:
+    v5: i32 = iconst 1i32
+    return v5
 }"#;
 
         let expected = r#"function @test(v0: u32, v1: [u32; 8]) -> i32 {
 block0(v0: u32, v1: [u32; 8]):
-    v2 = iconst 1u32
-    v3 = icmp_ult v0, v2
+    v2: u32 = iconst 1u32
+    v3: bool = icmp_ult v0, v2
     check v3, bounds.unsigned v0, v2, v1, block1, block3
 block1:
-    v4 = iconst 1i32
+    v4: i32 = iconst 1i32
     return v4
 block2:
-    v5 = iconst 2i32
+    v5: i32 = iconst 2i32
     return v5
 block3:
     jump block2
@@ -1009,10 +1010,10 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -1020,11 +1021,11 @@ block2:
 block0(v0: bool):
     branch v0, block2, block1
 block1:
-    v2 = iconst 2i32
-    return v2
-block2:
-    v1 = iconst 1i32
+    v1: i32 = iconst 2i32
     return v1
+block2:
+    v2: i32 = iconst 1i32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1055,7 +1056,7 @@ block0(v0: bool):
 block1:
     jump block2
 block2:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 }"#;
 
@@ -1063,11 +1064,11 @@ block2:
 block0(v0: bool):
     branch v0, block1, block3
 block1:
-    v2 = iconst 1i32
-    return v2
-block2:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
+block2:
+    v2: i32 = iconst 1i32
+    return v2
 block3:
     jump block2
 }"#;
@@ -1098,27 +1099,27 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block3:
-    v3 = iconst 3i32
-    return v3
-block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 3i32
     return v2
+block2:
+    v3: i32 = iconst 2i32
+    return v3
 }"#;
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 block3:
-    v3 = iconst 3i32
+    v3: i32 = iconst 3i32
     return v3
 }"#;
 

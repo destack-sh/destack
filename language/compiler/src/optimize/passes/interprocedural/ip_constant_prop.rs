@@ -312,29 +312,29 @@ mod tests {
     fn test_ip_constant_prop_inserts_constants() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 40i32
-    v1 = iconst 2i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 40i32
+    v1: i32 = iconst 2i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
         let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v3 = iconst 40i32
-    v4 = iconst 2i32
-    v2 = iadd v3, v4
-    return v2
+    v2: i32 = iconst 40i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iadd v2, v3
+    return v4
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 40i32
-    v1 = iconst 2i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 40i32
+    v1: i32 = iconst 2i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -348,19 +348,19 @@ block0:
     fn test_ip_constant_prop_skips_mismatched_constants() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }
 function @other() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -374,14 +374,14 @@ block0:
     fn test_ip_constant_prop_skips_indirect_signature() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @root(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
-    v3 = iconst 4i32
-    v4 = call @callee(v3) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
+    v3: i32 = iconst 4i32
+    v4: i32 = call @callee(v3) -> fn(i32) -> i32
     return v4
 }"#;
 
@@ -400,21 +400,21 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = global.const @value
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = global.const @value
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
         let expected = r#"global @value: i32 = 7i32 ; const
 function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 7i32
+    v1: i32 = iconst 7i32
     return v1
 }
 function @root() -> i32 {
 block0:
-    v0 = global.const @value
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = global.const @value
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -432,18 +432,18 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     tailcall @callee(v0)
 }"#;
 
         let expected = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 9i32
+    v1: i32 = iconst 9i32
     return v1
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     tailcall @callee(v0)
 }"#;
 

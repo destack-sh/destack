@@ -8,7 +8,8 @@ use crate::optimize::analyses::{
 };
 use crate::optimize::common::{
     CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
-    callsite_hotness, constant_arguments_for_parameters, required_parameter_indices,
+    callsite_hotness, constant_arguments_for_parameters, instruction_map_with_locals,
+    required_parameter_indices, terminator_remap,
 };
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
@@ -459,12 +460,7 @@ fn clone_function(
         for instruction_id in instruction_ids {
             // remap instruction operands to the cloned locals and values
             let instruction = tree.get(instruction_id).clone();
-            let remapped = crate::optimize::common::instruction_map_with_locals(
-                &instruction,
-                &value_map,
-                &local_map,
-                tree,
-            );
+            let remapped = instruction_map_with_locals(&instruction, &value_map, &local_map, tree);
             let new_id = tree.insert(remapped);
 
             // preserve memory access metadata for the cloned instruction
@@ -502,7 +498,7 @@ fn clone_function(
         let new_block_id = block_map[block_id];
         let mut new_block = tree.get(new_block_id).clone();
         let mut terminator = new_block.terminator.clone();
-        crate::optimize::common::terminator_remap(&mut terminator, &block_map, &value_map);
+        terminator_remap(&mut terminator, &block_map, &value_map);
         new_block.terminator = terminator;
         tree.replace(new_block_id, new_block);
     }
@@ -677,33 +673,33 @@ mod tests {
     fn test_argument_specialize_clones_constant_call() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
         let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee$spec0() -> fn() -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
 block0:
-    v2 = iconst 5i32
-    return v2
+    v0: i32 = iconst 5i32
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -716,33 +712,33 @@ block0:
     fn test_argument_specialize_updates_call_metadata() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
         let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee$spec0() -> fn() -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
 block0:
-    v2 = iconst 5i32
-    return v2
+    v0: i32 = iconst 5i32
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -786,14 +782,14 @@ block0:
     fn test_argument_specialize_skips_cold_callsite() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -814,14 +810,14 @@ block0:
     fn test_argument_specialize_skips_missing_callsite_profile() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -840,14 +836,14 @@ block0:
     fn test_argument_specialize_skips_missing_function_profile() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -867,33 +863,33 @@ block0:
     fn test_argument_specialize_uses_hot_callsite() {
         let input = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
         let expected = r#"function @callee(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = call @callee$spec0() -> fn() -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = call @callee$spec0() -> fn() -> i32
     return v2
 }
 function @callee$spec0() -> i32 {
 block0:
-    v2 = iconst 5i32
-    return v2
+    v0: i32 = iconst 5i32
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -917,8 +913,8 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 7i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 7i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -928,13 +924,13 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 7i32
-    v1 = call @callee$spec0(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 7i32
+    v1: i32 = call @callee$spec0(v0) -> fn(i32) -> i32
     return v1
 }
 function @callee$spec0(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 7i32
+    v1: i32 = iconst 7i32
     return v1
 }"#;
 
@@ -951,21 +947,21 @@ block0(v0: i32):
     fn test_argument_specialize_skips_recursive() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 1i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
     return v0
 block2:
-    v3 = iconst 1i32
-    v4 = isub v0, v3
-    v5 = call @callee(v4) -> fn(i32) -> i32
+    v3: i32 = iconst 1i32
+    v4: i32 = isub v0, v3
+    v5: i32 = call @callee(v4) -> fn(i32) -> i32
     return v5
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 9i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 9i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -980,8 +976,8 @@ block0:
         let input = r#"extern function @callee(i32) -> i32
 function @root() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = call @callee(v0) -> fn(i32) -> i32
+    v0: i32 = iconst 2i32
+    v1: i32 = call @callee(v0) -> fn(i32) -> i32
     return v1
 }"#;
 
@@ -999,16 +995,16 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iconst 4i32
-    v4 = iconst 5i32
-    v5 = call @callee(v0) -> fn(i32) -> i32
-    v6 = call @callee(v1) -> fn(i32) -> i32
-    v7 = call @callee(v2) -> fn(i32) -> i32
-    v8 = call @callee(v3) -> fn(i32) -> i32
-    v9 = call @callee(v4) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 5i32
+    v5: i32 = call @callee(v0) -> fn(i32) -> i32
+    v6: i32 = call @callee(v1) -> fn(i32) -> i32
+    v7: i32 = call @callee(v2) -> fn(i32) -> i32
+    v8: i32 = call @callee(v3) -> fn(i32) -> i32
+    v9: i32 = call @callee(v4) -> fn(i32) -> i32
     return v9
 }"#;
 
@@ -1018,37 +1014,37 @@ block0(v0: i32):
 }
 function @root() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iconst 4i32
-    v4 = iconst 5i32
-    v5 = call @callee$spec0() -> fn() -> i32
-    v6 = call @callee$spec1() -> fn() -> i32
-    v7 = call @callee$spec2() -> fn() -> i32
-    v8 = call @callee$spec3() -> fn() -> i32
-    v9 = call @callee(v4) -> fn(i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 5i32
+    v5: i32 = call @callee$spec0() -> fn() -> i32
+    v6: i32 = call @callee$spec1() -> fn() -> i32
+    v7: i32 = call @callee$spec2() -> fn() -> i32
+    v8: i32 = call @callee$spec3() -> fn() -> i32
+    v9: i32 = call @callee(v4) -> fn(i32) -> i32
     return v9
 }
 function @callee$spec0() -> i32 {
 block0:
-    v1 = iconst 1i32
-    return v1
+    v0: i32 = iconst 1i32
+    return v0
 }
 function @callee$spec1() -> i32 {
 block0:
-    v1 = iconst 2i32
-    return v1
+    v0: i32 = iconst 2i32
+    return v0
 }
 function @callee$spec2() -> i32 {
 block0:
-    v1 = iconst 3i32
-    return v1
+    v0: i32 = iconst 3i32
+    return v0
 }
 function @callee$spec3() -> i32 {
 block0:
-    v1 = iconst 4i32
-    return v1
+    v0: i32 = iconst 4i32
+    return v0
 }"#;
 
         let mut test = TestProgram::new(input);

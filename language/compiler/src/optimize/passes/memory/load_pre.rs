@@ -207,7 +207,7 @@ fn run_load_pre(
             };
 
             // allocate a new block parameter for the load value
-            let param_value = function.next_value();
+            let param_value = function.next_typed_value(load.result_type);
             let param = mir::TypedValue::new(param_value, load.result_type);
             let mut updated_block = tree.get(block_id).clone();
             updated_block.parameters.push(param);
@@ -236,7 +236,7 @@ fn run_load_pre(
                     existing
                 } else {
                     // insert a new load at the edge block
-                    let load_value = function.next_value();
+                    let load_value = function.next_typed_value(load.result_type);
                     let load_instruction = mir::Instruction::Load {
                         destination: load_value,
                         pointer: insertion.pointer,
@@ -532,37 +532,37 @@ mod tests {
     fn test_load_pre_inserts_edge_loads() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block3
 block2:
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     jump block3
 block3:
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     return v4
 }"#;
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v6 = load v1 -> i32
-    jump block3(v6)
+    v3: i32 = load v1
+    jump block3(v3)
 block2:
-    v3 = iconst 2i32
-    store v1, v3
-    v7 = load v1 -> i32
-    jump block3(v7)
-block3(v5: i32):
-    return v5
+    v4: i32 = iconst 2i32
+    store v1, v4
+    v5: i32 = load v1
+    jump block3(v5)
+block3(v6: i32):
+    return v6
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -581,8 +581,8 @@ block1:
 block2:
     jump block3
 block3:
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = load v1 -> i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = load v1
     return v2
 }"#;
 
@@ -596,16 +596,16 @@ block3:
     fn test_load_pre_skips_side_effects() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
 
@@ -619,40 +619,40 @@ block3:
     fn test_load_pre_allows_read_only_call() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block3
 block2:
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     jump block3
 block3:
     call @read_only() -> fn() -> void
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     return v4
 }
 extern function @read_only() -> void"#;
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v6 = load v1 -> i32
-    jump block3(v6)
+    v3: i32 = load v1
+    jump block3(v3)
 block2:
-    v3 = iconst 2i32
-    store v1, v3
-    v7 = load v1 -> i32
-    jump block3(v7)
-block3(v5: i32):
+    v4: i32 = iconst 2i32
+    store v1, v4
+    v5: i32 = load v1
+    jump block3(v5)
+block3(v6: i32):
     call @read_only() -> fn() -> void
-    return v5
+    return v6
 }
 extern function @read_only() -> void"#;
 
@@ -679,14 +679,14 @@ extern function @read_only() -> void"#;
     fn test_load_pre_skips_volatile_load() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v2 = load v1 -> i32
+    v2: i32 = load v1
     return v2
 }"#;
 
@@ -717,14 +717,14 @@ block3:
     fn test_load_pre_skips_unknown_location() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v2 = load v1 -> i32
+    v2: i32 = load v1
     return v2
 }"#;
 
@@ -743,6 +743,9 @@ block3:
             is_invariant: false,
             is_non_temporal: false,
             ordering: None,
+            scope: None,
+            memory_scope: None,
+            semantics: None,
             address_space: None,
             alias_scopes: Vec::new(),
             noalias_scopes: Vec::new(),
@@ -759,16 +762,16 @@ block3:
     fn test_load_pre_skips_non_phi_defining_access() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
 
@@ -782,40 +785,40 @@ block3:
     fn test_load_pre_reuses_predecessor_load() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     store v2, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     branch v1, block3, block4
 block2:
     jump block3
 block3:
-    v5 = load v2 -> i32
+    v5: i32 = load v2
     return v5
 block4:
-    v6 = iconst 0i32
+    v6: i32 = iconst 0i32
     return v6
 }"#;
 
         let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     store v2, v3
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     branch v1, block3(v4), block4
 block2:
-    v8 = load v2 -> i32
-    jump block3(v8)
-block3(v7: i32):
-    return v7
-block4:
-    v6 = iconst 0i32
+    v5: i32 = load v2
+    jump block3(v5)
+block3(v6: i32):
     return v6
+block4:
+    v7: i32 = iconst 0i32
+    return v7
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -828,41 +831,41 @@ block4:
     fn test_load_pre_allows_read_only_intrinsic() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block3
 block2:
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     jump block3
 block3:
-    v4 = iconst 4i64
-    v5 = intrinsic.memcmp(v1, v1, v4)
-    v6 = load v1 -> i32
+    v4: i64 = iconst 4i64
+    v5: i32 = intrinsic.memcmp(v1, v1, v4)
+    v6: i32 = load v1
     return v6
 }"#;
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v8 = load v1 -> i32
-    jump block3(v8)
+    v3: i32 = load v1
+    jump block3(v3)
 block2:
-    v3 = iconst 2i32
-    store v1, v3
-    v9 = load v1 -> i32
-    jump block3(v9)
-block3(v7: i32):
-    v4 = iconst 4i64
-    v5 = intrinsic.memcmp(v1, v1, v4)
-    return v7
+    v4: i32 = iconst 2i32
+    store v1, v4
+    v5: i32 = load v1
+    jump block3(v5)
+block3(v6: i32):
+    v7: i64 = iconst 4i64
+    v8: i32 = intrinsic.memcmp(v1, v1, v7)
+    return v6
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -875,45 +878,45 @@ block3(v7: i32):
     fn test_load_pre_splits_edge_blocks() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     store v2, v3
     branch v1, block3, block4
 block2:
-    v4 = iconst 2i32
+    v4: i32 = iconst 2i32
     store v2, v4
     jump block3
 block3:
-    v5 = load v2 -> i32
+    v5: i32 = load v2
     return v5
 block4:
-    v6 = iconst 0i32
+    v6: i32 = iconst 0i32
     return v6
 }"#;
 
         let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block3
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     store v2, v3
     branch v1, block2, block5
 block2:
-    v8 = load v2 -> i32
-    jump block4(v8)
+    v4: i32 = load v2
+    jump block4(v4)
 block3:
-    v4 = iconst 2i32
-    store v2, v4
-    v9 = load v2 -> i32
-    jump block4(v9)
+    v5: i32 = iconst 2i32
+    store v2, v5
+    v6: i32 = load v2
+    jump block4(v6)
 block4(v7: i32):
     return v7
 block5:
-    v6 = iconst 0i32
-    return v6
+    v8: i32 = iconst 0i32
+    return v8
 }"#;
 
         let mut test = TestProgram::new(input);

@@ -2309,8 +2309,8 @@ mod tests {
         let test = TestProgram::new(
             r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = iadd v1, v0
+    v1: i32 = iconst 5i32
+    v2: i32 = iadd v1, v0
     return v2
 }"#,
         );
@@ -2347,10 +2347,10 @@ block0(v0: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3(v1)
 block2:
-    v2 = iconst 3i32
+    v2: i32 = iconst 3i32
     jump block3(v2)
 block3(v3: i32):
     return v3
@@ -2388,7 +2388,7 @@ block3(v3: i32):
 block0(v0: bool, v1: i32):
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     jump block3(v2)
 block2:
     jump block3(v1)
@@ -2418,14 +2418,14 @@ block3(v3: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     jump block3(v1)
 block2:
-    v2 = iconst 4i32
+    v2: i32 = iconst 4i32
     jump block3(v2)
 block3(v3: i32):
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     return v5
 }"#,
         );
@@ -2463,14 +2463,14 @@ block3(v3: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block3(v1)
 block2:
-    v2 = iconst 3i32
+    v2: i32 = iconst 3i32
     jump block3(v2)
 block3(v3: i32):
-    v4 = iconst 10i32
-    v5 = icmp_slt v3, v4
+    v4: i32 = iconst 10i32
+    v5: bool = icmp_slt v3, v4
     return v5
 }"#,
         );
@@ -2504,7 +2504,7 @@ block3(v3: i32):
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1.5f32
+    v0: f32 = iconst 1.5f32
     return v0
 }"#,
         );
@@ -2542,14 +2542,14 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1.0f32
+    v1: f32 = iconst 1.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 3.0f32
+    v2: f32 = iconst 3.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 2.0f32
-    v5 = fadd v3, v4
+    v4: f32 = iconst 2.0f32
+    v5: f32 = fadd v3, v4
     return v5
 }"#,
         );
@@ -2588,15 +2588,15 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1e1000f32
-    v2 = iconst -1e1000f32
+    v1: f32 = iconst 1e1000f32
+    v2: f32 = iconst -1e1000f32
     jump block3(v1, v2)
 block2:
-    v3 = iconst 1e1000f32
-    v4 = iconst -1e1000f32
+    v3: f32 = iconst 1e1000f32
+    v4: f32 = iconst -1e1000f32
     jump block3(v3, v4)
 block3(v5: f32, v6: f32):
-    v7 = fadd v5, v6
+    v7: f32 = fadd v5, v6
     return v7
 }"#,
         );
@@ -2633,9 +2633,9 @@ block3(v5: f32, v6: f32):
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = iconst 2.0f32
-    v2 = fadd v0, v1
+    v0: f32 = iconst 1e1000f32
+    v1: f32 = iconst 2.0f32
+    v2: f32 = fadd v0, v1
     return v2
 }"#,
         );
@@ -2674,15 +2674,15 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1e1000f32
-    v2 = iconst 1e1000f32
+    v1: f32 = iconst 1e1000f32
+    v2: f32 = iconst 1e1000f32
     jump block3(v1, v2)
 block2:
-    v3 = iconst 1e1000f32
-    v4 = iconst 1e1000f32
+    v3: f32 = iconst 1e1000f32
+    v4: f32 = iconst 1e1000f32
     jump block3(v3, v4)
 block3(v5: f32, v6: f32):
-    v7 = fsub v5, v6
+    v7: f32 = fsub v5, v6
     return v7
 }"#,
         );
@@ -2719,9 +2719,9 @@ block3(v5: f32, v6: f32):
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 2.0f32
-    v1 = iconst 1e1000f32
-    v2 = fsub v0, v1
+    v0: f32 = iconst 2.0f32
+    v1: f32 = iconst 1e1000f32
+    v2: f32 = fsub v0, v1
     return v2
 }"#,
         );
@@ -2760,14 +2760,14 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1.0f32
+    v1: f32 = iconst 1.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 2.0f32
+    v2: f32 = iconst 2.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 5.0f32
-    v5 = fcmp_lt v3, v4
+    v4: f32 = iconst 5.0f32
+    v5: bool = fcmp_lt v3, v4
     return v5
 }"#,
         );
@@ -2801,11 +2801,11 @@ block3(v3: f32):
         let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
-    v0 = iconst 1.0f32
-    v1 = iconst 0.0f32
-    v2 = fdiv v0, v1
-    v3 = iconst 5.0f32
-    v4 = fcmp_gt v2, v3
+    v0: f32 = iconst 1.0f32
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fdiv v0, v1
+    v3: f32 = iconst 5.0f32
+    v4: bool = fcmp_gt v2, v3
     return v4
 }"#,
         );
@@ -2833,22 +2833,22 @@ block0:
 block0(v0: bool, v1: bool):
     branch v0, block1, block2
 block1:
-    v2 = iconst 0.0f32
+    v2: f32 = iconst 0.0f32
     jump block3(v2, v1)
 block2:
-    v3 = iconst 1.0f32
+    v3: f32 = iconst 1.0f32
     jump block3(v3, v1)
-block3(v4: f32, v10: bool):
-    branch v10, block4, block5
+block3(v4: f32, v5: bool):
+    branch v5, block4, block5
 block4:
-    v5 = iconst 0.0f32
-    jump block6(v4, v5)
-block5:
-    v6 = iconst 1.0f32
+    v6: f32 = iconst 0.0f32
     jump block6(v4, v6)
-block6(v7: f32, v8: f32):
-    v9 = fdiv v8, v7
-    return v9
+block5:
+    v7: f32 = iconst 1.0f32
+    jump block6(v4, v7)
+block6(v8: f32, v9: f32):
+    v10: f32 = fdiv v9, v8
+    return v10
 }"#,
         );
 
@@ -2889,14 +2889,14 @@ block6(v7: f32, v8: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
+    v1: f32 = iconst 0.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 1.0f32
+    v2: f32 = iconst 1.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 2.0f32
-    v5 = fdiv v4, v3
+    v4: f32 = iconst 2.0f32
+    v5: f32 = fdiv v4, v3
     return v5
 }"#,
         );
@@ -2938,14 +2938,14 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
+    v1: f32 = iconst 0.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 1.0f32
+    v2: f32 = iconst 1.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 0.0f32
-    v5 = fdiv v4, v3
+    v4: f32 = iconst 0.0f32
+    v5: f32 = fdiv v4, v3
     return v5
 }"#,
         );
@@ -2984,14 +2984,14 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
+    v1: f32 = iconst 0.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 1e1000f32
+    v2: f32 = iconst 1e1000f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 0.0f32
-    v5 = fdiv v4, v3
+    v4: f32 = iconst 0.0f32
+    v5: f32 = fdiv v4, v3
     return v5
 }"#,
         );
@@ -3030,15 +3030,15 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
-    v2 = iconst 1e1000f32
+    v1: f32 = iconst 0.0f32
+    v2: f32 = iconst 1e1000f32
     jump block3(v1, v2)
 block2:
-    v3 = iconst 0.0f32
-    v4 = iconst 1e1000f32
+    v3: f32 = iconst 0.0f32
+    v4: f32 = iconst 1e1000f32
     jump block3(v3, v4)
 block3(v5: f32, v6: f32):
-    v7 = fmul v5, v6
+    v7: f32 = fmul v5, v6
     return v7
 }"#,
         );
@@ -3077,14 +3077,14 @@ block3(v5: f32, v6: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
+    v1: f32 = iconst 0.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 2.0f32
+    v2: f32 = iconst 2.0f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = iconst 1e1000f32
-    v5 = fmul v4, v3
+    v4: f32 = iconst 1e1000f32
+    v5: f32 = fmul v4, v3
     return v5
 }"#,
         );
@@ -3123,15 +3123,15 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1e1000f32
-    v2 = iconst 1e1000f32
+    v1: f32 = iconst 1e1000f32
+    v2: f32 = iconst 1e1000f32
     jump block3(v1, v2)
 block2:
-    v3 = iconst 1e1000f32
-    v4 = iconst 1e1000f32
+    v3: f32 = iconst 1e1000f32
+    v4: f32 = iconst 1e1000f32
     jump block3(v3, v4)
 block3(v5: f32, v6: f32):
-    v7 = fdiv v5, v6
+    v7: f32 = fdiv v5, v6
     return v7
 }"#,
         );
@@ -3168,9 +3168,9 @@ block3(v5: f32, v6: f32):
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = iconst 0.0f32
-    v2 = fdiv v0, v1
+    v0: f32 = iconst 1e1000f32
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fdiv v0, v1
     return v2
 }"#,
         );
@@ -3207,9 +3207,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 2.0f32
-    v1 = iconst 1e1000f32
-    v2 = fdiv v0, v1
+    v0: f32 = iconst 2.0f32
+    v1: f32 = iconst 1e1000f32
+    v2: f32 = fdiv v0, v1
     return v2
 }"#,
         );
@@ -3246,9 +3246,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = iconst -2.0f32
-    v2 = fdiv v0, v1
+    v0: f32 = iconst 1e1000f32
+    v1: f32 = iconst -2.0f32
+    v2: f32 = fdiv v0, v1
     return v2
 }"#,
         );
@@ -3285,11 +3285,11 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1.0f32
-    v1 = iconst 0.0f32
-    v2 = fdiv v0, v1
-    v3 = iconst 0.0f32
-    v4 = fmul v3, v2
+    v0: f32 = iconst 1.0f32
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fdiv v0, v1
+    v3: f32 = iconst 0.0f32
+    v4: f32 = fmul v3, v2
     return v4
 }"#,
         );
@@ -3326,8 +3326,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3.9f32
-    v1 = fcvt_to_sint v0 -> i32
+    v0: f32 = iconst 3.9f32
+    v1: i32 = fcvt_to_sint v0 -> i32
     return v1
 }"#,
         );
@@ -3363,8 +3363,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 4i32
-    v1 = scvt_to_float v0 -> f32
+    v0: i32 = iconst 4i32
+    v1: f32 = scvt_to_float v0 -> f32
     return v1
 }"#,
         );
@@ -3401,8 +3401,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> f32 {
 block0:
-    v0 = iconst 1e300f64
-    v1 = fnarrow v0 -> f32
+    v0: f64 = iconst 1e300f64
+    v1: f32 = fnarrow v0 -> f32
     return v1
 }"#,
         );
@@ -3441,11 +3441,11 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
-    v2 = fdiv v1, v1
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fdiv v1, v1
     jump block3(v2)
 block2:
-    v3 = iconst 1.0f32
+    v3: f32 = iconst 1.0f32
     jump block3(v3)
 block3(v4: f32):
     return v4
@@ -3482,10 +3482,10 @@ block3(v4: f32):
         let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
-    v0 = iconst 0.0f32
-    v1 = fdiv v0, v0
-    v2 = iconst 1.0f32
-    v3 = fcmp_eq v1, v2
+    v0: f32 = iconst 0.0f32
+    v1: f32 = fdiv v0, v0
+    v2: f32 = iconst 1.0f32
+    v3: bool = fcmp_eq v1, v2
     return v3
 }"#,
         );
@@ -3517,9 +3517,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = iconst 1.0f32
-    v2 = fcmp_gt v0, v1
+    v0: f32 = iconst 1e1000f32
+    v1: f32 = iconst 1.0f32
+    v2: bool = fcmp_gt v0, v1
     return v2
 }"#,
         );
@@ -3551,9 +3551,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = iconst 1.0f32
-    v2 = fcmp_le v0, v1
+    v0: f32 = iconst 1e1000f32
+    v1: f32 = iconst 1.0f32
+    v2: bool = fcmp_le v0, v1
     return v2
 }"#,
         );
@@ -3585,10 +3585,10 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> bool {
 block0:
-    v0 = iconst 0.0f32
-    v1 = fdiv v0, v0
-    v2 = iconst 1.0f32
-    v3 = fcmp_ne v1, v2
+    v0: f32 = iconst 0.0f32
+    v1: f32 = fdiv v0, v0
+    v2: f32 = iconst 1.0f32
+    v3: bool = fcmp_ne v1, v2
     return v3
 }"#,
         );
@@ -3622,15 +3622,15 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 0.0f32
-    v2 = fdiv v1, v1
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fdiv v1, v1
     jump block3(v2)
 block2:
-    v3 = iconst 1.0f32
+    v3: f32 = iconst 1.0f32
     jump block3(v3)
 block3(v4: f32):
-    v5 = iconst 1.0f32
-    v6 = fcmp_ge v4, v5
+    v5: f32 = iconst 1.0f32
+    v6: bool = fcmp_ge v4, v5
     return v6
 }"#,
         );
@@ -3658,10 +3658,10 @@ block3(v4: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1e1000f32
+    v1: f32 = iconst 1e1000f32
     jump block3(v1)
 block2:
-    v2 = iconst 2.0f32
+    v2: f32 = iconst 2.0f32
     jump block3(v2)
 block3(v3: f32):
     return v3
@@ -3700,13 +3700,13 @@ block3(v3: f32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1.0f32
+    v1: f32 = iconst 1.0f32
     jump block3(v1)
 block2:
-    v2 = iconst 1e20f32
+    v2: f32 = iconst 1e20f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = fcvt_to_sint v3 -> i32
+    v4: i32 = fcvt_to_sint v3 -> i32
     return v4
 }"#,
         );
@@ -3742,8 +3742,8 @@ block3(v3: f32):
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1e1000f32
-    v1 = fcvt_to_sint v0 -> i32
+    v0: f32 = iconst 1e1000f32
+    v1: i32 = fcvt_to_sint v0 -> i32
     return v1
 }"#,
         );
@@ -3781,13 +3781,13 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst -1.0f32
+    v1: f32 = iconst -1.0f32
     jump block3(v1)
 block2:
-    v2 = iconst -1e20f32
+    v2: f32 = iconst -1e20f32
     jump block3(v2)
 block3(v3: f32):
-    v4 = fcvt_to_sint v3 -> i32
+    v4: i32 = fcvt_to_sint v3 -> i32
     return v4
 }"#,
         );
@@ -3823,8 +3823,8 @@ block3(v3: f32):
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst -1e1000f32
-    v1 = fcvt_to_sint v0 -> i32
+    v0: f32 = iconst -1e1000f32
+    v1: i32 = fcvt_to_sint v0 -> i32
     return v1
 }"#,
         );
@@ -3860,9 +3860,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0.0f32
-    v1 = fdiv v0, v0
-    v2 = fcvt_to_sint v1 -> i32
+    v0: f32 = iconst 0.0f32
+    v1: f32 = fdiv v0, v0
+    v2: i32 = fcvt_to_sint v1 -> i32
     return v2
 }"#,
         );

@@ -765,13 +765,13 @@ mod tests {
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     jump block3(v3)
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5
@@ -780,13 +780,13 @@ block3(v5: i32):
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v0
+    v3: i32 = iadd v0, v0
     jump block3(v3)
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     jump block3(v4)
 block3(v5: i32):
     return v5
@@ -804,26 +804,26 @@ block3(v5: i32):
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_ne v0, v1
+    v2: bool = icmp_ne v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     return v4
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_ne v0, v1
+    v2: bool = icmp_ne v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
-    v4 = isub v0, v0
+    v4: i32 = isub v0, v0
     return v4
 }"#;
 
@@ -839,11 +839,11 @@ block2:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 7i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 7i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block1, block2
 block1:
-    v4 = iadd v0, v1
+    v4: i32 = iadd v0, v1
     return v4
 block2:
     return v0
@@ -852,11 +852,11 @@ block2:
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 7i32
-    v3 = icmp_eq v0, v2
+    v2: i32 = iconst 7i32
+    v3: bool = icmp_eq v0, v2
     branch v3, block1, block2
 block1:
-    v4 = iadd v2, v1
+    v4: i32 = iadd v2, v1
     return v4
 block2:
     return v0
@@ -874,13 +874,13 @@ block2:
         // source test
         let input = r#"function @test(v0: f64, v1: f64) -> f64 {
 block0(v0: f64, v1: f64):
-    v2 = fcmp_eq v0, v1
+    v2: bool = fcmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = fadd v0, v1
+    v3: f64 = fadd v0, v1
     return v3
 block2:
-    v4 = fsub v0, v1
+    v4: f64 = fsub v0, v1
     return v4
 }"#;
 
@@ -896,28 +896,28 @@ block2:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     jump block3
 block2:
     return v0
 block3:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
     jump block3
 block2:
     return v0
 block3:
-    v3 = iadd v0, v0
+    v3: i32 = iadd v0, v0
     return v3
 }"#;
 
@@ -933,28 +933,28 @@ block3:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
-    v3 = bnot v2
+    v2: bool = icmp_eq v0, v1
+    v3: bool = bnot v2
     branch v3, block1, block2
 block1:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     return v4
 block2:
-    v5 = iadd v0, v1
+    v5: i32 = iadd v0, v1
     return v5
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
-    v3 = bnot v2
+    v2: bool = icmp_eq v0, v1
+    v3: bool = bnot v2
     branch v3, block1, block2
 block1:
-    v4 = isub v0, v1
+    v4: i32 = isub v0, v1
     return v4
 block2:
-    v5 = iadd v0, v0
+    v5: i32 = iadd v0, v0
     return v5
 }"#;
 
@@ -970,10 +970,10 @@ block2:
         // source test
         let input = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     check v3, bounds.unsigned v0, v1, v2, block1, block2
 block1:
-    v4 = iadd v0, v1
+    v4: u32 = iadd v0, v1
     return v4
 block2:
     return v0
@@ -982,10 +982,10 @@ block2:
         // expected output
         let expected = r#"function @test(v0: u32, v1: u32, v2: [u32; 4]) -> u32 {
 block0(v0: u32, v1: u32, v2: [u32; 4]):
-    v3 = icmp_eq v0, v1
+    v3: bool = icmp_eq v0, v1
     check v3, bounds.unsigned v0, v1, v2, block1, block2
 block1:
-    v4 = iadd v0, v0
+    v4: u32 = iadd v0, v0
     return v4
 block2:
     return v0
@@ -1003,10 +1003,10 @@ block2:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
+    v2: bool = icmp_eq v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iadd v0, v1
+    v3: i32 = iadd v0, v1
     return v3
 block2:
     jump block1
@@ -1024,11 +1024,11 @@ block2:
         // source test
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 5i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = icmp_slt v0, v1
+    v3: bool = icmp_slt v0, v1
     return v3
 block2:
     return v2
@@ -1037,11 +1037,11 @@ block2:
         // expected output
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 5i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
-    v3 = iconst true
+    v3: bool = iconst true
     return v3
 block2:
     return v2
@@ -1059,26 +1059,26 @@ block2:
         // source test
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 5i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
     return v2
 block2:
-    v3 = icmp_slt v0, v1
+    v3: bool = icmp_slt v0, v1
     return v3
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = icmp_slt v0, v1
+    v1: i32 = iconst 5i32
+    v2: bool = icmp_slt v0, v1
     branch v2, block1, block2
 block1:
     return v2
 block2:
-    v3 = iconst false
+    v3: bool = iconst false
     return v3
 }"#;
 

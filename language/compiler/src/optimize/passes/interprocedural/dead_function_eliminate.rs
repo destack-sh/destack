@@ -444,7 +444,7 @@ block0:
     fn test_dead_function_eliminate_signature_indirect() {
         let input = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return
 }
 function @keep(v0: i32) -> i32 {
@@ -460,7 +460,7 @@ block0(v0: i64):
         test.run_module_pass(&DeadFunctionEliminate);
         let expected = r#"export function @root(v0: fn(i32) -> i32, v1: i32) -> void {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return
 }
 function @keep(v0: i32) -> i32 {
@@ -507,7 +507,7 @@ block0:
 }
 function @dead(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v0
 }"#;
 

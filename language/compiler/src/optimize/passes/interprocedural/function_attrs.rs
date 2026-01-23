@@ -816,7 +816,7 @@ mod tests {
     fn test_function_attrs_pure() {
         let input = r#"function @pure(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }"#;
 
@@ -835,7 +835,7 @@ block0(v0: i32):
     fn test_function_attrs_alloc_behavior() {
         let input = r#"function @alloc() -> void {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
+    v0: ref<raw i32> = raw.alloc i32
     raw.free v0
     return
 }"#;
@@ -856,12 +856,12 @@ block0:
     fn test_function_attrs_updates_call_metadata() {
         let input = r#"function @callee() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }
 function @caller() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#;
 
@@ -886,7 +886,7 @@ block0:
     fn test_function_attrs_tailcall_returns() {
         let input = r#"function @callee(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     return v1
 }
 function @caller(v0: i32) -> i32 {
@@ -931,7 +931,7 @@ block0:
     fn test_function_attrs_unknown_indirect_effects() {
         let input = r#"function @callee(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#;
 

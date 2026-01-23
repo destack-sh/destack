@@ -15,6 +15,7 @@ mod pass;
 mod profile;
 mod signature;
 mod r#type;
+mod value;
 
 pub use analysis::*;
 pub use block::*;
@@ -33,6 +34,7 @@ pub use pass::*;
 pub use profile::*;
 pub use signature::*;
 pub use r#type::*;
+pub use value::*;
 
 #[cfg(test)]
 pub(crate) mod tests;

@@ -611,7 +611,7 @@ mod tests {
     fn test_store_pre_inserts_edge_store() {
         let input = r#"function @test(v0: bool, v1: i32) -> void {
 block0(v0: bool, v1: i32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     store v2, v1
@@ -625,7 +625,7 @@ block3:
 
         let expected = r#"function @test(v0: bool, v1: i32) -> void {
 block0(v0: bool, v1: i32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     store v2, v1
@@ -647,7 +647,7 @@ block3:
     fn test_store_pre_requires_existing_store() {
         let input = r#"function @test(v0: bool, v1: i32) -> void {
 block0(v0: bool, v1: i32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
@@ -674,8 +674,8 @@ block1:
 block2:
     jump block3
 block3:
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
     return
 }"#;
@@ -690,14 +690,14 @@ block3:
     fn test_store_pre_skips_non_speculatable_prefix() {
         let input = r#"function @test(v0: bool, v1: i32) -> void {
 block0(v0: bool, v1: i32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
     jump block3
 block2:
     jump block3
 block3:
-    v3 = load v2 -> i32
+    v3: i32 = load v2
     store v2, v1
     return
 }"#;

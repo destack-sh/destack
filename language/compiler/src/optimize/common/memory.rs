@@ -3,11 +3,9 @@ use std::collections::{HashMap, HashSet};
 use destack_mir as mir;
 
 use crate::optimize::TypeContext;
-use crate::optimize::analyses::{
-    AliasAnalysis, MemoryAccessEffect, MemoryAccessLocation, OwnershipAnalysis,
-};
+use crate::optimize::analyses::{AliasAnalysis, MemoryAccessEffect, MemoryAccessLocation};
 
-use super::TypeKey;
+use super::{TypeKey, ValueTypeMap};
 
 /// A memory location being accessed.
 ///
@@ -611,110 +609,33 @@ fn tbaa_node_is_ancestor(
 /// Resolve a pointer's pointee type when it is statically known.
 pub fn resolve_pointer_pointee_type(
     pointer: mir::Value,
-    function: &mir::Function,
     tree: &mir::NodeTree,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    // check parameter types first
-    if let Some(param_type) = parameter_type(pointer, function, tree)
-        && let mir::Type::Reference { pointee, .. } = tree.get(param_type)
-    {
-        return Some(*pointee);
+    // resolve the reference pointee type
+    let type_id = value_types.require_value_type(pointer);
+    let ty = tree.get(type_id);
+    match ty {
+        mir::Type::Reference { pointee, .. } => Some(*pointee),
+        mir::Type::TensorReference { element, .. } => Some(*element),
+        _ => None,
     }
-
-    // check ownership derived pointee types
-    ownership.pointee_type(pointer, tree)
 }
 
 /// Resolve a pointer's address space when it is statically known.
 pub fn resolve_pointer_address_space(
     pointer: mir::Value,
-    function: &mir::Function,
     tree: &mir::NodeTree,
-    ownership: &OwnershipAnalysis,
-    definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
+    value_types: &ValueTypeMap,
 ) -> Option<mir::AddressSpace> {
-    // check parameter types first
-    if let Some(param_type) = parameter_type(pointer, function, tree)
-        && let mir::Type::Reference { address_space, .. } = tree.get(param_type)
-    {
-        return Some(*address_space);
-    }
-
-    // check ownership derived value types
-    if let Some(ty_id) = ownership.value_type(pointer)
-        && let mir::Type::Reference { address_space, .. } = tree.get(ty_id)
-    {
-        return Some(*address_space);
-    }
-
-    // resolve from defining instruction
-    let instruction_id = definitions.get(&pointer)?;
-    let instruction = tree.get(*instruction_id);
-
-    if let Some(signature) = instruction.call_signature() {
-        let signature = tree.get(signature);
-        let mir::Type::FunctionPointer { result, .. } = signature else {
-            return None;
-        };
-
-        if let mir::Type::Reference { address_space, .. } = tree.get(*result) {
-            return Some(*address_space);
-        }
-
-        return None;
-    }
-
-    match instruction {
-        mir::Instruction::StackAlloc { .. } => Some(mir::AddressSpace::Stack),
-        mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::ManagedAlloc { .. }
-        | mir::Instruction::ManagedAllocArray { .. } => Some(mir::AddressSpace::Heap),
-        mir::Instruction::GlobalAddr { .. } => Some(mir::AddressSpace::Global),
-        mir::Instruction::LocalAddr { .. } => Some(mir::AddressSpace::Stack),
-        mir::Instruction::FieldAddr { aggregate, .. } => {
-            resolve_pointer_address_space(*aggregate, function, tree, ownership, definitions)
-        }
-        mir::Instruction::ElementAddr { array, .. } => {
-            resolve_pointer_address_space(*array, function, tree, ownership, definitions)
-        }
-        mir::Instruction::Cast {
-            argument, to_type, ..
-        } => {
-            if let mir::Type::Reference { address_space, .. } = tree.get(*to_type) {
-                Some(*address_space)
-            } else {
-                resolve_pointer_address_space(*argument, function, tree, ownership, definitions)
-            }
-        }
+    // resolve the reference address space
+    let ty_id = value_types.require_value_type(pointer);
+    let ty = tree.get(ty_id);
+    match ty {
+        mir::Type::Reference { address_space, .. } => Some(*address_space),
+        mir::Type::TensorReference { address_space, .. } => Some(*address_space),
         _ => None,
     }
-}
-
-/// Resolve the declared type for a value defined as a parameter.
-fn parameter_type(
-    value: mir::Value,
-    function: &mir::Function,
-    tree: &mir::NodeTree,
-) -> Option<mir::LocalNodeId<mir::Type>> {
-    // search function parameters first
-    for param in &function.parameters {
-        if param.value == value {
-            return Some(param.ty);
-        }
-    }
-
-    // search block parameters next
-    for &block_id in &function.blocks {
-        let block = tree.get(block_id);
-        for param in &block.parameters {
-            if param.value == value {
-                return Some(param.ty);
-            }
-        }
-    }
-
-    None
 }
 
 /// Base object that a pointer ultimately derives from.
@@ -849,8 +770,8 @@ pub struct PointerDecomposer<'a> {
     parameters: &'a [mir::TypedValue],
     /// Whether strict borrow mode is enabled.
     strict_borrow_mode: bool,
-    /// Optional value type map for element sizing.
-    value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+    /// Value type map for element sizing.
+    value_types: &'a ValueTypeMap,
     /// Type context for layout sensitive operations.
     type_context: TypeContext,
 }
@@ -863,7 +784,7 @@ impl<'a> PointerDecomposer<'a> {
         tree: &'a mir::NodeTree,
         parameters: &'a [mir::TypedValue],
         strict_borrow_mode: bool,
-        value_types: Option<&'a HashMap<mir::Value, mir::LocalNodeId<mir::Type>>>,
+        value_types: &'a ValueTypeMap,
         type_context: TypeContext,
     ) -> Self {
         Self {
@@ -1006,26 +927,14 @@ impl<'a> PointerDecomposer<'a> {
         }
     }
 
-    /// Resolve the value type for an SSA value when possible.
-    fn value_type(&self, value: mir::Value) -> Option<mir::LocalNodeId<mir::Type>> {
-        if let Some(value_types) = self.value_types
-            && let Some(ty) = value_types.get(&value)
-        {
-            return Some(*ty);
-        }
-
-        for parameter in self.parameters {
-            if parameter.value == value {
-                return Some(parameter.ty);
-            }
-        }
-
-        None
+    /// Return the value type for an SSA value.
+    fn value_type(&self, value: mir::Value) -> mir::LocalNodeId<mir::Type> {
+        self.value_types.require_value_type(value)
     }
 
     /// Resolve the element size for an array value when possible.
     fn element_size(&self, array: mir::Value) -> Option<u64> {
-        let ty_id = self.value_type(array)?;
+        let ty_id = self.value_type(array);
         let ty = self.tree.get(ty_id);
 
         let element_id = match ty {

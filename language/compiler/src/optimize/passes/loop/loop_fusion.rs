@@ -8,10 +8,10 @@ use crate::optimize::analyses::{
     MemoryAccessEffect, MemorySSA,
 };
 use crate::optimize::common::{
-    BlockParamForwarding, LoopEffectPolicy, block_is_speculatable_no_reads,
+    BlockParamForwarding, LoopEffectPolicy, ValueEquivalence, block_is_speculatable_no_reads,
     build_instruction_block_map, build_value_definition_map, clone_instruction_metadata,
     collect_loop_effects, control_instructions_for_latch, effects_may_alias,
-    instruction_is_speculatable, loop_guard_branch, loop_preheader,
+    instruction_is_speculatable, instruction_map, loop_guard_branch, loop_preheader,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -190,12 +190,8 @@ fn run_loop_fusion(
     let forwarding = BlockParamForwarding::build(function, tree, cfg);
 
     // locate a fusion candidate
-    let mut equivalence = crate::optimize::common::ValueEquivalence::new_with_constants(
-        tree,
-        &definitions,
-        constants,
-        &instruction_blocks,
-    );
+    let mut equivalence =
+        ValueEquivalence::new_with_constants(tree, &definitions, constants, &instruction_blocks);
 
     let candidate = loops.loops().iter().enumerate().find_map(|(index, lp)| {
         build_fusion_candidate(
@@ -244,7 +240,7 @@ fn build_fusion_candidate(
     forwarding: &BlockParamForwarding,
     definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
     instruction_blocks: &HashMap<mir::LocalNodeId<mir::Instruction>, mir::LocalNodeId<mir::Block>>,
-    equivalence: &mut crate::optimize::common::ValueEquivalence<'_>,
+    equivalence: &mut ValueEquivalence<'_>,
 ) -> Option<FusionCandidate> {
     // require a single latch and exit
     if !lp.has_single_latch() || !lp.has_single_exit() {
@@ -663,7 +659,7 @@ fn guards_compatible(
     first: &LoopBody,
     second_guard: &GuardInfo,
     second_preheader_args: &[mir::Value],
-    equivalence: &mut crate::optimize::common::ValueEquivalence<'_>,
+    equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // require matching induction indices
     if first.guard.induction_index != second_guard.induction_index {
@@ -706,7 +702,7 @@ fn guards_compatible(
 fn preheader_args_match(
     first: &[mir::Value],
     second: &[mir::Value],
-    equivalence: &mut crate::optimize::common::ValueEquivalence<'_>,
+    equivalence: &mut ValueEquivalence<'_>,
 ) -> bool {
     // require equal arity
     if first.len() != second.len() {
@@ -796,7 +792,8 @@ fn apply_fusion(
     for &instruction_id in &candidate.second.body_instructions {
         let instruction = tree.get(instruction_id);
         if let Some(destination) = instruction.destination() {
-            value_map.insert(destination, function.next_value());
+            let new_value = function.next_typed_value_like(destination);
+            value_map.insert(destination, new_value);
         }
     }
 
@@ -835,7 +832,7 @@ fn apply_fusion(
     // clone loop2 body instructions into the latch
     for &instruction_id in &candidate.second.body_instructions {
         let original = tree.get(instruction_id).clone();
-        let new_instruction = crate::optimize::common::instruction_map(&original, &value_map, tree);
+        let new_instruction = instruction_map(&original, &value_map, tree);
         let new_instruction_id = tree.insert(new_instruction);
         clone_instruction_metadata(tree, instruction_id, new_instruction_id, &value_map);
         new_instructions.push(new_instruction_id);
@@ -910,30 +907,30 @@ mod tests {
     fn test_loop_fusion_merges_adjacent_loops() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
     jump block4(v3)
 block4(v11: u32):
-    v12 = icmp_ult v11, v0
+    v12: bool = icmp_ult v11, v0
     branch v12, block5(v11), block6
 block5(v13: u32):
-    v14 = element.addr v2, v13 -> ref<raw addrspace(stack) i32>
-    v15 = iconst 2i32
+    v14: ref<raw addrspace(stack) i32> = element.addr v2, v13
+    v15: i32 = iconst 2i32
     store v14, v15
-    v16 = iadd v13, v4
+    v16: u32 = iadd v13, v4
     jump block4(v16)
 block6:
     return
@@ -941,23 +938,23 @@ block6:
 
         let expected = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v17 = element.addr v2, v7 -> ref<raw addrspace(stack) i32>
-    v18 = iconst 2i32
-    store v17, v18
-    v10 = iadd v7, v4
-    jump block1(v10)
+    v10: ref<raw addrspace(stack) i32> = element.addr v2, v7
+    v11: i32 = iconst 2i32
+    store v10, v11
+    v12: u32 = iadd v7, v4
+    jump block1(v12)
 block3:
     return
 }"#;
@@ -972,29 +969,29 @@ block3:
     fn test_loop_fusion_merges_with_carry_args() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
-    v5 = iconst 7u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
+    v5: u32 = iconst 7u32
     jump block1(v3, v5)
 block1(v6: u32, v7: u32):
-    v8 = icmp_ult v6, v0
+    v8: bool = icmp_ult v6, v0
     branch v8, block2(v6, v7), block3
 block2(v9: u32, v10: u32):
-    v11 = element.addr v1, v9 -> ref<raw addrspace(stack) i32>
+    v11: ref<raw addrspace(stack) i32> = element.addr v1, v9
     store v11, v10
-    v12 = iadd v9, v4
+    v12: u32 = iadd v9, v4
     jump block1(v12, v10)
 block3:
     jump block4(v3, v5)
 block4(v13: u32, v14: u32):
-    v15 = icmp_ult v13, v0
+    v15: bool = icmp_ult v13, v0
     branch v15, block5(v13, v14), block6
 block5(v16: u32, v17: u32):
-    v18 = element.addr v2, v16 -> ref<raw addrspace(stack) i32>
+    v18: ref<raw addrspace(stack) i32> = element.addr v2, v16
     store v18, v17
-    v19 = iadd v16, v4
+    v19: u32 = iadd v16, v4
     jump block4(v19, v17)
 block6:
     return
@@ -1002,22 +999,22 @@ block6:
 
         let expected = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
-    v5 = iconst 7u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
+    v5: u32 = iconst 7u32
     jump block1(v3, v5)
 block1(v6: u32, v7: u32):
-    v8 = icmp_ult v6, v0
+    v8: bool = icmp_ult v6, v0
     branch v8, block2(v6, v7), block3
 block2(v9: u32, v10: u32):
-    v11 = element.addr v1, v9 -> ref<raw addrspace(stack) i32>
+    v11: ref<raw addrspace(stack) i32> = element.addr v1, v9
     store v11, v10
-    v20 = element.addr v2, v9 -> ref<raw addrspace(stack) i32>
-    store v20, v10
-    v12 = iadd v9, v4
-    jump block1(v12, v10)
+    v12: ref<raw addrspace(stack) i32> = element.addr v2, v9
+    store v12, v10
+    v13: u32 = iadd v9, v4
+    jump block1(v13, v10)
 block3:
     return
 }"#;
@@ -1032,29 +1029,29 @@ block3:
     fn test_loop_fusion_skips_aliasing() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = iadd v6, v3
+    v9: u32 = iadd v6, v3
     jump block1(v9)
 block3:
     jump block4(v2)
 block4(v10: u32):
-    v11 = icmp_ult v10, v0
+    v11: bool = icmp_ult v10, v0
     branch v11, block5(v10), block6
 block5(v12: u32):
-    v13 = element.addr v1, v12 -> ref<raw addrspace(stack) i32>
-    v14 = iconst 2i32
+    v13: ref<raw addrspace(stack) i32> = element.addr v1, v12
+    v14: i32 = iconst 2i32
     store v13, v14
-    v15 = iadd v12, v3
+    v15: u32 = iadd v12, v3
     jump block4(v15)
 block6:
     return
@@ -1070,31 +1067,31 @@ block6:
     fn test_loop_fusion_skips_non_empty_preheader() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
-    v11 = iconst 0u32
+    v11: u32 = iconst 0u32
     jump block4(v3)
 block4(v12: u32):
-    v13 = icmp_ult v12, v0
+    v13: bool = icmp_ult v12, v0
     branch v13, block5(v12), block6
 block5(v14: u32):
-    v15 = element.addr v2, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v2, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v14, v4
+    v17: u32 = iadd v14, v4
     jump block4(v17)
 block6:
     return
@@ -1110,30 +1107,30 @@ block6:
     fn test_loop_fusion_skips_mismatched_bounds() {
         let input = r#"function @test(v0: u32, v1: u32) -> void {
 block0(v0: u32, v1: u32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v4 = iconst 0u32
-    v5 = iconst 1u32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v4: u32 = iconst 0u32
+    v5: u32 = iconst 1u32
     jump block1(v4)
 block1(v6: u32):
-    v7 = icmp_ult v6, v0
+    v7: bool = icmp_ult v6, v0
     branch v7, block2(v6), block3
 block2(v8: u32):
-    v9 = element.addr v2, v8 -> ref<raw addrspace(stack) i32>
-    v10 = iconst 1i32
+    v9: ref<raw addrspace(stack) i32> = element.addr v2, v8
+    v10: i32 = iconst 1i32
     store v9, v10
-    v11 = iadd v8, v5
+    v11: u32 = iadd v8, v5
     jump block1(v11)
 block3:
     jump block4(v4)
 block4(v12: u32):
-    v13 = icmp_ult v12, v1
+    v13: bool = icmp_ult v12, v1
     branch v13, block5(v12), block6
 block5(v14: u32):
-    v15 = element.addr v3, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v3, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v14, v5
+    v17: u32 = iadd v14, v5
     jump block4(v17)
 block6:
     return
@@ -1149,31 +1146,31 @@ block6:
     fn test_loop_fusion_skips_header_reads() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
     jump block4(v3)
 block4(v11: u32):
-    v12 = load v2 -> i32
-    v13 = icmp_ult v11, v0
+    v12: i32 = load v2
+    v13: bool = icmp_ult v11, v0
     branch v13, block5(v11), block6
 block5(v14: u32):
-    v15 = element.addr v2, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v2, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v14, v4
+    v17: u32 = iadd v14, v4
     jump block4(v17)
 block6:
     return
@@ -1189,31 +1186,31 @@ block6:
     fn test_loop_fusion_skips_header_latch_dependency() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
     jump block4(v3)
 block4(v11: u32):
-    v12 = iadd v11, v4
-    v13 = icmp_ult v11, v0
+    v12: u32 = iadd v11, v4
+    v13: bool = icmp_ult v11, v0
     branch v13, block5(v11), block6
 block5(v14: u32):
-    v15 = element.addr v2, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v2, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v12, v4
+    v17: u32 = iadd v12, v4
     jump block4(v17)
 block6:
     return
@@ -1229,31 +1226,31 @@ block6:
     fn test_loop_fusion_skips_side_effects() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
     jump block4(v3)
 block4(v11: u32):
-    v12 = icmp_ult v11, v0
+    v12: bool = icmp_ult v11, v0
     branch v12, block5(v11), block6
 block5(v13: u32):
     call @touch(v13) -> fn(u32) -> void
-    v14 = element.addr v2, v13 -> ref<raw addrspace(stack) i32>
-    v15 = iconst 2i32
+    v14: ref<raw addrspace(stack) i32> = element.addr v2, v13
+    v15: i32 = iconst 2i32
     store v14, v15
-    v16 = iadd v13, v4
+    v16: u32 = iadd v13, v4
     jump block4(v16)
 block6:
     return
@@ -1273,32 +1270,32 @@ block0(v0: u32):
     fn test_loop_fusion_skips_non_adjacent_loops() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v4
+    v10: u32 = iadd v7, v4
     jump block1(v10)
 block3:
     jump block4(v3)
 block4(v11: u32):
     jump block5(v11)
 block5(v12: u32):
-    v13 = icmp_ult v12, v0
+    v13: bool = icmp_ult v12, v0
     branch v13, block6(v12), block7
 block6(v14: u32):
-    v15 = element.addr v2, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v2, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v14, v4
+    v17: u32 = iadd v14, v4
     jump block5(v17)
 block7:
     return
@@ -1314,32 +1311,32 @@ block7:
     fn test_loop_fusion_skips_mismatched_carry_args() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
-    v5 = iconst 10u32
-    v6 = iconst 20u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
+    v5: u32 = iconst 10u32
+    v6: u32 = iconst 20u32
     jump block1(v3, v5)
 block1(v7: u32, v8: u32):
-    v9 = icmp_ult v7, v0
+    v9: bool = icmp_ult v7, v0
     branch v9, block2(v7, v8), block3
 block2(v10: u32, v11: u32):
-    v12 = element.addr v1, v10 -> ref<raw addrspace(stack) i32>
-    v13 = iconst 1i32
+    v12: ref<raw addrspace(stack) i32> = element.addr v1, v10
+    v13: i32 = iconst 1i32
     store v12, v13
-    v14 = iadd v10, v4
+    v14: u32 = iadd v10, v4
     jump block1(v14, v11)
 block3:
     jump block4(v3, v6)
 block4(v15: u32, v16: u32):
-    v17 = icmp_ult v15, v0
+    v17: bool = icmp_ult v15, v0
     branch v17, block5(v15, v16), block6
 block5(v18: u32, v19: u32):
-    v20 = element.addr v2, v18 -> ref<raw addrspace(stack) i32>
-    v21 = iconst 2i32
+    v20: ref<raw addrspace(stack) i32> = element.addr v2, v18
+    v21: i32 = iconst 2i32
     store v20, v21
-    v22 = iadd v18, v4
+    v22: u32 = iadd v18, v4
     jump block4(v22, v19)
 block6:
     return
@@ -1355,31 +1352,31 @@ block6:
     fn test_loop_fusion_skips_step_mismatch() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
-    v5 = iconst 2u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
+    v5: u32 = iconst 2u32
     jump block1(v3)
 block1(v6: u32):
-    v7 = icmp_ult v6, v0
+    v7: bool = icmp_ult v6, v0
     branch v7, block2(v6), block3
 block2(v8: u32):
-    v9 = element.addr v1, v8 -> ref<raw addrspace(stack) i32>
-    v10 = iconst 1i32
+    v9: ref<raw addrspace(stack) i32> = element.addr v1, v8
+    v10: i32 = iconst 1i32
     store v9, v10
-    v11 = iadd v8, v4
+    v11: u32 = iadd v8, v4
     jump block1(v11)
 block3:
     jump block4(v3)
 block4(v12: u32):
-    v13 = icmp_ult v12, v0
+    v13: bool = icmp_ult v12, v0
     branch v13, block5(v12), block6
 block5(v14: u32):
-    v15 = element.addr v2, v14 -> ref<raw addrspace(stack) i32>
-    v16 = iconst 2i32
+    v15: ref<raw addrspace(stack) i32> = element.addr v2, v14
+    v16: i32 = iconst 2i32
     store v15, v16
-    v17 = iadd v14, v5
+    v17: u32 = iadd v14, v5
     jump block4(v17)
 block6:
     return

@@ -495,7 +495,7 @@ mod tests {
             r#"global @flag: bool = true
 function @test() -> bool {
 block0:
-    v0 = global.const @flag
+    v0: bool = global.const @flag
     return v0
 }"#,
         );
@@ -519,7 +519,7 @@ block0:
             r#"global @flag: bool = true ; mut
 function @test() -> bool {
 block0:
-    v0 = global.const @flag
+    v0: bool = global.const @flag
     return v0
 }"#,
         );
@@ -543,7 +543,7 @@ block0:
             r#"global @flag: bool = zeroinit ; const
 function @test() -> bool {
 block0:
-    v0 = global.const @flag
+    v0: bool = global.const @flag
     return v0
 }"#,
         );
@@ -566,9 +566,9 @@ block0:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 2i32
-    v1 = iconst 3i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 2i32
+    v1: i32 = iconst 3i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#,
         );
@@ -598,7 +598,7 @@ block0:
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = iconst true
+    v1: bool = iconst true
     branch v0, block1(v1), block2(v1)
 block1(v2: bool):
     jump block3(v2)
@@ -627,8 +627,8 @@ block3(v4: bool):
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = iconst true
-    v2 = iconst false
+    v1: bool = iconst true
+    v2: bool = iconst false
     branch v0, block1(v1), block2(v2)
 block1(v3: bool):
     jump block3(v3)
@@ -657,8 +657,8 @@ block3(v5: bool):
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = iconst true
-    v2 = iconst false
+    v1: bool = iconst true
+    v2: bool = iconst false
     branch v0, block1(v1), block1(v2)
 block1(v3: bool):
     return v3

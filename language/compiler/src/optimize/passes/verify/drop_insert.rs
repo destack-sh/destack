@@ -4,7 +4,7 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 use mir::{Instruction, Value};
 
-use crate::optimize::common::build_signature_type;
+use crate::optimize::common::{ValueTypeMap, build_signature_type};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, PipelineContext,
 };
@@ -42,7 +42,8 @@ fn run_drop_insert(
     ownership: &OwnershipAnalysis,
 ) -> bool {
     // find values that need drops using ownership analysis
-    let droppable = find_droppable_values_with_ownership(function, tree, ownership);
+    let value_types = ValueTypeMap::new(function, tree);
+    let droppable = find_droppable_values_with_ownership(function, tree, ownership, &value_types);
     if droppable.is_empty() {
         return false;
     }
@@ -141,7 +142,7 @@ fn run_drop_insert(
     }
 
     // insert drops (process in reverse to maintain indices)
-    insert_drops(function, tree, &drops_to_insert, ownership);
+    insert_drops(function, tree, &drops_to_insert, ownership, &value_types);
 
     true
 }
@@ -198,19 +199,20 @@ enum DropInsertionPoint {
 
 /// Find all values in the function that need Drop calls using ownership analysis.
 ///
-/// Uses OwnershipAnalysis for accurate value type tracking, which handles cases like
-/// field.set/element.set where the type needs to be inferred.
+/// Uses the value type table for accurate value type tracking, which handles
+/// field.set/element.set without inference.
 fn find_droppable_values_with_ownership(
     function: &mir::Function,
     tree: &mir::NodeTree,
     ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) -> HashSet<Value> {
     let mut droppable = HashSet::new();
 
     // check function parameters
     for param in &function.parameters {
         // drop only values that require explicit cleanup
-        if value_needs_drop(param.value, ownership, tree) {
+        if value_needs_drop(param.value, ownership, value_types, tree) {
             droppable.insert(param.value);
         }
     }
@@ -221,7 +223,7 @@ fn find_droppable_values_with_ownership(
 
         // block parameters
         for param in &block.parameters {
-            if value_needs_drop(param.value, ownership, tree) {
+            if value_needs_drop(param.value, ownership, value_types, tree) {
                 droppable.insert(param.value);
             }
         }
@@ -231,7 +233,7 @@ fn find_droppable_values_with_ownership(
             let instruction = tree.get(instruction_id);
 
             if let Some(dest) = instruction.destination()
-                && value_needs_drop(dest, ownership, tree)
+                && value_needs_drop(dest, ownership, value_types, tree)
             {
                 droppable.insert(dest);
             }
@@ -242,16 +244,19 @@ fn find_droppable_values_with_ownership(
 }
 
 /// Return true when a value requires explicit drop insertion.
-fn value_needs_drop(value: Value, ownership: &OwnershipAnalysis, tree: &mir::NodeTree) -> bool {
+fn value_needs_drop(
+    value: Value,
+    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
+    tree: &mir::NodeTree,
+) -> bool {
     // managed allocations are GC owned
     if ownership.is_managed_allocated(value) {
         return false;
     }
 
     // resolve the value type from ownership
-    let Some(type_id) = ownership.value_type(value) else {
-        return false;
-    };
+    let type_id = value_types.require_value_type(value);
 
     // drop rules are based on the value type
     matches!(
@@ -316,13 +321,13 @@ fn find_death_point(
 fn emit_drop_sequence(
     tree: &mut mir::NodeTree,
     ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     value: Value,
     instructions: &mut Vec<mir::LocalNodeId<Instruction>>,
 ) {
     // check if value's type has a drop function
-    if let Some(type_id) = ownership.value_type(value)
-        && let Some(&drop_fn) = tree.type_table.drop_function_by_type_id.get(&type_id)
-    {
+    let type_id = value_types.require_value_type(value);
+    if let Some(&drop_fn) = tree.type_table.drop_function_by_type_id.get(&type_id) {
         let arguments = tree.add_arguments(&[value]);
         let signature = build_signature_type(drop_fn, tree);
         let call = Instruction::Call {
@@ -355,6 +360,7 @@ fn insert_drops(
     tree: &mut mir::NodeTree,
     drops: &[DropInsertionPoint],
     ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
 ) {
     // group by block for efficient insertion
     let mut by_block: HashMap<mir::LocalNodeId<mir::Block>, Vec<&DropInsertionPoint>> =
@@ -402,14 +408,14 @@ fn insert_drops(
             // insert drops after this instruction
             if let Some(values) = drops_after.get(&idx) {
                 for &value in values {
-                    emit_drop_sequence(tree, ownership, value, &mut new_instructions);
+                    emit_drop_sequence(tree, ownership, value_types, value, &mut new_instructions);
                 }
             }
         }
 
         // insert drops before terminator
         for value in drops_before_terminator {
-            emit_drop_sequence(tree, ownership, value, &mut new_instructions);
+            emit_drop_sequence(tree, ownership, value_types, value, &mut new_instructions);
         }
 
         // update block
@@ -428,7 +434,7 @@ mod tests {
     fn test_verify_no_drops_needed() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -443,9 +449,9 @@ block0:
     fn test_verify_primitives_no_drop() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
 
@@ -460,9 +466,9 @@ block0:
     fn test_verify_booleans_no_drop() {
         let input = r#"function @test() -> bool {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = icmp_eq v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: bool = icmp_eq v0, v1
     return v2
 }"#;
 
@@ -477,9 +483,9 @@ block0:
     fn test_verify_floats_no_drop() {
         let input = r#"function @test() -> f64 {
 block0:
-    v0 = iconst 1.0f64
-    v1 = iconst 2.0f64
-    v2 = fadd v0, v1
+    v0: f64 = iconst 1.0f64
+    v1: f64 = iconst 2.0f64
+    v2: f64 = fadd v0, v1
     return v2
 }"#;
 
@@ -507,10 +513,10 @@ block0:
     fn test_verify_stack_alloc_primitive() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -526,8 +532,8 @@ block0:
         let input = r#"type @Node = { i32 }
 function @test() -> i32 {
 block0:
-    v0 = managed.alloc @Node -> ref<managed @Node>
-    v1 = iconst 1i32
+    v0: ref<managed @Node> = managed.alloc @Node
+    v1: i32 = iconst 1i32
     return v1
 }"#;
 
@@ -542,12 +548,12 @@ block0:
     fn test_verify_arithmetic_chain() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v0, v1
-    v4 = imul v3, v2
-    v5 = isub v4, v0
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v0, v1
+    v4: i32 = imul v3, v2
+    v5: i32 = isub v4, v0
     return v5
 }"#;
 
@@ -564,10 +570,10 @@ block0:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -582,14 +588,14 @@ block2:
     fn test_verify_loop_primitives() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1)
 block1(v2: i32):
-    v3 = icmp_slt v2, v0
+    v3: bool = icmp_slt v2, v0
     branch v3, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v2, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v2, v4
     jump block1(v5)
 block3:
     return v2
@@ -606,8 +612,8 @@ block3:
     fn test_verify_cast_no_drop() {
         let input = r#"function @test() -> i64 {
 block0:
-    v0 = iconst 42i32
-    v1 = sextend v0 -> i64
+    v0: i32 = iconst 42i32
+    v1: i64 = sextend v0 -> i64
     return v1
 }"#;
 
@@ -622,11 +628,11 @@ block0:
     fn test_verify_load_store_primitives() {
         let input = r#"function @test(v0: ref<raw i32>) -> i32 {
 block0(v0: ref<raw i32>):
-    v1 = load v0 -> i32
-    v2 = iconst 10i32
-    v3 = iadd v1, v2
+    v1: i32 = load v0
+    v2: i32 = iconst 10i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = load v0 -> i32
+    v4: i32 = load v0
     return v4
 }"#;
 
@@ -643,9 +649,9 @@ block0(v0: ref<raw i32>):
 
 function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = call @add(v0, v1) -> fn(i32, i32) -> i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = call @add(v0, v1) -> fn(i32, i32) -> i32
     return v2
 }"#;
 
@@ -660,9 +666,9 @@ block0:
         let input = r#"function @test() -> i32 {
 local0: i32
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
 
@@ -692,13 +698,13 @@ block0:
 block0(v0: i32):
     switch v0, block3, 0 => block1, 1 => block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     return v2
 block3:
-    v3 = iconst 30i32
+    v3: i32 = iconst 30i32
     return v3
 }"#;
 
@@ -713,10 +719,10 @@ block3:
     fn test_managed_alloc_no_drop() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
-    v1 = iconst 42i32
+    v0: ref<managed i32> = managed.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -731,8 +737,8 @@ block0:
     fn test_managed_alloc_returned_no_drop() {
         let input = r#"function @test() -> ref<managed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
-    v1 = iconst 42i32
+    v0: ref<managed i32> = managed.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     return v0
 }"#;
@@ -748,13 +754,13 @@ block0:
     fn test_insert_drop_for_owned_param() {
         let input = r#"function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     return v1
 }"#;
 
         let expected = r#"function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     raw.drop v0
     return v1
 }"#;
@@ -770,10 +776,10 @@ block0(v0: ref<owned i32>):
     fn test_raw_alloc_no_automatic_drop() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
-    v1 = iconst 42i32
+    v0: ref<raw i32> = raw.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     raw.free v0
     return v2
 }"#;
@@ -794,7 +800,7 @@ block0(v0: ref<raw i32>):
 
 function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     return v1
 }"#;
 
@@ -825,7 +831,7 @@ block0(v0: ref<raw i32>):
 }
 function @test(v0: ref<owned i32>) -> i32 {
 block0(v0: ref<owned i32>):
-    v1 = load v0 -> i32
+    v1: i32 = load v0
     call @my_drop(v0) -> fn(ref<raw i32>) -> void
     raw.drop v0
     return v1

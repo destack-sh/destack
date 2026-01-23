@@ -4,11 +4,11 @@ use destack_compiler_macros::declare_pass;
 use destack_mir as mir;
 
 use crate::optimize::analyses::{
-    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, OwnershipAnalysis, RangeAnalysis,
-    ScalarEvolution, Scev, ValueRange,
+    ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev,
+    ValueRange,
 };
 use crate::optimize::common::{
-    constant_is_zero, instruction_is_speculatable, instruction_map,
+    ValueTypeMap, constant_is_zero, instruction_is_speculatable, instruction_map,
     instruction_substitute_uses_in_tree, resolve_substitution_chains, terminator_substitute_uses,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
@@ -83,8 +83,8 @@ impl FunctionPass for LoopStrengthReduce {
         let cfg = analyses.get::<ControlFlowGraph>().clone();
         let domtree = analyses.get::<DominatorTree>().clone();
         let scev = analyses.get::<ScalarEvolution>().clone();
-        let ownership = analyses.get::<OwnershipAnalysis>().clone();
         let ranges = analyses.get::<RangeAnalysis>().clone();
+        let value_types = ValueTypeMap::new(function, tree);
 
         // skip when no loops are present
         if loops.num_loops() == 0 {
@@ -97,7 +97,7 @@ impl FunctionPass for LoopStrengthReduce {
             cfg: &cfg,
             domtree: &domtree,
             scev: &scev,
-            ownership: &ownership,
+            value_types: &value_types,
             ranges: &ranges,
             type_context: ctx.type_context(),
         };
@@ -287,8 +287,8 @@ struct StrengthReduceContext<'a> {
     domtree: &'a DominatorTree,
     /// Scalar evolution analysis.
     scev: &'a ScalarEvolution,
-    /// Ownership analysis for value types.
-    ownership: &'a OwnershipAnalysis,
+    /// Value type lookup for the function.
+    value_types: &'a ValueTypeMap,
     /// Range analysis for loop invariants.
     ranges: &'a RangeAnalysis,
     /// Type context for layout sensitive operations.
@@ -307,8 +307,8 @@ struct CandidateContext<'a> {
     domtree: &'a DominatorTree,
     /// Scalar evolution analysis.
     scev: &'a ScalarEvolution,
-    /// Ownership analysis for value types.
-    ownership: &'a OwnershipAnalysis,
+    /// Value type lookup for the function.
+    value_types: &'a ValueTypeMap,
     /// Value definition metadata.
     definitions: &'a ValueDefinitions,
     /// Value use metadata.
@@ -385,7 +385,7 @@ impl<'a> CandidateContext<'a> {
                             *right,
                             block_id,
                             self.ranges,
-                            self.ownership,
+                            self.value_types,
                             self.type_context.pointer_width_bits,
                             self.tree,
                         )
@@ -394,9 +394,7 @@ impl<'a> CandidateContext<'a> {
                     }
 
                     // require an integer type for the value
-                    let Some(value_type) = self.ownership.value_type(destination) else {
-                        continue;
-                    };
+                    let value_type = self.value_types.require_value_type(destination);
                     if !type_is_integer(value_type, self.type_context.pointer_width_bits, self.tree)
                     {
                         continue;
@@ -489,7 +487,7 @@ fn run_loop_strength_reduce(
         cfg: context.cfg,
         domtree: context.domtree,
         scev: context.scev,
-        ownership: context.ownership,
+        value_types: context.value_types,
         definitions: &definitions,
         uses: &uses,
         ranges: context.ranges,
@@ -534,7 +532,7 @@ fn run_loop_strength_reduce(
             tree,
             &loop_candidates,
             &definitions,
-            context.ownership,
+            context.value_types,
             context.ranges,
             context.domtree,
             context.type_context,
@@ -598,7 +596,7 @@ fn apply_candidates_for_loop(
     tree: &mut mir::NodeTree,
     candidates: &[StrengthReductionCandidate],
     definitions: &ValueDefinitions,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     ranges: &RangeAnalysis,
     domtree: &DominatorTree,
     type_context: TypeContext,
@@ -620,7 +618,7 @@ fn apply_candidates_for_loop(
         preheader,
         loop_blocks,
         definitions,
-        ownership,
+        value_types,
         ranges,
         domtree,
         type_context,
@@ -640,11 +638,11 @@ fn apply_candidates_for_loop(
         };
 
         // allocate the new header parameter value
-        let new_param_value = function.next_value();
+        let new_param_value = function.next_typed_value(candidate.value_type);
         let new_param = mir::TypedValue::new(new_param_value, candidate.value_type);
 
         // allocate the next value for the latch update
-        let next_value = function.next_value();
+        let next_value = function.next_typed_value(candidate.value_type);
 
         // record the planned rewrite
         plan_items.push(StrengthReductionPlanItem {
@@ -769,7 +767,7 @@ fn division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> bool {
@@ -780,7 +778,7 @@ fn division_is_safe(
                 right,
                 block_id,
                 ranges,
-                ownership,
+                value_types,
                 pointer_width_bits,
                 tree,
             )
@@ -798,7 +796,7 @@ fn signed_division_is_safe(
     right: mir::Value,
     block_id: mir::LocalNodeId<mir::Block>,
     ranges: &RangeAnalysis,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> bool {
@@ -818,7 +816,7 @@ fn signed_division_is_safe(
             return false;
         };
 
-        let Some(min_value) = signed_min_for_value(left, ownership, pointer_width_bits, tree)
+        let Some(min_value) = signed_min_for_value(left, value_types, pointer_width_bits, tree)
             .or_else(|| signed_min_from_range(&left_range))
         else {
             return false;
@@ -929,11 +927,11 @@ fn integer_range_excludes_minus_one(range: &IntegerRange) -> bool {
 /// Extract the signed minimum for a value type.
 fn signed_min_for_value(
     value: mir::Value,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> Option<i128> {
-    let ty = ownership.value_type(value)?;
+    let ty = value_types.require_value_type(value);
     let (width, is_signed) = tree
         .get(ty)
         .int_info_with_pointer_width(pointer_width_bits)?;
@@ -1199,8 +1197,8 @@ struct ScevMaterializer<'a> {
     loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
     /// Value definitions for the function.
     definitions: &'a ValueDefinitions,
-    /// Ownership metadata for value types.
-    ownership: &'a OwnershipAnalysis,
+    /// Value type lookup for the function.
+    value_types: &'a ValueTypeMap,
     /// Range analysis for invariant checks.
     ranges: &'a RangeAnalysis,
     /// Dominator tree for availability checks.
@@ -1227,7 +1225,7 @@ impl<'a> ScevMaterializer<'a> {
         preheader: mir::LocalNodeId<mir::Block>,
         loop_blocks: &'a HashSet<mir::LocalNodeId<mir::Block>>,
         definitions: &'a ValueDefinitions,
-        ownership: &'a OwnershipAnalysis,
+        value_types: &'a ValueTypeMap,
         ranges: &'a RangeAnalysis,
         domtree: &'a DominatorTree,
         type_context: TypeContext,
@@ -1251,7 +1249,7 @@ impl<'a> ScevMaterializer<'a> {
             preheader,
             loop_blocks,
             definitions,
-            ownership,
+            value_types,
             ranges,
             domtree,
             constant_cache,
@@ -1467,8 +1465,19 @@ impl<'a> ScevMaterializer<'a> {
             return Some(*value);
         }
 
+        // resolve the constant type
+        let type_id = match constant {
+            mir::Constant::Boolean { .. } => self.tree.boolean_type(),
+            mir::Constant::Int {
+                width, is_signed, ..
+            } => self.int_type(*width as u16, *is_signed)?,
+            mir::Constant::UInt { width, .. } => self.int_type(*width as u16, false)?,
+            mir::Constant::Float { width, .. } => self.tree.float_type(*width as u16),
+            mir::Constant::Char { .. } => self.int_type(32, false)?,
+        };
+
         // allocate a new constant instruction
-        let destination = function.next_value();
+        let destination = function.next_typed_value(type_id);
         let instruction = mir::Instruction::Const {
             destination,
             value: constant.clone(),
@@ -1555,7 +1564,7 @@ impl<'a> ScevMaterializer<'a> {
         original: mir::Value,
     ) -> Option<mir::Value> {
         // allocate a destination for the cloned instruction
-        let destination = function.next_value();
+        let destination = function.next_typed_value_like(original);
 
         // map the destination and operands to preheader values
         let mut value_map = HashMap::new();
@@ -1594,7 +1603,7 @@ impl<'a> ScevMaterializer<'a> {
         right: mir::Value,
     ) -> mir::Value {
         // allocate a destination value
-        let destination = function.next_value();
+        let destination = function.next_typed_value_like(left);
         let instruction = mir::Instruction::Binary {
             destination,
             operator,
@@ -1613,7 +1622,7 @@ impl<'a> ScevMaterializer<'a> {
         argument: mir::Value,
     ) -> mir::Value {
         // allocate a destination value
-        let destination = function.next_value();
+        let destination = function.next_typed_value_like(argument);
         let instruction = mir::Instruction::Unary {
             destination,
             operator,
@@ -1632,7 +1641,7 @@ impl<'a> ScevMaterializer<'a> {
         to_type: mir::LocalNodeId<mir::Type>,
     ) -> mir::Value {
         // allocate a destination value
-        let destination = function.next_value();
+        let destination = function.next_typed_value(to_type);
         let instruction = mir::Instruction::Cast {
             destination,
             operator,
@@ -1679,7 +1688,7 @@ impl<'a> ScevMaterializer<'a> {
             width,
             is_signed: signed,
         };
-        let type_id = self.tree.insert(ty);
+        let type_id = self.tree.insert_type(ty);
         self.type_cache.insert((width, signed), type_id);
 
         Some(type_id)
@@ -1688,7 +1697,7 @@ impl<'a> ScevMaterializer<'a> {
     /// Determine signedness for a truncate operation.
     fn truncate_signedness(&self, argument: mir::Value) -> Option<bool> {
         // read the argument type
-        let ty_id = self.ownership.value_type(argument)?;
+        let ty_id = self.value_types.require_value_type(argument);
         let ty = self.tree.get(ty_id);
         let (_, signed) = ty.int_info_with_pointer_width(self.type_context.pointer_width_bits)?;
         Some(signed)
@@ -1819,17 +1828,17 @@ mod tests {
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_slt v4, v0
+    v5: bool = icmp_slt v4, v0
     branch v5, block2, block3
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v6, v2
-    v8 = iadd v4, v2
+    v6: i32 = imul v4, v3
+    v7: i32 = iadd v6, v2
+    v8: i32 = iadd v4, v2
     jump block1(v8)
 block3:
     return v4
@@ -1838,19 +1847,19 @@ block3:
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1, v1)
-block1(v4: i32, v9: i32):
-    v5 = icmp_slt v4, v0
-    branch v5, block2, block3
+block1(v4: i32, v5: i32):
+    v6: bool = icmp_slt v4, v0
+    branch v6, block2, block3
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v9, v2
-    v8 = iadd v4, v2
-    v10 = iadd v9, v3
-    jump block1(v8, v10)
+    v7: i32 = imul v4, v3
+    v8: i32 = iadd v5, v2
+    v9: i32 = iadd v4, v2
+    v10: i32 = iadd v5, v3
+    jump block1(v9, v10)
 block3:
     return v4
 }"#;
@@ -1867,16 +1876,16 @@ block3:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 1i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
     jump block1(v2)
 block1(v4: i32):
-    v5 = icmp_slt v4, v0
+    v5: bool = icmp_slt v4, v0
     branch v5, block2, block3
 block2:
-    v6 = imul v4, v1
-    v7 = iadd v6, v3
-    v8 = iadd v4, v3
+    v6: i32 = imul v4, v1
+    v7: i32 = iadd v6, v3
+    v8: i32 = iadd v4, v3
     jump block1(v8)
 block3:
     return v4
@@ -1885,18 +1894,18 @@ block3:
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 1i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
     jump block1(v2, v2)
-block1(v4: i32, v9: i32):
-    v5 = icmp_slt v4, v0
-    branch v5, block2, block3
+block1(v4: i32, v5: i32):
+    v6: bool = icmp_slt v4, v0
+    branch v6, block2, block3
 block2:
-    v6 = imul v4, v1
-    v7 = iadd v9, v3
-    v8 = iadd v4, v3
-    v10 = iadd v9, v1
-    jump block1(v8, v10)
+    v7: i32 = imul v4, v1
+    v8: i32 = iadd v5, v3
+    v9: i32 = iadd v4, v3
+    v10: i32 = iadd v5, v1
+    jump block1(v9, v10)
 block3:
     return v4
 }"#;
@@ -1913,18 +1922,18 @@ block3:
         // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = iconst 0i32
-    v4 = iconst 1i32
-    v5 = iconst 2i32
+    v3: i32 = iconst 0i32
+    v4: i32 = iconst 1i32
+    v5: i32 = iconst 2i32
     jump block1(v3)
 block1(v6: i32):
-    v7 = icmp_slt v6, v0
+    v7: bool = icmp_slt v6, v0
     branch v7, block2, block3
 block2:
-    v8 = select v2, v1, v5
-    v9 = imul v6, v8
-    v10 = iadd v9, v4
-    v11 = iadd v6, v4
+    v8: i32 = select v2, v1, v5
+    v9: i32 = imul v6, v8
+    v10: i32 = iadd v9, v4
+    v11: i32 = iadd v6, v4
     jump block1(v11)
 block3:
     return v6
@@ -1933,23 +1942,23 @@ block3:
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32, v2: bool) -> i32 {
 block0(v0: i32, v1: i32, v2: bool):
-    v3 = iconst 0i32
-    v4 = iconst 1i32
-    v5 = iconst 2i32
-    v12 = select v2, v1, v5
+    v3: i32 = iconst 0i32
+    v4: i32 = iconst 1i32
+    v5: i32 = iconst 2i32
+    v6: i32 = select v2, v1, v5
     jump block1(v3, v3)
-block1(v6: i32, v13: i32):
-    v7 = icmp_slt v6, v0
-    branch v7, block2, block3
+block1(v7: i32, v8: i32):
+    v9: bool = icmp_slt v7, v0
+    branch v9, block2, block3
 block2:
-    v8 = select v2, v1, v5
-    v9 = imul v6, v8
-    v10 = iadd v13, v4
-    v11 = iadd v6, v4
-    v14 = iadd v13, v12
-    jump block1(v11, v14)
+    v10: i32 = select v2, v1, v5
+    v11: i32 = imul v7, v10
+    v12: i32 = iadd v8, v4
+    v13: i32 = iadd v7, v4
+    v14: i32 = iadd v8, v6
+    jump block1(v13, v14)
 block3:
-    return v6
+    return v7
 }"#;
 
         // run the pass and verify output
@@ -1964,20 +1973,20 @@ block3:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 2i32
-    v4 = iconst 3i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iconst 3i32
     jump block1(v1)
 block1(v5: i32):
-    v6 = icmp_slt v5, v0
+    v6: bool = icmp_slt v5, v0
     branch v6, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v7, v4
-    v9 = iadd v5, v2
-    v10 = imul v5, v4
-    v11 = iadd v10, v2
+    v7: i32 = imul v5, v3
+    v8: i32 = iadd v7, v4
+    v9: i32 = iadd v5, v2
+    v10: i32 = imul v5, v4
+    v11: i32 = iadd v10, v2
     jump block1(v9)
 block3:
     return v5
@@ -1986,23 +1995,23 @@ block3:
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 2i32
-    v4 = iconst 3i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iconst 3i32
     jump block1(v1, v1, v1)
-block1(v5: i32, v12: i32, v14: i32):
-    v6 = icmp_slt v5, v0
-    branch v6, block2, block3
+block1(v5: i32, v6: i32, v7: i32):
+    v8: bool = icmp_slt v5, v0
+    branch v8, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v12, v4
-    v9 = iadd v5, v2
-    v10 = imul v5, v4
-    v11 = iadd v14, v2
-    v13 = iadd v12, v3
-    v15 = iadd v14, v4
-    jump block1(v9, v13, v15)
+    v9: i32 = imul v5, v3
+    v10: i32 = iadd v6, v4
+    v11: i32 = iadd v5, v2
+    v12: i32 = imul v5, v4
+    v13: i32 = iadd v7, v2
+    v14: i32 = iadd v6, v3
+    v15: i32 = iadd v7, v4
+    jump block1(v11, v14, v15)
 block3:
     return v5
 }"#;
@@ -2019,19 +2028,19 @@ block3:
         // source test
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = icmp_eq v0, v0
+    v3: bool = icmp_eq v0, v0
     branch v3, block1, block2
 block1:
     jump block3(v1)
 block2:
     jump block3(v2)
 block3(v4: i32):
-    v5 = iconst 1i32
-    v6 = icmp_slt v4, v0
+    v5: i32 = iconst 1i32
+    v6: bool = icmp_slt v4, v0
     branch v6, block4, block5
 block4:
-    v7 = imul v4, v5
-    v8 = iadd v4, v5
+    v7: i32 = imul v4, v5
+    v8: i32 = iadd v4, v5
     jump block3(v8)
 block5:
     return v4
@@ -2049,18 +2058,18 @@ block5:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
-    v4 = icmp_eq v0, v0
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
+    v4: bool = icmp_eq v0, v0
     branch v4, block1(v1), block4
 block1(v5: i32):
-    v6 = icmp_slt v5, v0
+    v6: bool = icmp_slt v5, v0
     branch v6, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v7, v2
-    v9 = iadd v5, v2
+    v7: i32 = imul v5, v3
+    v8: i32 = iadd v7, v2
+    v9: i32 = iadd v5, v2
     jump block1(v9)
 block3:
     return v5
@@ -2071,20 +2080,20 @@ block4:
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
-    v4 = icmp_eq v0, v0
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
+    v4: bool = icmp_eq v0, v0
     branch v4, block1(v1, v1), block4
-block1(v5: i32, v10: i32):
-    v6 = icmp_slt v5, v0
-    branch v6, block2, block3
+block1(v5: i32, v6: i32):
+    v7: bool = icmp_slt v5, v0
+    branch v7, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v10, v2
-    v9 = iadd v5, v2
-    v11 = iadd v10, v3
-    jump block1(v9, v11)
+    v8: i32 = imul v5, v3
+    v9: i32 = iadd v6, v2
+    v10: i32 = iadd v5, v2
+    v11: i32 = iadd v6, v3
+    jump block1(v10, v11)
 block3:
     return v5
 block4:
@@ -2103,18 +2112,18 @@ block4:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
-    v4 = iconst 0i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 0i32
     switch v4, block3, 0 => block1(v1)
 block1(v5: i32):
-    v6 = icmp_slt v5, v0
+    v6: bool = icmp_slt v5, v0
     branch v6, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v7, v2
-    v9 = iadd v5, v2
+    v7: i32 = imul v5, v3
+    v8: i32 = iadd v7, v2
+    v9: i32 = iadd v5, v2
     jump block1(v9)
 block3:
     return v5
@@ -2123,20 +2132,20 @@ block3:
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
-    v4 = iconst 0i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
+    v4: i32 = iconst 0i32
     switch v4, block3, 0 => block1(v1, v1)
-block1(v5: i32, v10: i32):
-    v6 = icmp_slt v5, v0
-    branch v6, block2, block3
+block1(v5: i32, v6: i32):
+    v7: bool = icmp_slt v5, v0
+    branch v7, block2, block3
 block2:
-    v7 = imul v5, v3
-    v8 = iadd v10, v2
-    v9 = iadd v5, v2
-    v11 = iadd v10, v3
-    jump block1(v9, v11)
+    v8: i32 = imul v5, v3
+    v9: i32 = iadd v6, v2
+    v10: i32 = iadd v5, v2
+    v11: i32 = iadd v6, v3
+    jump block1(v10, v11)
 block3:
     return v5
 }"#;
@@ -2153,16 +2162,16 @@ block3:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = icmp_slt v4, v0
+    v5: bool = icmp_slt v4, v0
     branch v5, block2, block3(v4)
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v4, v2
+    v6: i32 = imul v4, v3
+    v7: i32 = iadd v4, v2
     branch v5, block1(v7), block3(v6)
 block3(v8: i32):
     return v8
@@ -2171,20 +2180,20 @@ block3(v8: i32):
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 4i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 4i32
     jump block1(v1, v1)
-block1(v4: i32, v9: i32):
-    v5 = icmp_slt v4, v0
-    branch v5, block2, block3(v4)
+block1(v4: i32, v5: i32):
+    v6: bool = icmp_slt v4, v0
+    branch v6, block2, block3(v4)
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v4, v2
-    v10 = iadd v9, v3
-    branch v5, block1(v7, v10), block3(v9)
-block3(v8: i32):
-    return v8
+    v7: i32 = imul v4, v3
+    v8: i32 = iadd v4, v2
+    v9: i32 = iadd v5, v3
+    branch v6, block1(v8, v9), block3(v5)
+block3(v10: i32):
+    return v10
 }"#;
 
         // run the pass and verify output
@@ -2199,18 +2208,18 @@ block3(v8: i32):
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1)
 block1(v4: u32):
-    v5 = icmp_ult v4, v3
+    v5: bool = icmp_ult v4, v3
     branch v5, block2, block3
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v6, v2
-    v8 = iadd v4, v2
-    v9 = icmp_ult v8, v3
+    v6: u32 = imul v4, v3
+    v7: u32 = iadd v6, v2
+    v8: u32 = iadd v4, v2
+    v9: bool = icmp_ult v8, v3
     check v9, bounds.unsigned v8, v3, v0, block1(v8), block4
 block4:
     return
@@ -2221,20 +2230,20 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> void {
 block0(v0: [i32; 8]):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = iconst 8u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = iconst 8u32
     jump block1(v1, v1)
-block1(v4: u32, v10: u32):
-    v5 = icmp_ult v4, v3
-    branch v5, block2, block4
+block1(v4: u32, v5: u32):
+    v6: bool = icmp_ult v4, v3
+    branch v6, block2, block4
 block2:
-    v6 = imul v4, v3
-    v7 = iadd v10, v2
-    v8 = iadd v4, v2
-    v9 = icmp_ult v8, v3
-    v11 = iadd v10, v3
-    check v9, bounds.unsigned v8, v3, v0, block1(v8, v11), block3
+    v7: u32 = imul v4, v3
+    v8: u32 = iadd v5, v2
+    v9: u32 = iadd v4, v2
+    v10: bool = icmp_ult v9, v3
+    v11: u32 = iadd v5, v3
+    check v10, bounds.unsigned v9, v3, v0, block1(v9, v11), block3
 block3:
     return
 block4:
@@ -2253,15 +2262,15 @@ block4:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     jump block1(v1)
 block1(v3: i32):
-    v4 = icmp_slt v3, v0
+    v4: bool = icmp_slt v3, v0
     branch v4, block2, block3
 block2:
-    v5 = iadd v3, v2
-    v6 = iadd v5, v2
+    v5: i32 = iadd v3, v2
+    v6: i32 = iadd v5, v2
     jump block1(v5)
 block3:
     return v3
@@ -2279,16 +2288,16 @@ block3:
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 1i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 1i32
     jump block1(v2)
 block1(v4: i32):
-    v5 = icmp_slt v4, v0
+    v5: bool = icmp_slt v4, v0
     branch v5, block2, block3
 block2:
-    v6 = sdiv v0, v1
-    v7 = imul v4, v6
-    v8 = iadd v4, v3
+    v6: i32 = sdiv v0, v1
+    v7: i32 = imul v4, v6
+    v8: i32 = iadd v4, v3
     jump block1(v8)
 block3:
     return v4
@@ -2306,15 +2315,15 @@ block3:
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst -1i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst -1i32
     jump block1(v0)
 block1(v3: i32):
-    v4 = icmp_slt v3, v1
+    v4: bool = icmp_slt v3, v1
     branch v4, block2, block3
 block2:
-    v5 = sdiv v3, v2
-    v6 = iadd v3, v1
+    v5: i32 = sdiv v3, v2
+    v6: i32 = iadd v3, v1
     jump block1(v6)
 block3:
     return v3

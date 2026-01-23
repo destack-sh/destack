@@ -5,7 +5,9 @@ use destack_mir as mir;
 use destack_workspace::FloatMathPolicy;
 
 use crate::optimize::analyses::{ConstantMap, ConstantPropagation};
-use crate::optimize::common::{InstructionRef, build_value_instruction_refs, fold_binary};
+use crate::optimize::common::{
+    InstructionRef, ValueTypeMap, build_value_instruction_refs, constant_from_global, fold_binary,
+};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -88,6 +90,9 @@ fn run_reassociate(
     // build lookup for value definitions
     let mut value_to_instruction = build_value_instruction_refs(function, tree);
 
+    // build value type lookup
+    let value_types = ValueTypeMap::new(function, tree);
+
     // track whether any changes were made
     let mut changed = false;
 
@@ -135,6 +140,7 @@ fn run_reassociate(
                     // resolve or insert the combined constant
                     let resolved = resolve_constant_value(
                         plan.constant.clone(),
+                        value_types.require_value_type(destination),
                         function,
                         tree,
                         &block_constants,
@@ -152,9 +158,14 @@ fn run_reassociate(
                     operands.push(combined_value);
 
                     // rebuild the chain with fresh values when needed
-                    let Some((base, last)) =
-                        rebuild_chain(function, tree, operator, &operands, &mut new_instructions)
-                    else {
+                    let Some((base, last)) = rebuild_chain(
+                        function,
+                        tree,
+                        operator,
+                        &operands,
+                        value_types.require_value_type(destination),
+                        &mut new_instructions,
+                    ) else {
                         new_instructions.push(*instruction_id);
                         continue;
                     };
@@ -208,7 +219,7 @@ fn run_reassociate(
                     destination,
                     global,
                 } => {
-                    let constant = crate::optimize::common::constant_from_global(global, tree);
+                    let constant = constant_from_global(global, tree);
                     if let Some(constant) = constant {
                         block_constants.insert(destination, constant);
                     } else {
@@ -447,6 +458,7 @@ fn rebuild_chain(
     tree: &mut mir::NodeTree,
     operator: mir::BinaryOperator,
     operands: &[mir::Value],
+    result_type: mir::LocalNodeId<mir::Type>,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
 ) -> Option<(mir::Value, mir::Value)> {
     // require at least two operands
@@ -457,7 +469,7 @@ fn rebuild_chain(
     // fold operands left to right using fresh temporaries
     let mut current = operands[0];
     for operand in &operands[1..operands.len() - 1] {
-        let destination = function.next_value();
+        let destination = function.next_typed_value(result_type);
         let instruction = mir::Instruction::Binary {
             destination,
             operator,
@@ -502,6 +514,7 @@ struct ResolvedConstant {
 /// Resolve a constant value or create a new instruction.
 fn resolve_constant_value(
     constant: mir::Constant,
+    result_type: mir::LocalNodeId<mir::Type>,
     function: &mut mir::Function,
     tree: &mut mir::NodeTree,
     block_constants: &ConstantMap,
@@ -517,7 +530,7 @@ fn resolve_constant_value(
     }
 
     // insert a new constant instruction
-    let destination = function.next_value();
+    let destination = function.next_typed_value(result_type);
     let instruction = mir::Instruction::Const {
         destination,
         value: constant,
@@ -565,20 +578,20 @@ mod tests {
     fn test_reassociate_add_constants() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = iadd v0, v1
-    v4 = iadd v3, v2
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v3, v2
     return v4
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = iadd v0, v1
-    v5 = iconst 3i32
-    v4 = iadd v0, v5
-    return v4
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iadd v0, v1
+    v4: i32 = iconst 3i32
+    v5: i32 = iadd v0, v4
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -591,10 +604,10 @@ block0(v0: i32):
     fn test_reassociate_skips_float() {
         let input = r#"function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = iconst 1f64
-    v2 = iconst 2f64
-    v3 = fadd v0, v1
-    v4 = fadd v3, v2
+    v1: f64 = iconst 1f64
+    v2: f64 = iconst 2f64
+    v3: f64 = fadd v0, v1
+    v4: f64 = fadd v3, v2
     return v4
 }"#;
 
@@ -608,20 +621,20 @@ block0(v0: f64):
     fn test_reassociate_float_policy() {
         let input = r#"function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = iconst 1f64
-    v2 = iconst 2f64
-    v3 = fadd v0, v1
-    v4 = fadd v3, v2
+    v1: f64 = iconst 1f64
+    v2: f64 = iconst 2f64
+    v3: f64 = fadd v0, v1
+    v4: f64 = fadd v3, v2
     return v4
 }"#;
         let expected = r#"function @test(v0: f64) -> f64 {
 block0(v0: f64):
-    v1 = iconst 1f64
-    v2 = iconst 2f64
-    v3 = fadd v0, v1
-    v5 = iconst 3f64
-    v4 = fadd v0, v5
-    return v4
+    v1: f64 = iconst 1f64
+    v2: f64 = iconst 2f64
+    v3: f64 = fadd v0, v1
+    v4: f64 = iconst 3f64
+    v5: f64 = fadd v0, v4
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -640,8 +653,8 @@ block0(v0: f64):
     fn test_reassociate_requires_constant() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = iadd v0, v1
-    v4 = iadd v3, v2
+    v3: i32 = iadd v0, v1
+    v4: i32 = iadd v3, v2
     return v4
 }"#;
 
@@ -656,25 +669,25 @@ block0(v0: i32, v1: i32, v2: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = iconst 3i32
-    v4 = iadd v0, v1
-    v5 = iadd v4, v2
-    v6 = iadd v5, v3
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 3i32
+    v4: i32 = iadd v0, v1
+    v5: i32 = iadd v4, v2
+    v6: i32 = iadd v5, v3
     return v6
 }"#;
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = iconst 3i32
-    v4 = iadd v0, v1
-    v5 = iadd v0, v3
-    v7 = iconst 6i32
-    v6 = iadd v0, v7
-    return v6
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = iconst 3i32
+    v4: i32 = iadd v0, v1
+    v5: i32 = iadd v0, v3
+    v6: i32 = iconst 6i32
+    v7: i32 = iadd v0, v6
+    return v7
 }"#;
 
         // run the pass and verify output
@@ -689,23 +702,23 @@ block0(v0: i32):
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 4i32
-    v3 = iconst 5i32
-    v4 = iadd v0, v1
-    v5 = iadd v4, v2
-    v6 = iadd v5, v3
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 5i32
+    v4: i32 = iadd v0, v1
+    v5: i32 = iadd v4, v2
+    v6: i32 = iadd v5, v3
     return v6
 }"#;
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 4i32
-    v3 = iconst 5i32
-    v4 = iadd v0, v1
-    v5 = iadd v4, v2
-    v7 = iconst 9i32
-    v6 = iadd v4, v7
-    return v6
+    v2: i32 = iconst 4i32
+    v3: i32 = iconst 5i32
+    v4: i32 = iadd v0, v1
+    v5: i32 = iadd v4, v2
+    v6: i32 = iconst 9i32
+    v7: i32 = iadd v4, v6
+    return v7
 }"#;
 
         // run the pass and verify output
@@ -720,24 +733,24 @@ block0(v0: i32, v1: i32):
         // source test
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 1i32
-    v3 = iconst 2i32
-    v4 = iadd v0, v2
-    v5 = iadd v1, v3
-    v6 = iadd v4, v5
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iadd v0, v2
+    v5: i32 = iadd v1, v3
+    v6: i32 = iadd v4, v5
     return v6
 }"#;
         // expected output
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iconst 1i32
-    v3 = iconst 2i32
-    v4 = iadd v0, v2
-    v5 = iadd v1, v3
-    v7 = iconst 3i32
-    v8 = iadd v0, v1
-    v6 = iadd v8, v7
-    return v6
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 2i32
+    v4: i32 = iadd v0, v2
+    v5: i32 = iadd v1, v3
+    v6: i32 = iconst 3i32
+    v7: i32 = iadd v0, v1
+    v8: i32 = iadd v7, v6
+    return v8
 }"#;
 
         // run the pass and verify output
@@ -752,21 +765,21 @@ block0(v0: i32, v1: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = imul v0, v1
-    v4 = imul v3, v2
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = imul v0, v1
+    v4: i32 = imul v3, v2
     return v4
 }"#;
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = imul v0, v1
-    v5 = iconst 6i32
-    v4 = imul v0, v5
-    return v4
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = imul v0, v1
+    v4: i32 = iconst 6i32
+    v5: i32 = imul v0, v4
+    return v5
 }"#;
 
         // run the pass and verify output
@@ -781,21 +794,21 @@ block0(v0: i32):
         // source test
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = band v0, v1
-    v4 = band v3, v2
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = band v0, v1
+    v4: i32 = band v3, v2
     return v4
 }"#;
         // expected output
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v3 = band v0, v1
-    v5 = iconst 0i32
-    v4 = band v0, v5
-    return v4
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = band v0, v1
+    v4: i32 = iconst 0i32
+    v5: i32 = band v0, v4
+    return v5
 }"#;
 
         // run the pass and verify output

@@ -592,19 +592,19 @@ mod tests {
     fn test_remove_redundant_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -618,21 +618,21 @@ block0:
     fn test_remove_redundant_store_with_equal_constants() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: i32 = iconst 7i32
     store v0, v1
     store v0, v2
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: i32 = iconst 7i32
     store v0, v1
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
 
@@ -646,25 +646,25 @@ block0:
     fn test_remove_redundant_store_with_equivalent_binary() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = iadd v1, v2
+    v4: i32 = iadd v1, v2
     store v0, v4
-    v5 = load v0 -> i32
+    v5: i32 = load v0
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = iadd v1, v2
-    v5 = load v0 -> i32
+    v4: i32 = iadd v1, v2
+    v5: i32 = load v0
     return v5
 }"#;
 
@@ -678,25 +678,25 @@ block0:
     fn test_remove_redundant_store_with_commuted_binary() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = iadd v2, v1
+    v4: i32 = iadd v2, v1
     store v0, v4
-    v5 = load v0 -> i32
+    v5: i32 = load v0
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
     store v0, v3
-    v4 = iadd v2, v1
-    v5 = load v0 -> i32
+    v4: i32 = iadd v2, v1
+    v5: i32 = load v0
     return v5
 }"#;
 
@@ -710,25 +710,25 @@ block0:
     fn test_remove_redundant_store_with_constant_propagation() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
-    v4 = iconst 5i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
+    v4: i32 = iconst 5i32
     store v0, v3
     store v0, v4
-    v5 = load v0 -> i32
+    v5: i32 = load v0
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = iadd v1, v2
-    v4 = iconst 5i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: i32 = iadd v1, v2
+    v4: i32 = iconst 5i32
     store v0, v3
-    v5 = load v0 -> i32
+    v5: i32 = load v0
     return v5
 }"#;
 
@@ -746,12 +746,12 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @callee() -> void {
@@ -760,11 +760,11 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -787,12 +787,12 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -815,12 +815,12 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @callee() -> void {
@@ -829,11 +829,11 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -856,12 +856,12 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
         let expected = r#"function @callee() -> void {
@@ -870,11 +870,11 @@ block0:
 }
 function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     call @callee() -> fn() -> void
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -895,12 +895,12 @@ block0:
     fn test_preserve_store_with_different_value() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
-    v2 = iconst 9i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
+    v2: i32 = iconst 9i32
     store v0, v1
     store v0, v2
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
 
@@ -914,13 +914,13 @@ block0:
     fn test_preserve_store_after_clobber() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     store v0, v1
     store v0, v2
     store v0, v1
-    v3 = load v0 -> i32
+    v3: i32 = load v0
     return v3
 }"#;
 
@@ -934,11 +934,11 @@ block0:
     fn test_preserve_volatile_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -973,11 +973,11 @@ block0:
     fn test_preserve_atomic_store() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 7i32
     store v0, v1
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -1012,8 +1012,8 @@ block0:
     fn test_remove_redundant_store_after_phi() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
     branch v0, block1, block2
 block1:
     store v1, v2
@@ -1023,13 +1023,13 @@ block2:
     jump block3
 block3:
     store v1, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
     branch v0, block1, block2
 block1:
     store v1, v2
@@ -1038,7 +1038,7 @@ block2:
     store v1, v2
     jump block3
 block3:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return v3
 }"#;
 
@@ -1052,9 +1052,9 @@ block3:
     fn test_preserve_store_after_phi_with_different_values() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 7i32
-    v3 = iconst 9i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 7i32
+    v3: i32 = iconst 9i32
     branch v0, block1, block2
 block1:
     store v1, v2
@@ -1064,7 +1064,7 @@ block2:
     jump block3
 block3:
     store v1, v2
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     return v4
 }"#;
 
@@ -1079,18 +1079,18 @@ block3:
         let input = r#"function @test() -> i32 {
     local0: i32 ; owned
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     local.set local0, v0
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
     local0: i32 ; owned
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     local.set local0, v0
-    v1 = local.get local0
+    v1: i32 = local.get local0
     return v1
 }"#;
 
@@ -1104,18 +1104,18 @@ block0:
     fn test_remove_redundant_memset() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 0i8
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i8 = iconst 0i8
+    v2: i64 = iconst 4i64
     intrinsic.memset(v0, v1, v2)
     intrinsic.memset(v0, v1, v2)
     return
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 0i8
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i8 = iconst 0i8
+    v2: i64 = iconst 4i64
     intrinsic.memset(v0, v1, v2)
     return
 }"#;
@@ -1130,18 +1130,18 @@ block0:
     fn test_remove_redundant_memcpy() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     intrinsic.memcpy(v0, v1, v2)
     return
 }"#;
@@ -1156,10 +1156,10 @@ block0:
     fn test_preserve_memcpy_with_different_size() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
-    v3 = iconst 8i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
+    v3: i64 = iconst 8i64
     intrinsic.memcpy(v0, v1, v2)
     intrinsic.memcpy(v0, v1, v3)
     return
@@ -1175,10 +1175,10 @@ block0:
     fn test_preserve_memcpy_with_source_change() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
-    v3 = iconst 7i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
+    v3: i32 = iconst 7i32
     intrinsic.memcpy(v0, v1, v2)
     store v1, v3
     intrinsic.memcpy(v0, v1, v2)
@@ -1195,18 +1195,18 @@ block0:
     fn test_remove_redundant_memmove() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     intrinsic.memmove(v0, v1, v2)
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     intrinsic.memmove(v0, v1, v2)
     return
 }"#;
@@ -1222,12 +1222,12 @@ block0:
         let input = r#"type @Bytes = [i8; 12]
 function @test() -> void {
 block0:
-    v0 = stack.alloc @Bytes -> ref<raw addrspace(stack) @Bytes>
-    v1 = iconst 0i64
-    v2 = iconst 4i64
-    v3 = element.addr v0, v1 -> ref<borrowed i8>
-    v4 = element.addr v0, v2 -> ref<borrowed i8>
-    v5 = iconst 8i64
+    v0: ref<raw addrspace(stack) @Bytes> = stack.alloc @Bytes
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 4i64
+    v3: ref<borrowed i8> = element.addr v0, v1
+    v4: ref<borrowed i8> = element.addr v0, v2
+    v5: i64 = iconst 8i64
     intrinsic.memmove(v4, v3, v5)
     intrinsic.memmove(v4, v3, v5)
     return

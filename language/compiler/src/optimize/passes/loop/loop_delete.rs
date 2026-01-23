@@ -381,7 +381,7 @@ mod tests {
     fn test_delete_empty_loop() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     jump block1
 block1:
     branch v0, block1, block2
@@ -390,7 +390,7 @@ block2:
 }"#;
         let expected = r#"function @test() -> void {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     jump block1
 block1:
     return
@@ -406,20 +406,20 @@ block1:
     fn test_delete_unused_computation() {
         let input = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst false
-    v2 = iconst 0i32
+    v1: bool = iconst false
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     branch v1, block1(v5), block2
 block2:
     return
 }"#;
         let expected = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst false
-    v2 = iconst 0i32
+    v1: bool = iconst false
+    v2: i32 = iconst 0i32
     jump block1
 block1:
     return
@@ -435,7 +435,7 @@ block1:
     fn test_preserve_call_side_effects() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     jump block1
 block1:
     call @side_effect() -> fn() -> i32
@@ -446,7 +446,7 @@ block2:
 
 function @side_effect() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -461,7 +461,7 @@ block0:
     fn test_preserve_store_side_effects() {
         let input = r#"function @test(v0: ref<raw i32>, v1: i32) -> void {
 block0(v0: ref<raw i32>, v1: i32):
-    v2 = iconst false
+    v2: bool = iconst false
     jump block1
 block1:
     store v0, v1
@@ -481,10 +481,10 @@ block2:
     fn test_preserve_live_out() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     jump block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2(v1)
 block2(v2: i32):
     return v2
@@ -501,13 +501,13 @@ block2(v2: i32):
     fn test_preserve_live_out_via_direct_use() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
+    v0: bool = iconst false
     jump block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2
 block2:
-    v2 = iadd v1, v1
+    v2: i32 = iadd v1, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -522,7 +522,7 @@ block2:
     fn test_delete_multiple_parameterless_exits() {
         let input = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
-    v1 = iconst false
+    v1: bool = iconst false
     jump block1
 block1:
     branch v1, block2, block3
@@ -535,7 +535,7 @@ block4:
 }"#;
         let expected = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
-    v1 = iconst false
+    v1: bool = iconst false
     jump block1
 block1:
     return
@@ -553,7 +553,7 @@ block2:
     fn test_preserve_constant_backedge() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     jump block1
 block1:
     branch v0, block1, block2
@@ -572,8 +572,8 @@ block2:
     fn test_preserve_no_loops() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -586,30 +586,30 @@ block0(v0: i32):
     fn test_delete_inner_loop_preserve_outer() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
-    v4 = iconst false
+    v4: bool = iconst false
     jump block2
 block2:
     branch v4, block2, block3
 block3:
-    v5 = iconst 1i32
-    v6 = iadd v3, v5
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v3, v5
     branch v0, block1(v6), block4(v6)
 block4(v7: i32):
     return v7
 }"#;
         let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
-    v4 = iconst false
+    v4: bool = iconst false
     jump block2
 block2:
-    v5 = iconst 1i32
-    v6 = iadd v3, v5
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v3, v5
     branch v0, block1(v6), block3(v6)
 block3(v7: i32):
     return v7
@@ -625,23 +625,23 @@ block3(v7: i32):
     fn test_delete_pass_initial_values_to_exit() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst false
-    v2 = iconst 0i32
+    v1: bool = iconst false
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     branch v1, block1(v5), block2(v3)
 block2(v6: i32):
     return v6
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst false
-    v2 = iconst 0i32
+    v1: bool = iconst false
+    v2: i32 = iconst 0i32
     jump block1(v2)
-block1(v6: i32):
-    return v6
+block1(v3: i32):
+    return v3
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -654,7 +654,7 @@ block1(v6: i32):
     fn test_preserve_drop_side_effects() {
         let input = r#"function @test(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst false
+    v1: bool = iconst false
     jump block1
 block1:
     raw.drop v0

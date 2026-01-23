@@ -305,9 +305,9 @@ mod tests {
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#,
         );
@@ -340,12 +340,12 @@ block0:
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     branch v0, block1, block2
 block1:
     return v1
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#,
         );
@@ -375,11 +375,11 @@ block2:
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     jump block1(v1)
 block1(v2: i32):
-    v3 = iconst 2i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 2i32
+    v4: i32 = iadd v2, v3
     branch v0, block1(v4), block2
 block2:
     return v4
@@ -417,8 +417,8 @@ block2:
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
     return v0
 }"#,
         );
@@ -443,7 +443,7 @@ block0:
         let test = TestProgram::new(
             r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }"#,
         );
@@ -466,9 +466,9 @@ block0(v0: i32, v1: i32):
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iadd v0, v1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#,
         );
@@ -499,8 +499,8 @@ block0:
         let test = TestProgram::new(
             r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 10i32
-    v2 = iconst 20i32
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 20i32
     branch v0, block1, block2
 block1:
     jump block3(v1)
@@ -543,9 +543,9 @@ block3(v3: i32):
         let test = TestProgram::new(
             r#"function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v1 = iadd v0, v0
-    v2 = iadd v1, v0
+    v0: i32 = iconst 5i32
+    v1: i32 = iadd v0, v0
+    v2: i32 = iadd v1, v0
     return v2
 }"#,
         );
@@ -576,8 +576,8 @@ block0:
             r#"extern function @external(i32, i32) -> void
 function @test() -> void {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
     call @external(v0, v1) -> fn(i32, i32) -> void
     return
 }"#,

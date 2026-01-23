@@ -492,7 +492,7 @@ mod tests {
     fn test_verify_no_stack_allocs() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -507,10 +507,10 @@ block0:
     fn test_verify_local_stack_use() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -525,7 +525,7 @@ block0:
     fn test_detect_return_stack_pointer() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     return v0
 }"#;
 
@@ -539,8 +539,8 @@ block0:
     fn test_detect_return_stack_field_addr() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<borrowed i32> = field.addr v0, 0
     return v1
 }"#;
 
@@ -554,9 +554,9 @@ block0:
     fn test_detect_return_stack_element_addr() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 0i32
-    v2 = element.addr v0, v1 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 0i32
+    v2: ref<borrowed i32> = element.addr v0, v1
     return v2
 }"#;
 
@@ -570,10 +570,10 @@ block0:
     fn test_verify_load_from_stack() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = load v0 -> i32
+    v2: i32 = load v0
     return v2
 }"#;
 
@@ -587,7 +587,7 @@ block0:
     fn test_detect_store_stack_to_heap() {
         let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
 block0(v0: ref<raw ref<raw i32>>):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     store v0, v1
     return
 }"#;
@@ -602,13 +602,13 @@ block0(v0: ref<raw ref<raw i32>>):
     fn test_verify_store_stack_to_stack() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc ref<raw addrspace(stack) i32> -> ref<raw addrspace(stack) ref<raw addrspace(stack) i32>>
-    v2 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) ref<raw addrspace(stack) i32>> = stack.alloc ref<raw addrspace(stack) i32>
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v0
-    v3 = load v1 -> ref<raw i32>
-    v4 = load v3 -> i32
+    v3: ref<raw i32> = load v1
+    v4: i32 = load v3
     return v4
 }"#;
 
@@ -622,8 +622,8 @@ block0:
     fn test_detect_cast_stack_pointer_return() {
         let input = r#"function @test() -> ref<raw i8> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = bitcast v0 -> ref<raw i8>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw i8> = bitcast v0 -> ref<raw i8>
     return v1
 }"#;
 
@@ -637,7 +637,7 @@ block0:
     fn test_verify_return_heap_pointer() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
+    v0: ref<raw i32> = raw.alloc i32
     return v0
 }"#;
 
@@ -664,8 +664,8 @@ block0(v0: ref<raw i32>):
     fn test_detect_field_set_stack_escape() {
         let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
 block0(v0: ref<raw ref<raw i32>>):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = field.set v0, 0, v1
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw ref<raw i32>> = field.set v0, 0, v1
     return
 }"#;
 
@@ -679,9 +679,9 @@ block0(v0: ref<raw ref<raw i32>>):
     fn test_detect_element_set_stack_escape() {
         let input = r#"function @test(v0: ref<raw ref<raw i32>>) -> void {
 block0(v0: ref<raw ref<raw i32>>):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0i32
-    v3 = element.set v0, v2, v1
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 0i32
+    v3: ref<raw ref<raw i32>> = element.set v0, v2, v1
     return
 }"#;
 
@@ -695,9 +695,9 @@ block0(v0: ref<raw ref<raw i32>>):
     fn test_detect_nested_field_addr_stack() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = field.addr v0, 0 -> ref<borrowed i32>
-    v2 = field.addr v1, 0 -> ref<borrowed i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<borrowed i32> = field.addr v0, 0
+    v2: ref<borrowed i32> = field.addr v1, 0
     return v2
 }"#;
 
@@ -711,18 +711,18 @@ block0:
     fn test_verify_control_flow_stack_local() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     branch v0, block1, block2
 block1:
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block3
 block2:
-    v3 = iconst 2i32
+    v3: i32 = iconst 2i32
     store v1, v3
     jump block3
 block3:
-    v4 = load v1 -> i32
+    v4: i32 = load v1
     return v4
 }"#;
 
@@ -736,15 +736,15 @@ block3:
     fn test_verify_multiple_stack_allocs() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 10i32
-    v3 = iconst 20i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 20i32
     store v0, v2
     store v1, v3
-    v4 = load v0 -> i32
-    v5 = load v1 -> i32
-    v6 = iadd v4, v5
+    v4: i32 = load v0
+    v5: i32 = load v1
+    v6: i32 = iadd v4, v5
     return v6
 }"#;
 
@@ -758,8 +758,8 @@ block0:
     fn test_verify_void_return_with_stack() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     return
 }"#;
@@ -774,7 +774,7 @@ block0:
     fn test_detect_stack_pointer_through_block_param() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     jump block1(v0)
 block1(v1: ref<raw i32>):
     return v1
@@ -790,7 +790,7 @@ block1(v1: ref<raw i32>):
     fn test_detect_stack_escape_through_multiple_jumps() {
         let input = r#"function @test() -> ref<raw i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
     jump block1(v0)
 block1(v1: ref<raw i32>):
     jump block2(v1)
@@ -808,12 +808,12 @@ block2(v2: ref<raw i32>):
     fn test_verify_stack_through_block_param_local_use() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
     jump block1(v0)
 block1(v2: ref<raw i32>):
-    v3 = load v2 -> i32
+    v3: i32 = load v2
     return v3
 }"#;
 
@@ -827,23 +827,23 @@ block1(v2: ref<raw i32>):
     fn test_verify_loop_with_stack_local() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 0i32
     store v1, v2
     jump block1(v0)
 block1(v3: i32):
-    v4 = iconst 0i32
-    v5 = icmp_sgt v3, v4
+    v4: i32 = iconst 0i32
+    v5: bool = icmp_sgt v3, v4
     branch v5, block2, block3
 block2:
-    v6 = load v1 -> i32
-    v7 = iadd v6, v3
+    v6: i32 = load v1
+    v7: i32 = iadd v6, v3
     store v1, v7
-    v8 = iconst 1i32
-    v9 = isub v3, v8
+    v8: i32 = iconst 1i32
+    v9: i32 = isub v3, v8
     jump block1(v9)
 block3:
-    v10 = load v1 -> i32
+    v10: i32 = load v1
     return v10
 }"#;
 
@@ -859,10 +859,10 @@ block3:
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     jump block3(v1)
 block2:
-    v2 = raw.alloc i32 -> ref<raw i32>
+    v2: ref<raw i32> = raw.alloc i32
     jump block3(v2)
 block3(v3: ref<raw i32>):
     return v3
@@ -879,10 +879,10 @@ block3(v3: ref<raw i32>):
     fn test_verify_stack_both_branches_local_use() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 1i32
-    v4 = iconst 2i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 1i32
+    v4: i32 = iconst 2i32
     store v1, v3
     store v2, v4
     branch v0, block1, block2
@@ -891,7 +891,7 @@ block1:
 block2:
     jump block3(v2)
 block3(v5: ref<raw i32>):
-    v6 = load v5 -> i32
+    v6: i32 = load v5
     return v6
 }"#;
 
@@ -914,10 +914,10 @@ block0(v0: ref<borrowed i32>):
 
 function @test() -> ref<borrowed i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = call @identity(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 
@@ -943,10 +943,10 @@ block0(v0: ref<borrowed i32>):
 
 function @test() -> ref<borrowed i32> {
 block0:
-    v0 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v1 = iconst 42i32
+    v0: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v1: i32 = iconst 42i32
     store v0, v1
-    v2 = call @getStatic(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
+    v2: ref<borrowed i32> = call @getStatic(v0) -> fn(ref<borrowed i32>) -> ref<borrowed i32>
     return v2
 }"#;
 
@@ -973,12 +973,12 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> ref<borrowed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<managed i32> = managed.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     return v3
 }"#;
 
@@ -1006,12 +1006,12 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
 
 function @test() -> ref<borrowed i32> {
 block0:
-    v0 = managed.alloc i32 -> ref<managed i32>
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 42i32
+    v0: ref<managed i32> = managed.alloc i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 42i32
     store v0, v2
     store v1, v2
-    v3 = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
+    v3: ref<borrowed i32> = call @pick(v0, v1) -> fn(ref<borrowed i32>, ref<borrowed i32>) -> ref<borrowed i32>
     return v3
 }"#;
 

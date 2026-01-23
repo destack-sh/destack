@@ -893,7 +893,7 @@ mod tests {
 block0(v0: bool):
     jump block1
 block1:
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     branch v0, block1, block2
 block2:
     return v1
@@ -901,7 +901,7 @@ block2:
         // v1 = iconst 42 should be hoisted to block0
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 42i32
+    v1: i32 = iconst 42i32
     jump block1
 block1:
     branch v0, block1, block2
@@ -921,7 +921,7 @@ block2:
 block0(v0: bool, v1: i32, v2: i32):
     jump block1
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     branch v0, block1, block2
 block2:
     return v3
@@ -929,7 +929,7 @@ block2:
         // v3 = iadd v1, v2 is invariant (v1, v2 are function params)
         let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     jump block1
 block1:
     branch v0, block1, block2
@@ -949,9 +949,9 @@ block2:
 block0(v0: bool, v1: i32):
     jump block1
 block1:
-    v2 = iconst 10i32
-    v3 = iadd v1, v2
-    v4 = imul v3, v2
+    v2: i32 = iconst 10i32
+    v3: i32 = iadd v1, v2
+    v4: i32 = imul v3, v2
     branch v0, block1, block2
 block2:
     return v4
@@ -959,9 +959,9 @@ block2:
         // all three instructions are invariant
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 10i32
-    v3 = iadd v1, v2
-    v4 = imul v3, v2
+    v2: i32 = iconst 10i32
+    v3: i32 = iadd v1, v2
+    v4: i32 = imul v3, v2
     jump block1
 block1:
     branch v0, block1, block2
@@ -981,8 +981,8 @@ block2:
 block0(v0: bool, v1: i32):
     jump block1(v1)
 block1(v2: i32):
-    v3 = iconst 1i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 1i32
+    v4: i32 = iadd v2, v3
     branch v0, block1(v4), block2
 block2:
     return v4
@@ -991,10 +991,10 @@ block2:
         // v4 depends on v2 which is a loop phi, so v4 cannot be hoisted
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v3 = iconst 1i32
+    v2: i32 = iconst 1i32
     jump block1(v1)
-block1(v2: i32):
-    v4 = iadd v2, v3
+block1(v3: i32):
+    v4: i32 = iadd v3, v2
     branch v0, block1(v4), block2
 block2:
     return v4
@@ -1010,7 +1010,7 @@ block2:
     fn test_no_loops() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -1023,7 +1023,7 @@ block0(v0: i32, v1: i32):
     fn test_already_hoisted() {
         let input = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     jump block1
 block1:
     branch v0, block1, block2
@@ -1045,8 +1045,8 @@ block0(v0: bool, v1: bool, v2: i32):
 block1:
     jump block2
 block2:
-    v3 = iconst 5i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 5i32
+    v4: i32 = iadd v2, v3
     branch v1, block2, block3
 block3:
     branch v0, block1, block4
@@ -1057,8 +1057,8 @@ block4:
 block0(v0: bool, v1: bool, v2: i32):
     jump block1
 block1:
-    v3 = iconst 5i32
-    v4 = iadd v2, v3
+    v3: i32 = iconst 5i32
+    v4: i32 = iadd v2, v3
     jump block2
 block2:
     branch v1, block2, block3
@@ -1078,11 +1078,11 @@ block4:
     fn test_hoist_read_only_intrinsic() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
     jump block1
 block1:
-    v3 = intrinsic.memcmp(v1, v1, v2)
+    v3: i32 = intrinsic.memcmp(v1, v1, v2)
     branch v0, block1, block2
 block2:
     return v3
@@ -1090,9 +1090,9 @@ block2:
 
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 4i64
-    v3 = intrinsic.memcmp(v1, v1, v2)
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i64 = iconst 4i64
+    v3: i32 = intrinsic.memcmp(v1, v1, v2)
     jump block1
 block1:
     branch v0, block1, block2
@@ -1113,7 +1113,7 @@ block2:
 block0(v0: bool):
     jump block1
 block1:
-    v1 = call @get_value() -> fn() -> i32
+    v1: i32 = call @get_value() -> fn() -> i32
     branch v0, block1, block2
 block2:
     return v1
@@ -1121,7 +1121,7 @@ block2:
 
 function @get_value() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
         // call should not be hoisted
@@ -1139,7 +1139,7 @@ block0:
 block0(v0: bool):
     jump block1
 block1:
-    v1 = managed.alloc i32 -> ref<managed i32>
+    v1: ref<managed i32> = managed.alloc i32
     branch v0, block1, block2
 block2:
     return v1
@@ -1157,27 +1157,27 @@ block2:
     fn test_hoist_invariant_load() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 1i32
     store v1, v3
     jump block1
 block1:
-    v4 = iconst 2i32
+    v4: i32 = iconst 2i32
     store v2, v4
-    v5 = load v1 -> i32
+    v5: i32 = load v1
     branch v0, block1, block2
 block2:
     return v5
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 1i32
     store v1, v3
-    v4 = iconst 2i32
-    v5 = load v1 -> i32
+    v4: i32 = iconst 2i32
+    v5: i32 = load v1
     jump block1
 block1:
     store v2, v4
@@ -1197,13 +1197,13 @@ block2:
     fn test_skip_hoist_clobbered_load() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block1
 block1:
-    v3 = load v1 -> i32
-    v4 = iconst 2i32
+    v3: i32 = load v1
+    v4: i32 = iconst 2i32
     store v1, v4
     branch v0, block1, block2
 block2:
@@ -1211,17 +1211,17 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
-    v4 = iconst 2i32
+    v3: i32 = iconst 2i32
     jump block1
 block1:
-    v3 = load v1 -> i32
-    store v1, v4
+    v4: i32 = load v1
+    store v1, v3
     branch v0, block1, block2
 block2:
-    return v3
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1235,14 +1235,14 @@ block2:
     fn test_skip_hoist_conditional_load() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 1i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: i32 = iconst 1i32
     store v2, v3
     jump block1
 block1:
     branch v0, block2, block3
 block2:
-    v4 = load v2 -> i32
+    v4: i32 = load v2
     jump block4(v4)
 block3:
     jump block4(v3)
@@ -1264,11 +1264,11 @@ block5:
         let input = r#"function @test(v0: bool) -> i32 {
     local0: i32 ; owned
 block0(v0: bool):
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     local.set local0, v1
     jump block1
 block1:
-    v2 = local.get local0
+    v2: i32 = local.get local0
     branch v0, block1, block2
 block2:
     return v2
@@ -1276,9 +1276,9 @@ block2:
         let expected = r#"function @test(v0: bool) -> i32 {
     local0: i32 ; owned
 block0(v0: bool):
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     local.set local0, v1
-    v2 = local.get local0
+    v2: i32 = local.get local0
     jump block1
 block1:
     branch v0, block1, block2
@@ -1297,12 +1297,12 @@ block2:
     fn test_skip_hoist_load_with_call() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v1, v2
     jump block1
 block1:
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     call @touch(v1) -> fn(ref<raw i32>) -> void
     branch v0, block1, block2
 block2:
@@ -1326,8 +1326,8 @@ block0(v0: ref<raw i32>):
 block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
     jump block1
 block1:
-    v3 = load v1 -> i32
-    v4 = iconst 1i32
+    v3: i32 = load v1
+    v4: i32 = iconst 1i32
     store v2, v4
     branch v0, block1, block2
 block2:
@@ -1335,8 +1335,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>) -> i32 {
 block0(v0: bool, v1: ref<raw i32>, v2: ref<raw i32>):
-    v3 = load v1 -> i32
-    v4 = iconst 1i32
+    v3: i32 = load v1
+    v4: i32 = iconst 1i32
     jump block1
 block1:
     store v2, v4
@@ -1391,34 +1391,34 @@ block2:
 block0(v0: bool, v1: bool, v2: i32):
     jump block1
 block1:
-    v3 = iconst 10i32
+    v3: i32 = iconst 10i32
     branch v0, block1, block2
 block2:
     jump block3
 block3:
-    v4 = iconst 20i32
-    v5 = iadd v2, v4
+    v4: i32 = iconst 20i32
+    v5: i32 = iadd v2, v4
     branch v1, block3, block4
 block4:
-    v6 = iadd v3, v5
+    v6: i32 = iadd v3, v5
     return v6
 }"#;
         // v3 hoisted from loop1 to block0
         // v4, v5 hoisted from loop3 to block2
         let expected = r#"function @test(v0: bool, v1: bool, v2: i32) -> i32 {
 block0(v0: bool, v1: bool, v2: i32):
-    v3 = iconst 10i32
+    v3: i32 = iconst 10i32
     jump block1
 block1:
     branch v0, block1, block2
 block2:
-    v4 = iconst 20i32
-    v5 = iadd v2, v4
+    v4: i32 = iconst 20i32
+    v5: i32 = iadd v2, v4
     jump block3
 block3:
     branch v1, block3, block4
 block4:
-    v6 = iadd v3, v5
+    v6: i32 = iadd v3, v5
     return v6
 }"#;
         let mut test = TestProgram::new(input);
@@ -1432,37 +1432,37 @@ block4:
     fn test_hoist_safe_division() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 1i32
-    v2 = iconst 10i32
-    v3 = iconst 2i32
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 2i32
     jump block1(v0)
 block1(v4: i32):
-    v5 = sdiv v2, v3
-    v6 = icmp_slt v4, v1
+    v5: i32 = sdiv v2, v3
+    v6: bool = icmp_slt v4, v1
     branch v6, block2, block3
 block2:
-    v7 = iadd v4, v1
+    v7: i32 = iadd v4, v1
     jump block1(v7)
 block3:
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
-    v1 = iconst 1i32
-    v2 = iconst 10i32
-    v3 = iconst 2i32
-    v5 = sdiv v2, v3
+    v0: i32 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 10i32
+    v3: i32 = iconst 2i32
+    v4: i32 = sdiv v2, v3
     jump block1(v0)
-block1(v4: i32):
-    v6 = icmp_slt v4, v1
+block1(v5: i32):
+    v6: bool = icmp_slt v5, v1
     branch v6, block2, block3
 block2:
-    v7 = iadd v4, v1
+    v7: i32 = iadd v5, v1
     jump block1(v7)
 block3:
-    return v5
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1476,16 +1476,16 @@ block3:
     fn test_skip_trapping_division() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = iconst 10i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = iconst 10i32
     jump block1(v1)
 block1(v4: i32):
-    v5 = sdiv v3, v0
-    v6 = icmp_slt v4, v2
+    v5: i32 = sdiv v3, v0
+    v6: bool = icmp_slt v4, v2
     branch v6, block2, block3
 block2:
-    v7 = iadd v4, v2
+    v7: i32 = iadd v4, v2
     jump block1(v7)
 block3:
     return v5

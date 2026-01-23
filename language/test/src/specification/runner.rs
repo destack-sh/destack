@@ -272,8 +272,10 @@ fn apply_dsconfig_for_spec(
 
         let file_id = program.files.next_id();
         let mut options = DsConfigOptions::default();
-        let mut target = DsConfigTargetOptions::default();
-        target.output = OutputFormat::Js;
+        let target = DsConfigTargetOptions {
+            output: OutputFormat::Js,
+            ..Default::default()
+        };
         options.targets.insert("default".to_string(), target);
         options.default_target = Some("default".to_string());
 
@@ -329,8 +331,10 @@ fn apply_dsconfig_for_spec(
 
     // prefer js defaults for spec tests unless a native target is required
     if !prefer_native && dsconfig.options.targets.is_empty() {
-        let mut target = DsConfigTargetOptions::default();
-        target.output = OutputFormat::Js;
+        let target = DsConfigTargetOptions {
+            output: OutputFormat::Js,
+            ..Default::default()
+        };
         dsconfig
             .options
             .targets

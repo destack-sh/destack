@@ -1609,12 +1609,12 @@ mod tests {
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -1623,12 +1623,12 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     jump block1
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -1646,12 +1646,12 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block1, block2
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -1660,12 +1660,12 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 4]) -> i32 {
 block0(v0: [i32; 4]):
-    v1 = iconst 2u32
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v1: u32 = iconst 2u32
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     jump block1
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -1683,32 +1683,32 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     branch v4, block3, block2
 block2:
     unreachable
 block3:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     jump block3
 block2:
     unreachable
 block3:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
@@ -1724,32 +1724,32 @@ block3:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block1, block2
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     check v4, bounds.unsigned v1, v2, v0, block3, block2
 block2:
     unreachable
 block3:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     check v3, bounds.unsigned v1, v2, v0, block1, block2
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     jump block3
 block2:
     unreachable
 block3:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
@@ -1765,11 +1765,11 @@ block3:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
     unreachable
@@ -1787,15 +1787,15 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
-    v1 = iconst 3i32
-    v2 = iconst 0i32
-    v3 = iconst 8i32
-    v4 = icmp_sge v1, v2
-    v5 = icmp_slt v1, v3
-    v6 = band v4, v5
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
+    v4: bool = icmp_sge v1, v2
+    v5: bool = icmp_slt v1, v3
+    v6: bool = band v4, v5
     branch v6, block1, block2
 block1:
-    v7 = element.get v0, v1
+    v7: i32 = element.get v0, v1
     return v7
 block2:
     unreachable
@@ -1804,15 +1804,15 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 8]) -> i32 {
 block0(v0: [i32; 8]):
-    v1 = iconst 3i32
-    v2 = iconst 0i32
-    v3 = iconst 8i32
-    v4 = icmp_sge v1, v2
-    v5 = icmp_slt v1, v3
-    v6 = band v4, v5
+    v1: i32 = iconst 3i32
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
+    v4: bool = icmp_sge v1, v2
+    v5: bool = icmp_slt v1, v3
+    v6: bool = band v4, v5
     jump block1
 block1:
-    v7 = element.get v0, v1
+    v7: i32 = element.get v0, v1
     return v7
 block2:
     unreachable
@@ -1830,13 +1830,13 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 16], v1: u32) -> i32 {
 block0(v0: [i32; 16], v1: u32):
-    v2 = iconst 16u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 16u32
+    v3: bool = icmp_ult v1, v2
     assume v3
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     check v4, bounds.unsigned v1, v2, v0, block1, block2
 block1:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block2:
     unreachable
@@ -1845,13 +1845,13 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 16], v1: u32) -> i32 {
 block0(v0: [i32; 16], v1: u32):
-    v2 = iconst 16u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 16u32
+    v3: bool = icmp_ult v1, v2
     assume v3
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     jump block1
 block1:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block2:
     unreachable
@@ -1869,36 +1869,36 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 8], v1: i32) -> i32 {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
-    v4 = icmp_sge v1, v2
-    v5 = icmp_slt v1, v3
-    v6 = band v4, v5
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
+    v4: bool = icmp_sge v1, v2
+    v5: bool = icmp_slt v1, v3
+    v6: bool = band v4, v5
     branch v6, block1, block2
 block1:
     check v6, bounds.signed v1, v3, v0, block3, block2
 block2:
     unreachable
 block3:
-    v7 = element.get v0, v1
+    v7: i32 = element.get v0, v1
     return v7
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 8], v1: i32) -> i32 {
 block0(v0: [i32; 8], v1: i32):
-    v2 = iconst 0i32
-    v3 = iconst 8i32
-    v4 = icmp_sge v1, v2
-    v5 = icmp_slt v1, v3
-    v6 = band v4, v5
+    v2: i32 = iconst 0i32
+    v3: i32 = iconst 8i32
+    v4: bool = icmp_sge v1, v2
+    v5: bool = icmp_slt v1, v3
+    v6: bool = band v4, v5
     branch v6, block1, block2
 block1:
     jump block3
 block2:
     unreachable
 block3:
-    v7 = element.get v0, v1
+    v7: i32 = element.get v0, v1
     return v7
 }"#;
 
@@ -1914,36 +1914,36 @@ block3:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
     jump block3
 block2:
     unreachable
 block3:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     check v4, bounds.unsigned v1, v2, v0, block4, block2
 block4:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
     jump block3
 block2:
     unreachable
 block3:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     jump block4
 block4:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 }"#;
 
@@ -1959,32 +1959,32 @@ block4:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1(v1), block2
 block1(v4: u32):
-    v5 = icmp_ult v4, v2
+    v5: bool = icmp_ult v4, v2
     check v5, bounds.unsigned v4, v2, v0, block3, block2
 block2:
     unreachable
 block3:
-    v6 = element.get v0, v4
+    v6: i32 = element.get v0, v4
     return v6
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1(v1), block2
 block1(v4: u32):
-    v5 = icmp_ult v4, v2
+    v5: bool = icmp_ult v4, v2
     jump block3
 block2:
     unreachable
 block3:
-    v6 = element.get v0, v4
+    v6: i32 = element.get v0, v4
     return v6
 }"#;
 
@@ -2000,12 +2000,12 @@ block3:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 2u32
-    v3 = iconst 4u32
-    v4 = icmp_uge v2, v3
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 4u32
+    v4: bool = icmp_uge v2, v3
     branch v4, block2, block1
 block1:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block2:
     unreachable
@@ -2014,12 +2014,12 @@ block2:
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 2u32
-    v3 = iconst 4u32
-    v4 = icmp_uge v2, v3
+    v2: u32 = iconst 2u32
+    v3: u32 = iconst 4u32
+    v4: bool = icmp_uge v2, v3
     jump block1
 block1:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block2:
     unreachable
@@ -2037,15 +2037,15 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     assume v3
     jump block1
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     check v4, bounds.unsigned v1, v2, v0, block2, block3
 block2:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block3:
     unreachable
@@ -2054,15 +2054,15 @@ block3:
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     assume v3
     jump block1
 block1:
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     jump block2
 block2:
-    v5 = element.get v0, v1
+    v5: i32 = element.get v0, v1
     return v5
 block3:
     unreachable
@@ -2080,16 +2080,16 @@ block3:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1(v1), block2
 block1(v4: u32):
-    v5 = icmp_ult v4, v2
+    v5: bool = icmp_ult v4, v2
     check v5, bounds.unsigned v4, v2, v0, block3, block4
 block2:
     jump block1(v1)
 block3:
-    v6 = element.get v0, v4
+    v6: i32 = element.get v0, v4
     return v6
 block4:
     unreachable
@@ -2107,17 +2107,17 @@ block4:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1(v1), block2
 block1(v4: u32):
-    v5 = icmp_ult v4, v2
+    v5: bool = icmp_ult v4, v2
     check v5, bounds.unsigned v4, v2, v0, block3, block4
 block2:
-    v6 = iconst 1u32
+    v6: u32 = iconst 1u32
     jump block1(v6)
 block3:
-    v7 = element.get v0, v4
+    v7: i32 = element.get v0, v4
     return v7
 block4:
     unreachable
@@ -2135,14 +2135,14 @@ block4:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 4u32
-    v3 = icmp_ult v1, v2
+    v2: u32 = iconst 4u32
+    v3: bool = icmp_ult v1, v2
     branch v3, block1, block2
 block1:
-    v4 = element.get v0, v1
+    v4: i32 = element.get v0, v1
     return v4
 block2:
-    v5 = iconst 0u32
+    v5: u32 = iconst 0u32
     unreachable
 }"#;
 
@@ -2158,34 +2158,34 @@ block2:
         // source test
         let input = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 3u32
-    v3 = iconst 4u32
-    v4 = icmp_ule v1, v2
+    v2: u32 = iconst 3u32
+    v3: u32 = iconst 4u32
+    v4: bool = icmp_ule v1, v2
     branch v4, block1, block2
 block1:
-    v5 = icmp_ult v1, v3
+    v5: bool = icmp_ult v1, v3
     check v5, bounds.unsigned v1, v3, v0, block3, block2
 block2:
     unreachable
 block3:
-    v6 = element.get v0, v1
+    v6: i32 = element.get v0, v1
     return v6
 }"#;
 
         // expected output
         let expected = r#"function @test(v0: [i32; 4], v1: u32) -> i32 {
 block0(v0: [i32; 4], v1: u32):
-    v2 = iconst 3u32
-    v3 = iconst 4u32
-    v4 = icmp_ule v1, v2
+    v2: u32 = iconst 3u32
+    v3: u32 = iconst 4u32
+    v4: bool = icmp_ule v1, v2
     branch v4, block1, block2
 block1:
-    v5 = icmp_ult v1, v3
+    v5: bool = icmp_ult v1, v3
     jump block3
 block2:
     unreachable
 block3:
-    v6 = element.get v0, v1
+    v6: i32 = element.get v0, v1
     return v6
 }"#;
 

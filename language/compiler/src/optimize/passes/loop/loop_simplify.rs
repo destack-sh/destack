@@ -271,7 +271,7 @@ fn insert_preheader(
     let preheader_params: Vec<mir::TypedValue> = header_params
         .iter()
         .map(|p| mir::TypedValue {
-            value: function.next_value(),
+            value: function.next_typed_value(p.ty),
             ty: p.ty,
         })
         .collect();
@@ -481,7 +481,7 @@ fn merge_latches(
     let latch_params: Vec<mir::TypedValue> = header_params
         .iter()
         .map(|p| mir::TypedValue {
-            value: function.next_value(),
+            value: function.next_typed_value(p.ty),
             ty: p.ty,
         })
         .collect();
@@ -536,7 +536,7 @@ fn insert_dedicated_exit(
     let dedicated_params: Vec<mir::TypedValue> = exit_params
         .iter()
         .map(|p| mir::TypedValue {
-            value: function.next_value(),
+            value: function.next_typed_value(p.ty),
             ty: p.ty,
         })
         .collect();
@@ -634,13 +634,13 @@ block1:
     return
 }"#;
         // preheader (block2) becomes new entry with fresh param v1
-        let expected = r#"function @test(v1: bool) -> void {
-block0(v0: bool):
-    branch v0, block0(v0), block1
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v1: bool):
+    branch v1, block0(v1), block1
 block1:
     return
-block2(v1: bool):
-    jump block0(v1)
+block2(v0: bool):
+    jump block0(v0)
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -772,11 +772,11 @@ block0(v0: bool):
     jump block0(v0)
 }"#;
         // preheader (block1) becomes entry with fresh param v1
-        let expected = r#"function @test(v1: bool) -> void {
-block0(v0: bool):
-    jump block0(v0)
-block1(v1: bool):
+        let expected = r#"function @test(v0: bool) -> void {
+block0(v1: bool):
     jump block0(v1)
+block1(v0: bool):
+    jump block0(v0)
 }"#;
         let mut test = TestProgram::new(input);
         test.run_pass(&LoopSimplify);
@@ -830,19 +830,19 @@ block5:
         // block2 jumps to block1(v5), block4 jumps to block1(v7)
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
     branch v0, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     jump block1(v5)
 block3:
     branch v1, block4, block5
 block4:
-    v6 = iconst 10i32
-    v7 = iadd v3, v6
+    v6: i32 = iconst 10i32
+    v7: i32 = iadd v3, v6
     jump block1(v7)
 block5:
     return v3
@@ -850,19 +850,19 @@ block5:
         // merged latch (block6) receives parameter v8 and forwards to header
         let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
     branch v0, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     jump block6(v5)
 block3:
     branch v1, block4, block5
 block4:
-    v6 = iconst 10i32
-    v7 = iadd v3, v6
+    v6: i32 = iconst 10i32
+    v7: i32 = iadd v3, v6
     jump block6(v7)
 block5:
     return v3
@@ -910,11 +910,11 @@ block4:
     fn test_dedicated_exit_with_parameters() {
         let input = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     branch v0, block1(v2), block2(v2)
 block1(v3: i32):
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     branch v1, block1(v5), block2(v5)
 block2(v6: i32):
     return v6
@@ -922,11 +922,11 @@ block2(v6: i32):
         // block3 = preheader, block4 = dedicated exit
         let expected = r#"function @test(v0: bool, v1: bool) -> i32 {
 block0(v0: bool, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     branch v0, block3(v2), block2(v2)
 block1(v3: i32):
-    v4 = iconst 1i32
-    v5 = iadd v3, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v3, v4
     branch v1, block1(v5), block4(v5)
 block2(v6: i32):
     return v6
@@ -1136,8 +1136,8 @@ block7:
     fn test_preserve_no_loops() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     return v1

@@ -1420,7 +1420,8 @@ fn lower_single_case_switch(
     };
 
     // materialize the case constant
-    let constant_value = function.next_value();
+    let type_id = tree.int_type(*width as u16, *is_signed);
+    let constant_value = function.next_typed_value(type_id);
     let constant = if *is_signed {
         mir::Constant::Int {
             value: case.value,
@@ -1439,7 +1440,8 @@ fn lower_single_case_switch(
     });
 
     // compare the switch value against the case
-    let condition_value = function.next_value();
+    let bool_type = tree.boolean_type();
+    let condition_value = function.next_typed_value(bool_type);
     let compare_id = tree.insert(mir::Instruction::Binary {
         destination: condition_value,
         operator: mir::BinaryOperator::Equal,
@@ -1698,7 +1700,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Node
         function.blocks.push(canonical_id);
         canonical_id
     } else {
-        let return_value = function.next_value();
+        let return_value = function.next_typed_value(function.return_type);
         let param = mir::TypedValue::new(return_value, function.return_type);
         let mut block = mir::Block::with_parameters(vec![param]);
         block.terminator = mir::Terminator::Return {
@@ -2132,7 +2134,7 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::NodeT
             }
 
             // materialize a select for differing arguments
-            let destination = function.next_value();
+            let destination = function.next_typed_value_like(*then_arg);
             let instruction = mir::Instruction::Select {
                 destination,
                 condition: *condition,
@@ -2333,7 +2335,7 @@ fn tail_duplicate_blocks(
                 let instruction = tree.get(*instruction_id).clone();
 
                 if let Some(destination) = instruction.destination() {
-                    let new_destination = function.next_value();
+                    let new_destination = function.next_typed_value_like(destination);
                     value_map.insert(destination, new_destination);
                 }
 
@@ -2720,7 +2722,7 @@ fn split_critical_edge_target(
     let mut new_parameters = Vec::with_capacity(target_block.parameters.len());
     let mut new_arguments = Vec::with_capacity(target_block.parameters.len());
     for param in &target_block.parameters {
-        let value = function.next_value();
+        let value = function.next_typed_value(param.ty);
         new_parameters.push(mir::TypedValue::new(value, param.ty));
         new_arguments.push(value);
     }
@@ -2930,18 +2932,18 @@ mod tests {
         // block1 is empty (just returns), block2 is unreachable
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     jump block1
 block1:
     return v0
 block2:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     return v1
 }"#;
         // block0's jump threads to return, block1 and block2 become unreachable
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -2955,17 +2957,17 @@ block0:
     fn test_eliminate_unreachable_chain() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 block1:
     jump block2
 block2:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -2980,9 +2982,9 @@ block0:
         // branch on true folds to jump, then threads through empty return block
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = iconst true
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     return v1
@@ -2992,9 +2994,9 @@ block2:
         // branch folds to jump, then threads to return
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = iconst true
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     return v1
 }"#;
 
@@ -3009,9 +3011,9 @@ block0:
         // branch on false folds to jump, then threads through empty return block
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = iconst false
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     return v1
@@ -3021,9 +3023,9 @@ block2:
         // branch folds to jump to block2, then threads to return v2
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst false
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = iconst false
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -3066,8 +3068,8 @@ block2(v4: i32):
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32, v2: i32) -> i32 {
 block0(v0: bool, v1: i32, v2: i32):
-    v6 = select v0, v1, v2
-    return v6
+    v3: i32 = select v0, v1, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3080,8 +3082,8 @@ block0(v0: bool, v1: i32, v2: i32):
     fn test_canonicalize_return_with_outer_value() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     return v1
@@ -3090,10 +3092,10 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v4 = select v0, v1, v2
-    return v4
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = select v0, v1, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3107,9 +3109,9 @@ block0(v0: bool):
         let input = r#"global @flag: bool = true ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @flag
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = global.const @flag
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     return v1
@@ -3119,9 +3121,9 @@ block2:
         let expected = r#"global @flag: bool = true ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @flag
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v0: bool = global.const @flag
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     return v1
 }"#;
 
@@ -3136,14 +3138,14 @@ block0:
         // v0 is a parameter, not a constant
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
-    v3 = iadd v1, v2
+    v3: i32 = iadd v1, v2
     return v3
 block2:
-    v4 = isub v2, v1
+    v4: i32 = isub v2, v1
     return v4
 }"#;
 
@@ -3157,7 +3159,7 @@ block2:
     fn test_fold_block_param_constant_branch() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst true
+    v1: bool = iconst true
     branch v0, block1(v1), block2(v1)
 block1(v2: bool):
     jump block3(v2)
@@ -3166,17 +3168,17 @@ block2(v3: bool):
 block3(v4: bool):
     branch v4, block4, block5
 block4:
-    v5 = iconst 1i32
+    v5: i32 = iconst 1i32
     return v5
 block5:
-    v6 = iconst 2i32
+    v6: i32 = iconst 2i32
     return v6
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst true
-    v5 = iconst 1i32
-    return v5
+    v1: bool = iconst true
+    v2: i32 = iconst 1i32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3190,20 +3192,20 @@ block0(v0: bool):
         // branch on true folds to jump to block1, then threads to return
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
     branch v0, block1, block2
 block1:
     return v1
 block2:
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
         // branch folds, jump threads through empty block1, block2 eliminated
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
     return v1
 }"#;
 
@@ -3217,15 +3219,15 @@ block0:
     fn test_preserve_loop_structure() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 0i32
+    v0: i32 = iconst 0i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = iconst 10i32
-    v3 = icmp_slt v1, v2
+    v2: i32 = iconst 10i32
+    v3: bool = icmp_slt v1, v2
     branch v3, block2, block3
 block2:
-    v4 = iconst 1i32
-    v5 = iadd v1, v4
+    v4: i32 = iconst 1i32
+    v5: i32 = iadd v1, v4
     jump block1(v5)
 block3:
     return v1
@@ -3241,7 +3243,7 @@ block3:
     fn test_preserve_single_block() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -3256,27 +3258,27 @@ block0:
         // v0=true to block1, v1=false to block4, block2 and block3 become unreachable
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst false
+    v0: bool = iconst true
+    v1: bool = iconst false
     branch v0, block1, block2
 block1:
     branch v1, block3, block4
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 block3:
-    v3 = iconst 3i32
+    v3: i32 = iconst 3i32
     return v3
 block4:
-    v4 = iconst 4i32
+    v4: i32 = iconst 4i32
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst false
-    v4 = iconst 4i32
-    return v4
+    v0: bool = iconst true
+    v1: bool = iconst false
+    v2: i32 = iconst 4i32
+    return v2
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3289,8 +3291,8 @@ block0:
     fn test_preserve_diamond_cfg() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     jump block3(v1)
@@ -3310,22 +3312,22 @@ block3(v3: i32):
     fn test_eliminate_multiple_unreachable_regions() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 block1:
-    v1 = iconst 2i32
+    v1: i32 = iconst 2i32
     jump block2
 block2:
     return v1
 block3:
-    v2 = iconst 3i32
+    v2: i32 = iconst 3i32
     jump block4
 block4:
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -3339,9 +3341,9 @@ block0:
     fn test_fold_branch_with_block_arguments() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
-    v2 = iconst 0i32
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
     branch v0, block1(v1), block1(v2)
 block1(v3: i32):
     return v3
@@ -3349,9 +3351,9 @@ block1(v3: i32):
         // after folding branch to jump, block merging merges block1 into block0
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 42i32
-    v2 = iconst 0i32
+    v0: bool = iconst true
+    v1: i32 = iconst 42i32
+    v2: i32 = iconst 0i32
     return v1
 }"#;
 
@@ -3365,8 +3367,8 @@ block0:
     fn test_fold_assume_branch() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     assume v0
     branch v0, block1, block2
 block1:
@@ -3376,8 +3378,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     assume v0
     return v1
 }"#;
@@ -3392,7 +3394,7 @@ block0(v0: bool):
     fn test_fold_assume_check() {
         let input = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
 block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     assume v4
     check v4, bounds.unsigned v1, v2, v3, block1, block2
 block1:
@@ -3402,7 +3404,7 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool, v1: u32, v2: u32, v3: [u32; 4]) -> u32 {
 block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
-    v4 = icmp_ult v1, v2
+    v4: bool = icmp_ult v1, v2
     assume v4
     return v1
 }"#;
@@ -3417,8 +3419,8 @@ block0(v0: bool, v1: u32, v2: u32, v3: [u32; 4]):
     fn test_fold_check_constraint_truth() {
         let input = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
 block0(v0: bool, v1: [u32; 4]):
-    v2 = iconst 0u32
-    v3 = iconst 4u32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 4u32
     check v0, bounds.unsigned v2, v3, v1, block1, block2
 block1:
     return v2
@@ -3427,8 +3429,8 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool, v1: [u32; 4]) -> u32 {
 block0(v0: bool, v1: [u32; 4]):
-    v2 = iconst 0u32
-    v3 = iconst 4u32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 4u32
     return v2
 }"#;
 
@@ -3443,7 +3445,7 @@ block0(v0: bool, v1: [u32; 4]):
         // block1 and block2 are both empty threadable blocks
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     jump block1
 block1:
     jump block2
@@ -3453,7 +3455,7 @@ block2:
         // block0's jump threads all the way to return, both intermediates become unreachable
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -3468,7 +3470,7 @@ block0:
         // all intermediate blocks are empty and threadable
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     jump block1
 block1:
     jump block2
@@ -3480,7 +3482,7 @@ block3:
         // block0's jump threads through entire chain to return
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
+    v0: i32 = iconst 42i32
     return v0
 }"#;
 
@@ -3496,10 +3498,10 @@ block0:
         // but after threading block1's jump to return, block0 and block1 merge
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     jump block1
 block1:
-    v1 = iadd v0, v0
+    v1: i32 = iadd v0, v0
     jump block2
 block2:
     return v1
@@ -3507,8 +3509,8 @@ block2:
         // block1's jump threads to return, then block0 and block1 merge
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iadd v0, v0
+    v0: i32 = iconst 1i32
+    v1: i32 = iadd v0, v0
     return v1
 }"#;
 
@@ -3522,8 +3524,8 @@ block0:
     fn test_thread_branch_targets() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1, block2
 block1:
     jump block3
@@ -3536,10 +3538,10 @@ block4:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v4 = select v0, v1, v2
-    return v4
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = select v0, v1, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3583,20 +3585,20 @@ block1:
 block2:
     jump block4
 block3:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block4:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
         let expected = r#"function @test(v0: u32) -> i32 {
 block0(v0: u32):
     switch v0, block1, 0 => block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -3610,41 +3612,41 @@ block2:
     fn test_thread_edge_condition_with_ranges() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 20u32
-    v3 = select v0, v1, v2
-    v4 = iconst 10u32
-    v5 = iconst 15u32
-    v6 = icmp_ult v3, v4
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 20u32
+    v3: u32 = select v0, v1, v2
+    v4: u32 = iconst 10u32
+    v5: u32 = iconst 15u32
+    v6: bool = icmp_ult v3, v4
     branch v6, block1, block2
 block1:
-    v7 = icmp_ult v3, v5
+    v7: bool = icmp_ult v3, v5
     branch v7, block3, block4
 block2:
-    v8 = iconst 1i32
+    v8: i32 = iconst 1i32
     return v8
 block3:
-    v9 = iconst 2i32
+    v9: i32 = iconst 2i32
     return v9
 block4:
-    v10 = iconst 3i32
+    v10: i32 = iconst 3i32
     return v10
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 20u32
-    v3 = select v0, v1, v2
-    v4 = iconst 10u32
-    v5 = iconst 15u32
-    v6 = icmp_ult v3, v4
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 20u32
+    v3: u32 = select v0, v1, v2
+    v4: u32 = iconst 10u32
+    v5: u32 = iconst 15u32
+    v6: bool = icmp_ult v3, v4
     branch v6, block2, block1
 block1:
-    v8 = iconst 1i32
-    return v8
+    v7: i32 = iconst 1i32
+    return v7
 block2:
-    v9 = iconst 2i32
-    return v9
+    v8: i32 = iconst 2i32
+    return v8
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3658,8 +3660,8 @@ block2:
         // block1 has params so can't be threaded through, but block2 is empty and threadable
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1(v1), block1(v2)
 block1(v3: i32):
     jump block2
@@ -3669,10 +3671,10 @@ block2:
         // block1's jump is threaded directly to the return, block2 becomes unreachable
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
-    v5 = select v0, v1, v2
-    return v5
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
+    v3: i32 = select v0, v1, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3685,24 +3687,24 @@ block0(v0: bool):
     fn test_tail_duplicate_jump_predecessor() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     branch v0, block1, block2(v1)
 block1:
     jump block2(v1)
 block2(v3: i32):
-    v4 = iadd v3, v2
+    v4: i32 = iadd v3, v2
     return v4
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     branch v0, block1, block2(v1)
 block1:
-    v5 = iadd v1, v2
+    v3: i32 = iadd v1, v2
+    return v3
+block2(v4: i32):
+    v5: i32 = iadd v4, v2
     return v5
-block2(v3: i32):
-    v4 = iadd v3, v2
-    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3716,33 +3718,33 @@ block2(v3: i32):
         // base cfg with two jump predecessors into a shared tail block
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1(v1), block2(v2)
 block1(v3: i32):
     jump block3(v3)
 block2(v4: i32):
     jump block3(v4)
 block3(v5: i32):
-    v6 = imul v5, v5
+    v6: i32 = imul v5, v5
     return v6
 }"#;
         // expected cfg after duplicating the hot predecessor only
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1(v1), block3(v2)
 block1(v3: i32):
     jump block2
 block2:
-    v7 = imul v3, v3
+    v4: i32 = imul v3, v3
+    return v4
+block3(v5: i32):
+    jump block4(v5)
+block4(v6: i32):
+    v7: i32 = imul v6, v6
     return v7
-block3(v4: i32):
-    jump block4(v4)
-block4(v5: i32):
-    v6 = imul v5, v5
-    return v6
 }"#;
 
         // parse input test
@@ -3785,25 +3787,25 @@ block4(v5: i32):
     fn test_split_critical_edge() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     branch v0, block1(v2), block2(v1)
 block1(v3: i32):
     return v3
 block2(v4: i32):
-    v5 = iadd v4, v2
+    v5: i32 = iadd v4, v2
     jump block1(v5)
 }"#;
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     branch v0, block1(v2), block3(v1)
-block1(v6: i32):
+block1(v3: i32):
+    jump block2(v3)
+block2(v4: i32):
+    return v4
+block3(v5: i32):
+    v6: i32 = iadd v5, v2
     jump block2(v6)
-block2(v3: i32):
-    return v3
-block3(v4: i32):
-    v5 = iadd v4, v2
-    jump block2(v5)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3816,13 +3818,13 @@ block3(v4: i32):
     fn test_fold_range_branch_select() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
-    v4 = iconst 2u32
-    v5 = icmp_ult v3, v4
-    v6 = iconst 10i32
-    v7 = iconst 20i32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
+    v4: u32 = iconst 2u32
+    v5: bool = icmp_ult v3, v4
+    v6: i32 = iconst 10i32
+    v7: i32 = iconst 20i32
     branch v5, block1, block2
 block1:
     return v6
@@ -3831,13 +3833,13 @@ block2:
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
-    v4 = iconst 2u32
-    v5 = icmp_ult v3, v4
-    v6 = iconst 10i32
-    v7 = iconst 20i32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
+    v4: u32 = iconst 2u32
+    v5: bool = icmp_ult v3, v4
+    v6: i32 = iconst 10i32
+    v7: i32 = iconst 20i32
     return v6
 }"#;
 
@@ -3851,37 +3853,37 @@ block0(v0: bool):
     fn test_prune_switch_cases_by_range() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
     switch v3, block3, 0 => block1, 1 => block2, 2 => block4
 block1:
-    v4 = iconst 10i32
+    v4: i32 = iconst 10i32
     return v4
 block2:
-    v5 = iconst 11i32
+    v5: i32 = iconst 11i32
     return v5
 block3:
-    v6 = iconst 12i32
+    v6: i32 = iconst 12i32
     return v6
 block4:
-    v7 = iconst 13i32
+    v7: i32 = iconst 13i32
     return v7
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
     switch v3, block3, 0 => block1, 1 => block2
 block1:
-    v4 = iconst 10i32
+    v4: i32 = iconst 10i32
     return v4
 block2:
-    v5 = iconst 11i32
+    v5: i32 = iconst 11i32
     return v5
 block3:
-    v6 = iconst 12i32
+    v6: i32 = iconst 12i32
     return v6
 }"#;
 
@@ -3897,12 +3899,12 @@ block3:
 block0(v0: u32):
     switch v0, block1, 0 => block1, 1 => block1
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 }"#;
         let expected = r#"function @test(v0: u32) -> i32 {
 block0(v0: u32):
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 }"#;
 
@@ -3916,31 +3918,31 @@ block0(v0: u32):
     fn test_lower_single_case_switch_to_branch() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
     switch v3, block1, 1 => block2
 block1:
-    v4 = iconst 10i32
+    v4: i32 = iconst 10i32
     return v4
 block2:
-    v5 = iconst 20i32
+    v5: i32 = iconst 20i32
     return v5
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
-    v3 = select v0, v1, v2
-    v6 = iconst 1u32
-    v7 = icmp_eq v3, v6
-    branch v7, block2, block1
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
+    v3: u32 = select v0, v1, v2
+    v4: u32 = iconst 1u32
+    v5: bool = icmp_eq v3, v4
+    branch v5, block2, block1
 block1:
-    v4 = iconst 10i32
-    return v4
+    v6: i32 = iconst 10i32
+    return v6
 block2:
-    v5 = iconst 20i32
-    return v5
+    v7: i32 = iconst 20i32
+    return v7
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -3953,26 +3955,26 @@ block2:
     fn test_lower_boolean_switch_to_branch() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     switch v2, block1, 1 => block2
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     return v3
 block2:
-    v4 = iconst 2i32
+    v4: i32 = iconst 2i32
     return v4
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block2, block1
 block1:
-    v3 = iconst 1i32
+    v3: i32 = iconst 1i32
     return v3
 block2:
-    v4 = iconst 2i32
+    v4: i32 = iconst 2i32
     return v4
 }"#;
 
@@ -3986,28 +3988,28 @@ block2:
     fn test_lower_boolean_switch_with_arguments() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
-    v3 = iconst 7i32
-    v4 = iconst 9i32
+    v2: bool = icmp_eq v0, v1
+    v3: i32 = iconst 7i32
+    v4: i32 = iconst 9i32
     switch v2, block1(v3), 1 => block2(v4)
 block1(v5: i32):
-    v6 = iadd v5, v5
+    v6: i32 = iadd v5, v5
     return v6
 block2(v7: i32):
-    v8 = iadd v7, v7
+    v8: i32 = iadd v7, v7
     return v8
 }"#;
         let expected = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = icmp_eq v0, v1
-    v3 = iconst 7i32
-    v4 = iconst 9i32
+    v2: bool = icmp_eq v0, v1
+    v3: i32 = iconst 7i32
+    v4: i32 = iconst 9i32
     branch v2, block2(v4), block1(v3)
 block1(v5: i32):
-    v6 = iadd v5, v5
+    v6: i32 = iadd v5, v5
     return v6
 block2(v7: i32):
-    v8 = iadd v7, v7
+    v8: i32 = iadd v7, v7
     return v8
 }"#;
 
@@ -4021,30 +4023,30 @@ block2(v7: i32):
     fn test_lower_boolean_switch_two_cases() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     switch v2, block1, 0 => block2, 1 => block3
 block1:
-    v3 = iconst 10i32
+    v3: i32 = iconst 10i32
     return v3
 block2:
-    v4 = iconst 20i32
+    v4: i32 = iconst 20i32
     return v4
 block3:
-    v5 = iconst 30i32
+    v5: i32 = iconst 30i32
     return v5
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = icmp_eq v0, v1
+    v1: i32 = iconst 0i32
+    v2: bool = icmp_eq v0, v1
     branch v2, block2, block1
 block1:
-    v4 = iconst 20i32
-    return v4
+    v3: i32 = iconst 20i32
+    return v3
 block2:
-    v5 = iconst 30i32
-    return v5
+    v4: i32 = iconst 30i32
+    return v4
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -4057,35 +4059,35 @@ block2:
     fn test_lower_single_case_switch_with_arguments() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = select v0, v1, v2
-    v4 = iconst 4i32
-    v5 = iconst 8i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = select v0, v1, v2
+    v4: i32 = iconst 4i32
+    v5: i32 = iconst 8i32
     switch v3, block1(v4), 1 => block2(v5)
 block1(v6: i32):
-    v7 = imul v6, v6
+    v7: i32 = imul v6, v6
     return v7
 block2(v8: i32):
-    v9 = imul v8, v8
+    v9: i32 = imul v8, v8
     return v9
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 0i32
-    v2 = iconst 1i32
-    v3 = select v0, v1, v2
-    v4 = iconst 4i32
-    v5 = iconst 8i32
-    v10 = iconst 1i32
-    v11 = icmp_eq v3, v10
-    branch v11, block2(v5), block1(v4)
-block1(v6: i32):
-    v7 = imul v6, v6
-    return v7
-block2(v8: i32):
-    v9 = imul v8, v8
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
+    v3: i32 = select v0, v1, v2
+    v4: i32 = iconst 4i32
+    v5: i32 = iconst 8i32
+    v6: i32 = iconst 1i32
+    v7: bool = icmp_eq v3, v6
+    branch v7, block2(v5), block1(v4)
+block1(v8: i32):
+    v9: i32 = imul v8, v8
     return v9
+block2(v10: i32):
+    v11: i32 = imul v10, v10
+    return v11
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -4100,20 +4102,20 @@ block2(v8: i32):
 block0(v0: i32):
     switch v0, block1, 0 => block1, 1 => block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
     switch v0, block1, 1 => block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     return v2
 }"#;
 
@@ -4127,7 +4129,7 @@ block2:
     fn test_thread_passthrough_block_parameters() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
+    v0: i32 = iconst 5i32
     jump block1(v0)
 block1(v1: i32):
     jump block2(v1)
@@ -4136,7 +4138,7 @@ block2(v2: i32):
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
+    v0: i32 = iconst 5i32
     return v0
 }"#;
 
@@ -4247,8 +4249,7 @@ block0:
                 for value in uses {
                     if !defined_values.contains(&value) {
                         undefined.push(format!(
-                            "block {:?} instruction {:?} uses {:?} without definition: {:?}",
-                            block_id, instruction_id, value, instruction
+                            "block {block_id:?} instruction {instruction_id:?} uses {value:?} without definition: {instruction:?}"
                         ));
                     }
                 }
@@ -4259,8 +4260,8 @@ block0:
                     for value in arguments {
                         if !defined_values.contains(value) {
                             undefined.push(format!(
-                                "block {:?} terminator uses {:?} without definition: {:?}",
-                                block_id, value, block.terminator
+                                "block {block_id:?} terminator uses {value:?} without definition: {terminator:?}",
+                                terminator = block.terminator
                             ));
                         }
                     }
@@ -4384,10 +4385,10 @@ block0:
 block0(v0: bool, v1: i32, v2: i32):
     branch v0, block1(v1), block2(v2)
 block1(v3: i32):
-    v4 = iadd v3, v2
+    v4: i32 = iadd v3, v2
     jump block3(v4)
 block2(v5: i32):
-    v6 = iadd v5, v1
+    v6: i32 = iadd v5, v1
     jump block3(v6)
 block3(v7: i32):
     branch v0, block4(v7), block5(v7)

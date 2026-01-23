@@ -34,7 +34,7 @@ function takeShape(value: Circle | Square): int32 {
         let union_metadata_name = "test/test:takeShape#parameter:value#union";
 
         // find the union struct type
-        let union_type = test.type_by_metadata_name(tree, strings, &union_metadata_name);
+        let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
         // resolve the tag and payload field types
         let tag_type = test.expect_struct_field_type_by_name(tree, strings, union_type, "@tag");
@@ -113,7 +113,7 @@ function takeFrame(value: Frame | MegaFrame): int32 {
         let union_metadata_name = "test/test:takeFrame#parameter:value#union";
 
         // find the union struct type
-        let union_type = test.type_by_metadata_name(tree, strings, &union_metadata_name);
+        let union_type = test.type_by_metadata_name(tree, strings, union_metadata_name);
 
         // assert the payload field is a managed pointer
         let payload_type =
@@ -177,16 +177,16 @@ type @test/test:makeShape#return#union = { @tag: u8, @payload: [usize; 1] }
 type @test/test:Circle = { value: i32 }
 function @makeShape(v0: @test/test:Circle) -> @test/test:makeShape#return#union {
 block0(v0: @test/test:Circle):
-    v1 = iconst 0u8
-    v2 = stack.alloc [usize; 1] -> ref<raw mut [usize; 1]>
-    v3 = iconst 0u64
-    v4 = bitcast v3 -> usize
-    v5 = array [usize; 1] (v4)
+    v1: u8 = iconst 0u8
+    v2: ref<raw mut [usize; 1]> = stack.alloc [usize; 1]
+    v3: u64 = iconst 0u64
+    v4: usize = bitcast v3 -> usize
+    v5: [usize; 1] = array [usize; 1] (v4)
     store v2, v5
-    v6 = bitcast v2 -> ref<raw mut @test/test:Circle>
+    v6: ref<raw mut @test/test:Circle> = bitcast v2 -> ref<raw mut @test/test:Circle>
     store v6, v0
-    v7 = load v2 -> [usize; 1]
-    v8 = struct @test/test:makeShape#return#union (v1, v7)
+    v7: [usize; 1] = load v2
+    v8: @test/test:makeShape#return#union = struct @test/test:makeShape#return#union (v1, v7)
     return v8
 }
         "#,
@@ -234,11 +234,11 @@ type @test/test:makeFrame#return#union = { @tag: u8, @payload: ref<managed void>
 type @test/test:Frame = { first: i64, second: i64, third: i64 }
 function @makeFrame(v0: @test/test:Frame) -> @test/test:makeFrame#return#union {
 block0(v0: @test/test:Frame):
-    v1 = iconst 0u8
-    v2 = managed.alloc @test/test:Frame -> ref<managed @test/test:Frame>
+    v1: u8 = iconst 0u8
+    v2: ref<managed @test/test:Frame> = managed.alloc @test/test:Frame
     store v2, v0
-    v3 = bitcast v2 -> ref<managed void>
-    v4 = struct @test/test:makeFrame#return#union (v1, v3)
+    v3: ref<managed void> = bitcast v2 -> ref<managed void>
+    v4: @test/test:makeFrame#return#union = struct @test/test:makeFrame#return#union (v1, v3)
     return v4
 }
         "#,
@@ -281,11 +281,11 @@ type @test/test:takeCircle#parameter:value#union = { @tag: u8, @payload: [usize;
 type @test/test:Circle = { value: i32 }
 function @takeCircle(v0: @test/test:takeCircle#parameter:value#union) -> @test/test:Circle {
 block0(v0: @test/test:takeCircle#parameter:value#union):
-    v1 = field.get v0, 1
-    v2 = stack.alloc [usize; 1] -> ref<raw mut [usize; 1]>
+    v1: [usize; 1] = field.get v0, 1
+    v2: ref<raw mut [usize; 1]> = stack.alloc [usize; 1]
     store v2, v1
-    v3 = bitcast v2 -> ref<raw mut @test/test:Circle>
-    v4 = load v3 -> @test/test:Circle
+    v3: ref<raw mut @test/test:Circle> = bitcast v2 -> ref<raw mut @test/test:Circle>
+    v4: @test/test:Circle = load v3
     return v4
 }
         "#,
@@ -319,15 +319,15 @@ function select(value: { kind: 0, value: int32 } | { kind: 1, value: int32 }): i
 type @test/test:select#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
 function @select(v0: @test/test:select#parameter:value#union) -> i32 {
 block0(v0: @test/test:select#parameter:value#union):
-    v1 = field.get v0, 0
-    v2 = iconst 0u8
-    v3 = icmp_eq v1, v2
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 0u8
+    v3: bool = icmp_eq v1, v2
     check v3, union v1, 0, block1, block2
 block1:
-    v4 = iconst 1i32
+    v4: i32 = iconst 1i32
     jump block3(v4)
 block2:
-    v5 = iconst 2i32
+    v5: i32 = iconst 2i32
     jump block3(v5)
 block3(v6: i32):
     return v6
@@ -363,9 +363,9 @@ function isA(value: { kind: 1, value: int32 } | { kind: 0, value: int32 }): bool
 type @test/test:isA#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
 function @isA(v0: @test/test:isA#parameter:value#union) -> bool {
 block0(v0: @test/test:isA#parameter:value#union):
-    v1 = field.get v0, 0
-    v2 = iconst 0u8
-    v3 = icmp_eq v1, v2
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 0u8
+    v3: bool = icmp_eq v1, v2
     return v3
 }
         "#,
@@ -402,9 +402,9 @@ global @${string_a}: ref<managed @String> = "a" ; const
 global @${string_b}: ref<managed @String> = "b" ; const
 function @isA(v0: @test/test:isA#parameter:value#union) -> bool {
 block0(v0: @test/test:isA#parameter:value#union):
-    v1 = field.get v0, 0
-    v2 = iconst 0u8
-    v3 = icmp_eq v1, v2
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 0u8
+    v3: bool = icmp_eq v1, v2
     return v3
 }
         "#;
@@ -441,9 +441,9 @@ function isReady(value: { kind: true, value: int32 } | { kind: false, value: int
 type @test/test:isReady#parameter:value#union = { @tag: u8, @payload: [usize; 1] }
 function @isReady(v0: @test/test:isReady#parameter:value#union) -> bool {
 block0(v0: @test/test:isReady#parameter:value#union):
-    v1 = field.get v0, 0
-    v2 = iconst 1u8
-    v3 = icmp_eq v1, v2
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 1u8
+    v3: bool = icmp_eq v1, v2
     return v3
 }
         "#,
@@ -477,9 +477,9 @@ function isLarge(value: { kind: 1.5, value: int32 } | { kind: 0.5, value: int32 
 type @test/test:isLarge#parameter:value#union = { @tag: u8, @payload: [usize; 2] }
 function @isLarge(v0: @test/test:isLarge#parameter:value#union) -> bool {
 block0(v0: @test/test:isLarge#parameter:value#union):
-    v1 = field.get v0, 0
-    v2 = iconst 1u8
-    v3 = icmp_eq v1, v2
+    v1: u8 = field.get v0, 0
+    v2: u8 = iconst 1u8
+    v3: bool = icmp_eq v1, v2
     return v3
 }
         "#,

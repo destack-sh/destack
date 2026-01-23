@@ -1031,7 +1031,8 @@ fn function_insert_block_param_constants(
         }
 
         // build consts to insert at block entry
-        let mut inserted_constants: Vec<(mir::Constant, mir::Value)> = Vec::new();
+        let mut inserted_constants: Vec<(mir::Constant, mir::LocalNodeId<mir::Type>, mir::Value)> =
+            Vec::new();
         let mut new_instructions = Vec::new();
 
         // scan parameters for constant values
@@ -1044,20 +1045,20 @@ fn function_insert_block_param_constants(
             // reuse an existing constant instruction when possible
             let existing = inserted_constants
                 .iter()
-                .find(|(value, _)| value == constant)
-                .map(|(_, value)| *value);
+                .find(|(value, ty, _)| value == constant && *ty == param.ty)
+                .map(|(_, _, value)| *value);
 
             // insert a new constant when needed
             let const_value = if let Some(value) = existing {
                 value
             } else {
-                let new_value = function.next_value();
+                let new_value = function.next_typed_value(param.ty);
                 let instruction = mir::Instruction::Const {
                     destination: new_value,
                     value: constant.clone(),
                 };
                 let instruction_id = tree.insert(instruction);
-                inserted_constants.push((constant.clone(), new_value));
+                inserted_constants.push((constant.clone(), param.ty, new_value));
                 new_instructions.push(instruction_id);
                 new_value
             };
@@ -1250,28 +1251,28 @@ mod tests {
     fn test_constant_branch_propagates_block_param() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     branch v0, block1, block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     jump block3(v1)
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     jump block3(v2)
 block3(v3: i32):
-    v4 = iadd v3, v3
+    v4: i32 = iadd v3, v3
     return v4
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     jump block1
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     jump block2(v1)
-block2(v3: i32):
-    v5 = iconst 10i32
-    v4 = iconst 20i32
+block2(v2: i32):
+    v3: i32 = iconst 10i32
+    v4: i32 = iconst 20i32
     return v4
 }"#;
 
@@ -1287,28 +1288,28 @@ block2(v3: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     jump block3(v1)
 block2:
-    v2 = iconst 3i32
+    v2: i32 = iconst 3i32
     jump block3(v2)
 block3(v3: i32):
-    v4 = iadd v3, v3
+    v4: i32 = iadd v3, v3
     return v4
 }"#;
         let expected = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     jump block3(v1)
 block2:
-    v2 = iconst 3i32
+    v2: i32 = iconst 3i32
     jump block3(v2)
 block3(v3: i32):
-    v5 = iconst 3i32
-    v4 = iconst 6i32
-    return v4
+    v4: i32 = iconst 3i32
+    v5: i32 = iconst 6i32
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1323,13 +1324,13 @@ block3(v3: i32):
 block0(v0: bool):
     branch v0, block1, block2
 block1:
-    v1 = iconst 3i32
+    v1: i32 = iconst 3i32
     jump block3(v1)
 block2:
-    v2 = iconst 4i32
+    v2: i32 = iconst 4i32
     jump block3(v2)
 block3(v3: i32):
-    v4 = iadd v3, v3
+    v4: i32 = iadd v3, v3
     return v4
 }"#;
 
@@ -1343,11 +1344,11 @@ block3(v3: i32):
     fn test_conflicting_same_target_arguments() {
         let input = r#"function @test(v0: bool) -> i32 {
 block0(v0: bool):
-    v1 = iconst 1i32
-    v2 = iconst 2i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 2i32
     branch v0, block1(v1), block1(v2)
 block1(v3: i32):
-    v4 = iadd v3, v3
+    v4: i32 = iadd v3, v3
     return v4
 }"#;
 
@@ -1361,25 +1362,25 @@ block1(v3: i32):
     fn test_switch_on_constant_value() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 2i32
+    v0: i32 = iconst 2i32
     switch v0, block3, 1 => block1, 2 => block2
 block1:
-    v1 = iconst 10i32
+    v1: i32 = iconst 10i32
     return v1
 block2:
-    v2 = iconst 20i32
+    v2: i32 = iconst 20i32
     return v2
 block3:
-    v3 = iconst 30i32
+    v3: i32 = iconst 30i32
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 2i32
+    v0: i32 = iconst 2i32
     jump block1
 block1:
-    v2 = iconst 20i32
-    return v2
+    v1: i32 = iconst 20i32
+    return v1
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1393,22 +1394,22 @@ block1:
         let input = r#"global @flag: bool = true ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @flag
+    v0: bool = global.const @flag
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
         let expected = r#"global @flag: bool = true ; const
 function @test() -> i32 {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     jump block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 }"#;
 
@@ -1423,13 +1424,13 @@ block1:
         let input = r#"global @flag: bool = true ; mut
 function @test() -> i32 {
 block0:
-    v0 = global.const @flag
+    v0: bool = global.const @flag
     branch v0, block1, block2
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
 
@@ -1443,7 +1444,7 @@ block2:
     fn test_substitute_block_param_uses() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
+    v0: i32 = iconst 3i32
     jump block1(v0)
 block1(v1: i32):
     jump block2(v1)
@@ -1452,13 +1453,13 @@ block2(v2: i32):
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 3i32
+    v0: i32 = iconst 3i32
     jump block1(v0)
 block1(v1: i32):
-    v3 = iconst 3i32
-    jump block2(v3)
-block2(v2: i32):
-    v4 = iconst 3i32
+    v2: i32 = iconst 3i32
+    jump block2(v2)
+block2(v3: i32):
+    v4: i32 = iconst 3i32
     return v4
 }"#;
 
@@ -1476,10 +1477,10 @@ block0(v0: i32):
 }
 function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
+    v0: i32 = iconst 5i32
     jump block1(v0)
 block1(v1: i32):
-    v2 = call @callee(v1) -> fn(i32) -> i32
+    v2: i32 = call @callee(v1) -> fn(i32) -> i32
     return v2
 }"#;
         let expected = r#"function @callee(v0: i32) -> i32 {
@@ -1488,12 +1489,12 @@ block0(v0: i32):
 }
 function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
+    v0: i32 = iconst 5i32
     jump block1(v0)
 block1(v1: i32):
-    v3 = iconst 5i32
-    v2 = call @callee(v3) -> fn(i32) -> i32
-    return v2
+    v2: i32 = iconst 5i32
+    v3: i32 = call @callee(v2) -> fn(i32) -> i32
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1506,21 +1507,21 @@ block1(v1: i32):
     fn test_switch_u64_wraps_to_i64() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 18446744073709551615u64
+    v0: u64 = iconst 18446744073709551615u64
     switch v0, block2, -1 => block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 block2:
-    v2 = iconst 2i32
+    v2: i32 = iconst 2i32
     return v2
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 18446744073709551615u64
+    v0: u64 = iconst 18446744073709551615u64
     jump block1
 block1:
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v1
 }"#;
 
@@ -1534,18 +1535,18 @@ block1:
     fn test_struct_field_get_constant() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v1 = iconst 7i32
-    v2 = struct { i32, i32 } (v0, v1)
-    v3 = field.get v2, 0
+    v0: i32 = iconst 5i32
+    v1: i32 = iconst 7i32
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 5i32
-    v1 = iconst 7i32
-    v2 = struct { i32, i32 } (v0, v1)
-    v3 = iconst 5i32
+    v0: i32 = iconst 5i32
+    v1: i32 = iconst 7i32
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
+    v3: i32 = iconst 5i32
     return v3
 }"#;
 
@@ -1559,16 +1560,16 @@ block0:
     fn test_struct_field_get_partial_constant() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 4i32
-    v2 = struct { i32, i32 } (v1, v0)
-    v3 = field.get v2, 0
+    v1: i32 = iconst 4i32
+    v2: { i32, i32 } = struct { i32, i32 } (v1, v0)
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 4i32
-    v2 = struct { i32, i32 } (v1, v0)
-    v3 = iconst 4i32
+    v1: i32 = iconst 4i32
+    v2: { i32, i32 } = struct { i32, i32 } (v1, v0)
+    v3: i32 = iconst 4i32
     return v3
 }"#;
 
@@ -1582,22 +1583,22 @@ block0(v0: i32):
     fn test_struct_field_set_constant() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = struct { i32, i32 } (v0, v1)
-    v3 = iconst 9i32
-    v4 = field.set v2, 1, v3
-    v5 = field.get v4, 1
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
+    v3: i32 = iconst 9i32
+    v4: { i32, i32 } = field.set v2, 1, v3
+    v5: i32 = field.get v4, 1
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = struct { i32, i32 } (v0, v1)
-    v3 = iconst 9i32
-    v4 = field.set v2, 1, v3
-    v5 = iconst 9i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: { i32, i32 } = struct { i32, i32 } (v0, v1)
+    v3: i32 = iconst 9i32
+    v4: { i32, i32 } = field.set v2, 1, v3
+    v5: i32 = iconst 9i32
     return v5
 }"#;
 
@@ -1611,22 +1612,22 @@ block0:
     fn test_array_element_get_constant_index() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 20i32
-    v2 = iconst 30i32
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
-    v5 = element.get v3, v4
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
+    v2: i32 = iconst 30i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
+    v5: i32 = element.get v3, v4
     return v5
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 10i32
-    v1 = iconst 20i32
-    v2 = iconst 30i32
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
-    v5 = iconst 20i32
+    v0: i32 = iconst 10i32
+    v1: i32 = iconst 20i32
+    v2: i32 = iconst 30i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
+    v5: i32 = iconst 20i32
     return v5
 }"#;
 
@@ -1640,26 +1641,26 @@ block0:
     fn test_array_element_set_constant_index() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
-    v5 = iconst 9i32
-    v6 = element.set v3, v4, v5
-    v7 = element.get v6, v4
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
+    v5: i32 = iconst 9i32
+    v6: [i32; 3] = element.set v3, v4, v5
+    v7: i32 = element.get v6, v4
     return v7
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 1i32
-    v1 = iconst 2i32
-    v2 = iconst 3i32
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
-    v5 = iconst 9i32
-    v6 = element.set v3, v4, v5
-    v7 = iconst 9i32
+    v0: i32 = iconst 1i32
+    v1: i32 = iconst 2i32
+    v2: i32 = iconst 3i32
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
+    v5: i32 = iconst 9i32
+    v6: [i32; 3] = element.set v3, v4, v5
+    v7: i32 = iconst 9i32
     return v7
 }"#;
 
@@ -1674,15 +1675,15 @@ block0:
         let input = r#"global @pair: { i32, i32 } = { 1i32, 2i32 } ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @pair
-    v1 = field.get v0, 1
+    v0: { i32, i32 } = global.const @pair
+    v1: i32 = field.get v0, 1
     return v1
 }"#;
         let expected = r#"global @pair: { i32, i32 } = {1i32, 2i32} ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @pair
-    v1 = iconst 2i32
+    v0: { i32, i32 } = global.const @pair
+    v1: i32 = iconst 2i32
     return v1
 }"#;
 
@@ -1697,15 +1698,15 @@ block0:
         let input = r#"global @pair: (i32, i32) = zeroinit ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @pair
-    v1 = field.get v0, 0
+    v0: (i32, i32) = global.const @pair
+    v1: i32 = field.get v0, 0
     return v1
 }"#;
         let expected = r#"global @pair: (i32, i32) = zeroinit ; const
 function @test() -> i32 {
 block0:
-    v0 = global.const @pair
-    v1 = iconst 0i32
+    v0: (i32, i32) = global.const @pair
+    v1: i32 = iconst 0i32
     return v1
 }"#;
 
@@ -1720,17 +1721,17 @@ block0:
         let input = r#"global @data: [u8; 4] = b"test" ; const
 function @test() -> u8 {
 block0:
-    v0 = global.const @data
-    v1 = iconst 2i64
-    v2 = element.get v0, v1
+    v0: [u8; 4] = global.const @data
+    v1: i64 = iconst 2i64
+    v2: u8 = element.get v0, v1
     return v2
 }"#;
         let expected = r#"global @data: [u8; 4] = b"test" ; const
 function @test() -> u8 {
 block0:
-    v0 = global.const @data
-    v1 = iconst 2i64
-    v2 = iconst 115u8
+    v0: [u8; 4] = global.const @data
+    v1: i64 = iconst 2i64
+    v2: u8 = iconst 115u8
     return v2
 }"#;
 
@@ -1744,18 +1745,18 @@ block0:
     fn test_fold_select_constant_condition() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 10i32
-    v2 = iconst 20i32
-    v3 = select v0, v1, v2
+    v0: bool = iconst true
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 20i32
+    v3: i32 = select v0, v1, v2
     return v3
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst true
-    v1 = iconst 10i32
-    v2 = iconst 20i32
-    v3 = iconst 10i32
+    v0: bool = iconst true
+    v1: i32 = iconst 10i32
+    v2: i32 = iconst 20i32
+    v3: i32 = iconst 10i32
     return v3
 }"#;
 
@@ -1769,14 +1770,14 @@ block0:
     fn test_fold_intrinsic_constant() {
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 8i32
-    v1 = intrinsic.clz(v0)
+    v0: i32 = iconst 8i32
+    v1: i32 = intrinsic.clz(v0)
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 8i32
-    v1 = iconst 28i32
+    v0: i32 = iconst 8i32
+    v1: i32 = iconst 28i32
     return v1
 }"#;
 

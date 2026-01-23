@@ -153,7 +153,7 @@ mod tests {
         let program = TestProgram::new(
             r#"function @add(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = iadd v0, v1
+    v2: i32 = iadd v0, v1
     return v2
 }"#,
         );
@@ -231,7 +231,7 @@ block0(v0: ref<borrowed i32>):
         let program = TestProgram::new(
             r#"function @create() -> ref<raw i32> {
 block0:
-    v0 = raw.alloc i32 -> ref<raw i32>
+    v0: ref<raw i32> = raw.alloc i32
     return v0
 }"#,
         );
@@ -331,7 +331,7 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
         let program = TestProgram::new(
             r#"function @get_static(v0: i32) -> ref<borrowed i32> {
 block0(v0: i32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
     return v1
 }"#,
         );

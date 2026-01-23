@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 use crate::optimize::TypeContext;
-use crate::optimize::common::{MemoryLocation, PointerBase, PointerDecomposer};
+use crate::optimize::common::{MemoryLocation, PointerBase, PointerDecomposer, ValueTypeMap};
 
 use super::common::FunctionAA;
 use super::result::AliasResult;
@@ -17,7 +17,7 @@ use super::result::AliasResult;
 /// - `@stackOnly` functions: cannot access any heap
 ///
 /// This analysis is only effective when strict borrow mode is enabled.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct ScopedNoAliasAA {
     /// Parameters with noalias semantics (exclusive borrows in strict mode).
     noalias_params: Vec<bool>,
@@ -27,6 +27,8 @@ pub(crate) struct ScopedNoAliasAA {
     function: FunctionAA,
     /// Type context for layout sensitive operations.
     type_context: TypeContext,
+    /// Value type map for pointer decomposition.
+    value_types: ValueTypeMap,
 }
 
 impl ScopedNoAliasAA {
@@ -35,6 +37,7 @@ impl ScopedNoAliasAA {
         function: &mir::Function,
         tree: &mir::NodeTree,
         strict_borrow_mode: bool,
+        value_types: &ValueTypeMap,
         type_context: TypeContext,
     ) -> Self {
         let info = FunctionAA::collect(function, tree);
@@ -51,6 +54,7 @@ impl ScopedNoAliasAA {
             strict_borrow_mode,
             function: info,
             type_context,
+            value_types: value_types.clone(),
         }
     }
 
@@ -94,7 +98,7 @@ impl ScopedNoAliasAA {
             tree,
             &self.function.parameters,
             self.strict_borrow_mode,
-            None,
+            &self.value_types,
             self.type_context,
         );
 
@@ -168,14 +172,31 @@ impl ScopedNoAliasAA {
 mod tests {
     use super::*;
     use crate::optimize::TypeContext;
+    use crate::optimize::common::ValueTypeMap;
     use crate::optimize::common::tests::TestProgram;
+
+    /// Build a ScopedNoAliasAA instance for a test function.
+    fn build_scoped_aa(
+        function: &mir::Function,
+        program: &TestProgram,
+        strict_borrow_mode: bool,
+    ) -> ScopedNoAliasAA {
+        let value_types = ValueTypeMap::new(function, &program.tree);
+        ScopedNoAliasAA::build(
+            function,
+            &program.tree,
+            strict_borrow_mode,
+            &value_types,
+            TypeContext::default(),
+        )
+    }
 
     #[test]
     fn test_non_strict_mode_may_alias() {
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -186,7 +207,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let function = program.tree.get(function_id);
 
         // non-strict mode: &mut doesn't guarantee noalias
-        let aa = ScopedNoAliasAA::build(function, &program.tree, false, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, false);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -199,7 +220,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -210,7 +231,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let function = program.tree.get(function_id);
 
         // strict mode: &mut T parameters are noalias
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -223,8 +244,8 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 1i32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: i32 = iconst 1i32
     store v0, v2
     store v1, v2
     return
@@ -235,7 +256,7 @@ block0(v0: ref<borrowed mut i32>):
         let function = program.tree.get(function_id);
 
         // strict mode: &mut param doesn't alias local allocations
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -249,8 +270,8 @@ block0(v0: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed i32>, v1: ref<borrowed i32>) -> void {
 block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
-    v2 = load v0 -> i32
-    v3 = load v1 -> i32
+    v2: i32 = load v0
+    v3: i32 = load v1
     return
 }"#,
         );
@@ -259,7 +280,7 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
         let function = program.tree.get(function_id);
 
         // strict mode, but immutable borrows can alias
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -274,9 +295,9 @@ block0(v0: ref<borrowed i32>, v1: ref<borrowed i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>) -> void {
 block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
-    v2 = iconst 1i32
+    v2: i32 = iconst 1i32
     store v0, v2
-    v3 = load v1 -> i32
+    v3: i32 = load v1
     return
 }"#,
         );
@@ -285,7 +306,7 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
         let function = program.tree.get(function_id);
 
         // strict mode: &mut is noalias, so it doesn't alias &
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         let loc0 = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc1 = MemoryLocation::from_ptr(mir::Value::new(1));
@@ -301,8 +322,8 @@ block0(v0: ref<borrowed mut i32>, v1: ref<borrowed i32>):
             r#"type @Point = { i32, i32 }
 function @test(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
-    v2 = field.addr v0, 0 -> ref<borrowed i32>
-    v3 = iconst 1i32
+    v2: ref<borrowed i32> = field.addr v0, 0
+    v3: i32 = iconst 1i32
     store v2, v3
     store v1, v3
     return
@@ -312,7 +333,7 @@ block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         // v2 is derived from noalias param v0, v1 is different noalias param
         let loc2 = MemoryLocation::from_ptr(mir::Value::new(2));
@@ -328,7 +349,7 @@ block0(v0: ref<borrowed mut @Point>, v1: ref<borrowed mut i32>):
         let program = TestProgram::new(
             r#"function @test(v0: ref<borrowed mut i32>) -> void {
 block0(v0: ref<borrowed mut i32>):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     store v0, v1
     return
 }"#,
@@ -337,7 +358,7 @@ block0(v0: ref<borrowed mut i32>):
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
         let function = program.tree.get(function_id);
 
-        let aa = ScopedNoAliasAA::build(function, &program.tree, true, TypeContext::default());
+        let aa = build_scoped_aa(function, &program, true);
 
         let loc0_a = MemoryLocation::from_ptr(mir::Value::new(0));
         let loc0_b = MemoryLocation::from_ptr(mir::Value::new(0));

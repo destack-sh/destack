@@ -364,12 +364,12 @@ block2:
         let test = TestProgram::new(
             r#"function @loop(v0: i32) -> void {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     jump block1(v1)
 block1(v2: i32):
-    v3 = iconst 1i32
-    v4 = iadd v2, v3
-    v5 = icmp_slt v4, v0
+    v3: i32 = iconst 1i32
+    v4: i32 = iadd v2, v3
+    v5: bool = icmp_slt v4, v0
     branch v5, block2(v4), block3
 block2(v6: i32):
     jump block1(v6)

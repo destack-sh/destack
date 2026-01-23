@@ -3,8 +3,7 @@ use std::collections::HashSet;
 use destack_base::StringId;
 use destack_mir as mir;
 
-use super::constant_matches_type;
-use crate::optimize::analyses::OwnershipAnalysis;
+use super::ValueTypeMap;
 
 /// Structural type representation for CSE matching.
 ///
@@ -54,6 +53,29 @@ pub enum TypeKey {
     Struct {
         fields: Vec<(Option<StringId>, TypeKey)>,
         copyability: mir::Copyability,
+    },
+    /// Vector type with fixed lanes.
+    Vector {
+        element: Box<TypeKey>,
+        lanes: u32,
+        copyability: mir::Copyability,
+    },
+    /// Tensor value type with a shape.
+    Tensor {
+        element: Box<TypeKey>,
+        shape: Vec<mir::TensorDimension>,
+        layout: mir::TensorLayout,
+        copyability: mir::Copyability,
+    },
+    /// Tensor view type.
+    TensorReference {
+        kind: mir::ReferenceKind,
+        address_space: mir::AddressSpace,
+        mutability: mir::Mutability,
+        element: Box<TypeKey>,
+        shape: Vec<mir::TensorDimension>,
+        layout: mir::TensorLayout,
+        is_nullable: bool,
     },
     /// Function pointer type.
     FunctionPointer {
@@ -154,6 +176,46 @@ impl TypeKey {
                 }
             }
 
+            mir::Type::Vector {
+                element,
+                lanes,
+                copyability,
+            } => TypeKey::Vector {
+                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                lanes: *lanes,
+                copyability: *copyability,
+            },
+
+            mir::Type::Tensor {
+                element,
+                shape,
+                layout,
+                copyability,
+            } => TypeKey::Tensor {
+                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                shape: shape.clone(),
+                layout: layout.clone(),
+                copyability: *copyability,
+            },
+
+            mir::Type::TensorReference {
+                kind,
+                address_space,
+                mutability,
+                element,
+                shape,
+                layout,
+                is_nullable,
+            } => TypeKey::TensorReference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                element: Box::new(Self::from_type_inner(*element, tree, visiting)),
+                shape: shape.clone(),
+                layout: layout.clone(),
+                is_nullable: *is_nullable,
+            },
+
             mir::Type::FunctionPointer { parameters, result } => {
                 let parameters = parameters
                     .iter()
@@ -206,12 +268,12 @@ impl TypeKey {
 /// Return the unsigned integer width for a value when it is known.
 pub fn unsigned_int_width_for_value(
     value: mir::Value,
-    ownership: &OwnershipAnalysis,
+    value_types: &ValueTypeMap,
     pointer_width_bits: u16,
     tree: &mir::NodeTree,
 ) -> Option<u16> {
     // look up the value type
-    let type_id = ownership.value_type(value)?;
+    let type_id = value_types.require_value_type(value);
     let ty = tree.get(type_id);
 
     // accept unsigned integer types
@@ -229,27 +291,14 @@ pub fn unsigned_int_width_for_value(
 pub fn can_substitute_value(
     destination: mir::Value,
     replacement: mir::Value,
-    ownership: &OwnershipAnalysis,
-    pointer_width_bits: u16,
+    value_types: &ValueTypeMap,
     tree: &mir::NodeTree,
 ) -> bool {
-    // resolve destination and replacement type keys
-    let destination_key = ownership.value_type_key(destination);
-    let replacement_key = ownership.value_type_key(replacement);
+    // enforce type equality when substituting values
+    let destination_type = value_types.require_value_type(destination);
+    let replacement_type = value_types.require_value_type(replacement);
 
-    // require structural equivalence when both are known
-    if let (Some(destination_key), Some(replacement_key)) = (destination_key, replacement_key) {
-        return destination_key == replacement_key;
-    }
-
-    // allow constants when they match the destination type
-    if let Some(destination_type) = ownership.value_type(destination)
-        && let Some(constant_type) = ownership.constant_type(replacement)
-    {
-        return constant_matches_type(constant_type, destination_type, pointer_width_bits, tree);
-    }
-
-    false
+    types_are_equal(destination_type, replacement_type, tree)
 }
 
 /// Convert a bit width into bytes when the width is byte aligned.
@@ -426,14 +475,14 @@ mod tests {
     #[test]
     fn test_type_key_scalar_types() {
         let mut tree = mir::NodeTree::new();
-        let void_id = tree.insert(mir::Type::Void);
-        let boolean_id = tree.insert(mir::Type::Boolean);
-        let int32_id = tree.insert(mir::Type::INT32);
-        let isize_id = tree.insert(mir::Type::Isize);
-        let usize_id = tree.insert(mir::Type::Usize);
-        let uint64_id = tree.insert(mir::Type::UINT64);
-        let float64_id = tree.insert(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert(mir::Type::Type);
+        let void_id = tree.insert_type(mir::Type::Void);
+        let boolean_id = tree.insert_type(mir::Type::Boolean);
+        let int32_id = tree.insert_type(mir::Type::INT32);
+        let isize_id = tree.insert_type(mir::Type::Isize);
+        let usize_id = tree.insert_type(mir::Type::Usize);
+        let uint64_id = tree.insert_type(mir::Type::UINT64);
+        let float64_id = tree.insert_type(mir::Type::FLOAT64);
+        let type_tag_id = tree.insert_type(mir::Type::Type);
 
         assert_eq!(TypeKey::from_type(void_id, &tree), TypeKey::Void);
         assert_eq!(TypeKey::from_type(boolean_id, &tree), TypeKey::Boolean);
@@ -464,13 +513,13 @@ mod tests {
     #[test]
     fn test_type_key_is_scalar() {
         let mut tree = mir::NodeTree::new();
-        let void_id = tree.insert(mir::Type::Void);
-        let boolean_id = tree.insert(mir::Type::Boolean);
-        let int32_id = tree.insert(mir::Type::INT32);
-        let isize_id = tree.insert(mir::Type::Isize);
-        let usize_id = tree.insert(mir::Type::Usize);
-        let float64_id = tree.insert(mir::Type::FLOAT64);
-        let type_tag_id = tree.insert(mir::Type::Type);
+        let void_id = tree.insert_type(mir::Type::Void);
+        let boolean_id = tree.insert_type(mir::Type::Boolean);
+        let int32_id = tree.insert_type(mir::Type::INT32);
+        let isize_id = tree.insert_type(mir::Type::Isize);
+        let usize_id = tree.insert_type(mir::Type::Usize);
+        let float64_id = tree.insert_type(mir::Type::FLOAT64);
+        let type_tag_id = tree.insert_type(mir::Type::Type);
 
         assert!(TypeKey::from_type(void_id, &tree).is_scalar());
         assert!(TypeKey::from_type(boolean_id, &tree).is_scalar());
@@ -487,8 +536,8 @@ mod tests {
         let mut tree = mir::NodeTree::new();
 
         // array type
-        let i32_id = tree.insert(mir::Type::INT32);
-        let array_id = tree.insert(mir::Type::Array {
+        let i32_id = tree.insert_type(mir::Type::INT32);
+        let array_id = tree.insert_type(mir::Type::Array {
             element: i32_id,
             length: 10,
             copyability: mir::Copyability::Trivial,
@@ -514,16 +563,16 @@ mod tests {
         let mut tree = mir::NodeTree::new();
 
         // create two structurally identical array types with different node IDs
-        let i32_id_1 = tree.insert(mir::Type::INT32);
-        let i32_id_2 = tree.insert(mir::Type::INT32);
+        let i32_id_1 = tree.insert_type(mir::Type::INT32);
+        let i32_id_2 = tree.insert_type(mir::Type::INT32);
         assert_ne!(i32_id_1, i32_id_2);
 
-        let array_id_1 = tree.insert(mir::Type::Array {
+        let array_id_1 = tree.insert_type(mir::Type::Array {
             element: i32_id_1,
             length: 5,
             copyability: mir::Copyability::Trivial,
         });
-        let array_id_2 = tree.insert(mir::Type::Array {
+        let array_id_2 = tree.insert_type(mir::Type::Array {
             element: i32_id_2,
             length: 5,
             copyability: mir::Copyability::Trivial,
@@ -539,13 +588,13 @@ mod tests {
     fn test_type_key_copyability_distinguishes() {
         let mut tree = mir::NodeTree::new();
 
-        let i32_id = tree.insert(mir::Type::INT32);
-        let array_trivial_id = tree.insert(mir::Type::Array {
+        let i32_id = tree.insert_type(mir::Type::INT32);
+        let array_trivial_id = tree.insert_type(mir::Type::Array {
             element: i32_id,
             length: 4,
             copyability: mir::Copyability::Trivial,
         });
-        let array_linear_id = tree.insert(mir::Type::Array {
+        let array_linear_id = tree.insert_type(mir::Type::Array {
             element: i32_id,
             length: 4,
             copyability: mir::Copyability::Linear,

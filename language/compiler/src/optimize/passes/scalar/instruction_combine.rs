@@ -8,6 +8,7 @@ use destack_workspace::FloatMathPolicy;
 
 use crate::ConstantMap;
 use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
+use crate::optimize::common::{constant_from_global, fold_binary, fold_cast, fold_unary};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
@@ -724,7 +725,7 @@ fn update_constant_map(
             block_constants.insert(destination, value.clone());
         }
         mir::Instruction::GlobalConst { global, .. } => {
-            if let Some(constant) = crate::optimize::common::constant_from_global(*global, tree) {
+            if let Some(constant) = constant_from_global(*global, tree) {
                 block_constants.insert(destination, constant);
             } else {
                 block_constants.remove(destination);
@@ -740,7 +741,7 @@ fn update_constant_map(
             let left = constant_for(*left);
             let right = constant_for(*right);
             if let (Some(left), Some(right)) = (left, right)
-                && let Some(result) = crate::optimize::common::fold_binary(*operator, left, right)
+                && let Some(result) = fold_binary(*operator, left, right)
             {
                 block_constants.insert(destination, result);
             } else {
@@ -753,7 +754,7 @@ fn update_constant_map(
             // fold unary constants when possible
             let argument = constant_for(*argument);
             if let Some(argument) = argument
-                && let Some(result) = crate::optimize::common::fold_unary(*operator, argument)
+                && let Some(result) = fold_unary(*operator, argument)
             {
                 block_constants.insert(destination, result);
             } else {
@@ -769,7 +770,7 @@ fn update_constant_map(
             // fold casts when possible
             let argument = constant_for(*argument);
             if let Some(argument) = argument
-                && let Some(result) = crate::optimize::common::fold_cast(
+                && let Some(result) = fold_cast(
                     *operator,
                     argument,
                     *to_type,
@@ -1008,14 +1009,14 @@ mod tests {
     fn test_simplify_add_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         // v2 is substituted with v0, the iadd is removed
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1029,13 +1030,13 @@ block0(v0: i32):
     fn test_simplify_zero_add() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iadd v1, v0
+    v1: i32 = iconst 0i32
+    v2: i32 = iadd v1, v0
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1049,13 +1050,13 @@ block0(v0: i32):
     fn test_simplify_mul_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = imul v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = imul v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -1069,14 +1070,14 @@ block0(v0: i32):
     fn test_simplify_mul_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = imul v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = imul v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 0i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
 
@@ -1090,14 +1091,14 @@ block0(v0: i32):
     fn test_simplify_and_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = band v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = band v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 0i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
 
@@ -1111,13 +1112,13 @@ block0(v0: i32):
     fn test_simplify_or_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = bor v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = bor v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1131,13 +1132,13 @@ block0(v0: i32):
     fn test_simplify_xor_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = bxor v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = bxor v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1152,14 +1153,14 @@ block0(v0: i32):
         // use a constant so we have type entry
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = isub v0, v0
+    v0: i32 = iconst 42i32
+    v1: i32 = isub v0, v0
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst 0i32
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst 0i32
     return v1
 }"#;
 
@@ -1174,14 +1175,14 @@ block0:
         // use a constant so we have type entry
         let input = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = bxor v0, v0
+    v0: i32 = iconst 42i32
+    v1: i32 = bxor v0, v0
     return v1
 }"#;
         let expected = r#"function @test() -> i32 {
 block0:
-    v0 = iconst 42i32
-    v1 = iconst 0i32
+    v0: i32 = iconst 42i32
+    v1: i32 = iconst 0i32
     return v1
 }"#;
 
@@ -1195,7 +1196,7 @@ block0:
     fn test_preserve_sub_self_without_type_entry() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = isub v0, v0
+    v1: i32 = isub v0, v0
     return v1
 }"#;
         // no simplification because we don't know the type of v0
@@ -1210,7 +1211,7 @@ block0(v0: i32):
     fn test_simplify_and_self() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = band v0, v0
+    v1: i32 = band v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
@@ -1228,7 +1229,7 @@ block0(v0: i32):
     fn test_simplify_or_self() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = bor v0, v0
+    v1: i32 = bor v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
@@ -1246,12 +1247,12 @@ block0(v0: i32):
     fn test_simplify_eq_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = icmp_eq v0, v0
+    v1: bool = icmp_eq v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst true
+    v1: bool = iconst true
     return v1
 }"#;
 
@@ -1265,12 +1266,12 @@ block0(v0: i32):
     fn test_simplify_ne_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = icmp_ne v0, v0
+    v1: bool = icmp_ne v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst false
+    v1: bool = iconst false
     return v1
 }"#;
 
@@ -1284,12 +1285,12 @@ block0(v0: i32):
     fn test_simplify_lt_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = icmp_slt v0, v0
+    v1: bool = icmp_slt v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst false
+    v1: bool = iconst false
     return v1
 }"#;
 
@@ -1303,12 +1304,12 @@ block0(v0: i32):
     fn test_simplify_le_self() {
         let input = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = icmp_sle v0, v0
+    v1: bool = icmp_sle v0, v0
     return v1
 }"#;
         let expected = r#"function @test(v0: i32) -> bool {
 block0(v0: i32):
-    v1 = iconst true
+    v1: bool = iconst true
     return v1
 }"#;
 
@@ -1322,13 +1323,13 @@ block0(v0: i32):
     fn test_simplify_shl_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = ishl v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = ishl v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1342,14 +1343,14 @@ block0(v0: i32):
     fn test_simplify_zero_shl() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = ishl v1, v0
+    v1: i32 = iconst 0i32
+    v2: i32 = ishl v1, v0
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iconst 0i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
 
@@ -1363,13 +1364,13 @@ block0(v0: i32):
     fn test_simplify_div_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = sdiv v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = sdiv v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -1383,14 +1384,14 @@ block0(v0: i32):
     fn test_simplify_rem_one() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = srem v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = srem v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iconst 0i32
+    v1: i32 = iconst 1i32
+    v2: i32 = iconst 0i32
     return v2
 }"#;
 
@@ -1404,8 +1405,8 @@ block0(v0: i32):
     fn test_preserve_non_simplifiable() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 5i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 5i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
 
@@ -1419,17 +1420,17 @@ block0(v0: i32):
     fn test_apply_chained_simplifications() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iadd v0, v1
-    v3 = iconst 1i32
-    v4 = imul v2, v3
+    v1: i32 = iconst 0i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = iconst 1i32
+    v4: i32 = imul v2, v3
     return v4
 }"#;
         // v2 substituted to v0, v4 substituted to v2 (which is v0)
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v3 = iconst 1i32
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 1i32
     return v0
 }"#;
 
@@ -1443,19 +1444,19 @@ block0(v0: i32):
     fn test_propagate_substitutions() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = iadd v0, v1
-    v3 = iconst 5i32
-    v4 = iadd v2, v3
+    v1: i32 = iconst 0i32
+    v2: i32 = iadd v0, v1
+    v3: i32 = iconst 5i32
+    v4: i32 = iadd v2, v3
     return v4
 }"#;
         // v2 -> v0, so v4 = iadd v0, v3
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v3 = iconst 5i32
-    v4 = iadd v0, v3
-    return v4
+    v1: i32 = iconst 0i32
+    v2: i32 = iconst 5i32
+    v3: i32 = iadd v0, v2
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1468,13 +1469,13 @@ block0(v0: i32):
     fn test_simplify_and_all_ones() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst -1i32
-    v2 = band v0, v1
+    v1: i32 = iconst -1i32
+    v2: i32 = band v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst -1i32
+    v1: i32 = iconst -1i32
     return v0
 }"#;
 
@@ -1488,14 +1489,14 @@ block0(v0: i32):
     fn test_simplify_or_all_ones() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst -1i32
-    v2 = bor v0, v1
+    v1: i32 = iconst -1i32
+    v2: i32 = bor v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst -1i32
-    v2 = iconst -1i32
+    v1: i32 = iconst -1i32
+    v2: i32 = iconst -1i32
     return v2
 }"#;
 
@@ -1509,13 +1510,13 @@ block0(v0: i32):
     fn test_simplify_ashr_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = sshr v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = sshr v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1529,13 +1530,13 @@ block0(v0: i32):
     fn test_simplify_lshr_zero() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
-    v2 = ushr v0, v1
+    v1: i32 = iconst 0i32
+    v2: i32 = ushr v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 0i32
+    v1: i32 = iconst 0i32
     return v0
 }"#;
 
@@ -1549,13 +1550,13 @@ block0(v0: i32):
     fn test_simplify_udiv_one() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 1u32
-    v2 = udiv v0, v1
+    v1: u32 = iconst 1u32
+    v2: u32 = udiv v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 1u32
+    v1: u32 = iconst 1u32
     return v0
 }"#;
 
@@ -1569,14 +1570,14 @@ block0(v0: u32):
     fn test_simplify_urem_one() {
         let input = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 1u32
-    v2 = urem v0, v1
+    v1: u32 = iconst 1u32
+    v2: u32 = urem v0, v1
     return v2
 }"#;
         let expected = r#"function @test(v0: u32) -> u32 {
 block0(v0: u32):
-    v1 = iconst 1u32
-    v2 = iconst 0u32
+    v1: u32 = iconst 1u32
+    v2: u32 = iconst 0u32
     return v2
 }"#;
 
@@ -1590,14 +1591,14 @@ block0(v0: u32):
     fn test_simplify_fadd_zero() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 0.0f32
-    v2 = fadd v0, v1
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fadd v0, v1
     return v2
 }"#;
         // 0.0f32 becomes 0f32 after roundtrip
         let expected = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 0f32
+    v1: f32 = iconst 0f32
     return v0
 }"#;
 
@@ -1617,14 +1618,14 @@ block0(v0: f32):
     fn test_simplify_fmul_one() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 1.0f32
-    v2 = fmul v0, v1
+    v1: f32 = iconst 1.0f32
+    v2: f32 = fmul v0, v1
     return v2
 }"#;
         // 1.0f32 becomes 1f32 after roundtrip
         let expected = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 1f32
+    v1: f32 = iconst 1f32
     return v0
 }"#;
 
@@ -1644,14 +1645,14 @@ block0(v0: f32):
     fn test_simplify_fdiv_one() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 1.0f32
-    v2 = fdiv v0, v1
+    v1: f32 = iconst 1.0f32
+    v2: f32 = fdiv v0, v1
     return v2
 }"#;
         // 1.0f32 becomes 1f32 after roundtrip
         let expected = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 1f32
+    v1: f32 = iconst 1f32
     return v0
 }"#;
 
@@ -1671,14 +1672,14 @@ block0(v0: f32):
     fn test_simplify_fsub_zero() {
         let input = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 0.0f32
-    v2 = fsub v0, v1
+    v1: f32 = iconst 0.0f32
+    v2: f32 = fsub v0, v1
     return v2
 }"#;
         // 0.0f32 becomes 0f32 after roundtrip
         let expected = r#"function @test(v0: f32) -> f32 {
 block0(v0: f32):
-    v1 = iconst 0f32
+    v1: f32 = iconst 0f32
     return v0
 }"#;
 
@@ -1698,13 +1699,13 @@ block0(v0: f32):
     fn test_simplify_double_not() {
         let input = r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = bnot v0
-    v2 = bnot v1
+    v1: bool = bnot v0
+    v2: bool = bnot v1
     return v2
 }"#;
         let expected = r#"function @test(v0: bool) -> bool {
 block0(v0: bool):
-    v1 = bnot v0
+    v1: bool = bnot v0
     return v0
 }"#;
 
@@ -1718,13 +1719,13 @@ block0(v0: bool):
     fn test_simplify_field_get_tuple() {
         let input = r#"function @test(v0: i32, v1: i64) -> i32 {
 block0(v0: i32, v1: i64):
-    v2 = tuple (i32, i64) (v0, v1)
-    v3 = field.get v2, 0
+    v2: (i32, i64) = tuple (i32, i64) (v0, v1)
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
         let expected = r#"function @test(v0: i32, v1: i64) -> i32 {
 block0(v0: i32, v1: i64):
-    v2 = tuple (i32, i64) (v0, v1)
+    v2: (i32, i64) = tuple (i32, i64) (v0, v1)
     return v0
 }"#;
 
@@ -1738,13 +1739,13 @@ block0(v0: i32, v1: i64):
     fn test_simplify_field_get_tuple_second() {
         let input = r#"function @test(v0: i32, v1: i64) -> i64 {
 block0(v0: i32, v1: i64):
-    v2 = tuple (i32, i64) (v0, v1)
-    v3 = field.get v2, 1
+    v2: (i32, i64) = tuple (i32, i64) (v0, v1)
+    v3: i64 = field.get v2, 1
     return v3
 }"#;
         let expected = r#"function @test(v0: i32, v1: i64) -> i64 {
 block0(v0: i32, v1: i64):
-    v2 = tuple (i32, i64) (v0, v1)
+    v2: (i32, i64) = tuple (i32, i64) (v0, v1)
     return v1
 }"#;
 
@@ -1759,19 +1760,19 @@ block0(v0: i32, v1: i64):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = struct @Point (v0, v1)
-    v3 = field.get v2, 0
-    v4 = field.get v2, 1
-    v5 = iadd v3, v4
+    v2: @Point = struct @Point (v0, v1)
+    v3: i32 = field.get v2, 0
+    v4: i32 = field.get v2, 1
+    v5: i32 = iadd v3, v4
     return v5
 }"#;
         // both field.get replaced with direct operands
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = struct @Point (v0, v1)
-    v5 = iadd v0, v1
-    return v5
+    v2: @Point = struct @Point (v0, v1)
+    v3: i32 = iadd v0, v1
+    return v3
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1784,16 +1785,16 @@ block0(v0: i32, v1: i32):
     fn test_simplify_element_get_array() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
-    v5 = element.get v3, v4
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
+    v5: i32 = element.get v3, v4
     return v5
 }"#;
         // element.get with constant index 1 replaced with v1
         let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = array [i32; 3] (v0, v1, v2)
-    v4 = iconst 1i64
+    v3: [i32; 3] = array [i32; 3] (v0, v1, v2)
+    v4: i64 = iconst 1i64
     return v1
 }"#;
 
@@ -1807,8 +1808,8 @@ block0(v0: i32, v1: i32, v2: i32):
     fn test_preserve_element_get_non_constant_index() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i64) -> i32 {
 block0(v0: i32, v1: i32, v2: i64):
-    v3 = array [i32; 2] (v0, v1)
-    v4 = element.get v3, v2
+    v3: [i32; 2] = array [i32; 2] (v0, v1)
+    v4: i32 = element.get v3, v2
     return v4
 }"#;
         // v2 is not a constant, cannot simplify
@@ -1822,7 +1823,7 @@ block0(v0: i32, v1: i32, v2: i64):
     fn test_preserve_field_get_unknown_source() {
         let input = r#"function @test(v0: (i32, i32)) -> i32 {
 block0(v0: (i32, i32)):
-    v1 = field.get v0, 0
+    v1: i32 = field.get v0, 0
     return v1
 }"#;
         // v0 is a parameter, not from tuple/struct instruction
@@ -1837,15 +1838,15 @@ block0(v0: (i32, i32)):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32) -> i32 {
 block0(v0: @Point, v1: i32):
-    v2 = field.set v0, 0, v1
-    v3 = field.get v2, 0
+    v2: @Point = field.set v0, 0, v1
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
         // field.get of the just-set field returns the inserted value
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32) -> i32 {
 block0(v0: @Point, v1: i32):
-    v2 = field.set v0, 0, v1
+    v2: @Point = field.set v0, 0, v1
     return v1
 }"#;
 
@@ -1860,17 +1861,17 @@ block0(v0: @Point, v1: i32):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = struct @Point (v0, v1)
-    v4 = field.set v3, 0, v2
-    v5 = field.get v4, 1
+    v3: @Point = struct @Point (v0, v1)
+    v4: @Point = field.set v3, 0, v2
+    v5: i32 = field.get v4, 1
     return v5
 }"#;
         // field.get of different field passes through to original
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = struct @Point (v0, v1)
-    v4 = field.set v3, 0, v2
+    v3: @Point = struct @Point (v0, v1)
+    v4: @Point = field.set v3, 0, v2
     return v1
 }"#;
 
@@ -1885,21 +1886,21 @@ block0(v0: i32, v1: i32, v2: i32):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
 block0(v0: @Point, v1: i32, v2: i32):
-    v3 = field.set v0, 0, v1
-    v4 = field.set v3, 1, v2
-    v5 = field.get v4, 0
-    v6 = field.get v4, 1
-    v7 = iadd v5, v6
+    v3: @Point = field.set v0, 0, v1
+    v4: @Point = field.set v3, 1, v2
+    v5: i32 = field.get v4, 0
+    v6: i32 = field.get v4, 1
+    v7: i32 = iadd v5, v6
     return v7
 }"#;
         // v5 -> v1 (from first set), v6 -> v2 (from second set)
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
 block0(v0: @Point, v1: i32, v2: i32):
-    v3 = field.set v0, 0, v1
-    v4 = field.set v3, 1, v2
-    v7 = iadd v1, v2
-    return v7
+    v3: @Point = field.set v0, 0, v1
+    v4: @Point = field.set v3, 1, v2
+    v5: i32 = iadd v1, v2
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1912,16 +1913,16 @@ block0(v0: @Point, v1: i32, v2: i32):
     fn test_simplify_element_get_element_set_same_index() {
         let input = r#"function @test(v0: [i32; 3], v1: i32) -> i32 {
 block0(v0: [i32; 3], v1: i32):
-    v2 = iconst 1i64
-    v3 = element.set v0, v2, v1
-    v4 = element.get v3, v2
+    v2: i64 = iconst 1i64
+    v3: [i32; 3] = element.set v0, v2, v1
+    v4: i32 = element.get v3, v2
     return v4
 }"#;
         // element.get of the just-set element returns the inserted value
         let expected = r#"function @test(v0: [i32; 3], v1: i32) -> i32 {
 block0(v0: [i32; 3], v1: i32):
-    v2 = iconst 1i64
-    v3 = element.set v0, v2, v1
+    v2: i64 = iconst 1i64
+    v3: [i32; 3] = element.set v0, v2, v1
     return v1
 }"#;
 
@@ -1935,20 +1936,20 @@ block0(v0: [i32; 3], v1: i32):
     fn test_simplify_element_get_element_set_different_index() {
         let input = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = array [i32; 2] (v0, v1)
-    v4 = iconst 0i64
-    v5 = element.set v3, v4, v2
-    v6 = iconst 1i64
-    v7 = element.get v5, v6
+    v3: [i32; 2] = array [i32; 2] (v0, v1)
+    v4: i64 = iconst 0i64
+    v5: [i32; 2] = element.set v3, v4, v2
+    v6: i64 = iconst 1i64
+    v7: i32 = element.get v5, v6
     return v7
 }"#;
         // element.get of different index passes through to original
         let expected = r#"function @test(v0: i32, v1: i32, v2: i32) -> i32 {
 block0(v0: i32, v1: i32, v2: i32):
-    v3 = array [i32; 2] (v0, v1)
-    v4 = iconst 0i64
-    v5 = element.set v3, v4, v2
-    v6 = iconst 1i64
+    v3: [i32; 2] = array [i32; 2] (v0, v1)
+    v4: i64 = iconst 0i64
+    v5: [i32; 2] = element.set v3, v4, v2
+    v6: i64 = iconst 1i64
     return v1
 }"#;
 
@@ -1962,8 +1963,8 @@ block0(v0: i32, v1: i32, v2: i32):
     fn test_preserve_element_get_element_set_dynamic_index() {
         let input = r#"function @test(v0: [i32; 3], v1: i32, v2: i64, v3: i64) -> i32 {
 block0(v0: [i32; 3], v1: i32, v2: i64, v3: i64):
-    v4 = element.set v0, v2, v1
-    v5 = element.get v4, v3
+    v4: [i32; 3] = element.set v0, v2, v1
+    v5: i32 = element.get v4, v3
     return v5
 }"#;
         // dynamic indices cannot be compared
@@ -1977,9 +1978,9 @@ block0(v0: [i32; 3], v1: i32, v2: i64, v3: i64):
     fn test_preserve_element_get_negative_index() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = array [i32; 2] (v0, v1)
-    v3 = iconst -1i64
-    v4 = element.get v2, v3
+    v2: [i32; 2] = array [i32; 2] (v0, v1)
+    v3: i64 = iconst -1i64
+    v4: i32 = element.get v2, v3
     return v4
 }"#;
         // negative index must not be optimized
@@ -1994,17 +1995,17 @@ block0(v0: i32, v1: i32):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
 block0(v0: @Point, v1: i32, v2: i32):
-    v3 = field.set v0, 0, v1
-    v4 = field.set v3, 0, v2
-    v5 = field.get v4, 0
+    v3: @Point = field.set v0, 0, v1
+    v4: @Point = field.set v3, 0, v2
+    v5: i32 = field.get v4, 0
     return v5
 }"#;
         // second set overwrites first, get returns v2
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: i32, v2: i32) -> i32 {
 block0(v0: @Point, v1: i32, v2: i32):
-    v3 = field.set v0, 0, v1
-    v4 = field.set v3, 0, v2
+    v3: @Point = field.set v0, 0, v1
+    v4: @Point = field.set v3, 0, v2
     return v2
 }"#;
 
@@ -2018,13 +2019,13 @@ block0(v0: @Point, v1: i32, v2: i32):
     fn test_simplify_field_get_field_set_tuple() {
         let input = r#"function @test(v0: (i32, i64), v1: i32) -> i32 {
 block0(v0: (i32, i64), v1: i32):
-    v2 = field.set v0, 0, v1
-    v3 = field.get v2, 0
+    v2: (i32, i64) = field.set v0, 0, v1
+    v3: i32 = field.get v2, 0
     return v3
 }"#;
         let expected = r#"function @test(v0: (i32, i64), v1: i32) -> i32 {
 block0(v0: (i32, i64), v1: i32):
-    v2 = field.set v0, 0, v1
+    v2: (i32, i64) = field.set v0, 0, v1
     return v1
 }"#;
 
@@ -2038,18 +2039,18 @@ block0(v0: (i32, i64), v1: i32):
     fn test_simplify_element_set_overwrite_same_index() {
         let input = r#"function @test(v0: [i32; 2], v1: i32, v2: i32) -> i32 {
 block0(v0: [i32; 2], v1: i32, v2: i32):
-    v3 = iconst 0i64
-    v4 = element.set v0, v3, v1
-    v5 = element.set v4, v3, v2
-    v6 = element.get v5, v3
+    v3: i64 = iconst 0i64
+    v4: [i32; 2] = element.set v0, v3, v1
+    v5: [i32; 2] = element.set v4, v3, v2
+    v6: i32 = element.get v5, v3
     return v6
 }"#;
         // second set at index 0 overwrites first, get returns v2
         let expected = r#"function @test(v0: [i32; 2], v1: i32, v2: i32) -> i32 {
 block0(v0: [i32; 2], v1: i32, v2: i32):
-    v3 = iconst 0i64
-    v4 = element.set v0, v3, v1
-    v5 = element.set v4, v3, v2
+    v3: i64 = iconst 0i64
+    v4: [i32; 2] = element.set v0, v3, v1
+    v5: [i32; 2] = element.set v4, v3, v2
     return v2
 }"#;
 
@@ -2063,10 +2064,10 @@ block0(v0: [i32; 2], v1: i32, v2: i32):
     fn test_preserve_element_set_negative_index() {
         let input = r#"function @test(v0: [i32; 2], v1: i32) -> i32 {
 block0(v0: [i32; 2], v1: i32):
-    v2 = iconst -1i64
-    v3 = element.set v0, v2, v1
-    v4 = iconst 0i64
-    v5 = element.get v3, v4
+    v2: i64 = iconst -1i64
+    v3: [i32; 2] = element.set v0, v2, v1
+    v4: i64 = iconst 0i64
+    v5: i32 = element.get v3, v4
     return v5
 }"#;
         // set index is negative, cannot safely compare
@@ -2081,8 +2082,8 @@ block0(v0: [i32; 2], v1: i32):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = struct @Point (v0, v1)
-    v3 = field.get v2, 5
+    v2: @Point = struct @Point (v0, v1)
+    v3: i32 = field.get v2, 5
     return v3
 }"#;
         // index 5 is out of bounds for 2-field struct
@@ -2096,9 +2097,9 @@ block0(v0: i32, v1: i32):
     fn test_preserve_element_get_out_of_bounds() {
         let input = r#"function @test(v0: i32, v1: i32) -> i32 {
 block0(v0: i32, v1: i32):
-    v2 = array [i32; 2] (v0, v1)
-    v3 = iconst 10i64
-    v4 = element.get v2, v3
+    v2: [i32; 2] = array [i32; 2] (v0, v1)
+    v3: i64 = iconst 10i64
+    v4: i32 = element.get v2, v3
     return v4
 }"#;
         // index 10 is out of bounds for 2-element array
@@ -2113,14 +2114,14 @@ block0(v0: i32, v1: i32):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point) -> @Point {
 block0(v0: @Point):
-    v1 = field.get v0, 0
-    v2 = field.set v0, 0, v1
+    v1: i32 = field.get v0, 0
+    v2: @Point = field.set v0, 0, v1
     return v2
 }"#;
         let expected = r#"type @Point = { i32, i32 }
 function @test(v0: @Point) -> @Point {
 block0(v0: @Point):
-    v1 = field.get v0, 0
+    v1: i32 = field.get v0, 0
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -2133,15 +2134,15 @@ block0(v0: @Point):
     fn test_identity_element_set() {
         let input = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
 block0(v0: [i32; 3]):
-    v1 = iconst 1i64
-    v2 = element.get v0, v1
-    v3 = element.set v0, v1, v2
+    v1: i64 = iconst 1i64
+    v2: i32 = element.get v0, v1
+    v3: [i32; 3] = element.set v0, v1, v2
     return v3
 }"#;
         let expected = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
 block0(v0: [i32; 3]):
-    v1 = iconst 1i64
-    v2 = element.get v0, v1
+    v1: i64 = iconst 1i64
+    v2: i32 = element.get v0, v1
     return v0
 }"#;
         let mut test = TestProgram::new(input);
@@ -2155,8 +2156,8 @@ block0(v0: [i32; 3]):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point) -> @Point {
 block0(v0: @Point):
-    v1 = field.get v0, 0
-    v2 = field.set v0, 1, v1
+    v1: i32 = field.get v0, 0
+    v2: @Point = field.set v0, 1, v1
     return v2
 }"#;
         // get from index 0, set at index 1 - not identity
@@ -2171,8 +2172,8 @@ block0(v0: @Point):
         let input = r#"type @Point = { i32, i32 }
 function @test(v0: @Point, v1: @Point) -> @Point {
 block0(v0: @Point, v1: @Point):
-    v2 = field.get v0, 0
-    v3 = field.set v1, 0, v2
+    v2: i32 = field.get v0, 0
+    v3: @Point = field.set v1, 0, v2
     return v3
 }"#;
         // get from v0, set on v1 - not identity
@@ -2186,10 +2187,10 @@ block0(v0: @Point, v1: @Point):
     fn test_non_identity_element_set_different_index() {
         let input = r#"function @test(v0: [i32; 3]) -> [i32; 3] {
 block0(v0: [i32; 3]):
-    v1 = iconst 0i64
-    v2 = iconst 1i64
-    v3 = element.get v0, v1
-    v4 = element.set v0, v2, v3
+    v1: i64 = iconst 0i64
+    v2: i64 = iconst 1i64
+    v3: i32 = element.get v0, v1
+    v4: [i32; 3] = element.set v0, v2, v3
     return v4
 }"#;
         // get from index 0, set at index 1 - not identity
@@ -2203,9 +2204,9 @@ block0(v0: [i32; 3]):
     fn test_non_identity_element_set_different_array() {
         let input = r#"function @test(v0: [i32; 3], v1: [i32; 3]) -> [i32; 3] {
 block0(v0: [i32; 3], v1: [i32; 3]):
-    v2 = iconst 0i64
-    v3 = element.get v0, v2
-    v4 = element.set v1, v2, v3
+    v2: i64 = iconst 0i64
+    v3: i32 = element.get v0, v2
+    v4: [i32; 3] = element.set v1, v2, v3
     return v4
 }"#;
         // get from v0, set on v1 - not identity
@@ -2219,8 +2220,8 @@ block0(v0: [i32; 3], v1: [i32; 3]):
     fn test_non_identity_element_set_dynamic_index() {
         let input = r#"function @test(v0: [i32; 3], v1: i64, v2: i64) -> [i32; 3] {
 block0(v0: [i32; 3], v1: i64, v2: i64):
-    v3 = element.get v0, v1
-    v4 = element.set v0, v2, v3
+    v3: i32 = element.get v0, v1
+    v4: [i32; 3] = element.set v0, v2, v3
     return v4
 }"#;
         // dynamic indices v1 and v2 - cannot prove equal

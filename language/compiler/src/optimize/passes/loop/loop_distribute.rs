@@ -765,22 +765,22 @@ mod tests {
     fn test_loop_distribute_splits_stores() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = element.addr v2, v7 -> ref<raw addrspace(stack) i32>
-    v11 = iconst 2i32
+    v10: ref<raw addrspace(stack) i32> = element.addr v2, v7
+    v11: i32 = iconst 2i32
     store v10, v11
-    v12 = iadd v7, v4
+    v12: u32 = iadd v7, v4
     jump block1(v12)
 block3:
     return
@@ -788,31 +788,31 @@ block3:
 
         let expected = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block4(v3)
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v12 = iadd v7, v4
-    jump block1(v12)
+    v10: u32 = iadd v7, v4
+    jump block1(v10)
 block3:
     return
-block4(v13: u32):
-    v14 = icmp_ult v13, v0
-    branch v14, block5(v13), block3
-block5(v15: u32):
-    v18 = element.addr v2, v15 -> ref<raw addrspace(stack) i32>
-    v19 = iconst 2i32
-    store v18, v19
-    v20 = iadd v15, v4
-    jump block4(v20)
+block4(v11: u32):
+    v12: bool = icmp_ult v11, v0
+    branch v12, block5(v11), block3
+block5(v13: u32):
+    v14: ref<raw addrspace(stack) i32> = element.addr v2, v13
+    v15: i32 = iconst 2i32
+    store v14, v15
+    v16: u32 = iadd v13, v4
+    jump block4(v16)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -825,21 +825,21 @@ block5(v15: u32):
     fn test_loop_distribute_skips_aliasing() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v10 = iconst 2i32
+    v9: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v10: i32 = iconst 2i32
     store v9, v10
-    v11 = iadd v6, v3
+    v11: u32 = iadd v6, v3
     jump block1(v11)
 block3:
     return
@@ -855,19 +855,19 @@ block3:
     fn test_loop_distribute_skips_side_effects() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
     call @touch(v6) -> fn(u32) -> void
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = iadd v6, v3
+    v9: u32 = iadd v6, v3
     jump block1(v9)
 block3:
     return
@@ -887,24 +887,24 @@ block0(v0: u32):
     fn test_loop_distribute_splits_load_store_groups() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v4 = iconst 0u32
-    v5 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v4: u32 = iconst 0u32
+    v5: u32 = iconst 1u32
     jump block1(v4)
 block1(v6: u32):
-    v7 = icmp_ult v6, v0
+    v7: bool = icmp_ult v6, v0
     branch v7, block2(v6), block3
 block2(v8: u32):
-    v9 = element.addr v1, v8 -> ref<raw addrspace(stack) i32>
-    v10 = load v9 -> i32
-    v11 = element.addr v2, v8 -> ref<raw addrspace(stack) i32>
+    v9: ref<raw addrspace(stack) i32> = element.addr v1, v8
+    v10: i32 = load v9
+    v11: ref<raw addrspace(stack) i32> = element.addr v2, v8
     store v11, v10
-    v12 = element.addr v3, v8 -> ref<raw addrspace(stack) i32>
-    v13 = iconst 1i32
+    v12: ref<raw addrspace(stack) i32> = element.addr v3, v8
+    v13: i32 = iconst 1i32
     store v12, v13
-    v14 = iadd v8, v5
+    v14: u32 = iadd v8, v5
     jump block1(v14)
 block3:
     return
@@ -912,33 +912,33 @@ block3:
 
         let expected = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v4 = iconst 0u32
-    v5 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v4: u32 = iconst 0u32
+    v5: u32 = iconst 1u32
     jump block1(v4)
 block1(v6: u32):
-    v7 = icmp_ult v6, v0
+    v7: bool = icmp_ult v6, v0
     branch v7, block2(v6), block4(v4)
 block2(v8: u32):
-    v9 = element.addr v1, v8 -> ref<raw addrspace(stack) i32>
-    v10 = load v9 -> i32
-    v11 = element.addr v2, v8 -> ref<raw addrspace(stack) i32>
+    v9: ref<raw addrspace(stack) i32> = element.addr v1, v8
+    v10: i32 = load v9
+    v11: ref<raw addrspace(stack) i32> = element.addr v2, v8
     store v11, v10
-    v14 = iadd v8, v5
-    jump block1(v14)
+    v12: u32 = iadd v8, v5
+    jump block1(v12)
 block3:
     return
-block4(v15: u32):
-    v16 = icmp_ult v15, v0
-    branch v16, block5(v15), block3
-block5(v17: u32):
-    v21 = element.addr v3, v17 -> ref<raw addrspace(stack) i32>
-    v22 = iconst 1i32
-    store v21, v22
-    v23 = iadd v17, v5
-    jump block4(v23)
+block4(v13: u32):
+    v14: bool = icmp_ult v13, v0
+    branch v14, block5(v13), block3
+block5(v15: u32):
+    v16: ref<raw addrspace(stack) i32> = element.addr v3, v15
+    v17: i32 = iconst 1i32
+    store v16, v17
+    v18: u32 = iadd v15, v5
+    jump block4(v18)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -953,18 +953,18 @@ block5(v17: u32):
     local0: i32 ; owned
     local1: i32 ; owned
 block0(v0: u32):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
     jump block1(v1)
 block1(v3: u32):
-    v4 = icmp_ult v3, v0
+    v4: bool = icmp_ult v3, v0
     branch v4, block2(v3), block3
 block2(v5: u32):
-    v6 = iconst 10i32
+    v6: i32 = iconst 10i32
     local.set local0, v6
-    v7 = iconst 20i32
+    v7: i32 = iconst 20i32
     local.set local1, v7
-    v8 = iadd v5, v2
+    v8: u32 = iadd v5, v2
     jump block1(v8)
 block3:
     return
@@ -974,27 +974,27 @@ block3:
     local0: i32 ; owned
     local1: i32 ; owned
 block0(v0: u32):
-    v1 = iconst 0u32
-    v2 = iconst 1u32
+    v1: u32 = iconst 0u32
+    v2: u32 = iconst 1u32
     jump block1(v1)
 block1(v3: u32):
-    v4 = icmp_ult v3, v0
+    v4: bool = icmp_ult v3, v0
     branch v4, block2(v3), block4(v1)
 block2(v5: u32):
-    v6 = iconst 10i32
+    v6: i32 = iconst 10i32
     local.set local0, v6
-    v8 = iadd v5, v2
-    jump block1(v8)
+    v7: u32 = iadd v5, v2
+    jump block1(v7)
 block3:
     return
-block4(v9: u32):
-    v10 = icmp_ult v9, v0
-    branch v10, block5(v9), block3
-block5(v11: u32):
-    v13 = iconst 20i32
-    local.set local1, v13
-    v14 = iadd v11, v2
-    jump block4(v14)
+block4(v8: u32):
+    v9: bool = icmp_ult v8, v0
+    branch v9, block5(v8), block3
+block5(v10: u32):
+    v11: i32 = iconst 20i32
+    local.set local1, v11
+    v12: u32 = iadd v10, v2
+    jump block4(v12)
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -1007,19 +1007,19 @@ block5(v11: u32):
     fn test_loop_distribute_skips_header_load() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = load v1 -> i32
-    v6 = icmp_ult v4, v0
+    v5: i32 = load v1
+    v6: bool = icmp_ult v4, v0
     branch v6, block2(v4), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = iadd v7, v3
+    v10: u32 = iadd v7, v3
     jump block1(v10)
 block3:
     return
@@ -1035,18 +1035,18 @@ block3:
     fn test_loop_distribute_skips_single_group() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = iadd v6, v3
+    v9: u32 = iadd v6, v3
     jump block1(v9)
 block3:
     return
@@ -1062,20 +1062,20 @@ block3:
     fn test_loop_distribute_skips_missing_preheader() {
         let input = r#"function @test(v0: bool, v1: u32) -> void {
 block0(v0: bool, v1: u32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     branch v0, block1(v3), block4(v3)
 block4(v5: u32):
     jump block1(v5)
 block1(v6: u32):
-    v7 = icmp_ult v6, v1
+    v7: bool = icmp_ult v6, v1
     branch v7, block2(v6), block3
 block2(v8: u32):
-    v9 = element.addr v2, v8 -> ref<raw addrspace(stack) i32>
-    v10 = iconst 1i32
+    v9: ref<raw addrspace(stack) i32> = element.addr v2, v8
+    v10: i32 = iconst 1i32
     store v9, v10
-    v11 = iadd v8, v4
+    v11: u32 = iadd v8, v4
     jump block1(v11)
 block3:
     return
@@ -1083,20 +1083,20 @@ block3:
 
         let expected = r#"function @test(v0: bool, v1: u32) -> void {
 block0(v0: bool, v1: u32):
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     branch v0, block2(v3), block1(v3)
 block1(v5: u32):
     jump block2(v5)
 block2(v6: u32):
-    v7 = icmp_ult v6, v1
+    v7: bool = icmp_ult v6, v1
     branch v7, block3(v6), block4
 block3(v8: u32):
-    v9 = element.addr v2, v8 -> ref<raw addrspace(stack) i32>
-    v10 = iconst 1i32
+    v9: ref<raw addrspace(stack) i32> = element.addr v2, v8
+    v10: i32 = iconst 1i32
     store v9, v10
-    v11 = iadd v8, v4
+    v11: u32 = iadd v8, v4
     jump block2(v11)
 block4:
     return
@@ -1112,23 +1112,23 @@ block4:
     fn test_loop_distribute_skips_unassigned_instruction() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iconst 1i32
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: i32 = iconst 1i32
     store v8, v9
-    v10 = element.addr v2, v7 -> ref<raw addrspace(stack) i32>
-    v11 = iconst 2i32
+    v10: ref<raw addrspace(stack) i32> = element.addr v2, v7
+    v11: i32 = iconst 2i32
     store v10, v11
-    v12 = iadd v7, v4
-    v13 = iadd v12, v4
+    v12: u32 = iadd v7, v4
+    v13: u32 = iadd v12, v4
     jump block1(v12)
 block3:
     return
@@ -1144,21 +1144,21 @@ block3:
     fn test_loop_distribute_skips_shared_group_instructions() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v3 = iconst 0u32
-    v4 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v3: u32 = iconst 0u32
+    v4: u32 = iconst 1u32
     jump block1(v3)
 block1(v5: u32):
-    v6 = icmp_ult v5, v0
+    v6: bool = icmp_ult v5, v0
     branch v6, block2(v5), block3
 block2(v7: u32):
-    v8 = element.addr v1, v7 -> ref<raw addrspace(stack) i32>
-    v9 = iadd v7, v4
+    v8: ref<raw addrspace(stack) i32> = element.addr v1, v7
+    v9: u32 = iadd v7, v4
     store v8, v9
-    v10 = element.addr v2, v7 -> ref<raw addrspace(stack) i32>
+    v10: ref<raw addrspace(stack) i32> = element.addr v2, v7
     store v10, v9
-    v11 = iadd v7, v4
+    v11: u32 = iadd v7, v4
     jump block1(v11)
 block3:
     return
@@ -1174,18 +1174,18 @@ block3:
     fn test_loop_distribute_skips_exit_arguments() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3(v4)
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = iadd v6, v3
+    v9: u32 = iadd v6, v3
     jump block1(v9)
 block3(v10: u32):
     return
@@ -1201,20 +1201,20 @@ block3(v10: u32):
     fn test_loop_distribute_skips_multi_block_loop() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block4
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
     jump block3(v6)
 block3(v9: u32):
-    v10 = iadd v9, v3
+    v10: u32 = iadd v9, v3
     jump block1(v10)
 block4:
     return
@@ -1230,18 +1230,18 @@ block4:
     fn test_loop_distribute_skips_non_jump_latch() {
         let input = r#"function @test(v0: u32) -> void {
 block0(v0: u32):
-    v1 = stack.alloc i32 -> ref<raw addrspace(stack) i32>
-    v2 = iconst 0u32
-    v3 = iconst 1u32
+    v1: ref<raw addrspace(stack) i32> = stack.alloc i32
+    v2: u32 = iconst 0u32
+    v3: u32 = iconst 1u32
     jump block1(v2)
 block1(v4: u32):
-    v5 = icmp_ult v4, v0
+    v5: bool = icmp_ult v4, v0
     branch v5, block2(v4), block3
 block2(v6: u32):
-    v7 = element.addr v1, v6 -> ref<raw addrspace(stack) i32>
-    v8 = iconst 1i32
+    v7: ref<raw addrspace(stack) i32> = element.addr v1, v6
+    v8: i32 = iconst 1i32
     store v7, v8
-    v9 = icmp_ult v6, v0
+    v9: bool = icmp_ult v6, v0
     branch v9, block1(v6), block3
 block3:
     return

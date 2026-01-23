@@ -133,12 +133,12 @@ function @logicalAnd(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
     branch v0, block2, block1
 block1:
-    v2 = iconst false
+    v2: bool = iconst false
     jump block3(v2)
 block2:
     jump block3(v1)
-block3(v4: bool):
-    return v4
+block3(v3: bool):
+    return v3
 }"#,
     );
 }
@@ -168,12 +168,12 @@ function @logicalOr(v0: bool, v1: bool) -> bool {
 block0(v0: bool, v1: bool):
     branch v0, block1, block2
 block1:
-    v2 = iconst true
+    v2: bool = iconst true
     jump block3(v2)
 block2:
     jump block3(v1)
-block3(v4: bool):
-    return v4
+block3(v3: bool):
+    return v3
 }"#,
     );
 }

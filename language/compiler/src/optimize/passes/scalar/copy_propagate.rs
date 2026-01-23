@@ -489,7 +489,7 @@ block3:
     fn test_preserve_varying_incoming_values() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
+    v1: i32 = iconst 1i32
     branch v0, block1, block2
 block1:
     jump block3(v0)
@@ -562,13 +562,13 @@ block2:
 block0(v0: i32, v1: i32):
     branch v0, block1, block2
 block1:
-    v2 = iconst 10i32
+    v2: i32 = iconst 10i32
     jump block3(v0, v2)
 block2:
-    v3 = iconst 20i32
+    v3: i32 = iconst 20i32
     jump block3(v0, v3)
 block3(v4: i32, v5: i32):
-    v6 = iadd v4, v5
+    v6: i32 = iadd v4, v5
     return v6
 }"#;
 
@@ -577,14 +577,14 @@ block3(v4: i32, v5: i32):
 block0(v0: i32, v1: i32):
     branch v0, block1, block2
 block1:
-    v2 = iconst 10i32
+    v2: i32 = iconst 10i32
     jump block3(v2)
 block2:
-    v3 = iconst 20i32
+    v3: i32 = iconst 20i32
     jump block3(v3)
-block3(v5: i32):
-    v6 = iadd v0, v5
-    return v6
+block3(v4: i32):
+    v5: i32 = iadd v0, v4
+    return v5
 }"#;
 
         let mut test = TestProgram::new(input);
@@ -597,8 +597,8 @@ block3(v5: i32):
     fn test_preserve_without_copies() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
 
@@ -612,7 +612,7 @@ block0(v0: i32):
     fn test_remove_redundant_select() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = select v0, v1, v1
+    v2: i32 = select v0, v1, v1
     return v2
 }"#;
 

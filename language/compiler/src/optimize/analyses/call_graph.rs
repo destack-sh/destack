@@ -199,6 +199,43 @@ enum SignatureType {
         /// Copyability of the struct.
         copyability: mir::Copyability,
     },
+    /// Vector type signature.
+    Vector {
+        /// Element type signature.
+        element: Box<SignatureType>,
+        /// Lane count.
+        lanes: u32,
+        /// Copyability of the vector.
+        copyability: mir::Copyability,
+    },
+    /// Tensor value signature.
+    Tensor {
+        /// Element type signature.
+        element: Box<SignatureType>,
+        /// Tensor shape.
+        shape: Vec<mir::TensorDimension>,
+        /// Tensor layout.
+        layout: mir::TensorLayout,
+        /// Copyability of the tensor.
+        copyability: mir::Copyability,
+    },
+    /// Tensor view signature.
+    TensorReference {
+        /// Reference kind for the view.
+        kind: mir::ReferenceKind,
+        /// Address space for the view.
+        address_space: mir::AddressSpace,
+        /// Mutability for the view.
+        mutability: mir::Mutability,
+        /// Element type signature.
+        element: Box<SignatureType>,
+        /// Tensor shape.
+        shape: Vec<mir::TensorDimension>,
+        /// Tensor layout.
+        layout: mir::TensorLayout,
+        /// Nullability for the view.
+        is_nullable: bool,
+    },
     /// Function pointer type signature.
     FunctionPointer {
         /// Parameter type signatures.
@@ -288,6 +325,43 @@ impl SignatureType {
                     copyability: *copyability,
                 }
             }
+            mir::Type::Vector {
+                element,
+                lanes,
+                copyability,
+            } => SignatureType::Vector {
+                element: Box::new(SignatureType::from_type(tree, *element)),
+                lanes: *lanes,
+                copyability: *copyability,
+            },
+            mir::Type::Tensor {
+                element,
+                shape,
+                layout,
+                copyability,
+            } => SignatureType::Tensor {
+                element: Box::new(SignatureType::from_type(tree, *element)),
+                shape: shape.clone(),
+                layout: layout.clone(),
+                copyability: *copyability,
+            },
+            mir::Type::TensorReference {
+                kind,
+                address_space,
+                mutability,
+                element,
+                shape,
+                layout,
+                is_nullable,
+            } => SignatureType::TensorReference {
+                kind: *kind,
+                address_space: *address_space,
+                mutability: *mutability,
+                element: Box::new(SignatureType::from_type(tree, *element)),
+                shape: shape.clone(),
+                layout: layout.clone(),
+                is_nullable: *is_nullable,
+            },
             mir::Type::FunctionPointer { parameters, result } => {
                 // convert function pointer types recursively
                 let parameters = parameters
@@ -1409,12 +1483,12 @@ mod tests {
         let test = TestProgram::new(
             r#"function @callee() -> i32 {
 block0:
-    v0 = iconst 7i32
+    v0: i32 = iconst 7i32
     return v0
 }
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1481,7 +1555,7 @@ block0:
         let test = TestProgram::new(
             r#"function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
         );
@@ -1556,7 +1630,7 @@ block0(v0: i32):
 }
 function @test(v0: fn(i32) -> i32, v1: i32) -> i32 {
 block0(v0: fn(i32) -> i32, v1: i32):
-    v2 = call.indirect v0(v1) -> fn(i32) -> i32
+    v2: i32 = call.indirect v0(v1) -> fn(i32) -> i32
     return v2
 }"#,
         );
@@ -1581,7 +1655,7 @@ block0(v0: i32):
 }
 function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = call.virtual v0, i32, 1, @callee(v0) -> fn(i32) -> i32
+    v1: i32 = call.virtual v0, i32, 1, @callee(v0) -> fn(i32) -> i32
     return v1
 }"#,
         );
@@ -1613,7 +1687,7 @@ block0(v0: i32):
             0,
             r#"export function @callee() -> i32 {
 block0:
-    v0 = iconst 3i32
+    v0: i32 = iconst 3i32
     return v0
 }"#,
         );
@@ -1624,7 +1698,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1658,7 +1732,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1692,7 +1766,7 @@ block0:
             0,
             r#"function @callee() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#,
         );
@@ -1703,7 +1777,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1746,7 +1820,7 @@ block0(v0: i32):
             r#"extern function @callee(i64) -> i64
 function @test(v0: i64) -> i64 {
 block0(v0: i64):
-    v1 = call @callee(v0) -> fn(i64) -> i64
+    v1: i64 = call @callee(v0) -> fn(i64) -> i64
     return v1
 }"#,
         );
@@ -1783,7 +1857,7 @@ block0(v0: i64):
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1793,7 +1867,7 @@ block0:
             0,
             r#"export function @callee() -> i32 {
 block0:
-    v0 = iconst 9i32
+    v0: i32 = iconst 9i32
     return v0
 }"#,
         );
@@ -1839,7 +1913,7 @@ block0:
             r#"extern function @callee() -> i32
 function @test() -> i32 {
 block0:
-    v0 = call @callee() -> fn() -> i32
+    v0: i32 = call @callee() -> fn() -> i32
     return v0
 }"#,
         );
@@ -1849,7 +1923,7 @@ block0:
             0,
             r#"export function @callee() -> i32 {
 block0:
-    v0 = iconst 1i32
+    v0: i32 = iconst 1i32
     return v0
 }"#,
         );
@@ -1859,7 +1933,7 @@ block0:
             0,
             r#"export function @callee() -> i32 {
 block0:
-    v0 = iconst 2i32
+    v0: i32 = iconst 2i32
     return v0
 }"#,
         );

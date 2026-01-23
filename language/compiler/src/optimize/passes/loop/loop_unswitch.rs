@@ -7,9 +7,10 @@ use crate::optimize::analyses::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
 };
 use crate::optimize::common::{
-    CallsiteHotness, SuccessorArguments, block_execution_counts, block_hotness_from_counts,
-    bool_from_range, build_value_definition_map, clone_loop_blocks, instruction_is_speculatable,
-    instruction_map_with_locals, terminator_arguments_for_successor_checked, terminator_remap,
+    CallsiteHotness, CallsiteHotnessPolicy, SuccessorArguments, block_execution_counts,
+    block_hotness_from_counts, bool_from_range, build_value_definition_map, clone_loop_blocks,
+    instruction_is_speculatable, instruction_map_with_locals,
+    terminator_arguments_for_successor_checked, terminator_remap,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
@@ -254,7 +255,7 @@ struct UnswitchHeuristics<'a> {
     /// Entry count for the function.
     entry_count: u64,
     /// Hotness thresholds to apply.
-    hotness_policy: &'a crate::optimize::common::CallsiteHotnessPolicy,
+    hotness_policy: &'a CallsiteHotnessPolicy,
 }
 
 impl<'a> UnswitchHeuristics<'a> {
@@ -263,7 +264,7 @@ impl<'a> UnswitchHeuristics<'a> {
         function: &mir::Function,
         tree: &mir::NodeTree,
         profile: Option<&mir::ProfileTable>,
-        hotness_policy: &'a crate::optimize::common::CallsiteHotnessPolicy,
+        hotness_policy: &'a CallsiteHotnessPolicy,
     ) -> Self {
         // compute block counts from profile data
         let block_counts = block_execution_counts(function, tree, profile, hotness_policy);
@@ -747,7 +748,7 @@ fn unswitch_loop(
     let condition_value = if let Some(hoisted) = &candidate.hoisted_condition {
         // hoist invariant condition into the preheader
         let mut value_map = hoisted.value_map.clone();
-        let new_value = function.next_value();
+        let new_value = function.next_typed_value_like(hoisted.destination);
         value_map.insert(hoisted.destination, new_value);
         let local_map = HashMap::new();
         let hoisted_inst =
@@ -904,15 +905,15 @@ block9:
     fn test_preserve_variant_condition() {
         let input = r#"function @test(v0: i32, v1: bool) -> void {
 block0(v0: i32, v1: bool):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
-    v4 = iconst 10i32
-    v5 = icmp_slt v3, v4
+    v4: i32 = iconst 10i32
+    v5: bool = icmp_slt v3, v4
     branch v5, block2, block4
 block2:
-    v6 = iconst 1i32
-    v7 = iadd v3, v6
+    v6: i32 = iconst 1i32
+    v7: i32 = iadd v3, v6
     jump block1(v7)
 block4:
     return
@@ -1041,8 +1042,8 @@ block5:
     fn test_preserve_no_loops() {
         let input = r#"function @test(v0: i32) -> i32 {
 block0(v0: i32):
-    v1 = iconst 1i32
-    v2 = iadd v0, v1
+    v1: i32 = iconst 1i32
+    v2: i32 = iadd v0, v1
     return v2
 }"#;
         let mut test = TestProgram::new(input);
@@ -1055,18 +1056,18 @@ block0(v0: i32):
     fn test_unswitch_with_parameters() {
         let input = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     jump block1(v2)
 block1(v3: i32):
     branch v0, block2(v3), block3(v3)
 block2(v4: i32):
-    v5 = iconst 1i32
-    v6 = iadd v4, v5
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v4, v5
     jump block1(v6)
 block3(v7: i32):
-    v8 = iconst 2i32
-    v9 = iadd v7, v8
-    v10 = icmp_slt v9, v1
+    v8: i32 = iconst 2i32
+    v9: i32 = iadd v7, v8
+    v10: bool = icmp_slt v9, v1
     branch v10, block1(v9), block4(v9)
 block4(v11: i32):
     return v11
@@ -1074,18 +1075,18 @@ block4(v11: i32):
         // block parameters are correctly remapped in cloned loop
         let expected = r#"function @test(v0: bool, v1: i32) -> i32 {
 block0(v0: bool, v1: i32):
-    v2 = iconst 0i32
+    v2: i32 = iconst 0i32
     branch v0, block1(v2), block6(v2)
 block1(v3: i32):
     jump block2(v3)
 block2(v4: i32):
-    v5 = iconst 1i32
-    v6 = iadd v4, v5
+    v5: i32 = iconst 1i32
+    v6: i32 = iadd v4, v5
     jump block5(v6)
 block3(v7: i32):
-    v8 = iconst 2i32
-    v9 = iadd v7, v8
-    v10 = icmp_slt v9, v1
+    v8: i32 = iconst 2i32
+    v9: i32 = iadd v7, v8
+    v10: bool = icmp_slt v9, v1
     branch v10, block5(v9), block4(v9)
 block4(v11: i32):
     return v11
@@ -1094,13 +1095,13 @@ block5(v12: i32):
 block6(v13: i32):
     jump block8(v13)
 block7(v14: i32):
-    v15 = iconst 1i32
-    v16 = iadd v14, v15
+    v15: i32 = iconst 1i32
+    v16: i32 = iadd v14, v15
     jump block9(v16)
 block8(v17: i32):
-    v18 = iconst 2i32
-    v19 = iadd v17, v18
-    v20 = icmp_slt v19, v1
+    v18: i32 = iconst 2i32
+    v19: i32 = iadd v17, v18
+    v20: bool = icmp_slt v19, v1
     branch v20, block9(v19), block4(v19)
 block9(v21: i32):
     jump block6(v21)
@@ -1187,7 +1188,7 @@ block5:
 block0(v0: bool):
     jump block1
 block1:
-    v1 = select v0, v0, v0
+    v1: bool = select v0, v0, v0
     branch v1, block2, block3
 block2:
     jump block1
@@ -1197,17 +1198,17 @@ block3:
 
         let expected = r#"function @test(v0: bool) -> void {
 block0(v0: bool):
-    v3 = select v0, v0, v0
-    branch v3, block1, block4
+    v1: bool = select v0, v0, v0
+    branch v1, block1, block4
 block1:
-    v1 = select v0, v0, v0
+    v2: bool = select v0, v0, v0
     jump block2
 block2:
     jump block1
 block3:
     return
 block4:
-    v2 = select v0, v0, v0
+    v3: bool = select v0, v0, v0
     jump block3
 block5:
     jump block4
@@ -1225,7 +1226,7 @@ block5:
         // create a loop with > MAX_LOOP_SIZE (50) instructions
         let mut instructions = String::new();
         for i in 0..60 {
-            instructions.push_str(&format!("    v{} = iconst {}i32\n", i + 10, i));
+            instructions.push_str(&format!("    v{}: i32 = iconst {}i32\n", i + 2, i));
         }
 
         let input = format!(
@@ -1303,7 +1304,7 @@ block10:
     fn test_unswitch_skips_constant_condition() {
         let input = r#"function @test() -> void {
 block0:
-    v0 = iconst true
+    v0: bool = iconst true
     jump block1
 block1:
     branch v0, block2, block3
