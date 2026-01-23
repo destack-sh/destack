@@ -26,7 +26,7 @@ boxed.get() satisfies number;
 > Static value parameters on extensions should be validated.
 
 ```ds
-struct Buffer<T, N: number> { value: T }
+struct Buffer<T, comptime N: number> { value: T }
 
 extension<T, N> for Buffer<T, N> {
     get(): T { return this.value }
@@ -60,7 +60,7 @@ pair.swap() satisfies Pair<string, number>;
 > Extensions inherit default static arguments from target type references.
 
 ```ds
-struct Buffer<T, N: number = 4> { value: T }
+struct Buffer<T, comptime N: number = 4> { value: T }
 
 extension<T, N> for Buffer<T, N> {
     get(): T { return this.value }

@@ -46,7 +46,7 @@ identity<number>("hi");
 > Static value arguments are checked against declared types.
 
 ```ds
-function choose<Flag: boolean>(value: number): number {
+function choose<comptime Flag: boolean>(value: number): number {
     return value
 }
 choose<true>(1);
@@ -60,7 +60,7 @@ choose<1>(1);
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-function choose<Flag: boolean = true>(value: number): number {
+function choose<comptime Flag: boolean = true>(value: number): number {
     return value
 }
 choose(1);
@@ -71,7 +71,7 @@ choose(1);
 > Default static values must satisfy declared types.
 
 ```ds
-function broken<Flag: boolean = 1>(value: number): number {
+function broken<comptime Flag: boolean = 1>(value: number): number {
     return value
 }
 broken(1);

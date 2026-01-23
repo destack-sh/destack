@@ -40,7 +40,7 @@ let value: Box<string> = makeBox();
 > Static value arguments are checked against declared types.
 
 ```ds
-class Buffer<T, N: number> {
+class Buffer<T, comptime N: number> {
     value?: T
 }
 
@@ -55,7 +55,7 @@ buffer satisfies Buffer<string, 4>;
 > Static value arguments must satisfy declared types.
 
 ```ds
-class Buffer<T, N: number> {
+class Buffer<T, comptime N: number> {
     value?: T
 }
 
@@ -86,7 +86,7 @@ value satisfies Box<number>;
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-class Buffer<T, N: number = 4> {
+class Buffer<T, comptime N: number = 4> {
     value?: T
 }
 

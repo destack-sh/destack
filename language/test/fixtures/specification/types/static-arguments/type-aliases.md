@@ -36,7 +36,7 @@ let value: Box<string> = makeBox();
 > Static value arguments are checked against declared types.
 
 ```ds
-type Buffer<T, N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -49,7 +49,7 @@ buffer satisfies Buffer<string, 4>;
 > Static value arguments must be static expressions.
 
 ```ds
-type Buffer<T, N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -63,7 +63,7 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
 > Static value arguments must satisfy declared types.
 
 ```ds
-type Buffer<T, N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -90,7 +90,7 @@ value satisfies Box<number>;
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-type Buffer<T, N: number = 4> = { value: T }
+type Buffer<T, comptime N: number = 4> = { value: T }
 
 declare function makeBuffer(): Buffer<string>;
 
@@ -103,7 +103,7 @@ buffer satisfies Buffer<string, 4>;
 > Static value defaults must be static expressions.
 
 ```ds
-type Buffer<T, N: number = comptime 4> = { value: T }
+type Buffer<T, comptime N: number = comptime 4> = { value: T }
 
 declare function makeBuffer(): Buffer<string>;
 
@@ -259,7 +259,7 @@ let value: Box<string> = makeBox();
 > Static value arguments are checked against declared types.
 
 ```ds
-newtype Buffer<T, N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -272,7 +272,7 @@ buffer satisfies Buffer<string, 4>;
 > Newtype static value arguments must be static expressions.
 
 ```ds
-newtype Buffer<T, N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -286,7 +286,7 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
 > Static value arguments must satisfy declared types.
 
 ```ds
-newtype Buffer<T, N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T }
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -313,7 +313,7 @@ value satisfies Box<number>;
 > Static value arguments fall back to defaults when omitted.
 
 ```ds
-newtype Buffer<T, N: number = 4> = { value: T }
+newtype Buffer<T, comptime N: number = 4> = { value: T }
 
 declare function makeBuffer(): Buffer<string>;
 
