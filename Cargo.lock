@@ -1226,6 +1226,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "destack_platform_test"
+version = "0.51.6"
+dependencies = [
+ "destack_cli",
+ "destack_daemon",
+ "destack_lsp",
+ "destack_source",
+ "destack_workspace",
+ "tokio",
+]
+
+[[package]]
 name = "destack_resolver"
 version = "0.51.6"
 dependencies = [

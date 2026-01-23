@@ -64,10 +64,12 @@ fn test_resolve_cache_location_default() {
 /// Build a dsconfig fixture with a cache setting.
 fn dsconfig_with_cache(cache_dir: &str, config_dir: &str) -> DsConfig {
     // build the dsconfig json payload
-    let mut json = DsConfigJson::default();
-    json.cache = DsConfigCacheJson {
-        dir: Some(cache_dir.to_string()),
-        ..DsConfigCacheJson::default()
+    let json = DsConfigJson {
+        cache: DsConfigCacheJson {
+            dir: Some(cache_dir.to_string()),
+            ..Default::default()
+        },
+        ..Default::default()
     };
 
     // build normalized options from json
